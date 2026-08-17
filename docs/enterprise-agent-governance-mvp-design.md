@@ -112,6 +112,8 @@ RuoYi-Vue-Plus 和 plus-ui 的 MIT 许可证文件必须保留在产品源码与
 
 企业功能不能依赖动态 Cordis runner。动态 runner 的 `node:vm` 不是安全隔离，定义在内存中且重启丢失，不适合作为企业软件分发机制。
 
+T01 在 2026-08-17 证明锁定 Harness `47f943859bef60e4160492346772ded9b24f765a` 尚不能完成上表的树外 Remote 接入：生成器能发现树外 Service，却不能从已安装的 `@deepseek-ai/dsh-typert-protocol` ESM 声明识别 `@Remote`，因而拒绝生成 `/remote` contribution。该行仍是目标架构，不代表当前锁定版本已经可用；主线等待官方通用扩展点和新的锁定 commit，禁止用协议 ambient shim、跨仓库源码 project reference 或复制上游源码绕过。完整证据见 [`t01-technical-spike-blocker.md`](t01-technical-spike-blocker.md)。
+
 ### 3.2 必须新增的能力
 
 | 能力 | 新增所有者 |
@@ -1133,6 +1135,14 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 - Server 的 Controller、DTO、OpenAPI、权限码、migration 和审计 action 必须在同一任务提交，不能留下未保护端点。
 - 管理端页面和对应 Server API 同一纵向任务验收，不能先堆空页面或 mock-only 页面。
 - 任何暂缓项只记录在本文第 2.3 节或产品 backlog，不以未实现按钮、空接口或 TODO 占位进入发行代码。
+
+### 22.4 当前执行状态
+
+| 任务 | 状态 | 实际记录 |
+|---|---|---|
+| T00 | `completed` | 基线与独立提交见 [`t00-baseline-acceptance.md`](t00-baseline-acceptance.md)。 |
+| T01 | `in_progress` | 2026-08-17 首项树外 Typert Remote 刺探未通过，已停止其余刺探和全部依赖任务；证据与解锁条件见 [`t01-technical-spike-blocker.md`](t01-technical-spike-blocker.md)。 |
+| T02-T23 | `pending` | T01 未满足退出条件，不得开始。 |
 
 ## 23. Definition of Done
 
