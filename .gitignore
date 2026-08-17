@@ -2,6 +2,8 @@
 .env
 .env.*
 !.env.example
+!admin-web/.env.development
+!admin-web/.env.production
 secrets/
 deploy/secrets/
 

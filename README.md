@@ -6,7 +6,7 @@ Enterprise Agent Platform 是基于 DeepSeek Harness 构建的企业 Agent 管�
 
 ## 当前阶段
 
-项目处于 MVP 实施准备阶段，尚未包含后台、管理端或 Harness 企业插件代码。编码必须以可执行详细设计为基线，先验证“员工使用企业账号登录后，无需持有模型 API Key 即可调用管理员分配的模型”。
+T00 基线已经完成：仓库包含锁定的 RuoYi-Vue-Plus 后端源码、plus-ui React 管理端源码和独立 Harness 企业插件 workspace；同级 DeepSeek Harness 仍是锁定提交上的只读开发依赖。T01 技术刺探尚未开始，后续编码必须继续以可执行详细设计为基线，先验证“员工使用企业账号登录后，无需持有模型 API Key 即可调用管理员分配的模型”。
 
 ## 文档
 
@@ -53,6 +53,15 @@ macOS/Linux 使用 POSIX shell：
 ```sh
 ./scripts/bootstrap-harness.sh
 ```
+
+首次导入产品上游基线时运行：
+
+```sh
+node scripts/upstream-baseline.mjs verify-locks
+node scripts/upstream-baseline.mjs import
+```
+
+`import` 只允许目标目录不存在时执行，绝不覆盖已进入产品开发的 `backend/` 或 `admin-web/`。日常校验使用 `node scripts/upstream-baseline.mjs verify`；T00 的实际环境、命令和退出证据记录在 [`docs/t00-baseline-acceptance.md`](docs/t00-baseline-acceptance.md)。
 
 本项目不自动跟随官方 `master`。升级时先修改版本锁中的 commit，在干净的 Harness checkout 中检出新 commit，再运行企业登录、模型网关、插件安装、Session 同步和 UI 组合测试；全部通过后，版本锁变更与必要的企业插件适配在同一个 PR 提交。
 

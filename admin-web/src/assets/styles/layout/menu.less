@@ -1,0 +1,95 @@
+﻿.layout-menu-link {
+  width: 100%;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.layout-menu-node {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.layout-menu-node-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  margin-right: 10px;
+  font-size: 15px;
+}
+
+.vue-svg-icon-react {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background-color: currentcolor;
+  vertical-align: -2px;
+  mask: var(--vue-svg-icon-url) no-repeat center / contain;
+  -webkit-mask: var(--vue-svg-icon-url) no-repeat center / contain;
+}
+
+.layout-menu-node-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ant-pro-layout .ant-pro-sider .ant-menu-inline-collapsed .ant-menu-title-content,
+.ant-pro-layout .ant-pro-sider.ant-layout-sider-collapsed .ant-menu-title-content {
+  overflow: hidden;
+}
+
+.ant-pro-layout .ant-pro-sider .ant-menu-inline-collapsed .layout-menu-link,
+.ant-pro-layout .ant-pro-sider.ant-layout-sider-collapsed .layout-menu-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  overflow: hidden;
+  text-align: center;
+}
+
+.ant-pro-layout .ant-pro-sider .ant-menu-inline-collapsed .layout-menu-node,
+.ant-pro-layout .ant-pro-sider.ant-layout-sider-collapsed .layout-menu-node {
+  justify-content: center;
+  width: 100%;
+  overflow: hidden;
+}
+
+.ant-pro-layout .ant-pro-sider .ant-menu-inline-collapsed .layout-menu-node-icon,
+.ant-pro-layout .ant-pro-sider.ant-layout-sider-collapsed .layout-menu-node-icon {
+  width: 100%;
+  margin-right: 0;
+  font-size: 16px;
+}
+
+.ant-pro-layout .ant-pro-sider .ant-menu-inline-collapsed .layout-menu-node-title,
+.ant-pro-layout .ant-pro-sider.ant-layout-sider-collapsed .layout-menu-node-title {
+  width: 0;
+  max-width: 0;
+  opacity: 0;
+}
+
+.ant-pro-layout .ant-pro-sider .ant-layout-sider-children,
+.ant-pro-layout .ant-pro-sider .ant-layout-sider-children > div,
+.ant-pro-layout .ant-pro-sider .ant-pro-sider-menu,
+.ant-pro-layout .ant-pro-sider .ant-menu {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.ant-pro-layout .ant-pro-sider .ant-layout-sider-children::-webkit-scrollbar,
+.ant-pro-layout .ant-pro-sider .ant-layout-sider-children > div::-webkit-scrollbar,
+.ant-pro-layout .ant-pro-sider .ant-pro-sider-menu::-webkit-scrollbar,
+.ant-pro-layout .ant-pro-sider .ant-menu::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}

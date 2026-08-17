@@ -1,0 +1,382 @@
+# 开发环境配置
+server:
+  # 服务器的HTTP端口，默认为8080
+  port: 8080
+  servlet:
+    # 应用的访问路径
+    context-path: /
+  # jetty 配置
+  jetty:
+    # HTTP post内容的最大大小。当值为-1时，默认值为大小是无限的
+    max-http-form-post-size: -1
+    threads:
+      # 最小线程数
+      min: 8
+      # 最大线程数
+      max: 256
+
+captcha:
+  # 是否启用验证码校验
+  enable: true
+  # 验证码类型 math 数组计算 char 字符验证
+  type: math
+  # 数字验证码位数
+  numberLength: 1
+  # 字符验证码长度
+  charLength: 4
+
+# 日志配置
+logging:
+  level:
+    org.dromara: @logging.level@
+    org.springframework: warn
+    org.mybatis.spring.mapper: error
+    org.apache.fury: warn
+  config: classpath:logback-plus.xml
+
+# 用户配置
+user:
+  password:
+    # 密码最大错误次数
+    maxRetryCount: 5
+    # 密码锁定时间（默认10分钟）
+    lockTime: 10
+
+# Spring配置
+spring:
+  application:
+    name: RuoYi-Vue-Plus
+  threads:
+    # 开启虚拟线程 仅jdk21可用
+    virtual:
+      enabled: false
+  task:
+    execution:
+      # 从 springboot 3.5 开始 spring自带线程池
+      # 不再需要 AsyncConfig与ThreadPoolConfig 可直接注入线程池使用
+      thread-name-prefix: async-
+      # 由spring自己初始化线程池
+      mode: force
+  # 资源信息
+  messages:
+    # 国际化资源文件路径
+    basename: i18n/messages
+  profiles:
+    active: @profiles.active@
+  # 文件上传
+  servlet:
+    multipart:
+      # 单个文件大小
+      max-file-size: 10MB
+      # 设置总上传的文件大小
+      max-request-size: 20MB
+  mvc:
+    # 设置静态资源路径 防止所有请求都去查静态资源
+    static-path-pattern: /static/**
+    format:
+      date-time: yyyy-MM-dd HH:mm:ss
+  jackson:
+    serialization:
+      # 格式化输出
+      indent_output: false
+      # 忽略无法转换的对象
+      fail_on_empty_beans: false
+    deserialization:
+      # 允许对象忽略json中不存在的属性
+      fail_on_unknown_properties: false
+
+# Sa-Token配置
+sa-token:
+  # token名称 (同时也是cookie名称)
+  token-name: Authorization
+  # 是否允许同一账号并发登录 (为true时允许一起登录, 为false时新登录挤掉旧登录)
+  is-concurrent: true
+  # 在多人登录同一账号时，是否共用一个token (为true时所有登录共用一个token, 为false时每次登录新建一个token)
+  is-share: false
+  # jwt秘钥
+  jwt-secret-key: abcdefghijklmnopqrstuvwxyz
+
+# security配置
+security:
+  # 排除路径
+  excludes:
+    - /*.html
+    - /**/*.html
+    - /**/*.css
+    - /**/*.js
+    - /favicon.ico
+    - /error
+    - /*/api-docs
+    - /*/api-docs/**
+    - /warm-flow-ui/config
+    - /snail-chat/**
+    - /api/snail/chat/**
+
+# MyBatisPlus配置
+# https://baomidou.com/config/
+mybatis-plus:
+  # 自定义配置 是否全局开启逻辑删除 关闭后 所有逻辑删除功能将失效
+  enableLogicDelete: true
+  # 多包名使用 例如 org.dromara.**.mapper,org.xxx.**.mapper
+  mapperPackage: org.dromara.**.mapper
+  # 对应的 XML 文件位置
+  mapperLocations: classpath*:mapper/**/*Mapper.xml
+  # 实体扫描，多个package用逗号或者分号分隔
+  typeAliasesPackage: org.dromara.**.domain
+  global-config:
+    dbConfig:
+      # 主键类型
+      # AUTO 自增 NONE 空 INPUT 用户输入 ASSIGN_ID 雪花 ASSIGN_UUID 唯一 UUID
+      # 如需改为自增 需要将数据库表全部设置为自增
+      idType: ASSIGN_ID
+
+# 数据加密
+mybatis-encryptor:
+  # 是否开启加密
+  enable: false
+  # 默认加密算法
+  algorithm: BASE64
+  # 编码方式 BASE64/HEX。默认BASE64
+  encode: BASE64
+  # 安全秘钥 对称算法的秘钥 如：AES，SM4
+  password:
+  # 公私钥 非对称算法的公私钥 如：SM2，RSA
+  publicKey:
+  privateKey:
+
+# api接口加密
+api-decrypt:
+  # 是否开启全局接口加密
+  enabled: true
+  # AES 加密头标识
+  headerFlag: encrypt-key
+  # 响应加密公钥 非对称算法的公私钥 如：SM2，RSA 使用者请自行更换
+  # 对应前端解密私钥 MIICdgIBADANBgkqhkiG9w0BAQEFAASCAmAwggJcAgEAAoGBAObq7yrxfvyieZtTjAYyrdvi59tYTXxjO5ajmPCRSXBY9M9wQ1tli297JN6mnY53UJMNyOFNSZVi8WSFoIXjpR87FmvChJlzeN/dZdd3SEs48Ee66XKeSePYqxa8oO5GKDsnajgpsOHKXSeeVSIysiIPS2/WsEqk0In9P4w3RsRFAgMBAAECgYBiMEWwce24SPICnRzuScBpvmsudrbEDIH7BOd0a6LZlcnLJwZNJ7mJlshPsHNQb+WgEf135+BBGEhioPtn0yuTdEuKP4kB9UdYUKiayWCoWhJpesv7sAD4RDClV7dhuV+gcd1AXD+YzyRIPbGm0VC2U+4q8/+UPRpVjqskbLVTgQJBAPRpou7g3S8n4XB527kq0D8I3+ZYwMxZhszwhrCDpJU319+ucmpLVwYIzDmZVeID2QQdUaDfIEViFHu95xDrGiUCQQDx3YOKn3yaEctk/ERVn7hDAyAXUbd8/pv2b24/M/l1ZevlsFem8U4Jk5Mu64t3z3YGJoymEjQmbucwT01iKhehAkEAxlnccsRmfFh/KkqauKE4M4++NTAd9zlInpUsmZ+cN8UEGnF2RTEzRKBrLOt1uWCqBB7PGiE6DVTVjr7FAQPrSQJAT5yeY87DcONSk9cFlzmPqV8p/QME5rvYEnHzVBKDlkUKNPyqnWToTvaoh9U4fyNmsfeWbEOprszqhFhWHG3GgQJAK8+ynmyFhaw63+Hx2KU5zR4hVuQso2IzrEurGxCxybV6mR7VBerb4502+EPx3PmOgxQL+niUFhcMWxcvBFP9+A==
+  publicKey: MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDm6u8q8X78onmbU4wGMq3b4ufbWE18YzuWo5jwkUlwWPTPcENbZYtveyTepp2Od1CTDcjhTUmVYvFkhaCF46UfOxZrwoSZc3jf3WXXd0hLOPBHuulynknj2KsWvKDuRig7J2o4KbDhyl0nnlUiMrIiD0tv1rBKpNCJ/T+MN0bERQIDAQAB
+  # 请求解密私钥 非对称算法的公私钥 如：SM2，RSA 使用者请自行更换
+  # 对应前端加密公钥 MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDvEDuRIOM3oZPWj9Ukoc5pQklR4PFH6/clnjeFqjDLIgDyQvjxhgqAZQA+E9eD6qu6FsXPmK8djcL+nh3cFHz4pX473jDvO3Sve+8yL3VRQ0n2pRgQ2a01MJsy+WwTZCBYWf0VnLRIvANUoWQgy9vz94q7Va44dg7A1/3ICf+xAwIDAQAB
+  privateKey: MIICdwIBADANBgkqhkiG9w0BAQEFAASCAmEwggJdAgEAAoGBAO8QO5Eg4zehk9aP1SShzmlCSVHg8Ufr9yWeN4WqMMsiAPJC+PGGCoBlAD4T14Pqq7oWxc+Yrx2Nwv6eHdwUfPilfjveMO87dK977zIvdVFDSfalGBDZrTUwmzL5bBNkIFhZ/RWctEi8A1ShZCDL2/P3irtVrjh2DsDX/cgJ/7EDAgMBAAECgYEAhNZAQyRDHWZq/45soS5Hw7VRiG21pIE5k22W7G7lLfp3DCaqrYoNy8pTmCruVh7PzVdaE0CEDaf38gNqFCBOT8iTFQiYV3am4W3hsEQM5wmVBeTvCM5P2jsaaBQbqmneRjiZVbs6ha205JSho1Oc85NbaZa8gFVjwZgZWJrbzgECQQD/iZWhkRPtbdeai/Xk7D/eIXKh1Gxid0rWKQq8ikxbaiergn47XzNKrpROVyka3Gn85o7jJphgxp99R3r8sH71AkEA738Dn7xs+I4Y+MLa2EcT78JG3f/VhlWS/ks3qGJ2dfqwS7ntnmf5Q+2Xw+9UcuiK/TxD8K/0inSCkIMeWBOFFwJBAIoTebq3faEJfTqQ7ekojsokIKC4+2epNdLKknaV8/RhQ9Y0yKikJD7yXkiGaDuPZeW1Xvf2XtfL+1niSd5IMBECQDCOOMbe5dzyuj9dCg+FQZZ/dey2XK0Slm22BD/ATrIWtD12IaXXAKNz/Sv9TsrJOLykxkV69wJHIt13p+RFeNsCQGn5XGRn4ZCRVCesJYXyx29MTqkl8sD/gzYcURTZYjHqX2EvtvAyC6gBm9H0EbxmHIi4Oq0tITzklCXj5SpvBEw=
+
+springdoc:
+  api-docs:
+    # 是否开启接口文档
+    enabled: true
+  info:
+    # 标题
+    title: '标题：RuoYi-Vue-Plus后台管理系统_接口文档'
+    # 描述
+    description: '描述：用于管理集团旗下公司的人员信息,具体包括XXX,XXX模块...'
+    # 版本
+    version: '版本号: ${project.version}'
+    # 作者信息
+    contact:
+      name: Lion Li
+      email: crazylionli@163.com
+      url: https://gitee.com/dromara/RuoYi-Vue-Plus
+  #这里定义了两个分组，可定义多个，也可以不定义
+  group-configs:
+    - group: 1.演示模块
+      packages-to-scan: org.dromara.demo
+    - group: 2.通用模块
+      packages-to-scan: org.dromara.web
+    - group: 3.系统模块
+      packages-to-scan: org.dromara.system
+    - group: 4.代码生成模块
+      packages-to-scan: org.dromara.gen
+    - group: 5.工作流模块
+      packages-to-scan: org.dromara.workflow
+
+# 防止XSS攻击
+xss:
+  # 过滤开关
+  enabled: true
+  # 排除链接
+  excludeUrls:
+    - /system/notice
+    - /warm-flow/save-json
+
+--- # 分布式锁 lock4j 全局配置
+lock4j:
+  # 获取分布式锁超时时间，默认为 3000 毫秒
+  acquire-timeout: 3000
+  # 分布式锁的超时时间，默认为 30 秒
+  expire: 30000
+
+--- # Actuator 监控端点的配置项
+management:
+  endpoints:
+    web:
+      exposure:
+        include: '*'
+  endpoint:
+    health:
+      show-details: ALWAYS
+    logfile:
+      external-file: ./logs/sys-console.log
+
+--- # 统一消息推送配置
+message:
+  enabled: true
+  # sse / websocket
+  transport: sse
+  # 统一访问路径
+  path: /resource/message
+  # websocket 允许的跨域来源
+  allowedOrigins: '*'
+  # SSE 连接超时时间，单位毫秒
+  sse-timeout: 86400000
+  # 本地连接心跳检测间隔，单位秒
+  heartbeat-interval: 60
+  # WebSocket 单次发送超时时间，单位毫秒
+  web-socket-send-time-limit: 10000
+  # WebSocket 发送缓冲区大小
+  web-socket-buffer-size-limit: 64000
+
+--- # warm-flow工作流配置
+warm-flow:
+  # 是否开启工作流，默认true
+  enabled: true
+  # 是否开启设计器ui
+  ui: true
+  # 是否显示流程图顶部文字
+  top-text-show: true
+  # 是否渲染节点悬浮提示，默认true
+  node-tooltip: true
+  # 默认Authorization，如果有多个token，用逗号分隔
+  token-name: ${sa-token.token-name},clientid
+
+--- # LiteFlow 业务规则编排
+liteflow:
+  # 跟随工作流模块开关，避免禁用工作流时仍加载任务办理链
+  enable: ${warm-flow.enabled:true}
+  # 工作流模块用于编排任务办理链路
+  rule-source: classpath:liteflow/*.el.xml
+  # 开启虚拟线程
+  enable-virtual-thread: true
+
+--- # mqtt 配置
+# 具体配置还需查看文档
+# https://mica-mqtt.dreamlu.net/guide/spring/client.html
+mqtt.client:
+  # 是否开启客户端，默认：true
+  enabled: false
+  # 连接的服务端 ip ，默认：127.0.0.1
+  ip: 127.0.0.1
+  # 端口：默认：1883
+  port: 1883
+  # 客户端名称
+  name: Mqtt-Client
+  # 客户端Id（非常重要，一般为设备 sn，不可重复）
+  client-id: 000001
+  username: ruoyi
+  password: 123456
+  # 超时时间，单位：秒，默认：5秒
+  timeout: 5
+  # 重连时间，默认 5000 毫秒
+  re-interval: 5000
+  # mqtt 协议版本，可选 MQTT_3_1、mqtt_3_1_1、mqtt_5，默认：mqtt_5
+  version: mqtt_5
+  # 接收数据的 buffer size，默认：8k
+  read-buffer-size: 8KB
+  # 消息解析最大 bytes 长度，默认：10M
+  max-bytes-in-message: 10MB
+  # keep-alive 时间，单位：秒
+  keep-alive-secs: 60
+  # 开启保留 session 时，session 的有效期
+  session-expiry-interval-secs: 0
+  # 工作线程数，如果消息量比较大，例如做 emqx 的转发消息处理，可以调大此参数
+  mqtt-executor-size: 2
+  # 是否开启 ssl
+  ssl:
+    enabled: false
+    keystore-path:
+    keystore-pass:
+    truststore-path:
+    truststore-pass:
+
+--- # elasticsearch 功能配置
+# 文档地址: https://www.easy-es.cn/
+# 更改包名需要去 EasyEsConfiguration 修改包扫描(后续版本支持配置文件读取)
+easy-es:
+  # 是否开启EE自动配置
+  enable: false
+  # 兼容模式
+  compatible: true
+  # es连接地址+端口 格式必须为ip:port,如果是集群则可用逗号隔开
+  address: localhost:9200
+  # 默认为http
+  schema: http
+  # 注意ES建议使用账号认证 不使用会报警告日志
+  # 如果无账号密码则可不配置此行
+  # username:
+  # 如果无账号密码则可不配置此行
+  # password:
+  # 心跳策略时间 单位:ms
+  keep-alive-millis: 18000
+  # 连接超时时间 单位:ms
+  connectTimeout: 5000
+  # 通信超时时间 单位:ms
+  socketTimeout: 5000
+  # 连接请求超时时间 单位:ms
+  connectionRequestTimeout: 5000
+  # 最大连接数 单位:个
+  maxConnTotal: 100
+  # 最大连接路由数 单位:个
+  maxConnPerRoute: 100
+  global-config:
+    # 开启控制台打印通过本框架生成的DSL语句,默认为开启,测试稳定后的生产环境建议关闭,以提升少量性能
+    print-dsl: true
+    # 异步处理索引是否阻塞主线程 默认阻塞 数据量过大时调整为非阻塞异步进行 项目启动更快
+    asyncProcessIndexBlocking: true
+    db-config:
+      # 是否开启下划线转驼峰 默认为false
+      map-underscore-to-camel-case: true
+      # id生成策略 customize为自定义,id值由用户生成,比如取MySQL中的数据id,如缺省此项配置,则id默认策略为es自动生成
+      id-type: customize
+      # 字段更新策略 默认为not_null
+      field-strategy: not_null
+      # 默认开启,查询若指定了size超过1w条时也会自动开启,开启后查询所有匹配数据,若不开启,会导致无法获取数据总条数,其它功能不受影响.
+      enable-track-total-hits: true
+      # 数据刷新策略,默认为不刷新
+      refresh-policy: immediate
+
+--- # MCP 服务端配置
+spring.ai.mcp:
+  server:
+    # 与 ruoyi-admin 共用端口，默认端点为 /mcp
+    enabled: true
+    protocol: STREAMABLE
+    name: ${spring.application.name}
+    version: ${project.version}
+    type: SYNC
+    annotation-scanner:
+      enabled: true
+    streamable-http:
+      mcp-endpoint: /mcp
+
+--- # MCP 客户端配置
+spring.ai.mcp:
+  client:
+    # 需要接入外部 MCP Server 时再打开，并配置 streamable-http/stdio connections
+    enabled: false
+    name: ${spring.application.name}-mcp-client
+    version: ${project.version}
+    type: SYNC
+    toolcallback:
+      enabled: false
+    # Streamable HTTP 多服务端示例
+    streamable-http:
+      connections:
+        knowledge:
+          url: http://localhost:9001
+        crm:
+          url: http://localhost:9002
+    # STDIO 多服务端示例
+    stdio:
+      connections:
+        filesystem:
+          command: npx
+          args:
+            - -y
+            - '@modelcontextprotocol/server-filesystem'
+            - D:/data

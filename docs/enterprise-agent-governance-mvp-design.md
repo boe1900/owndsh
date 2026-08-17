@@ -33,7 +33,7 @@
 
 产品仓库使用 `upstream/deepseek-harness.lock.json` 锁定 Harness 仓库、版本和完整 commit。正式编码只 fetch 并检出该 commit，不自动拉取最新 `master`；升级必须显式修改版本锁并重新运行第 22 节 T00。若公开接口发生变化，只调整企业插件和本文对应章节，不把旧接口兼容层带入 MVP。
 
-RuoYi-Vue-Plus 和 plus-ui 的 MIT 许可证文件必须保留在产品源码与交付物中。服务端使用正式标签而不是开发分支，管理端使用已核对的 React 分支提交。
+RuoYi-Vue-Plus 和 plus-ui 的 MIT 许可证文件必须保留在产品源码与交付物中。锁定的 plus-ui `6.X-React` 快照未包含 `LICENSE`，但上游仓库元数据声明 MIT；T00 将历史提交 `c85f0a199507c0464c0d53036956aaba0789e971` 的许可证 blob `32b3071127d6804695f8672fdd25ee3c8ef10595` 固化为 `upstream/plus-ui.LICENSE`，导入时补入 `admin-web/LICENSE`。服务端使用正式标签而不是开发分支，管理端使用已核对的 React 分支提交。
 
 ### 1.3 已冻结的产品与技术决策
 

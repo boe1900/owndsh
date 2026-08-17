@@ -1,0 +1,16 @@
+{
+  "name": "@enterprise-agent/dsh-workspace",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.7.0",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "scripts": {
+    "build": "pnpm --recursive --if-present run build",
+    "typecheck": "pnpm --recursive --if-present run typecheck",
+    "test": "node --test workspace.test.mjs",
+    "check": "pnpm run typecheck && pnpm run test && pnpm run build"
+  }
+}
