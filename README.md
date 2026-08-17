@@ -42,11 +42,13 @@ agent-platform-workspace/
   enterprise-agent-platform/    # 本仓库
 ```
 
-首次准备环境时运行对应平台脚本。脚本读取版本锁，在本仓库同级目录 clone Harness，并检出精确 commit；已有 checkout 只在来源正确且工作区干净时切换版本。
+首次准备环境时运行对应平台脚本。脚本读取版本锁，在本仓库同级目录 clone Harness，并检出精确 commit；已有 checkout 只在来源正确且工作区干净时切换版本。Windows 使用 PowerShell 7：
 
 ```powershell
 pwsh -File scripts/bootstrap-harness.ps1
 ```
+
+macOS/Linux 使用 POSIX shell：
 
 ```sh
 ./scripts/bootstrap-harness.sh
