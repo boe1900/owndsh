@@ -1,0 +1,28 @@
+# Local secrets
+.env
+.env.*
+!.env.example
+secrets/
+deploy/secrets/
+
+# Java
+target/
+*.class
+
+# Node.js
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Runtime residue
+*.log
+*.pid
+tmp/
+.tmp/
