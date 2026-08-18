@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:enterprise-agent:contracts:ManagedModelResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "data",
+    "requestId"
+  ],
+  "properties": {
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "providerId",
+        "providerName",
+        "alias",
+        "displayName",
+        "upstreamModel",
+        "contextWindow",
+        "maxOutputTokens",
+        "reasoning",
+        "sortOrder",
+        "status",
+        "revision"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,18}$",
+          "description": "Managed model snowflake ID serialized as a string."
+        },
+        "providerId": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,18}$"
+        },
+        "providerName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "alias": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "upstreamModel": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "contextWindow": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxOutputTokens": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "reasoning": {
+          "type": "boolean"
+        },
+        "sortOrder": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "ACTIVE",
+            "DISABLED"
+          ]
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991,
+          "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+          "examples": [
+            7
+          ]
+        }
+      }
+    },
+    "requestId": {
+      "type": "string",
+      "description": "Server-generated req_ prefix followed by one canonical ULID.",
+      "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+      "examples": [
+        "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+      ]
+    }
+  }
+}

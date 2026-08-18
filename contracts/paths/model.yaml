@@ -1,0 +1,340 @@
+# [INPUT]: 依赖 model.yaml 管理 DTO、bootstrap DTO 与根协议通用参数/错误响应
+# [OUTPUT]: 提供 T08 provider/model/grant 全部管理 Path Item 和 runtime bootstrap Path Item
+# [POS]: contracts/paths 的受管模型纵向分片，管理写入统一使用幂等键/If-Match 且 runtime 只接受当前设备会话
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+ProviderCollection:
+  get:
+    operationId: listModelProviders
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Cursor'
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Limit'
+    responses:
+      '200':
+        description: Provider page.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ProviderListResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+  post:
+    operationId: createModelProvider
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ProviderCreateRequest'}
+    responses:
+      '201':
+        description: Created provider.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ProviderResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+ProviderItem:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/ProviderIdPath'
+  get:
+    operationId: getModelProvider
+    responses:
+      '200':
+        description: Provider details.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ProviderResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+  put:
+    operationId: updateModelProvider
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ProviderUpdateRequest'}
+    responses:
+      '200':
+        description: Updated provider.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ProviderResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+ProviderTest:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/ProviderIdPath'
+  post:
+    operationId: testModelProvider
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ProviderProbeRequest'}
+    responses:
+      '200':
+        description: Sanitized provider probe result.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ProviderProbeResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+ProviderEnable:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/ProviderIdPath'
+  post:
+    operationId: enableModelProvider
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    responses:
+      '200':
+        description: Enabled provider.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ProviderResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+ProviderDisable:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/ProviderIdPath'
+  post:
+    operationId: disableModelProvider
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    responses:
+      '200':
+        description: Disabled provider.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ProviderResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+
+ModelCollection:
+  get:
+    operationId: listManagedModels
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Cursor'
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Limit'
+    responses:
+      '200':
+        description: Managed model page.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ManagedModelListResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+  post:
+    operationId: createManagedModel
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ManagedModelWriteRequest'}
+    responses:
+      '201':
+        description: Created managed model.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ManagedModelResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+ModelItem:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/ManagedModelIdPath'
+  get:
+    operationId: getManagedModel
+    responses:
+      '200':
+        description: Managed model details.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ManagedModelResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+  put:
+    operationId: updateManagedModel
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ManagedModelWriteRequest'}
+    responses:
+      '200':
+        description: Updated managed model.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ManagedModelResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+  delete:
+    operationId: deleteManagedModel
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    responses:
+      '200':
+        description: Deleted managed model.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/DeletedResourceResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+ModelEnable:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/ManagedModelIdPath'
+  post:
+    operationId: enableManagedModel
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    responses:
+      '200':
+        description: Enabled managed model.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ManagedModelResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+ModelDisable:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/ManagedModelIdPath'
+  post:
+    operationId: disableManagedModel
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    responses:
+      '200':
+        description: Disabled managed model.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ManagedModelResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+
+GrantCollection:
+  get:
+    operationId: listModelGrants
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Cursor'
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Limit'
+    responses:
+      '200':
+        description: Model grant page.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ModelGrantListResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+  post:
+    operationId: createModelGrant
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ModelGrantWriteRequest'}
+    responses:
+      '201':
+        description: Created model grant.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ModelGrantResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+GrantBatch:
+  post:
+    operationId: createModelGrantBatch
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ModelGrantBatchRequest'}
+    responses:
+      '201':
+        description: Atomically created model grants.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ModelGrantBatchResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+GrantItem:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/ModelGrantIdPath'
+  put:
+    operationId: updateModelGrant
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ModelGrantWriteRequest'}
+    responses:
+      '200':
+        description: Updated model grant.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ModelGrantResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+  delete:
+    operationId: deleteModelGrant
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    responses:
+      '200':
+        description: Deleted model grant.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/DeletedResourceResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+
+Bootstrap:
+  get:
+    operationId: getEnterpriseBootstrap
+    responses:
+      '200':
+        description: Complete desensitized bootstrap snapshot for the active Harness device.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/BootstrapResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}

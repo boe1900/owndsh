@@ -1,0 +1,281 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:enterprise-agent:contracts:BootstrapResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "data",
+    "requestId"
+  ],
+  "properties": {
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "revision",
+        "user",
+        "device",
+        "models",
+        "quotas",
+        "plugins",
+        "sessionPolicy"
+      ],
+      "properties": {
+        "revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991,
+          "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+          "examples": [
+            7
+          ]
+        },
+        "user": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "username",
+            "displayName",
+            "departmentId"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "description": "Enterprise user snowflake ID serialized as a string."
+            },
+            "username": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "displayName": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "departmentId": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]{0,18}$",
+                  "description": "RuoYi department snowflake ID serialized as a string."
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
+        "device": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "installationId",
+            "status"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "description": "Enterprise device snowflake ID serialized as a string."
+            },
+            "installationId": {
+              "type": "string",
+              "format": "uuid",
+              "minLength": 36,
+              "maxLength": 36,
+              "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$"
+            },
+            "status": {
+              "type": "string",
+              "const": "ACTIVE"
+            }
+          }
+        },
+        "models": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "alias",
+              "displayName",
+              "contextWindow",
+              "maxOutputTokens",
+              "reasoning",
+              "isDefault"
+            ],
+            "properties": {
+              "alias": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+              },
+              "displayName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "contextWindow": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "maxOutputTokens": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "reasoning": {
+                "type": "boolean"
+              },
+              "isDefault": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "quotas": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "policyId",
+              "scope",
+              "dailyTokenLimit",
+              "monthlyTokenLimit",
+              "rpm",
+              "concurrency"
+            ],
+            "properties": {
+              "policyId": {
+                "type": "string",
+                "pattern": "^[1-9][0-9]{0,18}$"
+              },
+              "scope": {
+                "type": "string",
+                "enum": [
+                  "DEFAULT",
+                  "DEPT",
+                  "USER"
+                ]
+              },
+              "dailyTokenLimit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "monthlyTokenLimit": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "rpm": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "concurrency": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        },
+        "plugins": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "revision",
+            "assignments"
+          ],
+          "properties": {
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991,
+              "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+              "examples": [
+                7
+              ]
+            },
+            "assignments": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "packageName",
+                  "version",
+                  "sha256",
+                  "downloadUrl",
+                  "required",
+                  "desiredState"
+                ],
+                "properties": {
+                  "packageName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 214
+                  },
+                  "version": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "downloadUrl": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2048
+                  },
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "desiredState": {
+                    "type": "string",
+                    "const": "INSTALLED"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "sessionPolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "enabled",
+            "retentionDays",
+            "maxBatchBytes"
+          ],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "retentionDays": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "maxBatchBytes": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    },
+    "requestId": {
+      "type": "string",
+      "description": "Server-generated req_ prefix followed by one canonical ULID.",
+      "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+      "examples": [
+        "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+      ]
+    }
+  }
+}

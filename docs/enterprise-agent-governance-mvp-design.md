@@ -1159,7 +1159,8 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 | T05 | `completed` | 2026-08-18 已实现 Redis 原子登录事务与授权码、Authorization Code + PKCE、LOCAL 验证码、12 小时非共享 Sa-Token client/device 隔离、设备生命周期与公开登录页，见 [`t05-pkce-device-acceptance.md`](t05-pkce-device-acceptance.md)。 |
 | T06 | `completed` | 2026-08-18 已实现 `ctx.enterprisePlatform`、内存 Token、installation、PKCE/enroll/bootstrap 状态机、60 秒刷新/指数退避和同源 JSON/SSE，真实 tgz consumer 与锁定 Harness 组合通过，见 [`t06-harness-platform-client-acceptance.md`](t06-harness-platform-client-acceptance.md)。 |
 | T07 | `completed` | 2026-08-18 已通过官方三个 UI slot 实现共享账号状态、同源严格浏览器 client 和十态桌面 UI；登录、取消、READY、过期、撤销的真实 Harness 快照/GIF 与无 Token 证据见 [`t07-employee-login-ui-acceptance.md`](t07-employee-login-ui-acceptance.md)。 |
-| T08-T23 | `pending` | T07 已完成；下一项只能从 T08 开始。 |
+| T08 | `completed` | 2026-08-18 已实现 provider/model/grant 管理、provider-secret AES-GCM、无重定向脱敏探测、USER+DEPT 默认解析、幂等删除与 ACTIVE 设备 bootstrap 模型目录；协议、PostgreSQL 和秘密隔离证据见 [`t08-model-management-acceptance.md`](t08-model-management-acceptance.md)。 |
+| T09-T23 | `pending` | T08 已完成；下一项只能从 T09 开始。 |
 
 ## 23. Definition of Done
 

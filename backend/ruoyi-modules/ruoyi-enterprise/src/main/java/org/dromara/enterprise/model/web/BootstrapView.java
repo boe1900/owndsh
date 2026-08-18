@@ -1,0 +1,83 @@
+/**
+ * [INPUT]: 投影 BootstrapService 的用户、ACTIVE 设备、revision 与有效模型目录。
+ * [OUTPUT]: 对外提供 T06 严格客户端所需的完整脱敏 bootstrap 外壳。
+ * [POS]: model/web 的 runtime 配置输出边界；T09/T13/T16 未实现切片保持空或 disabled，不伪造业务事实。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+package org.dromara.enterprise.model.web;
+
+import org.dromara.enterprise.model.application.BootstrapService;
+
+import java.util.List;
+
+public record BootstrapView(
+    long revision,
+    User user,
+    Device device,
+    List<Model> models,
+    List<Quota> quotas,
+    Plugins plugins,
+    SessionPolicy sessionPolicy
+) {
+    public static BootstrapView from(BootstrapService.BootstrapSnapshot snapshot) {
+        return new BootstrapView(
+            snapshot.revision(),
+            new User(
+                Long.toString(snapshot.user().id()), snapshot.user().username(), snapshot.user().displayName(),
+                snapshot.user().departmentId() == null ? null : Long.toString(snapshot.user().departmentId())
+            ),
+            new Device(
+                Long.toString(snapshot.device().id()), snapshot.device().installationId().toString(), "ACTIVE"
+            ),
+            snapshot.models().stream().map(value -> new Model(
+                value.alias(), value.displayName(), value.contextWindow(), value.maxOutputTokens(),
+                value.reasoning(), value.isDefault()
+            )).toList(),
+            List.of(),
+            new Plugins(0, List.of()),
+            new SessionPolicy(false, 90, 1_048_576)
+        );
+    }
+
+    public record User(String id, String username, String displayName, String departmentId) {
+    }
+
+    public record Device(String id, String installationId, String status) {
+    }
+
+    public record Model(
+        String alias,
+        String displayName,
+        int contextWindow,
+        int maxOutputTokens,
+        boolean reasoning,
+        boolean isDefault
+    ) {
+    }
+
+    public record Quota(
+        String policyId,
+        String scope,
+        long dailyTokenLimit,
+        long monthlyTokenLimit,
+        int rpm,
+        int concurrency
+    ) {
+    }
+
+    public record Plugins(long revision, List<PluginAssignment> assignments) {
+    }
+
+    public record PluginAssignment(
+        String packageName,
+        String version,
+        String sha256,
+        String downloadUrl,
+        boolean required,
+        String desiredState
+    ) {
+    }
+
+    public record SessionPolicy(boolean enabled, int retentionDays, int maxBatchBytes) {
+    }
+}

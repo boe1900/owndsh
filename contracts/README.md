@@ -13,6 +13,11 @@ are committed but never edited directly. The Zod generator resolver preserves
 OpenAPI `additionalProperties: false` as `.strict()` instead of silently
 stripping undeclared wire fields.
 
+T08 adds the provider, managed-model, grant, and bootstrap vertical contract.
+Provider credentials are write-only inputs; provider outputs expose only
+`credentialConfigured`, and runtime bootstrap exposes model capabilities without
+provider routes, upstream model names, or credentials.
+
 ```sh
 cd harness-plugin
 pnpm --filter @enterprise-agent/dsh-contracts generate

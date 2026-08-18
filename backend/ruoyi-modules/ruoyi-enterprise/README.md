@@ -3,7 +3,8 @@
 企业治理后端领域模块。T03 提供 PostgreSQL Flyway `V1` 至 `V5`、用途隔离 AES-256-GCM、
 bootstrap revision CAS 和只追加审计事务基础设施；T04 在同一模块内增加 OIDC、LDAP、LOCAL
 身份适配器、稳定 external identity、显式组映射和身份管理 API；T05 增加固定 public client 的
-Authorization Code + PKCE、Sa-Token 终端隔离、公开登录页与设备生命周期。
+Authorization Code + PKCE、Sa-Token 终端隔离、公开登录页与设备生命周期；T08 增加
+provider/model/grant 管理、provider 密钥保护、有效默认解析和 runtime bootstrap 模型目录。
 
 ## 身份边界
 
@@ -38,6 +39,24 @@ master key 的独立 `API_CURSOR` 用途进行 AES-GCM 认证，并绑定 tenant
 认证入口为 `/enterprise/auth/v1`，设备 Runtime 入口为 `/enterprise/api/v1/devices`，管理入口为
 `/enterprise/admin/v1/devices`。设备管理读取与撤销分别要求 `ent:device:read/revoke`。
 
+## 受管模型与 bootstrap 边界
+
+- provider 创建时 credential 必填，只以 `PROVIDER_SECRET` 用途的 AES-256-GCM 密文保存；读取接口
+  仅返回 `credentialConfigured`。更新必须显式给出 `replaceSecret`，未替换时保持原密文。
+- provider test 使用草稿 base URL、timeout 和可选新 credential 请求 `/models`，不跟随重定向、
+  不读取正文，只返回成功、延迟和稳定上游状态类别。
+- 模型、provider、grant 都为 `ACTIVE` 才能进入员工目录。USER 与当前 DEPT 授权取并集，默认优先级
+  为 USER、DEPT、`sortOrder` fallback，客户端看不到 provider route 或上游模型名。
+- RuoYi `sys_user/sys_dept` 使用固定部署的全局主键；tenant 约束施加在 `ent_model_*` 企业事实链上。
+  本模块不声称支持详细设计明确排除的 SaaS 多租户。
+- `/enterprise/api/v1/bootstrap` 每次重新验证 `dsh-desktop` Token 对应的 ACTIVE 设备与当前用户，
+  T08 只填充模型切片；配额、插件和 Session policy 保持未启用外壳，分别留给后续任务。
+
+模型管理入口为 `/enterprise/admin/v1/providers`、`/enterprise/admin/v1/models` 和
+`/enterprise/admin/v1/model-grants`，分别使用冻结的 `ent:model:*` 与 `ent:grant:*` 权限码。
+创建请求要求 UUID v4 `Idempotency-Key`，更新和状态动作要求 revision `If-Match`；模型与授权删除
+达到目标状态后可安全重放。
+
 ## 数据库
 
 本模块只支持 PostgreSQL。Flyway migration 位于 `src/main/resources/db/migration`，假定 RuoYi
@@ -59,6 +78,7 @@ PATH=/usr/local/opt/openjdk@21/bin:$PATH \
 
 测试从真实 RuoYi PostgreSQL 基线启动数据库，分别验证一次性迁移和逐版本升级；不会使用 H2
 模拟 PostgreSQL 约束。身份/设备测试还会启动 WireMock OIDC、OpenLDAP StartTLS、Redis 8 和
-PostgreSQL 17 Testcontainers，并使用 OpenAPI 派生 JSON Schema 验证认证与设备响应。
+PostgreSQL 17 Testcontainers，并使用 OpenAPI 派生 JSON Schema 验证认证、设备、模型管理与
+bootstrap 的成功/失败响应。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

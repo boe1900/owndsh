@@ -5,9 +5,9 @@
 成员清单
 
 README.md: 协议真源使用规则，定义手写与生成边界、双端消费方式和漂移门禁。
-enterprise-openapi.yaml: OpenAPI 3.1 逻辑协议导航根，定义通用边界、36 个稳定错误码并引用受控 Path Item/schema 分片。
-paths/: T04 identity 与 T05 auth/device operation 分片目录；局部地图见 paths/CLAUDE.md。
-components/: 身份治理、认证/PKCE 与设备协议 schema 分片；局部地图见 components/CLAUDE.md。
+enterprise-openapi.yaml: OpenAPI 3.1 逻辑协议导航根，定义通用边界、36 个稳定错误码和 42 个 operation，并引用受控 Path Item/schema 分片。
+paths/: T04 identity、T05 auth/device 与 T08 model/bootstrap operation 分片目录；局部地图见 paths/CLAUDE.md。
+components/: 身份治理、认证/PKCE、设备与模型治理协议 schema 分片；局部地图见 components/CLAUDE.md。
 fixtures/auth-sources-success.json: T05 登录事务、CSRF 与公开身份源成功响应样例。
 fixtures/device-list-success.json: T05 管理设备 cursor 列表成功响应样例。
 fixtures/device-success.json: T05 单设备 enroll/heartbeat/get/revoke 统一成功响应样例。
@@ -18,12 +18,22 @@ fixtures/identity-source-list-success.json: T04 身份源空列表成功响应�
 fixtures/identity-source-secret-leak.json: 身份源响应夹带 secret 的严格 schema 负例，证明秘密字段无法进入协议。
 fixtures/identity-source-success.json: T04 OIDC 身份源脱敏成功响应样例，只暴露 secretConfigured。
 fixtures/identity-source-test-success.json: T04 身份源连接检查的脱敏 READY 响应样例。
+fixtures/provider-success.json: T08 provider 脱敏详情成功样例，只暴露 credentialConfigured。
+fixtures/provider-secret-leak.json: provider 响应夹带 credential 的严格 schema 负例。
+fixtures/provider-list-success.json: T08 provider cursor 列表成功样例。
+fixtures/provider-probe-success.json: T08 provider test 脱敏成功/延迟/状态类别样例。
+fixtures/model-success.json: T08 受管模型详情成功样例。
+fixtures/model-list-success.json: T08 受管模型 cursor 列表成功样例。
+fixtures/model-grant-success.json: T08 单条 USER 模型授权成功样例。
+fixtures/model-grant-list-success.json: T08 模型授权 cursor 列表成功样例。
+fixtures/model-grant-batch-success.json: T08 原子批量授权成功样例。
+fixtures/bootstrap-models-success.json: T08 ACTIVE 设备完整 bootstrap 外壳与有效模型目录样例。
 fixtures/protocol-page-success.json: 带品牌 ID、revision 和 cursor page metadata 的成功响应样例。
 fixtures/protocol-success.json: 最小统一成功响应样例，验证 data/requestId envelope。
 fixtures/quota-error.json: 带固定 QuotaExceededDetails 的第 17 节失败响应样例。
 fixtures/token-success.json: T05 12 小时 dsh-desktop Bearer Token 成功响应样例，只使用显式假值。
 fixtures/unexpected-error-property.json: 包含未声明调试字段的失败响应负例，验证 additionalProperties=false 在双端严格生效。
 fixtures/unknown-error-code.json: 未知稳定错误码负例，必须被 Java JSON Schema 与 TypeScript Zod 同时拒绝。
-generated/: 从 OpenAPI components 派生的自包含 JSON Schema 与协议 SHA-256，供 Java 和 CI 消费，禁止手工编辑。
+generated/: 从完整 OpenAPI 逻辑文档派生的 fixture manifest、自包含 JSON Schema 与协议 SHA-256，供 Java 和 CI 消费，禁止手工编辑。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

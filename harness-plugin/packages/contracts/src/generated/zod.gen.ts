@@ -509,6 +509,310 @@ export const zIdentityIdentitySourceUpdateRequest = z.object({
 
 export const zIdentitySourceUpdateRequest = zIdentityIdentitySourceUpdateRequest;
 
+export const zBootstrapDevice = z.object({
+    id: zEnterpriseDeviceId,
+    installationId: zAuthInstallationId,
+    status: z.literal('ACTIVE')
+}).strict();
+
+export const zBootstrapPluginAssignment = z.object({
+    packageName: z.string().min(1).max(214),
+    version: z.string().min(1).max(64),
+    sha256: z.string().regex(/^[0-9a-f]{64}$/),
+    downloadUrl: z.string().min(1).max(2048),
+    required: z.boolean(),
+    desiredState: z.literal('INSTALLED')
+}).strict();
+
+export const zBootstrapPlugins = z.object({
+    revision: zRevision,
+    assignments: z.array(zBootstrapPluginAssignment)
+}).strict();
+
+export const zBootstrapQuota = z.object({
+    policyId: z.string().regex(/^[1-9][0-9]{0,18}$/),
+    scope: z.enum([
+        'DEFAULT',
+        'DEPT',
+        'USER'
+    ]),
+    dailyTokenLimit: z.int().gte(0),
+    monthlyTokenLimit: z.int().gte(0),
+    rpm: z.int().gte(1),
+    concurrency: z.int().gte(1)
+}).strict();
+
+export const zBootstrapSessionPolicy = z.object({
+    enabled: z.boolean(),
+    retentionDays: z.int().gte(1),
+    maxBatchBytes: z.int().gte(1)
+}).strict();
+
+export const zBootstrapUser = z.object({
+    id: zEnterpriseUserId,
+    username: z.string().min(1).max(100),
+    displayName: z.string().min(1).max(120),
+    departmentId: zIdentityDepartmentId.nullable()
+}).strict();
+
+export const zModelGrantSubjectType = z.enum(['USER', 'DEPT']);
+
+export const zGrantSubjectType = zModelGrantSubjectType;
+
+export const zModelAlias = z.string().min(1).max(120).regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/);
+
+export const zModelDisplayName = z.string().min(1).max(120);
+
+export const zModelBootstrapModel = z.object({
+    alias: zModelAlias,
+    displayName: zModelDisplayName,
+    contextWindow: z.int().gte(1),
+    maxOutputTokens: z.int().gte(1),
+    reasoning: z.boolean(),
+    isDefault: z.boolean()
+}).strict();
+
+export const zBootstrapModel = zModelBootstrapModel;
+
+export const zModelBootstrapSnapshot = z.object({
+    revision: zRevision,
+    user: zBootstrapUser,
+    device: zBootstrapDevice,
+    models: z.array(zModelBootstrapModel),
+    quotas: z.array(zBootstrapQuota),
+    plugins: zBootstrapPlugins,
+    sessionPolicy: zBootstrapSessionPolicy
+}).strict();
+
+export const zBootstrapSnapshot = zModelBootstrapSnapshot;
+
+export const zModelBootstrapResponse = z.object({
+    data: zModelBootstrapSnapshot,
+    requestId: zRequestId
+}).strict();
+
+export const zBootstrapResponse = zModelBootstrapResponse;
+
+export const zModelModelGrantId = z.string().regex(/^[1-9][0-9]{0,18}$/);
+
+export const zModelGrantId = zModelModelGrantId;
+
+export const zModelModelProviderId = z.string().regex(/^[1-9][0-9]{0,18}$/);
+
+export const zModelProviderId = zModelModelProviderId;
+
+export const zModelManagedModelWriteRequest = z.object({
+    providerId: zModelModelProviderId,
+    alias: zModelAlias,
+    displayName: zModelDisplayName,
+    upstreamModel: z.string().min(1).max(255),
+    contextWindow: z.int().gte(1).lte(2147483647),
+    maxOutputTokens: z.int().gte(1).lte(2147483647),
+    reasoning: z.boolean(),
+    sortOrder: z.int().gte(0).lte(2147483647)
+}).strict();
+
+export const zManagedModelWriteRequest = zModelManagedModelWriteRequest;
+
+export const zModelModelStatus = z.enum(['ACTIVE', 'DISABLED']);
+
+export const zModelStatus = zModelModelStatus;
+
+export const zModelModelGrant = z.object({
+    id: zModelModelGrantId,
+    modelId: zManagedModelId,
+    modelAlias: zModelAlias,
+    subjectType: zModelGrantSubjectType,
+    subjectId: z.string().regex(/^[1-9][0-9]{0,18}$/),
+    subjectName: z.string().min(1).max(120),
+    isDefault: z.boolean(),
+    status: zModelModelStatus,
+    revision: zRevision
+}).strict();
+
+export const zModelGrant = zModelModelGrant;
+
+export const zModelModelGrantBatchResponse = z.object({
+    data: z.array(zModelModelGrant).min(1).max(200),
+    requestId: zRequestId
+}).strict();
+
+export const zModelGrantBatchResponse = zModelModelGrantBatchResponse;
+
+export const zModelModelGrantPageData = z.object({
+    items: z.array(zModelModelGrant).max(200),
+    page: zCursorPage
+}).strict();
+
+export const zModelGrantPageData = zModelModelGrantPageData;
+
+export const zModelModelGrantListResponse = z.object({
+    data: zModelModelGrantPageData,
+    requestId: zRequestId
+}).strict();
+
+export const zModelGrantListResponse = zModelModelGrantListResponse;
+
+export const zModelModelGrantResponse = z.object({
+    data: zModelModelGrant,
+    requestId: zRequestId
+}).strict();
+
+export const zModelGrantResponse = zModelModelGrantResponse;
+
+export const zModelModelGrantWriteRequest = z.object({
+    modelId: zManagedModelId,
+    subjectType: zModelGrantSubjectType,
+    subjectId: z.string().regex(/^[1-9][0-9]{0,18}$/),
+    isDefault: z.boolean(),
+    status: zModelModelStatus
+}).strict();
+
+export const zModelGrantWriteRequest = zModelModelGrantWriteRequest;
+
+export const zModelModelGrantBatchRequest = z.object({
+    items: z.array(zModelModelGrantWriteRequest).min(1).max(200)
+}).strict();
+
+export const zModelGrantBatchRequest = zModelModelGrantBatchRequest;
+
+export const zProviderBaseUrl = z.url().min(1).max(500);
+
+export const zProviderName = z.string().min(1).max(120);
+
+export const zModelManagedModel = z.object({
+    id: zManagedModelId,
+    providerId: zModelModelProviderId,
+    providerName: zProviderName,
+    alias: zModelAlias,
+    displayName: zModelDisplayName,
+    upstreamModel: z.string().min(1).max(255),
+    contextWindow: z.int().gte(1),
+    maxOutputTokens: z.int().gte(1),
+    reasoning: z.boolean(),
+    sortOrder: z.int().gte(0),
+    status: zModelModelStatus,
+    revision: zRevision
+}).strict();
+
+export const zManagedModel = zModelManagedModel;
+
+export const zModelManagedModelPageData = z.object({
+    items: z.array(zModelManagedModel).max(200),
+    page: zCursorPage
+}).strict();
+
+export const zManagedModelPageData = zModelManagedModelPageData;
+
+export const zModelManagedModelListResponse = z.object({
+    data: zModelManagedModelPageData,
+    requestId: zRequestId
+}).strict();
+
+export const zManagedModelListResponse = zModelManagedModelListResponse;
+
+export const zModelManagedModelResponse = z.object({
+    data: zModelManagedModel,
+    requestId: zRequestId
+}).strict();
+
+export const zManagedModelResponse = zModelManagedModelResponse;
+
+export const zModelProviderProbeCategory = z.enum([
+    'SUCCESS',
+    'AUTHENTICATION_FAILED',
+    'UPSTREAM_REJECTED',
+    'UNAVAILABLE',
+    'TIMEOUT'
+]);
+
+export const zProviderProbeCategory = zModelProviderProbeCategory;
+
+export const zModelProviderProbeResult = z.object({
+    success: z.boolean(),
+    latencyMs: z.int().gte(0).lte(9007199254740991),
+    upstreamStatus: zModelProviderProbeCategory
+}).strict();
+
+export const zProviderProbeResult = zModelProviderProbeResult;
+
+export const zModelProviderProbeResponse = z.object({
+    data: zModelProviderProbeResult,
+    requestId: zRequestId
+}).strict();
+
+export const zProviderProbeResponse = zModelProviderProbeResponse;
+
+export const zProviderTimeoutMs = z.int().gte(1).lte(600000);
+
+export const zModelProviderProbeRequest = z.object({
+    baseUrl: zProviderBaseUrl,
+    connectTimeoutMs: zProviderTimeoutMs,
+    readTimeoutMs: zProviderTimeoutMs
+}).strict();
+
+export const zProviderProbeRequest = zModelProviderProbeRequest;
+
+export const zModelProviderType = z.enum(['DEEPSEEK_OPENAI']);
+
+export const zProviderType = zModelProviderType;
+
+export const zModelProvider = z.object({
+    id: zModelModelProviderId,
+    name: zProviderName,
+    providerType: zModelProviderType,
+    baseUrl: zProviderBaseUrl,
+    credentialConfigured: z.boolean(),
+    status: zModelModelStatus,
+    connectTimeoutMs: zProviderTimeoutMs,
+    readTimeoutMs: zProviderTimeoutMs,
+    revision: zRevision
+}).strict();
+
+export const zProvider = zModelProvider;
+
+export const zModelProviderCreateRequest = z.object({
+    name: zProviderName,
+    providerType: zModelProviderType,
+    baseUrl: zProviderBaseUrl,
+    connectTimeoutMs: zProviderTimeoutMs,
+    readTimeoutMs: zProviderTimeoutMs
+}).strict();
+
+export const zProviderCreateRequest = zModelProviderCreateRequest;
+
+export const zModelProviderPageData = z.object({
+    items: z.array(zModelProvider).max(200),
+    page: zCursorPage
+}).strict();
+
+export const zProviderPageData = zModelProviderPageData;
+
+export const zModelProviderListResponse = z.object({
+    data: zModelProviderPageData,
+    requestId: zRequestId
+}).strict();
+
+export const zProviderListResponse = zModelProviderListResponse;
+
+export const zModelProviderResponse = z.object({
+    data: zModelProvider,
+    requestId: zRequestId
+}).strict();
+
+export const zProviderResponse = zModelProviderResponse;
+
+export const zModelProviderUpdateRequest = z.object({
+    name: zProviderName,
+    providerType: zModelProviderType,
+    baseUrl: zProviderBaseUrl,
+    replaceSecret: z.boolean(),
+    connectTimeoutMs: zProviderTimeoutMs,
+    readTimeoutMs: zProviderTimeoutMs
+}).strict();
+
+export const zProviderUpdateRequest = zModelProviderUpdateRequest;
+
 export const zAuthorize = z.unknown();
 
 export const zLogout = z.unknown();
@@ -547,6 +851,32 @@ export const z1Enterprise1Admin1V11IdentitySources1SourceId1Actions1Enable = z.u
 
 export const z1Enterprise1Admin1V11IdentitySources1SourceId1Actions1Test = z.unknown();
 
+export const zBootstrap = z.unknown();
+
+export const zGrantBatch = z.unknown();
+
+export const zGrantCollection = z.unknown();
+
+export const zGrantItem = z.unknown();
+
+export const zModelCollection = z.unknown();
+
+export const zModelDisable = z.unknown();
+
+export const zModelEnable = z.unknown();
+
+export const zModelItem = z.unknown();
+
+export const zProviderCollection = z.unknown();
+
+export const zProviderDisable = z.unknown();
+
+export const zProviderEnable = z.unknown();
+
+export const zProviderItem = z.unknown();
+
+export const zProviderTest = z.unknown();
+
 export const zIdentitySourceIdWritable = zIdentityIdentitySourceId;
 
 export const zGroupMappingIdWritable = zIdentityGroupMappingId;
@@ -570,6 +900,18 @@ export const zPkceCodeVerifierWritable = zAuthPkceCodeVerifier;
 export const zInstallationIdWritable = zAuthInstallationId;
 
 export const zDeviceStatusWritable = zDeviceDeviceStatus;
+
+export const zModelProviderIdWritable = zModelModelProviderId;
+
+export const zModelGrantIdWritable = zModelModelGrantId;
+
+export const zProviderTypeWritable = zModelProviderType;
+
+export const zModelStatusWritable = zModelModelStatus;
+
+export const zGrantSubjectTypeWritable = zModelGrantSubjectType;
+
+export const zProviderProbeCategoryWritable = zModelProviderProbeCategory;
 
 export const zAuthPasswordLoginRequestWritable = z.object({
     transactionId: zAuthAuthTransactionId,
@@ -607,11 +949,49 @@ export const zIdentityIdentitySourceUpdateRequestWritable = z.object({
 
 export const zIdentitySourceUpdateRequestWritable = zIdentityIdentitySourceUpdateRequestWritable;
 
+export const zModelProviderCreateRequestWritable = z.object({
+    name: zProviderName,
+    providerType: zModelProviderType,
+    baseUrl: zProviderBaseUrl,
+    credential: z.string().min(1).max(4096),
+    connectTimeoutMs: zProviderTimeoutMs,
+    readTimeoutMs: zProviderTimeoutMs
+}).strict();
+
+export const zProviderCreateRequestWritable = zModelProviderCreateRequestWritable;
+
+export const zModelProviderProbeRequestWritable = z.object({
+    baseUrl: zProviderBaseUrl,
+    credential: z.string().min(1).max(4096).optional(),
+    connectTimeoutMs: zProviderTimeoutMs,
+    readTimeoutMs: zProviderTimeoutMs
+}).strict();
+
+export const zProviderProbeRequestWritable = zModelProviderProbeRequestWritable;
+
+export const zModelProviderUpdateRequestWritable = z.object({
+    name: zProviderName,
+    providerType: zModelProviderType,
+    baseUrl: zProviderBaseUrl,
+    replaceSecret: z.boolean(),
+    credential: z.string().min(1).max(4096).optional(),
+    connectTimeoutMs: zProviderTimeoutMs,
+    readTimeoutMs: zProviderTimeoutMs
+}).strict();
+
+export const zProviderUpdateRequestWritable = zModelProviderUpdateRequestWritable;
+
 export const zPasswordWritable = z.unknown();
 
 export const z1Enterprise1Admin1V11IdentitySourcesWritable = z.unknown();
 
 export const z1Enterprise1Admin1V11IdentitySources1SourceIdWritable = z.unknown();
+
+export const zProviderCollectionWritable = z.unknown();
+
+export const zProviderItemWritable = z.unknown();
+
+export const zProviderTestWritable = z.unknown();
 
 export const zAuthClientId = zAuthPlatformClient;
 
@@ -634,6 +1014,12 @@ export const zIdentitySourceIdPath = zIdentityIdentitySourceId;
 export const zIdentitySourceIdQuery = zIdentityIdentitySourceId;
 
 export const zGroupMappingIdPath = zIdentityGroupMappingId;
+
+export const zProviderIdPath = zModelModelProviderId;
+
+export const zManagedModelIdPath = zManagedModelId;
+
+export const zModelGrantIdPath = zModelModelGrantId;
 
 /**
  * Server-signed opaque cursor; clients must not parse it.
@@ -864,3 +1250,234 @@ export const zDeleteGroupMappingPath = z.object({
  * Group mapping deleted.
  */
 export const zDeleteGroupMappingResponse = zIdentityDeletedResourceResponse;
+
+export const zListModelProvidersQuery = z.object({
+    cursor: zCursor.optional(),
+    limit: zPageLimit.optional()
+});
+
+/**
+ * Provider page.
+ */
+export const zListModelProvidersResponse = zModelProviderListResponse;
+
+export const zCreateModelProviderBody = zModelProviderCreateRequestWritable;
+
+export const zCreateModelProviderHeaders = z.object({
+    'Idempotency-Key': z.uuid().length(36).regex(/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/)
+});
+
+/**
+ * Created provider.
+ */
+export const zCreateModelProviderResponse = zModelProviderResponse;
+
+export const zGetModelProviderPath = z.object({
+    providerId: zModelModelProviderId
+});
+
+/**
+ * Provider details.
+ */
+export const zGetModelProviderResponse = zModelProviderResponse;
+
+export const zUpdateModelProviderBody = zModelProviderUpdateRequestWritable;
+
+export const zUpdateModelProviderHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zUpdateModelProviderPath = z.object({
+    providerId: zModelModelProviderId
+});
+
+/**
+ * Updated provider.
+ */
+export const zUpdateModelProviderResponse = zModelProviderResponse;
+
+export const zTestModelProviderBody = zModelProviderProbeRequestWritable;
+
+export const zTestModelProviderPath = z.object({
+    providerId: zModelModelProviderId
+});
+
+/**
+ * Sanitized provider probe result.
+ */
+export const zTestModelProviderResponse = zModelProviderProbeResponse;
+
+export const zEnableModelProviderHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zEnableModelProviderPath = z.object({
+    providerId: zModelModelProviderId
+});
+
+/**
+ * Enabled provider.
+ */
+export const zEnableModelProviderResponse = zModelProviderResponse;
+
+export const zDisableModelProviderHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zDisableModelProviderPath = z.object({
+    providerId: zModelModelProviderId
+});
+
+/**
+ * Disabled provider.
+ */
+export const zDisableModelProviderResponse = zModelProviderResponse;
+
+export const zListManagedModelsQuery = z.object({
+    cursor: zCursor.optional(),
+    limit: zPageLimit.optional()
+});
+
+/**
+ * Managed model page.
+ */
+export const zListManagedModelsResponse = zModelManagedModelListResponse;
+
+export const zCreateManagedModelBody = zModelManagedModelWriteRequest;
+
+export const zCreateManagedModelHeaders = z.object({
+    'Idempotency-Key': z.uuid().length(36).regex(/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/)
+});
+
+/**
+ * Created managed model.
+ */
+export const zCreateManagedModelResponse = zModelManagedModelResponse;
+
+export const zDeleteManagedModelHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zDeleteManagedModelPath = z.object({
+    modelId: zManagedModelId
+});
+
+/**
+ * Deleted managed model.
+ */
+export const zDeleteManagedModelResponse = zIdentityDeletedResourceResponse;
+
+export const zGetManagedModelPath = z.object({
+    modelId: zManagedModelId
+});
+
+/**
+ * Managed model details.
+ */
+export const zGetManagedModelResponse = zModelManagedModelResponse;
+
+export const zUpdateManagedModelBody = zModelManagedModelWriteRequest;
+
+export const zUpdateManagedModelHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zUpdateManagedModelPath = z.object({
+    modelId: zManagedModelId
+});
+
+/**
+ * Updated managed model.
+ */
+export const zUpdateManagedModelResponse = zModelManagedModelResponse;
+
+export const zEnableManagedModelHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zEnableManagedModelPath = z.object({
+    modelId: zManagedModelId
+});
+
+/**
+ * Enabled managed model.
+ */
+export const zEnableManagedModelResponse = zModelManagedModelResponse;
+
+export const zDisableManagedModelHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zDisableManagedModelPath = z.object({
+    modelId: zManagedModelId
+});
+
+/**
+ * Disabled managed model.
+ */
+export const zDisableManagedModelResponse = zModelManagedModelResponse;
+
+export const zListModelGrantsQuery = z.object({
+    cursor: zCursor.optional(),
+    limit: zPageLimit.optional()
+});
+
+/**
+ * Model grant page.
+ */
+export const zListModelGrantsResponse = zModelModelGrantListResponse;
+
+export const zCreateModelGrantBody = zModelModelGrantWriteRequest;
+
+export const zCreateModelGrantHeaders = z.object({
+    'Idempotency-Key': z.uuid().length(36).regex(/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/)
+});
+
+/**
+ * Created model grant.
+ */
+export const zCreateModelGrantResponse = zModelModelGrantResponse;
+
+export const zCreateModelGrantBatchBody = zModelModelGrantBatchRequest;
+
+export const zCreateModelGrantBatchHeaders = z.object({
+    'Idempotency-Key': z.uuid().length(36).regex(/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/)
+});
+
+/**
+ * Atomically created model grants.
+ */
+export const zCreateModelGrantBatchResponse = zModelModelGrantBatchResponse;
+
+export const zDeleteModelGrantHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zDeleteModelGrantPath = z.object({
+    grantId: zModelModelGrantId
+});
+
+/**
+ * Deleted model grant.
+ */
+export const zDeleteModelGrantResponse = zIdentityDeletedResourceResponse;
+
+export const zUpdateModelGrantBody = zModelModelGrantWriteRequest;
+
+export const zUpdateModelGrantHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zUpdateModelGrantPath = z.object({
+    grantId: zModelModelGrantId
+});
+
+/**
+ * Updated model grant.
+ */
+export const zUpdateModelGrantResponse = zModelModelGrantResponse;
+
+/**
+ * Complete desensitized bootstrap snapshot for the active Harness device.
+ */
+export const zGetEnterpriseBootstrapResponse = zModelBootstrapResponse;

@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖身份/revision 领域异常、Sa-Token 异常、Spring MVC 绑定异常与当前 requestId。
+ * [INPUT]: 依赖身份/设备/模型/revision 领域异常、Sa-Token 异常、Spring MVC 绑定异常与当前 requestId。
  * [OUTPUT]: 对外提供详细设计第 17 节稳定 status/code/retryable/error envelope。
  * [POS]: common/api 的企业 Controller 专用异常边界，优先于 RuoYi 通用 R 响应处理器。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -20,6 +20,7 @@ import org.dromara.enterprise.auth.application.AuthFlowException;
 import org.dromara.enterprise.device.application.DeviceAccessException;
 import org.dromara.enterprise.device.application.DeviceBindingConflictException;
 import org.dromara.enterprise.device.application.DeviceNotFoundException;
+import org.dromara.enterprise.model.application.ModelResourceNotFoundException;
 import org.dromara.enterprise.revision.RevisionConflictException;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -106,6 +107,11 @@ public final class EnterpriseExceptionHandler {
     @ExceptionHandler(IdentityResourceNotFoundException.class)
     public ResponseEntity<EnterpriseErrorResponse> notFound(HttpServletRequest request) {
         return error(HttpStatus.NOT_FOUND, "ENT_RESOURCE_NOT_FOUND", "身份资源不存在", false, null, request);
+    }
+
+    @ExceptionHandler(ModelResourceNotFoundException.class)
+    public ResponseEntity<EnterpriseErrorResponse> modelNotFound(HttpServletRequest request) {
+        return error(HttpStatus.NOT_FOUND, "ENT_RESOURCE_NOT_FOUND", "模型资源不存在", false, null, request);
     }
 
     @ExceptionHandler(IdentityAlreadyLinkedException.class)

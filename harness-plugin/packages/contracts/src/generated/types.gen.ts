@@ -111,6 +111,66 @@ export type DevicePageData = DeviceDevicePageData;
 
 export type DeviceListResponse = DeviceDeviceListResponse;
 
+export type ModelProviderId = ModelModelProviderId;
+
+export type ModelGrantId = ModelModelGrantId;
+
+export type ProviderType = ModelProviderType;
+
+export type ModelStatus = ModelModelStatus;
+
+export type GrantSubjectType = ModelGrantSubjectType;
+
+export type ProviderCreateRequest = ModelProviderCreateRequest;
+
+export type ProviderUpdateRequest = ModelProviderUpdateRequest;
+
+export type ProviderProbeRequest = ModelProviderProbeRequest;
+
+export type Provider = ModelProvider;
+
+export type ProviderResponse = ModelProviderResponse;
+
+export type ProviderPageData = ModelProviderPageData;
+
+export type ProviderListResponse = ModelProviderListResponse;
+
+export type ProviderProbeCategory = ModelProviderProbeCategory;
+
+export type ProviderProbeResult = ModelProviderProbeResult;
+
+export type ProviderProbeResponse = ModelProviderProbeResponse;
+
+export type ManagedModelWriteRequest = ModelManagedModelWriteRequest;
+
+export type ManagedModel = ModelManagedModel;
+
+export type ManagedModelResponse = ModelManagedModelResponse;
+
+export type ManagedModelPageData = ModelManagedModelPageData;
+
+export type ManagedModelListResponse = ModelManagedModelListResponse;
+
+export type ModelGrantWriteRequest = ModelModelGrantWriteRequest;
+
+export type ModelGrantBatchRequest = ModelModelGrantBatchRequest;
+
+export type ModelGrant = ModelModelGrant;
+
+export type ModelGrantResponse = ModelModelGrantResponse;
+
+export type ModelGrantPageData = ModelModelGrantPageData;
+
+export type ModelGrantListResponse = ModelModelGrantListResponse;
+
+export type ModelGrantBatchResponse = ModelModelGrantBatchResponse;
+
+export type BootstrapModel = ModelBootstrapModel;
+
+export type BootstrapSnapshot = ModelBootstrapSnapshot;
+
+export type BootstrapResponse = ModelBootstrapResponse;
+
 /**
  * Enterprise user snowflake ID serialized as a string.
  */
@@ -468,6 +528,240 @@ export type IdentityOidcSettings = {
     claims: IdentityOidcClaimMapping;
 };
 
+export type BootstrapDevice = {
+    id: EnterpriseDeviceId;
+    installationId: AuthInstallationId;
+    status: 'ACTIVE';
+};
+
+export type ModelBootstrapModel = {
+    alias: ModelAlias;
+    displayName: ModelDisplayName;
+    contextWindow: number;
+    maxOutputTokens: number;
+    reasoning: boolean;
+    isDefault: boolean;
+};
+
+export type BootstrapPluginAssignment = {
+    packageName: string;
+    version: string;
+    sha256: string;
+    downloadUrl: string;
+    required: boolean;
+    desiredState: 'INSTALLED';
+};
+
+export type BootstrapPlugins = {
+    revision: Revision;
+    assignments: Array<BootstrapPluginAssignment>;
+};
+
+export type BootstrapQuota = {
+    policyId: string;
+    scope: 'DEFAULT' | 'DEPT' | 'USER';
+    dailyTokenLimit: number;
+    monthlyTokenLimit: number;
+    rpm: number;
+    concurrency: number;
+};
+
+export type ModelBootstrapResponse = {
+    data: ModelBootstrapSnapshot;
+    requestId: RequestId;
+};
+
+export type BootstrapSessionPolicy = {
+    enabled: boolean;
+    retentionDays: number;
+    maxBatchBytes: number;
+};
+
+export type ModelBootstrapSnapshot = {
+    revision: Revision;
+    user: BootstrapUser;
+    device: BootstrapDevice;
+    models: Array<ModelBootstrapModel>;
+    quotas: Array<BootstrapQuota>;
+    plugins: BootstrapPlugins;
+    sessionPolicy: BootstrapSessionPolicy;
+};
+
+export type BootstrapUser = {
+    id: EnterpriseUserId;
+    username: string;
+    displayName: string;
+    departmentId: IdentityDepartmentId | null;
+};
+
+export type ModelGrantSubjectType = 'USER' | 'DEPT';
+
+export type ModelManagedModel = {
+    id: ManagedModelId;
+    providerId: ModelModelProviderId;
+    providerName: ProviderName;
+    alias: ModelAlias;
+    displayName: ModelDisplayName;
+    upstreamModel: string;
+    contextWindow: number;
+    maxOutputTokens: number;
+    reasoning: boolean;
+    sortOrder: number;
+    status: ModelModelStatus;
+    revision: Revision;
+};
+
+export type ModelManagedModelListResponse = {
+    data: ModelManagedModelPageData;
+    requestId: RequestId;
+};
+
+export type ModelManagedModelPageData = {
+    items: Array<ModelManagedModel>;
+    page: CursorPage;
+};
+
+export type ModelManagedModelResponse = {
+    data: ModelManagedModel;
+    requestId: RequestId;
+};
+
+export type ModelManagedModelWriteRequest = {
+    providerId: ModelModelProviderId;
+    alias: ModelAlias;
+    displayName: ModelDisplayName;
+    upstreamModel: string;
+    contextWindow: number;
+    maxOutputTokens: number;
+    reasoning: boolean;
+    sortOrder: number;
+};
+
+export type ModelAlias = string;
+
+export type ModelDisplayName = string;
+
+export type ModelModelGrant = {
+    id: ModelModelGrantId;
+    modelId: ManagedModelId;
+    modelAlias: ModelAlias;
+    subjectType: ModelGrantSubjectType;
+    subjectId: string;
+    subjectName: string;
+    isDefault: boolean;
+    status: ModelModelStatus;
+    revision: Revision;
+};
+
+export type ModelModelGrantBatchRequest = {
+    items: Array<ModelModelGrantWriteRequest>;
+};
+
+export type ModelModelGrantBatchResponse = {
+    data: Array<ModelModelGrant>;
+    requestId: RequestId;
+};
+
+export type ModelModelGrantId = string;
+
+export type ModelModelGrantListResponse = {
+    data: ModelModelGrantPageData;
+    requestId: RequestId;
+};
+
+export type ModelModelGrantPageData = {
+    items: Array<ModelModelGrant>;
+    page: CursorPage;
+};
+
+export type ModelModelGrantResponse = {
+    data: ModelModelGrant;
+    requestId: RequestId;
+};
+
+export type ModelModelGrantWriteRequest = {
+    modelId: ManagedModelId;
+    subjectType: ModelGrantSubjectType;
+    subjectId: string;
+    isDefault: boolean;
+    status: ModelModelStatus;
+};
+
+export type ModelModelProviderId = string;
+
+export type ModelModelStatus = 'ACTIVE' | 'DISABLED';
+
+export type ModelProvider = {
+    id: ModelModelProviderId;
+    name: ProviderName;
+    providerType: ModelProviderType;
+    baseUrl: ProviderBaseUrl;
+    credentialConfigured: boolean;
+    status: ModelModelStatus;
+    connectTimeoutMs: ProviderTimeoutMs;
+    readTimeoutMs: ProviderTimeoutMs;
+    revision: Revision;
+};
+
+export type ProviderBaseUrl = string;
+
+export type ModelProviderCreateRequest = {
+    name: ProviderName;
+    providerType: ModelProviderType;
+    baseUrl: ProviderBaseUrl;
+    connectTimeoutMs: ProviderTimeoutMs;
+    readTimeoutMs: ProviderTimeoutMs;
+};
+
+export type ModelProviderListResponse = {
+    data: ModelProviderPageData;
+    requestId: RequestId;
+};
+
+export type ProviderName = string;
+
+export type ModelProviderPageData = {
+    items: Array<ModelProvider>;
+    page: CursorPage;
+};
+
+export type ModelProviderProbeCategory = 'SUCCESS' | 'AUTHENTICATION_FAILED' | 'UPSTREAM_REJECTED' | 'UNAVAILABLE' | 'TIMEOUT';
+
+export type ModelProviderProbeRequest = {
+    baseUrl: ProviderBaseUrl;
+    connectTimeoutMs: ProviderTimeoutMs;
+    readTimeoutMs: ProviderTimeoutMs;
+};
+
+export type ModelProviderProbeResponse = {
+    data: ModelProviderProbeResult;
+    requestId: RequestId;
+};
+
+export type ModelProviderProbeResult = {
+    success: boolean;
+    latencyMs: number;
+    upstreamStatus: ModelProviderProbeCategory;
+};
+
+export type ModelProviderResponse = {
+    data: ModelProvider;
+    requestId: RequestId;
+};
+
+export type ProviderTimeoutMs = number;
+
+export type ModelProviderType = 'DEEPSEEK_OPENAI';
+
+export type ModelProviderUpdateRequest = {
+    name: ProviderName;
+    providerType: ModelProviderType;
+    baseUrl: ProviderBaseUrl;
+    replaceSecret: boolean;
+    connectTimeoutMs: ProviderTimeoutMs;
+    readTimeoutMs: ProviderTimeoutMs;
+};
+
 export type Authorize = unknown;
 
 export type Logout = unknown;
@@ -506,6 +800,32 @@ export type _1Enterprise1Admin1V11IdentitySources1SourceId1Actions1Enable = unkn
 
 export type _1Enterprise1Admin1V11IdentitySources1SourceId1Actions1Test = unknown;
 
+export type Bootstrap = unknown;
+
+export type GrantBatch = unknown;
+
+export type GrantCollection = unknown;
+
+export type GrantItem = unknown;
+
+export type ModelCollection = unknown;
+
+export type ModelDisable = unknown;
+
+export type ModelEnable = unknown;
+
+export type ModelItem = unknown;
+
+export type ProviderCollection = unknown;
+
+export type ProviderDisable = unknown;
+
+export type ProviderEnable = unknown;
+
+export type ProviderItem = unknown;
+
+export type ProviderTest = unknown;
+
 export type IdentitySourceIdWritable = IdentityIdentitySourceId;
 
 export type GroupMappingIdWritable = IdentityGroupMappingId;
@@ -535,6 +855,24 @@ export type InstallationIdWritable = AuthInstallationId;
 export type PasswordLoginRequestWritable = AuthPasswordLoginRequestWritable;
 
 export type DeviceStatusWritable = DeviceDeviceStatus;
+
+export type ModelProviderIdWritable = ModelModelProviderId;
+
+export type ModelGrantIdWritable = ModelModelGrantId;
+
+export type ProviderTypeWritable = ModelProviderType;
+
+export type ModelStatusWritable = ModelModelStatus;
+
+export type GrantSubjectTypeWritable = ModelGrantSubjectType;
+
+export type ProviderCreateRequestWritable = ModelProviderCreateRequestWritable;
+
+export type ProviderUpdateRequestWritable = ModelProviderUpdateRequestWritable;
+
+export type ProviderProbeRequestWritable = ModelProviderProbeRequestWritable;
+
+export type ProviderProbeCategoryWritable = ModelProviderProbeCategory;
 
 export type AuthPasswordLoginRequestWritable = {
     transactionId: AuthAuthTransactionId;
@@ -572,11 +910,43 @@ export type IdentityIdentitySourceUpdateRequestWritable = {
     secret?: string;
 };
 
+export type ModelProviderCreateRequestWritable = {
+    name: ProviderName;
+    providerType: ModelProviderType;
+    baseUrl: ProviderBaseUrl;
+    credential: string;
+    connectTimeoutMs: ProviderTimeoutMs;
+    readTimeoutMs: ProviderTimeoutMs;
+};
+
+export type ModelProviderProbeRequestWritable = {
+    baseUrl: ProviderBaseUrl;
+    credential?: string;
+    connectTimeoutMs: ProviderTimeoutMs;
+    readTimeoutMs: ProviderTimeoutMs;
+};
+
+export type ModelProviderUpdateRequestWritable = {
+    name: ProviderName;
+    providerType: ModelProviderType;
+    baseUrl: ProviderBaseUrl;
+    replaceSecret: boolean;
+    credential?: string;
+    connectTimeoutMs: ProviderTimeoutMs;
+    readTimeoutMs: ProviderTimeoutMs;
+};
+
 export type PasswordWritable = unknown;
 
 export type _1Enterprise1Admin1V11IdentitySourcesWritable = unknown;
 
 export type _1Enterprise1Admin1V11IdentitySources1SourceIdWritable = unknown;
+
+export type ProviderCollectionWritable = unknown;
+
+export type ProviderItemWritable = unknown;
+
+export type ProviderTestWritable = unknown;
 
 export type AuthClientId = AuthPlatformClient;
 
@@ -599,6 +969,12 @@ export type IdentitySourceIdPath = IdentityIdentitySourceId;
 export type IdentitySourceIdQuery = IdentityIdentitySourceId;
 
 export type GroupMappingIdPath = IdentityGroupMappingId;
+
+export type ProviderIdPath = ModelModelProviderId;
+
+export type ManagedModelIdPath = ManagedModelId;
+
+export type ModelGrantIdPath = ModelModelGrantId;
 
 /**
  * Server-signed opaque cursor; clients must not parse it.
@@ -1409,3 +1785,824 @@ export type DeleteGroupMappingResponses = {
 };
 
 export type DeleteGroupMappingResponse = DeleteGroupMappingResponses[keyof DeleteGroupMappingResponses];
+
+export type ListModelProvidersData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Server-signed opaque cursor; clients must not parse it.
+         */
+        cursor?: Cursor;
+        /**
+         * Cursor page size.
+         */
+        limit?: PageLimit;
+    };
+    url: '/enterprise/admin/v1/providers';
+};
+
+export type ListModelProvidersErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type ListModelProvidersError = ListModelProvidersErrors[keyof ListModelProvidersErrors];
+
+export type ListModelProvidersResponses = {
+    /**
+     * Provider page.
+     */
+    200: ModelProviderListResponse;
+};
+
+export type ListModelProvidersResponse = ListModelProvidersResponses[keyof ListModelProvidersResponses];
+
+export type CreateModelProviderData = {
+    body: ModelProviderCreateRequestWritable;
+    headers: {
+        /**
+         * Caller-generated UUID v4 reused only for one logical write.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/enterprise/admin/v1/providers';
+};
+
+export type CreateModelProviderErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type CreateModelProviderError = CreateModelProviderErrors[keyof CreateModelProviderErrors];
+
+export type CreateModelProviderResponses = {
+    /**
+     * Created provider.
+     */
+    201: ModelProviderResponse;
+};
+
+export type CreateModelProviderResponse = CreateModelProviderResponses[keyof CreateModelProviderResponses];
+
+export type GetModelProviderData = {
+    body?: never;
+    path: {
+        providerId: ModelModelProviderId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/providers/{providerId}';
+};
+
+export type GetModelProviderErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+};
+
+export type GetModelProviderError = GetModelProviderErrors[keyof GetModelProviderErrors];
+
+export type GetModelProviderResponses = {
+    /**
+     * Provider details.
+     */
+    200: ModelProviderResponse;
+};
+
+export type GetModelProviderResponse = GetModelProviderResponses[keyof GetModelProviderResponses];
+
+export type UpdateModelProviderData = {
+    body: ModelProviderUpdateRequestWritable;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        providerId: ModelModelProviderId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/providers/{providerId}';
+};
+
+export type UpdateModelProviderErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type UpdateModelProviderError = UpdateModelProviderErrors[keyof UpdateModelProviderErrors];
+
+export type UpdateModelProviderResponses = {
+    /**
+     * Updated provider.
+     */
+    200: ModelProviderResponse;
+};
+
+export type UpdateModelProviderResponse = UpdateModelProviderResponses[keyof UpdateModelProviderResponses];
+
+export type TestModelProviderData = {
+    body: ModelProviderProbeRequestWritable;
+    path: {
+        providerId: ModelModelProviderId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/providers/{providerId}/actions/test';
+};
+
+export type TestModelProviderErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+};
+
+export type TestModelProviderError = TestModelProviderErrors[keyof TestModelProviderErrors];
+
+export type TestModelProviderResponses = {
+    /**
+     * Sanitized provider probe result.
+     */
+    200: ModelProviderProbeResponse;
+};
+
+export type TestModelProviderResponse = TestModelProviderResponses[keyof TestModelProviderResponses];
+
+export type EnableModelProviderData = {
+    body?: never;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        providerId: ModelModelProviderId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/providers/{providerId}/actions/enable';
+};
+
+export type EnableModelProviderErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type EnableModelProviderError = EnableModelProviderErrors[keyof EnableModelProviderErrors];
+
+export type EnableModelProviderResponses = {
+    /**
+     * Enabled provider.
+     */
+    200: ModelProviderResponse;
+};
+
+export type EnableModelProviderResponse = EnableModelProviderResponses[keyof EnableModelProviderResponses];
+
+export type DisableModelProviderData = {
+    body?: never;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        providerId: ModelModelProviderId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/providers/{providerId}/actions/disable';
+};
+
+export type DisableModelProviderErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type DisableModelProviderError = DisableModelProviderErrors[keyof DisableModelProviderErrors];
+
+export type DisableModelProviderResponses = {
+    /**
+     * Disabled provider.
+     */
+    200: ModelProviderResponse;
+};
+
+export type DisableModelProviderResponse = DisableModelProviderResponses[keyof DisableModelProviderResponses];
+
+export type ListManagedModelsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Server-signed opaque cursor; clients must not parse it.
+         */
+        cursor?: Cursor;
+        /**
+         * Cursor page size.
+         */
+        limit?: PageLimit;
+    };
+    url: '/enterprise/admin/v1/models';
+};
+
+export type ListManagedModelsErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type ListManagedModelsError = ListManagedModelsErrors[keyof ListManagedModelsErrors];
+
+export type ListManagedModelsResponses = {
+    /**
+     * Managed model page.
+     */
+    200: ModelManagedModelListResponse;
+};
+
+export type ListManagedModelsResponse = ListManagedModelsResponses[keyof ListManagedModelsResponses];
+
+export type CreateManagedModelData = {
+    body: ModelManagedModelWriteRequest;
+    headers: {
+        /**
+         * Caller-generated UUID v4 reused only for one logical write.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/enterprise/admin/v1/models';
+};
+
+export type CreateManagedModelErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type CreateManagedModelError = CreateManagedModelErrors[keyof CreateManagedModelErrors];
+
+export type CreateManagedModelResponses = {
+    /**
+     * Created managed model.
+     */
+    201: ModelManagedModelResponse;
+};
+
+export type CreateManagedModelResponse = CreateManagedModelResponses[keyof CreateManagedModelResponses];
+
+export type DeleteManagedModelData = {
+    body?: never;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        modelId: ManagedModelId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/models/{modelId}';
+};
+
+export type DeleteManagedModelErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type DeleteManagedModelError = DeleteManagedModelErrors[keyof DeleteManagedModelErrors];
+
+export type DeleteManagedModelResponses = {
+    /**
+     * Deleted managed model.
+     */
+    200: IdentityDeletedResourceResponse;
+};
+
+export type DeleteManagedModelResponse = DeleteManagedModelResponses[keyof DeleteManagedModelResponses];
+
+export type GetManagedModelData = {
+    body?: never;
+    path: {
+        modelId: ManagedModelId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/models/{modelId}';
+};
+
+export type GetManagedModelErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+};
+
+export type GetManagedModelError = GetManagedModelErrors[keyof GetManagedModelErrors];
+
+export type GetManagedModelResponses = {
+    /**
+     * Managed model details.
+     */
+    200: ModelManagedModelResponse;
+};
+
+export type GetManagedModelResponse = GetManagedModelResponses[keyof GetManagedModelResponses];
+
+export type UpdateManagedModelData = {
+    body: ModelManagedModelWriteRequest;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        modelId: ManagedModelId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/models/{modelId}';
+};
+
+export type UpdateManagedModelErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type UpdateManagedModelError = UpdateManagedModelErrors[keyof UpdateManagedModelErrors];
+
+export type UpdateManagedModelResponses = {
+    /**
+     * Updated managed model.
+     */
+    200: ModelManagedModelResponse;
+};
+
+export type UpdateManagedModelResponse = UpdateManagedModelResponses[keyof UpdateManagedModelResponses];
+
+export type EnableManagedModelData = {
+    body?: never;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        modelId: ManagedModelId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/models/{modelId}/actions/enable';
+};
+
+export type EnableManagedModelErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type EnableManagedModelError = EnableManagedModelErrors[keyof EnableManagedModelErrors];
+
+export type EnableManagedModelResponses = {
+    /**
+     * Enabled managed model.
+     */
+    200: ModelManagedModelResponse;
+};
+
+export type EnableManagedModelResponse = EnableManagedModelResponses[keyof EnableManagedModelResponses];
+
+export type DisableManagedModelData = {
+    body?: never;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        modelId: ManagedModelId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/models/{modelId}/actions/disable';
+};
+
+export type DisableManagedModelErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type DisableManagedModelError = DisableManagedModelErrors[keyof DisableManagedModelErrors];
+
+export type DisableManagedModelResponses = {
+    /**
+     * Disabled managed model.
+     */
+    200: ModelManagedModelResponse;
+};
+
+export type DisableManagedModelResponse = DisableManagedModelResponses[keyof DisableManagedModelResponses];
+
+export type ListModelGrantsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Server-signed opaque cursor; clients must not parse it.
+         */
+        cursor?: Cursor;
+        /**
+         * Cursor page size.
+         */
+        limit?: PageLimit;
+    };
+    url: '/enterprise/admin/v1/model-grants';
+};
+
+export type ListModelGrantsErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type ListModelGrantsError = ListModelGrantsErrors[keyof ListModelGrantsErrors];
+
+export type ListModelGrantsResponses = {
+    /**
+     * Model grant page.
+     */
+    200: ModelModelGrantListResponse;
+};
+
+export type ListModelGrantsResponse = ListModelGrantsResponses[keyof ListModelGrantsResponses];
+
+export type CreateModelGrantData = {
+    body: ModelModelGrantWriteRequest;
+    headers: {
+        /**
+         * Caller-generated UUID v4 reused only for one logical write.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/enterprise/admin/v1/model-grants';
+};
+
+export type CreateModelGrantErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type CreateModelGrantError = CreateModelGrantErrors[keyof CreateModelGrantErrors];
+
+export type CreateModelGrantResponses = {
+    /**
+     * Created model grant.
+     */
+    201: ModelModelGrantResponse;
+};
+
+export type CreateModelGrantResponse = CreateModelGrantResponses[keyof CreateModelGrantResponses];
+
+export type CreateModelGrantBatchData = {
+    body: ModelModelGrantBatchRequest;
+    headers: {
+        /**
+         * Caller-generated UUID v4 reused only for one logical write.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/enterprise/admin/v1/model-grants/batch';
+};
+
+export type CreateModelGrantBatchErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type CreateModelGrantBatchError = CreateModelGrantBatchErrors[keyof CreateModelGrantBatchErrors];
+
+export type CreateModelGrantBatchResponses = {
+    /**
+     * Atomically created model grants.
+     */
+    201: ModelModelGrantBatchResponse;
+};
+
+export type CreateModelGrantBatchResponse = CreateModelGrantBatchResponses[keyof CreateModelGrantBatchResponses];
+
+export type DeleteModelGrantData = {
+    body?: never;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        grantId: ModelModelGrantId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/model-grants/{grantId}';
+};
+
+export type DeleteModelGrantErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type DeleteModelGrantError = DeleteModelGrantErrors[keyof DeleteModelGrantErrors];
+
+export type DeleteModelGrantResponses = {
+    /**
+     * Deleted model grant.
+     */
+    200: IdentityDeletedResourceResponse;
+};
+
+export type DeleteModelGrantResponse = DeleteModelGrantResponses[keyof DeleteModelGrantResponses];
+
+export type UpdateModelGrantData = {
+    body: ModelModelGrantWriteRequest;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        grantId: ModelModelGrantId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/model-grants/{grantId}';
+};
+
+export type UpdateModelGrantErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type UpdateModelGrantError = UpdateModelGrantErrors[keyof UpdateModelGrantErrors];
+
+export type UpdateModelGrantResponses = {
+    /**
+     * Updated model grant.
+     */
+    200: ModelModelGrantResponse;
+};
+
+export type UpdateModelGrantResponse = UpdateModelGrantResponses[keyof UpdateModelGrantResponses];
+
+export type GetEnterpriseBootstrapData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/enterprise/api/v1/bootstrap';
+};
+
+export type GetEnterpriseBootstrapErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type GetEnterpriseBootstrapError = GetEnterpriseBootstrapErrors[keyof GetEnterpriseBootstrapErrors];
+
+export type GetEnterpriseBootstrapResponses = {
+    /**
+     * Complete desensitized bootstrap snapshot for the active Harness device.
+     */
+    200: ModelBootstrapResponse;
+};
+
+export type GetEnterpriseBootstrapResponse = GetEnterpriseBootstrapResponses[keyof GetEnterpriseBootstrapResponses];

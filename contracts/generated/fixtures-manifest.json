@@ -95,7 +95,67 @@
       "schema": "DeviceListResponse",
       "valid": true,
       "zodExport": "zDeviceListResponse"
+    },
+    {
+      "file": "fixtures/provider-success.json",
+      "schema": "ProviderResponse",
+      "valid": true,
+      "zodExport": "zProviderResponse"
+    },
+    {
+      "file": "fixtures/provider-secret-leak.json",
+      "schema": "ProviderResponse",
+      "valid": false,
+      "zodExport": "zProviderResponse"
+    },
+    {
+      "file": "fixtures/provider-list-success.json",
+      "schema": "ProviderListResponse",
+      "valid": true,
+      "zodExport": "zProviderListResponse"
+    },
+    {
+      "file": "fixtures/provider-probe-success.json",
+      "schema": "ProviderProbeResponse",
+      "valid": true,
+      "zodExport": "zProviderProbeResponse"
+    },
+    {
+      "file": "fixtures/model-success.json",
+      "schema": "ManagedModelResponse",
+      "valid": true,
+      "zodExport": "zManagedModelResponse"
+    },
+    {
+      "file": "fixtures/model-list-success.json",
+      "schema": "ManagedModelListResponse",
+      "valid": true,
+      "zodExport": "zManagedModelListResponse"
+    },
+    {
+      "file": "fixtures/model-grant-success.json",
+      "schema": "ModelGrantResponse",
+      "valid": true,
+      "zodExport": "zModelGrantResponse"
+    },
+    {
+      "file": "fixtures/model-grant-list-success.json",
+      "schema": "ModelGrantListResponse",
+      "valid": true,
+      "zodExport": "zModelGrantListResponse"
+    },
+    {
+      "file": "fixtures/model-grant-batch-success.json",
+      "schema": "ModelGrantBatchResponse",
+      "valid": true,
+      "zodExport": "zModelGrantBatchResponse"
+    },
+    {
+      "file": "fixtures/bootstrap-models-success.json",
+      "schema": "BootstrapResponse",
+      "valid": true,
+      "zodExport": "zBootstrapResponse"
     }
   ],
-  "protocolSha256": "582649f4014c9446cad394c992608c21b7de2c8b2c40c77257238603ce711655"
+  "protocolSha256": "a793affb5bd7ed8f8444cc0b0353e9b0bb05f9a03ef56bba830db1e3fb50cbfb"
 }

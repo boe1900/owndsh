@@ -52,6 +52,32 @@ paths:
     $ref: './paths/identity.yaml#/~1enterprise~1admin~1v1~1group-mappings'
   /enterprise/admin/v1/group-mappings/{mappingId}:
     $ref: './paths/identity.yaml#/~1enterprise~1admin~1v1~1group-mappings~1{mappingId}'
+  /enterprise/admin/v1/providers:
+    $ref: './paths/model.yaml#/ProviderCollection'
+  /enterprise/admin/v1/providers/{providerId}:
+    $ref: './paths/model.yaml#/ProviderItem'
+  /enterprise/admin/v1/providers/{providerId}/actions/test:
+    $ref: './paths/model.yaml#/ProviderTest'
+  /enterprise/admin/v1/providers/{providerId}/actions/enable:
+    $ref: './paths/model.yaml#/ProviderEnable'
+  /enterprise/admin/v1/providers/{providerId}/actions/disable:
+    $ref: './paths/model.yaml#/ProviderDisable'
+  /enterprise/admin/v1/models:
+    $ref: './paths/model.yaml#/ModelCollection'
+  /enterprise/admin/v1/models/{modelId}:
+    $ref: './paths/model.yaml#/ModelItem'
+  /enterprise/admin/v1/models/{modelId}/actions/enable:
+    $ref: './paths/model.yaml#/ModelEnable'
+  /enterprise/admin/v1/models/{modelId}/actions/disable:
+    $ref: './paths/model.yaml#/ModelDisable'
+  /enterprise/admin/v1/model-grants:
+    $ref: './paths/model.yaml#/GrantCollection'
+  /enterprise/admin/v1/model-grants/batch:
+    $ref: './paths/model.yaml#/GrantBatch'
+  /enterprise/admin/v1/model-grants/{grantId}:
+    $ref: './paths/model.yaml#/GrantItem'
+  /enterprise/api/v1/bootstrap:
+    $ref: './paths/model.yaml#/Bootstrap'
 
 x-enterprise-error-statuses:
   '400':
@@ -150,6 +176,36 @@ x-enterprise-fixtures:
   - file: fixtures/device-list-success.json
     schema: DeviceListResponse
     valid: true
+  - file: fixtures/provider-success.json
+    schema: ProviderResponse
+    valid: true
+  - file: fixtures/provider-secret-leak.json
+    schema: ProviderResponse
+    valid: false
+  - file: fixtures/provider-list-success.json
+    schema: ProviderListResponse
+    valid: true
+  - file: fixtures/provider-probe-success.json
+    schema: ProviderProbeResponse
+    valid: true
+  - file: fixtures/model-success.json
+    schema: ManagedModelResponse
+    valid: true
+  - file: fixtures/model-list-success.json
+    schema: ManagedModelListResponse
+    valid: true
+  - file: fixtures/model-grant-success.json
+    schema: ModelGrantResponse
+    valid: true
+  - file: fixtures/model-grant-list-success.json
+    schema: ModelGrantListResponse
+    valid: true
+  - file: fixtures/model-grant-batch-success.json
+    schema: ModelGrantBatchResponse
+    valid: true
+  - file: fixtures/bootstrap-models-success.json
+    schema: BootstrapResponse
+    valid: true
 
 components:
   securitySchemes:
@@ -232,6 +288,24 @@ components:
       required: true
       schema:
         $ref: '#/components/schemas/GroupMappingId'
+    ProviderIdPath:
+      name: providerId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/ModelProviderId'
+    ManagedModelIdPath:
+      name: modelId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/ManagedModelId'
+    ModelGrantIdPath:
+      name: grantId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/ModelGrantId'
     Cursor:
       name: cursor
       in: query
@@ -433,6 +507,36 @@ components:
     DeviceResponse: {$ref: './components/device.yaml#/DeviceResponse'}
     DevicePageData: {$ref: './components/device.yaml#/DevicePageData'}
     DeviceListResponse: {$ref: './components/device.yaml#/DeviceListResponse'}
+    ModelProviderId: {$ref: './components/model.yaml#/ModelProviderId'}
+    ModelGrantId: {$ref: './components/model.yaml#/ModelGrantId'}
+    ProviderType: {$ref: './components/model.yaml#/ProviderType'}
+    ModelStatus: {$ref: './components/model.yaml#/ModelStatus'}
+    GrantSubjectType: {$ref: './components/model.yaml#/GrantSubjectType'}
+    ProviderCreateRequest: {$ref: './components/model.yaml#/ProviderCreateRequest'}
+    ProviderUpdateRequest: {$ref: './components/model.yaml#/ProviderUpdateRequest'}
+    ProviderProbeRequest: {$ref: './components/model.yaml#/ProviderProbeRequest'}
+    Provider: {$ref: './components/model.yaml#/Provider'}
+    ProviderResponse: {$ref: './components/model.yaml#/ProviderResponse'}
+    ProviderPageData: {$ref: './components/model.yaml#/ProviderPageData'}
+    ProviderListResponse: {$ref: './components/model.yaml#/ProviderListResponse'}
+    ProviderProbeCategory: {$ref: './components/model.yaml#/ProviderProbeCategory'}
+    ProviderProbeResult: {$ref: './components/model.yaml#/ProviderProbeResult'}
+    ProviderProbeResponse: {$ref: './components/model.yaml#/ProviderProbeResponse'}
+    ManagedModelWriteRequest: {$ref: './components/model.yaml#/ManagedModelWriteRequest'}
+    ManagedModel: {$ref: './components/model.yaml#/ManagedModel'}
+    ManagedModelResponse: {$ref: './components/model.yaml#/ManagedModelResponse'}
+    ManagedModelPageData: {$ref: './components/model.yaml#/ManagedModelPageData'}
+    ManagedModelListResponse: {$ref: './components/model.yaml#/ManagedModelListResponse'}
+    ModelGrantWriteRequest: {$ref: './components/model.yaml#/ModelGrantWriteRequest'}
+    ModelGrantBatchRequest: {$ref: './components/model.yaml#/ModelGrantBatchRequest'}
+    ModelGrant: {$ref: './components/model.yaml#/ModelGrant'}
+    ModelGrantResponse: {$ref: './components/model.yaml#/ModelGrantResponse'}
+    ModelGrantPageData: {$ref: './components/model.yaml#/ModelGrantPageData'}
+    ModelGrantListResponse: {$ref: './components/model.yaml#/ModelGrantListResponse'}
+    ModelGrantBatchResponse: {$ref: './components/model.yaml#/ModelGrantBatchResponse'}
+    BootstrapModel: {$ref: './components/model.yaml#/BootstrapModel'}
+    BootstrapSnapshot: {$ref: './components/model.yaml#/BootstrapSnapshot'}
+    BootstrapResponse: {$ref: './components/model.yaml#/BootstrapResponse'}
     EnterpriseUserId:
       type: string
       pattern: '^[1-9][0-9]{0,18}$'

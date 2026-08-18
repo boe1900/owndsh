@@ -1,0 +1,510 @@
+# [INPUT]: 依赖根协议的品牌 ID、revision、cursor、requestId 与设备 installation ID
+# [OUTPUT]: 提供 T08 provider/model/grant 管理协议、探测结果与完整 bootstrap 脱敏快照 schemas
+# [POS]: OpenAPI 逻辑真源的受管模型分片，写入凭据只存在于 writeOnly 请求且 runtime 只看到有效模型目录
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+ModelProviderId:
+  type: string
+  pattern: '^[1-9][0-9]{0,18}$'
+ModelGrantId:
+  type: string
+  pattern: '^[1-9][0-9]{0,18}$'
+ProviderType:
+  type: string
+  enum: [DEEPSEEK_OPENAI]
+ModelStatus:
+  type: string
+  enum: [ACTIVE, DISABLED]
+GrantSubjectType:
+  type: string
+  enum: [USER, DEPT]
+
+ProviderCreateRequest:
+  type: object
+  additionalProperties: false
+  required: [name, providerType, baseUrl, credential, connectTimeoutMs, readTimeoutMs]
+  properties:
+    name: {$ref: '#/ProviderName'}
+    providerType: {$ref: '#/ProviderType'}
+    baseUrl: {$ref: '#/ProviderBaseUrl'}
+    credential:
+      type: string
+      minLength: 1
+      maxLength: 4096
+      writeOnly: true
+    connectTimeoutMs: {$ref: '#/ProviderTimeoutMs'}
+    readTimeoutMs: {$ref: '#/ProviderTimeoutMs'}
+ProviderUpdateRequest:
+  type: object
+  additionalProperties: false
+  required: [name, providerType, baseUrl, replaceSecret, connectTimeoutMs, readTimeoutMs]
+  properties:
+    name: {$ref: '#/ProviderName'}
+    providerType: {$ref: '#/ProviderType'}
+    baseUrl: {$ref: '#/ProviderBaseUrl'}
+    replaceSecret:
+      type: boolean
+    credential:
+      type: string
+      minLength: 1
+      maxLength: 4096
+      writeOnly: true
+    connectTimeoutMs: {$ref: '#/ProviderTimeoutMs'}
+    readTimeoutMs: {$ref: '#/ProviderTimeoutMs'}
+ProviderProbeRequest:
+  type: object
+  additionalProperties: false
+  required: [baseUrl, connectTimeoutMs, readTimeoutMs]
+  properties:
+    baseUrl: {$ref: '#/ProviderBaseUrl'}
+    credential:
+      type: string
+      minLength: 1
+      maxLength: 4096
+      writeOnly: true
+    connectTimeoutMs: {$ref: '#/ProviderTimeoutMs'}
+    readTimeoutMs: {$ref: '#/ProviderTimeoutMs'}
+ProviderName:
+  type: string
+  minLength: 1
+  maxLength: 120
+ProviderBaseUrl:
+  type: string
+  format: uri
+  minLength: 1
+  maxLength: 500
+ProviderTimeoutMs:
+  type: integer
+  minimum: 1
+  maximum: 600000
+Provider:
+  type: object
+  additionalProperties: false
+  required:
+    - id
+    - name
+    - providerType
+    - baseUrl
+    - credentialConfigured
+    - status
+    - connectTimeoutMs
+    - readTimeoutMs
+    - revision
+  properties:
+    id: {$ref: '#/ModelProviderId'}
+    name: {$ref: '#/ProviderName'}
+    providerType: {$ref: '#/ProviderType'}
+    baseUrl: {$ref: '#/ProviderBaseUrl'}
+    credentialConfigured:
+      type: boolean
+    status: {$ref: '#/ModelStatus'}
+    connectTimeoutMs: {$ref: '#/ProviderTimeoutMs'}
+    readTimeoutMs: {$ref: '#/ProviderTimeoutMs'}
+    revision:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/Revision'
+ProviderResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/Provider'}
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+ProviderPageData:
+  type: object
+  additionalProperties: false
+  required: [items, page]
+  properties:
+    items:
+      type: array
+      maxItems: 200
+      items: {$ref: '#/Provider'}
+    page:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/CursorPage'
+ProviderListResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/ProviderPageData'}
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+ProviderProbeCategory:
+  type: string
+  enum: [SUCCESS, AUTHENTICATION_FAILED, UPSTREAM_REJECTED, UNAVAILABLE, TIMEOUT]
+ProviderProbeResult:
+  type: object
+  additionalProperties: false
+  required: [success, latencyMs, upstreamStatus]
+  properties:
+    success:
+      type: boolean
+    latencyMs:
+      type: integer
+      minimum: 0
+      maximum: 9007199254740991
+    upstreamStatus: {$ref: '#/ProviderProbeCategory'}
+ProviderProbeResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/ProviderProbeResult'}
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+
+ManagedModelWriteRequest:
+  type: object
+  additionalProperties: false
+  required:
+    - providerId
+    - alias
+    - displayName
+    - upstreamModel
+    - contextWindow
+    - maxOutputTokens
+    - reasoning
+    - sortOrder
+  properties:
+    providerId: {$ref: '#/ModelProviderId'}
+    alias: {$ref: '#/ModelAlias'}
+    displayName: {$ref: '#/ModelDisplayName'}
+    upstreamModel:
+      type: string
+      minLength: 1
+      maxLength: 255
+    contextWindow:
+      type: integer
+      minimum: 1
+      maximum: 2147483647
+    maxOutputTokens:
+      type: integer
+      minimum: 1
+      maximum: 2147483647
+    reasoning:
+      type: boolean
+    sortOrder:
+      type: integer
+      minimum: 0
+      maximum: 2147483647
+ModelAlias:
+  type: string
+  minLength: 1
+  maxLength: 120
+  pattern: '^[A-Za-z0-9][A-Za-z0-9._-]*$'
+ModelDisplayName:
+  type: string
+  minLength: 1
+  maxLength: 120
+ManagedModel:
+  type: object
+  additionalProperties: false
+  required:
+    - id
+    - providerId
+    - providerName
+    - alias
+    - displayName
+    - upstreamModel
+    - contextWindow
+    - maxOutputTokens
+    - reasoning
+    - sortOrder
+    - status
+    - revision
+  properties:
+    id:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/ManagedModelId'
+    providerId: {$ref: '#/ModelProviderId'}
+    providerName: {$ref: '#/ProviderName'}
+    alias: {$ref: '#/ModelAlias'}
+    displayName: {$ref: '#/ModelDisplayName'}
+    upstreamModel:
+      type: string
+      minLength: 1
+      maxLength: 255
+    contextWindow:
+      type: integer
+      minimum: 1
+    maxOutputTokens:
+      type: integer
+      minimum: 1
+    reasoning:
+      type: boolean
+    sortOrder:
+      type: integer
+      minimum: 0
+    status: {$ref: '#/ModelStatus'}
+    revision:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/Revision'
+ManagedModelResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/ManagedModel'}
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+ManagedModelPageData:
+  type: object
+  additionalProperties: false
+  required: [items, page]
+  properties:
+    items:
+      type: array
+      maxItems: 200
+      items: {$ref: '#/ManagedModel'}
+    page:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/CursorPage'
+ManagedModelListResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/ManagedModelPageData'}
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+
+ModelGrantWriteRequest:
+  type: object
+  additionalProperties: false
+  required: [modelId, subjectType, subjectId, isDefault, status]
+  properties:
+    modelId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/ManagedModelId'
+    subjectType: {$ref: '#/GrantSubjectType'}
+    subjectId:
+      type: string
+      pattern: '^[1-9][0-9]{0,18}$'
+    isDefault:
+      type: boolean
+    status: {$ref: '#/ModelStatus'}
+ModelGrantBatchRequest:
+  type: object
+  additionalProperties: false
+  required: [items]
+  properties:
+    items:
+      type: array
+      minItems: 1
+      maxItems: 200
+      items: {$ref: '#/ModelGrantWriteRequest'}
+ModelGrant:
+  type: object
+  additionalProperties: false
+  required:
+    - id
+    - modelId
+    - modelAlias
+    - subjectType
+    - subjectId
+    - subjectName
+    - isDefault
+    - status
+    - revision
+  properties:
+    id: {$ref: '#/ModelGrantId'}
+    modelId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/ManagedModelId'
+    modelAlias: {$ref: '#/ModelAlias'}
+    subjectType: {$ref: '#/GrantSubjectType'}
+    subjectId:
+      type: string
+      pattern: '^[1-9][0-9]{0,18}$'
+    subjectName:
+      type: string
+      minLength: 1
+      maxLength: 120
+    isDefault:
+      type: boolean
+    status: {$ref: '#/ModelStatus'}
+    revision:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/Revision'
+ModelGrantResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/ModelGrant'}
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+ModelGrantPageData:
+  type: object
+  additionalProperties: false
+  required: [items, page]
+  properties:
+    items:
+      type: array
+      maxItems: 200
+      items: {$ref: '#/ModelGrant'}
+    page:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/CursorPage'
+ModelGrantListResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/ModelGrantPageData'}
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+ModelGrantBatchResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data:
+      type: array
+      minItems: 1
+      maxItems: 200
+      items: {$ref: '#/ModelGrant'}
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+
+BootstrapModel:
+  type: object
+  additionalProperties: false
+  required: [alias, displayName, contextWindow, maxOutputTokens, reasoning, isDefault]
+  properties:
+    alias: {$ref: '#/ModelAlias'}
+    displayName: {$ref: '#/ModelDisplayName'}
+    contextWindow:
+      type: integer
+      minimum: 1
+    maxOutputTokens:
+      type: integer
+      minimum: 1
+    reasoning:
+      type: boolean
+    isDefault:
+      type: boolean
+BootstrapSnapshot:
+  type: object
+  additionalProperties: false
+  required: [revision, user, device, models, quotas, plugins, sessionPolicy]
+  properties:
+    revision:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/Revision'
+    user:
+      $ref: '#/BootstrapUser'
+    device:
+      $ref: '#/BootstrapDevice'
+    models:
+      type: array
+      items: {$ref: '#/BootstrapModel'}
+    quotas:
+      type: array
+      items: {$ref: '#/BootstrapQuota'}
+    plugins:
+      $ref: '#/BootstrapPlugins'
+    sessionPolicy:
+      $ref: '#/BootstrapSessionPolicy'
+BootstrapUser:
+  type: object
+  additionalProperties: false
+  required: [id, username, displayName, departmentId]
+  properties:
+    id:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/EnterpriseUserId'
+    username:
+      type: string
+      minLength: 1
+      maxLength: 100
+    displayName:
+      type: string
+      minLength: 1
+      maxLength: 120
+    departmentId:
+      oneOf:
+        - $ref: '../enterprise-openapi.yaml#/components/schemas/DepartmentId'
+        - type: 'null'
+BootstrapDevice:
+  type: object
+  additionalProperties: false
+  required: [id, installationId, status]
+  properties:
+    id:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/EnterpriseDeviceId'
+    installationId:
+      $ref: './auth.yaml#/InstallationId'
+    status:
+      type: string
+      const: ACTIVE
+BootstrapQuota:
+  type: object
+  additionalProperties: false
+  required: [policyId, scope, dailyTokenLimit, monthlyTokenLimit, rpm, concurrency]
+  properties:
+    policyId:
+      type: string
+      pattern: '^[1-9][0-9]{0,18}$'
+    scope:
+      type: string
+      enum: [DEFAULT, DEPT, USER]
+    dailyTokenLimit:
+      type: integer
+      minimum: 0
+    monthlyTokenLimit:
+      type: integer
+      minimum: 0
+    rpm:
+      type: integer
+      minimum: 1
+    concurrency:
+      type: integer
+      minimum: 1
+BootstrapPlugins:
+  type: object
+  additionalProperties: false
+  required: [revision, assignments]
+  properties:
+    revision:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/Revision'
+    assignments:
+      type: array
+      items: {$ref: '#/BootstrapPluginAssignment'}
+BootstrapPluginAssignment:
+  type: object
+  additionalProperties: false
+  required: [packageName, version, sha256, downloadUrl, required, desiredState]
+  properties:
+    packageName:
+      type: string
+      minLength: 1
+      maxLength: 214
+    version:
+      type: string
+      minLength: 1
+      maxLength: 64
+    sha256:
+      type: string
+      pattern: '^[0-9a-f]{64}$'
+    downloadUrl:
+      type: string
+      minLength: 1
+      maxLength: 2048
+    required:
+      type: boolean
+    desiredState:
+      type: string
+      const: INSTALLED
+BootstrapSessionPolicy:
+  type: object
+  additionalProperties: false
+  required: [enabled, retentionDays, maxBatchBytes]
+  properties:
+    enabled:
+      type: boolean
+    retentionDays:
+      type: integer
+      minimum: 1
+    maxBatchBytes:
+      type: integer
+      minimum: 1
+BootstrapResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/BootstrapSnapshot'}
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'

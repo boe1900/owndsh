@@ -1,0 +1,37 @@
+{
+  "data": {
+    "revision": 9,
+    "user": {
+      "id": "1761100000000000003",
+      "username": "alice",
+      "displayName": "Alice",
+      "departmentId": "1761000000000000103"
+    },
+    "device": {
+      "id": "1900200000000000001",
+      "installationId": "123e4567-e89b-42d3-a456-426614174000",
+      "status": "ACTIVE"
+    },
+    "models": [
+      {
+        "alias": "deepseek-chat",
+        "displayName": "DeepSeek Chat",
+        "contextWindow": 65536,
+        "maxOutputTokens": 8192,
+        "reasoning": false,
+        "isDefault": true
+      }
+    ],
+    "quotas": [],
+    "plugins": {
+      "revision": 0,
+      "assignments": []
+    },
+    "sessionPolicy": {
+      "enabled": false,
+      "retentionDays": 90,
+      "maxBatchBytes": 1048576
+    }
+  },
+  "requestId": "req_01K2W3V4X5Y6Z7A8B9C0D1E2F3"
+}

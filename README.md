@@ -6,7 +6,7 @@ Enterprise Agent Platform 是基于 DeepSeek Harness 构建的企业 Agent 管�
 
 ## 当前阶段
 
-T00 至 T07 已完成：仓库包含锁定产品源码、Harness 官方插件 workspace、Java/TypeScript 同源 OpenAPI 3.1 协议和 PostgreSQL/Redis 企业模块。T07 已在官方 `settings.section`、`sidebar.footer.action` 和 `settings.onboarding` 扩展点上交付桌面员工登录 UI，共享同源 JSON/SSE 状态且不把 Token 带入浏览器；下一项只能从 T08 开始。实际证据见 [`docs/t07-employee-login-ui-acceptance.md`](docs/t07-employee-login-ui-acceptance.md)。
+T00 至 T08 已完成：仓库包含锁定产品源码、Harness 官方插件 workspace、Java/TypeScript 同源 OpenAPI 3.1 协议和 PostgreSQL/Redis 企业模块。T08 已交付 provider/model/grant 管理、AES-GCM provider 密钥、授权默认解析和 ACTIVE 设备 bootstrap 模型目录；下一项只能从 T09 开始。实际证据见 [`docs/t08-model-management-acceptance.md`](docs/t08-model-management-acceptance.md)。
 
 ## 文档
 
@@ -19,6 +19,7 @@ T00 至 T07 已完成：仓库包含锁定产品源码、Harness 官方插件 wo
 - [T05 PKCE 与设备验收记录](docs/t05-pkce-device-acceptance.md)：Redis 一次性状态、固定 public client、Sa-Token 终端隔离、设备生命周期与公开登录页证据。
 - [T06 Harness 平台客户端验收记录](docs/t06-harness-platform-client-acceptance.md)：Service 状态机、内存 Token、bootstrap 刷新、本地 JSON/SSE、真实 tgz consumer 与锁定 Harness 组合证据。
 - [T07 员工登录 UI 验收记录](docs/t07-employee-login-ui-acceptance.md)：官方 Settings/sidebar/onboarding 路线、十态 UI、同源浏览器边界与真实 Harness 桌面流程证据。
+- [T08 模型管理验收记录](docs/t08-model-management-acceptance.md)：provider/model/grant API、密钥隔离、PostgreSQL 默认解析、bootstrap 模型目录与跨端协议证据。
 
 实现者先阅读 MVP 详细设计的第 1 至 21 节，再严格按照第 22 节任务依赖推进。发现设计矛盾时先修订设计并记录决定，不在代码中引入未经确认的替代方案。
 
