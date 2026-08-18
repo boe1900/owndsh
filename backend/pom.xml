@@ -61,6 +61,7 @@
         <aws.sdk.version>2.48.1</aws.sdk.version>
         <!-- SMS 配置 -->
         <sms4j.version>3.3.5</sms4j.version>
+        <json-schema-validator.version>3.0.6</json-schema-validator.version>
         <!-- 工作流配置 -->
         <warm-flow.version>1.8.9</warm-flow.version>
         <liteflow.version>2.16.0</liteflow.version>
@@ -337,6 +338,13 @@
                 <groupId>org.bouncycastle</groupId>
                 <artifactId>bcpkix-jdk18on</artifactId>
                 <version>${bouncycastle.version}</version>
+            </dependency>
+
+            <!-- JSON Schema Draft 2020-12 协议校验 -->
+            <dependency>
+                <groupId>com.networknt</groupId>
+                <artifactId>json-schema-validator</artifactId>
+                <version>${json-schema-validator.version}</version>
             </dependency>
 
             <!-- Mapstruct Plus -->

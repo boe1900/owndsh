@@ -117,6 +117,13 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- OpenAPI 派生 JSON Schema 的跨语言协议验收 -->
+        <dependency>
+            <groupId>com.networknt</groupId>
+            <artifactId>json-schema-validator</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <!-- skywalking 整合 logback -->
 <!--        <dependency>-->
 <!--            <groupId>org.apache.skywalking</groupId>-->

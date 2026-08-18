@@ -1,0 +1,9 @@
+{
+  "error": {
+    "code": "ENT_PLATFORM_UNAVAILABLE",
+    "debugTrace": "wire contracts must reject undeclared fields",
+    "message": "平台暂时不可用",
+    "requestId": "req_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    "retryable": true
+  }
+}

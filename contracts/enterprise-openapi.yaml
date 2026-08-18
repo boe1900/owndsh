@@ -1,0 +1,443 @@
+# [INPUT]: 依赖详细设计第 5.4、15、16.1、17 节冻结的 HTTP、错误和并发约定
+# [OUTPUT]: 提供 OpenAPI 3.1 通用 envelope、品牌 ID、requestId、revision、cursor 分页和错误响应 components
+# [POS]: contracts 的唯一手写协议真源，后续纵向任务只在实现 Controller 时同步增加 operation
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+openapi: 3.1.0
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+info:
+  title: Enterprise Agent Platform API
+  version: 0.1.0
+  description: >-
+    Shared protocol components. Business operations are added only by the
+    vertical task that also implements and protects the matching Controller.
+paths: {}
+
+x-enterprise-error-statuses:
+  '400':
+    - ENT_INVALID_REQUEST
+    - ENT_INVALID_REDIRECT_URI
+    - ENT_PKCE_REQUIRED
+    - ENT_PLUGIN_ARTIFACT_INVALID
+    - ENT_SESSION_FORMAT_UNSUPPORTED
+  '401':
+    - ENT_AUTH_REQUIRED
+    - ENT_AUTH_CODE_INVALID
+    - ENT_PKCE_INVALID
+    - ENT_AUTH_SESSION_EXPIRED
+  '403':
+    - ENT_PERMISSION_DENIED
+    - ENT_DEVICE_REVOKED
+    - ENT_MODEL_NOT_ASSIGNED
+    - ENT_PLUGIN_NOT_ASSIGNED
+    - ENT_RESOURCE_NOT_OWNED
+  '404':
+    - ENT_RESOURCE_NOT_FOUND
+    - ENT_SESSION_CONTENT_EXPIRED
+  '409':
+    - ENT_REVISION_CONFLICT
+    - ENT_REQUEST_IN_PROGRESS
+    - ENT_REQUEST_ALREADY_COMPLETED
+    - ENT_SESSION_SEQ_GAP
+    - ENT_SESSION_DIVERGED
+    - ENT_SESSION_SOURCE_DEVICE_CONFLICT
+    - ENT_IDENTITY_ALREADY_LINKED
+  '413':
+    - ENT_REQUEST_TOO_LARGE
+    - ENT_PLUGIN_ARCHIVE_TOO_LARGE
+    - ENT_SESSION_BATCH_TOO_LARGE
+  '429':
+    - ENT_QUOTA_DAILY_EXCEEDED
+    - ENT_QUOTA_MONTHLY_EXCEEDED
+    - ENT_QUOTA_RPM_EXCEEDED
+    - ENT_QUOTA_CONCURRENCY_EXCEEDED
+  '502':
+    - ENT_UPSTREAM_AUTH_FAILED
+    - ENT_UPSTREAM_INVALID_RESPONSE
+  '503':
+    - ENT_PLATFORM_UNAVAILABLE
+    - ENT_UPSTREAM_UNAVAILABLE
+  '504':
+    - ENT_UPSTREAM_TIMEOUT
+
+x-enterprise-fixtures:
+  - file: fixtures/protocol-success.json
+    schema: ProtocolSuccessResponse
+    valid: true
+  - file: fixtures/protocol-page-success.json
+    schema: ProtocolPageResponse
+    valid: true
+  - file: fixtures/quota-error.json
+    schema: EnterpriseErrorResponse
+    valid: true
+  - file: fixtures/unknown-error-code.json
+    schema: EnterpriseErrorResponse
+    valid: false
+  - file: fixtures/unexpected-error-property.json
+    schema: EnterpriseErrorResponse
+    valid: false
+
+components:
+  parameters:
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Server-signed opaque cursor; clients must not parse it.
+      schema:
+        $ref: '#/components/schemas/Cursor'
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Cursor page size.
+      schema:
+        $ref: '#/components/schemas/PageLimit'
+    IfMatchRevision:
+      name: If-Match
+      in: header
+      required: true
+      description: Current resource revision used for compare-and-swap updates.
+      schema:
+        $ref: '#/components/schemas/Revision'
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Caller-generated UUID v4 reused only for one logical write.
+      schema:
+        type: string
+        format: uuid
+        minLength: 36
+        maxLength: 36
+        pattern: '^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$'
+
+  headers:
+    XRequestId:
+      description: Server-generated request correlation ID.
+      required: true
+      schema:
+        $ref: '#/components/schemas/RequestId'
+
+  responses:
+    Error400:
+      description: Invalid request.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/EnterpriseErrorResponse'
+    Error401:
+      description: Authentication failed.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/EnterpriseErrorResponse'
+    Error403:
+      description: Permission denied.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/EnterpriseErrorResponse'
+    Error404:
+      description: Resource not found.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/EnterpriseErrorResponse'
+    Error409:
+      description: Revision, idempotency, or state conflict.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/EnterpriseErrorResponse'
+    Error413:
+      description: Request or archive is too large.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/EnterpriseErrorResponse'
+    Error429:
+      description: Quota exceeded.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/EnterpriseErrorResponse'
+    Error502:
+      description: Upstream rejected or returned an invalid response.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/EnterpriseErrorResponse'
+    Error503:
+      description: Platform or upstream is unavailable.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/EnterpriseErrorResponse'
+    Error504:
+      description: Upstream timed out.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/EnterpriseErrorResponse'
+
+  schemas:
+    RequestId:
+      type: string
+      description: Server-generated req_ prefix followed by one canonical ULID.
+      pattern: '^req_[0-9A-HJKMNP-TV-Z]{26}$'
+      examples:
+        - req_01ARZ3NDEKTSV4RRFFQ69G5FAV
+    Revision:
+      type: integer
+      minimum: 0
+      maximum: 9007199254740991
+      description: Monotonic compare-and-swap revision safe in JavaScript.
+      examples: [7]
+    Cursor:
+      type: string
+      minLength: 16
+      maxLength: 512
+      pattern: '^[A-Za-z0-9_-]+$'
+      description: Server-signed opaque cursor.
+    PageLimit:
+      type: integer
+      minimum: 1
+      maximum: 200
+      default: 50
+    EnterpriseUserId:
+      type: string
+      pattern: '^[1-9][0-9]{0,18}$'
+      description: Enterprise user snowflake ID serialized as a string.
+    EnterpriseDeviceId:
+      type: string
+      pattern: '^[1-9][0-9]{0,18}$'
+      description: Enterprise device snowflake ID serialized as a string.
+    ManagedModelId:
+      type: string
+      pattern: '^[1-9][0-9]{0,18}$'
+      description: Managed model snowflake ID serialized as a string.
+    PluginVersionId:
+      type: string
+      pattern: '^[1-9][0-9]{0,18}$'
+      description: Managed plugin version snowflake ID serialized as a string.
+    RemoteSessionId:
+      type: string
+      minLength: 1
+      maxLength: 200
+      pattern: '^[A-Za-z0-9._:/-]+$'
+      description: Harness-compatible remote Session identifier.
+    CursorPage:
+      type: object
+      additionalProperties: false
+      required: [hasMore, limit, nextCursor]
+      properties:
+        hasMore:
+          type: boolean
+        limit:
+          $ref: '#/components/schemas/PageLimit'
+        nextCursor:
+          oneOf:
+            - $ref: '#/components/schemas/Cursor'
+            - type: 'null'
+    RevisionedProtocolResource:
+      type: object
+      additionalProperties: false
+      required: [id, revision]
+      properties:
+        id:
+          $ref: '#/components/schemas/ManagedModelId'
+        revision:
+          $ref: '#/components/schemas/Revision'
+    ProtocolMetadata:
+      type: object
+      additionalProperties: false
+      required: [contractVersion, errorCodeCount, status]
+      properties:
+        contractVersion:
+          type: string
+          const: v1
+        errorCodeCount:
+          type: integer
+          const: 35
+        status:
+          type: string
+          const: ok
+    ProtocolSuccessResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data:
+          $ref: '#/components/schemas/ProtocolMetadata'
+        requestId:
+          $ref: '#/components/schemas/RequestId'
+    ProtocolPageData:
+      type: object
+      additionalProperties: false
+      required: [items, page]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RevisionedProtocolResource'
+        page:
+          $ref: '#/components/schemas/CursorPage'
+    ProtocolPageResponse:
+      type: object
+      additionalProperties: false
+      required: [data, requestId]
+      properties:
+        data:
+          $ref: '#/components/schemas/ProtocolPageData'
+        requestId:
+          $ref: '#/components/schemas/RequestId'
+    EnterpriseErrorCode:
+      type: string
+      enum:
+        - ENT_INVALID_REQUEST
+        - ENT_INVALID_REDIRECT_URI
+        - ENT_PKCE_REQUIRED
+        - ENT_PLUGIN_ARTIFACT_INVALID
+        - ENT_SESSION_FORMAT_UNSUPPORTED
+        - ENT_AUTH_REQUIRED
+        - ENT_AUTH_CODE_INVALID
+        - ENT_PKCE_INVALID
+        - ENT_AUTH_SESSION_EXPIRED
+        - ENT_PERMISSION_DENIED
+        - ENT_DEVICE_REVOKED
+        - ENT_MODEL_NOT_ASSIGNED
+        - ENT_PLUGIN_NOT_ASSIGNED
+        - ENT_RESOURCE_NOT_OWNED
+        - ENT_RESOURCE_NOT_FOUND
+        - ENT_SESSION_CONTENT_EXPIRED
+        - ENT_REVISION_CONFLICT
+        - ENT_REQUEST_IN_PROGRESS
+        - ENT_REQUEST_ALREADY_COMPLETED
+        - ENT_SESSION_SEQ_GAP
+        - ENT_SESSION_DIVERGED
+        - ENT_SESSION_SOURCE_DEVICE_CONFLICT
+        - ENT_IDENTITY_ALREADY_LINKED
+        - ENT_REQUEST_TOO_LARGE
+        - ENT_PLUGIN_ARCHIVE_TOO_LARGE
+        - ENT_SESSION_BATCH_TOO_LARGE
+        - ENT_QUOTA_DAILY_EXCEEDED
+        - ENT_QUOTA_MONTHLY_EXCEEDED
+        - ENT_QUOTA_RPM_EXCEEDED
+        - ENT_QUOTA_CONCURRENCY_EXCEEDED
+        - ENT_UPSTREAM_AUTH_FAILED
+        - ENT_UPSTREAM_INVALID_RESPONSE
+        - ENT_PLATFORM_UNAVAILABLE
+        - ENT_UPSTREAM_UNAVAILABLE
+        - ENT_UPSTREAM_TIMEOUT
+    ValidationViolation:
+      type: object
+      additionalProperties: false
+      required: [field, reason]
+      properties:
+        field:
+          type: string
+          minLength: 1
+          maxLength: 128
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 256
+    ValidationErrorDetails:
+      type: object
+      additionalProperties: false
+      required: [violations]
+      properties:
+        violations:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/ValidationViolation'
+    RevisionConflictDetails:
+      type: object
+      additionalProperties: false
+      required: [actualRevision, expectedRevision]
+      properties:
+        actualRevision:
+          $ref: '#/components/schemas/Revision'
+        expectedRevision:
+          $ref: '#/components/schemas/Revision'
+    QuotaExceededDetails:
+      type: object
+      additionalProperties: false
+      required: [policyId, resetsAt]
+      properties:
+        policyId:
+          type: string
+          pattern: '^[1-9][0-9]{0,18}$'
+        resetsAt:
+          type: string
+          format: date-time
+    RequestConflictDetails:
+      type: object
+      additionalProperties: false
+      required: [originalRequestId, result]
+      properties:
+        originalRequestId:
+          $ref: '#/components/schemas/RequestId'
+        result:
+          type: string
+          enum: [IN_PROGRESS, COMPLETED]
+    EnterpriseError:
+      type: object
+      additionalProperties: false
+      required: [code, message, requestId, retryable]
+      properties:
+        code:
+          $ref: '#/components/schemas/EnterpriseErrorCode'
+        message:
+          type: string
+          minLength: 1
+          maxLength: 500
+        requestId:
+          $ref: '#/components/schemas/RequestId'
+        retryable:
+          type: boolean
+        details:
+          oneOf:
+            - $ref: '#/components/schemas/ValidationErrorDetails'
+            - $ref: '#/components/schemas/RevisionConflictDetails'
+            - $ref: '#/components/schemas/QuotaExceededDetails'
+            - $ref: '#/components/schemas/RequestConflictDetails'
+    EnterpriseErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          $ref: '#/components/schemas/EnterpriseError'

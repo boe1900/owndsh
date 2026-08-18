@@ -1,0 +1,12 @@
+{
+  "error": {
+    "code": "ENT_QUOTA_DAILY_EXCEEDED",
+    "details": {
+      "policyId": "73001",
+      "resetsAt": "2026-08-19T00:00:00+08:00"
+    },
+    "message": "今日 Token 配额已用完",
+    "requestId": "req_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    "retryable": false
+  }
+}

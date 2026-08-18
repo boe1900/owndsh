@@ -6,13 +6,14 @@ Enterprise Agent Platform 是基于 DeepSeek Harness 构建的企业 Agent 管�
 
 ## 当前阶段
 
-T00 基线和 T01 技术刺探已经完成：仓库包含锁定的 RuoYi-Vue-Plus 后端源码、plus-ui React 管理端源码，以及按 Harness 官方 `apply(ctx)`、bundle/profile、`ctx.webServer.register()`、`dsh.client` 和 UI slots 路线实现的独立企业插件 workspace。同级 DeepSeek Harness 保持锁定提交与干净工作区；T02 尚未开始。实际证据见 [`docs/t01-technical-spike-acceptance.md`](docs/t01-technical-spike-acceptance.md)。
+T00 基线、T01 技术刺探和 T02 协议骨架已经完成：仓库包含锁定的产品源码、按 Harness 官方扩展点构建的独立插件 workspace，以及供 Java/TypeScript 同源消费的 OpenAPI 3.1 协议、生成物和正反 fixture。同级 DeepSeek Harness 保持锁定提交与干净工作区；下一项只能从 T03 开始。实际证据见 [`docs/t02-contract-foundation-acceptance.md`](docs/t02-contract-foundation-acceptance.md)。
 
 ## 文档
 
 - [企业 Agent 工作平台预研](docs/enterprise-agent-work-platform.md)：产品形态、可行性、边界和长期方向。
 - [企业 Agent 治理平台 MVP 可执行详细设计](docs/enterprise-agent-governance-mvp-design.md)：冻结的技术决策、模块、接口、数据表、状态机、测试、T00-T23 实施顺序和验收标准。
 - [T01 技术刺探验收记录](docs/t01-technical-spike-acceptance.md)：官方插件路线修正、正式模块、自动测试、真实 package consumer、Harness Web 与浏览器验收证据。
+- [T02 协议骨架验收记录](docs/t02-contract-foundation-acceptance.md)：OpenAPI 真源、双语言生成与 fixture、稳定错误码和真实 tarball consumer 证据。
 
 实现者先阅读 MVP 详细设计的第 1 至 21 节，再严格按照第 22 节任务依赖推进。发现设计矛盾时先修订设计并记录决定，不在代码中引入未经确认的替代方案。
 

@@ -1146,7 +1146,8 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 |---|---|---|
 | T00 | `completed` | 基线与独立提交见 [`t00-baseline-acceptance.md`](t00-baseline-acceptance.md)。 |
 | T01 | `completed` | 2026-08-18 已纠正把内部 Typert 生成器当作树外插件入口的路线误判；官网 `apply` + bundle/profile + `webServer` + `dsh.client` 路线已通过自动测试、真实 package consumer、锁定 Harness `web` profile 和浏览器验收，见 [`t01-technical-spike-acceptance.md`](t01-technical-spike-acceptance.md)。 |
-| T02-T23 | `pending` | T01 退出条件已满足；下一项只能从 T02 开始，当前未实施。 |
+| T02 | `completed` | 2026-08-18 已建立唯一 OpenAPI 3.1 真源、Hey API/strict Zod/Fetch 生成、Java 同源 JSON Schema、5 个正反 fixture、35 个稳定错误码与真实 tarball consumer，见 [`t02-contract-foundation-acceptance.md`](t02-contract-foundation-acceptance.md)。 |
+| T03-T23 | `pending` | T02 退出条件已满足；下一项只能从 T03 开始，当前未实施。 |
 
 ## 23. Definition of Done
 

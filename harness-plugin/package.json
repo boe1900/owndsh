@@ -12,6 +12,8 @@
     "typecheck": "pnpm --recursive --if-present run typecheck",
     "test": "pnpm run build && pnpm --recursive --if-present run test && node --test workspace.test.mjs",
     "pack:bundle": "pnpm --filter @enterprise-agent/dsh-bundle pack --pack-destination ../artifacts",
+    "pack:contracts": "pnpm --filter @enterprise-agent/dsh-contracts build && pnpm --filter @enterprise-agent/dsh-contracts pack --pack-destination ../artifacts",
+    "smoke:contracts": "node scripts/t02-contract-consumer.mjs",
     "check": "pnpm run typecheck && pnpm run test"
   },
   "devDependencies": {

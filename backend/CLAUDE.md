@@ -16,8 +16,8 @@ LICENSE: RuoYi-Vue-Plus MIT 许可证原文，必须随源码与交付物保留�
 README.md: RuoYi-Vue-Plus 上游项目说明与模块导航。
 mvnw: POSIX Maven Wrapper，是 backend 构建、测试与后续模块门禁的统一入口。
 mvnw.cmd: Windows Maven Wrapper，与 POSIX 入口保持同一 Maven 分发版本。
-pom.xml: Maven 聚合根，集中声明 Java 21、Spring Boot 4.1 和各 RuoYi 子模块。
-ruoyi-admin/: Spring Boot 应用装配层，T01 承载 Sa-Token 多设备语义测试，后续接入 ruoyi-enterprise 运行依赖；局部地图见 `ruoyi-admin/CLAUDE.md`。
+pom.xml: Maven 聚合根，集中声明 Java 21、Spring Boot 4.1、各 RuoYi 子模块与 T02 JSON Schema validator 测试版本。
+ruoyi-admin/: Spring Boot 应用装配层，承载 T01 Sa-Token 与 T02 协议验收，后续接入 ruoyi-enterprise 运行依赖；局部地图见 `ruoyi-admin/CLAUDE.md`。
 ruoyi-api/: 模块间 API 契约层，保持领域模块不经 Controller/Mapper 横向耦合。
 ruoyi-common/: RuoYi 公共基础设施与框架能力，企业模块复用其 Web、Sa-Token 和数据访问范式。
 ruoyi-extend/: 监控、任务等可选扩展模块，MVP 按详细设计裁剪非必要运行能力。

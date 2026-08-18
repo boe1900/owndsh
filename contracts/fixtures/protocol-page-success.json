@@ -1,0 +1,16 @@
+{
+  "data": {
+    "items": [
+      {
+        "id": "73001",
+        "revision": 7
+      }
+    ],
+    "page": {
+      "hasMore": true,
+      "limit": 50,
+      "nextCursor": "eyJpZCI6IjczMDAxIn0"
+    }
+  },
+  "requestId": "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+}

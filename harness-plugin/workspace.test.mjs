@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖当前 workspace package.json、pnpm-workspace.yaml、Harness 版本锁与同级只读 checkout 清单
- * [OUTPUT]: 提供 T00 插件 workspace 工具链一致性和源码边界的自动验收测试
- * [POS]: harness-plugin 的根级不变量测试，防止产品插件提前耦合 Harness 源码或漂移构建工具链
+ * [OUTPUT]: 提供插件 workspace 工具链、正式包集合和源码边界的自动验收测试
+ * [POS]: harness-plugin 的根级不变量测试，防止产品插件耦合 Harness 源码或漂移构建工具链
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -43,7 +43,7 @@ test('workspace only discovers product packages below packages', async () => {
   assert.doesNotMatch(definition, /deepseek-harness|\.\.\//)
 })
 
-test('T01 uses only the formal product package boundaries', async () => {
+test('workspace uses only the formal product package boundaries', async () => {
   const packages = (await readdir(resolve(WORKSPACE_ROOT, 'packages'), { withFileTypes: true }))
     .filter(entry => entry.isDirectory())
     .map(entry => entry.name)
@@ -51,6 +51,7 @@ test('T01 uses only the formal product package boundaries', async () => {
 
   assert.deepEqual(packages, [
     'bundle',
+    'contracts',
     'llm-gateway',
     'platform-client',
     'session-sync',

@@ -1,0 +1,8 @@
+{
+  "error": {
+    "code": "ENT_FUTURE_UNKNOWN",
+    "message": "unknown codes must fail closed",
+    "requestId": "req_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    "retryable": false
+  }
+}
