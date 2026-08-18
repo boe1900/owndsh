@@ -49,6 +49,7 @@ const expectedErrorStatuses = {
   ENT_SESSION_DIVERGED: 409,
   ENT_SESSION_SOURCE_DEVICE_CONFLICT: 409,
   ENT_IDENTITY_ALREADY_LINKED: 409,
+  ENT_DEVICE_ALREADY_BOUND: 409,
   ENT_REQUEST_TOO_LARGE: 413,
   ENT_PLUGIN_ARCHIVE_TOO_LARGE: 413,
   ENT_SESSION_BATCH_TOO_LARGE: 413,
@@ -91,7 +92,7 @@ describe('generated enterprise contracts', () => {
       code,
       enterpriseErrorHttpStatus(code as keyof typeof expectedErrorStatuses),
     ]))).toEqual(expectedErrorStatuses)
-    expect(Object.keys(expectedErrorStatuses)).toHaveLength(35)
+    expect(Object.keys(expectedErrorStatuses)).toHaveLength(36)
   })
 
   it('strictly decodes known errors and rejects unknown enums or fields', async () => {

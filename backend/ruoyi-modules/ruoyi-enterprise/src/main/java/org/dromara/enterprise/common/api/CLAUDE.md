@@ -10,9 +10,10 @@ EnterpriseApiValidation.java: UUID v4 Idempotency-Key 与 1..200 page limit 公�
 EnterpriseCursorCodec.java: 使用 API_CURSOR AES-GCM、tenant 和 filter AAD 认证 keyset cursor。
 EnterpriseError.java: 稳定 code/message/requestId/retryable/details 错误对象。
 EnterpriseErrorResponse.java: 企业错误 envelope 根。
-EnterpriseExceptionHandler.java: 身份/revision/Sa-Token/Spring 异常到详细设计稳定 status/code 的统一映射。
+EnterpriseExceptionHandler.java: 身份/设备/revision/Sa-Token/Spring 异常到详细设计稳定 status/code 的统一映射。
 EnterpriseRequestIdFilter.java: 为每个企业请求生成并回写 canonical req_ ULID。
 EnterpriseRequestIds.java: X-Request-Id 常量、request attribute 与 canonical ULID 生成入口。
+EnterpriseRequestMetadata.java: 从可信 Servlet 请求投影 requestId、来源 IP 和 SHA-256 user-agent hash，禁止业务层读取任意 header。
 EnterpriseResponse.java: 企业成功 data/requestId envelope 根。
 RevisionConflictDetails.java: revision CAS 冲突的 expected/actual 固定 details。
 

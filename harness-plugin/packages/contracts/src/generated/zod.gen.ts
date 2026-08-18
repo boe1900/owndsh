@@ -57,7 +57,7 @@ export const zRevisionedProtocolResource = z.object({
 
 export const zProtocolMetadata = z.object({
     contractVersion: z.literal('v1'),
-    errorCodeCount: z.literal(35),
+    errorCodeCount: z.literal(36),
     status: z.literal('ok')
 }).strict();
 
@@ -100,6 +100,7 @@ export const zEnterpriseErrorCode = z.enum([
     'ENT_SESSION_DIVERGED',
     'ENT_SESSION_SOURCE_DEVICE_CONFLICT',
     'ENT_IDENTITY_ALREADY_LINKED',
+    'ENT_DEVICE_ALREADY_BOUND',
     'ENT_REQUEST_TOO_LARGE',
     'ENT_PLUGIN_ARCHIVE_TOO_LARGE',
     'ENT_SESSION_BATCH_TOO_LARGE',
@@ -155,6 +156,134 @@ export const zEnterpriseErrorResponse = z.object({
     error: zEnterpriseError
 }).strict();
 
+export const zAuthAuthTransactionId = z.string().min(32).max(64).regex(/^[A-Za-z0-9_-]+$/);
+
+export const zAuthTransactionId = zAuthAuthTransactionId;
+
+export const zAuthAuthorizationCode = z.string().min(43).max(64).regex(/^[A-Za-z0-9_-]+$/);
+
+export const zAuthorizationCode = zAuthAuthorizationCode;
+
+export const zAuthInstallationId = z.uuid().length(36).regex(/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/);
+
+export const zInstallationId = zAuthInstallationId;
+
+export const zAuthLogoutData = z.object({
+    loggedOut: z.literal(true)
+}).strict();
+
+export const zLogoutData = zAuthLogoutData;
+
+export const zAuthLogoutResponse = z.object({
+    data: zAuthLogoutData,
+    requestId: zRequestId
+}).strict();
+
+export const zLogoutResponse = zAuthLogoutResponse;
+
+export const zAuthPkceCodeChallenge = z.string().length(43).regex(/^[A-Za-z0-9_-]{43}$/);
+
+export const zPkceCodeChallenge = zAuthPkceCodeChallenge;
+
+export const zAuthPkceCodeVerifier = z.string().min(43).max(128).regex(/^[A-Za-z0-9._~-]+$/);
+
+export const zPkceCodeVerifier = zAuthPkceCodeVerifier;
+
+export const zAuthPlatformClient = z.enum(['dsh-desktop', 'enterprise-admin']);
+
+export const zPlatformClient = zAuthPlatformClient;
+
+export const zAuthTokenData = z.object({
+    accessToken: z.string().min(16).max(512).regex(/^\S+$/),
+    tokenType: z.literal('Bearer'),
+    expiresIn: z.literal(43200),
+    clientId: zAuthPlatformClient
+}).strict();
+
+export const zTokenData = zAuthTokenData;
+
+export const zAuthTokenRequest = z.object({
+    grantType: z.literal('authorization_code'),
+    code: zAuthAuthorizationCode,
+    clientId: zAuthPlatformClient,
+    redirectUri: z.url().min(1).max(2048),
+    codeVerifier: zAuthPkceCodeVerifier,
+    installationId: zAuthInstallationId.nullish()
+}).strict();
+
+export const zTokenRequest = zAuthTokenRequest;
+
+export const zAuthTokenResponse = z.object({
+    data: zAuthTokenData,
+    requestId: zRequestId
+}).strict();
+
+export const zTokenResponse = zAuthTokenResponse;
+
+export const zDeviceDeviceEnrollRequest = z.object({
+    installationId: zAuthInstallationId,
+    name: z.string().min(1).max(120),
+    platform: z.string().min(1).max(64),
+    harnessVersion: z.string().min(1).max(64),
+    enterpriseBundleVersion: z.string().min(1).max(64)
+}).strict();
+
+export const zDeviceEnrollRequest = zDeviceDeviceEnrollRequest;
+
+export const zDeviceDeviceHeartbeatRequest = z.object({
+    harnessVersion: z.string().min(1).max(64),
+    enterpriseBundleVersion: z.string().min(1).max(64),
+    desiredRevision: zRevision,
+    pluginInventoryDigest: z.string().length(64).regex(/^[0-9a-f]{64}$/),
+    pendingSessionEvents: z.int().gte(0).lte(9007199254740991),
+    lastSuccessfulSyncAt: z.iso.datetime({ offset: true }).nullable()
+}).strict();
+
+export const zDeviceHeartbeatRequest = zDeviceDeviceHeartbeatRequest;
+
+export const zDeviceDeviceStatus = z.enum(['ACTIVE', 'REVOKED']);
+
+export const zDeviceStatus = zDeviceDeviceStatus;
+
+export const zDeviceDevice = z.object({
+    id: zEnterpriseDeviceId,
+    userId: zEnterpriseUserId,
+    username: z.string().min(1).max(100),
+    displayName: z.string().min(1).max(30),
+    installationId: zAuthInstallationId,
+    name: z.string().min(1).max(120),
+    platform: z.string().min(1).max(64),
+    harnessVersion: z.string().min(1).max(64).nullable(),
+    enterpriseBundleVersion: z.string().min(1).max(64).nullable(),
+    status: zDeviceDeviceStatus,
+    lastSeenAt: z.iso.datetime({ offset: true }).nullable(),
+    revokedAt: z.iso.datetime({ offset: true }).nullable(),
+    revision: zRevision
+}).strict();
+
+export const zDevice = zDeviceDevice;
+
+export const zDeviceDevicePageData = z.object({
+    items: z.array(zDeviceDevice),
+    page: zCursorPage
+}).strict();
+
+export const zDevicePageData = zDeviceDevicePageData;
+
+export const zDeviceDeviceListResponse = z.object({
+    data: zDeviceDevicePageData,
+    requestId: zRequestId
+}).strict();
+
+export const zDeviceListResponse = zDeviceDeviceListResponse;
+
+export const zDeviceDeviceResponse = z.object({
+    data: zDeviceDevice,
+    requestId: zRequestId
+}).strict();
+
+export const zDeviceResponse = zDeviceDeviceResponse;
+
 export const zIdentityDeletedResource = z.object({
     id: z.string().regex(/^[1-9][0-9]{0,18}$/),
     deleted: z.literal(true)
@@ -189,6 +318,16 @@ export const zGroupMappingId = zIdentityGroupMappingId;
 export const zIdentityIdentitySourceId = z.string().regex(/^[1-9][0-9]{0,18}$/);
 
 export const zIdentitySourceId = zIdentityIdentitySourceId;
+
+export const zAuthPasswordLoginRequest = z.object({
+    transactionId: zAuthAuthTransactionId,
+    sourceId: zIdentityIdentitySourceId,
+    csrfToken: z.string().min(32).max(64).regex(/^[A-Za-z0-9_-]+$/),
+    username: z.string().min(1).max(100),
+    captchaId: z.string().min(1).max(128).optional()
+}).strict();
+
+export const zPasswordLoginRequest = zAuthPasswordLoginRequest;
 
 export const zIdentityGroupMapping = z.object({
     id: zIdentityGroupMappingId,
@@ -240,6 +379,29 @@ export const zIdentityIdentitySourceType = z.enum([
 ]);
 
 export const zIdentitySourceType = zIdentityIdentitySourceType;
+
+export const zAuthPublicIdentitySource = z.object({
+    id: zIdentityIdentitySourceId,
+    name: z.string().min(1).max(120),
+    type: zIdentityIdentitySourceType
+}).strict();
+
+export const zPublicIdentitySource = zAuthPublicIdentitySource;
+
+export const zAuthAuthSourcesData = z.object({
+    transactionId: zAuthAuthTransactionId,
+    csrfToken: z.string().min(32).max(64).regex(/^[A-Za-z0-9_-]+$/),
+    sources: z.array(zAuthPublicIdentitySource).min(1).max(50)
+}).strict();
+
+export const zAuthSourcesData = zAuthAuthSourcesData;
+
+export const zAuthAuthSourcesResponse = z.object({
+    data: zAuthAuthSourcesData,
+    requestId: zRequestId
+}).strict();
+
+export const zAuthSourcesResponse = zAuthAuthSourcesResponse;
 
 export const zIdentityIdentitySourceConnection = z.object({
     type: zIdentityIdentitySourceType,
@@ -347,6 +509,44 @@ export const zIdentityIdentitySourceUpdateRequest = z.object({
 
 export const zIdentitySourceUpdateRequest = zIdentityIdentitySourceUpdateRequest;
 
+export const zAuthorize = z.unknown();
+
+export const zLogout = z.unknown();
+
+export const zOidcCallback = z.unknown();
+
+export const zOidcStart = z.unknown();
+
+export const zPassword = z.unknown();
+
+export const zSources = z.unknown();
+
+export const zToken = z.unknown();
+
+export const zEnroll = z.unknown();
+
+export const zGet = z.unknown();
+
+export const zHeartbeat = z.unknown();
+
+export const zList = z.unknown();
+
+export const zRevoke = z.unknown();
+
+export const z1Enterprise1Admin1V11GroupMappings = z.unknown();
+
+export const z1Enterprise1Admin1V11GroupMappings1MappingId = z.unknown();
+
+export const z1Enterprise1Admin1V11IdentitySources = z.unknown();
+
+export const z1Enterprise1Admin1V11IdentitySources1SourceId = z.unknown();
+
+export const z1Enterprise1Admin1V11IdentitySources1SourceId1Actions1Disable = z.unknown();
+
+export const z1Enterprise1Admin1V11IdentitySources1SourceId1Actions1Enable = z.unknown();
+
+export const z1Enterprise1Admin1V11IdentitySources1SourceId1Actions1Test = z.unknown();
+
 export const zIdentitySourceIdWritable = zIdentityIdentitySourceId;
 
 export const zGroupMappingIdWritable = zIdentityGroupMappingId;
@@ -356,6 +556,32 @@ export const zDepartmentIdWritable = zIdentityDepartmentId;
 export const zIdentitySourceTypeWritable = zIdentityIdentitySourceType;
 
 export const zIdentitySourceStatusWritable = zIdentityIdentitySourceStatus;
+
+export const zPlatformClientWritable = zAuthPlatformClient;
+
+export const zAuthTransactionIdWritable = zAuthAuthTransactionId;
+
+export const zAuthorizationCodeWritable = zAuthAuthorizationCode;
+
+export const zPkceCodeChallengeWritable = zAuthPkceCodeChallenge;
+
+export const zPkceCodeVerifierWritable = zAuthPkceCodeVerifier;
+
+export const zInstallationIdWritable = zAuthInstallationId;
+
+export const zDeviceStatusWritable = zDeviceDeviceStatus;
+
+export const zAuthPasswordLoginRequestWritable = z.object({
+    transactionId: zAuthAuthTransactionId,
+    sourceId: zIdentityIdentitySourceId,
+    csrfToken: z.string().min(32).max(64).regex(/^[A-Za-z0-9_-]+$/),
+    username: z.string().min(1).max(100),
+    password: z.string().min(1).max(256),
+    captchaId: z.string().min(1).max(128).optional(),
+    captchaCode: z.string().min(1).max(16).optional()
+}).strict();
+
+export const zPasswordLoginRequestWritable = zAuthPasswordLoginRequestWritable;
 
 export const zIdentityIdentitySourceCreateRequestWritable = z.object({
     type: zIdentityIdentitySourceType,
@@ -380,6 +606,28 @@ export const zIdentityIdentitySourceUpdateRequestWritable = z.object({
 }).strict();
 
 export const zIdentitySourceUpdateRequestWritable = zIdentityIdentitySourceUpdateRequestWritable;
+
+export const zPasswordWritable = z.unknown();
+
+export const z1Enterprise1Admin1V11IdentitySourcesWritable = z.unknown();
+
+export const z1Enterprise1Admin1V11IdentitySources1SourceIdWritable = z.unknown();
+
+export const zAuthClientId = zAuthPlatformClient;
+
+export const zAuthRedirectUri = z.url().min(1).max(2048);
+
+export const zAuthState = z.string().min(16).max(512).regex(/^[A-Za-z0-9._~-]+$/);
+
+export const zPkceChallenge = zAuthPkceCodeChallenge;
+
+export const zPkceChallengeMethod = z.literal('S256');
+
+export const zInstallationIdQuery = zAuthInstallationId;
+
+export const zAuthTransactionIdQuery = zAuthAuthTransactionId;
+
+export const zDeviceIdPath = zEnterpriseDeviceId;
 
 export const zIdentitySourceIdPath = zIdentityIdentitySourceId;
 
@@ -406,6 +654,101 @@ export const zIfMatchRevision = zRevision;
  * Caller-generated UUID v4 reused only for one logical write.
  */
 export const zIdempotencyKey = z.uuid().length(36).regex(/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/);
+
+export const zAuthorizePlatformClientQuery = z.object({
+    client_id: zAuthPlatformClient,
+    redirect_uri: z.url().min(1).max(2048),
+    state: z.string().min(16).max(512).regex(/^[A-Za-z0-9._~-]+$/),
+    code_challenge: zAuthPkceCodeChallenge,
+    code_challenge_method: z.literal('S256'),
+    installation_id: zAuthInstallationId.optional()
+});
+
+export const zListPublicIdentitySourcesQuery = z.object({
+    transaction_id: zAuthAuthTransactionId
+});
+
+/**
+ * Public identity sources and the transaction-bound CSRF token.
+ */
+export const zListPublicIdentitySourcesResponse = zAuthAuthSourcesResponse;
+
+export const zCompletePasswordLoginBody = zAuthPasswordLoginRequestWritable;
+
+export const zStartOidcLoginPath = z.object({
+    sourceId: zIdentityIdentitySourceId
+});
+
+export const zStartOidcLoginQuery = z.object({
+    transaction_id: zAuthAuthTransactionId
+});
+
+export const zCompleteOidcLoginPath = z.object({
+    sourceId: zIdentityIdentitySourceId
+});
+
+export const zCompleteOidcLoginQuery = z.object({
+    state: z.string().min(32).max(64).regex(/^[A-Za-z0-9_-]+$/),
+    code: z.string().min(1).max(2048)
+});
+
+export const zExchangeAuthorizationCodeBody = zAuthTokenRequest;
+
+/**
+ * Twelve-hour non-shared Sa-Token session.
+ */
+export const zExchangeAuthorizationCodeResponse = zAuthTokenResponse;
+
+/**
+ * Current token revoked.
+ */
+export const zLogoutPlatformSessionResponse = zAuthLogoutResponse;
+
+export const zEnrollCurrentDeviceBody = zDeviceDeviceEnrollRequest;
+
+/**
+ * Enrolled active device.
+ */
+export const zEnrollCurrentDeviceResponse = zDeviceDeviceResponse;
+
+export const zHeartbeatCurrentDeviceBody = zDeviceDeviceHeartbeatRequest;
+
+/**
+ * Updated device.
+ */
+export const zHeartbeatCurrentDeviceResponse = zDeviceDeviceResponse;
+
+export const zListDevicesQuery = z.object({
+    cursor: zCursor.optional(),
+    limit: zPageLimit.optional()
+});
+
+/**
+ * Device list.
+ */
+export const zListDevicesResponse = zDeviceDeviceListResponse;
+
+export const zGetDevicePath = z.object({
+    deviceId: zEnterpriseDeviceId
+});
+
+/**
+ * Device details.
+ */
+export const zGetDeviceResponse = zDeviceDeviceResponse;
+
+export const zRevokeDeviceHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zRevokeDevicePath = z.object({
+    deviceId: zEnterpriseDeviceId
+});
+
+/**
+ * Revoked device.
+ */
+export const zRevokeDeviceResponse = zDeviceDeviceResponse;
 
 export const zListIdentitySourcesQuery = z.object({
     cursor: zCursor.optional(),

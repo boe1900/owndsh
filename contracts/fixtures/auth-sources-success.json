@@ -1,0 +1,14 @@
+{
+  "data": {
+    "transactionId": "tx_01J5T05PKCEDEVICELOGIN0000000",
+    "csrfToken": "csrf_01J5T05PKCEDEVICELOGIN00000",
+    "sources": [
+      {
+        "id": "1900100000000000001",
+        "name": "Local",
+        "type": "LOCAL"
+      }
+    ]
+  },
+  "requestId": "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+}

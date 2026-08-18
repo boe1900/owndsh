@@ -1,0 +1,117 @@
+# [INPUT]: 依赖根协议的 cursor/revision/error 响应与 device schema，依赖 T05 Runtime/Admin Controllers
+# [OUTPUT]: 提供 enroll/heartbeat 与管理员 list/get/revoke 五个 OpenAPI Path Item
+# [POS]: contracts/paths 的设备纵向协议分片，授权 installation 始终来自 Token terminal
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+Enroll:
+  post:
+    operationId: enrollCurrentDevice
+    summary: Create or update the device bound to the dsh-desktop Sa-Token session.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../enterprise-openapi.yaml#/components/schemas/DeviceEnrollRequest'
+    responses:
+      '200':
+        description: Enrolled active device.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/DeviceResponse'
+      '400':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error400'
+      '401':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+      '403':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error403'
+      '409':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error409'
+
+Heartbeat:
+  post:
+    operationId: heartbeatCurrentDevice
+    summary: Update observability facts for the active device bound to the current session.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../enterprise-openapi.yaml#/components/schemas/DeviceHeartbeatRequest'
+    responses:
+      '200':
+        description: Updated device.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/DeviceResponse'
+      '400':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error400'
+      '401':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+      '403':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error403'
+
+List:
+  get:
+    operationId: listDevices
+    summary: Cursor-page enterprise devices.
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Cursor'
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Limit'
+    responses:
+      '200':
+        description: Device list.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/DeviceListResponse'
+      '401':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+      '403':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error403'
+
+Get:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/DeviceIdPath'
+  get:
+    operationId: getDevice
+    summary: Get one enterprise device.
+    responses:
+      '200':
+        description: Device details.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/DeviceResponse'
+      '401':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+      '403':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error403'
+      '404':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error404'
+
+Revoke:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/DeviceIdPath'
+  post:
+    operationId: revokeDevice
+    summary: Revoke one device using revision CAS without affecting other device tokens.
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    responses:
+      '200':
+        description: Revoked device.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/DeviceResponse'
+      '401':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+      '403':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error403'
+      '404':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error404'
+      '409':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error409'

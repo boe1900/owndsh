@@ -16,6 +16,10 @@ import org.dromara.enterprise.auth.adapter.IdentityAuthenticationException;
 import org.dromara.enterprise.auth.adapter.IdentitySourceConfigurationException;
 import org.dromara.enterprise.auth.application.IdentityAlreadyLinkedException;
 import org.dromara.enterprise.auth.application.IdentityResourceNotFoundException;
+import org.dromara.enterprise.auth.application.AuthFlowException;
+import org.dromara.enterprise.device.application.DeviceAccessException;
+import org.dromara.enterprise.device.application.DeviceBindingConflictException;
+import org.dromara.enterprise.device.application.DeviceNotFoundException;
 import org.dromara.enterprise.revision.RevisionConflictException;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -34,6 +38,56 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 @Order(Ordered.HIGHEST_PRECEDENCE)
 @RestControllerAdvice(basePackages = "org.dromara.enterprise")
 public final class EnterpriseExceptionHandler {
+    @ExceptionHandler(AuthFlowException.class)
+    public ResponseEntity<EnterpriseErrorResponse> authFlow(
+        AuthFlowException exception,
+        HttpServletRequest request
+    ) {
+        HttpStatus status = switch (exception.code()) {
+            case "ENT_INVALID_REQUEST", "ENT_INVALID_REDIRECT_URI", "ENT_PKCE_REQUIRED" -> HttpStatus.BAD_REQUEST;
+            default -> HttpStatus.UNAUTHORIZED;
+        };
+        String message = switch (exception.code()) {
+            case "ENT_INVALID_REDIRECT_URI" -> "redirect URI 不合法";
+            case "ENT_PKCE_REQUIRED" -> "必须使用 PKCE S256";
+            case "ENT_AUTH_CODE_INVALID" -> "授权码无效";
+            case "ENT_PKCE_INVALID" -> "PKCE 校验失败";
+            case "ENT_AUTH_SESSION_EXPIRED" -> "登录事务已过期";
+            case "ENT_AUTH_REQUIRED" -> "身份认证失败";
+            default -> "请求参数不合法";
+        };
+        return error(status, exception.code(), message, false, null, request);
+    }
+
+    @ExceptionHandler(DeviceAccessException.class)
+    public ResponseEntity<EnterpriseErrorResponse> deviceAccess(
+        DeviceAccessException exception,
+        HttpServletRequest request
+    ) {
+        String message = "ENT_DEVICE_REVOKED".equals(exception.code()) ? "设备已撤销" : "没有访问权限";
+        return error(HttpStatus.FORBIDDEN, exception.code(), message, false, null, request);
+    }
+
+    @ExceptionHandler(DeviceNotFoundException.class)
+    public ResponseEntity<EnterpriseErrorResponse> deviceNotFound(HttpServletRequest request) {
+        return error(HttpStatus.NOT_FOUND, "ENT_RESOURCE_NOT_FOUND", "设备不存在", false, null, request);
+    }
+
+    @ExceptionHandler(DeviceBindingConflictException.class)
+    public ResponseEntity<EnterpriseErrorResponse> deviceBindingConflict(
+        DeviceBindingConflictException exception,
+        HttpServletRequest request
+    ) {
+        return error(
+            HttpStatus.CONFLICT,
+            exception.errorCode(),
+            "设备已绑定其他用户",
+            false,
+            null,
+            request
+        );
+    }
+
     @ExceptionHandler(RevisionConflictException.class)
     public ResponseEntity<EnterpriseErrorResponse> revision(
         RevisionConflictException exception,

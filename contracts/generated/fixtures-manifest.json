@@ -71,7 +71,31 @@
       "schema": "DeletedResourceResponse",
       "valid": true,
       "zodExport": "zDeletedResourceResponse"
+    },
+    {
+      "file": "fixtures/auth-sources-success.json",
+      "schema": "AuthSourcesResponse",
+      "valid": true,
+      "zodExport": "zAuthSourcesResponse"
+    },
+    {
+      "file": "fixtures/token-success.json",
+      "schema": "TokenResponse",
+      "valid": true,
+      "zodExport": "zTokenResponse"
+    },
+    {
+      "file": "fixtures/device-success.json",
+      "schema": "DeviceResponse",
+      "valid": true,
+      "zodExport": "zDeviceResponse"
+    },
+    {
+      "file": "fixtures/device-list-success.json",
+      "schema": "DeviceListResponse",
+      "valid": true,
+      "zodExport": "zDeviceListResponse"
     }
   ],
-  "protocolSha256": "ba1d635de3892529bade7fd6e662b714786ce1373f763ca4fcdc3353e21487c3"
+  "protocolSha256": "582649f4014c9446cad394c992608c21b7de2c8b2c40c77257238603ce711655"
 }

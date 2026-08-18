@@ -1,0 +1,62 @@
+<!--
+  [INPUT]: 依赖同源 login.css/login.js、enterprise 认证 API 与 RuoYi /auth/code 验证码端点。
+  [OUTPUT]: 提供公开身份源选择、LOCAL 验证码、LOCAL/LDAP 密码提交与 OIDC 跳转页面骨架。
+  [POS]: T05 唯一公开认证页面，不加载管理端应用且不接触平台 Token。
+  [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+-->
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Enterprise Agent Platform</title>
+  <link rel="stylesheet" href="/enterprise/auth/login.css">
+</head>
+<body>
+  <main class="auth-shell">
+    <header class="brand-block">
+      <span class="brand-mark" aria-hidden="true">EA</span>
+      <div>
+        <p class="brand-name">Enterprise Agent Platform</p>
+        <h1>登录企业工作区</h1>
+      </div>
+    </header>
+
+    <section class="auth-panel" aria-live="polite">
+      <h2 id="panel-title">选择身份源</h2>
+      <div id="source-list" class="source-list"></div>
+
+      <form id="password-form" class="password-form" method="post" action="/enterprise/auth/v1/password" hidden>
+        <input id="transaction-id" name="transactionId" type="hidden">
+        <input id="source-id" name="sourceId" type="hidden">
+        <input id="csrf-token" name="csrfToken" type="hidden">
+        <button id="back-button" class="back-button" type="button" aria-label="返回身份源">←</button>
+        <p id="selected-source" class="selected-source"></p>
+        <label>
+          <span>账号</span>
+          <input id="username" name="username" autocomplete="username" maxlength="100" required>
+        </label>
+        <label>
+          <span>密码</span>
+          <input id="password" name="password" type="password" autocomplete="current-password" maxlength="256" required>
+        </label>
+        <div id="captcha-group" class="captcha-group" hidden>
+          <input id="captcha-id" name="captchaId" type="hidden">
+          <label>
+            <span>验证码</span>
+            <input id="captcha-code" name="captchaCode" inputmode="text" autocomplete="off" maxlength="16">
+          </label>
+          <button id="captcha-refresh" class="captcha-refresh" type="button" title="刷新验证码" aria-label="刷新验证码">
+            <img id="captcha-image" alt="验证码">
+          </button>
+        </div>
+        <button class="primary-button" type="submit">登录</button>
+      </form>
+
+      <p id="status" class="status" role="status"></p>
+    </section>
+  </main>
+  <script type="module" src="/enterprise/auth/login.js"></script>
+</body>
+</html>

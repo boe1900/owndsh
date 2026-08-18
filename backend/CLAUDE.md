@@ -19,9 +19,9 @@ mvnw.cmd: Windows Maven Wrapper，与 POSIX 入口保持同一 Maven 分发版�
 pom.xml: Maven 聚合根，集中声明 Java 21、Spring Boot 4.1、各 RuoYi 子模块、T02 JSON Schema validator 与 ruoyi-enterprise 内部模块版本。
 ruoyi-admin/: Spring Boot 应用装配层，承载 T01/T02 验收并装配 ruoyi-enterprise 运行依赖；局部地图见 `ruoyi-admin/CLAUDE.md`。
 ruoyi-api/: 模块间 API 契约层，保持领域模块不经 Controller/Mapper 横向耦合。
-ruoyi-common/: RuoYi 公共基础设施与框架能力，企业模块复用其 Web、Sa-Token 和数据访问范式。
+ruoyi-common/: RuoYi 公共基础设施与框架能力；ruoyi-common-security 对企业 API 保留登录校验，并把固定 client/device 裁决下沉到可信 Token session。
 ruoyi-extend/: 监控、任务等可选扩展模块，MVP 按详细设计裁剪非必要运行能力。
-ruoyi-modules/: 业务模块聚合层，包含边界独立的 `ruoyi-enterprise` PostgreSQL/crypto/revision/audit 与 T04 identity 纵向模块。
+ruoyi-modules/: 业务模块聚合层，包含边界独立的 `ruoyi-enterprise` PostgreSQL/Redis、crypto/revision/audit、identity/PKCE/device 纵向模块。
 script/: RuoYi 上游数据库与部署辅助脚本，企业迁移真源后续由 Flyway 独立管理。
 
 本目录是锁定提交 `7180b529776834fee912113b23f0bd7a387a8222` 的源码快照，不含上游 `.git`。企业改动必须保持 Maven 模块边界，并在触及业务文件时补齐对应 L3 契约。

@@ -1,6 +1,6 @@
-# [INPUT]: 依赖详细设计冻结的 HTTP 约定与 components/ 下按纵向任务拆分的 schema
-# [OUTPUT]: 提供 OpenAPI 3.1 operations、通用 envelope、品牌 ID、requestId、revision、cursor 和错误边界
-# [POS]: contracts 的逻辑协议根，后续纵向任务只在实现 Controller 时同步增加 operation 与受控分片
+# [INPUT]: 依赖详细设计冻结的 HTTP 约定、paths/ operation 分片与 components/ schema 分片
+# [OUTPUT]: 提供 OpenAPI 3.1 导航根、通用 envelope、品牌 ID、requestId、revision、cursor 和错误边界
+# [POS]: contracts 的逻辑协议根，纵向任务通过受控 Path Item/schema 引用扩展且完整 bundle/hash 仍是唯一协议
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 openapi: 3.1.0
 jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
@@ -14,266 +14,44 @@ security:
   - EnterpriseBearer: []
 
 paths:
+  /enterprise/auth/v1/authorize:
+    $ref: './paths/auth.yaml#/Authorize'
+  /enterprise/auth/v1/sources:
+    $ref: './paths/auth.yaml#/Sources'
+  /enterprise/auth/v1/password:
+    $ref: './paths/auth.yaml#/Password'
+  /enterprise/auth/v1/oidc/{sourceId}/start:
+    $ref: './paths/auth.yaml#/OidcStart'
+  /enterprise/auth/v1/oidc/{sourceId}/callback:
+    $ref: './paths/auth.yaml#/OidcCallback'
+  /enterprise/auth/v1/token:
+    $ref: './paths/auth.yaml#/Token'
+  /enterprise/auth/v1/logout:
+    $ref: './paths/auth.yaml#/Logout'
+  /enterprise/api/v1/devices/enroll:
+    $ref: './paths/device.yaml#/Enroll'
+  /enterprise/api/v1/devices/heartbeat:
+    $ref: './paths/device.yaml#/Heartbeat'
+  /enterprise/admin/v1/devices:
+    $ref: './paths/device.yaml#/List'
+  /enterprise/admin/v1/devices/{deviceId}:
+    $ref: './paths/device.yaml#/Get'
+  /enterprise/admin/v1/devices/{deviceId}/actions/revoke:
+    $ref: './paths/device.yaml#/Revoke'
   /enterprise/admin/v1/identity-sources:
-    get:
-      operationId: listIdentitySources
-      summary: List configured identity sources.
-      parameters:
-        - $ref: '#/components/parameters/Cursor'
-        - $ref: '#/components/parameters/Limit'
-      responses:
-        '200':
-          description: Identity source list.
-          headers:
-            X-Request-Id:
-              $ref: '#/components/headers/XRequestId'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/IdentitySourceListResponse'
-        '401':
-          $ref: '#/components/responses/Error401'
-        '403':
-          $ref: '#/components/responses/Error403'
-    post:
-      operationId: createIdentitySource
-      summary: Create one external identity source.
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/IdentitySourceCreateRequest'
-      responses:
-        '201':
-          description: Identity source created.
-          headers:
-            X-Request-Id:
-              $ref: '#/components/headers/XRequestId'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/IdentitySourceResponse'
-        '400':
-          $ref: '#/components/responses/Error400'
-        '401':
-          $ref: '#/components/responses/Error401'
-        '403':
-          $ref: '#/components/responses/Error403'
+    $ref: './paths/identity.yaml#/~1enterprise~1admin~1v1~1identity-sources'
   /enterprise/admin/v1/identity-sources/{sourceId}:
-    parameters:
-      - $ref: '#/components/parameters/IdentitySourceIdPath'
-    get:
-      operationId: getIdentitySource
-      summary: Get one identity source without its secret.
-      responses:
-        '200':
-          description: Identity source details.
-          headers:
-            X-Request-Id:
-              $ref: '#/components/headers/XRequestId'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/IdentitySourceResponse'
-        '401':
-          $ref: '#/components/responses/Error401'
-        '403':
-          $ref: '#/components/responses/Error403'
-        '404':
-          $ref: '#/components/responses/Error404'
-    put:
-      operationId: updateIdentitySource
-      summary: Update one identity source using revision CAS.
-      parameters:
-        - $ref: '#/components/parameters/IfMatchRevision'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/IdentitySourceUpdateRequest'
-      responses:
-        '200':
-          description: Identity source updated.
-          headers:
-            X-Request-Id:
-              $ref: '#/components/headers/XRequestId'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/IdentitySourceResponse'
-        '400':
-          $ref: '#/components/responses/Error400'
-        '401':
-          $ref: '#/components/responses/Error401'
-        '403':
-          $ref: '#/components/responses/Error403'
-        '404':
-          $ref: '#/components/responses/Error404'
-        '409':
-          $ref: '#/components/responses/Error409'
+    $ref: './paths/identity.yaml#/~1enterprise~1admin~1v1~1identity-sources~1{sourceId}'
   /enterprise/admin/v1/identity-sources/{sourceId}/actions/test:
-    parameters:
-      - $ref: '#/components/parameters/IdentitySourceIdPath'
-    post:
-      operationId: testIdentitySource
-      summary: Test a stored identity source without returning upstream data.
-      responses:
-        '200':
-          description: Sanitized connection result.
-          headers:
-            X-Request-Id:
-              $ref: '#/components/headers/XRequestId'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/IdentitySourceTestResponse'
-        '400':
-          $ref: '#/components/responses/Error400'
-        '401':
-          $ref: '#/components/responses/Error401'
-        '403':
-          $ref: '#/components/responses/Error403'
-        '404':
-          $ref: '#/components/responses/Error404'
-        '503':
-          $ref: '#/components/responses/Error503'
+    $ref: './paths/identity.yaml#/~1enterprise~1admin~1v1~1identity-sources~1{sourceId}~1actions~1test'
   /enterprise/admin/v1/identity-sources/{sourceId}/actions/enable:
-    parameters:
-      - $ref: '#/components/parameters/IdentitySourceIdPath'
-    post:
-      operationId: enableIdentitySource
-      summary: Enable one identity source using revision CAS.
-      parameters:
-        - $ref: '#/components/parameters/IfMatchRevision'
-      responses:
-        '200':
-          description: Enabled identity source.
-          headers:
-            X-Request-Id:
-              $ref: '#/components/headers/XRequestId'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/IdentitySourceResponse'
-        '401':
-          $ref: '#/components/responses/Error401'
-        '403':
-          $ref: '#/components/responses/Error403'
-        '404':
-          $ref: '#/components/responses/Error404'
-        '409':
-          $ref: '#/components/responses/Error409'
+    $ref: './paths/identity.yaml#/~1enterprise~1admin~1v1~1identity-sources~1{sourceId}~1actions~1enable'
   /enterprise/admin/v1/identity-sources/{sourceId}/actions/disable:
-    parameters:
-      - $ref: '#/components/parameters/IdentitySourceIdPath'
-    post:
-      operationId: disableIdentitySource
-      summary: Disable one identity source using revision CAS.
-      parameters:
-        - $ref: '#/components/parameters/IfMatchRevision'
-      responses:
-        '200':
-          description: Disabled identity source.
-          headers:
-            X-Request-Id:
-              $ref: '#/components/headers/XRequestId'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/IdentitySourceResponse'
-        '401':
-          $ref: '#/components/responses/Error401'
-        '403':
-          $ref: '#/components/responses/Error403'
-        '404':
-          $ref: '#/components/responses/Error404'
-        '409':
-          $ref: '#/components/responses/Error409'
+    $ref: './paths/identity.yaml#/~1enterprise~1admin~1v1~1identity-sources~1{sourceId}~1actions~1disable'
   /enterprise/admin/v1/group-mappings:
-    get:
-      operationId: listGroupMappings
-      summary: List explicit external group mappings for one identity source.
-      parameters:
-        - $ref: '#/components/parameters/IdentitySourceIdQuery'
-        - $ref: '#/components/parameters/Cursor'
-        - $ref: '#/components/parameters/Limit'
-      responses:
-        '200':
-          description: Group mapping list.
-          headers:
-            X-Request-Id:
-              $ref: '#/components/headers/XRequestId'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/GroupMappingListResponse'
-        '400':
-          $ref: '#/components/responses/Error400'
-        '401':
-          $ref: '#/components/responses/Error401'
-        '403':
-          $ref: '#/components/responses/Error403'
-        '404':
-          $ref: '#/components/responses/Error404'
-    post:
-      operationId: createGroupMapping
-      summary: Create one explicit external group to department mapping.
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/GroupMappingCreateRequest'
-      responses:
-        '201':
-          description: Group mapping created.
-          headers:
-            X-Request-Id:
-              $ref: '#/components/headers/XRequestId'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/GroupMappingResponse'
-        '400':
-          $ref: '#/components/responses/Error400'
-        '401':
-          $ref: '#/components/responses/Error401'
-        '403':
-          $ref: '#/components/responses/Error403'
-        '404':
-          $ref: '#/components/responses/Error404'
+    $ref: './paths/identity.yaml#/~1enterprise~1admin~1v1~1group-mappings'
   /enterprise/admin/v1/group-mappings/{mappingId}:
-    parameters:
-      - $ref: '#/components/parameters/GroupMappingIdPath'
-    delete:
-      operationId: deleteGroupMapping
-      summary: Delete one group mapping using revision CAS.
-      parameters:
-        - $ref: '#/components/parameters/IfMatchRevision'
-      responses:
-        '200':
-          description: Group mapping deleted.
-          headers:
-            X-Request-Id:
-              $ref: '#/components/headers/XRequestId'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DeletedResourceResponse'
-        '401':
-          $ref: '#/components/responses/Error401'
-        '403':
-          $ref: '#/components/responses/Error403'
-        '404':
-          $ref: '#/components/responses/Error404'
-        '409':
-          $ref: '#/components/responses/Error409'
+    $ref: './paths/identity.yaml#/~1enterprise~1admin~1v1~1group-mappings~1{mappingId}'
 
 x-enterprise-error-statuses:
   '400':
@@ -304,6 +82,7 @@ x-enterprise-error-statuses:
     - ENT_SESSION_DIVERGED
     - ENT_SESSION_SOURCE_DEVICE_CONFLICT
     - ENT_IDENTITY_ALREADY_LINKED
+    - ENT_DEVICE_ALREADY_BOUND
   '413':
     - ENT_REQUEST_TOO_LARGE
     - ENT_PLUGIN_ARCHIVE_TOO_LARGE
@@ -359,6 +138,18 @@ x-enterprise-fixtures:
   - file: fixtures/deleted-resource-success.json
     schema: DeletedResourceResponse
     valid: true
+  - file: fixtures/auth-sources-success.json
+    schema: AuthSourcesResponse
+    valid: true
+  - file: fixtures/token-success.json
+    schema: TokenResponse
+    valid: true
+  - file: fixtures/device-success.json
+    schema: DeviceResponse
+    valid: true
+  - file: fixtures/device-list-success.json
+    schema: DeviceListResponse
+    valid: true
 
 components:
   securitySchemes:
@@ -368,6 +159,61 @@ components:
       bearerFormat: Sa-Token
 
   parameters:
+    AuthClientId:
+      name: client_id
+      in: query
+      required: true
+      schema:
+        $ref: '#/components/schemas/PlatformClient'
+    AuthRedirectUri:
+      name: redirect_uri
+      in: query
+      required: true
+      schema:
+        type: string
+        format: uri
+        minLength: 1
+        maxLength: 2048
+    AuthState:
+      name: state
+      in: query
+      required: true
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 512
+        pattern: '^[A-Za-z0-9._~-]+$'
+    PkceChallenge:
+      name: code_challenge
+      in: query
+      required: true
+      schema:
+        $ref: '#/components/schemas/PkceCodeChallenge'
+    PkceChallengeMethod:
+      name: code_challenge_method
+      in: query
+      required: true
+      schema:
+        type: string
+        const: S256
+    InstallationIdQuery:
+      name: installation_id
+      in: query
+      required: false
+      schema:
+        $ref: '#/components/schemas/InstallationId'
+    AuthTransactionIdQuery:
+      name: transaction_id
+      in: query
+      required: true
+      schema:
+        $ref: '#/components/schemas/AuthTransactionId'
+    DeviceIdPath:
+      name: deviceId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/EnterpriseDeviceId'
     IdentitySourceIdPath:
       name: sourceId
       in: path
@@ -565,6 +411,28 @@ components:
     GroupMappingListResponse: {$ref: './components/identity.yaml#/GroupMappingListResponse'}
     DeletedResource: {$ref: './components/identity.yaml#/DeletedResource'}
     DeletedResourceResponse: {$ref: './components/identity.yaml#/DeletedResourceResponse'}
+    PlatformClient: {$ref: './components/auth.yaml#/PlatformClient'}
+    AuthTransactionId: {$ref: './components/auth.yaml#/AuthTransactionId'}
+    AuthorizationCode: {$ref: './components/auth.yaml#/AuthorizationCode'}
+    PkceCodeChallenge: {$ref: './components/auth.yaml#/PkceCodeChallenge'}
+    PkceCodeVerifier: {$ref: './components/auth.yaml#/PkceCodeVerifier'}
+    InstallationId: {$ref: './components/auth.yaml#/InstallationId'}
+    PublicIdentitySource: {$ref: './components/auth.yaml#/PublicIdentitySource'}
+    AuthSourcesData: {$ref: './components/auth.yaml#/AuthSourcesData'}
+    AuthSourcesResponse: {$ref: './components/auth.yaml#/AuthSourcesResponse'}
+    PasswordLoginRequest: {$ref: './components/auth.yaml#/PasswordLoginRequest'}
+    TokenRequest: {$ref: './components/auth.yaml#/TokenRequest'}
+    TokenData: {$ref: './components/auth.yaml#/TokenData'}
+    TokenResponse: {$ref: './components/auth.yaml#/TokenResponse'}
+    LogoutData: {$ref: './components/auth.yaml#/LogoutData'}
+    LogoutResponse: {$ref: './components/auth.yaml#/LogoutResponse'}
+    DeviceStatus: {$ref: './components/device.yaml#/DeviceStatus'}
+    Device: {$ref: './components/device.yaml#/Device'}
+    DeviceEnrollRequest: {$ref: './components/device.yaml#/DeviceEnrollRequest'}
+    DeviceHeartbeatRequest: {$ref: './components/device.yaml#/DeviceHeartbeatRequest'}
+    DeviceResponse: {$ref: './components/device.yaml#/DeviceResponse'}
+    DevicePageData: {$ref: './components/device.yaml#/DevicePageData'}
+    DeviceListResponse: {$ref: './components/device.yaml#/DeviceListResponse'}
     EnterpriseUserId:
       type: string
       pattern: '^[1-9][0-9]{0,18}$'
@@ -619,7 +487,7 @@ components:
           const: v1
         errorCodeCount:
           type: integer
-          const: 35
+          const: 36
         status:
           type: string
           const: ok
@@ -678,6 +546,7 @@ components:
         - ENT_SESSION_DIVERGED
         - ENT_SESSION_SOURCE_DEVICE_CONFLICT
         - ENT_IDENTITY_ALREADY_LINKED
+        - ENT_DEVICE_ALREADY_BOUND
         - ENT_REQUEST_TOO_LARGE
         - ENT_PLUGIN_ARCHIVE_TOO_LARGE
         - ENT_SESSION_BATCH_TOO_LARGE

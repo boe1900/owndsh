@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:enterprise-agent:contracts:TokenResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "data",
+    "requestId"
+  ],
+  "properties": {
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "accessToken",
+        "tokenType",
+        "expiresIn",
+        "clientId"
+      ],
+      "properties": {
+        "accessToken": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 512,
+          "pattern": "^\\S+$"
+        },
+        "tokenType": {
+          "type": "string",
+          "const": "Bearer"
+        },
+        "expiresIn": {
+          "type": "integer",
+          "const": 43200
+        },
+        "clientId": {
+          "type": "string",
+          "enum": [
+            "dsh-desktop",
+            "enterprise-admin"
+          ]
+        }
+      }
+    },
+    "requestId": {
+      "type": "string",
+      "description": "Server-generated req_ prefix followed by one canonical ULID.",
+      "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+      "examples": [
+        "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+      ]
+    }
+  }
+}

@@ -1,0 +1,167 @@
+# [INPUT]: 依赖根协议的品牌 ID、revision/cursor/requestId，以及 auth.yaml 的 UUID v4 installation ID
+# [OUTPUT]: 提供 T05 enroll、heartbeat、设备详情、管理员 cursor list 与 revoke 响应 schema
+# [POS]: contracts/components 的设备纵向协议分片，授权设备 ID 始终来自平台会话而不是请求 header
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+DeviceStatus:
+  type: string
+  enum: [ACTIVE, REVOKED]
+
+Device:
+  type: object
+  additionalProperties: false
+  required:
+    - id
+    - userId
+    - username
+    - displayName
+    - installationId
+    - name
+    - platform
+    - harnessVersion
+    - enterpriseBundleVersion
+    - status
+    - lastSeenAt
+    - revokedAt
+    - revision
+  properties:
+    id:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/EnterpriseDeviceId'
+    userId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/EnterpriseUserId'
+    username:
+      type: string
+      minLength: 1
+      maxLength: 100
+    displayName:
+      type: string
+      minLength: 1
+      maxLength: 30
+    installationId:
+      $ref: './auth.yaml#/InstallationId'
+    name:
+      type: string
+      minLength: 1
+      maxLength: 120
+    platform:
+      type: string
+      minLength: 1
+      maxLength: 64
+    harnessVersion:
+      oneOf:
+        - type: string
+          minLength: 1
+          maxLength: 64
+        - type: 'null'
+    enterpriseBundleVersion:
+      oneOf:
+        - type: string
+          minLength: 1
+          maxLength: 64
+        - type: 'null'
+    status:
+      $ref: '#/DeviceStatus'
+    lastSeenAt:
+      oneOf:
+        - type: string
+          format: date-time
+        - type: 'null'
+    revokedAt:
+      oneOf:
+        - type: string
+          format: date-time
+        - type: 'null'
+    revision:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/Revision'
+
+DeviceEnrollRequest:
+  type: object
+  additionalProperties: false
+  required: [installationId, name, platform, harnessVersion, enterpriseBundleVersion]
+  properties:
+    installationId:
+      $ref: './auth.yaml#/InstallationId'
+    name:
+      type: string
+      minLength: 1
+      maxLength: 120
+    platform:
+      type: string
+      minLength: 1
+      maxLength: 64
+    harnessVersion:
+      type: string
+      minLength: 1
+      maxLength: 64
+    enterpriseBundleVersion:
+      type: string
+      minLength: 1
+      maxLength: 64
+
+DeviceHeartbeatRequest:
+  type: object
+  additionalProperties: false
+  required:
+    - harnessVersion
+    - enterpriseBundleVersion
+    - desiredRevision
+    - pluginInventoryDigest
+    - pendingSessionEvents
+    - lastSuccessfulSyncAt
+  properties:
+    harnessVersion:
+      type: string
+      minLength: 1
+      maxLength: 64
+    enterpriseBundleVersion:
+      type: string
+      minLength: 1
+      maxLength: 64
+    desiredRevision:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/Revision'
+    pluginInventoryDigest:
+      type: string
+      minLength: 64
+      maxLength: 64
+      pattern: '^[0-9a-f]{64}$'
+    pendingSessionEvents:
+      type: integer
+      minimum: 0
+      maximum: 9007199254740991
+    lastSuccessfulSyncAt:
+      oneOf:
+        - type: string
+          format: date-time
+        - type: 'null'
+
+DeviceResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data:
+      $ref: '#/Device'
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+
+DevicePageData:
+  type: object
+  additionalProperties: false
+  required: [items, page]
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/Device'
+    page:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/CursorPage'
+
+DeviceListResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data:
+      $ref: '#/DevicePageData'
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'

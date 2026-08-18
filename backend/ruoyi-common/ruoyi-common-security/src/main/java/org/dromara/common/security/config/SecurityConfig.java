@@ -1,3 +1,9 @@
+/**
+ * [INPUT]: 依赖 Sa-Token Servlet 上下文、RuoYi 安全白名单/client 规则与当前 HTTP 请求路径。
+ * [OUTPUT]: 提供异步分发可用的 Sa-Token filter，以及企业 API 服务端 client 隔离后的统一鉴权拦截器。
+ * [POS]: ruoyi-common-security 的全局入口；非企业路由保留 clientid 交叉校验，企业路由把裁决下沉到可信 Token session。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 package org.dromara.common.security.config;
 
 import cn.dev33.satoken.exception.NotLoginException;
@@ -94,17 +100,21 @@ public class SecurityConfig implements WebMvcConfigurer {
                         // 检查是否登录 是否有token
                         StpUtil.checkLogin();
 
-                        // 检查 header 与 param 里的 clientid 与 token 里的是否一致
-                        String headerCid = request.getHeader(LoginHelper.CLIENT_KEY);
-                        String paramCid = ServletUtils.getParameter(LoginHelper.CLIENT_KEY);
-                        String clientId = StpUtil.getExtra(LoginHelper.CLIENT_KEY).toString();
-                        if (!StringUtils.equalsAny(clientId, headerCid, paramCid)) {
-                            // token 无效
-                            throw NotLoginException.newInstance(StpUtil.getLoginType(),
-                                "-100", "客户端ID与Token不匹配",
-                                StpUtil.getTokenValue());
+                        String requestPath = StringUtils.blankToDefault(
+                            request.getServletPath(), request.getRequestURI()
+                        );
+                        // 企业 API 从服务端 session 校验固定 public client，不要求客户端重复声明 clientid。
+                        if (!requestPath.startsWith("/enterprise/")) {
+                            String headerCid = request.getHeader(LoginHelper.CLIENT_KEY);
+                            String paramCid = ServletUtils.getParameter(LoginHelper.CLIENT_KEY);
+                            String clientId = StpUtil.getExtra(LoginHelper.CLIENT_KEY).toString();
+                            if (!StringUtils.equalsAny(clientId, headerCid, paramCid)) {
+                                throw NotLoginException.newInstance(StpUtil.getLoginType(),
+                                    "-100", "客户端ID与Token不匹配",
+                                    StpUtil.getTokenValue());
+                            }
+                            validateClientAccessRules(request);
                         }
-                        validateClientAccessRules(request);
 
                         // 有效率影响 用于临时测试
                         // if (log.isDebugEnabled()) {

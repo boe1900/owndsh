@@ -1,0 +1,212 @@
+/*
+ * [INPUT]: 依赖 login.html 的 auth-shell/brand/panel/source/form/captcha 结构。
+ * [OUTPUT]: 提供响应式、可聚焦且稳定尺寸的公开认证与验证码视觉层。
+ * [POS]: T05 登录页面的唯一样式表，保持企业操作界面安静、清晰和可扫描。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
+:root {
+  color: #17211b;
+  background: #f4f6f2;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: 0;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #f8faf7 0, #eef1ec 100%);
+}
+
+button,
+input { font: inherit; }
+
+.auth-shell {
+  width: min(calc(100% - 40px), 460px);
+  margin: 0 auto;
+  padding: max(56px, 10vh) 0 48px;
+}
+
+.brand-block {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 32px;
+}
+
+.brand-mark {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 8px;
+  background: #173f2b;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 760;
+}
+
+.brand-name {
+  margin: 0 0 4px;
+  color: #5b665f;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+h1,
+h2 { letter-spacing: 0; }
+
+h1 {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.25;
+}
+
+.auth-panel {
+  padding-top: 24px;
+  border-top: 1px solid #cfd6ce;
+}
+
+h2 {
+  margin: 0 0 18px;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.source-list {
+  display: grid;
+  gap: 10px;
+}
+
+.source-list[hidden] { display: none; }
+
+.source-button {
+  display: flex;
+  width: 100%;
+  min-height: 50px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 15px;
+  border: 1px solid #c8d0c8;
+  border-radius: 6px;
+  background: #fff;
+  color: #17211b;
+  cursor: pointer;
+  text-align: left;
+}
+
+.source-button:hover { border-color: #5d7969; }
+
+.source-button:focus-visible,
+.primary-button:focus-visible,
+.back-button:focus-visible,
+.captcha-refresh:focus-visible,
+input:focus-visible {
+  outline: 3px solid #b9d8c4;
+  outline-offset: 2px;
+}
+
+.source-type {
+  color: #667069;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.password-form {
+  display: grid;
+  gap: 16px;
+}
+
+.password-form[hidden] { display: none; }
+
+.captcha-group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 132px;
+  align-items: end;
+  gap: 10px;
+}
+
+.captcha-group[hidden] { display: none; }
+
+.captcha-refresh {
+  width: 132px;
+  height: 44px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #bdc7be;
+  border-radius: 5px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.captcha-refresh img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.selected-source {
+  margin: -42px 0 14px 38px;
+  min-height: 28px;
+  color: #405047;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.back-button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #264b36;
+  cursor: pointer;
+  font-size: 21px;
+}
+
+label {
+  display: grid;
+  gap: 7px;
+  color: #37443c;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+input {
+  width: 100%;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid #bdc7be;
+  border-radius: 5px;
+  background: #fff;
+  color: #17211b;
+}
+
+.primary-button {
+  min-height: 44px;
+  border: 1px solid #173f2b;
+  border-radius: 5px;
+  background: #173f2b;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.primary-button:disabled { opacity: 0.55; cursor: wait; }
+
+.status {
+  min-height: 20px;
+  margin: 16px 0 0;
+  color: #9a3129;
+  font-size: 13px;
+}
+
+@media (max-width: 520px) {
+  .auth-shell {
+    width: min(calc(100% - 28px), 460px);
+    padding-top: 34px;
+  }
+}

@@ -19,6 +19,8 @@ import java.util.Optional;
 public interface IdentitySourceStore {
     List<IdentitySource> list(String tenantId, long afterId, int limit);
 
+    List<IdentitySource> listActive(String tenantId, int limit);
+
     Optional<IdentitySource> find(String tenantId, long sourceId);
 
     void insert(IdentitySource source);

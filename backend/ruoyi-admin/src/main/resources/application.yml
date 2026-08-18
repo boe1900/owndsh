@@ -1,3 +1,8 @@
+# [INPUT]: 依赖部署环境提供的 enterprise 公网 URI、管理回调、master key 文件与 Redis/PostgreSQL 配置
+# [OUTPUT]: 提供 RuoYi 应用、T05 公开认证白名单和 enterprise 强类型配置的统一启动真源
+# [POS]: ruoyi-admin 的默认应用装配；生产秘密只接受环境变量/文件路径，不写入仓库
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
 # 开发环境配置
 server:
   # 服务器的HTTP端口，默认为8080
@@ -5,6 +10,8 @@ server:
   servlet:
     # 应用的访问路径
     context-path: /
+  # 仅信任由部署反向代理重写的 forwarding headers，使 HTTPS 登录判定使用外部协议。
+  forward-headers-strategy: native
   # jetty 配置
   jetty:
     # HTTP post内容的最大大小。当值为-1时，默认值为大小是无限的
@@ -41,6 +48,16 @@ user:
     maxRetryCount: 5
     # 密码锁定时间（默认10分钟）
     lockTime: 10
+
+# 企业平台部署边界；生产必须显式提供详细设计第 18.1 节环境变量。
+enterprise:
+  tenant-id: ${ENT_TENANT_ID:000000}
+  public-base-url: ${ENT_PUBLIC_BASE_URL:}
+  admin-redirect-uri: ${ENT_ADMIN_REDIRECT_URI:}
+  crypto:
+    master-key-file: ${ENT_MASTER_KEY_FILE:}
+  auth:
+    allow-insecure-oidc: ${ENT_ALLOW_INSECURE_OIDC:false}
 
 # Spring配置
 spring:
@@ -111,6 +128,7 @@ security:
     - /warm-flow-ui/config
     - /snail-chat/**
     - /api/snail/chat/**
+    - /enterprise/auth/v1/**
 
 # MyBatisPlus配置
 # https://baomidou.com/config/

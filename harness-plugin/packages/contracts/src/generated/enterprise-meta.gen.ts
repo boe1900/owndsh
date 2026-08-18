@@ -29,6 +29,7 @@ export const enterpriseErrorStatuses = {
   "ENT_SESSION_DIVERGED": 409,
   "ENT_SESSION_SOURCE_DEVICE_CONFLICT": 409,
   "ENT_IDENTITY_ALREADY_LINKED": 409,
+  "ENT_DEVICE_ALREADY_BOUND": 409,
   "ENT_REQUEST_TOO_LARGE": 413,
   "ENT_PLUGIN_ARCHIVE_TOO_LARGE": 413,
   "ENT_SESSION_BATCH_TOO_LARGE": 413,
@@ -43,4 +44,4 @@ export const enterpriseErrorStatuses = {
   "ENT_UPSTREAM_TIMEOUT": 504
 } as const
 
-export const enterpriseProtocolSha256 = 'ba1d635de3892529bade7fd6e662b714786ce1373f763ca4fcdc3353e21487c3'
+export const enterpriseProtocolSha256 = '582649f4014c9446cad394c992608c21b7de2c8b2c40c77257238603ce711655'

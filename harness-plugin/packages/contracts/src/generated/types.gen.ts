@@ -67,6 +67,50 @@ export type DeletedResource = IdentityDeletedResource;
 
 export type DeletedResourceResponse = IdentityDeletedResourceResponse;
 
+export type PlatformClient = AuthPlatformClient;
+
+export type AuthTransactionId = AuthAuthTransactionId;
+
+export type AuthorizationCode = AuthAuthorizationCode;
+
+export type PkceCodeChallenge = AuthPkceCodeChallenge;
+
+export type PkceCodeVerifier = AuthPkceCodeVerifier;
+
+export type InstallationId = AuthInstallationId;
+
+export type PublicIdentitySource = AuthPublicIdentitySource;
+
+export type AuthSourcesData = AuthAuthSourcesData;
+
+export type AuthSourcesResponse = AuthAuthSourcesResponse;
+
+export type PasswordLoginRequest = AuthPasswordLoginRequest;
+
+export type TokenRequest = AuthTokenRequest;
+
+export type TokenData = AuthTokenData;
+
+export type TokenResponse = AuthTokenResponse;
+
+export type LogoutData = AuthLogoutData;
+
+export type LogoutResponse = AuthLogoutResponse;
+
+export type DeviceStatus = DeviceDeviceStatus;
+
+export type Device = DeviceDevice;
+
+export type DeviceEnrollRequest = DeviceDeviceEnrollRequest;
+
+export type DeviceHeartbeatRequest = DeviceDeviceHeartbeatRequest;
+
+export type DeviceResponse = DeviceDeviceResponse;
+
+export type DevicePageData = DeviceDevicePageData;
+
+export type DeviceListResponse = DeviceDeviceListResponse;
+
 /**
  * Enterprise user snowflake ID serialized as a string.
  */
@@ -105,7 +149,7 @@ export type RevisionedProtocolResource = {
 
 export type ProtocolMetadata = {
     contractVersion: 'v1';
-    errorCodeCount: 35;
+    errorCodeCount: 36;
     status: 'ok';
 };
 
@@ -124,7 +168,7 @@ export type ProtocolPageResponse = {
     requestId: RequestId;
 };
 
-export type EnterpriseErrorCode = 'ENT_INVALID_REQUEST' | 'ENT_INVALID_REDIRECT_URI' | 'ENT_PKCE_REQUIRED' | 'ENT_PLUGIN_ARTIFACT_INVALID' | 'ENT_SESSION_FORMAT_UNSUPPORTED' | 'ENT_AUTH_REQUIRED' | 'ENT_AUTH_CODE_INVALID' | 'ENT_PKCE_INVALID' | 'ENT_AUTH_SESSION_EXPIRED' | 'ENT_PERMISSION_DENIED' | 'ENT_DEVICE_REVOKED' | 'ENT_MODEL_NOT_ASSIGNED' | 'ENT_PLUGIN_NOT_ASSIGNED' | 'ENT_RESOURCE_NOT_OWNED' | 'ENT_RESOURCE_NOT_FOUND' | 'ENT_SESSION_CONTENT_EXPIRED' | 'ENT_REVISION_CONFLICT' | 'ENT_REQUEST_IN_PROGRESS' | 'ENT_REQUEST_ALREADY_COMPLETED' | 'ENT_SESSION_SEQ_GAP' | 'ENT_SESSION_DIVERGED' | 'ENT_SESSION_SOURCE_DEVICE_CONFLICT' | 'ENT_IDENTITY_ALREADY_LINKED' | 'ENT_REQUEST_TOO_LARGE' | 'ENT_PLUGIN_ARCHIVE_TOO_LARGE' | 'ENT_SESSION_BATCH_TOO_LARGE' | 'ENT_QUOTA_DAILY_EXCEEDED' | 'ENT_QUOTA_MONTHLY_EXCEEDED' | 'ENT_QUOTA_RPM_EXCEEDED' | 'ENT_QUOTA_CONCURRENCY_EXCEEDED' | 'ENT_UPSTREAM_AUTH_FAILED' | 'ENT_UPSTREAM_INVALID_RESPONSE' | 'ENT_PLATFORM_UNAVAILABLE' | 'ENT_UPSTREAM_UNAVAILABLE' | 'ENT_UPSTREAM_TIMEOUT';
+export type EnterpriseErrorCode = 'ENT_INVALID_REQUEST' | 'ENT_INVALID_REDIRECT_URI' | 'ENT_PKCE_REQUIRED' | 'ENT_PLUGIN_ARTIFACT_INVALID' | 'ENT_SESSION_FORMAT_UNSUPPORTED' | 'ENT_AUTH_REQUIRED' | 'ENT_AUTH_CODE_INVALID' | 'ENT_PKCE_INVALID' | 'ENT_AUTH_SESSION_EXPIRED' | 'ENT_PERMISSION_DENIED' | 'ENT_DEVICE_REVOKED' | 'ENT_MODEL_NOT_ASSIGNED' | 'ENT_PLUGIN_NOT_ASSIGNED' | 'ENT_RESOURCE_NOT_OWNED' | 'ENT_RESOURCE_NOT_FOUND' | 'ENT_SESSION_CONTENT_EXPIRED' | 'ENT_REVISION_CONFLICT' | 'ENT_REQUEST_IN_PROGRESS' | 'ENT_REQUEST_ALREADY_COMPLETED' | 'ENT_SESSION_SEQ_GAP' | 'ENT_SESSION_DIVERGED' | 'ENT_SESSION_SOURCE_DEVICE_CONFLICT' | 'ENT_IDENTITY_ALREADY_LINKED' | 'ENT_DEVICE_ALREADY_BOUND' | 'ENT_REQUEST_TOO_LARGE' | 'ENT_PLUGIN_ARCHIVE_TOO_LARGE' | 'ENT_SESSION_BATCH_TOO_LARGE' | 'ENT_QUOTA_DAILY_EXCEEDED' | 'ENT_QUOTA_MONTHLY_EXCEEDED' | 'ENT_QUOTA_RPM_EXCEEDED' | 'ENT_QUOTA_CONCURRENCY_EXCEEDED' | 'ENT_UPSTREAM_AUTH_FAILED' | 'ENT_UPSTREAM_INVALID_RESPONSE' | 'ENT_PLATFORM_UNAVAILABLE' | 'ENT_UPSTREAM_UNAVAILABLE' | 'ENT_UPSTREAM_TIMEOUT';
 
 export type ValidationViolation = {
     field: string;
@@ -161,6 +205,126 @@ export type EnterpriseError = {
 export type EnterpriseErrorResponse = {
     error: EnterpriseError;
 };
+
+export type AuthAuthSourcesData = {
+    transactionId: AuthAuthTransactionId;
+    csrfToken: string;
+    sources: Array<AuthPublicIdentitySource>;
+};
+
+export type AuthAuthSourcesResponse = {
+    data: AuthAuthSourcesData;
+    requestId: RequestId;
+};
+
+export type AuthAuthTransactionId = string;
+
+export type AuthAuthorizationCode = string;
+
+export type AuthInstallationId = string;
+
+export type AuthLogoutData = {
+    loggedOut: true;
+};
+
+export type AuthLogoutResponse = {
+    data: AuthLogoutData;
+    requestId: RequestId;
+};
+
+export type AuthPasswordLoginRequest = {
+    transactionId: AuthAuthTransactionId;
+    sourceId: IdentityIdentitySourceId;
+    csrfToken: string;
+    username: string;
+    /**
+     * Required for LOCAL only when the existing RuoYi captcha switch is enabled.
+     */
+    captchaId?: string;
+};
+
+export type AuthPkceCodeChallenge = string;
+
+export type AuthPkceCodeVerifier = string;
+
+export type AuthPlatformClient = 'dsh-desktop' | 'enterprise-admin';
+
+export type AuthPublicIdentitySource = {
+    id: IdentityIdentitySourceId;
+    name: string;
+    type: IdentityIdentitySourceType;
+};
+
+export type AuthTokenData = {
+    accessToken: string;
+    tokenType: 'Bearer';
+    expiresIn: 43200;
+    clientId: AuthPlatformClient;
+};
+
+export type AuthTokenRequest = {
+    grantType: 'authorization_code';
+    code: AuthAuthorizationCode;
+    clientId: AuthPlatformClient;
+    redirectUri: string;
+    codeVerifier: AuthPkceCodeVerifier;
+    installationId?: AuthInstallationId | null;
+};
+
+export type AuthTokenResponse = {
+    data: AuthTokenData;
+    requestId: RequestId;
+};
+
+export type DeviceDevice = {
+    id: EnterpriseDeviceId;
+    userId: EnterpriseUserId;
+    username: string;
+    displayName: string;
+    installationId: AuthInstallationId;
+    name: string;
+    platform: string;
+    harnessVersion: string | null;
+    enterpriseBundleVersion: string | null;
+    status: DeviceDeviceStatus;
+    lastSeenAt: string | null;
+    revokedAt: string | null;
+    revision: Revision;
+};
+
+export type DeviceDeviceEnrollRequest = {
+    installationId: AuthInstallationId;
+    name: string;
+    platform: string;
+    harnessVersion: string;
+    enterpriseBundleVersion: string;
+};
+
+export type DeviceDeviceHeartbeatRequest = {
+    harnessVersion: string;
+    enterpriseBundleVersion: string;
+    desiredRevision: Revision;
+    pluginInventoryDigest: string;
+    pendingSessionEvents: number;
+    lastSuccessfulSyncAt: string | null;
+};
+
+export type DeviceDeviceListResponse = {
+    data: DeviceDevicePageData;
+    requestId: RequestId;
+};
+
+export type DeviceDevicePageData = {
+    items: Array<DeviceDevice>;
+    page: CursorPage;
+};
+
+export type DeviceDeviceResponse = {
+    data: DeviceDevice;
+    requestId: RequestId;
+};
+
+export type DeviceDeviceStatus = 'ACTIVE' | 'REVOKED';
 
 export type IdentityDeletedResource = {
     id: string;
@@ -304,6 +468,44 @@ export type IdentityOidcSettings = {
     claims: IdentityOidcClaimMapping;
 };
 
+export type Authorize = unknown;
+
+export type Logout = unknown;
+
+export type OidcCallback = unknown;
+
+export type OidcStart = unknown;
+
+export type Password = unknown;
+
+export type Sources = unknown;
+
+export type Token = unknown;
+
+export type Enroll = unknown;
+
+export type Get = unknown;
+
+export type Heartbeat = unknown;
+
+export type List = unknown;
+
+export type Revoke = unknown;
+
+export type _1Enterprise1Admin1V11GroupMappings = unknown;
+
+export type _1Enterprise1Admin1V11GroupMappings1MappingId = unknown;
+
+export type _1Enterprise1Admin1V11IdentitySources = unknown;
+
+export type _1Enterprise1Admin1V11IdentitySources1SourceId = unknown;
+
+export type _1Enterprise1Admin1V11IdentitySources1SourceId1Actions1Disable = unknown;
+
+export type _1Enterprise1Admin1V11IdentitySources1SourceId1Actions1Enable = unknown;
+
+export type _1Enterprise1Admin1V11IdentitySources1SourceId1Actions1Test = unknown;
+
 export type IdentitySourceIdWritable = IdentityIdentitySourceId;
 
 export type GroupMappingIdWritable = IdentityGroupMappingId;
@@ -317,6 +519,38 @@ export type IdentitySourceStatusWritable = IdentityIdentitySourceStatus;
 export type IdentitySourceCreateRequestWritable = IdentityIdentitySourceCreateRequestWritable;
 
 export type IdentitySourceUpdateRequestWritable = IdentityIdentitySourceUpdateRequestWritable;
+
+export type PlatformClientWritable = AuthPlatformClient;
+
+export type AuthTransactionIdWritable = AuthAuthTransactionId;
+
+export type AuthorizationCodeWritable = AuthAuthorizationCode;
+
+export type PkceCodeChallengeWritable = AuthPkceCodeChallenge;
+
+export type PkceCodeVerifierWritable = AuthPkceCodeVerifier;
+
+export type InstallationIdWritable = AuthInstallationId;
+
+export type PasswordLoginRequestWritable = AuthPasswordLoginRequestWritable;
+
+export type DeviceStatusWritable = DeviceDeviceStatus;
+
+export type AuthPasswordLoginRequestWritable = {
+    transactionId: AuthAuthTransactionId;
+    sourceId: IdentityIdentitySourceId;
+    csrfToken: string;
+    username: string;
+    password: string;
+    /**
+     * Required for LOCAL only when the existing RuoYi captcha switch is enabled.
+     */
+    captchaId?: string;
+    /**
+     * Required for LOCAL only when the existing RuoYi captcha switch is enabled.
+     */
+    captchaCode?: string;
+};
 
 export type IdentityIdentitySourceCreateRequestWritable = {
     type: IdentityIdentitySourceType;
@@ -337,6 +571,28 @@ export type IdentityIdentitySourceUpdateRequestWritable = {
     ldap?: IdentityLdapSettings;
     secret?: string;
 };
+
+export type PasswordWritable = unknown;
+
+export type _1Enterprise1Admin1V11IdentitySourcesWritable = unknown;
+
+export type _1Enterprise1Admin1V11IdentitySources1SourceIdWritable = unknown;
+
+export type AuthClientId = AuthPlatformClient;
+
+export type AuthRedirectUri = string;
+
+export type AuthState = string;
+
+export type PkceChallenge = AuthPkceCodeChallenge;
+
+export type PkceChallengeMethod = 'S256';
+
+export type InstallationIdQuery = AuthInstallationId;
+
+export type AuthTransactionIdQuery = AuthAuthTransactionId;
+
+export type DeviceIdPath = EnterpriseDeviceId;
 
 export type IdentitySourceIdPath = IdentityIdentitySourceId;
 
@@ -363,6 +619,367 @@ export type IfMatchRevision = Revision;
  * Caller-generated UUID v4 reused only for one logical write.
  */
 export type IdempotencyKey = string;
+
+export type AuthorizePlatformClientData = {
+    body?: never;
+    path?: never;
+    query: {
+        client_id: AuthPlatformClient;
+        redirect_uri: string;
+        state: string;
+        code_challenge: AuthPkceCodeChallenge;
+        code_challenge_method: 'S256';
+        installation_id?: AuthInstallationId;
+    };
+    url: '/enterprise/auth/v1/authorize';
+};
+
+export type AuthorizePlatformClientErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+};
+
+export type AuthorizePlatformClientError = AuthorizePlatformClientErrors[keyof AuthorizePlatformClientErrors];
+
+export type ListPublicIdentitySourcesData = {
+    body?: never;
+    path?: never;
+    query: {
+        transaction_id: AuthAuthTransactionId;
+    };
+    url: '/enterprise/auth/v1/sources';
+};
+
+export type ListPublicIdentitySourcesErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+};
+
+export type ListPublicIdentitySourcesError = ListPublicIdentitySourcesErrors[keyof ListPublicIdentitySourcesErrors];
+
+export type ListPublicIdentitySourcesResponses = {
+    /**
+     * Public identity sources and the transaction-bound CSRF token.
+     */
+    200: AuthAuthSourcesResponse;
+};
+
+export type ListPublicIdentitySourcesResponse = ListPublicIdentitySourcesResponses[keyof ListPublicIdentitySourcesResponses];
+
+export type CompletePasswordLoginData = {
+    body: AuthPasswordLoginRequestWritable;
+    path?: never;
+    query?: never;
+    url: '/enterprise/auth/v1/password';
+};
+
+export type CompletePasswordLoginErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+};
+
+export type CompletePasswordLoginError = CompletePasswordLoginErrors[keyof CompletePasswordLoginErrors];
+
+export type StartOidcLoginData = {
+    body?: never;
+    path: {
+        sourceId: IdentityIdentitySourceId;
+    };
+    query: {
+        transaction_id: AuthAuthTransactionId;
+    };
+    url: '/enterprise/auth/v1/oidc/{sourceId}/start';
+};
+
+export type StartOidcLoginErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+};
+
+export type StartOidcLoginError = StartOidcLoginErrors[keyof StartOidcLoginErrors];
+
+export type CompleteOidcLoginData = {
+    body?: never;
+    path: {
+        sourceId: IdentityIdentitySourceId;
+    };
+    query: {
+        state: string;
+        code: string;
+    };
+    url: '/enterprise/auth/v1/oidc/{sourceId}/callback';
+};
+
+export type CompleteOidcLoginErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+};
+
+export type CompleteOidcLoginError = CompleteOidcLoginErrors[keyof CompleteOidcLoginErrors];
+
+export type ExchangeAuthorizationCodeData = {
+    body: AuthTokenRequest;
+    path?: never;
+    query?: never;
+    url: '/enterprise/auth/v1/token';
+};
+
+export type ExchangeAuthorizationCodeErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+};
+
+export type ExchangeAuthorizationCodeError = ExchangeAuthorizationCodeErrors[keyof ExchangeAuthorizationCodeErrors];
+
+export type ExchangeAuthorizationCodeResponses = {
+    /**
+     * Twelve-hour non-shared Sa-Token session.
+     */
+    200: AuthTokenResponse;
+};
+
+export type ExchangeAuthorizationCodeResponse = ExchangeAuthorizationCodeResponses[keyof ExchangeAuthorizationCodeResponses];
+
+export type LogoutPlatformSessionData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/enterprise/auth/v1/logout';
+};
+
+export type LogoutPlatformSessionErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+};
+
+export type LogoutPlatformSessionError = LogoutPlatformSessionErrors[keyof LogoutPlatformSessionErrors];
+
+export type LogoutPlatformSessionResponses = {
+    /**
+     * Current token revoked.
+     */
+    200: AuthLogoutResponse;
+};
+
+export type LogoutPlatformSessionResponse = LogoutPlatformSessionResponses[keyof LogoutPlatformSessionResponses];
+
+export type EnrollCurrentDeviceData = {
+    body: DeviceDeviceEnrollRequest;
+    path?: never;
+    query?: never;
+    url: '/enterprise/api/v1/devices/enroll';
+};
+
+export type EnrollCurrentDeviceErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type EnrollCurrentDeviceError = EnrollCurrentDeviceErrors[keyof EnrollCurrentDeviceErrors];
+
+export type EnrollCurrentDeviceResponses = {
+    /**
+     * Enrolled active device.
+     */
+    200: DeviceDeviceResponse;
+};
+
+export type EnrollCurrentDeviceResponse = EnrollCurrentDeviceResponses[keyof EnrollCurrentDeviceResponses];
+
+export type HeartbeatCurrentDeviceData = {
+    body: DeviceDeviceHeartbeatRequest;
+    path?: never;
+    query?: never;
+    url: '/enterprise/api/v1/devices/heartbeat';
+};
+
+export type HeartbeatCurrentDeviceErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type HeartbeatCurrentDeviceError = HeartbeatCurrentDeviceErrors[keyof HeartbeatCurrentDeviceErrors];
+
+export type HeartbeatCurrentDeviceResponses = {
+    /**
+     * Updated device.
+     */
+    200: DeviceDeviceResponse;
+};
+
+export type HeartbeatCurrentDeviceResponse = HeartbeatCurrentDeviceResponses[keyof HeartbeatCurrentDeviceResponses];
+
+export type ListDevicesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Server-signed opaque cursor; clients must not parse it.
+         */
+        cursor?: Cursor;
+        /**
+         * Cursor page size.
+         */
+        limit?: PageLimit;
+    };
+    url: '/enterprise/admin/v1/devices';
+};
+
+export type ListDevicesErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type ListDevicesError = ListDevicesErrors[keyof ListDevicesErrors];
+
+export type ListDevicesResponses = {
+    /**
+     * Device list.
+     */
+    200: DeviceDeviceListResponse;
+};
+
+export type ListDevicesResponse = ListDevicesResponses[keyof ListDevicesResponses];
+
+export type GetDeviceData = {
+    body?: never;
+    path: {
+        deviceId: EnterpriseDeviceId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/devices/{deviceId}';
+};
+
+export type GetDeviceErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+};
+
+export type GetDeviceError = GetDeviceErrors[keyof GetDeviceErrors];
+
+export type GetDeviceResponses = {
+    /**
+     * Device details.
+     */
+    200: DeviceDeviceResponse;
+};
+
+export type GetDeviceResponse = GetDeviceResponses[keyof GetDeviceResponses];
+
+export type RevokeDeviceData = {
+    body?: never;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        deviceId: EnterpriseDeviceId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/devices/{deviceId}/actions/revoke';
+};
+
+export type RevokeDeviceErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type RevokeDeviceError = RevokeDeviceErrors[keyof RevokeDeviceErrors];
+
+export type RevokeDeviceResponses = {
+    /**
+     * Revoked device.
+     */
+    200: DeviceDeviceResponse;
+};
+
+export type RevokeDeviceResponse = RevokeDeviceResponses[keyof RevokeDeviceResponses];
 
 export type ListIdentitySourcesData = {
     body?: never;

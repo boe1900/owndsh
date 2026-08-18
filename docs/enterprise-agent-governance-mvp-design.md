@@ -915,7 +915,7 @@ Client 包通过 `settings.section` 注册一个 `enterprise` 设置页，通过
 | 401 | `ENT_AUTH_REQUIRED`、`ENT_AUTH_CODE_INVALID`、`ENT_PKCE_INVALID`、`ENT_AUTH_SESSION_EXPIRED` |
 | 403 | `ENT_PERMISSION_DENIED`、`ENT_DEVICE_REVOKED`、`ENT_MODEL_NOT_ASSIGNED`、`ENT_PLUGIN_NOT_ASSIGNED`、`ENT_RESOURCE_NOT_OWNED` |
 | 404 | `ENT_RESOURCE_NOT_FOUND`、`ENT_SESSION_CONTENT_EXPIRED` |
-| 409 | `ENT_REVISION_CONFLICT`、`ENT_REQUEST_IN_PROGRESS`、`ENT_REQUEST_ALREADY_COMPLETED`、`ENT_SESSION_SEQ_GAP`、`ENT_SESSION_DIVERGED`、`ENT_SESSION_SOURCE_DEVICE_CONFLICT`、`ENT_IDENTITY_ALREADY_LINKED` |
+| 409 | `ENT_REVISION_CONFLICT`、`ENT_REQUEST_IN_PROGRESS`、`ENT_REQUEST_ALREADY_COMPLETED`、`ENT_SESSION_SEQ_GAP`、`ENT_SESSION_DIVERGED`、`ENT_SESSION_SOURCE_DEVICE_CONFLICT`、`ENT_IDENTITY_ALREADY_LINKED`、`ENT_DEVICE_ALREADY_BOUND` |
 | 413 | `ENT_REQUEST_TOO_LARGE`、`ENT_PLUGIN_ARCHIVE_TOO_LARGE`、`ENT_SESSION_BATCH_TOO_LARGE` |
 | 429 | `ENT_QUOTA_DAILY_EXCEEDED`、`ENT_QUOTA_MONTHLY_EXCEEDED`、`ENT_QUOTA_RPM_EXCEEDED`、`ENT_QUOTA_CONCURRENCY_EXCEEDED` |
 | 502 | `ENT_UPSTREAM_AUTH_FAILED`、`ENT_UPSTREAM_INVALID_RESPONSE` |
@@ -1153,7 +1153,8 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 | T02 | `completed` | 2026-08-18 已建立唯一 OpenAPI 3.1 真源、Hey API/strict Zod/Fetch 生成、Java 同源 JSON Schema、5 个正反 fixture、35 个稳定错误码与真实 tarball consumer，见 [`t02-contract-foundation-acceptance.md`](t02-contract-foundation-acceptance.md)。 |
 | T03 | `completed` | 2026-08-18 已建立 `ruoyi-enterprise`、PostgreSQL Flyway V1-V5、固定 built-in RBAC、HKDF/AES-GCM、BOOTSTRAP revision CAS 与只追加审计同事务基础设施，见 [`t03-server-database-acceptance.md`](t03-server-database-acceptance.md)。 |
 | T04 | `completed` | 2026-08-18 已实现 OIDC/LDAP/LOCAL adapter、稳定 external identity、显式组映射、身份源管理 API、认证 cursor 与秘密隔离，见 [`t04-identity-adapter-acceptance.md`](t04-identity-adapter-acceptance.md)。 |
-| T05-T23 | `pending` | T04 退出条件已满足；下一项只能从 T05 开始，当前未实施。 |
+| T05 | `completed` | 2026-08-18 已实现 Redis 原子登录事务与授权码、Authorization Code + PKCE、LOCAL 验证码、12 小时非共享 Sa-Token client/device 隔离、设备生命周期与公开登录页，见 [`t05-pkce-device-acceptance.md`](t05-pkce-device-acceptance.md)。 |
+| T06-T23 | `pending` | T05 退出条件已满足；下一项只能从 T06 开始，当前未实施。 |
 
 ## 23. Definition of Done
 

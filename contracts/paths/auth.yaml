@@ -1,0 +1,165 @@
+# [INPUT]: 依赖根协议的参数、响应与 auth schema，依赖 T05 公开认证 Controller 的实际 redirect/status 行为
+# [OUTPUT]: 提供 authorize/sources/password/OIDC/token/logout 七个 OpenAPI Path Item
+# [POS]: contracts/paths 的固定 public client 登录协议分片，使根 OpenAPI 保持导航职责
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+Authorize:
+  get:
+    operationId: authorizePlatformClient
+    summary: Validate one fixed public client request and create a five-minute login transaction.
+    security: []
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/AuthClientId'
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/AuthRedirectUri'
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/AuthState'
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/PkceChallenge'
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/PkceChallengeMethod'
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/InstallationIdQuery'
+    responses:
+      '303':
+        description: Continue in the public identity-source selection page.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+              format: uri-reference
+      '400':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error400'
+
+Sources:
+  get:
+    operationId: listPublicIdentitySources
+    summary: List active public identity sources for one login transaction.
+    security: []
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/AuthTransactionIdQuery'
+    responses:
+      '200':
+        description: Public identity sources and the transaction-bound CSRF token.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/AuthSourcesResponse'
+      '401':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+
+Password:
+  post:
+    operationId: completePasswordLogin
+    summary: Authenticate one LOCAL or LDAP source within an HTTPS login transaction; LOCAL reuses RuoYi captcha.
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/x-www-form-urlencoded:
+          schema:
+            $ref: '../enterprise-openapi.yaml#/components/schemas/PasswordLoginRequest'
+    responses:
+      '303':
+        description: Redirect the browser to the exact client callback with a one-time code.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+              format: uri
+      '400':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error400'
+      '401':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+
+OidcStart:
+  get:
+    operationId: startOidcLogin
+    summary: Create isolated OIDC state, nonce and S256 verifier, then redirect to the IdP.
+    security: []
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IdentitySourceIdPath'
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/AuthTransactionIdQuery'
+    responses:
+      '302':
+        description: Redirect to the configured enterprise IdP.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+              format: uri
+      '400':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error400'
+      '401':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+
+OidcCallback:
+  get:
+    operationId: completeOidcLogin
+    summary: Consume OIDC state and complete the platform login transaction.
+    security: []
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IdentitySourceIdPath'
+      - name: state
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 32
+          maxLength: 64
+          pattern: '^[A-Za-z0-9_-]+$'
+      - name: code
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 2048
+    responses:
+      '302':
+        description: Redirect to the exact client callback with a one-time platform code.
+        headers:
+          Location:
+            required: true
+            schema:
+              type: string
+              format: uri
+      '400':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error400'
+      '401':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+
+Token:
+  post:
+    operationId: exchangeAuthorizationCode
+    summary: Atomically consume one platform authorization code after exact PKCE/client binding checks.
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../enterprise-openapi.yaml#/components/schemas/TokenRequest'
+    responses:
+      '200':
+        description: Twelve-hour non-shared Sa-Token session.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/TokenResponse'
+      '400':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error400'
+      '401':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+
+Logout:
+  post:
+    operationId: logoutPlatformSession
+    summary: Audit and revoke only the current platform token.
+    responses:
+      '200':
+        description: Current token revoked.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/LogoutResponse'
+      '401':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error401'

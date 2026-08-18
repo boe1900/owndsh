@@ -1,0 +1,189 @@
+# [INPUT]: 依赖根协议的 RequestId 与统一 envelope 约定，以及详细设计第 6 节固定 public client/PKCE 边界
+# [OUTPUT]: 提供 T05 登录事务、公开身份源、条件验证码密码交换、授权码 Token 和注销 schema
+# [POS]: contracts/components 的认证协议分片，只描述平台最小登录门面而不是通用 OAuth2 Server
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+PlatformClient:
+  type: string
+  enum: [dsh-desktop, enterprise-admin]
+
+AuthTransactionId:
+  type: string
+  minLength: 32
+  maxLength: 64
+  pattern: '^[A-Za-z0-9_-]+$'
+
+AuthorizationCode:
+  type: string
+  minLength: 43
+  maxLength: 64
+  pattern: '^[A-Za-z0-9_-]+$'
+
+PkceCodeChallenge:
+  type: string
+  minLength: 43
+  maxLength: 43
+  pattern: '^[A-Za-z0-9_-]{43}$'
+
+PkceCodeVerifier:
+  type: string
+  minLength: 43
+  maxLength: 128
+  pattern: '^[A-Za-z0-9._~-]+$'
+
+InstallationId:
+  type: string
+  format: uuid
+  minLength: 36
+  maxLength: 36
+  pattern: '^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$'
+
+PublicIdentitySource:
+  type: object
+  additionalProperties: false
+  required: [id, name, type]
+  properties:
+    id:
+      $ref: './identity.yaml#/IdentitySourceId'
+    name:
+      type: string
+      minLength: 1
+      maxLength: 120
+    type:
+      $ref: './identity.yaml#/IdentitySourceType'
+
+AuthSourcesData:
+  type: object
+  additionalProperties: false
+  required: [transactionId, csrfToken, sources]
+  properties:
+    transactionId:
+      $ref: '#/AuthTransactionId'
+    csrfToken:
+      type: string
+      minLength: 32
+      maxLength: 64
+      pattern: '^[A-Za-z0-9_-]+$'
+    sources:
+      type: array
+      minItems: 1
+      maxItems: 50
+      items:
+        $ref: '#/PublicIdentitySource'
+
+AuthSourcesResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data:
+      $ref: '#/AuthSourcesData'
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+
+PasswordLoginRequest:
+  type: object
+  additionalProperties: false
+  required: [transactionId, sourceId, csrfToken, username, password]
+  properties:
+    transactionId:
+      $ref: '#/AuthTransactionId'
+    sourceId:
+      $ref: './identity.yaml#/IdentitySourceId'
+    csrfToken:
+      type: string
+      minLength: 32
+      maxLength: 64
+      pattern: '^[A-Za-z0-9_-]+$'
+    username:
+      type: string
+      minLength: 1
+      maxLength: 100
+    password:
+      type: string
+      minLength: 1
+      maxLength: 256
+      writeOnly: true
+    captchaId:
+      type: string
+      minLength: 1
+      maxLength: 128
+      description: Required for LOCAL only when the existing RuoYi captcha switch is enabled.
+    captchaCode:
+      type: string
+      minLength: 1
+      maxLength: 16
+      writeOnly: true
+      description: Required for LOCAL only when the existing RuoYi captcha switch is enabled.
+
+TokenRequest:
+  type: object
+  additionalProperties: false
+  required: [grantType, code, clientId, redirectUri, codeVerifier]
+  properties:
+    grantType:
+      type: string
+      const: authorization_code
+    code:
+      $ref: '#/AuthorizationCode'
+    clientId:
+      $ref: '#/PlatformClient'
+    redirectUri:
+      type: string
+      format: uri
+      minLength: 1
+      maxLength: 2048
+    codeVerifier:
+      $ref: '#/PkceCodeVerifier'
+    installationId:
+      oneOf:
+        - $ref: '#/InstallationId'
+        - type: 'null'
+
+TokenData:
+  type: object
+  additionalProperties: false
+  required: [accessToken, tokenType, expiresIn, clientId]
+  properties:
+    accessToken:
+      type: string
+      minLength: 16
+      maxLength: 512
+      pattern: '^\S+$'
+    tokenType:
+      type: string
+      const: Bearer
+    expiresIn:
+      type: integer
+      const: 43200
+    clientId:
+      $ref: '#/PlatformClient'
+
+TokenResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data:
+      $ref: '#/TokenData'
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+
+LogoutData:
+  type: object
+  additionalProperties: false
+  required: [loggedOut]
+  properties:
+    loggedOut:
+      type: boolean
+      const: true
+
+LogoutResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data:
+      $ref: '#/LogoutData'
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'

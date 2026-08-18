@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 contracts/generated 的 fixture manifest、自包含 Draft 2020-12 JSON Schema 与原始 fixture
- * [OUTPUT]: 验证 Java 和 TypeScript 对同一批协议正反样例给出一致有效性结论
- * [POS]: ruoyi-admin 的 T02 跨语言协议门禁，证明 Server 测试不维护第二份手写 schema
+ * [OUTPUT]: 验证 Java 和 TypeScript 对通用、身份、认证与设备协议正反样例给出一致有效性结论
+ * [POS]: ruoyi-admin 的跨语言协议门禁，按任务扩展 fixture manifest 而不维护第二份手写 schema
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.test;
@@ -40,7 +40,7 @@ class EnterpriseContractSchemaTest {
         Path manifestPath = CONTRACT_ROOT.resolve("generated/fixtures-manifest.json");
         JsonNode fixtures = JSON_MAPPER.readTree(Files.readString(manifestPath)).get("fixtures");
 
-        assertEquals(12, fixtures.size(), "协议应覆盖通用边界及 T04 身份管理成功/秘密泄漏负例");
+        assertEquals(16, fixtures.size(), "协议应覆盖通用、T04 身份及 T05 认证/设备边界");
         for (JsonNode fixture : fixtures) {
             assertFixtureValidity(fixture);
         }

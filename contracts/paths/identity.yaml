@@ -1,0 +1,265 @@
+# [INPUT]: 依赖根协议的 cursor/revision/error 响应与 identity schema，依赖 T04 身份管理 Controllers
+# [OUTPUT]: 提供身份源与外部组映射十个管理 operation 的七个 OpenAPI Path Item
+# [POS]: contracts/paths 的身份治理协议分片，使协议根只保留纵向 Path Item 导航
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+  /enterprise/admin/v1/identity-sources:
+    get:
+      operationId: listIdentitySources
+      summary: List configured identity sources.
+      parameters:
+        - $ref: '../enterprise-openapi.yaml#/components/parameters/Cursor'
+        - $ref: '../enterprise-openapi.yaml#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Identity source list.
+          headers:
+            X-Request-Id:
+              $ref: '../enterprise-openapi.yaml#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '../enterprise-openapi.yaml#/components/schemas/IdentitySourceListResponse'
+        '401':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+        '403':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error403'
+    post:
+      operationId: createIdentitySource
+      summary: Create one external identity source.
+      parameters:
+        - $ref: '../enterprise-openapi.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/IdentitySourceCreateRequest'
+      responses:
+        '201':
+          description: Identity source created.
+          headers:
+            X-Request-Id:
+              $ref: '../enterprise-openapi.yaml#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '../enterprise-openapi.yaml#/components/schemas/IdentitySourceResponse'
+        '400':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error400'
+        '401':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+        '403':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error403'
+  /enterprise/admin/v1/identity-sources/{sourceId}:
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IdentitySourceIdPath'
+    get:
+      operationId: getIdentitySource
+      summary: Get one identity source without its secret.
+      responses:
+        '200':
+          description: Identity source details.
+          headers:
+            X-Request-Id:
+              $ref: '../enterprise-openapi.yaml#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '../enterprise-openapi.yaml#/components/schemas/IdentitySourceResponse'
+        '401':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+        '403':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error403'
+        '404':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error404'
+    put:
+      operationId: updateIdentitySource
+      summary: Update one identity source using revision CAS.
+      parameters:
+        - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/IdentitySourceUpdateRequest'
+      responses:
+        '200':
+          description: Identity source updated.
+          headers:
+            X-Request-Id:
+              $ref: '../enterprise-openapi.yaml#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '../enterprise-openapi.yaml#/components/schemas/IdentitySourceResponse'
+        '400':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error400'
+        '401':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+        '403':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error403'
+        '404':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error404'
+        '409':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error409'
+  /enterprise/admin/v1/identity-sources/{sourceId}/actions/test:
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IdentitySourceIdPath'
+    post:
+      operationId: testIdentitySource
+      summary: Test a stored identity source without returning upstream data.
+      responses:
+        '200':
+          description: Sanitized connection result.
+          headers:
+            X-Request-Id:
+              $ref: '../enterprise-openapi.yaml#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '../enterprise-openapi.yaml#/components/schemas/IdentitySourceTestResponse'
+        '400':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error400'
+        '401':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+        '403':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error403'
+        '404':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error404'
+        '503':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error503'
+  /enterprise/admin/v1/identity-sources/{sourceId}/actions/enable:
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IdentitySourceIdPath'
+    post:
+      operationId: enableIdentitySource
+      summary: Enable one identity source using revision CAS.
+      parameters:
+        - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+      responses:
+        '200':
+          description: Enabled identity source.
+          headers:
+            X-Request-Id:
+              $ref: '../enterprise-openapi.yaml#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '../enterprise-openapi.yaml#/components/schemas/IdentitySourceResponse'
+        '401':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+        '403':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error403'
+        '404':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error404'
+        '409':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error409'
+  /enterprise/admin/v1/identity-sources/{sourceId}/actions/disable:
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IdentitySourceIdPath'
+    post:
+      operationId: disableIdentitySource
+      summary: Disable one identity source using revision CAS.
+      parameters:
+        - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+      responses:
+        '200':
+          description: Disabled identity source.
+          headers:
+            X-Request-Id:
+              $ref: '../enterprise-openapi.yaml#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '../enterprise-openapi.yaml#/components/schemas/IdentitySourceResponse'
+        '401':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+        '403':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error403'
+        '404':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error404'
+        '409':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error409'
+  /enterprise/admin/v1/group-mappings:
+    get:
+      operationId: listGroupMappings
+      summary: List explicit external group mappings for one identity source.
+      parameters:
+        - $ref: '../enterprise-openapi.yaml#/components/parameters/IdentitySourceIdQuery'
+        - $ref: '../enterprise-openapi.yaml#/components/parameters/Cursor'
+        - $ref: '../enterprise-openapi.yaml#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Group mapping list.
+          headers:
+            X-Request-Id:
+              $ref: '../enterprise-openapi.yaml#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '../enterprise-openapi.yaml#/components/schemas/GroupMappingListResponse'
+        '400':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error400'
+        '401':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+        '403':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error403'
+        '404':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error404'
+    post:
+      operationId: createGroupMapping
+      summary: Create one explicit external group to department mapping.
+      parameters:
+        - $ref: '../enterprise-openapi.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/GroupMappingCreateRequest'
+      responses:
+        '201':
+          description: Group mapping created.
+          headers:
+            X-Request-Id:
+              $ref: '../enterprise-openapi.yaml#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '../enterprise-openapi.yaml#/components/schemas/GroupMappingResponse'
+        '400':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error400'
+        '401':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+        '403':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error403'
+        '404':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error404'
+  /enterprise/admin/v1/group-mappings/{mappingId}:
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/GroupMappingIdPath'
+    delete:
+      operationId: deleteGroupMapping
+      summary: Delete one group mapping using revision CAS.
+      parameters:
+        - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+      responses:
+        '200':
+          description: Group mapping deleted.
+          headers:
+            X-Request-Id:
+              $ref: '../enterprise-openapi.yaml#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '../enterprise-openapi.yaml#/components/schemas/DeletedResourceResponse'
+        '401':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+        '403':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error403'
+        '404':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error404'
+        '409':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error409'

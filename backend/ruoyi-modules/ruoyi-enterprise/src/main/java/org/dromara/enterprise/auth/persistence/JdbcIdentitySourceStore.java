@@ -45,6 +45,12 @@ public final class JdbcIdentitySourceStore implements IdentitySourceStore {
     private static final String FIND_SQL = "select " + COLUMNS + """
         from ent_identity_source where tenant_id = ? and id = ?
         """;
+    private static final String LIST_ACTIVE_SQL = "select " + COLUMNS + """
+        from ent_identity_source
+        where tenant_id = ? and status = 'ACTIVE'
+        order by name, id
+        limit ?
+        """;
     private static final String INSERT_SQL = """
         insert into ent_identity_source(
             id, tenant_id, type, name, issuer, client_id,
@@ -83,6 +89,12 @@ public final class JdbcIdentitySourceStore implements IdentitySourceStore {
     @Override
     public Optional<IdentitySource> find(String tenantId, long sourceId) {
         return jdbc.query(FIND_SQL, rowMapper, tenantId, sourceId).stream().findFirst();
+    }
+
+    @Override
+    public List<IdentitySource> listActive(String tenantId, int limit) {
+        if (limit < 1 || limit > 50) throw new IllegalArgumentException("active source limit 必须在 1..50");
+        return jdbc.query(LIST_ACTIVE_SQL, rowMapper, tenantId, limit);
     }
 
     @Override

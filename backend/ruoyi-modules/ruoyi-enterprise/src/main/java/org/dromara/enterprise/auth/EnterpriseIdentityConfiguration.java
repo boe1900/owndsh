@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 DataSource/JdbcTemplate、Jackson、事务、MyBatis ID generator、部署 master key 与 RuoYi LoginFailurePolicy。
- * [OUTPUT]: 对外装配身份 stores、OIDC/LDAP/LOCAL adapters、registry 及三个 T04 Application Service。
+ * [INPUT]: 依赖 JDBC/Jackson/事务/Redisson/ID generator、部署 URI/master key 与 RuoYi 登录/会话 ports。
+ * [OUTPUT]: 对外装配 T04 身份能力及 T05 Redis PKCE/平台会话 Application Service。
  * [POS]: auth 纵向模块的 Spring composition root，领域与 adapter 均不使用静态容器查找。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -17,8 +17,11 @@ import org.dromara.enterprise.auth.adapter.LocalIdentityAdapter;
 import org.dromara.enterprise.auth.adapter.LoginFailurePolicy;
 import org.dromara.enterprise.auth.adapter.OidcIdentityAdapter;
 import org.dromara.enterprise.auth.application.ExternalIdentityService;
+import org.dromara.enterprise.auth.application.CaptchaVerifier;
 import org.dromara.enterprise.auth.application.IdentityGroupMappingService;
 import org.dromara.enterprise.auth.application.IdentitySourceService;
+import org.dromara.enterprise.auth.application.PlatformAuthorizationService;
+import org.dromara.enterprise.auth.application.PlatformSessionGateway;
 import org.dromara.enterprise.auth.persistence.ExternalGroupMappingStore;
 import org.dromara.enterprise.auth.persistence.ExternalIdentityStore;
 import org.dromara.enterprise.auth.persistence.IdentitySourceStore;
@@ -27,9 +30,11 @@ import org.dromara.enterprise.auth.persistence.JdbcExternalIdentityStore;
 import org.dromara.enterprise.auth.persistence.JdbcIdentitySourceStore;
 import org.dromara.enterprise.auth.persistence.JdbcPlatformUserStore;
 import org.dromara.enterprise.auth.persistence.PlatformUserStore;
+import org.dromara.enterprise.auth.persistence.RedisAuthStateStore;
 import org.dromara.enterprise.crypto.SecretCipher;
 import org.dromara.enterprise.common.api.EnterpriseCursorCodec;
 import org.dromara.enterprise.revision.BootstrapRevisionStore;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -40,8 +45,10 @@ import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.LongSupplier;
@@ -88,6 +95,16 @@ public class EnterpriseIdentityConfiguration {
     @Bean
     IdentitySourceStore identitySourceStore(JdbcTemplate jdbcTemplate, JsonMapper jsonMapper) {
         return new JdbcIdentitySourceStore(jdbcTemplate, jsonMapper);
+    }
+
+    @Bean
+    RedisAuthStateStore redisAuthStateStore(RedissonClient redisson, JsonMapper jsonMapper) {
+        return new RedisAuthStateStore(
+            redisson,
+            jsonMapper,
+            Duration.ofMinutes(5),
+            Duration.ofSeconds(60)
+        );
     }
 
     @Bean
@@ -200,5 +217,62 @@ public class EnterpriseIdentityConfiguration {
             auditSink,
             ids
         );
+    }
+
+    @Bean
+    PlatformAuthorizationService platformAuthorizationService(
+        PlatformTransactionManager transactionManager,
+        RedisAuthStateStore authStates,
+        IdentitySourceStore sourceStore,
+        IdentityAdapterRegistry adapterRegistry,
+        OidcIdentityAdapter oidcAdapter,
+        CaptchaVerifier captchaVerifier,
+        ExternalIdentityService externalIdentityService,
+        PlatformSessionGateway sessionGateway,
+        AuditSink auditSink,
+        @Qualifier("enterpriseIdSupplier") LongSupplier ids,
+        EnterpriseIdentityProperties properties
+    ) {
+        return new PlatformAuthorizationService(
+            authStates,
+            authStates,
+            authStates,
+            sourceStore,
+            adapterRegistry,
+            oidcAdapter,
+            captchaVerifier,
+            externalIdentityService,
+            sessionGateway,
+            new TransactionTemplate(transactionManager),
+            auditSink,
+            ids,
+            requirePublicBaseUrl(properties.getPublicBaseUrl()),
+            requireAdminRedirectUri(properties.getAdminRedirectUri())
+        );
+    }
+
+    private static URI requirePublicBaseUrl(URI value) {
+        if (value == null
+            || !"https".equals(value.getScheme())
+            || value.getHost() == null
+            || value.getUserInfo() != null
+            || value.getPort() != -1
+            || !(value.getRawPath() == null || value.getRawPath().isEmpty() || "/".equals(value.getRawPath()))
+            || value.getRawQuery() != null
+            || value.getRawFragment() != null) {
+            throw new IllegalStateException("enterprise.public-base-url 必须是无路径、端口、查询和 fragment 的 HTTPS 根地址");
+        }
+        return value;
+    }
+
+    private static URI requireAdminRedirectUri(URI value) {
+        if (value == null
+            || !"https".equals(value.getScheme())
+            || value.getHost() == null
+            || value.getUserInfo() != null
+            || value.getRawFragment() != null) {
+            throw new IllegalStateException("enterprise.admin-redirect-uri 必须是精确 HTTPS URI");
+        }
+        return value;
     }
 }
