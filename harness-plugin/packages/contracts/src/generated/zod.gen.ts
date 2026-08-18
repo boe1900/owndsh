@@ -529,19 +529,6 @@ export const zBootstrapPlugins = z.object({
     assignments: z.array(zBootstrapPluginAssignment)
 }).strict();
 
-export const zBootstrapQuota = z.object({
-    policyId: z.string().regex(/^[1-9][0-9]{0,18}$/),
-    scope: z.enum([
-        'DEFAULT',
-        'DEPT',
-        'USER'
-    ]),
-    dailyTokenLimit: z.int().gte(0),
-    monthlyTokenLimit: z.int().gte(0),
-    rpm: z.int().gte(1),
-    concurrency: z.int().gte(1)
-}).strict();
-
 export const zBootstrapSessionPolicy = z.object({
     enabled: z.boolean(),
     retentionDays: z.int().gte(1),
@@ -573,25 +560,6 @@ export const zModelBootstrapModel = z.object({
 }).strict();
 
 export const zBootstrapModel = zModelBootstrapModel;
-
-export const zModelBootstrapSnapshot = z.object({
-    revision: zRevision,
-    user: zBootstrapUser,
-    device: zBootstrapDevice,
-    models: z.array(zModelBootstrapModel),
-    quotas: z.array(zBootstrapQuota),
-    plugins: zBootstrapPlugins,
-    sessionPolicy: zBootstrapSessionPolicy
-}).strict();
-
-export const zBootstrapSnapshot = zModelBootstrapSnapshot;
-
-export const zModelBootstrapResponse = z.object({
-    data: zModelBootstrapSnapshot,
-    requestId: zRequestId
-}).strict();
-
-export const zBootstrapResponse = zModelBootstrapResponse;
 
 export const zModelModelGrantId = z.string().regex(/^[1-9][0-9]{0,18}$/);
 
@@ -813,6 +781,235 @@ export const zModelProviderUpdateRequest = z.object({
 
 export const zProviderUpdateRequest = zModelProviderUpdateRequest;
 
+export const zQuotaConcurrencyUsage = z.object({
+    limit: z.int().gte(1),
+    current: z.int().gte(0)
+}).strict();
+
+export const zConcurrencyUsage = zQuotaConcurrencyUsage;
+
+export const zNullableConcurrencyUsage = zQuotaConcurrencyUsage.nullable();
+
+export const zNullablePositiveInteger = z.int().gte(1).nullable();
+
+export const zNullablePositiveLong = z.coerce.bigint().gte(BigInt(1)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }).nullable();
+
+export const zNullableResourceId = z.string().regex(/^[1-9][0-9]{0,18}$/).nullable();
+
+export const zQuotaQuotaPolicyId = z.string().regex(/^[1-9][0-9]{0,18}$/);
+
+export const zQuotaPolicyId = zQuotaQuotaPolicyId;
+
+export const zQuotaQuotaStatus = z.enum(['ACTIVE', 'DISABLED']);
+
+export const zQuotaStatus = zQuotaQuotaStatus;
+
+export const zQuotaQuotaSubjectType = z.enum([
+    'DEFAULT',
+    'DEPT',
+    'USER'
+]);
+
+export const zQuotaSubjectType = zQuotaQuotaSubjectType;
+
+export const zQuotaBootstrapQuota = z.object({
+    policyId: zQuotaQuotaPolicyId,
+    scope: zQuotaQuotaSubjectType,
+    dailyTokenLimit: zNullablePositiveLong,
+    monthlyTokenLimit: zNullablePositiveLong,
+    rpm: zNullablePositiveInteger,
+    concurrency: zNullablePositiveInteger
+}).strict();
+
+export const zBootstrapQuota = zQuotaBootstrapQuota;
+
+export const zModelBootstrapSnapshot = z.object({
+    revision: zRevision,
+    user: zBootstrapUser,
+    device: zBootstrapDevice,
+    models: z.array(zModelBootstrapModel),
+    quotas: z.array(zQuotaBootstrapQuota),
+    plugins: zBootstrapPlugins,
+    sessionPolicy: zBootstrapSessionPolicy
+}).strict();
+
+export const zBootstrapSnapshot = zModelBootstrapSnapshot;
+
+export const zModelBootstrapResponse = z.object({
+    data: zModelBootstrapSnapshot,
+    requestId: zRequestId
+}).strict();
+
+export const zBootstrapResponse = zModelBootstrapResponse;
+
+export const zQuotaQuotaPolicy = z.object({
+    id: zQuotaQuotaPolicyId,
+    name: z.string().min(1).max(120),
+    subjectType: zQuotaQuotaSubjectType,
+    subjectId: zNullableResourceId,
+    subjectName: z.string().min(1).max(120).nullable(),
+    dailyTokenLimit: zNullablePositiveLong,
+    monthlyTokenLimit: zNullablePositiveLong,
+    rpm: zNullablePositiveInteger,
+    concurrency: zNullablePositiveInteger,
+    status: zQuotaQuotaStatus,
+    revision: zRevision
+}).strict();
+
+export const zQuotaPolicy = zQuotaQuotaPolicy;
+
+export const zQuotaQuotaPolicyPageData = z.object({
+    items: z.array(zQuotaQuotaPolicy),
+    page: zCursorPage
+}).strict();
+
+export const zQuotaPolicyPageData = zQuotaQuotaPolicyPageData;
+
+export const zQuotaQuotaPolicyListResponse = z.object({
+    data: zQuotaQuotaPolicyPageData,
+    requestId: zRequestId
+}).strict();
+
+export const zQuotaPolicyListResponse = zQuotaQuotaPolicyListResponse;
+
+export const zQuotaQuotaPolicyResponse = z.object({
+    data: zQuotaQuotaPolicy,
+    requestId: zRequestId
+}).strict();
+
+export const zQuotaPolicyResponse = zQuotaQuotaPolicyResponse;
+
+export const zQuotaQuotaPolicyWriteRequest = z.object({
+    name: z.string().min(1).max(120),
+    subjectType: zQuotaQuotaSubjectType,
+    subjectId: zNullableResourceId,
+    dailyTokenLimit: zNullablePositiveLong,
+    monthlyTokenLimit: zNullablePositiveLong,
+    rpm: zNullablePositiveInteger,
+    concurrency: zNullablePositiveInteger,
+    status: zQuotaQuotaStatus
+}).strict();
+
+export const zQuotaPolicyWriteRequest = zQuotaQuotaPolicyWriteRequest;
+
+export const zQuotaQuotaWindowId = z.string().regex(/^[1-9][0-9]{0,18}$/);
+
+export const zQuotaWindowId = zQuotaQuotaWindowId;
+
+export const zQuotaQuotaWindowType = z.enum(['DAY', 'MONTH']);
+
+export const zQuotaWindowType = zQuotaQuotaWindowType;
+
+export const zQuotaQuotaWindow = z.object({
+    policyId: zQuotaQuotaPolicyId,
+    windowType: zQuotaQuotaWindowType,
+    windowStart: z.iso.datetime({ offset: true }),
+    resetsAt: z.iso.datetime({ offset: true }),
+    limit: z.coerce.bigint().gte(BigInt(1)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
+    usedTokens: z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
+    reservedTokens: z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' })
+}).strict();
+
+export const zQuotaWindow = zQuotaQuotaWindow;
+
+export const zQuotaQuotaWindowListResponse = z.object({
+    data: z.array(zQuotaQuotaWindow).max(2),
+    requestId: zRequestId
+}).strict();
+
+export const zQuotaWindowListResponse = zQuotaQuotaWindowListResponse;
+
+export const zQuotaRateUsage = z.object({
+    limit: z.int().gte(1),
+    current: z.int().gte(0),
+    resetsAt: z.iso.datetime({ offset: true })
+}).strict();
+
+export const zRateUsage = zQuotaRateUsage;
+
+export const zNullableRateUsage = zQuotaRateUsage.nullable();
+
+export const zQuotaTokenWindowUsage = z.object({
+    limit: z.coerce.bigint().gte(BigInt(1)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
+    usedTokens: z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
+    reservedTokens: z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
+    resetsAt: z.iso.datetime({ offset: true })
+}).strict();
+
+export const zTokenWindowUsage = zQuotaTokenWindowUsage;
+
+export const zNullableTokenWindowUsage = zQuotaTokenWindowUsage.nullable();
+
+export const zQuotaQuotaUsagePolicy = z.object({
+    policyId: zQuotaQuotaPolicyId,
+    name: z.string().min(1).max(120),
+    scope: zQuotaQuotaSubjectType,
+    subjectId: zNullableResourceId,
+    daily: zNullableTokenWindowUsage,
+    monthly: zNullableTokenWindowUsage,
+    rpm: zNullableRateUsage,
+    concurrency: zNullableConcurrencyUsage
+}).strict();
+
+export const zQuotaUsagePolicy = zQuotaQuotaUsagePolicy;
+
+export const zQuotaMyQuotaUsageResponse = z.object({
+    data: z.array(zQuotaQuotaUsagePolicy),
+    requestId: zRequestId
+}).strict();
+
+export const zMyQuotaUsageResponse = zQuotaMyQuotaUsageResponse;
+
+export const zQuotaUsageLedgerId = z.string().regex(/^[1-9][0-9]{0,18}$/);
+
+export const zUsageLedgerId = zQuotaUsageLedgerId;
+
+export const zQuotaUsageResult = z.enum(['SETTLED', 'CHARGED_MAX']);
+
+export const zUsageResult = zQuotaUsageResult;
+
+export const zQuotaUsageLedgerItem = z.object({
+    id: zQuotaUsageLedgerId,
+    reservationId: z.uuid(),
+    userId: zEnterpriseUserId,
+    modelId: zManagedModelId,
+    requestId: zRequestId,
+    inputTokens: z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
+    outputTokens: z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
+    cacheTokens: z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
+    totalTokens: z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
+    result: zQuotaUsageResult,
+    upstreamRequestId: z.string().min(1).max(255).nullable(),
+    createdAt: z.iso.datetime({ offset: true })
+}).strict();
+
+export const zUsageLedgerItem = zQuotaUsageLedgerItem;
+
+export const zQuotaUsageSummary = z.object({
+    requests: z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
+    inputTokens: z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
+    outputTokens: z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
+    cacheTokens: z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
+    totalTokens: z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' })
+}).strict();
+
+export const zUsageSummary = zQuotaUsageSummary;
+
+export const zQuotaUsageLedgerPageData = z.object({
+    items: z.array(zQuotaUsageLedgerItem),
+    page: zCursorPage,
+    summary: zQuotaUsageSummary
+}).strict();
+
+export const zUsageLedgerPageData = zQuotaUsageLedgerPageData;
+
+export const zQuotaUsageLedgerListResponse = z.object({
+    data: zQuotaUsageLedgerPageData,
+    requestId: zRequestId
+}).strict();
+
+export const zUsageLedgerListResponse = zQuotaUsageLedgerListResponse;
+
 export const zAuthorize = z.unknown();
 
 export const zLogout = z.unknown();
@@ -877,6 +1074,20 @@ export const zProviderItem = z.unknown();
 
 export const zProviderTest = z.unknown();
 
+export const zAdminUsage = z.unknown();
+
+export const zMyUsage = z.unknown();
+
+export const zQuotaCollection = z.unknown();
+
+export const zQuotaDisable = z.unknown();
+
+export const zQuotaEnable = z.unknown();
+
+export const zQuotaItem = z.unknown();
+
+export const zQuotaWindows = z.unknown();
+
 export const zIdentitySourceIdWritable = zIdentityIdentitySourceId;
 
 export const zGroupMappingIdWritable = zIdentityGroupMappingId;
@@ -912,6 +1123,20 @@ export const zModelStatusWritable = zModelModelStatus;
 export const zGrantSubjectTypeWritable = zModelGrantSubjectType;
 
 export const zProviderProbeCategoryWritable = zModelProviderProbeCategory;
+
+export const zQuotaPolicyIdWritable = zQuotaQuotaPolicyId;
+
+export const zQuotaWindowIdWritable = zQuotaQuotaWindowId;
+
+export const zUsageLedgerIdWritable = zQuotaUsageLedgerId;
+
+export const zQuotaSubjectTypeWritable = zQuotaQuotaSubjectType;
+
+export const zQuotaStatusWritable = zQuotaQuotaStatus;
+
+export const zQuotaWindowTypeWritable = zQuotaQuotaWindowType;
+
+export const zUsageResultWritable = zQuotaUsageResult;
 
 export const zAuthPasswordLoginRequestWritable = z.object({
     transactionId: zAuthAuthTransactionId,
@@ -1020,6 +1245,8 @@ export const zProviderIdPath = zModelModelProviderId;
 export const zManagedModelIdPath = zManagedModelId;
 
 export const zModelGrantIdPath = zModelModelGrantId;
+
+export const zQuotaPolicyIdPath = zQuotaQuotaPolicyId;
 
 /**
  * Server-signed opaque cursor; clients must not parse it.
@@ -1481,3 +1708,117 @@ export const zUpdateModelGrantResponse = zModelModelGrantResponse;
  * Complete desensitized bootstrap snapshot for the active Harness device.
  */
 export const zGetEnterpriseBootstrapResponse = zModelBootstrapResponse;
+
+export const zListQuotaPoliciesQuery = z.object({
+    cursor: zCursor.optional(),
+    limit: zPageLimit.optional()
+});
+
+/**
+ * Quota policy page.
+ */
+export const zListQuotaPoliciesResponse = zQuotaQuotaPolicyListResponse;
+
+export const zCreateQuotaPolicyBody = zQuotaQuotaPolicyWriteRequest;
+
+export const zCreateQuotaPolicyHeaders = z.object({
+    'Idempotency-Key': z.uuid().length(36).regex(/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/)
+});
+
+/**
+ * Created quota policy.
+ */
+export const zCreateQuotaPolicyResponse = zQuotaQuotaPolicyResponse;
+
+export const zDeleteQuotaPolicyHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zDeleteQuotaPolicyPath = z.object({
+    quotaId: zQuotaQuotaPolicyId
+});
+
+/**
+ * Deleted quota policy.
+ */
+export const zDeleteQuotaPolicyResponse = zIdentityDeletedResourceResponse;
+
+export const zGetQuotaPolicyPath = z.object({
+    quotaId: zQuotaQuotaPolicyId
+});
+
+/**
+ * Quota policy details.
+ */
+export const zGetQuotaPolicyResponse = zQuotaQuotaPolicyResponse;
+
+export const zUpdateQuotaPolicyBody = zQuotaQuotaPolicyWriteRequest;
+
+export const zUpdateQuotaPolicyHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zUpdateQuotaPolicyPath = z.object({
+    quotaId: zQuotaQuotaPolicyId
+});
+
+/**
+ * Updated quota policy.
+ */
+export const zUpdateQuotaPolicyResponse = zQuotaQuotaPolicyResponse;
+
+export const zEnableQuotaPolicyHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zEnableQuotaPolicyPath = z.object({
+    quotaId: zQuotaQuotaPolicyId
+});
+
+/**
+ * Enabled quota policy.
+ */
+export const zEnableQuotaPolicyResponse = zQuotaQuotaPolicyResponse;
+
+export const zDisableQuotaPolicyHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zDisableQuotaPolicyPath = z.object({
+    quotaId: zQuotaQuotaPolicyId
+});
+
+/**
+ * Disabled quota policy.
+ */
+export const zDisableQuotaPolicyResponse = zQuotaQuotaPolicyResponse;
+
+export const zGetQuotaPolicyWindowsPath = z.object({
+    quotaId: zQuotaQuotaPolicyId
+});
+
+/**
+ * Current natural day and month token windows.
+ */
+export const zGetQuotaPolicyWindowsResponse = zQuotaQuotaWindowListResponse;
+
+/**
+ * Effective quota counters for the active Harness device owner.
+ */
+export const zGetMyQuotaUsageResponse = zQuotaMyQuotaUsageResponse;
+
+export const zListUsageLedgerQuery = z.object({
+    cursor: zCursor.optional(),
+    limit: zPageLimit.optional(),
+    userId: zEnterpriseUserId.optional(),
+    departmentId: zIdentityDepartmentId.optional(),
+    modelId: zManagedModelId.optional(),
+    requestId: zRequestId.optional(),
+    from: z.iso.datetime({ offset: true }).optional(),
+    to: z.iso.datetime({ offset: true }).optional()
+});
+
+/**
+ * Prompt-free usage ledger page and aggregate.
+ */
+export const zListUsageLedgerResponse = zQuotaUsageLedgerListResponse;

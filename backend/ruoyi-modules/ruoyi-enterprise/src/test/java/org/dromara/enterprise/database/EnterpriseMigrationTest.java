@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 PostgresTestDatabase 装载真实 RuoYi 基线与 V1-V5 classpath migration。
- * [OUTPUT]: 验证一次性空企业 schema 迁移、20 张企业表和逐版本升级路径。
- * [POS]: T03 migration 退出门禁，防止只验证最终 schema 而遗漏中间版本不可升级。
+ * [INPUT]: 依赖 PostgresTestDatabase 装载真实 RuoYi 基线与 V1-V6 classpath migration。
+ * [OUTPUT]: 验证一次性空企业 schema 迁移、21 张企业表和逐版本升级路径。
+ * [POS]: database 的持续 migration 门禁，防止后续任务只验证最终 schema 而遗漏中间版本不可升级。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.database;
@@ -26,12 +26,12 @@ class EnterpriseMigrationTest {
 
         Flyway flyway = PostgresTestDatabase.migrate(database, null);
 
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("5");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("6");
         Integer tableCount = database.jdbc().queryForObject("""
             select count(*) from information_schema.tables
             where table_schema = 'public' and table_name like 'ent_%'
             """, Integer.class);
-        assertThat(tableCount).isEqualTo(20);
+        assertThat(tableCount).isEqualTo(21);
         assertThat(database.jdbc().queryForObject(
             "select revision from ent_platform_revision where tenant_id='000000' and scope='BOOTSTRAP'",
             Long.class
@@ -50,10 +50,11 @@ class EnterpriseMigrationTest {
             "ent_plugin_assignment",
             "ent_session_event",
             "ent_audit_event",
-            "ent_platform_revision"
+            "ent_platform_revision",
+            "ent_quota_runtime_config"
         };
 
-        for (int version = 1; version <= 5; version++) {
+        for (int version = 1; version <= 6; version++) {
             Flyway flyway = PostgresTestDatabase.migrate(database, Integer.toString(version));
             assertThat(flyway.info().current().getVersion().getVersion())
                 .as("Flyway current version")
@@ -80,7 +81,7 @@ class EnterpriseMigrationTest {
             .run(context -> {
                 assertThat(context).hasSingleBean(Flyway.class);
                 assertThat(context.getBean(Flyway.class).info().current().getVersion().getVersion())
-                    .isEqualTo("5");
+                    .isEqualTo("6");
             });
     }
 }

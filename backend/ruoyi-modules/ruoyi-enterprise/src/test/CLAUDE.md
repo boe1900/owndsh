@@ -19,9 +19,14 @@ java/org/dromara/enterprise/model/ProviderProbeTest.java: 使用 WireMock 验证
 java/org/dromara/enterprise/model/EffectiveModelResolverTest.java: 纯单元验证 USER 默认缺失时的 DEPT 默认选择与空候选边界。
 java/org/dromara/enterprise/model/T08ApiContractTest.java: 以 MockMvc/JSON Schema 验证模型管理及 bootstrap 全 operation 的成功/失败协议、权限码与密钥不回显。
 java/org/dromara/enterprise/model/ModelManagementIntegrationTest.java: 以真实 PostgreSQL 验证密文/CAS/回滚、幂等删除、授权并集、默认优先级、停用与 ACTIVE bootstrap。
+java/org/dromara/enterprise/quota/QuotaWindowCalculatorTest.java: 验证冻结部署时区自然日/月边界和 UTF-8 字节除三向上估算。
+java/org/dromara/enterprise/quota/application/QuotaOrderingTest.java: 验证有效策略和预留/结算窗口共享 policy/type 固定锁序，阻止历史 window ID 造成反向加锁。
+java/org/dromara/enterprise/quota/RedisQuotaRateLimiterTest.java: 使用真实 Redis 8 验证多策略 Lua 全成全败、RPM、并发续租与 TTL 回收。
+java/org/dromara/enterprise/quota/QuotaManagementIntegrationTest.java: 以真实 PostgreSQL 验证策略/CAS/bootstrap、50 并发防超卖、状态机、幂等、结算与恢复。
+java/org/dromara/enterprise/quota/T09ApiContractTest.java: 以 MockMvc/JSON Schema 验证十个配额/用量 operation、ACTIVE 设备/用户边界、稳定错误细节与 ledger 脱敏。
 java/org/dromara/enterprise/test/OpenLdapTestServer.java: 共享 OpenLDAP Testcontainer 与测试专用 TLS trust，集中管理 LDAP 集成环境。
 java/org/dromara/enterprise/test/RedisTestServer.java: 共享 Redis 8 Testcontainer，并为每项认证测试清理隔离 keyspace。
-java/org/dromara/enterprise/database/EnterpriseMigrationTest.java: 从真实 RuoYi PostgreSQL 基线验证 V1-V5 一次迁移、逐版本升级与 Boot 4 自动迁移装配。
+java/org/dromara/enterprise/database/EnterpriseMigrationTest.java: 从真实 RuoYi PostgreSQL 基线验证 V1-V6 一次迁移、逐版本升级与 Boot 4 自动迁移装配。
 java/org/dromara/enterprise/database/RbacSeedTest.java: 验证五个 built-in 角色、14 个冻结权限码、最小权限集合与数据库不可变 trigger。
 java/org/dromara/enterprise/revision/RevisionAuditIntegrationTest.java: 验证 BOOTSTRAP CAS、稳定冲突码、显式 metadata、只追加审计及同事务回滚。
 java/org/dromara/enterprise/test/PostgresTestDatabase.java: 共享 PostgreSQL 17 Testcontainer，为每组验收创建独立数据库并加载上游真实基线。

@@ -155,7 +155,37 @@
       "schema": "BootstrapResponse",
       "valid": true,
       "zodExport": "zBootstrapResponse"
+    },
+    {
+      "file": "fixtures/quota-policy-success.json",
+      "schema": "QuotaPolicyResponse",
+      "valid": true,
+      "zodExport": "zQuotaPolicyResponse"
+    },
+    {
+      "file": "fixtures/quota-policy-list-success.json",
+      "schema": "QuotaPolicyListResponse",
+      "valid": true,
+      "zodExport": "zQuotaPolicyListResponse"
+    },
+    {
+      "file": "fixtures/quota-window-list-success.json",
+      "schema": "QuotaWindowListResponse",
+      "valid": true,
+      "zodExport": "zQuotaWindowListResponse"
+    },
+    {
+      "file": "fixtures/quota-usage-me-success.json",
+      "schema": "MyQuotaUsageResponse",
+      "valid": true,
+      "zodExport": "zMyQuotaUsageResponse"
+    },
+    {
+      "file": "fixtures/usage-ledger-list-success.json",
+      "schema": "UsageLedgerListResponse",
+      "valid": true,
+      "zodExport": "zUsageLedgerListResponse"
     }
   ],
-  "protocolSha256": "a793affb5bd7ed8f8444cc0b0353e9b0bb05f9a03ef56bba830db1e3fb50cbfb"
+  "protocolSha256": "d539acd1cb205f267f2ee985d8109adb514e4ebe8286a73b99d0702ac6516db1"
 }

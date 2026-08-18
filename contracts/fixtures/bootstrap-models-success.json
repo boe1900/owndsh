@@ -22,7 +22,16 @@
         "isDefault": true
       }
     ],
-    "quotas": [],
+    "quotas": [
+      {
+        "policyId": "1900100000000000002",
+        "scope": "DEFAULT",
+        "dailyTokenLimit": 1000000,
+        "monthlyTokenLimit": 20000000,
+        "rpm": 20,
+        "concurrency": 2
+      }
+    ],
     "plugins": {
       "revision": 0,
       "assignments": []

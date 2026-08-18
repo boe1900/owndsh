@@ -78,6 +78,20 @@ paths:
     $ref: './paths/model.yaml#/GrantItem'
   /enterprise/api/v1/bootstrap:
     $ref: './paths/model.yaml#/Bootstrap'
+  /enterprise/admin/v1/quotas:
+    $ref: './paths/quota.yaml#/QuotaCollection'
+  /enterprise/admin/v1/quotas/{quotaId}:
+    $ref: './paths/quota.yaml#/QuotaItem'
+  /enterprise/admin/v1/quotas/{quotaId}/actions/enable:
+    $ref: './paths/quota.yaml#/QuotaEnable'
+  /enterprise/admin/v1/quotas/{quotaId}/actions/disable:
+    $ref: './paths/quota.yaml#/QuotaDisable'
+  /enterprise/admin/v1/quotas/{quotaId}/windows:
+    $ref: './paths/quota.yaml#/QuotaWindows'
+  /enterprise/api/v1/usage/me:
+    $ref: './paths/quota.yaml#/MyUsage'
+  /enterprise/admin/v1/usage:
+    $ref: './paths/quota.yaml#/AdminUsage'
 
 x-enterprise-error-statuses:
   '400':
@@ -206,6 +220,21 @@ x-enterprise-fixtures:
   - file: fixtures/bootstrap-models-success.json
     schema: BootstrapResponse
     valid: true
+  - file: fixtures/quota-policy-success.json
+    schema: QuotaPolicyResponse
+    valid: true
+  - file: fixtures/quota-policy-list-success.json
+    schema: QuotaPolicyListResponse
+    valid: true
+  - file: fixtures/quota-window-list-success.json
+    schema: QuotaWindowListResponse
+    valid: true
+  - file: fixtures/quota-usage-me-success.json
+    schema: MyQuotaUsageResponse
+    valid: true
+  - file: fixtures/usage-ledger-list-success.json
+    schema: UsageLedgerListResponse
+    valid: true
 
 components:
   securitySchemes:
@@ -306,6 +335,12 @@ components:
       required: true
       schema:
         $ref: '#/components/schemas/ModelGrantId'
+    QuotaPolicyIdPath:
+      name: quotaId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/QuotaPolicyId'
     Cursor:
       name: cursor
       in: query
@@ -537,6 +572,30 @@ components:
     BootstrapModel: {$ref: './components/model.yaml#/BootstrapModel'}
     BootstrapSnapshot: {$ref: './components/model.yaml#/BootstrapSnapshot'}
     BootstrapResponse: {$ref: './components/model.yaml#/BootstrapResponse'}
+    QuotaPolicyId: {$ref: './components/quota.yaml#/QuotaPolicyId'}
+    QuotaWindowId: {$ref: './components/quota.yaml#/QuotaWindowId'}
+    UsageLedgerId: {$ref: './components/quota.yaml#/UsageLedgerId'}
+    QuotaSubjectType: {$ref: './components/quota.yaml#/QuotaSubjectType'}
+    QuotaStatus: {$ref: './components/quota.yaml#/QuotaStatus'}
+    QuotaWindowType: {$ref: './components/quota.yaml#/QuotaWindowType'}
+    UsageResult: {$ref: './components/quota.yaml#/UsageResult'}
+    QuotaPolicyWriteRequest: {$ref: './components/quota.yaml#/QuotaPolicyWriteRequest'}
+    QuotaPolicy: {$ref: './components/quota.yaml#/QuotaPolicy'}
+    QuotaPolicyResponse: {$ref: './components/quota.yaml#/QuotaPolicyResponse'}
+    QuotaPolicyPageData: {$ref: './components/quota.yaml#/QuotaPolicyPageData'}
+    QuotaPolicyListResponse: {$ref: './components/quota.yaml#/QuotaPolicyListResponse'}
+    QuotaWindow: {$ref: './components/quota.yaml#/QuotaWindow'}
+    QuotaWindowListResponse: {$ref: './components/quota.yaml#/QuotaWindowListResponse'}
+    BootstrapQuota: {$ref: './components/quota.yaml#/BootstrapQuota'}
+    TokenWindowUsage: {$ref: './components/quota.yaml#/TokenWindowUsage'}
+    RateUsage: {$ref: './components/quota.yaml#/RateUsage'}
+    ConcurrencyUsage: {$ref: './components/quota.yaml#/ConcurrencyUsage'}
+    QuotaUsagePolicy: {$ref: './components/quota.yaml#/QuotaUsagePolicy'}
+    MyQuotaUsageResponse: {$ref: './components/quota.yaml#/MyQuotaUsageResponse'}
+    UsageLedgerItem: {$ref: './components/quota.yaml#/UsageLedgerItem'}
+    UsageSummary: {$ref: './components/quota.yaml#/UsageSummary'}
+    UsageLedgerPageData: {$ref: './components/quota.yaml#/UsageLedgerPageData'}
+    UsageLedgerListResponse: {$ref: './components/quota.yaml#/UsageLedgerListResponse'}
     EnterpriseUserId:
       type: string
       pattern: '^[1-9][0-9]{0,18}$'

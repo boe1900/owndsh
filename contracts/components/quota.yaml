@@ -1,0 +1,360 @@
+# [INPUT]: 依赖根协议的资源 ID、revision、cursor、requestId 与严格成功 envelope
+# [OUTPUT]: 提供 T09 quota policy/window、bootstrap quota、本人用量与脱敏 ledger schema
+# [POS]: contracts/components 的配额真源，保留未配置 limit 的 null 语义且不承载 prompt 或上游秘密
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+QuotaPolicyId:
+  type: string
+  pattern: '^[1-9][0-9]{0,18}$'
+QuotaWindowId:
+  type: string
+  pattern: '^[1-9][0-9]{0,18}$'
+UsageLedgerId:
+  type: string
+  pattern: '^[1-9][0-9]{0,18}$'
+QuotaSubjectType:
+  type: string
+  enum: [DEFAULT, DEPT, USER]
+QuotaStatus:
+  type: string
+  enum: [ACTIVE, DISABLED]
+QuotaWindowType:
+  type: string
+  enum: [DAY, MONTH]
+UsageResult:
+  type: string
+  enum: [SETTLED, CHARGED_MAX]
+NullablePositiveLong:
+  oneOf:
+    - type: integer
+      format: int64
+      minimum: 1
+    - type: 'null'
+NullablePositiveInteger:
+  oneOf:
+    - type: integer
+      minimum: 1
+    - type: 'null'
+NullableResourceId:
+  oneOf:
+    - type: string
+      pattern: '^[1-9][0-9]{0,18}$'
+    - type: 'null'
+
+QuotaPolicyWriteRequest:
+  type: object
+  additionalProperties: false
+  required:
+    - name
+    - subjectType
+    - subjectId
+    - dailyTokenLimit
+    - monthlyTokenLimit
+    - rpm
+    - concurrency
+    - status
+  properties:
+    name:
+      type: string
+      minLength: 1
+      maxLength: 120
+    subjectType: {$ref: '#/QuotaSubjectType'}
+    subjectId: {$ref: '#/NullableResourceId'}
+    dailyTokenLimit: {$ref: '#/NullablePositiveLong'}
+    monthlyTokenLimit: {$ref: '#/NullablePositiveLong'}
+    rpm: {$ref: '#/NullablePositiveInteger'}
+    concurrency: {$ref: '#/NullablePositiveInteger'}
+    status: {$ref: '#/QuotaStatus'}
+QuotaPolicy:
+  type: object
+  additionalProperties: false
+  required:
+    - id
+    - name
+    - subjectType
+    - subjectId
+    - subjectName
+    - dailyTokenLimit
+    - monthlyTokenLimit
+    - rpm
+    - concurrency
+    - status
+    - revision
+  properties:
+    id: {$ref: '#/QuotaPolicyId'}
+    name:
+      type: string
+      minLength: 1
+      maxLength: 120
+    subjectType: {$ref: '#/QuotaSubjectType'}
+    subjectId: {$ref: '#/NullableResourceId'}
+    subjectName:
+      oneOf:
+        - type: string
+          minLength: 1
+          maxLength: 120
+        - type: 'null'
+    dailyTokenLimit: {$ref: '#/NullablePositiveLong'}
+    monthlyTokenLimit: {$ref: '#/NullablePositiveLong'}
+    rpm: {$ref: '#/NullablePositiveInteger'}
+    concurrency: {$ref: '#/NullablePositiveInteger'}
+    status: {$ref: '#/QuotaStatus'}
+    revision:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/Revision'
+QuotaPolicyResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/QuotaPolicy'}
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+QuotaPolicyPageData:
+  type: object
+  additionalProperties: false
+  required: [items, page]
+  properties:
+    items:
+      type: array
+      items: {$ref: '#/QuotaPolicy'}
+    page:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/CursorPage'
+QuotaPolicyListResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/QuotaPolicyPageData'}
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+
+QuotaWindow:
+  type: object
+  additionalProperties: false
+  required: [policyId, windowType, windowStart, resetsAt, limit, usedTokens, reservedTokens]
+  properties:
+    policyId: {$ref: '#/QuotaPolicyId'}
+    windowType: {$ref: '#/QuotaWindowType'}
+    windowStart:
+      type: string
+      format: date-time
+    resetsAt:
+      type: string
+      format: date-time
+    limit:
+      type: integer
+      format: int64
+      minimum: 1
+    usedTokens:
+      type: integer
+      format: int64
+      minimum: 0
+    reservedTokens:
+      type: integer
+      format: int64
+      minimum: 0
+QuotaWindowListResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data:
+      type: array
+      maxItems: 2
+      items: {$ref: '#/QuotaWindow'}
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+
+BootstrapQuota:
+  type: object
+  additionalProperties: false
+  required: [policyId, scope, dailyTokenLimit, monthlyTokenLimit, rpm, concurrency]
+  properties:
+    policyId: {$ref: '#/QuotaPolicyId'}
+    scope: {$ref: '#/QuotaSubjectType'}
+    dailyTokenLimit: {$ref: '#/NullablePositiveLong'}
+    monthlyTokenLimit: {$ref: '#/NullablePositiveLong'}
+    rpm: {$ref: '#/NullablePositiveInteger'}
+    concurrency: {$ref: '#/NullablePositiveInteger'}
+
+TokenWindowUsage:
+  type: object
+  additionalProperties: false
+  required: [limit, usedTokens, reservedTokens, resetsAt]
+  properties:
+    limit:
+      type: integer
+      format: int64
+      minimum: 1
+    usedTokens:
+      type: integer
+      format: int64
+      minimum: 0
+    reservedTokens:
+      type: integer
+      format: int64
+      minimum: 0
+    resetsAt:
+      type: string
+      format: date-time
+NullableTokenWindowUsage:
+  oneOf:
+    - $ref: '#/TokenWindowUsage'
+    - type: 'null'
+RateUsage:
+  type: object
+  additionalProperties: false
+  required: [limit, current, resetsAt]
+  properties:
+    limit:
+      type: integer
+      minimum: 1
+    current:
+      type: integer
+      minimum: 0
+    resetsAt:
+      type: string
+      format: date-time
+NullableRateUsage:
+  oneOf:
+    - $ref: '#/RateUsage'
+    - type: 'null'
+ConcurrencyUsage:
+  type: object
+  additionalProperties: false
+  required: [limit, current]
+  properties:
+    limit:
+      type: integer
+      minimum: 1
+    current:
+      type: integer
+      minimum: 0
+NullableConcurrencyUsage:
+  oneOf:
+    - $ref: '#/ConcurrencyUsage'
+    - type: 'null'
+QuotaUsagePolicy:
+  type: object
+  additionalProperties: false
+  required: [policyId, name, scope, subjectId, daily, monthly, rpm, concurrency]
+  properties:
+    policyId: {$ref: '#/QuotaPolicyId'}
+    name:
+      type: string
+      minLength: 1
+      maxLength: 120
+    scope: {$ref: '#/QuotaSubjectType'}
+    subjectId: {$ref: '#/NullableResourceId'}
+    daily: {$ref: '#/NullableTokenWindowUsage'}
+    monthly: {$ref: '#/NullableTokenWindowUsage'}
+    rpm: {$ref: '#/NullableRateUsage'}
+    concurrency: {$ref: '#/NullableConcurrencyUsage'}
+MyQuotaUsageResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data:
+      type: array
+      items: {$ref: '#/QuotaUsagePolicy'}
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+
+UsageLedgerItem:
+  type: object
+  additionalProperties: false
+  required:
+    - id
+    - reservationId
+    - userId
+    - modelId
+    - requestId
+    - inputTokens
+    - outputTokens
+    - cacheTokens
+    - totalTokens
+    - result
+    - upstreamRequestId
+    - createdAt
+  properties:
+    id: {$ref: '#/UsageLedgerId'}
+    reservationId:
+      type: string
+      format: uuid
+    userId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/EnterpriseUserId'
+    modelId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/ManagedModelId'
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+    inputTokens:
+      type: integer
+      format: int64
+      minimum: 0
+    outputTokens:
+      type: integer
+      format: int64
+      minimum: 0
+    cacheTokens:
+      type: integer
+      format: int64
+      minimum: 0
+    totalTokens:
+      type: integer
+      format: int64
+      minimum: 0
+    result: {$ref: '#/UsageResult'}
+    upstreamRequestId:
+      oneOf:
+        - type: string
+          minLength: 1
+          maxLength: 255
+        - type: 'null'
+    createdAt:
+      type: string
+      format: date-time
+UsageSummary:
+  type: object
+  additionalProperties: false
+  required: [requests, inputTokens, outputTokens, cacheTokens, totalTokens]
+  properties:
+    requests:
+      type: integer
+      format: int64
+      minimum: 0
+    inputTokens:
+      type: integer
+      format: int64
+      minimum: 0
+    outputTokens:
+      type: integer
+      format: int64
+      minimum: 0
+    cacheTokens:
+      type: integer
+      format: int64
+      minimum: 0
+    totalTokens:
+      type: integer
+      format: int64
+      minimum: 0
+UsageLedgerPageData:
+  type: object
+  additionalProperties: false
+  required: [items, page, summary]
+  properties:
+    items:
+      type: array
+      items: {$ref: '#/UsageLedgerItem'}
+    page:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/CursorPage'
+    summary: {$ref: '#/UsageSummary'}
+UsageLedgerListResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/UsageLedgerPageData'}
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'

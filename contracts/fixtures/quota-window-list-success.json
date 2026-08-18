@@ -1,0 +1,14 @@
+{
+  "data": [
+    {
+      "policyId": "1900900000000000001",
+      "windowType": "DAY",
+      "windowStart": "2026-08-18T00:00:00+08:00",
+      "resetsAt": "2026-08-19T00:00:00+08:00",
+      "limit": 500000,
+      "usedTokens": 12000,
+      "reservedTokens": 1024
+    }
+  ],
+  "requestId": "req_01K2W3V4X5Y6Z7A8B9C0D1E2F3"
+}

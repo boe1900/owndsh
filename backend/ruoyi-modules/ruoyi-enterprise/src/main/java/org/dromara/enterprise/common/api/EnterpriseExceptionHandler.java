@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖身份/设备/模型/revision 领域异常、Sa-Token 异常、Spring MVC 绑定异常与当前 requestId。
+ * [INPUT]: 依赖身份/设备/模型/配额/revision 领域异常、Sa-Token 异常、Spring MVC 绑定异常与当前 requestId。
  * [OUTPUT]: 对外提供详细设计第 17 节稳定 status/code/retryable/error envelope。
  * [POS]: common/api 的企业 Controller 专用异常边界，优先于 RuoYi 通用 R 响应处理器。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -21,6 +21,10 @@ import org.dromara.enterprise.device.application.DeviceAccessException;
 import org.dromara.enterprise.device.application.DeviceBindingConflictException;
 import org.dromara.enterprise.device.application.DeviceNotFoundException;
 import org.dromara.enterprise.model.application.ModelResourceNotFoundException;
+import org.dromara.enterprise.quota.application.QuotaExceededException;
+import org.dromara.enterprise.quota.application.QuotaResourceNotFoundException;
+import org.dromara.enterprise.quota.application.RequestAlreadyCompletedException;
+import org.dromara.enterprise.quota.application.RequestInProgressException;
 import org.dromara.enterprise.revision.RevisionConflictException;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -112,6 +116,66 @@ public final class EnterpriseExceptionHandler {
     @ExceptionHandler(ModelResourceNotFoundException.class)
     public ResponseEntity<EnterpriseErrorResponse> modelNotFound(HttpServletRequest request) {
         return error(HttpStatus.NOT_FOUND, "ENT_RESOURCE_NOT_FOUND", "模型资源不存在", false, null, request);
+    }
+
+    @ExceptionHandler(QuotaResourceNotFoundException.class)
+    public ResponseEntity<EnterpriseErrorResponse> quotaNotFound(HttpServletRequest request) {
+        return error(HttpStatus.NOT_FOUND, "ENT_RESOURCE_NOT_FOUND", "配额资源不存在", false, null, request);
+    }
+
+    @ExceptionHandler(QuotaExceededException.class)
+    public ResponseEntity<EnterpriseErrorResponse> quotaExceeded(
+        QuotaExceededException exception,
+        HttpServletRequest request
+    ) {
+        String message = switch (exception.kind()) {
+            case DAILY -> "今日 Token 配额已用完";
+            case MONTHLY -> "本月 Token 配额已用完";
+            case RPM -> "每分钟请求配额已用完";
+            case CONCURRENCY -> "并发请求配额已用完";
+        };
+        return error(
+            HttpStatus.TOO_MANY_REQUESTS,
+            exception.kind().errorCode(),
+            message,
+            false,
+            new QuotaExceededDetails(Long.toString(exception.policyId()), exception.resetsAt()),
+            request
+        );
+    }
+
+    @ExceptionHandler(RequestInProgressException.class)
+    public ResponseEntity<EnterpriseErrorResponse> requestInProgress(
+        RequestInProgressException exception,
+        HttpServletRequest request
+    ) {
+        return error(
+            HttpStatus.CONFLICT,
+            "ENT_REQUEST_IN_PROGRESS",
+            "相同请求正在处理中",
+            false,
+            new RequestConflictDetails(
+                exception.originalRequestId(), RequestConflictDetails.Result.IN_PROGRESS
+            ),
+            request
+        );
+    }
+
+    @ExceptionHandler(RequestAlreadyCompletedException.class)
+    public ResponseEntity<EnterpriseErrorResponse> requestAlreadyCompleted(
+        RequestAlreadyCompletedException exception,
+        HttpServletRequest request
+    ) {
+        return error(
+            HttpStatus.CONFLICT,
+            "ENT_REQUEST_ALREADY_COMPLETED",
+            "相同请求已经结束",
+            false,
+            new RequestConflictDetails(
+                exception.originalRequestId(), RequestConflictDetails.Result.COMPLETED
+            ),
+            request
+        );
     }
 
     @ExceptionHandler(IdentityAlreadyLinkedException.class)

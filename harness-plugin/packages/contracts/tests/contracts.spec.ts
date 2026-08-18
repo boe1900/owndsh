@@ -17,6 +17,13 @@ import {
   parseManagedModelId,
   parsePluginVersionId,
   parseRemoteSessionId,
+  zMyQuotaUsageResponse,
+  zQuotaExceededDetails,
+  zQuotaPolicyListResponse,
+  zQuotaPolicyResponse,
+  zQuotaWindowListResponse,
+  zRequestConflictDetails,
+  zUsageLedgerListResponse,
   type EnterpriseUserId,
 } from '../src/index.js'
 import * as generatedSchemas from '../src/generated/zod.gen.js'
@@ -126,5 +133,35 @@ describe('generated enterprise contracts', () => {
     expect(consumeUser(userId)).toBe('73001')
     // @ts-expect-error EnterpriseDeviceId must not substitute EnterpriseUserId.
     consumeUser(deviceId)
+  })
+
+  it('exports strict T09 quota and usage schemas through the package facade', async () => {
+    const fixtures = [
+      ['quota-policy-success.json', zQuotaPolicyResponse],
+      ['quota-policy-list-success.json', zQuotaPolicyListResponse],
+      ['quota-window-list-success.json', zQuotaWindowListResponse],
+      ['quota-usage-me-success.json', zMyQuotaUsageResponse],
+      ['usage-ledger-list-success.json', zUsageLedgerListResponse],
+    ] as const
+    for (const [file, schema] of fixtures) {
+      const value: unknown = JSON.parse(await readFile(resolve(CONTRACT_ROOT, 'fixtures', file), 'utf8'))
+      expect(schema.safeParse(value).success, file).toBe(true)
+    }
+
+    expect(zQuotaExceededDetails.safeParse({
+      policyId: '1900900000000000001',
+      resetsAt: '2026-08-19T00:00:00+08:00',
+    }).success).toBe(true)
+    expect(zRequestConflictDetails.safeParse({
+      originalRequestId: 'req_01ARZ3NDEKTSV4RRFFQ69G5FAV',
+      result: 'COMPLETED',
+    }).success).toBe(true)
+
+    const windows = JSON.parse(await readFile(
+      resolve(CONTRACT_ROOT, 'fixtures', 'quota-window-list-success.json'),
+      'utf8',
+    )) as { data: Array<Record<string, unknown>> }
+    windows.data[0] = { ...windows.data[0], revision: 1 }
+    expect(zQuotaWindowListResponse.safeParse(windows).success).toBe(false)
   })
 })

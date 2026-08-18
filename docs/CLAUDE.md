@@ -15,6 +15,7 @@ t05-pkce-device-acceptance.md: T05 独立验收证据，记录 PKCE/Redis 原子
 t06-harness-platform-client-acceptance.md: T06 独立验收证据，记录 platform-client Service、Token/installation 边界、刷新退避、本地 API/SSE、tgz consumer 与锁定 Harness 组合结果。
 t07-employee-login-ui-acceptance.md: T07 独立验收证据，记录官方三 slot 路线、共享账号状态、十态文案、无 Token 浏览器边界和真实桌面流程。
 t08-model-management-acceptance.md: T08 独立验收证据，记录模型治理 API、provider 密钥隔离、默认授权解析、PostgreSQL 事务与 bootstrap 模型目录。
+t09-quota-management-acceptance.md: T09 独立验收证据，记录叠加配额、冻结时区、并发预留、Redis lease、结算恢复、用量协议与锁序审阅。
 assets/: 无密钥验收媒体，保存 T05 公开登录页和 T07 Harness 员工登录 UI 的真实流程截图/GIF。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

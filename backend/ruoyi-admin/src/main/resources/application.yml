@@ -1,5 +1,5 @@
-# [INPUT]: 依赖部署环境提供的 enterprise 公网 URI、管理回调、master key 文件与 Redis/PostgreSQL 配置
-# [OUTPUT]: 提供 RuoYi 应用、T05 公开认证白名单和 enterprise 强类型配置的统一启动真源
+# [INPUT]: 依赖部署环境提供的 enterprise 公网 URI、管理回调、master key、冻结配额时区与 Redis/PostgreSQL 配置
+# [OUTPUT]: 提供 RuoYi 应用、公开认证白名单和 enterprise 强类型配置的统一启动真源
 # [POS]: ruoyi-admin 的默认应用装配；生产秘密只接受环境变量/文件路径，不写入仓库
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -58,6 +58,8 @@ enterprise:
     master-key-file: ${ENT_MASTER_KEY_FILE:}
   auth:
     allow-insecure-oidc: ${ENT_ALLOW_INSECURE_OIDC:false}
+  quota:
+    deployment-time-zone: ${ENT_DEPLOYMENT_TIME_ZONE:Asia/Shanghai}
 
 # Spring配置
 spring:

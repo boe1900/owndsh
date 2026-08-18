@@ -1,0 +1,16 @@
+{
+  "data": {
+    "id": "1900900000000000001",
+    "name": "Engineering",
+    "subjectType": "DEPT",
+    "subjectId": "1761000000000000103",
+    "subjectName": "Engineering",
+    "dailyTokenLimit": 500000,
+    "monthlyTokenLimit": 10000000,
+    "rpm": 15,
+    "concurrency": 3,
+    "status": "ACTIVE",
+    "revision": 1
+  },
+  "requestId": "req_01K2W3V4X5Y6Z7A8B9C0D1E2F3"
+}

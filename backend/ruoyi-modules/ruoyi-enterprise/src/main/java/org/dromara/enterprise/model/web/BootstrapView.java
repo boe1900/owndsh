@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 投影 BootstrapService 的用户、ACTIVE 设备、revision 与有效模型目录。
+ * [INPUT]: 投影 BootstrapService 的用户、ACTIVE 设备、revision、有效模型与有效配额。
  * [OUTPUT]: 对外提供 T06 严格客户端所需的完整脱敏 bootstrap 外壳。
- * [POS]: model/web 的 runtime 配置输出边界；T09/T13/T16 未实现切片保持空或 disabled，不伪造业务事实。
+ * [POS]: model/web 的 runtime 配置输出边界；T13/T16 未实现切片保持空或 disabled，不伪造业务事实。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.model.web;
@@ -33,7 +33,10 @@ public record BootstrapView(
                 value.alias(), value.displayName(), value.contextWindow(), value.maxOutputTokens(),
                 value.reasoning(), value.isDefault()
             )).toList(),
-            List.of(),
+            snapshot.quotas().stream().map(value -> new Quota(
+                Long.toString(value.id()), value.subjectType().name(), value.dailyTokenLimit(),
+                value.monthlyTokenLimit(), value.rpm(), value.concurrency()
+            )).toList(),
             new Plugins(0, List.of()),
             new SessionPolicy(false, 90, 1_048_576)
         );
@@ -58,10 +61,10 @@ public record BootstrapView(
     public record Quota(
         String policyId,
         String scope,
-        long dailyTokenLimit,
-        long monthlyTokenLimit,
-        int rpm,
-        int concurrency
+        Long dailyTokenLimit,
+        Long monthlyTokenLimit,
+        Integer rpm,
+        Integer concurrency
     ) {
     }
 

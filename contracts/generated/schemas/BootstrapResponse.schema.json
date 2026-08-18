@@ -165,20 +165,50 @@
                 ]
               },
               "dailyTokenLimit": {
-                "type": "integer",
-                "minimum": 0
+                "oneOf": [
+                  {
+                    "type": "integer",
+                    "format": "int64",
+                    "minimum": 1
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "monthlyTokenLimit": {
-                "type": "integer",
-                "minimum": 0
+                "oneOf": [
+                  {
+                    "type": "integer",
+                    "format": "int64",
+                    "minimum": 1
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "rpm": {
-                "type": "integer",
-                "minimum": 1
+                "oneOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "concurrency": {
-                "type": "integer",
-                "minimum": 1
+                "oneOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             }
           }

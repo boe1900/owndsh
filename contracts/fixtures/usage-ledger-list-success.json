@@ -1,0 +1,33 @@
+{
+  "data": {
+    "items": [
+      {
+        "id": "1900900000000000201",
+        "reservationId": "123e4567-e89b-42d3-a456-426614174001",
+        "userId": "1761100000000000003",
+        "modelId": "1900800000000000101",
+        "requestId": "req_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+        "inputTokens": 100,
+        "outputTokens": 50,
+        "cacheTokens": 25,
+        "totalTokens": 175,
+        "result": "SETTLED",
+        "upstreamRequestId": null,
+        "createdAt": "2026-08-18T18:59:00+08:00"
+      }
+    ],
+    "page": {
+      "hasMore": false,
+      "limit": 50,
+      "nextCursor": null
+    },
+    "summary": {
+      "requests": 1,
+      "inputTokens": 100,
+      "outputTokens": 50,
+      "cacheTokens": 25,
+      "totalTokens": 175
+    }
+  },
+  "requestId": "req_01K2W3V4X5Y6Z7A8B9C0D1E2F3"
+}

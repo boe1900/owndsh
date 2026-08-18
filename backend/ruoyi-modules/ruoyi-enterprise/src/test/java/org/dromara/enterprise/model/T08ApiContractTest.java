@@ -372,7 +372,8 @@ class T08ApiContractTest {
             device,
             List.of(new EffectiveModelResolver.EffectiveModel(
                 Long.parseLong(MODEL_ID), "deepseek-chat", "DeepSeek Chat", 65536, 8192, false, 10, true
-            ))
+            )),
+            List.of()
         );
     }
 

@@ -560,6 +560,8 @@ MVP 只支持 `key_version=1`，不实现在线轮换。丢失 master key 意味
 
 日窗口按部署时区的自然日计算，月窗口按自然月计算；部署时区在首次 migration 后不可修改。Token 使用量为上游 `input_tokens + output_tokens + cache_read_tokens + cache_write_tokens` 中可获得字段的和。
 
+T09 首次启动时把 `ENT_DEPLOYMENT_TIME_ZONE` 原子写入 `ent_quota_runtime_config`；后续启动只接受与数据库一致的值，禁止通过重启改变已经开始累计的自然日/月边界。reservation 必须同时固化服务端 `request_id`，使进程崩溃后的恢复结算仍能生成与 accepted 审计相同关联键的 ledger 和 finished/recovered 审计。
+
 ### 10.2 预留算法
 
 输入估算为模型可见 system、messages 和 tools JSON 的 UTF-8 字节数除以 3 后向上取整。输出预留为请求 `max_tokens`，缺省时使用受管模型 `max_output_tokens`。`estimated_tokens = estimated_input + reserved_output`。
@@ -759,7 +761,8 @@ MVP 必须产生以下 action：
 | `ent_model_grant` | `id,tenant_id,model_id,subject_type,subject_id,is_default,status,revision` | 唯一 `(model_id,subject_type,subject_id)`；type 检查 `USER/DEPT`；部分唯一索引限制同一 subject 一个有效默认 |
 | `ent_quota_policy` | `id,tenant_id,name,subject_type,subject_id,daily_token_limit,monthly_token_limit,rpm,concurrency,status,revision` | type 检查 `DEFAULT/DEPT/USER`；DEFAULT 的 subject 为空，其他非空；至少一个 limit 非空且为正 |
 | `ent_quota_window` | `id,tenant_id,policy_id,window_type,window_start,used_tokens,reserved_tokens,revision` | 唯一 `(policy_id,window_type,window_start)`；type 检查 `DAY/MONTH`；计数非负 |
-| `ent_usage_reservation` | `id uuid,tenant_id,user_id,device_id,model_id,idempotency_key,state,estimated_tokens,reserved_windows_json,expires_at,created_at,updated_at` | 唯一 `(user_id,idempotency_key)`；window 快照逐项含 `windowId,policyId,windowType,reservedTokens`；索引 `(state,expires_at)` |
+| `ent_quota_runtime_config` | `tenant_id,deployment_time_zone,created_at` | tenant 主键；T09 首次启动写入 IANA Zone ID，后续不提供 update/delete 能力且配置漂移时拒绝启动 |
+| `ent_usage_reservation` | `id uuid,tenant_id,user_id,device_id,model_id,idempotency_key,request_id,state,estimated_tokens,reserved_windows_json,expires_at,created_at,updated_at` | 唯一 `(user_id,idempotency_key)`；window 快照逐项含 `windowId,policyId,windowType,reservedTokens`；索引 `(state,expires_at)` 与 `request_id` |
 | `ent_usage_ledger` | `id bigint,tenant_id,reservation_id,user_id,model_id,request_id,input_tokens,output_tokens,cache_tokens,total_tokens,result,upstream_request_id,created_at` | 唯一 `reservation_id`；索引 `(user_id,created_at)`、`(model_id,created_at)`、`request_id` |
 | `ent_plugin_package` | `id,tenant_id,package_name,display_name,status,revision` | 唯一 `(tenant_id,package_name)` |
 | `ent_plugin_version` | `id,tenant_id,package_id,version,artifact_ref,size_bytes,sha256,signature,compatibility_json,status,created_by,created_at,revision` | 唯一 `(package_id,version)`；唯一 `(tenant_id,sha256)` |
@@ -781,6 +784,7 @@ MVP 必须产生以下 action：
 | `V3__enterprise_session.sql` | replica/event/batch 表、密文字段和保留状态 |
 | `V4__enterprise_audit.sql` | 审计表、索引、固定角色、菜单和权限码 |
 | `V5__enterprise_seed.sql` | 默认本地身份源、默认 quota policy 和 bootstrap revision |
+| `V6__enterprise_quota_runtime.sql` | 冻结部署时区，并为 reservation 补齐崩溃恢复所需 requestId |
 
 Flyway 使用独立 migration 数据库账号；运行时账号只有 DML 和 sequence 权限。migration 必须在空 PostgreSQL 和从前一 migration 升级两条路径测试。
 
@@ -1160,7 +1164,8 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 | T06 | `completed` | 2026-08-18 已实现 `ctx.enterprisePlatform`、内存 Token、installation、PKCE/enroll/bootstrap 状态机、60 秒刷新/指数退避和同源 JSON/SSE，真实 tgz consumer 与锁定 Harness 组合通过，见 [`t06-harness-platform-client-acceptance.md`](t06-harness-platform-client-acceptance.md)。 |
 | T07 | `completed` | 2026-08-18 已通过官方三个 UI slot 实现共享账号状态、同源严格浏览器 client 和十态桌面 UI；登录、取消、READY、过期、撤销的真实 Harness 快照/GIF 与无 Token 证据见 [`t07-employee-login-ui-acceptance.md`](t07-employee-login-ui-acceptance.md)。 |
 | T08 | `completed` | 2026-08-18 已实现 provider/model/grant 管理、provider-secret AES-GCM、无重定向脱敏探测、USER+DEPT 默认解析、幂等删除与 ACTIVE 设备 bootstrap 模型目录；协议、PostgreSQL 和秘密隔离证据见 [`t08-model-management-acceptance.md`](t08-model-management-acceptance.md)。 |
-| T09-T23 | `pending` | T08 已完成；下一项只能从 T09 开始。 |
+| T09 | `completed` | 2026-08-18 已实现 DEFAULT+DEPT+USER 叠加策略、冻结部署时区、PostgreSQL 防超卖 reservation、Redis RPM/并发 lease、结算/恢复和 prompt-free 用量 API；协议与并发证据见 [`t09-quota-management-acceptance.md`](t09-quota-management-acceptance.md)。 |
+| T10-T23 | `pending` | T09 已完成；下一项只能从 T10 开始。 |
 
 ## 23. Definition of Done
 

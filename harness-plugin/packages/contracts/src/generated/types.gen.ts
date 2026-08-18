@@ -171,6 +171,54 @@ export type BootstrapSnapshot = ModelBootstrapSnapshot;
 
 export type BootstrapResponse = ModelBootstrapResponse;
 
+export type QuotaPolicyId = QuotaQuotaPolicyId;
+
+export type QuotaWindowId = QuotaQuotaWindowId;
+
+export type UsageLedgerId = QuotaUsageLedgerId;
+
+export type QuotaSubjectType = QuotaQuotaSubjectType;
+
+export type QuotaStatus = QuotaQuotaStatus;
+
+export type QuotaWindowType = QuotaQuotaWindowType;
+
+export type UsageResult = QuotaUsageResult;
+
+export type QuotaPolicyWriteRequest = QuotaQuotaPolicyWriteRequest;
+
+export type QuotaPolicy = QuotaQuotaPolicy;
+
+export type QuotaPolicyResponse = QuotaQuotaPolicyResponse;
+
+export type QuotaPolicyPageData = QuotaQuotaPolicyPageData;
+
+export type QuotaPolicyListResponse = QuotaQuotaPolicyListResponse;
+
+export type QuotaWindow = QuotaQuotaWindow;
+
+export type QuotaWindowListResponse = QuotaQuotaWindowListResponse;
+
+export type BootstrapQuota = QuotaBootstrapQuota;
+
+export type TokenWindowUsage = QuotaTokenWindowUsage;
+
+export type RateUsage = QuotaRateUsage;
+
+export type ConcurrencyUsage = QuotaConcurrencyUsage;
+
+export type QuotaUsagePolicy = QuotaQuotaUsagePolicy;
+
+export type MyQuotaUsageResponse = QuotaMyQuotaUsageResponse;
+
+export type UsageLedgerItem = QuotaUsageLedgerItem;
+
+export type UsageSummary = QuotaUsageSummary;
+
+export type UsageLedgerPageData = QuotaUsageLedgerPageData;
+
+export type UsageLedgerListResponse = QuotaUsageLedgerListResponse;
+
 /**
  * Enterprise user snowflake ID serialized as a string.
  */
@@ -557,15 +605,6 @@ export type BootstrapPlugins = {
     assignments: Array<BootstrapPluginAssignment>;
 };
 
-export type BootstrapQuota = {
-    policyId: string;
-    scope: 'DEFAULT' | 'DEPT' | 'USER';
-    dailyTokenLimit: number;
-    monthlyTokenLimit: number;
-    rpm: number;
-    concurrency: number;
-};
-
 export type ModelBootstrapResponse = {
     data: ModelBootstrapSnapshot;
     requestId: RequestId;
@@ -582,7 +621,7 @@ export type ModelBootstrapSnapshot = {
     user: BootstrapUser;
     device: BootstrapDevice;
     models: Array<ModelBootstrapModel>;
-    quotas: Array<BootstrapQuota>;
+    quotas: Array<QuotaBootstrapQuota>;
     plugins: BootstrapPlugins;
     sessionPolicy: BootstrapSessionPolicy;
 };
@@ -762,6 +801,164 @@ export type ModelProviderUpdateRequest = {
     readTimeoutMs: ProviderTimeoutMs;
 };
 
+export type QuotaBootstrapQuota = {
+    policyId: QuotaQuotaPolicyId;
+    scope: QuotaQuotaSubjectType;
+    dailyTokenLimit: NullablePositiveLong;
+    monthlyTokenLimit: NullablePositiveLong;
+    rpm: NullablePositiveInteger;
+    concurrency: NullablePositiveInteger;
+};
+
+export type QuotaConcurrencyUsage = {
+    limit: number;
+    current: number;
+};
+
+export type QuotaMyQuotaUsageResponse = {
+    data: Array<QuotaQuotaUsagePolicy>;
+    requestId: RequestId;
+};
+
+export type NullableConcurrencyUsage = QuotaConcurrencyUsage | null;
+
+export type NullablePositiveInteger = number | null;
+
+export type NullablePositiveLong = number | null;
+
+export type NullableRateUsage = QuotaRateUsage | null;
+
+export type NullableResourceId = string | null;
+
+export type NullableTokenWindowUsage = QuotaTokenWindowUsage | null;
+
+export type QuotaQuotaPolicy = {
+    id: QuotaQuotaPolicyId;
+    name: string;
+    subjectType: QuotaQuotaSubjectType;
+    subjectId: NullableResourceId;
+    subjectName: string | null;
+    dailyTokenLimit: NullablePositiveLong;
+    monthlyTokenLimit: NullablePositiveLong;
+    rpm: NullablePositiveInteger;
+    concurrency: NullablePositiveInteger;
+    status: QuotaQuotaStatus;
+    revision: Revision;
+};
+
+export type QuotaQuotaPolicyId = string;
+
+export type QuotaQuotaPolicyListResponse = {
+    data: QuotaQuotaPolicyPageData;
+    requestId: RequestId;
+};
+
+export type QuotaQuotaPolicyPageData = {
+    items: Array<QuotaQuotaPolicy>;
+    page: CursorPage;
+};
+
+export type QuotaQuotaPolicyResponse = {
+    data: QuotaQuotaPolicy;
+    requestId: RequestId;
+};
+
+export type QuotaQuotaPolicyWriteRequest = {
+    name: string;
+    subjectType: QuotaQuotaSubjectType;
+    subjectId: NullableResourceId;
+    dailyTokenLimit: NullablePositiveLong;
+    monthlyTokenLimit: NullablePositiveLong;
+    rpm: NullablePositiveInteger;
+    concurrency: NullablePositiveInteger;
+    status: QuotaQuotaStatus;
+};
+
+export type QuotaQuotaStatus = 'ACTIVE' | 'DISABLED';
+
+export type QuotaQuotaSubjectType = 'DEFAULT' | 'DEPT' | 'USER';
+
+export type QuotaQuotaUsagePolicy = {
+    policyId: QuotaQuotaPolicyId;
+    name: string;
+    scope: QuotaQuotaSubjectType;
+    subjectId: NullableResourceId;
+    daily: NullableTokenWindowUsage;
+    monthly: NullableTokenWindowUsage;
+    rpm: NullableRateUsage;
+    concurrency: NullableConcurrencyUsage;
+};
+
+export type QuotaQuotaWindow = {
+    policyId: QuotaQuotaPolicyId;
+    windowType: QuotaQuotaWindowType;
+    windowStart: string;
+    resetsAt: string;
+    limit: number;
+    usedTokens: number;
+    reservedTokens: number;
+};
+
+export type QuotaQuotaWindowId = string;
+
+export type QuotaQuotaWindowListResponse = {
+    data: Array<QuotaQuotaWindow>;
+    requestId: RequestId;
+};
+
+export type QuotaQuotaWindowType = 'DAY' | 'MONTH';
+
+export type QuotaRateUsage = {
+    limit: number;
+    current: number;
+    resetsAt: string;
+};
+
+export type QuotaTokenWindowUsage = {
+    limit: number;
+    usedTokens: number;
+    reservedTokens: number;
+    resetsAt: string;
+};
+
+export type QuotaUsageLedgerId = string;
+
+export type QuotaUsageLedgerItem = {
+    id: QuotaUsageLedgerId;
+    reservationId: string;
+    userId: EnterpriseUserId;
+    modelId: ManagedModelId;
+    requestId: RequestId;
+    inputTokens: number;
+    outputTokens: number;
+    cacheTokens: number;
+    totalTokens: number;
+    result: QuotaUsageResult;
+    upstreamRequestId: string | null;
+    createdAt: string;
+};
+
+export type QuotaUsageLedgerListResponse = {
+    data: QuotaUsageLedgerPageData;
+    requestId: RequestId;
+};
+
+export type QuotaUsageLedgerPageData = {
+    items: Array<QuotaUsageLedgerItem>;
+    page: CursorPage;
+    summary: QuotaUsageSummary;
+};
+
+export type QuotaUsageResult = 'SETTLED' | 'CHARGED_MAX';
+
+export type QuotaUsageSummary = {
+    requests: number;
+    inputTokens: number;
+    outputTokens: number;
+    cacheTokens: number;
+    totalTokens: number;
+};
+
 export type Authorize = unknown;
 
 export type Logout = unknown;
@@ -826,6 +1023,20 @@ export type ProviderItem = unknown;
 
 export type ProviderTest = unknown;
 
+export type AdminUsage = unknown;
+
+export type MyUsage = unknown;
+
+export type QuotaCollection = unknown;
+
+export type QuotaDisable = unknown;
+
+export type QuotaEnable = unknown;
+
+export type QuotaItem = unknown;
+
+export type QuotaWindows = unknown;
+
 export type IdentitySourceIdWritable = IdentityIdentitySourceId;
 
 export type GroupMappingIdWritable = IdentityGroupMappingId;
@@ -873,6 +1084,20 @@ export type ProviderUpdateRequestWritable = ModelProviderUpdateRequestWritable;
 export type ProviderProbeRequestWritable = ModelProviderProbeRequestWritable;
 
 export type ProviderProbeCategoryWritable = ModelProviderProbeCategory;
+
+export type QuotaPolicyIdWritable = QuotaQuotaPolicyId;
+
+export type QuotaWindowIdWritable = QuotaQuotaWindowId;
+
+export type UsageLedgerIdWritable = QuotaUsageLedgerId;
+
+export type QuotaSubjectTypeWritable = QuotaQuotaSubjectType;
+
+export type QuotaStatusWritable = QuotaQuotaStatus;
+
+export type QuotaWindowTypeWritable = QuotaQuotaWindowType;
+
+export type UsageResultWritable = QuotaUsageResult;
 
 export type AuthPasswordLoginRequestWritable = {
     transactionId: AuthAuthTransactionId;
@@ -975,6 +1200,8 @@ export type ProviderIdPath = ModelModelProviderId;
 export type ManagedModelIdPath = ManagedModelId;
 
 export type ModelGrantIdPath = ModelModelGrantId;
+
+export type QuotaPolicyIdPath = QuotaQuotaPolicyId;
 
 /**
  * Server-signed opaque cursor; clients must not parse it.
@@ -2606,3 +2833,419 @@ export type GetEnterpriseBootstrapResponses = {
 };
 
 export type GetEnterpriseBootstrapResponse = GetEnterpriseBootstrapResponses[keyof GetEnterpriseBootstrapResponses];
+
+export type ListQuotaPoliciesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Server-signed opaque cursor; clients must not parse it.
+         */
+        cursor?: Cursor;
+        /**
+         * Cursor page size.
+         */
+        limit?: PageLimit;
+    };
+    url: '/enterprise/admin/v1/quotas';
+};
+
+export type ListQuotaPoliciesErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type ListQuotaPoliciesError = ListQuotaPoliciesErrors[keyof ListQuotaPoliciesErrors];
+
+export type ListQuotaPoliciesResponses = {
+    /**
+     * Quota policy page.
+     */
+    200: QuotaQuotaPolicyListResponse;
+};
+
+export type ListQuotaPoliciesResponse = ListQuotaPoliciesResponses[keyof ListQuotaPoliciesResponses];
+
+export type CreateQuotaPolicyData = {
+    body: QuotaQuotaPolicyWriteRequest;
+    headers: {
+        /**
+         * Caller-generated UUID v4 reused only for one logical write.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/enterprise/admin/v1/quotas';
+};
+
+export type CreateQuotaPolicyErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type CreateQuotaPolicyError = CreateQuotaPolicyErrors[keyof CreateQuotaPolicyErrors];
+
+export type CreateQuotaPolicyResponses = {
+    /**
+     * Created quota policy.
+     */
+    201: QuotaQuotaPolicyResponse;
+};
+
+export type CreateQuotaPolicyResponse = CreateQuotaPolicyResponses[keyof CreateQuotaPolicyResponses];
+
+export type DeleteQuotaPolicyData = {
+    body?: never;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        quotaId: QuotaQuotaPolicyId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/quotas/{quotaId}';
+};
+
+export type DeleteQuotaPolicyErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type DeleteQuotaPolicyError = DeleteQuotaPolicyErrors[keyof DeleteQuotaPolicyErrors];
+
+export type DeleteQuotaPolicyResponses = {
+    /**
+     * Deleted quota policy.
+     */
+    200: IdentityDeletedResourceResponse;
+};
+
+export type DeleteQuotaPolicyResponse = DeleteQuotaPolicyResponses[keyof DeleteQuotaPolicyResponses];
+
+export type GetQuotaPolicyData = {
+    body?: never;
+    path: {
+        quotaId: QuotaQuotaPolicyId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/quotas/{quotaId}';
+};
+
+export type GetQuotaPolicyErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+};
+
+export type GetQuotaPolicyError = GetQuotaPolicyErrors[keyof GetQuotaPolicyErrors];
+
+export type GetQuotaPolicyResponses = {
+    /**
+     * Quota policy details.
+     */
+    200: QuotaQuotaPolicyResponse;
+};
+
+export type GetQuotaPolicyResponse = GetQuotaPolicyResponses[keyof GetQuotaPolicyResponses];
+
+export type UpdateQuotaPolicyData = {
+    body: QuotaQuotaPolicyWriteRequest;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        quotaId: QuotaQuotaPolicyId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/quotas/{quotaId}';
+};
+
+export type UpdateQuotaPolicyErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type UpdateQuotaPolicyError = UpdateQuotaPolicyErrors[keyof UpdateQuotaPolicyErrors];
+
+export type UpdateQuotaPolicyResponses = {
+    /**
+     * Updated quota policy.
+     */
+    200: QuotaQuotaPolicyResponse;
+};
+
+export type UpdateQuotaPolicyResponse = UpdateQuotaPolicyResponses[keyof UpdateQuotaPolicyResponses];
+
+export type EnableQuotaPolicyData = {
+    body?: never;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        quotaId: QuotaQuotaPolicyId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/quotas/{quotaId}/actions/enable';
+};
+
+export type EnableQuotaPolicyErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type EnableQuotaPolicyError = EnableQuotaPolicyErrors[keyof EnableQuotaPolicyErrors];
+
+export type EnableQuotaPolicyResponses = {
+    /**
+     * Enabled quota policy.
+     */
+    200: QuotaQuotaPolicyResponse;
+};
+
+export type EnableQuotaPolicyResponse = EnableQuotaPolicyResponses[keyof EnableQuotaPolicyResponses];
+
+export type DisableQuotaPolicyData = {
+    body?: never;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        quotaId: QuotaQuotaPolicyId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/quotas/{quotaId}/actions/disable';
+};
+
+export type DisableQuotaPolicyErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type DisableQuotaPolicyError = DisableQuotaPolicyErrors[keyof DisableQuotaPolicyErrors];
+
+export type DisableQuotaPolicyResponses = {
+    /**
+     * Disabled quota policy.
+     */
+    200: QuotaQuotaPolicyResponse;
+};
+
+export type DisableQuotaPolicyResponse = DisableQuotaPolicyResponses[keyof DisableQuotaPolicyResponses];
+
+export type GetQuotaPolicyWindowsData = {
+    body?: never;
+    path: {
+        quotaId: QuotaQuotaPolicyId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/quotas/{quotaId}/windows';
+};
+
+export type GetQuotaPolicyWindowsErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+};
+
+export type GetQuotaPolicyWindowsError = GetQuotaPolicyWindowsErrors[keyof GetQuotaPolicyWindowsErrors];
+
+export type GetQuotaPolicyWindowsResponses = {
+    /**
+     * Current natural day and month token windows.
+     */
+    200: QuotaQuotaWindowListResponse;
+};
+
+export type GetQuotaPolicyWindowsResponse = GetQuotaPolicyWindowsResponses[keyof GetQuotaPolicyWindowsResponses];
+
+export type GetMyQuotaUsageData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/enterprise/api/v1/usage/me';
+};
+
+export type GetMyQuotaUsageErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Platform or upstream is unavailable.
+     */
+    503: EnterpriseErrorResponse;
+};
+
+export type GetMyQuotaUsageError = GetMyQuotaUsageErrors[keyof GetMyQuotaUsageErrors];
+
+export type GetMyQuotaUsageResponses = {
+    /**
+     * Effective quota counters for the active Harness device owner.
+     */
+    200: QuotaMyQuotaUsageResponse;
+};
+
+export type GetMyQuotaUsageResponse = GetMyQuotaUsageResponses[keyof GetMyQuotaUsageResponses];
+
+export type ListUsageLedgerData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Server-signed opaque cursor; clients must not parse it.
+         */
+        cursor?: Cursor;
+        /**
+         * Cursor page size.
+         */
+        limit?: PageLimit;
+        userId?: EnterpriseUserId;
+        departmentId?: IdentityDepartmentId;
+        modelId?: ManagedModelId;
+        requestId?: RequestId;
+        from?: string;
+        to?: string;
+    };
+    url: '/enterprise/admin/v1/usage';
+};
+
+export type ListUsageLedgerErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type ListUsageLedgerError = ListUsageLedgerErrors[keyof ListUsageLedgerErrors];
+
+export type ListUsageLedgerResponses = {
+    /**
+     * Prompt-free usage ledger page and aggregate.
+     */
+    200: QuotaUsageLedgerListResponse;
+};
+
+export type ListUsageLedgerResponse = ListUsageLedgerResponses[keyof ListUsageLedgerResponses];

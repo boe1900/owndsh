@@ -1,0 +1,187 @@
+# [INPUT]: 依赖 quota.yaml DTO 与根协议的 ID、cursor、revision 和统一错误响应
+# [OUTPUT]: 提供 T09 quota CRUD/状态/窗口、本人用量及管理员 ledger 查询 Path Item
+# [POS]: contracts/paths 的配额纵向分片，管理写使用幂等键/If-Match，runtime 每次校验 ACTIVE 设备
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+QuotaCollection:
+  get:
+    operationId: listQuotaPolicies
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Cursor'
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Limit'
+    responses:
+      '200':
+        description: Quota policy page.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/QuotaPolicyListResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+  post:
+    operationId: createQuotaPolicy
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/QuotaPolicyWriteRequest'}
+    responses:
+      '201':
+        description: Created quota policy.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/QuotaPolicyResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+
+QuotaItem:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/QuotaPolicyIdPath'
+  get:
+    operationId: getQuotaPolicy
+    responses:
+      '200':
+        description: Quota policy details.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/QuotaPolicyResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+  put:
+    operationId: updateQuotaPolicy
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/QuotaPolicyWriteRequest'}
+    responses:
+      '200':
+        description: Updated quota policy.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/QuotaPolicyResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+  delete:
+    operationId: deleteQuotaPolicy
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    responses:
+      '200':
+        description: Deleted quota policy.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/DeletedResourceResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+
+QuotaEnable:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/QuotaPolicyIdPath'
+  post:
+    operationId: enableQuotaPolicy
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    responses:
+      '200':
+        description: Enabled quota policy.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/QuotaPolicyResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+QuotaDisable:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/QuotaPolicyIdPath'
+  post:
+    operationId: disableQuotaPolicy
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    responses:
+      '200':
+        description: Disabled quota policy.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/QuotaPolicyResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+QuotaWindows:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/QuotaPolicyIdPath'
+  get:
+    operationId: getQuotaPolicyWindows
+    responses:
+      '200':
+        description: Current natural day and month token windows.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/QuotaWindowListResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+
+MyUsage:
+  get:
+    operationId: getMyQuotaUsage
+    responses:
+      '200':
+        description: Effective quota counters for the active Harness device owner.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/MyQuotaUsageResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '503': {$ref: '../enterprise-openapi.yaml#/components/responses/Error503'}
+
+AdminUsage:
+  get:
+    operationId: listUsageLedger
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Cursor'
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Limit'
+      - name: userId
+        in: query
+        schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/EnterpriseUserId'}
+      - name: departmentId
+        in: query
+        schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/DepartmentId'}
+      - name: modelId
+        in: query
+        schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ManagedModelId'}
+      - name: requestId
+        in: query
+        schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'}
+      - name: from
+        in: query
+        schema:
+          type: string
+          format: date-time
+      - name: to
+        in: query
+        schema:
+          type: string
+          format: date-time
+    responses:
+      '200':
+        description: Prompt-free usage ledger page and aggregate.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/UsageLedgerListResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}

@@ -20,6 +20,6 @@ ManagedModelService.java: 模型 CRUD/排序/启停的 CAS/bootstrap revision/�
 ModelGrantService.java: 单条/批量授权、默认冲突、主体校验、CAS/幂等删除和原子审计编排。
 EffectiveModelResolver.java: 用户与当前部门授权并集、USER 默认优先及 sort fallback 的纯裁决器。
 BootstrapUser.java: runtime bootstrap 所需的当前 RuoYi 用户最小事实。
-BootstrapService.java: ACTIVE 设备/用户/revision/有效模型组合查询，不承载 T09/T13/T16 业务。
+BootstrapService.java: ACTIVE 设备/用户/revision/有效模型与有效配额组合查询，不承载 T13/T16 业务。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

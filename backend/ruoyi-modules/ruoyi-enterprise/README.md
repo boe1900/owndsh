@@ -4,7 +4,8 @@
 bootstrap revision CAS 和只追加审计事务基础设施；T04 在同一模块内增加 OIDC、LDAP、LOCAL
 身份适配器、稳定 external identity、显式组映射和身份管理 API；T05 增加固定 public client 的
 Authorization Code + PKCE、Sa-Token 终端隔离、公开登录页与设备生命周期；T08 增加
-provider/model/grant 管理、provider 密钥保护、有效默认解析和 runtime bootstrap 模型目录。
+provider/model/grant 管理、provider 密钥保护、有效默认解析和 runtime bootstrap 模型目录；T09
+增加 Flyway `V6`、叠加配额、PostgreSQL reservation、Redis lease、结算恢复和用量 API。
 
 ## 身份边界
 
@@ -50,19 +51,35 @@ master key 的独立 `API_CURSOR` 用途进行 AES-GCM 认证，并绑定 tenant
 - RuoYi `sys_user/sys_dept` 使用固定部署的全局主键；tenant 约束施加在 `ent_model_*` 企业事实链上。
   本模块不声称支持详细设计明确排除的 SaaS 多租户。
 - `/enterprise/api/v1/bootstrap` 每次重新验证 `dsh-desktop` Token 对应的 ACTIVE 设备与当前用户，
-  T08 只填充模型切片；配额、插件和 Session policy 保持未启用外壳，分别留给后续任务。
+  当前填充有效模型与全部适用配额；插件和 Session policy 保持未启用外壳，留给后续任务。
 
 模型管理入口为 `/enterprise/admin/v1/providers`、`/enterprise/admin/v1/models` 和
 `/enterprise/admin/v1/model-grants`，分别使用冻结的 `ent:model:*` 与 `ent:grant:*` 权限码。
 创建请求要求 UUID v4 `Idempotency-Key`，更新和状态动作要求 revision `If-Match`；模型与授权删除
 达到目标状态后可安全重放。
 
+## 配额与用量边界
+
+- 生效策略是所有 ACTIVE DEFAULT、当前 DEPT 和 USER 策略的并集，不做覆盖合并；所有上限独立
+  叠加，并在应用层强制按 policy ID 排序。
+- 自然日/月以 `ENT_DEPLOYMENT_TIME_ZONE` 计算。首次启动把 IANA Zone ID 写入
+  `ent_quota_runtime_config`，后续配置漂移会拒绝启动，不能通过重启改变累计边界。
+- Token 预留在 PostgreSQL 短事务内锁定全部窗口并写 reservation；所有预留、结算、释放和恢复
+  统一按 policy/type 加锁。50 并发由数据库约束和行锁防超卖，不依赖 JVM 本地锁。
+- RPM 与并发使用单个 Redis Lua 对全部适用策略全成全败；并发 lease 为 120 秒，可续租、显式
+  释放并由 TTL 回收。Redis 获取失败会释放数据库预留。
+- reservation 固化 requestId 与窗口快照，状态只允许 RESERVED、SENT、RELEASED、SETTLED、
+  CHARGED_MAX。过期 RESERVED 释放，过期 SENT 按估算上限计费，恢复使用 `SKIP LOCKED`。
+- 管理配额与 ledger 分别位于 `/enterprise/admin/v1/quotas`、`/enterprise/admin/v1/usage`；ACTIVE
+  `dsh-desktop` owner 通过 `/enterprise/api/v1/usage/me` 查询本人实时计数。ledger 不包含 prompt、
+  messages、provider route 或 credential。
+
 ## 数据库
 
 本模块只支持 PostgreSQL。Flyway migration 位于 `src/main/resources/db/migration`，假定 RuoYi
 PostgreSQL 基线已经存在，并为企业表创建显式外键、检查约束和索引。`V4` 向 `sys_role` 增加
 真实的 `built_in` 列并写入固定角色和权限集合；`V5` 为默认 tenant `000000` 写入 LOCAL 身份源、
-默认配额策略和 `BOOTSTRAP` revision。
+默认配额策略和 `BOOTSTRAP` revision；`V6` 冻结部署时区并给 reservation 增加可恢复 requestId。
 
 ## 测试
 
@@ -78,7 +95,7 @@ PATH=/usr/local/opt/openjdk@21/bin:$PATH \
 
 测试从真实 RuoYi PostgreSQL 基线启动数据库，分别验证一次性迁移和逐版本升级；不会使用 H2
 模拟 PostgreSQL 约束。身份/设备测试还会启动 WireMock OIDC、OpenLDAP StartTLS、Redis 8 和
-PostgreSQL 17 Testcontainers，并使用 OpenAPI 派生 JSON Schema 验证认证、设备、模型管理与
-bootstrap 的成功/失败响应。
+PostgreSQL 17 Testcontainers，并使用 OpenAPI 派生 JSON Schema 验证认证、设备、模型、配额、
+bootstrap 与用量接口的成功/失败响应。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

@@ -13,9 +13,11 @@ Zod `.strict()` so unknown wire fields fail instead of being stripped. Raw
 generated ID aliases are deliberately not exported: business packages must
 construct IDs through the matching `parse*Id()` helper.
 
-The public surface also exports the T08 provider, managed-model, grant, and
-bootstrap DTOs and strict Zod schemas. Provider credentials remain write-only;
-they are intentionally absent from every generated response type.
+The public surface also exports the T08 provider, managed-model, and grant DTOs,
+plus the T09 bootstrap quota, policy/window, active-device usage, and prompt-free
+ledger DTOs with strict Zod schemas. Provider credentials remain write-only;
+provider routes, credentials, prompts, and messages are intentionally absent
+from their runtime response types.
 
 The package inherits the workspace strict TypeScript baseline but disables
 `exactOptionalPropertyTypes` locally because Hey API 0.99.0's generated Fetch

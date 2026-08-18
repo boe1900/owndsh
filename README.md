@@ -6,7 +6,7 @@ Enterprise Agent Platform 是基于 DeepSeek Harness 构建的企业 Agent 管�
 
 ## 当前阶段
 
-T00 至 T08 已完成：仓库包含锁定产品源码、Harness 官方插件 workspace、Java/TypeScript 同源 OpenAPI 3.1 协议和 PostgreSQL/Redis 企业模块。T08 已交付 provider/model/grant 管理、AES-GCM provider 密钥、授权默认解析和 ACTIVE 设备 bootstrap 模型目录；下一项只能从 T09 开始。实际证据见 [`docs/t08-model-management-acceptance.md`](docs/t08-model-management-acceptance.md)。
+T00 至 T09 已完成：仓库包含锁定产品源码、Harness 官方插件 workspace、Java/TypeScript 同源 OpenAPI 3.1 协议和 PostgreSQL/Redis 企业模块。T09 已交付 DEFAULT+DEPT+USER 叠加配额、自然日/月窗口、PostgreSQL reservation、Redis RPM/并发 lease、结算恢复和 prompt-free 用量查询；下一项只能从 T10 开始。实际证据见 [`docs/t09-quota-management-acceptance.md`](docs/t09-quota-management-acceptance.md)。
 
 ## 文档
 
@@ -20,6 +20,7 @@ T00 至 T08 已完成：仓库包含锁定产品源码、Harness 官方插件 wo
 - [T06 Harness 平台客户端验收记录](docs/t06-harness-platform-client-acceptance.md)：Service 状态机、内存 Token、bootstrap 刷新、本地 JSON/SSE、真实 tgz consumer 与锁定 Harness 组合证据。
 - [T07 员工登录 UI 验收记录](docs/t07-employee-login-ui-acceptance.md)：官方 Settings/sidebar/onboarding 路线、十态 UI、同源浏览器边界与真实 Harness 桌面流程证据。
 - [T08 模型管理验收记录](docs/t08-model-management-acceptance.md)：provider/model/grant API、密钥隔离、PostgreSQL 默认解析、bootstrap 模型目录与跨端协议证据。
+- [T09 配额管理验收记录](docs/t09-quota-management-acceptance.md)：叠加策略、冻结时区、并发预留、Redis lease、结算恢复、用量 API 与跨端协议证据。
 
 实现者先阅读 MVP 详细设计的第 1 至 21 节，再严格按照第 22 节任务依赖推进。发现设计矛盾时先修订设计并记录决定，不在代码中引入未经确认的替代方案。
 

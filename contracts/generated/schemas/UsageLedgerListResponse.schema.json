@@ -1,0 +1,195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:enterprise-agent:contracts:UsageLedgerListResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "data",
+    "requestId"
+  ],
+  "properties": {
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "items",
+        "page",
+        "summary"
+      ],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "reservationId",
+              "userId",
+              "modelId",
+              "requestId",
+              "inputTokens",
+              "outputTokens",
+              "cacheTokens",
+              "totalTokens",
+              "result",
+              "upstreamRequestId",
+              "createdAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[1-9][0-9]{0,18}$"
+              },
+              "reservationId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "userId": {
+                "type": "string",
+                "pattern": "^[1-9][0-9]{0,18}$",
+                "description": "Enterprise user snowflake ID serialized as a string."
+              },
+              "modelId": {
+                "type": "string",
+                "pattern": "^[1-9][0-9]{0,18}$",
+                "description": "Managed model snowflake ID serialized as a string."
+              },
+              "requestId": {
+                "type": "string",
+                "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                "examples": [
+                  "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                ]
+              },
+              "inputTokens": {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 0
+              },
+              "outputTokens": {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 0
+              },
+              "cacheTokens": {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 0
+              },
+              "totalTokens": {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 0
+              },
+              "result": {
+                "type": "string",
+                "enum": [
+                  "SETTLED",
+                  "CHARGED_MAX"
+                ]
+              },
+              "upstreamRequestId": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        },
+        "page": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "hasMore",
+            "limit",
+            "nextCursor"
+          ],
+          "properties": {
+            "hasMore": {
+              "type": "boolean"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            },
+            "nextCursor": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "minLength": 16,
+                  "maxLength": 512,
+                  "pattern": "^[A-Za-z0-9_-]+$",
+                  "description": "Server-signed opaque cursor."
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
+        "summary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "requests",
+            "inputTokens",
+            "outputTokens",
+            "cacheTokens",
+            "totalTokens"
+          ],
+          "properties": {
+            "requests": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            },
+            "inputTokens": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            },
+            "outputTokens": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            },
+            "cacheTokens": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            },
+            "totalTokens": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    "requestId": {
+      "type": "string",
+      "description": "Server-generated req_ prefix followed by one canonical ULID.",
+      "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+      "examples": [
+        "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+      ]
+    }
+  }
+}

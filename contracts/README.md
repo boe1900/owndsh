@@ -18,6 +18,11 @@ Provider credentials are write-only inputs; provider outputs expose only
 `credentialConfigured`, and runtime bootstrap exposes model capabilities without
 provider routes, upstream model names, or credentials.
 
+T09 adds quota policy/window management, active-device usage, prompt-free ledger
+queries, bootstrap quota facts, and stable quota/idempotency error details. Window
+responses expose counters and reset times without internal row IDs or revisions;
+ledger responses cannot carry prompts, messages, provider routes, or credentials.
+
 ```sh
 cd harness-plugin
 pnpm --filter @enterprise-agent/dsh-contracts generate

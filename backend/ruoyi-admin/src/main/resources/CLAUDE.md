@@ -4,7 +4,7 @@
 
 成员清单
 
-application.yml: 默认应用配置，装配 enterprise URI/master key 路径、公开认证白名单与可信 forwarding header 策略。
+application.yml: 默认应用配置，装配 enterprise URI/master key、首次写入后冻结的 `ENT_DEPLOYMENT_TIME_ZONE`、公开认证白名单与可信 forwarding header 策略。
 application-dev.yml: 开发环境数据库、Redis 与日志覆盖，不保存生产秘密。
 application-prod.yml: 生产运行参数覆盖，与部署环境变量共同生效。
 banner.txt: RuoYi 应用启动 banner。

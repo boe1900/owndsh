@@ -393,7 +393,7 @@ BootstrapSnapshot:
       items: {$ref: '#/BootstrapModel'}
     quotas:
       type: array
-      items: {$ref: '#/BootstrapQuota'}
+      items: {$ref: './quota.yaml#/BootstrapQuota'}
     plugins:
       $ref: '#/BootstrapPlugins'
     sessionPolicy:
@@ -429,29 +429,6 @@ BootstrapDevice:
     status:
       type: string
       const: ACTIVE
-BootstrapQuota:
-  type: object
-  additionalProperties: false
-  required: [policyId, scope, dailyTokenLimit, monthlyTokenLimit, rpm, concurrency]
-  properties:
-    policyId:
-      type: string
-      pattern: '^[1-9][0-9]{0,18}$'
-    scope:
-      type: string
-      enum: [DEFAULT, DEPT, USER]
-    dailyTokenLimit:
-      type: integer
-      minimum: 0
-    monthlyTokenLimit:
-      type: integer
-      minimum: 0
-    rpm:
-      type: integer
-      minimum: 1
-    concurrency:
-      type: integer
-      minimum: 1
 BootstrapPlugins:
   type: object
   additionalProperties: false

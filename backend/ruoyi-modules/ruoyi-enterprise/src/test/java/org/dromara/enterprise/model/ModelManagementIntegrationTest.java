@@ -41,6 +41,7 @@ import org.dromara.enterprise.model.persistence.ModelGrantStore;
 import org.dromara.enterprise.model.persistence.ProviderStore;
 import org.dromara.enterprise.revision.JdbcBootstrapRevisionStore;
 import org.dromara.enterprise.revision.RevisionConflictException;
+import org.dromara.enterprise.quota.application.EffectiveQuotaResolver;
 import org.dromara.enterprise.test.PostgresTestDatabase;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
@@ -62,6 +63,7 @@ import java.util.function.LongSupplier;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 @Tag("dev")
 class ModelManagementIntegrationTest {
@@ -255,8 +257,10 @@ class ModelManagementIntegrationTest {
         DeviceService devices = new DeviceService(
             transaction, new JdbcDeviceStore(database.jdbc()), audit, sessions, ids
         );
+        EffectiveQuotaResolver quotas = mock(EffectiveQuotaResolver.class);
+        when(quotas.resolve(TENANT, user.id(), user.departmentId())).thenReturn(List.of());
         return new BootstrapService(
-            devices, new JdbcBootstrapUserStore(database.jdbc()), resolver, revisions
+            devices, new JdbcBootstrapUserStore(database.jdbc()), resolver, quotas, revisions
         );
     }
 
