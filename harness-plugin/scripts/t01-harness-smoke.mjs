@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖已构建 bundle tgz、同级锁定 Harness checkout、Corepack pnpm 与临时 DSH_HOME
- * [OUTPUT]: 提供无 ambient shim package consumer、profile layer、真实 Web/API/Client bundle/Session seed smoke
- * [POS]: harness-plugin 的 T01 组合验收入口，只写临时目录并断言同级 Harness 跟踪工作区始终干净
+ * [OUTPUT]: 提供无 ambient shim consumer、profile layer、真实 Web/API/SSE/Client、installation 与 Session seed smoke
+ * [POS]: harness-plugin 的 T01/T06 组合验收入口，只写临时目录并断言同级 Harness 跟踪工作区始终干净
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -132,6 +132,7 @@ try {
   await writeFile(profilePatch, [
     '- id: enterprise-agent',
     '  config:',
+    "    baseUrl: 'https://enterprise.example.invalid'",
     '    enableTechnicalProbe: true',
     '',
   ].join('\n'))
@@ -149,6 +150,30 @@ try {
   assert.deepEqual(await status.json(), {
     data: { state: 'SIGNED_OUT', bundleVersion: '0.1.0', transport: 'webServer.register' },
   })
+
+  const events = await fetch(`${ready.url}/enterprise/api/v1/local/events`)
+  assert.equal(events.headers.get('content-type'), 'text/event-stream; charset=utf-8')
+  const eventReader = events.body.getReader()
+  const firstEvent = new TextDecoder().decode((await eventReader.read()).value)
+  assert.match(firstEvent, /event: status/)
+  assert.match(firstEvent, /SIGNED_OUT/)
+  assert.doesNotMatch(firstEvent, /token|authorization/i)
+  await eventReader.cancel()
+
+  let deviceText
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    try {
+      deviceText = await readFile(resolve(home, 'enterprise', 'device.json'), 'utf8')
+      break
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error
+      await new Promise(resolvePromise => setTimeout(resolvePromise, 20))
+    }
+  }
+  assert.ok(deviceText, 'platform-client did not create the installation file')
+  const device = JSON.parse(deviceText)
+  assert.match(device.installationId, /^[0-9a-f-]{36}$/i)
+  assert.doesNotMatch(deviceText, /token|authorization|secret/i)
 
   const index = await (await fetch(ready.url)).text()
   assert.match(index, /@enterprise-agent\/dsh-bundle/)
@@ -183,6 +208,8 @@ try {
   process.stdout.write(`${JSON.stringify({
     clientBundle: clientUrl,
     harnessCommit: harnessHead,
+    installationFile: 'non-secret',
+    localEvents: 'passed',
     packageConsumer: 'passed',
     profile: 'web',
     sessionSeed: 'passed',

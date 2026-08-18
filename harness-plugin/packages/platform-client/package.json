@@ -17,6 +17,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run tests"
   },
+  "dependencies": {
+    "@enterprise-agent/dsh-contracts": "workspace:*",
+    "zod": "4.4.3"
+  },
   "peerDependencies": {
     "@deepseek-ai/cordis": "4.0.1"
   }

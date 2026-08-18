@@ -8,14 +8,14 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 
-/** Stable local failures consumed by the platform-client state machine. */
+/** 供 platform-client 状态机消费的稳定本地失败码。 */
 export type PkceLoopbackErrorCode =
   | 'ENT_AUTH_CANCELLED'
   | 'ENT_AUTH_CALLBACK_INVALID'
   | 'ENT_AUTH_STATE_INVALID'
   | 'ENT_AUTH_TIMEOUT'
 
-/** Error carrying a machine-readable login failure without secrets. */
+/** 携带可机器读登录失败码且不包含秘密的错误。 */
 export class PkceLoopbackError extends Error {
   constructor(
     readonly code: PkceLoopbackErrorCode,
@@ -26,20 +26,20 @@ export class PkceLoopbackError extends Error {
   }
 }
 
-/** One RFC 7636 S256 verifier/challenge pair. */
+/** 一组 RFC 7636 S256 verifier/challenge。 */
 export interface PkceS256Pair {
   readonly verifier: string
   readonly challenge: string
   readonly method: 'S256'
 }
 
-/** Materialized callback returned by the system browser. */
+/** 系统浏览器返回的已物化 callback。 */
 export interface LoopbackCallbackResult {
   readonly code: string
   readonly state: string
 }
 
-/** Running loopback listener and its single settlement promise. */
+/** 正在运行的回环 listener 及其单次结算 Promise。 */
 export interface LoopbackCallback {
   readonly redirectUri: string
   readonly result: Promise<LoopbackCallbackResult>
@@ -52,7 +52,7 @@ export interface LoopbackCallbackOptions {
   readonly signal?: AbortSignal
 }
 
-/** Create a verifier with 256 bits of entropy and its base64url SHA-256 challenge. */
+/** 使用 256 bit entropy 创建 verifier 及其 base64url SHA-256 challenge。 */
 export function createPkceS256(entropy: Uint8Array = randomBytes(32)): PkceS256Pair {
   if (entropy.byteLength < 32) {
     throw new TypeError('PKCE entropy must contain at least 32 bytes')
@@ -68,7 +68,7 @@ export function createPkceS256(entropy: Uint8Array = randomBytes(32)): PkceS256P
   }
 }
 
-/** Start an exact `/callback` loopback listener bound only to IPv4 localhost. */
+/** 启动仅绑定 IPv4 localhost 且精确匹配 `/callback` 的回环 listener。 */
 export async function startLoopbackCallback(
   options: LoopbackCallbackOptions,
 ): Promise<LoopbackCallback> {

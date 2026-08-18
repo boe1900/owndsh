@@ -1154,7 +1154,8 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 | T03 | `completed` | 2026-08-18 已建立 `ruoyi-enterprise`、PostgreSQL Flyway V1-V5、固定 built-in RBAC、HKDF/AES-GCM、BOOTSTRAP revision CAS 与只追加审计同事务基础设施，见 [`t03-server-database-acceptance.md`](t03-server-database-acceptance.md)。 |
 | T04 | `completed` | 2026-08-18 已实现 OIDC/LDAP/LOCAL adapter、稳定 external identity、显式组映射、身份源管理 API、认证 cursor 与秘密隔离，见 [`t04-identity-adapter-acceptance.md`](t04-identity-adapter-acceptance.md)。 |
 | T05 | `completed` | 2026-08-18 已实现 Redis 原子登录事务与授权码、Authorization Code + PKCE、LOCAL 验证码、12 小时非共享 Sa-Token client/device 隔离、设备生命周期与公开登录页，见 [`t05-pkce-device-acceptance.md`](t05-pkce-device-acceptance.md)。 |
-| T06-T23 | `pending` | T05 退出条件已满足；下一项只能从 T06 开始，当前未实施。 |
+| T06 | `completed` | 2026-08-18 已实现 `ctx.enterprisePlatform`、内存 Token、installation、PKCE/enroll/bootstrap 状态机、60 秒刷新/指数退避和同源 JSON/SSE，真实 tgz consumer 与锁定 Harness 组合通过，见 [`t06-harness-platform-client-acceptance.md`](t06-harness-platform-client-acceptance.md)。 |
+| T07-T23 | `pending` | T06 退出条件已满足；下一项只能从 T07 开始。 |
 
 ## 23. Definition of Done
 

@@ -1,13 +1,13 @@
 /**
- * [INPUT]: 依赖 Cordis Context、platform-client 官方 WebServer 路由注册和 session-sync seed 恢复辅助函数
- * [OUTPUT]: 对外提供企业 bundle Host apply、inject 清单与 T01 技术探针 Config
- * [POS]: bundle 的唯一 Host Loader 入口，把正式模块构建成可安装的自包含 Cordis 插件
+ * [INPUT]: 依赖 Cordis Context、platform-client Service 与 session-sync seed 恢复辅助函数
+ * [OUTPUT]: 对外提供企业 bundle Host apply、webServer/sessions inject 清单与可验证 Config
+ * [POS]: bundle 的唯一 Host Loader 入口，将 ctx.enterprisePlatform 与 T01 限定验收 seam 组合进官方 Cordis 生命周期
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import type { Context } from '@deepseek-ai/cordis'
 import {
-  registerEnterpriseLocalApi,
+  EnterprisePlatformService,
   type SessionCopyProbeInput,
   type WebServerRoutePort,
 } from '@enterprise-agent/dsh-platform-client'
@@ -20,7 +20,12 @@ export const name = 'enterprise-agent-platform'
 export const inject = ['webServer', 'sessions']
 
 export interface Config {
-  /** T01-only real Session seed probe; omitted/false in the shipped layer. */
+  /** 企业平台外部 HTTPS origin。 */
+  readonly baseUrl: string
+  readonly bootstrapIntervalMs?: number
+  readonly requestTimeoutMs?: number
+  readonly disposeTimeoutMs?: number
+  /** 仅供 T01 真实 Session seed 探针；发行层省略或关闭。 */
   readonly enableTechnicalProbe?: boolean
 }
 
@@ -29,10 +34,15 @@ interface EnterpriseHostContext extends Context {
   readonly sessions: SessionStorePort
 }
 
-/** Mount the same-origin enterprise API on Harness' official WebServer service. */
-export function apply(ctx: EnterpriseHostContext, config: Config = {}): void {
-  ctx.effect(() => registerEnterpriseLocalApi(ctx.webServer, {
+/** 在 Harness 官方 WebServer 上挂载平台 Service 及其同源 API。 */
+export function apply(ctx: EnterpriseHostContext, config: Config): void {
+  new EnterprisePlatformService(ctx, {
+    baseUrl: config.baseUrl,
+    harnessVersion: '0.1.0-rc.5',
     bundleVersion: '0.1.0',
+    ...(config.bootstrapIntervalMs === undefined ? {} : { bootstrapIntervalMs: config.bootstrapIntervalMs }),
+    ...(config.requestTimeoutMs === undefined ? {} : { requestTimeoutMs: config.requestTimeoutMs }),
+    ...(config.disposeTimeoutMs === undefined ? {} : { disposeTimeoutMs: config.disposeTimeoutMs }),
     ...(config.enableTechnicalProbe === undefined
       ? {}
       : { enableTechnicalProbe: config.enableTechnicalProbe }),
@@ -44,5 +54,5 @@ export function apply(ctx: EnterpriseHostContext, config: Config = {}): void {
         seedLength: result.seedLength,
       }
     },
-  }), 'enterprise-agent: local API')
+  })
 }

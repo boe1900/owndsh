@@ -6,7 +6,7 @@ Enterprise Agent Platform 是基于 DeepSeek Harness 构建的企业 Agent 管�
 
 ## 当前阶段
 
-T00 至 T05 已完成：仓库包含锁定产品源码、Harness 官方插件 workspace、Java/TypeScript 同源 OpenAPI 3.1 协议和 PostgreSQL/Redis 企业模块。T05 在三类身份 adapter 上建立 Authorization Code + PKCE、5 分钟登录事务、60 秒原子消费授权码、12 小时非共享 Sa-Token client/device 隔离，以及设备 enroll/heartbeat/revoke 和公开登录页；下一项只能从 T06 开始。实际证据见 [`docs/t05-pkce-device-acceptance.md`](docs/t05-pkce-device-acceptance.md)。
+T00 至 T06 已完成：仓库包含锁定产品源码、Harness 官方插件 workspace、Java/TypeScript 同源 OpenAPI 3.1 协议和 PostgreSQL/Redis 企业模块。T06 已建立 `ctx.enterprisePlatform` Service、内存 Token、installation 文件、PKCE→enroll→bootstrap 状态机、60 秒刷新/指数退避和同源 JSON/SSE 控制面；下一项只能从 T07 开始。实际证据见 [`docs/t06-harness-platform-client-acceptance.md`](docs/t06-harness-platform-client-acceptance.md)。
 
 ## 文档
 
@@ -17,6 +17,7 @@ T00 至 T05 已完成：仓库包含锁定产品源码、Harness 官方插件 wo
 - [T03 Server 模块与数据库验收记录](docs/t03-server-database-acceptance.md)：PostgreSQL V1-V5、固定 RBAC、AES-GCM、revision CAS 与审计事务证据。
 - [T04 身份适配器验收记录](docs/t04-identity-adapter-acceptance.md)：OIDC/LDAP/LOCAL、稳定绑定、组映射、管理 API、cursor 和秘密隔离证据。
 - [T05 PKCE 与设备验收记录](docs/t05-pkce-device-acceptance.md)：Redis 一次性状态、固定 public client、Sa-Token 终端隔离、设备生命周期与公开登录页证据。
+- [T06 Harness 平台客户端验收记录](docs/t06-harness-platform-client-acceptance.md)：Service 状态机、内存 Token、bootstrap 刷新、本地 JSON/SSE、真实 tgz consumer 与锁定 Harness 组合证据。
 
 实现者先阅读 MVP 详细设计的第 1 至 21 节，再严格按照第 22 节任务依赖推进。发现设计矛盾时先修订设计并记录决定，不在代码中引入未经确认的替代方案。
 

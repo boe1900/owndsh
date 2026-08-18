@@ -19,6 +19,6 @@ README.md - 产品定位、仓库边界、文档入口与开发准备方式
 .gitattributes - 跨平台文本与换行约定
 </config>
 
-T00 建立三个上游源码与插件工作区，T01 验证官方插件扩展面，T02 建立跨端协议真源，T03 建立 PostgreSQL/密码学/revision/审计基础，T04 建立身份适配器与治理 API，T05 建立 PKCE/Sa-Token/设备生命周期；`deploy/` 仍由 T21 创建。第三方源码只在产品目录保存无 Git 元数据的锁定快照，同级 `deepseek-harness/` 始终是只读开发依赖。
+T00 建立三个上游源码与插件工作区，T01 验证官方插件扩展面，T02 建立跨端协议真源，T03 建立 PostgreSQL/密码学/revision/审计基础，T04 建立身份适配器与治理 API，T05 建立 PKCE/Sa-Token/设备生命周期，T06 建立 Harness 内存 Token、installation、bootstrap 刷新与同源控制面；`deploy/` 仍由 T21 创建。第三方源码只在产品目录保存无 Git 元数据的锁定快照，同级 `deepseek-harness/` 始终是只读开发依赖。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
