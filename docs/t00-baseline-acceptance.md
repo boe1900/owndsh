@@ -1,8 +1,8 @@
 # T00 基线验收记录
 
-状态：`completed`
+状态：`completed`（rc.7 重新基线已通过）
 
-验收日期：2026-08-17（Asia/Shanghai）
+验收日期：2026-08-17；2026-08-19 重新基线（Asia/Shanghai）
 
 ## 实际修改路径
 
@@ -44,3 +44,34 @@
 ## 退出结论
 
 T00 的三个上游提交均可由机器锁和导入/bootstrap 工具重现；产品 Git 不包含 Harness 源码或嵌套 Git 元数据；backend、admin-web、插件 workspace 与未修改的锁定 Harness 原始构建全部通过。T01 可以在独立后续任务开始；本次提交未包含任何 T01 技术刺探实现。
+
+## 2026-08-19 rc.7 重新基线
+
+### 升级决策
+
+- npm 已无法完整获取 rc.5 依赖闭包，而 `dsh-v0.1.0-rc.7` 是官方当前发布 tag。
+- Harness 整套锁定到 `0.1.0-rc.7` / `99f6f02fecdb7dff40c3fbc9470f5907c29f74ca`，不依赖 pnpm 为 bundle peer 隐式选择新 rc，也不允许 Host 与 bundle 混版。
+- rc.7 的官方插件、`dsh.client`、`ctx.webServer`、UI slot 和 `LlmAdapter` 公开路线继续作为产品边界；未向同级 Harness 添加任何 patch。
+
+### 环境与验收证据
+
+| 项目 | 结果 |
+|---|---|
+| 环境 | Git `2.39.5`；Node.js `v24.14.1`；pnpm `11.19.0`；Harness Corepack pnpm `11.7.0`；Java `21.0.12`；Docker Client/Server `28.5.2` |
+| `./scripts/bootstrap-harness.sh` | 检出官方 tag `dsh-v0.1.0-rc.7` 的完整 commit `99f6f02fecdb7dff40c3fbc9470f5907c29f74ca` |
+| `node --test scripts/upstream-baseline.test.mjs` | 7/7 通过 |
+| `node scripts/upstream-baseline.mjs verify` | 三个上游锁、Harness origin/版本/提交/清洁度全部一致 |
+| `pnpm install --frozen-lockfile && pnpm build`（同级 Harness） | 完整 Host、Client 与 Web 生产构建通过 |
+| `JAVA_HOME=/usr/local/opt/openjdk@21 ./mvnw -B -ntp -DskipTests package`（`backend/`） | 41/41 Maven reactor 模块成功 |
+| `JAVA_HOME=/usr/local/opt/openjdk@21 ./mvnw -B -ntp -Dmaven.test.skip=false test`（`backend/`） | 41/41 模块成功；`ruoyi-enterprise` 92 项与 `ruoyi-admin` 5 项测试零失败 |
+| `pnpm install --frozen-lockfile && pnpm lint && pnpm build`（`admin-web/`） | lint/typecheck 与 7180 模块生产构建通过 |
+| `pnpm install --frozen-lockfile && pnpm check`（`harness-plugin/`） | 全 workspace typecheck、build、单测和 4/4 边界检查通过 |
+| `pnpm run pack:platform-client && pnpm run smoke:platform-client` | 无 ambient shim 的真实 tarball consumer、built-lib import 和非秘密 installation 通过 |
+| `pnpm run pack:bundle && node scripts/t01-harness-smoke.mjs` | 企业 bundle 在未修改 rc.7 Harness `web` profile 中通过 package consumer、Client bundle、本地 API/SSE 和 Session seed 验收 |
+| `./scripts/bootstrap-harness.sh --check-only` | 同级 Harness 仍位于锁定 commit，`git status --porcelain` 为空 |
+
+完整回归首次运行发现 `EnterpriseContractSchemaTest` 仍硬编码 T05 时的 16 项 fixture 计数，而 T08-T10 已将生成 manifest 扩展到 33 项。门禁已改为要求 manifest 非空并遍历验证其全部声明，不再让协议扩展与手工计数耦合；L3/L2 契约已同步，修正后完整 Maven 回归通过。
+
+### 退出结论
+
+rc.7 上游锁、产品报告版本、当前设计链接与真实组合环境已同步；不依赖 ambient shim，不包含 Harness 源码修改。T01-T10 的历史验收事实保留，T11 可以在 rc.7 基线上继续。

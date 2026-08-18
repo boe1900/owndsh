@@ -44,6 +44,8 @@ Harness 企业插件位于本仓库的 `harness-plugin/`，构建为预编译 `.
 
 DeepSeek Harness 官方仓库：<https://github.com/deepseek-ai/deepseek-harness>
 
+当前锁定官方标签 `dsh-v0.1.0-rc.7`，完整 commit 以 [`upstream/deepseek-harness.lock.json`](upstream/deepseek-harness.lock.json) 为唯一机器真源。
+
 开发工作区把官方 Harness clone 为本仓库的同级目录，不放入本仓库：
 
 ```text

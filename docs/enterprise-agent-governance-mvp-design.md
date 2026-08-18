@@ -23,7 +23,7 @@
 
 | 代码库 | 冻结基线 | 用途 |
 |---|---|---|
-| DeepSeek Harness | `47f943859bef60e4160492346772ded9b24f765a`，根版本 `0.1.0-rc.5` | 员工本地 Runtime、Host 插件、Client 插件和企业 bundle |
+| DeepSeek Harness | 标签 `dsh-v0.1.0-rc.7`，提交 `99f6f02fecdb7dff40c3fbc9470f5907c29f74ca`，根版本 `0.1.0-rc.7` | 员工本地 Runtime、Host 插件、Client 插件和企业 bundle |
 | [RuoYi-Vue-Plus](https://gitee.com/dromara/RuoYi-Vue-Plus) | 标签 `v6.0.0`，提交 `7180b529776834fee912113b23f0bd7a387a8222` | 企业服务端底座 |
 | [plus-ui React](https://gitee.com/JavaLionLi/plus-ui/tree/6.X-React/) | 分支 `6.X-React`，提交 `29fc02f0a6d5a2462872487524a11c64e956534b` | 管理端前端底座 |
 | Java 及服务端框架 | Java 21、Spring Boot 4.1.0、Sa-Token 1.45.0、MyBatis-Plus 3.5.17 | 服务端运行时 |
@@ -115,7 +115,7 @@ RuoYi-Vue-Plus 和 plus-ui 的 MIT 许可证文件必须保留在产品源码与
 
 2026-08-18 对照官网插件教程、锁定源码和官方最新 `master` 后确认：`typertPlugin({ mode: 'package' })` 是 Harness 自身 Typert workspace 的生成粒度，不是普通树外插件的发布入口。此前把自定义 Typert Remote 当作企业插件必经路线属于产品设计误判，不是 Harness 官方插件机制缺陷。MVP 改用官方稳定组合面：Host 逻辑通过 Cordis `apply(ctx)` 注册服务、事件和 `ctx.webServer` 路由；浏览器逻辑通过 `dsh.client` Client module 与 UI slot 组合；企业专有协议由插件自有同源 HTTP/SSE 承载。产品不再生成、挂载或修改自定义 Remote contribution，也不需要 ambient protocol shim。
 
-T07 开始前再次核对官方 GitHub `master` 的 `99f6f02fecdb7dff40c3fbc9470f5907c29f74ca`（`dsh-v0.1.0-rc.7`）：插件自有设置页仍通过 `settings.section` 注册，契约与锁定 rc.5 逐文件一致，因此无需为该能力升级冻结基线。`settings.onboarding` 的 owner 公开 `openSection(id)`，但 `sidebar.footer.action` 的 owner 只公开 `wide`，没有任意打开 settings section 的公共 API；sidebar 企业项只展示/刷新状态，企业页由官方 Settings 导航打开，onboarding 才使用 `openSection('enterprise')`。禁止用 DOM 查询或私有 React 状态绕过该边界。Harness 是本产品的桌面员工工作台，T07 只按 1280x720 桌面视口验收；移动端属于第 2.3 节明确不做范围，不为官方尚未定义的移动 Settings 契约增加补偿 UI。
+T07 开始前已核对官方 `dsh-v0.1.0-rc.7`：插件自有设置页仍通过 `settings.section` 注册，契约与当时的 rc.5 基线一致。2026-08-19 因 rc.5 已无法从 npm 完整重现依赖闭包，T00 将整套 Harness 基线升级到官方 rc.7 tag 及其完整 commit，不允许 Host 与 bundle 混用 rc 版本。`settings.onboarding` 的 owner 公开 `openSection(id)`，但 `sidebar.footer.action` 的 owner 只公开 `wide`，没有任意打开 settings section 的公共 API；sidebar 企业项只展示/刷新状态，企业页由官方 Settings 导航打开，onboarding 才使用 `openSection('enterprise')`。禁止用 DOM 查询或私有 React 状态绕过该边界。Harness 是本产品的桌面员工工作台，T07 只按 1280x720 桌面视口验收；移动端属于第 2.3 节明确不做范围，不为官方尚未定义的移动 Settings 契约增加补偿 UI。
 
 ### 3.2 必须新增的能力
 
@@ -130,7 +130,7 @@ T07 开始前再次核对官方 GitHub `master` 的 `99f6f02fecdb7dff40c3fbc9470
 | 企业 profile patch 层 | `@enterprise-agent/dsh-bundle` |
 | 中心身份、模型、配额、分发、同步与审计 | RuoYi `ruoyi-enterprise` 模块 |
 
-实现前依次阅读锁定 commit 的[架构](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/docs/architecture.zh.md)、[Cordis 入门](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/docs/cordis-primer.zh.md)、[第一个插件](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/docs/user/develop/basic/index.zh.md)、[插件发布](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/docs/user/develop/basic/publish.zh.md)、[Web server](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/docs/subsystems/web-server.zh.md)、[Client modules](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/docs/subsystems/client-modules.zh.md)、[LLM 服务](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/packages/llm/llm/README.zh.md)、[Session Persistence](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/packages/session/session-persistence/README.zh.md)和[UI slots](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/packages/client/ui-slots/README.zh.md)。
+实现前依次阅读锁定 commit 的[架构](https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/docs/architecture.zh.md)、[Cordis 入门](https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/docs/cordis-primer.zh.md)、[第一个插件](https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/docs/user/develop/basic/index.zh.md)、[插件发布](https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/docs/user/develop/basic/publish.zh.md)、[Web server](https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/docs/subsystems/web-server.zh.md)、[Client modules](https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/docs/subsystems/client-modules.zh.md)、[LLM 服务](https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/packages/llm/llm/README.zh.md)、[Session Persistence](https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/packages/session/session-persistence/README.zh.md)和[UI slots](https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/packages/client/ui-slots/README.zh.md)。
 
 ## 4. 总体架构
 
@@ -1155,7 +1155,7 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 
 | 任务 | 状态 | 实际记录 |
 |---|---|---|
-| T00 | `completed` | 基线与独立提交见 [`t00-baseline-acceptance.md`](t00-baseline-acceptance.md)。 |
+| T00 | `completed` | 初始基线及 2026-08-19 官方 rc.7 重新基线证据见 [`t00-baseline-acceptance.md`](t00-baseline-acceptance.md)。 |
 | T01 | `completed` | 2026-08-18 已纠正把内部 Typert 生成器当作树外插件入口的路线误判；官网 `apply` + bundle/profile + `webServer` + `dsh.client` 路线已通过自动测试、真实 package consumer、锁定 Harness `web` profile 和浏览器验收，见 [`t01-technical-spike-acceptance.md`](t01-technical-spike-acceptance.md)。 |
 | T02 | `completed` | 2026-08-18 已建立唯一 OpenAPI 3.1 真源、Hey API/strict Zod/Fetch 生成、Java 同源 JSON Schema、5 个正反 fixture、35 个稳定错误码与真实 tarball consumer，见 [`t02-contract-foundation-acceptance.md`](t02-contract-foundation-acceptance.md)。 |
 | T03 | `completed` | 2026-08-18 已建立 `ruoyi-enterprise`、PostgreSQL Flyway V1-V5、固定 built-in RBAC、HKDF/AES-GCM、BOOTSTRAP revision CAS 与只追加审计同事务基础设施，见 [`t03-server-database-acceptance.md`](t03-server-database-acceptance.md)。 |

@@ -38,7 +38,7 @@ Harness 插件继续拥有编码、办公和行业具体功能。企业平台只
 
 管理员按用户、用户组和项目分配模型路由。一次分配可以指定提供方路由、精确模型、默认推理强度、最大输出、并发数、每分钟请求数、每分钟 Token、每日或每月 Token 预算、金额预算和降级策略。员工模型选择器只列出有效分配，但模型网关会重复每项授权检查，因为本地可见性不是安全控制。
 
-员工永远不会收到上游模型提供方 API 密钥。模型配置只携带凭据引用，与现有[凭据所有权](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/.agents/notes/implemented/architecture/2026-07-30-credential-boundaries-and-atomic-registration.md)保持一致。网关从企业密钥存储或 KMS 解析模型提供方凭据，并使用短期企业令牌认证员工。请求在发出前预留其允许的最大用量，完成后结算模型提供方报告的输入、输出、缓存和推理用量，并释放未使用的预留额度。失败和取消调用同样保留明确的计量结果。
+员工永远不会收到上游模型提供方 API 密钥。模型配置只携带凭据引用，与现有[凭据所有权](https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/.agents/notes/implemented/architecture/2026-07-30-credential-boundaries-and-atomic-registration.md)保持一致。网关从企业密钥存储或 KMS 解析模型提供方凭据，并使用短期企业令牌认证员工。请求在发出前预留其允许的最大用量，完成后结算模型提供方报告的输入、输出、缓存和推理用量，并释放未使用的预留额度。失败和取消调用同样保留明确的计量结果。
 
 除非设备也受管，否则企业策略只能治理企业提供的模型路由。阻止用户安装不可信适配器、提供个人密钥或调用外部端点，还需要受管 profile、插件允许列表、端点策略，以及必要时的操作系统或网络控制。
 
@@ -46,13 +46,13 @@ Harness 插件继续拥有编码、办公和行业具体功能。企业平台只
 
 企业控制面发布经过签名的已批准组合包、插件、skill、agent preset 目录，并携带版本锁定、灰度用户组、兼容性要求和回滚目标。员工 Runtime 在激活前验证签名和策略，上报当前启用清单，并保留上一个已批准版本用于恢复。企业策略区分必需、允许和禁止的扩展；用户 patch 不能禁用必需的安全或路由插件。
 
-现有客户端已经通过 [Client 插件加载模型](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/.agents/notes/implemented/architecture/2026-07-23-client-plugin-loading-model.md)描述的 slot 系统组合 UI。企业插件可以增加登录与账号状态、受管模型展示、项目与共享会话导航、设置区、审计提示和 Agent Team 状态。如果缺少通用扩展点，应在其 slot owner 中补充，并在可行时贡献给上游，而不是替换整个外壳。
+现有客户端已经通过 [Client 插件加载模型](https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/.agents/notes/implemented/architecture/2026-07-23-client-plugin-loading-model.md)描述的 slot 系统组合 UI。企业插件可以增加登录与账号状态、受管模型展示、项目与共享会话导航、设置区、审计提示和 Agent Team 状态。如果缺少通用扩展点，应在其 slot owner 中补充，并在可行时贡献给上游，而不是替换整个外壳。
 
 模型动态编写的插件不会自动成为企业批准的软件包。它们的执行信任、进程生命周期和审批语义与签名管理分发保持分离。只有经过明确的评审和发布操作，动态插件才能进入受管目录。
 
 ### 会话复制、恢复与审计
 
-仅追加的 Session Event 日志继续按照[事件溯源会话决策](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/.agents/notes/implemented/architecture/2026-06-11-event-sourced-sessions.md)作为模型可见历史的真源。本地 `SessionPersistence` 继续在不引入网络延迟的情况下写入。独立的 `SessionReplication` 能力族将已提交事件后缀和附件异步复制到企业服务；模型请求和本地持久化不会等待普通复制确认。
+仅追加的 Session Event 日志继续按照[事件溯源会话决策](https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/.agents/notes/implemented/architecture/2026-06-11-event-sourced-sessions.md)作为模型可见历史的真源。本地 `SessionPersistence` 继续在不引入网络延迟的情况下写入。独立的 `SessionReplication` 能力族将已提交事件后缀和附件异步复制到企业服务；模型请求和本地持久化不会等待普通复制确认。
 
 复制协议标识每个会话、设备、格式版本和连续事件位置。上传具有幂等性，拒绝分叉前缀，并从已确认位置继续。附件和产物使用内容身份、加密、受限传输和保留元数据，不在事件批次中反复嵌入。设备恢复会下载经过授权的会话，校验其格式和完整事件前缀，通过本地持久化提供方完成物化，并记录执行恢复的设备和策略 revision。
 
@@ -70,7 +70,7 @@ Harness 插件继续拥有编码、办公和行业具体功能。企业平台只
 
 ### Agent Team
 
-现有 [subagent 能力](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/.agents/notes/implemented/feature/2026-06-21-subagent-capability-seam.md)、[动态工作流引擎](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/.agents/notes/implemented/feature/2026-07-05-dynamic-workflows.md)和[按会话设置的 agent preset](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/.agents/notes/implemented/architecture/2026-08-03-per-session-agent-presets.md)已经提供 Agent Team 所需的本地执行原语。企业层增加可复用团队模板、项目分配、汇总预算、持久调度、共享状态，以及由企业 Runner 支撑的远程提供方。
+现有 [subagent 能力](https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/.agents/notes/implemented/feature/2026-06-21-subagent-capability-seam.md)、[动态工作流引擎](https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/.agents/notes/implemented/feature/2026-07-05-dynamic-workflows.md)和[按会话设置的 agent preset](https://github.com/deepseek-ai/deepseek-harness/blob/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca/.agents/notes/implemented/architecture/2026-08-03-per-session-agent-presets.md)已经提供 Agent Team 所需的本地执行原语。企业层增加可复用团队模板、项目分配、汇总预算、持久调度、共享状态，以及由企业 Runner 支撑的远程提供方。
 
 团队模板定义协调者、编码、测试、评审或研究等角色，并为每个角色分配 preset、模型路由、工具集、数据范围、并发限制、时间限制和 Token 或成本预算。子 agent 的授权是发起用户、项目、父 agent、团队模板和执行环境权限的交集；委派绝不授予更大权限。团队用量计入完整后代树，因此创建子 agent 不能绕过用户或项目配额。
 

@@ -38,7 +38,7 @@ interface EnterpriseHostContext extends Context {
 export function apply(ctx: EnterpriseHostContext, config: Config): void {
   new EnterprisePlatformService(ctx, {
     baseUrl: config.baseUrl,
-    harnessVersion: '0.1.0-rc.5',
+    harnessVersion: '0.1.0-rc.7',
     bundleVersion: '0.1.0',
     ...(config.bootstrapIntervalMs === undefined ? {} : { bootstrapIntervalMs: config.bootstrapIntervalMs }),
     ...(config.requestTimeoutMs === undefined ? {} : { requestTimeoutMs: config.requestTimeoutMs }),

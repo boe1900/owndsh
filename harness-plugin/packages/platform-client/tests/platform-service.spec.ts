@@ -215,7 +215,7 @@ describe('EnterprisePlatformService', () => {
       ctx as Context & { readonly webServer: WebServerRoutePort },
       {
         baseUrl: platformUrl,
-        harnessVersion: '0.1.0-rc.5',
+        harnessVersion: '0.1.0-rc.7',
         bundleVersion: '0.1.0',
         bootstrapIntervalMs: options.bootstrapIntervalMs ?? 60_000,
         requestTimeoutMs: 1_000,
@@ -287,7 +287,7 @@ describe('EnterprisePlatformService', () => {
     ctx.reflect.provide('webServer', webServer)
     const create = (baseUrl: string): EnterprisePlatformService => new EnterprisePlatformService(
       ctx as Context & { readonly webServer: WebServerRoutePort },
-      { baseUrl, harnessVersion: '0.1.0-rc.5', bundleVersion: '0.1.0' },
+      { baseUrl, harnessVersion: '0.1.0-rc.7', bundleVersion: '0.1.0' },
     )
     expect(() => create('http://enterprise.example.com')).toThrow('baseUrl must use https')
     expect(() => create('https://user@enterprise.example.com/private')).toThrow(
@@ -348,7 +348,7 @@ describe('EnterprisePlatformService', () => {
       ctx as Context & { readonly webServer: WebServerRoutePort },
       {
         baseUrl: env.platformUrl,
-        harnessVersion: '0.1.0-rc.5',
+        harnessVersion: '0.1.0-rc.7',
         bundleVersion: '0.1.0',
         dshHome: env.home,
       },
