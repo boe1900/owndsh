@@ -398,6 +398,8 @@ Token 交换把 installation ID 写进 Sa-Token login device。后续 API 从 Sa
 
 RuoYi 的 `sys_user`、`sys_dept`、`sys_role`、`sys_user_role` 和 `sys_menu` 是 RBAC 真源，Sa-Token 从这些表解析权限。企业角色由 migration 创建并标记 `built_in=true`，管理端不能删除、改名或修改其权限集合。
 
+`built_in` 是 `sys_role` 的真实非空布尔列，不使用 remark 代替。T03 起 PostgreSQL trigger 同时拒绝固定角色行的 update/delete 和固定角色 `sys_role_menu` 集合的 insert/update/delete；用户与固定角色的 `sys_user_role` 分配仍可正常增删。
+
 | 角色 | 权限 |
 |---|---|
 | `enterprise_admin` | 全部企业权限、固定角色分配、身份源、设备、模型、配额、插件、Session 正文、审计 |
@@ -541,7 +543,7 @@ bootstrap 模型目录变化后，插件对现有 registration handle 调用 `re
 
 ### 9.4 provider 密钥加密
 
-部署通过 `ENT_MASTER_KEY_FILE` 提供 32 字节 master key。`SecretCipher` 使用 HKDF-SHA-256 按用途派生 `identity-secret`、`provider-secret` 和 `session-content` 三个 AES-256-GCM key；每次加密使用随机 12 字节 nonce，AAD 为 `tenant_id:table:id:field:key_version`。
+部署通过 `ENT_MASTER_KEY_FILE` 提供 32 字节 master key。`SecretCipher` 使用 RFC 5869 HKDF-SHA-256，extract 使用 32 字节全零的 empty salt，expand info 分别为 ASCII `identity-secret`、`provider-secret` 和 `session-content`，派生三个 AES-256-GCM key；每次加密使用随机 12 字节 nonce，AAD 为 `tenant_id:table:id:field:key_version`。
 
 数据库保存 ciphertext、nonce 和 key version。创建 provider 时密钥必填；更新时空值表示保持原密钥，显式 `replaceSecret=true` 才替换。任何读取 API 只返回 `credentialConfigured=true/false`，永不返回明文或密文。
 
@@ -730,7 +732,7 @@ MVP 必须产生以下 action：
 
 审计不保存密码、Token、Authorization header、provider secret、prompt、message、工具参数、Session event、插件制品字节或异常 stack。`DEVICE_HEARTBEAT` 对同一设备每小时最多记录一条成功审计，异常状态变化立即记录，避免心跳淹没账本。
 
-保留任务每天删除超过 `enterprise.audit.retentionDays` 的记录，默认 365 天。应用代码不提供更新接口；删除只由保留任务和部署卸载流程执行。MVP 不声称审计具备防数据库管理员篡改能力。
+保留任务每天删除超过 `enterprise.audit.retentionDays` 的记录，默认 365 天。应用代码不提供更新接口，PostgreSQL trigger 拒绝所有 audit update；删除仍只由保留任务和部署卸载流程执行。MVP 不声称审计具备防数据库管理员篡改能力。
 
 ## 14. 数据库设计
 
@@ -778,6 +780,8 @@ MVP 必须产生以下 action：
 | `V5__enterprise_seed.sql` | 默认本地身份源、默认 quota policy 和 bootstrap revision |
 
 Flyway 使用独立 migration 数据库账号；运行时账号只有 DML 和 sequence 权限。migration 必须在空 PostgreSQL 和从前一 migration 升级两条路径测试。
+
+Flyway 在已有 RuoYi PostgreSQL schema 上以 version `0` 建立 baseline，再执行企业 migration。`V5` 的默认 tenant 为 `000000`；默认 policy 使用日 1,000,000 Token、月 20,000,000 Token、20 RPM 和并发 2，管理员可在 T09 实现的受保护配额接口中通过 revision CAS 修改。
 
 ## 15. HTTP API
 
@@ -1147,7 +1151,8 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 | T00 | `completed` | 基线与独立提交见 [`t00-baseline-acceptance.md`](t00-baseline-acceptance.md)。 |
 | T01 | `completed` | 2026-08-18 已纠正把内部 Typert 生成器当作树外插件入口的路线误判；官网 `apply` + bundle/profile + `webServer` + `dsh.client` 路线已通过自动测试、真实 package consumer、锁定 Harness `web` profile 和浏览器验收，见 [`t01-technical-spike-acceptance.md`](t01-technical-spike-acceptance.md)。 |
 | T02 | `completed` | 2026-08-18 已建立唯一 OpenAPI 3.1 真源、Hey API/strict Zod/Fetch 生成、Java 同源 JSON Schema、5 个正反 fixture、35 个稳定错误码与真实 tarball consumer，见 [`t02-contract-foundation-acceptance.md`](t02-contract-foundation-acceptance.md)。 |
-| T03-T23 | `pending` | T02 退出条件已满足；下一项只能从 T03 开始，当前未实施。 |
+| T03 | `completed` | 2026-08-18 已建立 `ruoyi-enterprise`、PostgreSQL Flyway V1-V5、固定 built-in RBAC、HKDF/AES-GCM、BOOTSTRAP revision CAS 与只追加审计同事务基础设施，见 [`t03-server-database-acceptance.md`](t03-server-database-acceptance.md)。 |
+| T04-T23 | `pending` | T03 退出条件已满足；下一项只能从 T04 开始，当前未实施。 |
 
 ## 23. Definition of Done
 

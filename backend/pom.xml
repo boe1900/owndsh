@@ -437,6 +437,13 @@
                 <version>${revision}</version>
             </dependency>
 
+            <!-- 企业治理业务模块 -->
+            <dependency>
+                <groupId>org.dromara</groupId>
+                <artifactId>ruoyi-enterprise</artifactId>
+                <version>${revision}</version>
+            </dependency>
+
             <!-- 代码生成模块 -->
             <dependency>
                 <groupId>org.dromara</groupId>

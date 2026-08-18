@@ -92,6 +92,12 @@
             <artifactId>ruoyi-ai</artifactId>
         </dependency>
 
+        <!-- 企业治理业务模块 -->
+        <dependency>
+            <groupId>org.dromara</groupId>
+            <artifactId>ruoyi-enterprise</artifactId>
+        </dependency>
+
         <!--  demo模块  -->
         <dependency>
             <groupId>org.dromara</groupId>

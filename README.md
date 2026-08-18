@@ -6,7 +6,7 @@ Enterprise Agent Platform 是基于 DeepSeek Harness 构建的企业 Agent 管�
 
 ## 当前阶段
 
-T00 基线、T01 技术刺探和 T02 协议骨架已经完成：仓库包含锁定的产品源码、按 Harness 官方扩展点构建的独立插件 workspace，以及供 Java/TypeScript 同源消费的 OpenAPI 3.1 协议、生成物和正反 fixture。同级 DeepSeek Harness 保持锁定提交与干净工作区；下一项只能从 T03 开始。实际证据见 [`docs/t02-contract-foundation-acceptance.md`](docs/t02-contract-foundation-acceptance.md)。
+T00 基线、T01 技术刺探、T02 协议骨架和 T03 Server 数据库基础已经完成：仓库包含锁定的产品源码、按 Harness 官方扩展点构建的独立插件 workspace、Java/TypeScript 同源消费的 OpenAPI 3.1 协议，以及只支持 PostgreSQL 的 `ruoyi-enterprise` 模块。T03 已建立 Flyway V1-V5、固定 RBAC、AES-GCM 秘密保护、bootstrap revision CAS 与只追加审计事务边界；下一项只能从 T04 开始。实际证据见 [`docs/t03-server-database-acceptance.md`](docs/t03-server-database-acceptance.md)。
 
 ## 文档
 
@@ -14,6 +14,7 @@ T00 基线、T01 技术刺探和 T02 协议骨架已经完成：仓库包含锁�
 - [企业 Agent 治理平台 MVP 可执行详细设计](docs/enterprise-agent-governance-mvp-design.md)：冻结的技术决策、模块、接口、数据表、状态机、测试、T00-T23 实施顺序和验收标准。
 - [T01 技术刺探验收记录](docs/t01-technical-spike-acceptance.md)：官方插件路线修正、正式模块、自动测试、真实 package consumer、Harness Web 与浏览器验收证据。
 - [T02 协议骨架验收记录](docs/t02-contract-foundation-acceptance.md)：OpenAPI 真源、双语言生成与 fixture、稳定错误码和真实 tarball consumer 证据。
+- [T03 Server 模块与数据库验收记录](docs/t03-server-database-acceptance.md)：PostgreSQL V1-V5、固定 RBAC、AES-GCM、revision CAS 与审计事务证据。
 
 实现者先阅读 MVP 详细设计的第 1 至 21 节，再严格按照第 22 节任务依赖推进。发现设计矛盾时先修订设计并记录决定，不在代码中引入未经确认的替代方案。
 
