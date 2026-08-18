@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖身份/设备/模型/配额/revision 领域异常、Sa-Token 异常、Spring MVC 绑定异常与当前 requestId。
+ * [INPUT]: 依赖身份/设备/模型/配额/网关/revision 领域异常、Sa-Token 异常、Spring MVC 绑定异常与当前 requestId。
  * [OUTPUT]: 对外提供详细设计第 17 节稳定 status/code/retryable/error envelope。
  * [POS]: common/api 的企业 Controller 专用异常边界，优先于 RuoYi 通用 R 响应处理器。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -21,6 +21,7 @@ import org.dromara.enterprise.device.application.DeviceAccessException;
 import org.dromara.enterprise.device.application.DeviceBindingConflictException;
 import org.dromara.enterprise.device.application.DeviceNotFoundException;
 import org.dromara.enterprise.model.application.ModelResourceNotFoundException;
+import org.dromara.enterprise.model.gateway.GatewayException;
 import org.dromara.enterprise.quota.application.QuotaExceededException;
 import org.dromara.enterprise.quota.application.QuotaResourceNotFoundException;
 import org.dromara.enterprise.quota.application.RequestAlreadyCompletedException;
@@ -121,6 +122,33 @@ public final class EnterpriseExceptionHandler {
     @ExceptionHandler(QuotaResourceNotFoundException.class)
     public ResponseEntity<EnterpriseErrorResponse> quotaNotFound(HttpServletRequest request) {
         return error(HttpStatus.NOT_FOUND, "ENT_RESOURCE_NOT_FOUND", "配额资源不存在", false, null, request);
+    }
+
+    @ExceptionHandler(GatewayException.class)
+    public ResponseEntity<EnterpriseErrorResponse> gateway(
+        GatewayException exception,
+        HttpServletRequest request
+    ) {
+        HttpStatus status = switch (exception.kind()) {
+            case MODEL_NOT_ASSIGNED -> HttpStatus.FORBIDDEN;
+            case REQUEST_TOO_LARGE -> HttpStatus.PAYLOAD_TOO_LARGE;
+            case UPSTREAM_AUTH_FAILED, UPSTREAM_INVALID_RESPONSE -> HttpStatus.BAD_GATEWAY;
+            case PLATFORM_UNAVAILABLE, UPSTREAM_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
+            case UPSTREAM_TIMEOUT -> HttpStatus.GATEWAY_TIMEOUT;
+        };
+        String message = switch (exception.kind()) {
+            case MODEL_NOT_ASSIGNED -> "未分配该企业模型";
+            case REQUEST_TOO_LARGE -> "请求体过大";
+            case UPSTREAM_AUTH_FAILED -> "模型上游认证失败";
+            case UPSTREAM_INVALID_RESPONSE -> "模型上游响应无效";
+            case PLATFORM_UNAVAILABLE -> "企业平台暂时不可用";
+            case UPSTREAM_UNAVAILABLE -> "模型上游暂时不可用";
+            case UPSTREAM_TIMEOUT -> "模型上游响应超时";
+        };
+        boolean retryable = exception.kind() == GatewayException.Kind.PLATFORM_UNAVAILABLE
+            || exception.kind() == GatewayException.Kind.UPSTREAM_UNAVAILABLE
+            || exception.kind() == GatewayException.Kind.UPSTREAM_TIMEOUT;
+        return error(status, exception.code(), message, retryable, null, request);
     }
 
     @ExceptionHandler(QuotaExceededException.class)

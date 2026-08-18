@@ -5,7 +5,8 @@ bootstrap revision CAS 和只追加审计事务基础设施；T04 在同一模�
 身份适配器、稳定 external identity、显式组映射和身份管理 API；T05 增加固定 public client 的
 Authorization Code + PKCE、Sa-Token 终端隔离、公开登录页与设备生命周期；T08 增加
 provider/model/grant 管理、provider 密钥保护、有效默认解析和 runtime bootstrap 模型目录；T09
-增加 Flyway `V6`、叠加配额、PostgreSQL reservation、Redis lease、结算恢复和用量 API。
+增加 Flyway `V6`、叠加配额、PostgreSQL reservation、Redis lease、结算恢复和用量 API；T10
+增加请求级授权、DeepSeek-compatible upstream、OpenAI SSE、计费终态和模型调用审计。
 
 ## 身份边界
 
@@ -74,6 +75,19 @@ master key 的独立 `API_CURSOR` 用途进行 AES-GCM 认证，并绑定 tenant
   `dsh-desktop` owner 通过 `/enterprise/api/v1/usage/me` 查询本人实时计数。ledger 不包含 prompt、
   messages、provider route 或 credential。
 
+## 模型网关边界
+
+- `/enterprise/gateway/v1/chat/completions` 只接受 UUID v4 幂等键、`stream=true`、受管 alias 或
+  `enterprise/default`。未知顶层字段、多模态 content 和 provider/base URL 等 route 伪造直接拒绝。
+- 每个请求重新验证 ACTIVE `dsh-desktop` 设备、当前 ACTIVE 用户、grant、model 和 provider；客户端
+  bootstrap 快照不是授权事实，上游模型名和 base URL 只来自服务端配置。
+- 网络期间不持有数据库事务。SENT 与 accepted 审计在同一短事务，SETTLED/CHARGED_MAX 与 finished
+  审计在另一短事务；流期间每 30 秒续租，断流、超时、取消或缺失 usage 按预留上限计费。
+- JDK HttpClient 固定请求 provider 的 `/chat/completions` 且禁止重定向。首 event 预取使建连、状态、
+  content-type 和首帧错误保持普通 JSON；写出后失败只发送脱敏 OpenAI error data frame。
+- provider credential 仅在建连局部解密并清零临时 byte/char 容器；请求正文、原始上游错误、URL、
+  Authorization、reasoning 和 tool 内容都不能进入异常、日志、审计或 ledger。
+
 ## 数据库
 
 本模块只支持 PostgreSQL。Flyway migration 位于 `src/main/resources/db/migration`，假定 RuoYi
@@ -94,8 +108,8 @@ PATH=/usr/local/opt/openjdk@21/bin:$PATH \
 ```
 
 测试从真实 RuoYi PostgreSQL 基线启动数据库，分别验证一次性迁移和逐版本升级；不会使用 H2
-模拟 PostgreSQL 约束。身份/设备测试还会启动 WireMock OIDC、OpenLDAP StartTLS、Redis 8 和
-PostgreSQL 17 Testcontainers，并使用 OpenAPI 派生 JSON Schema 验证认证、设备、模型、配额、
-bootstrap 与用量接口的成功/失败响应。
+模拟 PostgreSQL 约束。身份/设备/网关测试还会启动 WireMock OIDC/DeepSeek、OpenLDAP StartTLS、
+Redis 8 和 PostgreSQL 17 Testcontainers，并使用 OpenAPI 派生 JSON Schema 验证认证、设备、模型、
+配额、bootstrap、用量与模型流接口的成功/失败响应。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

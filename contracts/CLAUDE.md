@@ -5,9 +5,9 @@
 成员清单
 
 README.md: 协议真源使用规则，定义手写与生成边界、双端消费方式和漂移门禁。
-enterprise-openapi.yaml: OpenAPI 3.1 逻辑协议导航根，定义通用边界、36 个稳定错误码和 52 个 operation，并引用受控 Path Item/schema 分片。
-paths/: T04 identity、T05 auth/device、T08 model/bootstrap 与 T09 quota/usage operation 分片目录；局部地图见 paths/CLAUDE.md。
-components/: 身份治理、认证/PKCE、设备、模型与配额治理协议 schema 分片；局部地图见 components/CLAUDE.md。
+enterprise-openapi.yaml: OpenAPI 3.1 逻辑协议导航根，定义通用边界、36 个稳定错误码和 53 个 operation，并引用受控 Path Item/schema 分片。
+paths/: T04 identity、T05 auth/device、T08 model/bootstrap、T09 quota/usage 与 T10 gateway operation 分片目录；局部地图见 paths/CLAUDE.md。
+components/: 身份治理、认证/PKCE、设备、模型、配额与网关协议 schema 分片；局部地图见 components/CLAUDE.md。
 fixtures/auth-sources-success.json: T05 登录事务、CSRF 与公开身份源成功响应样例。
 fixtures/device-list-success.json: T05 管理设备 cursor 列表成功响应样例。
 fixtures/device-success.json: T05 单设备 enroll/heartbeat/get/revoke 统一成功响应样例。
@@ -33,6 +33,8 @@ fixtures/quota-policy-list-success.json: T09 quota policy 空 cursor page 成功
 fixtures/quota-window-list-success.json: T09 当前自然日窗口计数与 reset time 成功样例。
 fixtures/quota-usage-me-success.json: T09 员工 DEFAULT 生效策略的日/月、RPM 与并发实时计数样例。
 fixtures/usage-ledger-list-success.json: T09 管理端 prompt-free ledger、cursor 与聚合成功样例。
+fixtures/gateway-request-success.json: T10 default sentinel、纯文本 messages、function tool 与 usage stream 开关成功请求样例。
+fixtures/gateway-request-route-forgery.json: T10 请求级 base URL 路由伪造严格拒绝负例。
 fixtures/protocol-page-success.json: 带品牌 ID、revision 和 cursor page metadata 的成功响应样例。
 fixtures/protocol-success.json: 最小统一成功响应样例，验证 data/requestId envelope。
 fixtures/quota-error.json: 带固定 QuotaExceededDetails 的第 17 节失败响应样例。

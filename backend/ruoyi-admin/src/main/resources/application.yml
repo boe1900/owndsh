@@ -60,6 +60,9 @@ enterprise:
     allow-insecure-oidc: ${ENT_ALLOW_INSECURE_OIDC:false}
   quota:
     deployment-time-zone: ${ENT_DEPLOYMENT_TIME_ZONE:Asia/Shanghai}
+  gateway:
+    max-request-bytes: ${ENT_MODEL_REQUEST_MAX_BYTES:10485760}
+    max-sse-event-bytes: ${ENT_MODEL_SSE_EVENT_MAX_BYTES:1048576}
 
 # Spring配置
 spring:

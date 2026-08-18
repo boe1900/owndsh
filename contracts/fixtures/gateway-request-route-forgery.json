@@ -1,0 +1,6 @@
+{
+  "model": "deepseek-chat",
+  "messages": [{"role": "user", "content": "hello"}],
+  "stream": true,
+  "base_url": "https://attacker.invalid/v1"
+}

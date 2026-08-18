@@ -219,6 +219,32 @@ export type UsageLedgerPageData = QuotaUsageLedgerPageData;
 
 export type UsageLedgerListResponse = QuotaUsageLedgerListResponse;
 
+export type GatewayModel = GatewayGatewayModel;
+
+export type ChatRole = GatewayChatRole;
+
+export type ChatFunctionCall = GatewayChatFunctionCall;
+
+export type ChatToolCall = GatewayChatToolCall;
+
+export type ChatMessage = GatewayChatMessage;
+
+export type JsonSchemaObject = GatewayJsonSchemaObject;
+
+export type ChatFunctionDefinition = GatewayChatFunctionDefinition;
+
+export type ChatTool = GatewayChatTool;
+
+export type NamedToolChoice = GatewayNamedToolChoice;
+
+export type ChatStreamOptions = GatewayChatStreamOptions;
+
+export type ChatCompletionRequest = GatewayChatCompletionRequest;
+
+export type ChatUsage = GatewayChatUsage;
+
+export type OpenAiChatCompletionChunk = GatewayOpenAiChatCompletionChunk;
+
 /**
  * Enterprise user snowflake ID serialized as a string.
  */
@@ -433,6 +459,97 @@ export type DeviceDeviceResponse = {
 };
 
 export type DeviceDeviceStatus = 'ACTIVE' | 'REVOKED';
+
+export type GatewayChatCompletionRequest = {
+    model: GatewayGatewayModel;
+    messages: Array<GatewayChatMessage>;
+    tools?: Array<GatewayChatTool>;
+    tool_choice?: 'none' | 'auto' | 'required' | GatewayNamedToolChoice;
+    temperature?: number;
+    top_p?: number;
+    max_tokens?: number;
+    stop?: string | Array<string> | null;
+    stream: true;
+    stream_options?: GatewayChatStreamOptions;
+};
+
+export type GatewayChatFunctionCall = {
+    name: string;
+    arguments: string;
+};
+
+export type GatewayChatFunctionDefinition = {
+    name: string;
+    description?: string;
+    parameters?: GatewayJsonSchemaObject;
+};
+
+export type GatewayChatMessage = {
+    role: 'system' | 'user';
+    content: string;
+    name?: string;
+} | {
+    role: 'assistant';
+    content?: string | null;
+    name?: string;
+    tool_calls?: Array<GatewayChatToolCall>;
+    reasoning_content?: string;
+    prefix?: boolean;
+} | {
+    role: 'tool';
+    content: string;
+    name?: string;
+    tool_call_id: string;
+};
+
+export type GatewayChatRole = 'system' | 'user' | 'assistant' | 'tool';
+
+export type GatewayChatStreamOptions = {
+    include_usage?: boolean;
+};
+
+export type GatewayChatTool = {
+    type: 'function';
+    function: GatewayChatFunctionDefinition;
+};
+
+export type GatewayChatToolCall = {
+    id: string;
+    type: 'function';
+    function: GatewayChatFunctionCall;
+};
+
+export type GatewayChatUsage = {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+    [key: string]: unknown;
+};
+
+export type GatewayGatewayModel = ModelAlias | 'enterprise/default';
+
+export type GatewayJsonSchemaObject = {
+    [key: string]: unknown;
+};
+
+export type GatewayNamedToolChoice = {
+    type: 'function';
+    function: {
+        name: string;
+    };
+};
+
+export type GatewayOpenAiChatCompletionChunk = {
+    id?: string;
+    object?: string;
+    created?: number;
+    model?: string;
+    choices: Array<{
+        [key: string]: unknown;
+    }>;
+    usage?: GatewayChatUsage | null;
+    [key: string]: unknown;
+};
 
 export type IdentityDeletedResource = {
     id: string;
@@ -983,6 +1100,8 @@ export type List = unknown;
 
 export type Revoke = unknown;
 
+export type ChatCompletions = unknown;
+
 export type _1Enterprise1Admin1V11GroupMappings = unknown;
 
 export type _1Enterprise1Admin1V11GroupMappings1MappingId = unknown;
@@ -1099,6 +1218,12 @@ export type QuotaWindowTypeWritable = QuotaQuotaWindowType;
 
 export type UsageResultWritable = QuotaUsageResult;
 
+export type GatewayModelWritable = GatewayGatewayModelWritable;
+
+export type ChatRoleWritable = GatewayChatRole;
+
+export type JsonSchemaObjectWritable = GatewayJsonSchemaObject;
+
 export type AuthPasswordLoginRequestWritable = {
     transactionId: AuthAuthTransactionId;
     sourceId: IdentityIdentitySourceId;
@@ -1114,6 +1239,8 @@ export type AuthPasswordLoginRequestWritable = {
      */
     captchaCode?: string;
 };
+
+export type GatewayGatewayModelWritable = ModelAlias | 'enterprise/default';
 
 export type IdentityIdentitySourceCreateRequestWritable = {
     type: IdentityIdentitySourceType;
@@ -3249,3 +3376,66 @@ export type ListUsageLedgerResponses = {
 };
 
 export type ListUsageLedgerResponse = ListUsageLedgerResponses[keyof ListUsageLedgerResponses];
+
+export type StreamEnterpriseChatCompletionData = {
+    body: GatewayChatCompletionRequest;
+    headers: {
+        /**
+         * Caller-generated UUID v4 reused only for one logical write.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/enterprise/gateway/v1/chat/completions';
+};
+
+export type StreamEnterpriseChatCompletionErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+    /**
+     * Request or archive is too large.
+     */
+    413: EnterpriseErrorResponse;
+    /**
+     * Quota exceeded.
+     */
+    429: EnterpriseErrorResponse;
+    /**
+     * Upstream rejected or returned an invalid response.
+     */
+    502: EnterpriseErrorResponse;
+    /**
+     * Platform or upstream is unavailable.
+     */
+    503: EnterpriseErrorResponse;
+    /**
+     * Upstream timed out.
+     */
+    504: EnterpriseErrorResponse;
+};
+
+export type StreamEnterpriseChatCompletionError = StreamEnterpriseChatCompletionErrors[keyof StreamEnterpriseChatCompletionErrors];
+
+export type StreamEnterpriseChatCompletionResponses = {
+    /**
+     * OpenAI-compatible chat completion events ending with a usage chunk and data [DONE].
+     */
+    200: string;
+};
+
+export type StreamEnterpriseChatCompletionResponse = StreamEnterpriseChatCompletionResponses[keyof StreamEnterpriseChatCompletionResponses];

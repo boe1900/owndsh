@@ -8,7 +8,7 @@ pom.xml: 企业治理 Maven 边界，运行时依赖 Spring JDBC/Redis、Jackson
 README.md: 模块职责、身份/PKCE/设备/模型/配额边界、部署前置条件和可重复测试入口。
 src/main/java/org/dromara/enterprise/auth/: OIDC/LDAP/LOCAL、外部身份、PKCE 登录事务与固定 public client 会话纵向模块；局部地图见 auth/CLAUDE.md。
 src/main/java/org/dromara/enterprise/device/: Token terminal 授权的 enroll/heartbeat/ACTIVE/revoke 设备纵向模块；局部地图见 device/CLAUDE.md。
-src/main/java/org/dromara/enterprise/model/: provider/model/grant 管理、AES-GCM 密钥生命周期、有效默认解析与 runtime bootstrap 模型纵向模块；局部地图见 model/CLAUDE.md。
+src/main/java/org/dromara/enterprise/model/: provider/model/grant 管理、AES-GCM 密钥生命周期、有效默认解析、runtime bootstrap 与模型网关纵向模块；局部地图见 model/CLAUDE.md。
 src/main/java/org/dromara/enterprise/quota/: 配额策略、自然窗口、PostgreSQL 预留、Redis lease、结算恢复与用量查询纵向模块；局部地图见 quota/CLAUDE.md。
 src/main/java/org/dromara/enterprise/common/: 企业 HTTP envelope、36 个稳定错误映射、requestId/metadata 与认证 cursor 公共边界；局部地图见 common/CLAUDE.md。
 src/main/java/org/dromara/enterprise/audit/: 只追加审计领域契约与 JDBC sink，metadata 只能通过显式 marker DTO 进入 JSONB。

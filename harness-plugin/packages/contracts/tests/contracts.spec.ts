@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 OpenAPI 生成的 fixture manifest/Zod schema、错误状态映射和品牌 ID 公共 API
- * [OUTPUT]: 验证全部正反 fixture、详细设计第 17 节错误码、未知枚举/字段拒绝与品牌类型隔离
+ * [OUTPUT]: 验证全部正反 fixture、详细设计第 17 节错误码、gateway 严格请求、未知字段与品牌类型隔离
  * [POS]: contracts 的双端协议回归测试之一，与 Java JSON Schema 测试消费相同 fixture 声明
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -17,6 +17,7 @@ import {
   parseManagedModelId,
   parsePluginVersionId,
   parseRemoteSessionId,
+  zChatCompletionRequest,
   zMyQuotaUsageResponse,
   zQuotaExceededDetails,
   zQuotaPolicyListResponse,
@@ -163,5 +164,28 @@ describe('generated enterprise contracts', () => {
     )) as { data: Array<Record<string, unknown>> }
     windows.data[0] = { ...windows.data[0], revision: 1 }
     expect(zQuotaWindowListResponse.safeParse(windows).success).toBe(false)
+  })
+
+  it('exports the strict T10 gateway request schema through the package facade', async () => {
+    const valid = JSON.parse(await readFile(
+      resolve(CONTRACT_ROOT, 'fixtures', 'gateway-request-success.json'),
+      'utf8',
+    )) as unknown
+    const forged = JSON.parse(await readFile(
+      resolve(CONTRACT_ROOT, 'fixtures', 'gateway-request-route-forgery.json'),
+      'utf8',
+    )) as unknown
+    expect(zChatCompletionRequest.safeParse(valid).success).toBe(true)
+    expect(zChatCompletionRequest.safeParse(forged).success).toBe(false)
+    expect(zChatCompletionRequest.safeParse({
+      model: 'deepseek-chat',
+      messages: [{ role: 'user', content: [{ type: 'image_url', image_url: { url: 'x' } }] }],
+      stream: true,
+    }).success).toBe(false)
+    expect(zChatCompletionRequest.safeParse({
+      model: 'deepseek-chat',
+      messages: [{ role: 'user', content: 'hello', reasoning_content: 'forged' }],
+      stream: true,
+    }).success).toBe(false)
   })
 })

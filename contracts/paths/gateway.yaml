@@ -1,0 +1,33 @@
+# [INPUT]: 依赖 gateway.yaml 严格请求、根协议 Idempotency-Key/requestId 与统一错误响应
+# [OUTPUT]: 提供 T10 OpenAI-compatible 流式 chat completion Path Item
+# [POS]: contracts/paths 的模型网关纵向分片，成功仅为 SSE 且首字节前失败保持 Enterprise JSON
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+ChatCompletions:
+  post:
+    operationId: streamEnterpriseChatCompletion
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ChatCompletionRequest'}
+    responses:
+      '200':
+        description: OpenAI-compatible chat completion events ending with a usage chunk and data [DONE].
+        headers:
+          X-Request-Id:
+            $ref: '../enterprise-openapi.yaml#/components/headers/XRequestId'
+        content:
+          text/event-stream:
+            schema: {type: string}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+      '413': {$ref: '../enterprise-openapi.yaml#/components/responses/Error413'}
+      '429': {$ref: '../enterprise-openapi.yaml#/components/responses/Error429'}
+      '502': {$ref: '../enterprise-openapi.yaml#/components/responses/Error502'}
+      '503': {$ref: '../enterprise-openapi.yaml#/components/responses/Error503'}
+      '504': {$ref: '../enterprise-openapi.yaml#/components/responses/Error504'}

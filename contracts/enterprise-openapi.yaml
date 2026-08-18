@@ -92,6 +92,8 @@ paths:
     $ref: './paths/quota.yaml#/MyUsage'
   /enterprise/admin/v1/usage:
     $ref: './paths/quota.yaml#/AdminUsage'
+  /enterprise/gateway/v1/chat/completions:
+    $ref: './paths/gateway.yaml#/ChatCompletions'
 
 x-enterprise-error-statuses:
   '400':
@@ -235,6 +237,12 @@ x-enterprise-fixtures:
   - file: fixtures/usage-ledger-list-success.json
     schema: UsageLedgerListResponse
     valid: true
+  - file: fixtures/gateway-request-success.json
+    schema: ChatCompletionRequest
+    valid: true
+  - file: fixtures/gateway-request-route-forgery.json
+    schema: ChatCompletionRequest
+    valid: false
 
 components:
   securitySchemes:
@@ -596,6 +604,19 @@ components:
     UsageSummary: {$ref: './components/quota.yaml#/UsageSummary'}
     UsageLedgerPageData: {$ref: './components/quota.yaml#/UsageLedgerPageData'}
     UsageLedgerListResponse: {$ref: './components/quota.yaml#/UsageLedgerListResponse'}
+    GatewayModel: {$ref: './components/gateway.yaml#/GatewayModel'}
+    ChatRole: {$ref: './components/gateway.yaml#/ChatRole'}
+    ChatFunctionCall: {$ref: './components/gateway.yaml#/ChatFunctionCall'}
+    ChatToolCall: {$ref: './components/gateway.yaml#/ChatToolCall'}
+    ChatMessage: {$ref: './components/gateway.yaml#/ChatMessage'}
+    JsonSchemaObject: {$ref: './components/gateway.yaml#/JsonSchemaObject'}
+    ChatFunctionDefinition: {$ref: './components/gateway.yaml#/ChatFunctionDefinition'}
+    ChatTool: {$ref: './components/gateway.yaml#/ChatTool'}
+    NamedToolChoice: {$ref: './components/gateway.yaml#/NamedToolChoice'}
+    ChatStreamOptions: {$ref: './components/gateway.yaml#/ChatStreamOptions'}
+    ChatCompletionRequest: {$ref: './components/gateway.yaml#/ChatCompletionRequest'}
+    ChatUsage: {$ref: './components/gateway.yaml#/ChatUsage'}
+    OpenAiChatCompletionChunk: {$ref: './components/gateway.yaml#/OpenAiChatCompletionChunk'}
     EnterpriseUserId:
       type: string
       pattern: '^[1-9][0-9]{0,18}$'

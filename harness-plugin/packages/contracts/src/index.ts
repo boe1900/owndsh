@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖品牌 ID、统一错误边界与 OpenAPI 生成的 DTO/Zod/meta 模块
- * [OUTPUT]: 对外提供品牌 ID、错误边界及身份/设备/模型/配额/bootstrap 的稳定 DTO 与 strict Zod API
+ * [OUTPUT]: 对外提供品牌 ID、错误边界及身份/设备/模型/配额/bootstrap/gateway 的稳定 DTO 与 strict Zod API
  * [POS]: contracts 的 package facade，约束后续 Harness 业务包只消费验证后的跨 HTTP 语义
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -38,6 +38,10 @@ export type {
   BootstrapQuota,
   BootstrapResponse,
   BootstrapSnapshot,
+  ChatCompletionRequest,
+  ChatMessage,
+  ChatRole,
+  ChatTool,
   ConcurrencyUsage,
   CursorPage,
   DeletedResourceResponse,
@@ -67,6 +71,7 @@ export type {
   ManagedModelResponse,
   ManagedModelWriteRequest,
   MyQuotaUsageResponse,
+  OpenAiChatCompletionChunk,
   ModelGrant,
   ModelGrantBatchRequest,
   ModelGrantBatchResponse,
@@ -125,6 +130,10 @@ export {
   zBootstrapQuota,
   zBootstrapResponse,
   zBootstrapSnapshot,
+  zChatCompletionRequest,
+  zChatMessage,
+  zChatRole,
+  zChatTool,
   zConcurrencyUsage,
   zCursor,
   zCursorPage,
@@ -152,6 +161,7 @@ export {
   zManagedModelResponse,
   zManagedModelWriteRequest,
   zMyQuotaUsageResponse,
+  zOpenAiChatCompletionChunk,
   zModelGrant,
   zModelGrantBatchRequest,
   zModelGrantBatchResponse,

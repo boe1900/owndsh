@@ -284,6 +284,107 @@ export const zDeviceDeviceResponse = z.object({
 
 export const zDeviceResponse = zDeviceDeviceResponse;
 
+export const zGatewayChatFunctionCall = z.object({
+    name: z.string().min(1).max(128),
+    arguments: z.string().min(1).max(1048576)
+}).strict();
+
+export const zChatFunctionCall = zGatewayChatFunctionCall;
+
+export const zGatewayChatRole = z.enum([
+    'system',
+    'user',
+    'assistant',
+    'tool'
+]);
+
+export const zChatRole = zGatewayChatRole;
+
+export const zGatewayChatStreamOptions = z.object({
+    include_usage: z.boolean().optional()
+}).strict();
+
+export const zChatStreamOptions = zGatewayChatStreamOptions;
+
+export const zGatewayChatToolCall = z.object({
+    id: z.string().min(1).max(255),
+    type: z.literal('function'),
+    function: zGatewayChatFunctionCall
+}).strict();
+
+export const zChatToolCall = zGatewayChatToolCall;
+
+export const zGatewayChatMessage = z.union([
+    z.object({
+        role: z.enum(['system', 'user']),
+        content: z.string(),
+        name: z.string().min(1).max(255).optional()
+    }).strict(),
+    z.object({
+        role: z.literal('assistant'),
+        content: z.string().nullish(),
+        name: z.string().min(1).max(255).optional(),
+        tool_calls: z.array(zGatewayChatToolCall).min(1).optional(),
+        reasoning_content: z.string().optional(),
+        prefix: z.boolean().optional()
+    }).strict(),
+    z.object({
+        role: z.literal('tool'),
+        content: z.string(),
+        name: z.string().min(1).max(255).optional(),
+        tool_call_id: z.string().min(1).max(255)
+    }).strict()
+]);
+
+export const zChatMessage = zGatewayChatMessage;
+
+export const zGatewayChatUsage = z.object({
+    prompt_tokens: z.int().gte(0).optional(),
+    completion_tokens: z.int().gte(0).optional(),
+    total_tokens: z.int().gte(0).optional()
+});
+
+export const zChatUsage = zGatewayChatUsage;
+
+export const zGatewayJsonSchemaObject = z.record(z.string(), z.unknown());
+
+export const zJsonSchemaObject = zGatewayJsonSchemaObject;
+
+export const zGatewayChatFunctionDefinition = z.object({
+    name: z.string().min(1).max(128),
+    description: z.string().min(1).max(4096).optional(),
+    parameters: zGatewayJsonSchemaObject.optional()
+}).strict();
+
+export const zChatFunctionDefinition = zGatewayChatFunctionDefinition;
+
+export const zGatewayChatTool = z.object({
+    type: z.literal('function'),
+    function: zGatewayChatFunctionDefinition
+}).strict();
+
+export const zChatTool = zGatewayChatTool;
+
+export const zGatewayNamedToolChoice = z.object({
+    type: z.literal('function'),
+    function: z.object({
+        name: z.string().min(1).max(128)
+    }).strict()
+}).strict();
+
+export const zNamedToolChoice = zGatewayNamedToolChoice;
+
+export const zGatewayOpenAiChatCompletionChunk = z.object({
+    id: z.string().optional(),
+    object: z.string().optional(),
+    created: z.int().optional(),
+    model: z.string().optional(),
+    choices: z.array(z.record(z.string(), z.unknown())),
+    usage: zGatewayChatUsage.nullish()
+});
+
+export const zOpenAiChatCompletionChunk = zGatewayOpenAiChatCompletionChunk;
+
 export const zIdentityDeletedResource = z.object({
     id: z.string().regex(/^[1-9][0-9]{0,18}$/),
     deleted: z.literal(true)
@@ -547,6 +648,36 @@ export const zModelGrantSubjectType = z.enum(['USER', 'DEPT']);
 export const zGrantSubjectType = zModelGrantSubjectType;
 
 export const zModelAlias = z.string().min(1).max(120).regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/);
+
+export const zGatewayGatewayModel = z.union([
+    zModelAlias,
+    z.literal('enterprise/default')
+]);
+
+export const zGatewayModel = zGatewayGatewayModel;
+
+export const zGatewayChatCompletionRequest = z.object({
+    model: zGatewayGatewayModel,
+    messages: z.array(zGatewayChatMessage).min(1),
+    tools: z.array(zGatewayChatTool).optional(),
+    tool_choice: z.union([
+        z.literal('none'),
+        z.literal('auto'),
+        z.literal('required'),
+        zGatewayNamedToolChoice
+    ]).optional(),
+    temperature: z.number().gte(0).lte(2).optional(),
+    top_p: z.number().gte(0).lte(1).optional(),
+    max_tokens: z.int().gte(1).lte(2147483647).optional(),
+    stop: z.union([
+        z.string().min(1).max(4096),
+        z.array(z.string().min(1).max(4096)).min(1).max(4)
+    ]).nullish(),
+    stream: z.literal(true),
+    stream_options: zGatewayChatStreamOptions.optional()
+}).strict();
+
+export const zChatCompletionRequest = zGatewayChatCompletionRequest;
 
 export const zModelDisplayName = z.string().min(1).max(120);
 
@@ -1034,6 +1165,8 @@ export const zList = z.unknown();
 
 export const zRevoke = z.unknown();
 
+export const zChatCompletions = z.unknown();
+
 export const z1Enterprise1Admin1V11GroupMappings = z.unknown();
 
 export const z1Enterprise1Admin1V11GroupMappings1MappingId = z.unknown();
@@ -1138,6 +1271,10 @@ export const zQuotaWindowTypeWritable = zQuotaQuotaWindowType;
 
 export const zUsageResultWritable = zQuotaUsageResult;
 
+export const zChatRoleWritable = zGatewayChatRole;
+
+export const zJsonSchemaObjectWritable = zGatewayJsonSchemaObject;
+
 export const zAuthPasswordLoginRequestWritable = z.object({
     transactionId: zAuthAuthTransactionId,
     sourceId: zIdentityIdentitySourceId,
@@ -1149,6 +1286,13 @@ export const zAuthPasswordLoginRequestWritable = z.object({
 }).strict();
 
 export const zPasswordLoginRequestWritable = zAuthPasswordLoginRequestWritable;
+
+export const zGatewayGatewayModelWritable = z.union([
+    zModelAlias,
+    z.literal('enterprise/default')
+]);
+
+export const zGatewayModelWritable = zGatewayGatewayModelWritable;
 
 export const zIdentityIdentitySourceCreateRequestWritable = z.object({
     type: zIdentityIdentitySourceType,
@@ -1822,3 +1966,14 @@ export const zListUsageLedgerQuery = z.object({
  * Prompt-free usage ledger page and aggregate.
  */
 export const zListUsageLedgerResponse = zQuotaUsageLedgerListResponse;
+
+export const zStreamEnterpriseChatCompletionBody = zGatewayChatCompletionRequest;
+
+export const zStreamEnterpriseChatCompletionHeaders = z.object({
+    'Idempotency-Key': z.uuid().length(36).regex(/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/)
+});
+
+/**
+ * OpenAI-compatible chat completion events ending with a usage chunk and data [DONE].
+ */
+export const zStreamEnterpriseChatCompletionResponse = z.string();

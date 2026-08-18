@@ -1165,7 +1165,8 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 | T07 | `completed` | 2026-08-18 已通过官方三个 UI slot 实现共享账号状态、同源严格浏览器 client 和十态桌面 UI；登录、取消、READY、过期、撤销的真实 Harness 快照/GIF 与无 Token 证据见 [`t07-employee-login-ui-acceptance.md`](t07-employee-login-ui-acceptance.md)。 |
 | T08 | `completed` | 2026-08-18 已实现 provider/model/grant 管理、provider-secret AES-GCM、无重定向脱敏探测、USER+DEPT 默认解析、幂等删除与 ACTIVE 设备 bootstrap 模型目录；协议、PostgreSQL 和秘密隔离证据见 [`t08-model-management-acceptance.md`](t08-model-management-acceptance.md)。 |
 | T09 | `completed` | 2026-08-18 已实现 DEFAULT+DEPT+USER 叠加策略、冻结部署时区、PostgreSQL 防超卖 reservation、Redis RPM/并发 lease、结算/恢复和 prompt-free 用量 API；协议与并发证据见 [`t09-quota-management-acceptance.md`](t09-quota-management-acceptance.md)。 |
-| T10-T23 | `pending` | T09 已完成；下一项只能从 T10 开始。 |
+| T10 | `completed` | 2026-08-18 已实现请求级 ACTIVE 授权、DeepSeek-compatible upstream、OpenAI SSE、配额预留/续租/结算、首字节前后错误和 accepted/finished 原子审计；完整证据见 [`t10-model-gateway-acceptance.md`](t10-model-gateway-acceptance.md)。 |
+| T11-T23 | `pending` | 下一项只能从 T11 Harness 模型链路开始；T11 完成前不得进入插件和 Session 功能。 |
 
 ## 23. Definition of Done
 

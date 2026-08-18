@@ -19,6 +19,12 @@ java/org/dromara/enterprise/model/ProviderProbeTest.java: 使用 WireMock 验证
 java/org/dromara/enterprise/model/EffectiveModelResolverTest.java: 纯单元验证 USER 默认缺失时的 DEPT 默认选择与空候选边界。
 java/org/dromara/enterprise/model/T08ApiContractTest.java: 以 MockMvc/JSON Schema 验证模型管理及 bootstrap 全 operation 的成功/失败协议、权限码与密钥不回显。
 java/org/dromara/enterprise/model/ModelManagementIntegrationTest.java: 以真实 PostgreSQL 验证密文/CAS/回滚、幂等删除、授权并集、默认优先级、停用与 ACTIVE bootstrap。
+java/org/dromara/enterprise/model/gateway/GatewayChatRequestParserTest.java: 验证严格 OpenAI 顶层字段、文本/tool 消息、stream 与受管 route 强制替换。
+java/org/dromara/enterprise/model/gateway/GatewayRouteResolverTest.java: 验证 alias/default、ACTIVE 设备/用户与当前 model/provider/grant 的每请求裁决。
+java/org/dromara/enterprise/model/gateway/DeepSeekUpstreamClientTest.java: 使用 WireMock 验证 DeepSeek SSE、Bearer、reasoning/tool/usage、状态分类、timeout 与 no-redirect。
+java/org/dromara/enterprise/model/gateway/ModelGatewayServiceTest.java: 验证 reserve/SENT、settle/CHARGED_MAX、首字节前后失败、取消与 accepted/finished 审计关联。
+java/org/dromara/enterprise/model/gateway/ModelGatewayTransactionIntegrationTest.java: 以真实 PostgreSQL 验证 SENT/accepted 与 ledger/finished 原子提交及审计失败共同回滚。
+java/org/dromara/enterprise/model/gateway/T10GatewayApiContractTest.java: 以 MockMvc/JSON Schema 验证 gateway SSE operation、严格输入、体积和全部首字节前错误映射。
 java/org/dromara/enterprise/quota/QuotaWindowCalculatorTest.java: 验证冻结部署时区自然日/月边界和 UTF-8 字节除三向上估算。
 java/org/dromara/enterprise/quota/application/QuotaOrderingTest.java: 验证有效策略和预留/结算窗口共享 policy/type 固定锁序，阻止历史 window ID 造成反向加锁。
 java/org/dromara/enterprise/quota/RedisQuotaRateLimiterTest.java: 使用真实 Redis 8 验证多策略 Lua 全成全败、RPM、并发续租与 TTL 回收。
