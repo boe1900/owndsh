@@ -29,7 +29,49 @@
       "schema": "EnterpriseErrorResponse",
       "valid": false,
       "zodExport": "zEnterpriseErrorResponse"
+    },
+    {
+      "file": "fixtures/identity-source-success.json",
+      "schema": "IdentitySourceResponse",
+      "valid": true,
+      "zodExport": "zIdentitySourceResponse"
+    },
+    {
+      "file": "fixtures/identity-source-secret-leak.json",
+      "schema": "IdentitySourceResponse",
+      "valid": false,
+      "zodExport": "zIdentitySourceResponse"
+    },
+    {
+      "file": "fixtures/group-mapping-success.json",
+      "schema": "GroupMappingResponse",
+      "valid": true,
+      "zodExport": "zGroupMappingResponse"
+    },
+    {
+      "file": "fixtures/identity-source-list-success.json",
+      "schema": "IdentitySourceListResponse",
+      "valid": true,
+      "zodExport": "zIdentitySourceListResponse"
+    },
+    {
+      "file": "fixtures/identity-source-test-success.json",
+      "schema": "IdentitySourceTestResponse",
+      "valid": true,
+      "zodExport": "zIdentitySourceTestResponse"
+    },
+    {
+      "file": "fixtures/group-mapping-list-success.json",
+      "schema": "GroupMappingListResponse",
+      "valid": true,
+      "zodExport": "zGroupMappingListResponse"
+    },
+    {
+      "file": "fixtures/deleted-resource-success.json",
+      "schema": "DeletedResourceResponse",
+      "valid": true,
+      "zodExport": "zDeletedResourceResponse"
     }
   ],
-  "protocolSha256": "036dfa7c385b5447cccf385825bb8fdc7043af57e8555910f015c3e90471d877"
+  "protocolSha256": "ba1d635de3892529bade7fd6e662b714786ce1373f763ca4fcdc3353e21487c3"
 }

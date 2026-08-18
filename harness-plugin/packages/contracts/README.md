@@ -1,9 +1,11 @@
 # @enterprise-agent/dsh-contracts
 
-Generated and runtime contracts for the enterprise Harness packages. The only
-hand-written wire source is `../../../contracts/enterprise-openapi.yaml`.
+Generated and runtime contracts for the enterprise Harness packages. The
+logical wire source is rooted at `../../../contracts/enterprise-openapi.yaml`
+and includes its checked-in `components/` references.
 `src/generated/` and `../../../contracts/generated/` are replaced together by
-the generator and must not be edited manually.
+the generator and must not be edited manually. The protocol SHA-256 covers the
+Swagger Parser bundle, so changing a referenced component cannot evade drift.
 
 The public package exposes strict Zod schemas, stable HTTP error decoding, and
 validated branded IDs. The generator maps `additionalProperties: false` to

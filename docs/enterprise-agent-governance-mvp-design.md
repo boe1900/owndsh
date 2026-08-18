@@ -1152,7 +1152,8 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 | T01 | `completed` | 2026-08-18 已纠正把内部 Typert 生成器当作树外插件入口的路线误判；官网 `apply` + bundle/profile + `webServer` + `dsh.client` 路线已通过自动测试、真实 package consumer、锁定 Harness `web` profile 和浏览器验收，见 [`t01-technical-spike-acceptance.md`](t01-technical-spike-acceptance.md)。 |
 | T02 | `completed` | 2026-08-18 已建立唯一 OpenAPI 3.1 真源、Hey API/strict Zod/Fetch 生成、Java 同源 JSON Schema、5 个正反 fixture、35 个稳定错误码与真实 tarball consumer，见 [`t02-contract-foundation-acceptance.md`](t02-contract-foundation-acceptance.md)。 |
 | T03 | `completed` | 2026-08-18 已建立 `ruoyi-enterprise`、PostgreSQL Flyway V1-V5、固定 built-in RBAC、HKDF/AES-GCM、BOOTSTRAP revision CAS 与只追加审计同事务基础设施，见 [`t03-server-database-acceptance.md`](t03-server-database-acceptance.md)。 |
-| T04-T23 | `pending` | T03 退出条件已满足；下一项只能从 T04 开始，当前未实施。 |
+| T04 | `completed` | 2026-08-18 已实现 OIDC/LDAP/LOCAL adapter、稳定 external identity、显式组映射、身份源管理 API、认证 cursor 与秘密隔离，见 [`t04-identity-adapter-acceptance.md`](t04-identity-adapter-acceptance.md)。 |
+| T05-T23 | `pending` | T04 退出条件已满足；下一项只能从 T05 开始，当前未实施。 |
 
 ## 23. Definition of Done
 

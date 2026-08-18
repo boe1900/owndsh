@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 由 enterprise-openapi.yaml 的稳定错误映射和完整文件内容生成
+ * [INPUT]: 由模块化 enterprise-openapi.yaml 的稳定错误映射和 bundle 内容生成
  * [OUTPUT]: 提供 enterpriseErrorStatuses 与 enterpriseProtocolSha256 常量
  * [POS]: contracts 的生成元数据，连接运行时错误解码、跨端 hash 和协议真源
  * [PROTOCOL]: 变更时更新生成器，然后检查 CLAUDE.md；禁止手工编辑
@@ -43,4 +43,4 @@ export const enterpriseErrorStatuses = {
   "ENT_UPSTREAM_TIMEOUT": 504
 } as const
 
-export const enterpriseProtocolSha256 = '036dfa7c385b5447cccf385825bb8fdc7043af57e8555910f015c3e90471d877'
+export const enterpriseProtocolSha256 = 'ba1d635de3892529bade7fd6e662b714786ce1373f763ca4fcdc3353e21487c3'

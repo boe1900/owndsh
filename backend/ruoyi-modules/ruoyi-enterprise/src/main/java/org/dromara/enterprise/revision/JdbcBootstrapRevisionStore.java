@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Spring JdbcOperations 和 V5 seed 的 BOOTSTRAP revision 行。
- * [OUTPUT]: 对外提供 WHERE revision=? 的 PostgreSQL CAS 实现。
+ * [OUTPUT]: 对外提供 PostgreSQL 原子 increment 与 WHERE revision=? CAS 实现。
  * [POS]: revision 存储端口的 JDBC adapter，冲突稳定映射 RevisionConflictException。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -23,6 +23,12 @@ public final class JdbcBootstrapRevisionStore implements BootstrapRevisionStore 
         set revision = revision + 1, updated_at = now()
         where tenant_id = ? and scope = ? and revision = ?
         """;
+    private static final String INCREMENT_SQL = """
+        update ent_platform_revision
+        set revision = revision + 1, updated_at = now()
+        where tenant_id = ? and scope = ?
+        returning revision
+        """;
 
     private final JdbcOperations jdbc;
 
@@ -34,6 +40,16 @@ public final class JdbcBootstrapRevisionStore implements BootstrapRevisionStore 
     public long current(String tenantId) {
         requireTenant(tenantId);
         Long revision = jdbc.queryForObject(CURRENT_SQL, Long.class, tenantId, SCOPE);
+        if (revision == null) {
+            throw new IllegalStateException("BOOTSTRAP revision seed 不存在");
+        }
+        return revision;
+    }
+
+    @Override
+    public long increment(String tenantId) {
+        requireTenant(tenantId);
+        Long revision = jdbc.queryForObject(INCREMENT_SQL, Long.class, tenantId, SCOPE);
         if (revision == null) {
             throw new IllegalStateException("BOOTSTRAP revision seed 不存在");
         }

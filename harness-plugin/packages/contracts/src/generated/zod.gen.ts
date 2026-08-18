@@ -155,6 +155,238 @@ export const zEnterpriseErrorResponse = z.object({
     error: zEnterpriseError
 }).strict();
 
+export const zIdentityDeletedResource = z.object({
+    id: z.string().regex(/^[1-9][0-9]{0,18}$/),
+    deleted: z.literal(true)
+}).strict();
+
+export const zDeletedResource = zIdentityDeletedResource;
+
+export const zIdentityDeletedResourceResponse = z.object({
+    data: zIdentityDeletedResource,
+    requestId: zRequestId
+}).strict();
+
+export const zDeletedResourceResponse = zIdentityDeletedResourceResponse;
+
+/**
+ * RuoYi department snowflake ID serialized as a string.
+ */
+export const zIdentityDepartmentId = z.string().regex(/^[1-9][0-9]{0,18}$/);
+
+export const zDepartmentId = zIdentityDepartmentId;
+
+/**
+ * External group mapping snowflake ID serialized as a string.
+ */
+export const zIdentityGroupMappingId = z.string().regex(/^[1-9][0-9]{0,18}$/);
+
+export const zGroupMappingId = zIdentityGroupMappingId;
+
+/**
+ * Identity source snowflake ID serialized as a string.
+ */
+export const zIdentityIdentitySourceId = z.string().regex(/^[1-9][0-9]{0,18}$/);
+
+export const zIdentitySourceId = zIdentityIdentitySourceId;
+
+export const zIdentityGroupMapping = z.object({
+    id: zIdentityGroupMappingId,
+    sourceId: zIdentityIdentitySourceId,
+    externalGroup: z.string().min(1).max(512),
+    departmentId: zIdentityDepartmentId,
+    revision: zRevision
+}).strict();
+
+export const zGroupMapping = zIdentityGroupMapping;
+
+export const zIdentityGroupMappingCreateRequest = z.object({
+    sourceId: zIdentityIdentitySourceId,
+    externalGroup: z.string().min(1).max(512),
+    departmentId: zIdentityDepartmentId
+}).strict();
+
+export const zGroupMappingCreateRequest = zIdentityGroupMappingCreateRequest;
+
+export const zIdentityGroupMappingPageData = z.object({
+    items: z.array(zIdentityGroupMapping).max(200),
+    page: zCursorPage
+}).strict();
+
+export const zGroupMappingPageData = zIdentityGroupMappingPageData;
+
+export const zIdentityGroupMappingListResponse = z.object({
+    data: zIdentityGroupMappingPageData,
+    requestId: zRequestId
+}).strict();
+
+export const zGroupMappingListResponse = zIdentityGroupMappingListResponse;
+
+export const zIdentityGroupMappingResponse = z.object({
+    data: zIdentityGroupMapping,
+    requestId: zRequestId
+}).strict();
+
+export const zGroupMappingResponse = zIdentityGroupMappingResponse;
+
+export const zIdentityIdentitySourceStatus = z.enum(['ACTIVE', 'DISABLED']);
+
+export const zIdentitySourceStatus = zIdentityIdentitySourceStatus;
+
+export const zIdentityIdentitySourceType = z.enum([
+    'OIDC',
+    'LDAP',
+    'LOCAL'
+]);
+
+export const zIdentitySourceType = zIdentityIdentitySourceType;
+
+export const zIdentityIdentitySourceConnection = z.object({
+    type: zIdentityIdentitySourceType,
+    ok: z.boolean(),
+    diagnostic: z.string().min(1).max(64)
+}).strict();
+
+export const zIdentitySourceConnection = zIdentityIdentitySourceConnection;
+
+export const zIdentityIdentitySourceTestResponse = z.object({
+    data: zIdentityIdentitySourceConnection,
+    requestId: zRequestId
+}).strict();
+
+export const zIdentitySourceTestResponse = zIdentityIdentitySourceTestResponse;
+
+export const zIdentityLdapSettings = z.object({
+    url: z.url().max(500),
+    baseDn: z.string().min(1).max(512),
+    managerDn: z.string().min(1).max(512),
+    userFilter: z.string().min(3).max(512),
+    stableIdAttribute: z.string().min(1).max(128),
+    usernameAttribute: z.string().min(1).max(128),
+    displayNameAttribute: z.string().min(1).max(128),
+    emailAttribute: z.string().min(1).max(128).optional(),
+    groupAttribute: z.string().min(1).max(128).optional(),
+    startTls: z.boolean()
+}).strict();
+
+export const zLdapSettings = zIdentityLdapSettings;
+
+export const zIdentityOidcClaimMapping = z.object({
+    username: z.string().min(1).max(128),
+    displayName: z.string().min(1).max(128),
+    email: z.string().min(1).max(128).optional(),
+    groups: z.string().min(1).max(128).optional()
+}).strict();
+
+export const zOidcClaimMapping = zIdentityOidcClaimMapping;
+
+export const zIdentityOidcSettings = z.object({
+    scopes: z.array(z.string().min(1).max(128).regex(/^\S+$/)).min(1).max(32),
+    claims: zIdentityOidcClaimMapping
+}).strict();
+
+export const zOidcSettings = zIdentityOidcSettings;
+
+export const zIdentityIdentitySource = z.object({
+    id: zIdentityIdentitySourceId,
+    type: zIdentityIdentitySourceType,
+    name: z.string().min(1).max(100),
+    issuer: z.url().max(500).optional(),
+    clientId: z.string().min(1).max(255).optional(),
+    oidc: zIdentityOidcSettings.optional(),
+    ldap: zIdentityLdapSettings.optional(),
+    secretConfigured: z.boolean(),
+    status: zIdentityIdentitySourceStatus,
+    revision: zRevision,
+    createdAt: z.iso.datetime({ offset: true }),
+    updatedAt: z.iso.datetime({ offset: true })
+}).strict();
+
+export const zIdentitySource = zIdentityIdentitySource;
+
+export const zIdentityIdentitySourceCreateRequest = z.object({
+    type: zIdentityIdentitySourceType,
+    name: z.string().min(1).max(100),
+    issuer: z.url().max(500).optional(),
+    clientId: z.string().min(1).max(255).optional(),
+    oidc: zIdentityOidcSettings.optional(),
+    ldap: zIdentityLdapSettings.optional()
+}).strict();
+
+export const zIdentitySourceCreateRequest = zIdentityIdentitySourceCreateRequest;
+
+export const zIdentityIdentitySourcePageData = z.object({
+    items: z.array(zIdentityIdentitySource).max(200),
+    page: zCursorPage
+}).strict();
+
+export const zIdentitySourcePageData = zIdentityIdentitySourcePageData;
+
+export const zIdentityIdentitySourceListResponse = z.object({
+    data: zIdentityIdentitySourcePageData,
+    requestId: zRequestId
+}).strict();
+
+export const zIdentitySourceListResponse = zIdentityIdentitySourceListResponse;
+
+export const zIdentityIdentitySourceResponse = z.object({
+    data: zIdentityIdentitySource,
+    requestId: zRequestId
+}).strict();
+
+export const zIdentitySourceResponse = zIdentityIdentitySourceResponse;
+
+export const zIdentityIdentitySourceUpdateRequest = z.object({
+    type: zIdentityIdentitySourceType,
+    name: z.string().min(1).max(100),
+    issuer: z.url().max(500).optional(),
+    clientId: z.string().min(1).max(255).optional(),
+    oidc: zIdentityOidcSettings.optional(),
+    ldap: zIdentityLdapSettings.optional()
+}).strict();
+
+export const zIdentitySourceUpdateRequest = zIdentityIdentitySourceUpdateRequest;
+
+export const zIdentitySourceIdWritable = zIdentityIdentitySourceId;
+
+export const zGroupMappingIdWritable = zIdentityGroupMappingId;
+
+export const zDepartmentIdWritable = zIdentityDepartmentId;
+
+export const zIdentitySourceTypeWritable = zIdentityIdentitySourceType;
+
+export const zIdentitySourceStatusWritable = zIdentityIdentitySourceStatus;
+
+export const zIdentityIdentitySourceCreateRequestWritable = z.object({
+    type: zIdentityIdentitySourceType,
+    name: z.string().min(1).max(100),
+    issuer: z.url().max(500).optional(),
+    clientId: z.string().min(1).max(255).optional(),
+    oidc: zIdentityOidcSettings.optional(),
+    ldap: zIdentityLdapSettings.optional(),
+    secret: z.string().min(1).max(4096)
+}).strict();
+
+export const zIdentitySourceCreateRequestWritable = zIdentityIdentitySourceCreateRequestWritable;
+
+export const zIdentityIdentitySourceUpdateRequestWritable = z.object({
+    type: zIdentityIdentitySourceType,
+    name: z.string().min(1).max(100),
+    issuer: z.url().max(500).optional(),
+    clientId: z.string().min(1).max(255).optional(),
+    oidc: zIdentityOidcSettings.optional(),
+    ldap: zIdentityLdapSettings.optional(),
+    secret: z.string().min(1).max(4096).optional()
+}).strict();
+
+export const zIdentitySourceUpdateRequestWritable = zIdentityIdentitySourceUpdateRequestWritable;
+
+export const zIdentitySourceIdPath = zIdentityIdentitySourceId;
+
+export const zIdentitySourceIdQuery = zIdentityIdentitySourceId;
+
+export const zGroupMappingIdPath = zIdentityGroupMappingId;
+
 /**
  * Server-signed opaque cursor; clients must not parse it.
  */
@@ -174,3 +406,118 @@ export const zIfMatchRevision = zRevision;
  * Caller-generated UUID v4 reused only for one logical write.
  */
 export const zIdempotencyKey = z.uuid().length(36).regex(/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/);
+
+export const zListIdentitySourcesQuery = z.object({
+    cursor: zCursor.optional(),
+    limit: zPageLimit.optional()
+});
+
+/**
+ * Identity source list.
+ */
+export const zListIdentitySourcesResponse = zIdentityIdentitySourceListResponse;
+
+export const zCreateIdentitySourceBody = zIdentityIdentitySourceCreateRequestWritable;
+
+export const zCreateIdentitySourceHeaders = z.object({
+    'Idempotency-Key': z.uuid().length(36).regex(/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/)
+});
+
+/**
+ * Identity source created.
+ */
+export const zCreateIdentitySourceResponse = zIdentityIdentitySourceResponse;
+
+export const zGetIdentitySourcePath = z.object({
+    sourceId: zIdentityIdentitySourceId
+});
+
+/**
+ * Identity source details.
+ */
+export const zGetIdentitySourceResponse = zIdentityIdentitySourceResponse;
+
+export const zUpdateIdentitySourceBody = zIdentityIdentitySourceUpdateRequestWritable;
+
+export const zUpdateIdentitySourceHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zUpdateIdentitySourcePath = z.object({
+    sourceId: zIdentityIdentitySourceId
+});
+
+/**
+ * Identity source updated.
+ */
+export const zUpdateIdentitySourceResponse = zIdentityIdentitySourceResponse;
+
+export const zTestIdentitySourcePath = z.object({
+    sourceId: zIdentityIdentitySourceId
+});
+
+/**
+ * Sanitized connection result.
+ */
+export const zTestIdentitySourceResponse = zIdentityIdentitySourceTestResponse;
+
+export const zEnableIdentitySourceHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zEnableIdentitySourcePath = z.object({
+    sourceId: zIdentityIdentitySourceId
+});
+
+/**
+ * Enabled identity source.
+ */
+export const zEnableIdentitySourceResponse = zIdentityIdentitySourceResponse;
+
+export const zDisableIdentitySourceHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zDisableIdentitySourcePath = z.object({
+    sourceId: zIdentityIdentitySourceId
+});
+
+/**
+ * Disabled identity source.
+ */
+export const zDisableIdentitySourceResponse = zIdentityIdentitySourceResponse;
+
+export const zListGroupMappingsQuery = z.object({
+    sourceId: zIdentityIdentitySourceId,
+    cursor: zCursor.optional(),
+    limit: zPageLimit.optional()
+});
+
+/**
+ * Group mapping list.
+ */
+export const zListGroupMappingsResponse = zIdentityGroupMappingListResponse;
+
+export const zCreateGroupMappingBody = zIdentityGroupMappingCreateRequest;
+
+export const zCreateGroupMappingHeaders = z.object({
+    'Idempotency-Key': z.uuid().length(36).regex(/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/)
+});
+
+/**
+ * Group mapping created.
+ */
+export const zCreateGroupMappingResponse = zIdentityGroupMappingResponse;
+
+export const zDeleteGroupMappingHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zDeleteGroupMappingPath = z.object({
+    mappingId: zIdentityGroupMappingId
+});
+
+/**
+ * Group mapping deleted.
+ */
+export const zDeleteGroupMappingResponse = zIdentityDeletedResourceResponse;

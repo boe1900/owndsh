@@ -21,6 +21,52 @@ export type Cursor = string;
 
 export type PageLimit = number;
 
+export type IdentitySourceId = IdentityIdentitySourceId;
+
+export type GroupMappingId = IdentityGroupMappingId;
+
+export type DepartmentId = IdentityDepartmentId;
+
+export type IdentitySourceType = IdentityIdentitySourceType;
+
+export type IdentitySourceStatus = IdentityIdentitySourceStatus;
+
+export type OidcClaimMapping = IdentityOidcClaimMapping;
+
+export type OidcSettings = IdentityOidcSettings;
+
+export type LdapSettings = IdentityLdapSettings;
+
+export type IdentitySourceCreateRequest = IdentityIdentitySourceCreateRequest;
+
+export type IdentitySourceUpdateRequest = IdentityIdentitySourceUpdateRequest;
+
+export type IdentitySource = IdentityIdentitySource;
+
+export type IdentitySourceResponse = IdentityIdentitySourceResponse;
+
+export type IdentitySourcePageData = IdentityIdentitySourcePageData;
+
+export type IdentitySourceListResponse = IdentityIdentitySourceListResponse;
+
+export type IdentitySourceConnection = IdentityIdentitySourceConnection;
+
+export type IdentitySourceTestResponse = IdentityIdentitySourceTestResponse;
+
+export type GroupMappingCreateRequest = IdentityGroupMappingCreateRequest;
+
+export type GroupMapping = IdentityGroupMapping;
+
+export type GroupMappingResponse = IdentityGroupMappingResponse;
+
+export type GroupMappingPageData = IdentityGroupMappingPageData;
+
+export type GroupMappingListResponse = IdentityGroupMappingListResponse;
+
+export type DeletedResource = IdentityDeletedResource;
+
+export type DeletedResourceResponse = IdentityDeletedResourceResponse;
+
 /**
  * Enterprise user snowflake ID serialized as a string.
  */
@@ -116,6 +162,188 @@ export type EnterpriseErrorResponse = {
     error: EnterpriseError;
 };
 
+export type IdentityDeletedResource = {
+    id: string;
+    deleted: true;
+};
+
+export type IdentityDeletedResourceResponse = {
+    data: IdentityDeletedResource;
+    requestId: RequestId;
+};
+
+/**
+ * RuoYi department snowflake ID serialized as a string.
+ */
+export type IdentityDepartmentId = string;
+
+export type IdentityGroupMapping = {
+    id: IdentityGroupMappingId;
+    sourceId: IdentityIdentitySourceId;
+    externalGroup: string;
+    departmentId: IdentityDepartmentId;
+    revision: Revision;
+};
+
+export type IdentityGroupMappingCreateRequest = {
+    sourceId: IdentityIdentitySourceId;
+    externalGroup: string;
+    departmentId: IdentityDepartmentId;
+};
+
+/**
+ * External group mapping snowflake ID serialized as a string.
+ */
+export type IdentityGroupMappingId = string;
+
+export type IdentityGroupMappingListResponse = {
+    data: IdentityGroupMappingPageData;
+    requestId: RequestId;
+};
+
+export type IdentityGroupMappingPageData = {
+    items: Array<IdentityGroupMapping>;
+    page: CursorPage;
+};
+
+export type IdentityGroupMappingResponse = {
+    data: IdentityGroupMapping;
+    requestId: RequestId;
+};
+
+export type IdentityIdentitySource = {
+    id: IdentityIdentitySourceId;
+    type: IdentityIdentitySourceType;
+    name: string;
+    issuer?: string;
+    clientId?: string;
+    oidc?: IdentityOidcSettings;
+    ldap?: IdentityLdapSettings;
+    secretConfigured: boolean;
+    status: IdentityIdentitySourceStatus;
+    revision: Revision;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type IdentityIdentitySourceConnection = {
+    type: IdentityIdentitySourceType;
+    ok: boolean;
+    diagnostic: string;
+};
+
+export type IdentityIdentitySourceCreateRequest = {
+    type: IdentityIdentitySourceType;
+    name: string;
+    issuer?: string;
+    clientId?: string;
+    oidc?: IdentityOidcSettings;
+    ldap?: IdentityLdapSettings;
+};
+
+/**
+ * Identity source snowflake ID serialized as a string.
+ */
+export type IdentityIdentitySourceId = string;
+
+export type IdentityIdentitySourceListResponse = {
+    data: IdentityIdentitySourcePageData;
+    requestId: RequestId;
+};
+
+export type IdentityIdentitySourcePageData = {
+    items: Array<IdentityIdentitySource>;
+    page: CursorPage;
+};
+
+export type IdentityIdentitySourceResponse = {
+    data: IdentityIdentitySource;
+    requestId: RequestId;
+};
+
+export type IdentityIdentitySourceStatus = 'ACTIVE' | 'DISABLED';
+
+export type IdentityIdentitySourceTestResponse = {
+    data: IdentityIdentitySourceConnection;
+    requestId: RequestId;
+};
+
+export type IdentityIdentitySourceType = 'OIDC' | 'LDAP' | 'LOCAL';
+
+export type IdentityIdentitySourceUpdateRequest = {
+    type: IdentityIdentitySourceType;
+    name: string;
+    issuer?: string;
+    clientId?: string;
+    oidc?: IdentityOidcSettings;
+    ldap?: IdentityLdapSettings;
+};
+
+export type IdentityLdapSettings = {
+    url: string;
+    baseDn: string;
+    managerDn: string;
+    userFilter: string;
+    stableIdAttribute: string;
+    usernameAttribute: string;
+    displayNameAttribute: string;
+    emailAttribute?: string;
+    groupAttribute?: string;
+    startTls: boolean;
+};
+
+export type IdentityOidcClaimMapping = {
+    username: string;
+    displayName: string;
+    email?: string;
+    groups?: string;
+};
+
+export type IdentityOidcSettings = {
+    scopes: Array<string>;
+    claims: IdentityOidcClaimMapping;
+};
+
+export type IdentitySourceIdWritable = IdentityIdentitySourceId;
+
+export type GroupMappingIdWritable = IdentityGroupMappingId;
+
+export type DepartmentIdWritable = IdentityDepartmentId;
+
+export type IdentitySourceTypeWritable = IdentityIdentitySourceType;
+
+export type IdentitySourceStatusWritable = IdentityIdentitySourceStatus;
+
+export type IdentitySourceCreateRequestWritable = IdentityIdentitySourceCreateRequestWritable;
+
+export type IdentitySourceUpdateRequestWritable = IdentityIdentitySourceUpdateRequestWritable;
+
+export type IdentityIdentitySourceCreateRequestWritable = {
+    type: IdentityIdentitySourceType;
+    name: string;
+    issuer?: string;
+    clientId?: string;
+    oidc?: IdentityOidcSettings;
+    ldap?: IdentityLdapSettings;
+    secret: string;
+};
+
+export type IdentityIdentitySourceUpdateRequestWritable = {
+    type: IdentityIdentitySourceType;
+    name: string;
+    issuer?: string;
+    clientId?: string;
+    oidc?: IdentityOidcSettings;
+    ldap?: IdentityLdapSettings;
+    secret?: string;
+};
+
+export type IdentitySourceIdPath = IdentityIdentitySourceId;
+
+export type IdentitySourceIdQuery = IdentityIdentitySourceId;
+
+export type GroupMappingIdPath = IdentityGroupMappingId;
+
 /**
  * Server-signed opaque cursor; clients must not parse it.
  */
@@ -135,3 +363,432 @@ export type IfMatchRevision = Revision;
  * Caller-generated UUID v4 reused only for one logical write.
  */
 export type IdempotencyKey = string;
+
+export type ListIdentitySourcesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Server-signed opaque cursor; clients must not parse it.
+         */
+        cursor?: Cursor;
+        /**
+         * Cursor page size.
+         */
+        limit?: PageLimit;
+    };
+    url: '/enterprise/admin/v1/identity-sources';
+};
+
+export type ListIdentitySourcesErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type ListIdentitySourcesError = ListIdentitySourcesErrors[keyof ListIdentitySourcesErrors];
+
+export type ListIdentitySourcesResponses = {
+    /**
+     * Identity source list.
+     */
+    200: IdentityIdentitySourceListResponse;
+};
+
+export type ListIdentitySourcesResponse = ListIdentitySourcesResponses[keyof ListIdentitySourcesResponses];
+
+export type CreateIdentitySourceData = {
+    body: IdentityIdentitySourceCreateRequestWritable;
+    headers: {
+        /**
+         * Caller-generated UUID v4 reused only for one logical write.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/enterprise/admin/v1/identity-sources';
+};
+
+export type CreateIdentitySourceErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type CreateIdentitySourceError = CreateIdentitySourceErrors[keyof CreateIdentitySourceErrors];
+
+export type CreateIdentitySourceResponses = {
+    /**
+     * Identity source created.
+     */
+    201: IdentityIdentitySourceResponse;
+};
+
+export type CreateIdentitySourceResponse = CreateIdentitySourceResponses[keyof CreateIdentitySourceResponses];
+
+export type GetIdentitySourceData = {
+    body?: never;
+    path: {
+        sourceId: IdentityIdentitySourceId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/identity-sources/{sourceId}';
+};
+
+export type GetIdentitySourceErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+};
+
+export type GetIdentitySourceError = GetIdentitySourceErrors[keyof GetIdentitySourceErrors];
+
+export type GetIdentitySourceResponses = {
+    /**
+     * Identity source details.
+     */
+    200: IdentityIdentitySourceResponse;
+};
+
+export type GetIdentitySourceResponse = GetIdentitySourceResponses[keyof GetIdentitySourceResponses];
+
+export type UpdateIdentitySourceData = {
+    body: IdentityIdentitySourceUpdateRequestWritable;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        sourceId: IdentityIdentitySourceId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/identity-sources/{sourceId}';
+};
+
+export type UpdateIdentitySourceErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type UpdateIdentitySourceError = UpdateIdentitySourceErrors[keyof UpdateIdentitySourceErrors];
+
+export type UpdateIdentitySourceResponses = {
+    /**
+     * Identity source updated.
+     */
+    200: IdentityIdentitySourceResponse;
+};
+
+export type UpdateIdentitySourceResponse = UpdateIdentitySourceResponses[keyof UpdateIdentitySourceResponses];
+
+export type TestIdentitySourceData = {
+    body?: never;
+    path: {
+        sourceId: IdentityIdentitySourceId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/identity-sources/{sourceId}/actions/test';
+};
+
+export type TestIdentitySourceErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Platform or upstream is unavailable.
+     */
+    503: EnterpriseErrorResponse;
+};
+
+export type TestIdentitySourceError = TestIdentitySourceErrors[keyof TestIdentitySourceErrors];
+
+export type TestIdentitySourceResponses = {
+    /**
+     * Sanitized connection result.
+     */
+    200: IdentityIdentitySourceTestResponse;
+};
+
+export type TestIdentitySourceResponse = TestIdentitySourceResponses[keyof TestIdentitySourceResponses];
+
+export type EnableIdentitySourceData = {
+    body?: never;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        sourceId: IdentityIdentitySourceId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/identity-sources/{sourceId}/actions/enable';
+};
+
+export type EnableIdentitySourceErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type EnableIdentitySourceError = EnableIdentitySourceErrors[keyof EnableIdentitySourceErrors];
+
+export type EnableIdentitySourceResponses = {
+    /**
+     * Enabled identity source.
+     */
+    200: IdentityIdentitySourceResponse;
+};
+
+export type EnableIdentitySourceResponse = EnableIdentitySourceResponses[keyof EnableIdentitySourceResponses];
+
+export type DisableIdentitySourceData = {
+    body?: never;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        sourceId: IdentityIdentitySourceId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/identity-sources/{sourceId}/actions/disable';
+};
+
+export type DisableIdentitySourceErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type DisableIdentitySourceError = DisableIdentitySourceErrors[keyof DisableIdentitySourceErrors];
+
+export type DisableIdentitySourceResponses = {
+    /**
+     * Disabled identity source.
+     */
+    200: IdentityIdentitySourceResponse;
+};
+
+export type DisableIdentitySourceResponse = DisableIdentitySourceResponses[keyof DisableIdentitySourceResponses];
+
+export type ListGroupMappingsData = {
+    body?: never;
+    path?: never;
+    query: {
+        sourceId: IdentityIdentitySourceId;
+        /**
+         * Server-signed opaque cursor; clients must not parse it.
+         */
+        cursor?: Cursor;
+        /**
+         * Cursor page size.
+         */
+        limit?: PageLimit;
+    };
+    url: '/enterprise/admin/v1/group-mappings';
+};
+
+export type ListGroupMappingsErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+};
+
+export type ListGroupMappingsError = ListGroupMappingsErrors[keyof ListGroupMappingsErrors];
+
+export type ListGroupMappingsResponses = {
+    /**
+     * Group mapping list.
+     */
+    200: IdentityGroupMappingListResponse;
+};
+
+export type ListGroupMappingsResponse = ListGroupMappingsResponses[keyof ListGroupMappingsResponses];
+
+export type CreateGroupMappingData = {
+    body: IdentityGroupMappingCreateRequest;
+    headers: {
+        /**
+         * Caller-generated UUID v4 reused only for one logical write.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/enterprise/admin/v1/group-mappings';
+};
+
+export type CreateGroupMappingErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+};
+
+export type CreateGroupMappingError = CreateGroupMappingErrors[keyof CreateGroupMappingErrors];
+
+export type CreateGroupMappingResponses = {
+    /**
+     * Group mapping created.
+     */
+    201: IdentityGroupMappingResponse;
+};
+
+export type CreateGroupMappingResponse = CreateGroupMappingResponses[keyof CreateGroupMappingResponses];
+
+export type DeleteGroupMappingData = {
+    body?: never;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        mappingId: IdentityGroupMappingId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/group-mappings/{mappingId}';
+};
+
+export type DeleteGroupMappingErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type DeleteGroupMappingError = DeleteGroupMappingErrors[keyof DeleteGroupMappingErrors];
+
+export type DeleteGroupMappingResponses = {
+    /**
+     * Group mapping deleted.
+     */
+    200: IdentityDeletedResourceResponse;
+};
+
+export type DeleteGroupMappingResponse = DeleteGroupMappingResponses[keyof DeleteGroupMappingResponses];

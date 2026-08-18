@@ -9,5 +9,7 @@ enterprise-agent-governance-mvp-design.md: MVP 实施真源，定义冻结决策
 t00-baseline-acceptance.md: T00 独立验收证据，记录实际导入路径、环境版本、执行命令、构建结果和退出结论。
 t01-technical-spike-acceptance.md: T01 独立验收证据，保留 Typert 路线误判分析并记录官方插件路线、正式模块、测试与真实 Harness Web 结果。
 t02-contract-foundation-acceptance.md: T02 独立验收证据，记录 OpenAPI 真源、跨语言生成、严格 fixture、真实包消费和版本锁结论。
+t03-server-database-acceptance.md: T03 独立验收证据，记录 PostgreSQL migration、RBAC、密码学、revision 与审计事务结果。
+t04-identity-adapter-acceptance.md: T04 独立验收证据，记录三类身份 adapter、绑定/组映射、管理 API、cursor、协议与秘密隔离结果。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

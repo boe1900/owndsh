@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 SecretCipher 的 HKDF 用途隔离、AES-GCM、随机 nonce 和 SecretAad 绑定。
- * [OUTPUT]: 验证三用途 round trip、非确定密文、篡改失败与字节数组防御性复制。
+ * [OUTPUT]: 验证全部用途 round trip、非确定密文、篡改失败与字节数组防御性复制。
  * [POS]: T03 密码学退出门禁，不用 mock 替代 JCA 的真实认证行为。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */

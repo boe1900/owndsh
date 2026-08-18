@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 enterprise-openapi.yaml、Swagger Parser 与 @hey-api/openapi-ts/Zod 插件
- * [OUTPUT]: 在临时目录生成并整体替换 TypeScript DTO/Fetch/Zod、独立 JSON Schema、错误映射与协议 SHA-256，或只读检查漂移
- * [POS]: contracts 的唯一生成入口，使 Harness、Java 和 CI 从同一手写协议真源得到可比较产物
+ * [INPUT]: 依赖模块化 enterprise-openapi.yaml、Swagger Parser 与 @hey-api/openapi-ts/Zod 插件
+ * [OUTPUT]: bundle/hash 完整逻辑协议并生成 TypeScript DTO/Fetch/Zod、独立 JSON Schema 与错误映射，或只读检查漂移
+ * [POS]: contracts 的唯一生成入口，使 Harness、Java 和 CI 从同一逻辑协议真源得到可比较产物
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -102,9 +102,9 @@ function protocolMetadata(openapi, source) {
 }
 
 async function generateInto(typescriptOutput, jsonSchemaOutput) {
-  const source = await readFile(OPENAPI_PATH)
   const validated = await SwaggerParser.validate(OPENAPI_PATH)
-  const metadata = protocolMetadata(validated, source)
+  const bundled = await SwaggerParser.bundle(OPENAPI_PATH)
+  const metadata = protocolMetadata(validated, stableJson(bundled))
   const dereferenced = await SwaggerParser.dereference(OPENAPI_PATH)
 
   await createClient({
@@ -130,7 +130,7 @@ async function generateInto(typescriptOutput, jsonSchemaOutput) {
     ],
   })
 
-  const metaSource = `/**\n * [INPUT]: 由 enterprise-openapi.yaml 的稳定错误映射和完整文件内容生成\n * [OUTPUT]: 提供 enterpriseErrorStatuses 与 enterpriseProtocolSha256 常量\n * [POS]: contracts 的生成元数据，连接运行时错误解码、跨端 hash 和协议真源\n * [PROTOCOL]: 变更时更新生成器，然后检查 CLAUDE.md；禁止手工编辑\n */\n\nexport const enterpriseErrorStatuses = ${JSON.stringify(metadata.codeToStatus, null, 2)} as const\n\nexport const enterpriseProtocolSha256 = '${metadata.sha256}'\n`
+  const metaSource = `/**\n * [INPUT]: 由模块化 enterprise-openapi.yaml 的稳定错误映射和 bundle 内容生成\n * [OUTPUT]: 提供 enterpriseErrorStatuses 与 enterpriseProtocolSha256 常量\n * [POS]: contracts 的生成元数据，连接运行时错误解码、跨端 hash 和协议真源\n * [PROTOCOL]: 变更时更新生成器，然后检查 CLAUDE.md；禁止手工编辑\n */\n\nexport const enterpriseErrorStatuses = ${JSON.stringify(metadata.codeToStatus, null, 2)} as const\n\nexport const enterpriseProtocolSha256 = '${metadata.sha256}'\n`
   await writeFile(resolve(typescriptOutput, 'enterprise-meta.gen.ts'), metaSource)
 
   await mkdir(resolve(jsonSchemaOutput, 'schemas'), { recursive: true })

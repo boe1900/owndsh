@@ -6,7 +6,7 @@
 
 ## 结论
 
-T02 已完成。`contracts/enterprise-openapi.yaml` 是 Server、管理端与 Harness 中心 HTTP 的唯一手写协议真源；本任务只冻结通用 components，不提前声明尚无 Controller 和权限保护的业务 operation。T03-T23 必须在实现对应纵向能力时同步扩展该文件。
+T02 已完成。`contracts/enterprise-openapi.yaml` 是 Server、管理端与 Harness 中心 HTTP 的逻辑协议根；本任务只冻结通用 components，不提前声明尚无 Controller 和权限保护的业务 operation。T04 起按纵向任务增加受根文件引用的 `contracts/components/` 分片，生成器对完整 bundle 计算 hash，仍只有一个逻辑协议。
 
 同一真源已生成 TypeScript DTO、Fetch client、strict Zod schema、自包含 Draft 2020-12 JSON Schema、错误码到 HTTP status 映射与协议 SHA-256。TypeScript 和 Java 均遍历 OpenAPI `x-enterprise-fixtures` 声明的同一组 fixture，不存在第二份手写 Java schema。
 

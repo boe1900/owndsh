@@ -38,6 +38,8 @@
         <satoken.version>1.45.0</satoken.version>
         <justauth.version>2.0.0</justauth.version>
         <bouncycastle.version>1.85</bouncycastle.version>
+        <nimbus-oauth2-oidc-sdk.version>11.38.2</nimbus-oauth2-oidc-sdk.version>
+        <wiremock.version>3.13.2</wiremock.version>
 
         <!-- 缓存、锁与任务调度相关依赖版本 -->
         <redisson.version>4.6.1</redisson.version>
@@ -338,6 +340,20 @@
                 <groupId>org.bouncycastle</groupId>
                 <artifactId>bcpkix-jdk18on</artifactId>
                 <version>${bouncycastle.version}</version>
+            </dependency>
+
+            <!-- 企业 OIDC adapter -->
+            <dependency>
+                <groupId>com.nimbusds</groupId>
+                <artifactId>oauth2-oidc-sdk</artifactId>
+                <version>${nimbus-oauth2-oidc-sdk.version}</version>
+            </dependency>
+
+            <!-- 企业 OIDC 协议测试 -->
+            <dependency>
+                <groupId>org.wiremock</groupId>
+                <artifactId>wiremock-standalone</artifactId>
+                <version>${wiremock.version}</version>
             </dependency>
 
             <!-- JSON Schema Draft 2020-12 协议校验 -->

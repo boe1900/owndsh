@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 JCA HmacSHA256、AES/GCM/NoPadding 与部署提供的 32 字节 master key。
- * [OUTPUT]: 对外提供三用途隔离、AAD 绑定的 AES-256-GCM encrypt/decrypt。
+ * [OUTPUT]: 对外提供用途隔离、AAD 绑定的 AES-256-GCM encrypt/decrypt。
  * [POS]: 企业秘密的唯一密码学入口，派生 key 和 master key 均不向调用方暴露。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -34,7 +34,7 @@ public final class SecretCipher {
     private final SecureRandom secureRandom;
 
     /**
-     * 从部署 master key 派生并缓存三个用途 key。
+     * 从部署 master key 派生并缓存各用途 key。
      *
      * @param masterKey 精确 32 字节的部署 master key
      */

@@ -6,7 +6,7 @@ Enterprise Agent Platform 是基于 DeepSeek Harness 构建的企业 Agent 管�
 
 ## 当前阶段
 
-T00 基线、T01 技术刺探、T02 协议骨架和 T03 Server 数据库基础已经完成：仓库包含锁定的产品源码、按 Harness 官方扩展点构建的独立插件 workspace、Java/TypeScript 同源消费的 OpenAPI 3.1 协议，以及只支持 PostgreSQL 的 `ruoyi-enterprise` 模块。T03 已建立 Flyway V1-V5、固定 RBAC、AES-GCM 秘密保护、bootstrap revision CAS 与只追加审计事务边界；下一项只能从 T04 开始。实际证据见 [`docs/t03-server-database-acceptance.md`](docs/t03-server-database-acceptance.md)。
+T00 至 T04 已完成：仓库包含锁定产品源码、Harness 官方插件 workspace、Java/TypeScript 同源 OpenAPI 3.1 协议和 PostgreSQL 企业模块。T04 在 T03 的 Flyway/RBAC/密码学/审计基础上实现 OIDC、LDAP/StartTLS、LOCAL 身份适配器、稳定 external identity、显式组映射，以及带权限、revision、脱敏响应和认证 cursor 的身份管理 API；下一项只能从 T05 开始。实际证据见 [`docs/t04-identity-adapter-acceptance.md`](docs/t04-identity-adapter-acceptance.md)。
 
 ## 文档
 
@@ -15,6 +15,7 @@ T00 基线、T01 技术刺探、T02 协议骨架和 T03 Server 数据库基础�
 - [T01 技术刺探验收记录](docs/t01-technical-spike-acceptance.md)：官方插件路线修正、正式模块、自动测试、真实 package consumer、Harness Web 与浏览器验收证据。
 - [T02 协议骨架验收记录](docs/t02-contract-foundation-acceptance.md)：OpenAPI 真源、双语言生成与 fixture、稳定错误码和真实 tarball consumer 证据。
 - [T03 Server 模块与数据库验收记录](docs/t03-server-database-acceptance.md)：PostgreSQL V1-V5、固定 RBAC、AES-GCM、revision CAS 与审计事务证据。
+- [T04 身份适配器验收记录](docs/t04-identity-adapter-acceptance.md)：OIDC/LDAP/LOCAL、稳定绑定、组映射、管理 API、cursor 和秘密隔离证据。
 
 实现者先阅读 MVP 详细设计的第 1 至 21 节，再严格按照第 22 节任务依赖推进。发现设计矛盾时先修订设计并记录决定，不在代码中引入未经确认的替代方案。
 

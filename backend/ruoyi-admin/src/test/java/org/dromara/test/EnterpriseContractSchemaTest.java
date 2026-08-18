@@ -40,7 +40,7 @@ class EnterpriseContractSchemaTest {
         Path manifestPath = CONTRACT_ROOT.resolve("generated/fixtures-manifest.json");
         JsonNode fixtures = JSON_MAPPER.readTree(Files.readString(manifestPath)).get("fixtures");
 
-        assertEquals(5, fixtures.size(), "T02 应同时覆盖成功、分页、错误、未知枚举和多余字段负例");
+        assertEquals(12, fixtures.size(), "协议应覆盖通用边界及 T04 身份管理成功/秘密泄漏负例");
         for (JsonNode fixture : fixtures) {
             assertFixtureValidity(fixture);
         }
