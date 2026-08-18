@@ -7,7 +7,7 @@ Harness Host 的企业平台控制面。`EnterprisePlatformService` 通过 Cordi
 |---|---|
 | `startLogin()` | 幂等启动系统浏览器 PKCE，立即返回 flow ID，后台完成 Token/enroll/bootstrap。 |
 | `logout()` | 尝试注销中心会话，并无条件清空本地内存认证状态。 |
-| `status()` | 返回连接状态、脱敏用户、revision、连接时间和稳定错误码。 |
+| `status()` | 返回连接状态、平台 origin、脱敏用户、revision、连接时间和稳定错误码。 |
 | `bootstrap()` | 返回最新已校验脱敏快照的副本。 |
 | `request()` | 执行同源、带认证且可取消的平台 fetch；这是唯一读取 Token 的代码路径。 |
 | `dispose()` | 取消登录/刷新/请求，关闭 SSE 和本地路由，等待工作停稳。 |

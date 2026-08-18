@@ -148,7 +148,12 @@ try {
   const status = await fetch(`${ready.url}/enterprise/api/v1/local/status`)
   assert.equal(status.status, 200)
   assert.deepEqual(await status.json(), {
-    data: { state: 'SIGNED_OUT', bundleVersion: '0.1.0', transport: 'webServer.register' },
+    data: {
+      state: 'SIGNED_OUT',
+      bundleVersion: '0.1.0',
+      platformUrl: 'https://enterprise.example.invalid',
+      transport: 'webServer.register',
+    },
   })
 
   const events = await fetch(`${ready.url}/enterprise/api/v1/local/events`)

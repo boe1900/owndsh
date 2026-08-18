@@ -16,3 +16,7 @@ origin; the bundle intentionally has no default platform address. Optional
 `bootstrapIntervalMs`, `requestTimeoutMs`, and `disposeTimeoutMs` values override
 the documented T06 defaults. The Host half publishes `ctx.enterprisePlatform`
 and mounts only same-origin `/enterprise/api/v1/local/*` JSON/SSE routes.
+The Client half adds only the official settings shell to its T07 module graph,
+then contributes Enterprise settings, footer status, and onboarding slots.
+`enableTechnicalProbe` may allow an HTTP loopback fake platform for acceptance;
+released profiles keep it disabled and require the HTTPS origin.

@@ -26,7 +26,12 @@ describe('enterprise local API', () => {
   beforeEach(async () => {
     routes = new Map()
     listeners = new Set()
-    currentStatus = { state: 'SIGNED_OUT', bundleVersion: '0.1.0', transport: 'webServer.register' }
+    currentStatus = {
+      state: 'SIGNED_OUT',
+      bundleVersion: '0.1.0',
+      platformUrl: 'https://enterprise.example.com',
+      transport: 'webServer.register',
+    }
     platform = {
       status: () => structuredClone(currentStatus),
       startLogin: vi.fn(async () => ({ flowId: 'flow-1' })),
@@ -119,7 +124,13 @@ describe('enterprise local API', () => {
     expect(initial).toContain('SIGNED_OUT')
     expect(listeners).toHaveLength(1)
 
-    currentStatus = { state: 'AUTHORIZING', flowId: 'flow-1', bundleVersion: '0.1.0', transport: 'webServer.register' }
+    currentStatus = {
+      state: 'AUTHORIZING',
+      flowId: 'flow-1',
+      bundleVersion: '0.1.0',
+      platformUrl: 'https://enterprise.example.com',
+      transport: 'webServer.register',
+    }
     for (const listener of listeners) listener(currentStatus)
     expect(decoder.decode((await reader.read()).value)).toContain('AUTHORIZING')
     await reader.cancel()

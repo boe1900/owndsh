@@ -16,6 +16,7 @@
     "pack:platform-client": "pnpm --filter @enterprise-agent/dsh-contracts build && pnpm --filter @enterprise-agent/dsh-platform-client build && pnpm --filter @enterprise-agent/dsh-contracts pack --pack-destination ../artifacts && pnpm --filter @enterprise-agent/dsh-platform-client pack --pack-destination ../artifacts",
     "smoke:contracts": "node scripts/t02-contract-consumer.mjs",
     "smoke:platform-client": "node scripts/t06-platform-client-consumer.mjs",
+    "accept:t07-browser": "node scripts/t07-browser-harness.mjs",
     "check": "pnpm run typecheck && pnpm run test"
   },
   "devDependencies": {

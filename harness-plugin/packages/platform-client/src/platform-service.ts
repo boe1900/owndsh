@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Cordis Service/WebServer、T02 contracts、PKCE/installation/browser 原语与 Node fetch
- * [OUTPUT]: 对外提供 ctx.enterprisePlatform、EnterprisePlatformService、固定六方法与稳定错误
+ * [OUTPUT]: 对外提供 ctx.enterprisePlatform、EnterprisePlatformService、固定六方法、脱敏平台 origin 与稳定错误
  * [POS]: platform-client 的 Host 业务核心，独占内存 Token、登录状态机、认证 fetch 与 bootstrap 刷新生命周期
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -208,6 +208,7 @@ export class EnterprisePlatformService extends Service {
     this.#status = {
       state: 'SIGNED_OUT',
       bundleVersion: this.#config.bundleVersion,
+      platformUrl: this.#config.baseUrl.origin,
       transport: 'webServer.register',
     }
     this.#installation = loadOrCreateInstallation({
@@ -590,6 +591,7 @@ export class EnterprisePlatformService extends Service {
     this.#status = {
       state,
       bundleVersion: this.#config.bundleVersion,
+      platformUrl: this.#config.baseUrl.origin,
       transport: 'webServer.register',
       ...detail,
       ...(snapshot === undefined ? {} : {

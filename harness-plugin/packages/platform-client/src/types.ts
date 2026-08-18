@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 zod 对详细设计第 8 节 bootstrap 脱敏快照做严格边界校验
- * [OUTPUT]: 对外提供 BootstrapSnapshot、EnterprisePlatformStatus、连接状态与运行时 schema
+ * [OUTPUT]: 对外提供 BootstrapSnapshot、含平台 origin 的 EnterprisePlatformStatus、连接状态与运行时 schema
  * [POS]: platform-client 的无秘密数据契约，隔离中心 HTTP 输入与 Host 内部状态
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -95,6 +95,7 @@ export interface EnterpriseStatusUser {
 export interface EnterprisePlatformStatus {
   readonly state: EnterpriseConnectionState
   readonly bundleVersion: string
+  readonly platformUrl: string
   readonly transport: 'webServer.register'
   readonly flowId?: string
   readonly user?: EnterpriseStatusUser

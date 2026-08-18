@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 dsh-ui Client 公开入口、标准 Response 和结构化 slots test double
- * [OUTPUT]: 验证脱敏状态 DTO 解码及 sidebar.footer.action 注册参数
- * [POS]: dsh-ui Client 组合回归测试，锁定官方 slot 路线且不把 Host Context 传入组件
+ * [INPUT]: 依赖 dsh-ui Client apply、三个官方 slot 组件与结构化 slots test double
+ * [OUTPUT]: 验证 settings/sidebar/onboarding 注册身份、顺序和共享 store 注入
+ * [POS]: dsh-ui Client 组合回归测试，锁定官方扩展路线且不把 Host Context 传入 React
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -9,36 +9,37 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   apply,
   EnterpriseFooterAction,
-  fetchEnterpriseLocalStatus,
+  EnterpriseOnboarding,
+  EnterpriseSettingsSection,
 } from '../src/client.js'
 
 describe('enterprise Client plugin', () => {
-  it('strictly decodes the same-origin local status', async () => {
-    const fetcher = vi.fn(async () => new Response(JSON.stringify({
-      data: { state: 'SIGNED_OUT', bundleVersion: '0.1.0', transport: 'webServer.register' },
-    }), { status: 200 }))
-    await expect(fetchEnterpriseLocalStatus(new AbortController().signal, fetcher)).resolves.toEqual({
-      state: 'SIGNED_OUT',
-      bundleVersion: '0.1.0',
-      transport: 'webServer.register',
-    })
-    expect(fetcher).toHaveBeenCalledWith('/enterprise/api/v1/local/status', expect.objectContaining({
-      signal: expect.any(AbortSignal),
-    }))
-  })
-
-  it('registers one typed footer action through the slots service', () => {
-    let options: Record<string, unknown> | undefined
-    let component: unknown
-    const register = vi.fn((value, candidate) => {
-      options = value
-      component = candidate
+  it('registers the account section, footer status, and onboarding through official slots', () => {
+    const registrations: { options: Record<string, unknown>; component: unknown }[] = []
+    const register = vi.fn((options, component) => {
+      registrations.push({ options, component })
       return () => undefined
     })
     const inject = vi.fn((_name, callback: () => unknown) => callback())
     apply({ slots: { inject, register } })
-    expect(inject).toHaveBeenCalledWith('sidebar.footer.action', expect.any(Function))
-    expect(options).toMatchObject({ name: 'sidebar.footer.action', id: 'enterprise', order: 50 })
-    expect(component).toBe(EnterpriseFooterAction)
+
+    expect(inject.mock.calls.map(call => call[0])).toEqual([
+      'settings.section',
+      'sidebar.footer.action',
+      'settings.onboarding',
+    ])
+    expect(registrations.map(item => item.options)).toMatchObject([
+      { name: 'settings.section', id: 'enterprise', order: 5, label: '企业' },
+      { name: 'sidebar.footer.action', id: 'enterprise', order: 50 },
+      { name: 'settings.onboarding', id: 'enterprise-login', order: -50 },
+    ])
+    expect(registrations.map(item => item.component)).toEqual([
+      EnterpriseSettingsSection,
+      EnterpriseFooterAction,
+      EnterpriseOnboarding,
+    ])
+    const stores = registrations.map(item => (item.options['inject'] as () => { store: unknown })().store)
+    expect(stores[0]).toBe(stores[1])
+    expect(stores[1]).toBe(stores[2])
   })
 })

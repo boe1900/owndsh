@@ -1,0 +1,100 @@
+/**
+ * [INPUT]: 依赖 dsh-ui 同源 local-api、标准 Response 与 EventSource test double
+ * [OUTPUT]: 验证十态严格解码、固定路径/空对象动作、SSE 与 Token 字段拒绝
+ * [POS]: dsh-ui 浏览器网络边界测试，确保浏览器只能消费 Host 脱敏 DTO
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
+import { describe, expect, it, vi } from 'vitest'
+import {
+  createEnterpriseLocalApi,
+  decodeEnterpriseLocalStatus,
+  ENTERPRISE_CONNECTION_STATES,
+} from '../src/local-api.js'
+
+const STATUS = {
+  state: 'SIGNED_OUT' as const,
+  bundleVersion: '0.1.0',
+  platformUrl: 'https://enterprise.example.com',
+  transport: 'webServer.register' as const,
+}
+
+function ok(data: unknown): Response {
+  return new Response(JSON.stringify({ data }), {
+    headers: { 'content-type': 'application/json' },
+    status: 200,
+  })
+}
+
+describe('enterprise local browser API', () => {
+  it('strictly decodes all ten public connection states', () => {
+    for (const state of ENTERPRISE_CONNECTION_STATES) {
+      expect(decodeEnterpriseLocalStatus({ ...STATUS, state })).toEqual({ ...STATUS, state })
+    }
+    expect(() => decodeEnterpriseLocalStatus({ ...STATUS, accessToken: 'must-not-cross' }))
+      .toThrow('ENT_LOCAL_RESPONSE_INVALID')
+    expect(() => decodeEnterpriseLocalStatus({ ...STATUS, platformUrl: 'https://user:secret@example.com' }))
+      .toThrow('ENT_LOCAL_RESPONSE_INVALID')
+  })
+
+  it('projects account bootstrap and never returns unrelated policy fields', async () => {
+    const fetcher = vi.fn(async () => ok({
+      revision: 7,
+      user: { id: '10031', username: 'zhangsan', displayName: 'Zhang San', departmentId: '210' },
+      device: { id: '90018', installationId: '4c96d076-a80a-4b6c-8df6-f0db804b6f0a', status: 'ACTIVE' },
+      models: [{ alias: 'not-exposed-by-t07' }],
+      quotas: [],
+      plugins: { revision: 1, assignments: [] },
+      sessionPolicy: { enabled: true },
+    }))
+    const api = createEnterpriseLocalApi(fetcher)
+    await expect(api.bootstrap(new AbortController().signal)).resolves.toEqual({
+      user: { id: '10031', username: 'zhangsan', displayName: 'Zhang San', departmentId: '210' },
+      device: { id: '90018', installationId: '4c96d076-a80a-4b6c-8df6-f0db804b6f0a', status: 'ACTIVE' },
+    })
+  })
+
+  it('uses same-origin fixed paths and strict empty-object POST actions', async () => {
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input)
+      if (path.endsWith('/status')) return ok(STATUS)
+      if (path.endsWith('/auth/start')) return ok({ flowId: 'flow-1' })
+      if (path.endsWith('/auth/cancel')) return ok({ cancelled: true })
+      if (path.endsWith('/logout')) return ok({ loggedOut: true })
+      throw new Error(`unexpected path ${path}`)
+    })
+    const api = createEnterpriseLocalApi(fetcher)
+    const signal = new AbortController().signal
+    await expect(api.status(signal)).resolves.toEqual(STATUS)
+    await expect(api.startLogin(signal)).resolves.toEqual({ flowId: 'flow-1' })
+    await expect(api.cancelLogin(signal)).resolves.toEqual({ cancelled: true })
+    await expect(api.logout(signal)).resolves.toEqual({ loggedOut: true })
+
+    expect(fetcher.mock.calls.map(call => String(call[0]))).toEqual([
+      '/enterprise/api/v1/local/status',
+      '/enterprise/api/v1/local/auth/start',
+      '/enterprise/api/v1/local/auth/cancel',
+      '/enterprise/api/v1/local/logout',
+    ])
+    for (const call of fetcher.mock.calls.slice(1)) {
+      expect(call[1]).toMatchObject({ body: '{}', method: 'POST' })
+      expect(new Headers(call[1]?.headers).get('authorization')).toBeNull()
+    }
+  })
+
+  it('decodes status events and closes the browser stream', () => {
+    const listeners = new Map<string, EventListener>()
+    const close = vi.fn()
+    const factory = vi.fn((_url: string) => ({
+      addEventListener: (name: string, listener: EventListener) => { listeners.set(name, listener) },
+      close,
+    }) as unknown as EventSource)
+    const onStatus = vi.fn()
+    const onError = vi.fn()
+    const stream = createEnterpriseLocalApi(fetch, factory).events(onStatus, onError)
+    listeners.get('status')?.(new MessageEvent('status', { data: JSON.stringify({ ...STATUS, state: 'READY' }) }))
+    expect(onStatus).toHaveBeenCalledWith({ ...STATUS, state: 'READY' })
+    stream.close()
+    expect(close).toHaveBeenCalledOnce()
+  })
+})

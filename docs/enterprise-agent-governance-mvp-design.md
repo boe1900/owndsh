@@ -93,6 +93,7 @@ RuoYi-Vue-Plus 和 plus-ui 的 MIT 许可证文件必须保留在产品源码与
 - 工作区文件、Git 仓库、终端记录以外的数据同步；Session 中已经记录的工具输入输出仍按原日志同步。
 - 阻止员工运行个人 profile、其他编程工具或直接访问外部模型；MVP 只治理企业 profile 与企业网关。
 - 通用 OAuth2 授权服务器、refresh token、Device Grant、SAML、WebAuthn 和自建 MFA。
+- Harness 移动端设置页适配。MVP 员工插件是桌面工作台能力；未来移动端认证与交互由独立产品入口设计，不复用未公开的桌面 Settings shell 内部状态。
 
 ## 3. Harness 现状与采用方式
 
@@ -113,6 +114,8 @@ RuoYi-Vue-Plus 和 plus-ui 的 MIT 许可证文件必须保留在产品源码与
 企业功能不能依赖动态 Cordis runner。动态 runner 的 `node:vm` 不是安全隔离，定义在内存中且重启丢失，不适合作为企业软件分发机制。
 
 2026-08-18 对照官网插件教程、锁定源码和官方最新 `master` 后确认：`typertPlugin({ mode: 'package' })` 是 Harness 自身 Typert workspace 的生成粒度，不是普通树外插件的发布入口。此前把自定义 Typert Remote 当作企业插件必经路线属于产品设计误判，不是 Harness 官方插件机制缺陷。MVP 改用官方稳定组合面：Host 逻辑通过 Cordis `apply(ctx)` 注册服务、事件和 `ctx.webServer` 路由；浏览器逻辑通过 `dsh.client` Client module 与 UI slot 组合；企业专有协议由插件自有同源 HTTP/SSE 承载。产品不再生成、挂载或修改自定义 Remote contribution，也不需要 ambient protocol shim。
+
+T07 开始前再次核对官方 GitHub `master` 的 `99f6f02fecdb7dff40c3fbc9470f5907c29f74ca`（`dsh-v0.1.0-rc.7`）：插件自有设置页仍通过 `settings.section` 注册，契约与锁定 rc.5 逐文件一致，因此无需为该能力升级冻结基线。`settings.onboarding` 的 owner 公开 `openSection(id)`，但 `sidebar.footer.action` 的 owner 只公开 `wide`，没有任意打开 settings section 的公共 API；sidebar 企业项只展示/刷新状态，企业页由官方 Settings 导航打开，onboarding 才使用 `openSection('enterprise')`。禁止用 DOM 查询或私有 React 状态绕过该边界。Harness 是本产品的桌面员工工作台，T07 只按 1280x720 桌面视口验收；移动端属于第 2.3 节明确不做范围，不为官方尚未定义的移动 Settings 契约增加补偿 UI。
 
 ### 3.2 必须新增的能力
 
@@ -850,7 +853,7 @@ provider `test` 使用尚未保存的 base URL 和可选新密钥执行一次 `/
 
 | 本地 API | 作用 |
 |---|---|
-| `GET /status` | 返回连接状态、用户显示信息和稳定错误码 |
+| `GET /status` | 返回连接状态、平台 origin、用户显示信息和稳定错误码 |
 | `POST /auth/start` | 启动一次 PKCE；已有进行中流程返回同一流程 ID |
 | `POST /auth/cancel` | 关闭回环 listener 并取消当前流程 |
 | `POST /logout` | 注销中心会话并清空内存 |
@@ -1010,7 +1013,7 @@ Session 正文页按 seq 分页显示时间线，识别 `user/message`、`assist
 | 插件 | 期望版本、本地版本、下载/安装/重启/active/失败状态、重试 |
 | 会话同步 | backlog、最后成功时间、逐 Session 状态、远端列表、恢复到所选 cwd、删除远端副本 |
 
-sidebar footer 使用图标表达 `SIGNED_OUT`、`READY`、`REFRESHING`、`ERROR`，hover tooltip 显示状态名称；点击打开企业设置。登录 onboarding 只在企业 profile 且未登录时出现，成功后自动关闭。
+sidebar footer 使用图标表达 `SIGNED_OUT`、`READY`、`REFRESHING`、`ERROR`，hover tooltip 显示状态名称，点击重新读取状态；企业页由官方 Settings 导航打开。登录 onboarding 只在企业 profile 且未登录时出现，成功后自动关闭，并可通过 owner 提供的 `openSection('enterprise')` 打开账号页。
 
 任何异步操作都有 disabled、loading、success 和稳定 error code 映射。长文本、package name、用户名称和错误 message 必须在窄屏换行或省略并提供 tooltip；控件不能因状态文字改变布局尺寸。
 
@@ -1155,7 +1158,8 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 | T04 | `completed` | 2026-08-18 已实现 OIDC/LDAP/LOCAL adapter、稳定 external identity、显式组映射、身份源管理 API、认证 cursor 与秘密隔离，见 [`t04-identity-adapter-acceptance.md`](t04-identity-adapter-acceptance.md)。 |
 | T05 | `completed` | 2026-08-18 已实现 Redis 原子登录事务与授权码、Authorization Code + PKCE、LOCAL 验证码、12 小时非共享 Sa-Token client/device 隔离、设备生命周期与公开登录页，见 [`t05-pkce-device-acceptance.md`](t05-pkce-device-acceptance.md)。 |
 | T06 | `completed` | 2026-08-18 已实现 `ctx.enterprisePlatform`、内存 Token、installation、PKCE/enroll/bootstrap 状态机、60 秒刷新/指数退避和同源 JSON/SSE，真实 tgz consumer 与锁定 Harness 组合通过，见 [`t06-harness-platform-client-acceptance.md`](t06-harness-platform-client-acceptance.md)。 |
-| T07-T23 | `pending` | T06 退出条件已满足；下一项只能从 T07 开始。 |
+| T07 | `completed` | 2026-08-18 已通过官方三个 UI slot 实现共享账号状态、同源严格浏览器 client 和十态桌面 UI；登录、取消、READY、过期、撤销的真实 Harness 快照/GIF 与无 Token 证据见 [`t07-employee-login-ui-acceptance.md`](t07-employee-login-ui-acceptance.md)。 |
+| T08-T23 | `pending` | T07 已完成；下一项只能从 T08 开始。 |
 
 ## 23. Definition of Done
 

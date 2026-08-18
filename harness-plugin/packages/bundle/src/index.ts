@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 Cordis Context、platform-client Service 与 session-sync seed 恢复辅助函数
  * [OUTPUT]: 对外提供企业 bundle Host apply、webServer/sessions inject 清单与可验证 Config
- * [POS]: bundle 的唯一 Host Loader 入口，将 ctx.enterprisePlatform 与 T01 限定验收 seam 组合进官方 Cordis 生命周期
+ * [POS]: bundle 的唯一 Host Loader 入口，将 ctx.enterprisePlatform 与显式技术验收 seam 组合进官方 Cordis 生命周期
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -20,12 +20,12 @@ export const name = 'enterprise-agent-platform'
 export const inject = ['webServer', 'sessions']
 
 export interface Config {
-  /** 企业平台外部 HTTPS origin。 */
+  /** 企业平台外部 HTTPS origin；仅技术验收开关允许 HTTP loopback。 */
   readonly baseUrl: string
   readonly bootstrapIntervalMs?: number
   readonly requestTimeoutMs?: number
   readonly disposeTimeoutMs?: number
-  /** 仅供 T01 真实 Session seed 探针；发行层省略或关闭。 */
+  /** 仅供 T01/T07 回环假平台与 Session seed 验收；发行层省略或关闭。 */
   readonly enableTechnicalProbe?: boolean
 }
 
@@ -54,5 +54,7 @@ export function apply(ctx: EnterpriseHostContext, config: Config): void {
         seedLength: result.seedLength,
       }
     },
+  }, {
+    allowInsecureLoopbackBaseUrl: config.enableTechnicalProbe === true,
   })
 }
