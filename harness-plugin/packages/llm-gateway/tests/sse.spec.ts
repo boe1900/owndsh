@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 llm-gateway SSE 解码器与标准 Response/ReadableStream 测试对象
- * [OUTPUT]: 验证分块、多 data、非 2xx、error frame、断流和取消语义
+ * [OUTPUT]: 验证分块、多 data、稳定错误/requestId、断流和取消停稳语义
  * [POS]: llm-gateway 传输回归测试，锁定后续 LlmAdapter 不得吞错或自动补全断流
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -35,27 +35,30 @@ describe('OpenAI-compatible SSE', () => {
     await expect(collect(response)).resolves.toEqual([{ id: 'chat-1', choices: [] }])
   })
 
-  it('maps a bounded non-2xx JSON error', async () => {
-    const response = new Response(JSON.stringify({ error: { message: 'quota exceeded' } }), {
+  it('maps a bounded non-2xx JSON error without exposing its message', async () => {
+    const response = new Response(JSON.stringify({
+      error: { code: 'ENT_QUOTA_DAILY_EXCEEDED', message: 'private detail', requestId: 'req_http' },
+    }), {
       headers: { 'content-type': 'application/json' },
       status: 429,
     })
     await expect(collect(response)).rejects.toMatchObject({
-      code: 'ENT_UPSTREAM_UNAVAILABLE',
-      message: 'quota exceeded',
+      code: 'ENT_QUOTA_DAILY_EXCEEDED',
+      message: 'enterprise model request failed with HTTP 429',
+      requestId: 'req_http',
       status: 429,
     })
   })
 
   it('rejects an in-stream error and a disconnect without DONE', async () => {
     await expect(collect(streamResponse([
-      'data: {"error":{"message":"broken"}}\n\n',
-    ]))).rejects.toBeInstanceOf(OpenAiSseError)
+      'data: {"error":{"code":"ENT_UPSTREAM_TIMEOUT","message":"private","request_id":"req_stream"}}\n\n',
+    ]))).rejects.toMatchObject({ code: 'ENT_UPSTREAM_TIMEOUT', requestId: 'req_stream' })
     await expect(collect(streamResponse([
       'data: {"id":"partial"}\n\n',
     ]))).rejects.toMatchObject({
       code: 'ENT_UPSTREAM_INVALID_RESPONSE',
-      message: 'upstream SSE disconnected before [DONE]',
+      message: 'enterprise gateway SSE disconnected before [DONE]',
     })
   })
 

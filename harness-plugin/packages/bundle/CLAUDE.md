@@ -4,12 +4,12 @@
 
 成员清单
 
-README.md: 企业组合包发布说明，定义预构建 tarball、裸包名 patch 与无运行 dependencies 边界。
-package.json: `dsh.bundle` 与 `dsh.client` 双清单，Client 最小注入官方 runtime、sidebar 与 settings shell。
+README.md: 企业组合包发布说明，定义模型覆盖、中心直连、预构建 tarball、裸包名 patch 与 rc.7 peer 边界。
+package.json: `dsh.bundle`/`dsh.client` 双清单，精确 dsh-llm rc.7 peer 与 Client 最小官方注入图。
 tsconfig.json: bundle Host 公开声明的 emit-only TypeScript 边界，通过 workspace package 声明消费产品模块且不映射 Harness 源码。
-cordis.patch.yml: 官方 profile layer，插入单一企业 Host/Client Loader row。
-scripts/build.mjs: 将正式 workspace 模块打入自包含 Host ESM 与官方 lazy-CJS Client factory 的构建器。
-src/index.ts: bundle Host 组合入口，生产强制 HTTPS，仅在显式技术探针下允许回环假平台并保留 Session seed seam。
-tests/bundle.spec.ts: manifest 最小 Client graph、构建产物、三 slot factory 与无 Typert shim/package 越界验收。
+cordis.patch.yml: 官方 profile layer，覆盖企业 default、停用个人 provider/模型设置并插入企业 Host/Client row。
+scripts/build.mjs: 内联产品模块但 externalize 官方 Cordis/LLM peer 的 Host ESM 与 lazy-CJS Client 构建器。
+src/index.ts: bundle Host 组合入口，挂载平台 Service 与企业 adapter，生产强制 HTTPS 并保留验收 seam。
+tests/bundle.spec.ts: 模型覆盖、精确 peer、Client graph/三 slot、构建产物与无 Typert/package 越界验收。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

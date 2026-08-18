@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Cordis Service/WebServer、T02 contracts、PKCE/installation/browser 原语与 Node fetch
- * [OUTPUT]: 对外提供 ctx.enterprisePlatform、EnterprisePlatformService、固定六方法、脱敏平台 origin 与稳定错误
+ * [OUTPUT]: 对外提供 ctx.enterprisePlatform、EnterprisePlatformService、七个方法、脱敏平台 origin 与可关联稳定错误
  * [POS]: platform-client 的 Host 业务核心，独占内存 Token、登录状态机、认证 fetch 与 bootstrap 刷新生命周期
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -57,6 +57,7 @@ export class EnterprisePlatformError extends Error {
     message: string,
     readonly retryable = false,
     readonly httpStatus?: number,
+    readonly requestId?: string,
   ) {
     super(message)
     this.name = 'EnterprisePlatformError'
@@ -226,7 +227,7 @@ export class EnterprisePlatformService extends Service {
         cancelLogin: () => this.#cancelLogin(),
         logout: () => this.logout(),
         bootstrap: () => this.bootstrap(),
-        subscribe: listener => this.#subscribe(listener),
+        subscribe: listener => this.subscribe(listener),
       },
       ...(this.#config.enableTechnicalProbe === undefined
         ? {}
@@ -288,6 +289,18 @@ export class EnterprisePlatformService extends Service {
   /** 返回最新已校验 bootstrap 副本，永不返回平台凭据。 */
   bootstrap(): BootstrapSnapshot | undefined {
     return this.#bootstrap === undefined ? undefined : structuredClone(this.#bootstrap)
+  }
+
+  /** 订阅 Host 内存状态快照；disposer 幂等移除监听器且不会暴露 Token。 */
+  subscribe(listener: (status: EnterprisePlatformStatus) => void): () => void {
+    this.#assertOpen()
+    this.#listeners.add(listener)
+    let subscribed = true
+    return () => {
+      if (!subscribed) return
+      subscribed = false
+      this.#listeners.delete(listener)
+    }
   }
 
   /**
@@ -516,7 +529,13 @@ export class EnterprisePlatformService extends Service {
   async #decodeResponseError(response: Response): Promise<EnterprisePlatformError> {
     try {
       const error = decodeEnterpriseError(await response.json())
-      return new EnterprisePlatformError(error.code, 'enterprise platform request failed', error.retryable, response.status)
+      return new EnterprisePlatformError(
+        error.code,
+        'enterprise platform request failed',
+        error.retryable,
+        response.status,
+        String(error.requestId),
+      )
     } catch {
       const code: EnterpriseErrorCode = response.status === 401
         ? 'ENT_AUTH_REQUIRED'
@@ -602,11 +621,6 @@ export class EnterprisePlatformService extends Service {
     }
     const published = this.status()
     for (const listener of this.#listeners) listener(published)
-  }
-
-  #subscribe(listener: (status: EnterprisePlatformStatus) => void): () => void {
-    this.#listeners.add(listener)
-    return () => { this.#listeners.delete(listener) }
   }
 
   #assertOpen(): void {

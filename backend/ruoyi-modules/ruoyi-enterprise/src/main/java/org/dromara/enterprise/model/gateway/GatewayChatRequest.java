@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖严格解析后的 alias、请求 JSON、可见字节数与可选 max_tokens。
- * [OUTPUT]: 对外提供防御性复制的请求事实及只替换受管 upstream model/usage 开关的发送体。
+ * [INPUT]: 依赖严格解析后的 alias、请求 JSON、可见字节数、reasoning 开关与可选 max_tokens。
+ * [OUTPUT]: 对外提供防御性复制的请求事实、reasoning 能力意图及只替换受管 upstream model/usage 的发送体。
  * [POS]: model/gateway 的短生命周期 prompt 容器，不能进入日志、异常、审计或持久化。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -34,6 +34,10 @@ public final class GatewayChatRequest {
 
     public int visibleUtf8Bytes() {
         return visibleUtf8Bytes;
+    }
+
+    public boolean reasoningEnabled() {
+        return body.path("thinking").path("type").asString("").equals("enabled");
     }
 
     ObjectNode upstreamBody(String upstreamModel) {

@@ -19,6 +19,8 @@
   "top_p": 1,
   "max_tokens": 512,
   "stop": null,
+  "thinking": {"type": "enabled"},
+  "reasoning_effort": "max",
   "stream": true,
   "stream_options": {"include_usage": true}
 }

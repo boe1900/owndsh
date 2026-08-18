@@ -17,6 +17,7 @@ t07-employee-login-ui-acceptance.md: T07 独立验收证据，记录官方三 sl
 t08-model-management-acceptance.md: T08 独立验收证据，记录模型治理 API、provider 密钥隔离、默认授权解析、PostgreSQL 事务与 bootstrap 模型目录。
 t09-quota-management-acceptance.md: T09 独立验收证据，记录叠加配额、冻结时区、并发预留、Redis lease、结算恢复、用量协议与锁序审阅。
 t10-model-gateway-acceptance.md: T10 独立验收证据，记录请求级授权、DeepSeek SSE、配额终态、首字节错误、审计原子性与敏感信息隔离。
+t11-harness-model-integration-acceptance.md: T11 独立验收证据，记录 rc.7 官方 adapter、动态目录/default、真实 ctx.llm 流、稳定错误与无本地上游 Key。
 assets/: 无密钥验收媒体，保存 T05 公开登录页和 T07 Harness 员工登录 UI 的真实流程截图/GIF。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

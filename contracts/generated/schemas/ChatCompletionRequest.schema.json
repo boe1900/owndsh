@@ -291,6 +291,29 @@
           "type": "boolean"
         }
       }
+    },
+    "thinking": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "enabled",
+            "disabled"
+          ]
+        }
+      }
+    },
+    "reasoning_effort": {
+      "type": "string",
+      "enum": [
+        "high",
+        "max"
+      ]
     }
   }
 }

@@ -39,6 +39,12 @@ importers:
         specifier: 4.0.1
         version: 4.0.1
     devDependencies:
+      '@deepseek-ai/dsh-llm':
+        specifier: link:../../../../deepseek-harness/packages/llm/llm
+        version: link:../../../../deepseek-harness/packages/llm/llm
+      '@enterprise-agent/dsh-llm-gateway':
+        specifier: workspace:*
+        version: link:../llm-gateway
       '@enterprise-agent/dsh-platform-client':
         specifier: workspace:*
         version: link:../platform-client
@@ -62,7 +68,18 @@ importers:
         specifier: 0.99.0
         version: 0.99.0(typescript@6.0.3)
 
-  packages/llm-gateway: {}
+  packages/llm-gateway:
+    dependencies:
+      '@enterprise-agent/dsh-contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@enterprise-agent/dsh-platform-client':
+        specifier: workspace:*
+        version: link:../platform-client
+    devDependencies:
+      '@deepseek-ai/dsh-llm':
+        specifier: link:../../../../deepseek-harness/packages/llm/llm
+        version: link:../../../../deepseek-harness/packages/llm/llm
 
   packages/platform-client:
     dependencies:

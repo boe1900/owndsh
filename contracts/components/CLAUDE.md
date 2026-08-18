@@ -9,6 +9,6 @@ device.yaml: T05 enroll/heartbeat、设备详情、管理员 cursor list 与 rev
 identity.yaml: T04 身份治理 schema 分片，定义 OIDC/LDAP 配置、身份源、cursor page、组映射和删除确认，并复用根协议公共组件。
 model.yaml: T08 provider/model/grant 管理、writeOnly credential、脱敏 probe 和完整 bootstrap 外壳 schema 分片。
 quota.yaml: T09 quota policy/window、bootstrap quota、本人计数和 prompt-free ledger schema 分片。
-gateway.yaml: T10 OpenAI-compatible 严格流式请求、纯文本 message/function tool 与 chunk/usage schema 分片。
+gateway.yaml: OpenAI-compatible 严格流式请求、thinking/effort、纯文本 message/function tool 与 chunk/usage schema 分片。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

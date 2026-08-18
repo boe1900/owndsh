@@ -24,10 +24,13 @@ responses expose counters and reset times without internal row IDs or revisions;
 ledger responses cannot carry prompts, messages, provider routes, or credentials.
 
 T10 adds the strict OpenAI-compatible streaming request accepted by the managed
-model gateway. The schema permits only managed aliases or `enterprise/default`,
-text messages and function tools; it deliberately has no provider, base URL,
-upstream model, credential, or arbitrary top-level extension point. Successful
-stream events remain SSE rather than the enterprise JSON success envelope.
+model gateway. T11 extends that request with the validated
+`thinking.type=enabled|disabled` and `reasoning_effort=high|max` pair used by the
+official Harness adapter. The schema permits only managed aliases or
+`enterprise/default`, text messages and function tools; it deliberately has no
+provider, base URL, upstream model, credential, or arbitrary top-level extension
+point. Successful stream events remain SSE rather than the enterprise JSON
+success envelope.
 
 ```sh
 cd harness-plugin

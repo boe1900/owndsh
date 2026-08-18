@@ -851,7 +851,7 @@ provider `test` 使用尚未保存的 base URL 和可选新密钥执行一次 `/
 
 ### 16.2 `@enterprise-agent/dsh-platform-client`
 
-提供 `ctx.enterprisePlatform` Service，拥有登录状态、内存 Token、installation、bootstrap 快照、带认证 fetch、请求取消和 60 秒刷新。公开方法固定为 `startLogin()`、`logout()`、`status()`、`bootstrap()`、`request()` 和 `dispose()`；只有 `request()` 能读取 Token。
+提供 `ctx.enterprisePlatform` Service，拥有登录状态、内存 Token、installation、bootstrap 快照、带认证 fetch、请求取消和 60 秒刷新。公开方法固定为 `startLogin()`、`logout()`、`status()`、`bootstrap()`、`subscribe()`、`request()` 和 `dispose()`；`subscribe()` 只发布脱敏状态副本，只有 `request()` 能读取 Token。
 
 该包的 Host 入口声明 `inject = ['webServer']`，通过 `ctx.webServer.register()` 注册 `/enterprise/api/v1/local/*` 精确或前缀路由。路由属于本机 Host 控制面，只返回脱敏 DTO；登录、取消、退出、用量、插件状态、同步状态和恢复动作都使用普通 JSON HTTP，持续状态使用插件自有 SSE。Client 不依赖 `ctx.remote`，也不生成 Typert contribution。
 
@@ -1166,7 +1166,8 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 | T08 | `completed` | 2026-08-18 已实现 provider/model/grant 管理、provider-secret AES-GCM、无重定向脱敏探测、USER+DEPT 默认解析、幂等删除与 ACTIVE 设备 bootstrap 模型目录；协议、PostgreSQL 和秘密隔离证据见 [`t08-model-management-acceptance.md`](t08-model-management-acceptance.md)。 |
 | T09 | `completed` | 2026-08-18 已实现 DEFAULT+DEPT+USER 叠加策略、冻结部署时区、PostgreSQL 防超卖 reservation、Redis RPM/并发 lease、结算/恢复和 prompt-free 用量 API；协议与并发证据见 [`t09-quota-management-acceptance.md`](t09-quota-management-acceptance.md)。 |
 | T10 | `completed` | 2026-08-18 已实现请求级 ACTIVE 授权、DeepSeek-compatible upstream、OpenAI SSE、配额预留/续租/结算、首字节前后错误和 accepted/finished 原子审计；完整证据见 [`t10-model-gateway-acceptance.md`](t10-model-gateway-acceptance.md)。 |
-| T11-T23 | `pending` | 下一项只能从 T11 Harness 模型链路开始；T11 完成前不得进入插件和 Session 功能。 |
+| T11 | `completed` | 2026-08-19 已基于官方 rc.7 实现 EnterpriseGatewayAdapter、动态目录/default、中心直连、单次尝试、取消与 profile provider 覆盖；真实 `ctx.llm` 的无本地上游 Key 组合证据见 [`t11-harness-model-integration-acceptance.md`](t11-harness-model-integration-acceptance.md)。 |
+| T12-T23 | `pending` | 下一项只能从 T12 管理控制台开始；仍按依赖顺序一次完成一个任务。 |
 
 ## 23. Definition of Done
 

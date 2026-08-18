@@ -1,5 +1,5 @@
 # [INPUT]: 依赖根协议的受管模型 alias，并遵循 OpenAI chat completion 文本/tool 请求形状
-# [OUTPUT]: 提供 T10 严格流式 chat request、纯文本 message、function tool 与 usage/chunk schemas
+# [OUTPUT]: 提供严格流式 chat request、reasoning 开关、纯文本 message、function tool 与 usage/chunk schemas
 # [POS]: OpenAPI 逻辑真源的模型网关分片，刻意不给 provider、base URL、上游模型或 credential 留字段
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -94,6 +94,12 @@ ChatStreamOptions:
   additionalProperties: false
   properties:
     include_usage: {type: boolean}
+ChatThinking:
+  type: object
+  additionalProperties: false
+  required: [type]
+  properties:
+    type: {type: string, enum: [enabled, disabled]}
 ChatCompletionRequest:
   type: object
   additionalProperties: false
@@ -125,6 +131,8 @@ ChatCompletionRequest:
         - type: 'null'
     stream: {type: boolean, const: true}
     stream_options: {$ref: '#/ChatStreamOptions'}
+    thinking: {$ref: '#/ChatThinking'}
+    reasoning_effort: {type: string, enum: [high, max]}
 ChatUsage:
   type: object
   additionalProperties: true

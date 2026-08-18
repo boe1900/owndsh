@@ -44,9 +44,12 @@
     "pack": "pnpm pack"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "4.0.1"
+    "@deepseek-ai/cordis": "4.0.1",
+    "@deepseek-ai/dsh-llm": "0.1.0-rc.7"
   },
   "devDependencies": {
+    "@deepseek-ai/dsh-llm": "link:../../../../deepseek-harness/packages/llm/llm",
+    "@enterprise-agent/dsh-llm-gateway": "workspace:*",
     "@enterprise-agent/dsh-platform-client": "workspace:*",
     "@enterprise-agent/dsh-session-sync": "workspace:*",
     "@enterprise-agent/dsh-ui": "workspace:*"

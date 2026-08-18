@@ -471,6 +471,8 @@ export type GatewayChatCompletionRequest = {
     stop?: string | Array<string> | null;
     stream: true;
     stream_options?: GatewayChatStreamOptions;
+    thinking?: ChatThinking;
+    reasoning_effort?: 'high' | 'max';
 };
 
 export type GatewayChatFunctionCall = {
@@ -506,6 +508,10 @@ export type GatewayChatRole = 'system' | 'user' | 'assistant' | 'tool';
 
 export type GatewayChatStreamOptions = {
     include_usage?: boolean;
+};
+
+export type ChatThinking = {
+    type: 'enabled' | 'disabled';
 };
 
 export type GatewayChatTool = {

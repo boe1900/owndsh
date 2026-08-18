@@ -1,11 +1,13 @@
 /**
- * [INPUT]: 依赖 Cordis Context、platform-client Service 与 session-sync seed 恢复辅助函数
- * [OUTPUT]: 对外提供企业 bundle Host apply、webServer/sessions inject 清单与可验证 Config
- * [POS]: bundle 的唯一 Host Loader 入口，将 ctx.enterprisePlatform 与显式技术验收 seam 组合进官方 Cordis 生命周期
+ * [INPUT]: 依赖 Cordis Context、官方 LlmRuntime、platform-client、llm-gateway 与 session-sync 恢复辅助函数
+ * [OUTPUT]: 对外提供企业 bundle Host apply、webServer/sessions/llm inject 清单与可验证 Config
+ * [POS]: bundle 的唯一 Host Loader 入口，在官方 Cordis 生命周期组合平台认证、企业 provider 与验收 seam
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import type { Context } from '@deepseek-ai/cordis'
+import type { LlmRuntime } from '@deepseek-ai/dsh-llm'
+import { registerEnterpriseGateway } from '@enterprise-agent/dsh-llm-gateway'
 import {
   EnterprisePlatformService,
   type SessionCopyProbeInput,
@@ -17,7 +19,10 @@ import {
 } from '@enterprise-agent/dsh-session-sync'
 
 export const name = 'enterprise-agent-platform'
-export const inject = ['webServer', 'sessions']
+export const inject = ['webServer', 'sessions', 'llm']
+
+const HARNESS_VERSION = '0.1.0-rc.7'
+const BUNDLE_VERSION = '0.1.0'
 
 export interface Config {
   /** 企业平台外部 HTTPS origin；仅技术验收开关允许 HTTP loopback。 */
@@ -32,14 +37,15 @@ export interface Config {
 interface EnterpriseHostContext extends Context {
   readonly webServer: WebServerRoutePort
   readonly sessions: SessionStorePort
+  readonly llm: LlmRuntime
 }
 
-/** 在 Harness 官方 WebServer 上挂载平台 Service 及其同源 API。 */
+/** 在 Harness 官方 Service 上挂载平台控制面并注册单一 enterprise provider。 */
 export function apply(ctx: EnterpriseHostContext, config: Config): void {
-  new EnterprisePlatformService(ctx, {
+  const platform = new EnterprisePlatformService(ctx, {
     baseUrl: config.baseUrl,
-    harnessVersion: '0.1.0-rc.7',
-    bundleVersion: '0.1.0',
+    harnessVersion: HARNESS_VERSION,
+    bundleVersion: BUNDLE_VERSION,
     ...(config.bootstrapIntervalMs === undefined ? {} : { bootstrapIntervalMs: config.bootstrapIntervalMs }),
     ...(config.requestTimeoutMs === undefined ? {} : { requestTimeoutMs: config.requestTimeoutMs }),
     ...(config.disposeTimeoutMs === undefined ? {} : { disposeTimeoutMs: config.disposeTimeoutMs }),
@@ -57,4 +63,10 @@ export function apply(ctx: EnterpriseHostContext, config: Config): void {
   }, {
     allowInsecureLoopbackBaseUrl: config.enableTechnicalProbe === true,
   })
+  const registration = registerEnterpriseGateway(ctx.llm, {
+    platform,
+    harnessVersion: HARNESS_VERSION,
+    bundleVersion: BUNDLE_VERSION,
+  })
+  ctx.effect(() => registration, 'enterpriseGateway.registration')
 }

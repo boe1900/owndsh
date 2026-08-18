@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Jackson 3 JsonMapper 与限量读取后的 JSON bytes。
- * [OUTPUT]: 对外提供未知顶层字段拒绝、纯文本 message/tool 校验和固定可见字节估算。
+ * [OUTPUT]: 对外提供未知顶层字段拒绝、reasoning 组合、纯文本 message/tool 校验和固定可见字节估算。
  * [POS]: model/gateway 的 OpenAI-compatible 输入闸门，多模态与请求级 route 字段在此被拒绝。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
 public final class GatewayChatRequestParser {
     private static final Set<String> TOP_LEVEL_FIELDS = Set.of(
         "model", "messages", "tools", "tool_choice", "temperature", "top_p", "max_tokens", "stop",
-        "stream", "stream_options"
+        "stream", "stream_options", "thinking", "reasoning_effort"
     );
     private static final Set<String> ROLES = Set.of("system", "user", "assistant", "tool");
     private static final Pattern MODEL_ALIAS = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]*");
@@ -49,6 +49,7 @@ public final class GatewayChatRequestParser {
         validateStop(body.get("stop"));
         validateToolChoice(body.get("tool_choice"));
         validateStreamOptions(body.get("stream_options"));
+        validateReasoning(body.get("thinking"), body.get("reasoning_effort"));
 
         Integer maxTokens = null;
         JsonNode max = body.get("max_tokens");
@@ -189,6 +190,26 @@ public final class GatewayChatRequestParser {
         requireOnly(options.asObject(), Set.of("include_usage"), "stream_options");
         JsonNode include = options.get("include_usage");
         if (include != null && !include.isBoolean()) throw new IllegalArgumentException("include_usage 必须是 boolean");
+    }
+
+    private static void validateReasoning(JsonNode thinking, JsonNode effort) {
+        String thinkingType = null;
+        if (thinking != null) {
+            if (!thinking.isObject()) throw new IllegalArgumentException("thinking 必须是 object");
+            requireOnly(thinking.asObject(), Set.of("type"), "thinking");
+            thinkingType = requireText(thinking.get("type"), "thinking.type", 20);
+            if (!Set.of("enabled", "disabled").contains(thinkingType)) {
+                throw new IllegalArgumentException("thinking.type 不受支持");
+            }
+        }
+        if (effort == null) return;
+        String value = requireText(effort, "reasoning_effort", 20);
+        if (!Set.of("high", "max").contains(value)) {
+            throw new IllegalArgumentException("reasoning_effort 不受支持");
+        }
+        if (!"enabled".equals(thinkingType)) {
+            throw new IllegalArgumentException("reasoning_effort 要求 thinking.enabled");
+        }
     }
 
     private static void validateOptionalNumber(JsonNode value, double minimum, double maximum, String name) {

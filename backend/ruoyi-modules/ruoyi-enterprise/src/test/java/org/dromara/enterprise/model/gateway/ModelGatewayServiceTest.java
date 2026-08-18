@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖真实 parser/crypto、fake DeepSeek exchange 与 mock quota/route ports。
- * [OUTPUT]: 验证 reserve/SENT、usage settle、无 usage/断流/取消/首帧失败 CHARGED_MAX 和双审计关联。
+ * [OUTPUT]: 验证 reasoning 能力复核、reserve/SENT、usage settle、无 usage/断流/取消/首帧失败与双审计关联。
  * [POS]: T10 网关生命周期单测，独立证明首字节前后终态和敏感数据隔离。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -116,6 +116,30 @@ class ModelGatewayServiceTest {
         );
         assertThat(audits).extracting(AuditEvent::requestId).containsOnly(REQUEST_ID);
         assertThat(audits.toString()).doesNotContain(SECRET).doesNotContain("reasoning_content");
+    }
+
+    @Test
+    void rejectsReasoningBeforeQuotaReservationWhenTheManagedModelDoesNotSupportIt() {
+        ManagedModel current = route.model();
+        ManagedModel nonReasoning = new ManagedModel(
+            current.id(), current.tenantId(), current.providerId(), current.providerName(), current.alias(),
+            current.displayName(), current.upstreamModel(), current.contextWindow(), current.maxOutputTokens(),
+            false, current.sortOrder(), current.status(), current.revision()
+        );
+        when(routes.resolve(any(), anyString())).thenReturn(new GatewayRouteResolver.GatewayRoute(
+            route.user(), route.device(), nonReasoning, route.provider()
+        ));
+        GatewayChatRequest request = new GatewayChatRequestParser(json).parse("""
+            {"model":"enterprise/default","messages":[{"role":"user","content":"private prompt"}],
+             "thinking":{"type":"enabled"},"reasoning_effort":"high","stream":true}
+            """.getBytes(StandardCharsets.UTF_8));
+
+        assertThatThrownBy(() -> service(new FakeUpstream(List.of(), null, -1)).open(
+            context(), request, IDEMPOTENCY
+        )).isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("该受管模型不支持 reasoning");
+        verify(quotas, never()).reserve(any());
+        assertThat(audits).isEmpty();
     }
 
     @Test

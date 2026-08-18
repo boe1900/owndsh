@@ -306,6 +306,10 @@ export const zGatewayChatStreamOptions = z.object({
 
 export const zChatStreamOptions = zGatewayChatStreamOptions;
 
+export const zChatThinking = z.object({
+    type: z.enum(['enabled', 'disabled'])
+}).strict();
+
 export const zGatewayChatToolCall = z.object({
     id: z.string().min(1).max(255),
     type: z.literal('function'),
@@ -674,7 +678,9 @@ export const zGatewayChatCompletionRequest = z.object({
         z.array(z.string().min(1).max(4096)).min(1).max(4)
     ]).nullish(),
     stream: z.literal(true),
-    stream_options: zGatewayChatStreamOptions.optional()
+    stream_options: zGatewayChatStreamOptions.optional(),
+    thinking: zChatThinking.optional(),
+    reasoning_effort: z.enum(['high', 'max']).optional()
 }).strict();
 
 export const zChatCompletionRequest = zGatewayChatCompletionRequest;

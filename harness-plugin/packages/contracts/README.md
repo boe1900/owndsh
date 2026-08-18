@@ -14,10 +14,11 @@ generated ID aliases are deliberately not exported: business packages must
 construct IDs through the matching `parse*Id()` helper.
 
 The public surface also exports the T08 provider, managed-model, and grant DTOs,
-plus the T09 bootstrap quota, policy/window, active-device usage, and prompt-free
-ledger DTOs with strict Zod schemas. Provider credentials remain write-only;
-provider routes, credentials, prompts, and messages are intentionally absent
-from their runtime response types.
+the T09 bootstrap quota, policy/window, active-device usage, and prompt-free
+ledger DTOs, plus the T10/T11 gateway request with its validated reasoning pair.
+Provider credentials remain write-only; provider routes and credentials are
+intentionally absent from every client-controlled gateway field and runtime
+response type.
 
 The package inherits the workspace strict TypeScript baseline but disables
 `exactOptionalPropertyTypes` locally because Hey API 0.99.0's generated Fetch

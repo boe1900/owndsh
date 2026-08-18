@@ -17,6 +17,7 @@
     "smoke:contracts": "node scripts/t02-contract-consumer.mjs",
     "smoke:platform-client": "node scripts/t06-platform-client-consumer.mjs",
     "accept:t07-browser": "node scripts/t07-browser-harness.mjs",
+    "accept:t11-model": "node scripts/t11-harness-model-smoke.mjs",
     "check": "pnpm run typecheck && pnpm run test"
   },
   "devDependencies": {

@@ -1,7 +1,21 @@
-# [INPUT]: 依赖官方 dsh.bundle profile patch 合并与裸包名 Loader 解析
-# [OUTPUT]: 向目标 profile 插入 enterprise-agent Host row 和 dsh.client discovery anchor
-# [POS]: bundle 的发行层入口，保持企业插件安装与同级 Harness 源码完全解耦
+# [INPUT]: 依赖官方 dsh.bundle patch 覆盖、裸包名 Loader 与 base/web 既有 row id
+# [OUTPUT]: 覆盖企业默认模型、停用个人 provider/模型设置并插入 enterprise-agent Host/Client row
+# [POS]: bundle 的企业 profile 策略层，只约束安装本 bundle 的目标 profile
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+- id: agent-default-model
+  config:
+    provider: enterprise
+    model: enterprise/default
+
+- id: llm-deepseek
+  disabled: true
+
+- id: llm-pi-ai
+  disabled: true
+
+- id: ui-settings-models
+  disabled: true
+
 - insert:
     - id: enterprise-agent
       name: '@enterprise-agent/dsh-bundle'

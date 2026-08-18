@@ -33,7 +33,7 @@ fixtures/quota-policy-list-success.json: T09 quota policy 空 cursor page 成功
 fixtures/quota-window-list-success.json: T09 当前自然日窗口计数与 reset time 成功样例。
 fixtures/quota-usage-me-success.json: T09 员工 DEFAULT 生效策略的日/月、RPM 与并发实时计数样例。
 fixtures/usage-ledger-list-success.json: T09 管理端 prompt-free ledger、cursor 与聚合成功样例。
-fixtures/gateway-request-success.json: T10 default sentinel、纯文本 messages、function tool 与 usage stream 开关成功请求样例。
+fixtures/gateway-request-success.json: T10/T11 default sentinel、纯文本 messages、function tool、usage stream 开关与 reasoning 参数成功请求样例。
 fixtures/gateway-request-route-forgery.json: T10 请求级 base URL 路由伪造严格拒绝负例。
 fixtures/protocol-page-success.json: 带品牌 ID、revision 和 cursor page metadata 的成功响应样例。
 fixtures/protocol-success.json: 最小统一成功响应样例，验证 data/requestId envelope。

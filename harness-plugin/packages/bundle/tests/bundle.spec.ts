@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 bundle manifest、patch、构建产物和 Node vm 中的官方 React lazy-CJS seed 模型
- * [OUTPUT]: 验证 dsh.bundle/dsh.client、裸包 row、自包含 tgz 与 Client apply 可物化
+ * [OUTPUT]: 验证 dsh.bundle/dsh.client、企业模型覆盖、Harness peer、自包含产品代码与 Client apply
  * [POS]: bundle 发布不变量测试，拒绝 Typert ambient shim、Harness 源码路径和未打包运行依赖
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -26,8 +26,13 @@ describe('enterprise bundle', () => {
       '@deepseek-ai/dsh-client-ui-settings-general',
     ])
     expect(manifest.dependencies).toBeUndefined()
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-llm']).toBe('0.1.0-rc.7')
     const patch = await readFile(resolve(ROOT, 'cordis.patch.yml'), 'utf8')
     expect(patch).toContain("name: '@enterprise-agent/dsh-bundle'")
+    expect(patch).toMatch(/id: agent-default-model[\s\S]*provider: enterprise[\s\S]*model: enterprise\/default/)
+    for (const id of ['llm-deepseek', 'llm-pi-ai', 'ui-settings-models']) {
+      expect(patch).toMatch(new RegExp(`id: ${id}\\n  disabled: true`))
+    }
     expect(patch).not.toContain('deepseek-harness')
   })
 
@@ -67,5 +72,6 @@ describe('enterprise bundle', () => {
     expect(combined).not.toMatch(/declare module ['"]@deepseek-ai\/dsh-typert-protocol/)
     expect(combined).not.toContain('/deepseek-harness/')
     expect(combined).not.toContain('../deepseek-harness')
+    expect(combined).toContain("from '@deepseek-ai/dsh-llm'")
   })
 })

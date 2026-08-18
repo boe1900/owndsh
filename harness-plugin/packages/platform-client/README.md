@@ -1,7 +1,7 @@
 # @enterprise-agent/dsh-platform-client
 
 Harness Host 的企业平台控制面。`EnterprisePlatformService` 通过 Cordis 注册
-`ctx.enterprisePlatform`，并固定公开以下六个方法：
+`ctx.enterprisePlatform`，并固定公开以下七个方法：
 
 | 方法 | 职责 |
 |---|---|
@@ -9,6 +9,7 @@ Harness Host 的企业平台控制面。`EnterprisePlatformService` 通过 Cordi
 | `logout()` | 尝试注销中心会话，并无条件清空本地内存认证状态。 |
 | `status()` | 返回连接状态、平台 origin、脱敏用户、revision、连接时间和稳定错误码。 |
 | `bootstrap()` | 返回最新已校验脱敏快照的副本。 |
+| `subscribe()` | 订阅 Host 内存状态副本；幂等 disposer 只移除当前监听器。 |
 | `request()` | 执行同源、带认证且可取消的平台 fetch；这是唯一读取 Token 的代码路径。 |
 | `dispose()` | 取消登录/刷新/请求，关闭 SSE 和本地路由，等待工作停稳。 |
 
@@ -18,6 +19,10 @@ bootstrap 刷新周期 60 秒、请求超时 30 秒、dispose 超时 3 秒。
 Service 在 `$DSH_HOME/enterprise/device.json` 只持久化 installation UUID v4、显示名和
 创建时间。平台 Token 只位于 Host 内存，不写入设置、凭据、Session、日志或
 installation 文件，也不会通过本地 HTTP/SSE 返回给浏览器。
+
+失败响应通过 contracts 解码为稳定 `EnterprisePlatformError`，只保留 code、retryable、HTTP status
+和 requestId。中心 message、details、响应正文与认证 header 不进入异常；LLM adapter 通过 requestId
+关联中心审计，而不接触 Token。
 
 本地 Client 只通过 Harness 官方 `ctx.webServer.register()` 同源访问：
 

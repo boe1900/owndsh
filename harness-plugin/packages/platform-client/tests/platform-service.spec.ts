@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 EnterprisePlatformService、Cordis Context、真实 Node HTTP 假平台/本地 route carrier 与临时 DSH_HOME
- * [OUTPUT]: 验证 PKCE→Token→enroll→bootstrap、内存秘密、刷新退避、撤销、取消、重启与 dispose 停稳
+ * [OUTPUT]: 验证 PKCE→Token→enroll→bootstrap、状态订阅、错误关联、内存秘密、刷新退避、撤销、取消与停稳
  * [POS]: platform-client T06 核心生命周期测试，跨越真实 socket 而不伪造 Token 存储边界
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -15,6 +15,7 @@ import {
   EnterprisePlatformError,
   EnterprisePlatformService,
   resolveEnterpriseDevicePath,
+  type EnterprisePlatformStatus,
   type WebServerRoutePort,
 } from '../src/index.js'
 
@@ -187,6 +188,18 @@ describe('EnterprisePlatformService', () => {
         json(response, 200, { data: { authorized: request.headers.authorization === 'Bearer platform-token-never-local' } })
         return
       }
+      if (path === '/enterprise/api/v1/rejected') {
+        json(response, 429, {
+          error: {
+            code: 'ENT_QUOTA_DAILY_EXCEEDED',
+            message: 'quota rejected',
+            requestId: REQUEST_ID,
+            retryable: false,
+            details: { policyId: '73001', resetsAt: '2026-08-19T00:00:00Z' },
+          },
+        })
+        return
+      }
       if (path === '/enterprise/api/v1/slow') {
         request.once('close', () => { response.destroy() })
         return
@@ -297,6 +310,8 @@ describe('EnterprisePlatformService', () => {
 
   it('completes PKCE, enroll and bootstrap while keeping Token in Host memory only', async () => {
     const env = await environment()
+    const states: EnterprisePlatformStatus['state'][] = []
+    const unsubscribe = env.service.subscribe(value => { states.push(value.state) })
     await login(env)
     const status = env.service.status()
     expect(status).toMatchObject({ state: 'READY', revision: 1, user: { username: 'zhangsan' } })
@@ -307,6 +322,11 @@ describe('EnterprisePlatformService', () => {
 
     const probe = await env.service.request('/enterprise/api/v1/probe')
     await expect(probe.json()).resolves.toEqual({ data: { authorized: true } })
+    await expect(env.service.request('/enterprise/api/v1/rejected')).rejects.toMatchObject({
+      code: 'ENT_QUOTA_DAILY_EXCEEDED',
+      httpStatus: 429,
+      requestId: REQUEST_ID,
+    })
     await expect(env.service.request('https://attacker.invalid/steal')).rejects.toMatchObject({
       code: 'ENT_INVALID_REQUEST',
     })
@@ -323,6 +343,10 @@ describe('EnterprisePlatformService', () => {
     await env.service.logout()
     expect(env.service.status()).toMatchObject({ state: 'SIGNED_OUT' })
     expect(env.service.bootstrap()).toBeUndefined()
+    expect(states).toContain('READY')
+    expect(states.at(-1)).toBe('SIGNED_OUT')
+    unsubscribe()
+    unsubscribe()
     expect(env.platformRequests.find(request => request.path.endsWith('/logout'))?.authorization)
       .toBe('Bearer platform-token-never-local')
   })

@@ -13,8 +13,18 @@
   },
   "files": ["lib", "README.md"],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "pnpm --filter @enterprise-agent/dsh-llm-gateway^... run build && tsc -p tsconfig.json",
+    "typecheck": "pnpm --filter @enterprise-agent/dsh-llm-gateway^... run build && tsc -p tsconfig.json --noEmit",
     "test": "vitest run tests"
+  },
+  "dependencies": {
+    "@enterprise-agent/dsh-contracts": "workspace:*",
+    "@enterprise-agent/dsh-platform-client": "workspace:*"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-llm": "0.1.0-rc.7"
+  },
+  "devDependencies": {
+    "@deepseek-ai/dsh-llm": "link:../../../../deepseek-harness/packages/llm/llm"
   }
 }

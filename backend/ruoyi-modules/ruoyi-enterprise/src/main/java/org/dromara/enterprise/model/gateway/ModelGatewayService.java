@@ -99,6 +99,9 @@ public final class ModelGatewayService {
 
     public GatewayStream open(DeviceCallContext context, GatewayChatRequest request, UUID idempotencyKey) {
         GatewayRouteResolver.GatewayRoute route = routes.resolve(context, request.modelAlias());
+        if (request.reasoningEnabled() && !route.model().reasoning()) {
+            throw new IllegalArgumentException("该受管模型不支持 reasoning");
+        }
         long estimated = QuotaTokenEstimator.estimate(
             request.visibleUtf8Bytes(), request.maxTokens(), route.model().maxOutputTokens()
         );
