@@ -1,0 +1,9 @@
+# [INPUT]: 依赖官方 dsh.bundle profile patch 合并与裸包名 Loader 解析
+# [OUTPUT]: 向目标 profile 插入 enterprise-agent Host row 和 dsh.client discovery anchor
+# [POS]: bundle 的发行层入口，保持企业插件安装与同级 Harness 源码完全解耦
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+- insert:
+    - id: enterprise-agent
+      name: '@enterprise-agent/dsh-bundle'
+      config:
+        enableTechnicalProbe: false

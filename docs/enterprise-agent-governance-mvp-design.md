@@ -105,14 +105,14 @@ RuoYi-Vue-Plus 和 plus-ui 的 MIT 许可证文件必须保留在产品源码与
 | 会话 | 仅追加 Session Event、`session/event`、`ctx.sessions.flush()`、`ctx.sessionPersistence.readFrom()` | 同步插件在本地持久后读取后缀并上传 |
 | 本地持久化 | JSONL/SQLite provider、恢复、格式拒绝和连续 seq 校验 | 不替换、不代理、不让网络进入本地 append 路径 |
 | UI | Client module、`ctx.slots.register()`、`settings.section`、`sidebar.footer.action` | 增加企业设置页和连接状态入口 |
-| Host/Client RPC | Typert `Remote`、`ctx.remote.$mount()` 和普通 Client 插件 | 企业 Client 插件导入并显式挂载自己的 `enterprise` Remote contribution，不修改上游 Remote 集合 |
+| Host/Client 协作 | `ctx.webServer.register()`、`dsh.client` Client module 和普通 Client 插件 | Host 插件提供同源 `/enterprise/api/v1/local/*` HTTP/SSE；Client 插件通过浏览器 `fetch`/`EventSource` 调用，不扩展上游 Typert Remote 集合 |
 | 插件安装 | `dsh plugin --profile <name> add <tgz>`、`dsh.bundle`、profile patch 层 | 分发插件调用现有 CLI，不实现第二套包管理器 |
 | 运行清单 | `pluginInventory/list` 返回 Loader entry 和 fiber 状态 | 与企业安装状态合并后上报 |
 | 配置 | Schemastery `Config`、settings 与 credential reference | 部署参数进入 bundle Config，平台 Token 不写进模型设置 |
 
 企业功能不能依赖动态 Cordis runner。动态 runner 的 `node:vm` 不是安全隔离，定义在内存中且重启丢失，不适合作为企业软件分发机制。
 
-T01 在 2026-08-17 证明锁定 Harness `47f943859bef60e4160492346772ded9b24f765a` 尚不能完成上表的树外 Remote 接入：生成器能发现树外 Service，却不能从已安装的 `@deepseek-ai/dsh-typert-protocol` ESM 声明识别 `@Remote`，因而拒绝生成 `/remote` contribution。该行仍是目标架构，不代表当前锁定版本已经可用；主线等待官方通用扩展点和新的锁定 commit，禁止用协议 ambient shim、跨仓库源码 project reference 或复制上游源码绕过。完整证据见 [`t01-technical-spike-blocker.md`](t01-technical-spike-blocker.md)。
+2026-08-18 对照官网插件教程、锁定源码和官方最新 `master` 后确认：`typertPlugin({ mode: 'package' })` 是 Harness 自身 Typert workspace 的生成粒度，不是普通树外插件的发布入口。此前把自定义 Typert Remote 当作企业插件必经路线属于产品设计误判，不是 Harness 官方插件机制缺陷。MVP 改用官方稳定组合面：Host 逻辑通过 Cordis `apply(ctx)` 注册服务、事件和 `ctx.webServer` 路由；浏览器逻辑通过 `dsh.client` Client module 与 UI slot 组合；企业专有协议由插件自有同源 HTTP/SSE 承载。产品不再生成、挂载或修改自定义 Remote contribution，也不需要 ambient protocol shim。
 
 ### 3.2 必须新增的能力
 
@@ -127,7 +127,7 @@ T01 在 2026-08-17 证明锁定 Harness `47f943859bef60e4160492346772ded9b24f765
 | 企业 profile patch 层 | `@enterprise-agent/dsh-bundle` |
 | 中心身份、模型、配额、分发、同步与审计 | RuoYi `ruoyi-enterprise` 模块 |
 
-实现前依次阅读锁定 commit 的[架构](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/docs/architecture.zh.md)、[Cordis 入门](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/docs/cordis-primer.zh.md)、[插件发布](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/docs/user/develop/basic/publish.zh.md)、[LLM 服务](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/packages/llm/llm/README.zh.md)、[Session Persistence](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/packages/session/session-persistence/README.zh.md)、[UI slots](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/packages/client/ui-slots/README.zh.md)和[API Remotes](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/packages/api/remotes/README.zh.md)。
+实现前依次阅读锁定 commit 的[架构](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/docs/architecture.zh.md)、[Cordis 入门](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/docs/cordis-primer.zh.md)、[第一个插件](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/docs/user/develop/basic/index.zh.md)、[插件发布](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/docs/user/develop/basic/publish.zh.md)、[Web server](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/docs/subsystems/web-server.zh.md)、[Client modules](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/docs/subsystems/client-modules.zh.md)、[LLM 服务](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/packages/llm/llm/README.zh.md)、[Session Persistence](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/packages/session/session-persistence/README.zh.md)和[UI slots](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/packages/client/ui-slots/README.zh.md)。
 
 ## 4. 总体架构
 
@@ -146,7 +146,7 @@ flowchart LR
   artifact["本地持久卷<br/>插件制品"]
   upstream["DeepSeek-compatible 上游"]
 
-  employee <-->|"Typert Remote"| host
+  employee <-->|"同源本地 HTTP / SSE"| host
   host --> local
   host <-->|"HTTPS + 平台 Sa-Token"| proxy
   admin <-->|"HTTPS + 平台 Sa-Token"| proxy
@@ -343,7 +343,7 @@ sequenceDiagram
   participant Platform as "企业平台"
   participant IdP as "OIDC/LDAP/本地适配器"
 
-  UI->>Host: enterprise.authStart()
+  UI->>Host: POST /enterprise/api/v1/local/auth/start
   Host->>Host: 生成 state、verifier、challenge，监听 127.0.0.1 随机端口
   Host->>Browser: 打开 /enterprise/auth/v1/authorize
   Browser->>Platform: client_id、redirect_uri、state、code_challenge、installation_id
@@ -366,7 +366,7 @@ sequenceDiagram
 
 `POST /token` 校验成功后调用 Sa-Token 创建不共享会话。`dsh-desktop` 使用 `deviceType=harness`、`deviceId=installationId`；`enterprise-admin` 使用 `deviceType=admin-web` 和登录事务生成的随机 session device ID，不创建 `ent_device`。两类会话绝对有效期均为 12 小时，权限按当前用户解析。MVP 不签发 refresh token；过期或客户端内存丢失后重新走浏览器登录，企业 IdP 的现有 SSO 会话可减少重复输入。
 
-平台 Token 只保存在 Harness Host 内存，不写 `settings.yaml`、`.credentials.yaml`、Session、日志或 Client 浏览器。Client 只能调用 Typert Remote 查询状态和触发登录，永远拿不到 Token 字符串。
+平台 Token 只保存在 Harness Host 内存，不写 `settings.yaml`、`.credentials.yaml`、Session、日志或 Client 浏览器。Client 只能通过 Host 注册的同源本地 API 查询脱敏状态和触发动作，永远拿不到 Token 字符串；本地 API 不能返回、转发或序列化平台 Token。
 
 管理端也使用 `enterprise-admin` PKCE，Token 只放浏览器 `sessionStorage`。关闭标签页后需重新登录；这是 MVP 的安全与实现取舍。
 
@@ -842,24 +842,27 @@ provider `test` 使用尚未保存的 base URL 和可选新密钥执行一次 `/
 
 提供 `ctx.enterprisePlatform` Service，拥有登录状态、内存 Token、installation、bootstrap 快照、带认证 fetch、请求取消和 60 秒刷新。公开方法固定为 `startLogin()`、`logout()`、`status()`、`bootstrap()`、`request()` 和 `dispose()`；只有 `request()` 能读取 Token。
 
-该包还定义 `EnterpriseRemoteService extends TypertRemoteService`，namespace 为 `enterprise`，方法如下：
+该包的 Host 入口声明 `inject = ['webServer']`，通过 `ctx.webServer.register()` 注册 `/enterprise/api/v1/local/*` 精确或前缀路由。路由属于本机 Host 控制面，只返回脱敏 DTO；登录、取消、退出、用量、插件状态、同步状态和恢复动作都使用普通 JSON HTTP，持续状态使用插件自有 SSE。Client 不依赖 `ctx.remote`，也不生成 Typert contribution。
 
-| Remote 方法 | 作用 |
+| 本地 API | 作用 |
 |---|---|
-| `authStatus` | 返回连接状态、用户显示信息和稳定错误码 |
-| `authStart` | 启动一次 PKCE；已有进行中流程返回同一流程 ID |
-| `authCancel` | 关闭回环 listener 并取消当前流程 |
-| `logout` | 注销中心会话并清空内存 |
-| `bootstrap` | 返回脱敏快照 |
-| `usage` | 查询本人用量 |
-| `pluginStatus` | 返回本地调和状态 |
-| `sessionSyncStatus` | 返回 backlog、游标和最后成功时间 |
-| `remoteSessions` | cursor 分页列出本人远端 Session |
-| `restoreSession` | 校验目标 cwd 并创建本地恢复副本 |
+| `GET /status` | 返回连接状态、用户显示信息和稳定错误码 |
+| `POST /auth/start` | 启动一次 PKCE；已有进行中流程返回同一流程 ID |
+| `POST /auth/cancel` | 关闭回环 listener 并取消当前流程 |
+| `POST /logout` | 注销中心会话并清空内存 |
+| `GET /bootstrap` | 返回脱敏快照 |
+| `GET /usage` | 查询本人用量 |
+| `GET /plugins` | 返回本地调和状态 |
+| `GET /sessions/sync` | 返回 backlog、游标和最后成功时间 |
+| `GET /sessions` | cursor 分页列出本人远端 Session |
+| `POST /sessions/{id}/copies` | 校验目标 cwd 并创建本地恢复副本 |
+| `GET /events` | 推送连接、插件和同步状态变化的 SSE |
 
-`@enterprise-agent/dsh-platform-client` 同时提供 Host 入口、Client 入口和构建生成的 `/remote` contribution。Host row 注册 `EnterpriseRemoteService`；Client row 注入 `remote`，显式导入自身 `/remote` 并在 `ctx.effect()` 中调用 `ctx.remote.$mount(contribution)`，释放时等待 disposer 完成。企业包不得修改 `@deepseek-ai/dsh-api-remotes`，也不得运行时扫描 Remote。
+本地 API 固定同源调用，不配置 CORS；Host Web server 不是安全边界，接口仍校验方法、content-type、请求体大小和 DTO。若部署把 Harness Web 绑定到 `0.0.0.0`，必须在 T20 增加可信 origin 和本机动作保护，不能把 loopback 假设当成授权。Client bundle 只把 `react`、`react/jsx-runtime`、`react-dom`、`react-dom/client` 和 `@deepseek-ai/cordis` 视为官方 platform seed，其余运行代码必须打入自己的 lazy-CJS factory。
 
-T01 必须在产品仓库的独立 `harness-plugin` workspace 构建该包，并把生成的 `.tgz` 安装到未修改的锁定 Harness checkout，证明 Typert 生成、Host 服务发现、Client 挂载和浏览器调用全部成立。若现有公开包或生成器不能支持树外 Remote，T01 失败并停止主线；先取得官方通用扩展点和新的锁定 commit，不通过复制上游源码绕过。
+`@enterprise-agent/dsh-bundle` 声明 `dsh.bundle.patch`，patch 以裸包名插入企业 Host/Client row；同一个 package 声明 `dsh.client.platform='web'` 并导出预构建 `./client`。Host row 的存在让官方 Client module scanner 发现浏览器半边，`dsh.client.inject` 只声明官方 Client package 图依赖。企业包不得修改 `@deepseek-ai/dsh-api-remotes`、运行时扫描 Remote，或把同级 Harness 源码加入编译路径。
+
+T01 必须在产品仓库的独立 `harness-plugin` workspace 构建预编译 bundle，并把 `pnpm pack` 生成的 `.tgz` 安装到未修改的锁定 Harness `web` profile，证明 bundle layer、Host 本地 API、`dsh.client` bundle、`sidebar.footer.action` 和真实浏览器调用全部成立。package consumer 与组合 smoke 不得依赖 Typert ambient shim；若以上任一官方扩展点不成立，T01 失败并停止主线。
 
 ### 16.3 `@enterprise-agent/dsh-llm-gateway`
 
@@ -867,17 +870,17 @@ T01 必须在产品仓库的独立 `harness-plugin` workspace 构建该包，并
 
 ### 16.4 `@enterprise-agent/dsh-session-sync`
 
-该包依赖 `sessions`、`sessionPersistence` 和 `enterprisePlatform`。它提供内部 `ctx.enterpriseSessionSync` Service 供 Remote 查询与恢复，不增加 model-visible Session Event；同步状态是本地基础设施状态，不写进对话日志。
+该包依赖 `sessions`、`sessionPersistence` 和 `enterprisePlatform`。它提供内部 `ctx.enterpriseSessionSync` Service，由 platform-client 的本地 API 查询与触发恢复，不增加 model-visible Session Event；同步状态是本地基础设施状态，不写进对话日志。
 
 同一 session 只有一个上传 worker。新事件到达 syncing 状态时只设置 dirty，当前批次完成后重新读取。对 `ENT_SESSION_DIVERGED`、`ENT_SESSION_SOURCE_DEVICE_CONFLICT` 和 `ENT_SESSION_FORMAT_UNSUPPORTED` 进入人工可见终态，不无限重试；认证、网络和 5xx 才退避重试。
 
 ### 16.5 `@enterprise-agent/dsh-plugin-distribution`
 
-该包依赖 `enterprisePlatform`、`subprocess` 和现有 plugin inventory Remote 的 Host 服务。它只处理中心分配的 package，不能扫描并上传非受管插件名称以外的路径、配置或源码。
+该包依赖 `enterprisePlatform`、`subprocess` 和现有 plugin inventory Host 服务。它只处理中心分配的 package，不能扫描并上传非受管插件名称以外的路径、配置或源码。
 
 ### 16.6 `@enterprise-agent/dsh-ui` 与 `@enterprise-agent/dsh-bundle`
 
-Client 包通过 `settings.section` 注册一个 `enterprise` 设置页，通过 `sidebar.footer.action` 注册连接状态图标，并在 signed out 时通过 `settings.onboarding` 注册登录步骤。组件数据全部来自 `ctx.remote.enterprise`，不把 Host `ctx` 传入 React。
+Client 包通过 `settings.section` 注册一个 `enterprise` 设置页，通过 `sidebar.footer.action` 注册连接状态图标，并在 signed out 时通过 `settings.onboarding` 注册登录步骤。组件数据全部来自对插件自有同源本地 API 的脱敏调用，不把 Host `ctx` 传入 React。
 
 `harness-plugin/packages/bundle/cordis.patch.yml` 在 `web-app` 层之后插入 platform client、LLM adapter、session sync、plugin distribution 和 UI Client row；覆盖默认模型，禁用个人 provider 与个人模型设置页。所有 base URL、刷新间隔、同步批量、超时、profile、CLI 命令和信任公钥都有 Schemastery Config，不能藏在常量中。
 
@@ -955,11 +958,12 @@ Client 包通过 `settings.section` 注册一个 `enterprise` 设置页，通过
 | `requestTimeoutMs` | `30000`，模型流式请求除外 |
 | `disposeTimeoutMs` | `3000` |
 | `dshCommand` | `dsh` |
+| `localApiPrefix` | `/enterprise/api/v1/local`，固定同源路径，不能改为外部 origin |
 
 ### 18.3 安全验收规则
 
 - 生产流量必须 TLS；反向代理删除客户端伪造的 forwarding headers，再写可信 `X-Forwarded-*`。
-- CORS 只允许同域管理端；登录、下载和模型接口不使用通配 origin。
+- 中心平台 CORS 只允许同域管理端；登录、下载和模型接口不使用通配 origin。Harness 本地 API 只接受同源相对路径，不发送 CORS 许可头。
 - PKCE、OIDC state/nonce、LDAP filter escape、redirect allowlist 和一次性授权码都有独立负例测试。
 - 平台 Token、密码、provider secret 和 Session plaintext 不进入日志；CI 对测试日志运行秘密模式扫描。
 - provider base URL 只由管理员配置，scheme/host/port 在保存时解析并固定；禁止请求级 URL 覆盖和重定向跟随到不同 origin。
@@ -993,7 +997,7 @@ Session 正文页按 seq 分页显示时间线，识别 `user/message`、`assist
 
 ### 19.2 员工端页面
 
-`@enterprise-agent/dsh-ui` 在官方设置面板增加一个“企业”section，内部使用紧凑 tabs：
+`@enterprise-agent/dsh-ui` 在官方设置面板增加一个“企业”section，内部使用紧凑 tabs；Client 通过 `/enterprise/api/v1/local/*` 与 Host 协作，不通过自定义 Typert Remote：
 
 | Tab | 内容与操作 |
 |---|---|
@@ -1032,12 +1036,12 @@ sidebar footer 使用图标表达 `SIGNED_OUT`、`READY`、`REFRESHING`、`ERROR
 | 包 | 必测场景 |
 |---|---|
 | contracts | 每个示例成功/错误响应的运行时 schema、未知枚举拒绝、品牌 ID |
-| platform-client | PKCE loopback、state、取消、超时、Token 只在内存、重启为空、bootstrap revision、撤销、dispose 停稳 |
+| platform-client | PKCE loopback、state、取消、超时、本地 HTTP 路由方法/体积/DTO、Token 只在内存、重启为空、bootstrap revision、撤销、dispose 停稳 |
 | llm-gateway | 动态模型、default sentinel、OpenAI request 映射、所有 `StreamChunk`、usage、SSE error、取消、单次 retry policy、registration disposer |
 | session-sync | flush 后 readFrom、debounce、单 worker、批量边界、游标原子写、断点续传、gap/diverge 终态、网络退避、恢复副本 |
 | plugin-distribution | 下载中断、hash、Ed25519、compatibility、argv 无 shell、状态文件、重启 active、回滚、禁止核心自更新 |
-| dsh-ui | 真实 Client runtime 下的 slots、登录、用量、插件、同步、恢复和错误状态；不测试 CSS 类名 |
-| bundle | `--dump-config` 包含企业 rows、个人 provider 禁用、默认模型、所有 inject 可解析 |
+| dsh-ui | 真实 Client runtime 下的 slots、本地 API 调用、登录、用量、插件、同步、恢复和错误状态；不测试 CSS 类名 |
+| bundle | `--dump-config` 包含企业 rows、`dsh.client` 图可发现预构建 lazy-CJS、个人 provider 禁用、默认模型、所有 inject 可解析 |
 
 每个产品用户可见 Harness 行为增加或更新无密钥 Web snapshot，使用假平台和假模型流。改变 GUI 的 PR 还必须从该 PR 的真实 Web server 与真实页面流程录制 GIF，遵守仓库 `record-browser-gif` 工作流。
 
@@ -1049,7 +1053,7 @@ OpenAPI contract test 对每个 operation 至少执行一个成功和一个失�
 
 ### 20.4 必跑检查
 
-`harness-plugin` 每个任务运行受影响包 Vitest、产品 workspace typecheck、build、pack 和安装到锁定 Harness checkout 的真实组合 smoke，并检查该 checkout 的跟踪文件保持干净。产品仓库的文档、lint 和差异检查按本仓库脚本执行；只有独立的上游 Harness PR 才按 `dsh-pre-push-checks` 运行上游门禁。
+`harness-plugin` 每个任务运行受影响包 Vitest、产品 workspace typecheck、build、pack、无 ambient shim 的真实 package consumer，以及安装到锁定 Harness checkout 的真实组合 smoke，并检查该 checkout 的跟踪文件保持干净。产品仓库的文档、lint 和差异检查按本仓库脚本执行；只有独立的上游 Harness PR 才按 `dsh-pre-push-checks` 运行上游门禁。
 
 平台仓库每个任务运行受影响模块 `./mvnw test`、管理端 `pnpm lint` 和相关测试；发布候选运行完整 backend test、`pnpm build`、Playwright、Compose smoke、OpenAPI drift 和镜像漏洞扫描。
 
@@ -1103,17 +1107,17 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 | ID | 依赖 | 实现内容与代码位置 | 测试与退出条件 |
 |---|---|---|---|
 | T00 基线 | 无 | 校验三个上游锁；把 RuoYi 和 plus-ui 固定提交复制到 `backend/`、`admin-web/`；建立 `harness-plugin` workspace；用脚本在同级目录检出 Harness 锁定 commit | 三个上游提交可复现；backend、admin、插件 workspace 和 Harness 原始构建通过；产品 Git 不含 Harness 源码，同级 checkout 无跟踪文件改动 |
-| T01 技术刺探 | T00 | 在正式产品模块建立最小 PKCE loopback、Sa-Token deviceId、不共享会话、SSE 代理、树外 Typert Remote 自挂载、Client slot、`.tgz` 安装和 Session seed 恢复样例 | 每个不确定点有自动测试或可重复 smoke；企业 bundle 安装到未修改 Harness 后工作；失败结论先回写本文并停止依赖任务 |
+| T01 技术刺探 | T00 | 在正式产品模块建立最小 PKCE loopback、Sa-Token deviceId/不共享会话、OpenAI SSE 解析、`ctx.webServer.register()` 本地 API、`dsh.client` Client bundle、Client slot、`.tgz` 安装和 Session seed 恢复样例 | 每个不确定点有自动测试或可重复 smoke；无 ambient shim 的 package consumer 与企业 bundle 在未修改 Harness 的真实 `web` profile 工作；失败结论先回写本文并停止依赖任务 |
 | T02 协议骨架 | T01 | 编写 `contracts/enterprise-openapi.yaml`、通用错误、requestId、分页、revision 和生成脚本；创建 `harness-plugin/packages/contracts` | 生成无漂移；成功/失败 fixture 通过 Java/TS schema；错误码与第 17 节一致 |
 | T03 Server 模块与数据库 | T02 | 创建 `ruoyi-enterprise`、Flyway V1-V5、固定角色/菜单、`SecretCipher`、bootstrap revision、审计基础设施 | 空库/升级 migration、AES-GCM、revision CAS、事务回滚和权限 seed 测试通过 |
 | T04 身份适配器 | T03 | 实现 `IdentityAdapter`、OIDC、LDAP、LOCAL、external identity 和 group mapping；管理身份源 API | WireMock OIDC、OpenLDAP、本地账号、稳定 subject、绑定冲突和秘密日志扫描通过 |
 | T05 PKCE 与设备 | T04 | 实现登录事务、authorize/password/OIDC callback/token/logout、Sa-Token client 隔离、公开身份源选择/密码/OIDC 跳转页、enroll/heartbeat/revoke | 第 20.1 节 PKCE/设备矩阵通过；Harness 和管理端 client 不能混用参数或 Token；单设备撤销不影响另一设备 |
-| T06 Harness 平台客户端 | T02,T05 | 创建 platform-client Service、内存 Token、loopback、bootstrap、状态机，以及 Host/Client 自有 Remote contribution 和显式挂载 | 树外包 Host/Client 单测、pack/install/built-lib smoke、Token 不落盘、dispose/取消通过；锁定 Harness checkout 保持干净 |
-| T07 员工登录 UI | T06 | 创建 dsh-ui 账号 tab、sidebar 状态、onboarding 和 bundle 最小 rows | 浏览器 snapshot 与 GIF 展示登录、取消、ready、过期和撤销；无 Token 暴露 |
+| T06 Harness 平台客户端 | T02,T05 | 创建 platform-client Service、内存 Token、loopback、bootstrap、状态机和 `ctx.webServer` 本地 HTTP/SSE API | 树外包 Host/Client 单测、pack/install/built-lib smoke、Token 不落盘、本地 API 不返回 Token、dispose/取消通过；锁定 Harness checkout 保持干净 |
+| T07 员工登录 UI | T06 | 创建 dsh-ui 账号 tab、sidebar 状态、onboarding、同源本地 API client 和 bundle 最小 rows | 浏览器 snapshot 与 GIF 展示登录、取消、ready、过期和撤销；无 Token 暴露 |
 | T08 模型管理 | T03 | 实现 provider/model/grant/默认解析、密钥写入与测试 API、bootstrap 模型部分 | CRUD/revision、授权并集、默认优先级、停用和密钥不回显测试通过 |
 | T09 配额 | T08 | 实现 quota policy/window、PostgreSQL reservation、Redis RPM/concurrency、settlement/recovery 和 usage API | 50 并发、所有状态转换、日/月边界、idempotency 和故障恢复通过 |
 | T10 模型网关 | T08,T09 | 实现 DeepSeek upstream client、OpenAI SSE、授权、预留/结算、错误映射和审计 | 假上游完整矩阵通过；日志无 secret/prompt；首字节前后错误正确 |
-| T11 Harness 模型链路 | T06,T10 | 实现 EnterpriseGatewayAdapter、动态目录、default sentinel、取消和 bundle 的 provider 覆盖 | 企业 profile 无本地上游 Key 完成真实组合对话；未授权/超额/撤销均失败；核心假设验收 |
+| T11 Harness 模型链路 | T06,T10 | 实现 EnterpriseGatewayAdapter、动态目录、default sentinel、取消和 bundle 的 provider 覆盖；模型流直连中心 HTTPS，不绕浏览器本地 API | 企业 profile 无本地上游 Key 完成真实组合对话；未授权/超额/撤销均失败；核心假设验收 |
 | T12 管理控制台 | T04,T05,T08,T09,T10 | 实现管理端 PKCE 登录、权限路由、身份源、组映射、用户扩展、设备、provider、模型、授权、配额和用量页面及菜单权限 | Playwright 完成管理员登录、身份源配置、设备撤销和模型创建到员工生效；revision 冲突可恢复；无密钥回显 |
 | T13 插件服务端 | T03,T11 | 实现 tgz 流式检查、artifact store、Ed25519、version 状态、assignment 和下载授权 | 所有恶意归档、签名、重复上传、优先级和越权下载测试通过 |
 | T14 插件客户端 | T06,T13 | 实现下载、双重校验、`ctx.subprocess` argv、状态文件、重启 active、清单和回滚 | 假平台与真实 `dsh plugin` smoke 通过；失败不激活；核心 bundle 自更新被拒绝 |
@@ -1141,8 +1145,8 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 | 任务 | 状态 | 实际记录 |
 |---|---|---|
 | T00 | `completed` | 基线与独立提交见 [`t00-baseline-acceptance.md`](t00-baseline-acceptance.md)。 |
-| T01 | `in_progress` | 2026-08-17 首项树外 Typert Remote 刺探未通过，已停止其余刺探和全部依赖任务；证据与解锁条件见 [`t01-technical-spike-blocker.md`](t01-technical-spike-blocker.md)。 |
-| T02-T23 | `pending` | T01 未满足退出条件，不得开始。 |
+| T01 | `completed` | 2026-08-18 已纠正把内部 Typert 生成器当作树外插件入口的路线误判；官网 `apply` + bundle/profile + `webServer` + `dsh.client` 路线已通过自动测试、真实 package consumer、锁定 Harness `web` profile 和浏览器验收，见 [`t01-technical-spike-acceptance.md`](t01-technical-spike-acceptance.md)。 |
+| T02-T23 | `pending` | T01 退出条件已满足；下一项只能从 T02 开始，当前未实施。 |
 
 ## 23. Definition of Done
 

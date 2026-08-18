@@ -6,13 +6,13 @@ Enterprise Agent Platform 是基于 DeepSeek Harness 构建的企业 Agent 管�
 
 ## 当前阶段
 
-T00 基线已经完成：仓库包含锁定的 RuoYi-Vue-Plus 后端源码、plus-ui React 管理端源码和独立 Harness 企业插件 workspace；同级 DeepSeek Harness 仍是锁定提交上的只读开发依赖。T01 已开始但未通过：锁定 Harness 的 Typert 生成器无法从树外 package 使用已安装的协议包识别 `@Remote`，主线已按详细设计停止，T02 及后续任务不得开始。具体证据与解锁条件见 [`docs/t01-technical-spike-blocker.md`](docs/t01-technical-spike-blocker.md)。
+T00 基线和 T01 技术刺探已经完成：仓库包含锁定的 RuoYi-Vue-Plus 后端源码、plus-ui React 管理端源码，以及按 Harness 官方 `apply(ctx)`、bundle/profile、`ctx.webServer.register()`、`dsh.client` 和 UI slots 路线实现的独立企业插件 workspace。同级 DeepSeek Harness 保持锁定提交与干净工作区；T02 尚未开始。实际证据见 [`docs/t01-technical-spike-acceptance.md`](docs/t01-technical-spike-acceptance.md)。
 
 ## 文档
 
 - [企业 Agent 工作平台预研](docs/enterprise-agent-work-platform.md)：产品形态、可行性、边界和长期方向。
 - [企业 Agent 治理平台 MVP 可执行详细设计](docs/enterprise-agent-governance-mvp-design.md)：冻结的技术决策、模块、接口、数据表、状态机、测试、T00-T23 实施顺序和验收标准。
-- [T01 技术刺探阻塞记录](docs/t01-technical-spike-blocker.md)：树外 Typert Remote 失败证据、根因定位、停止范围与解锁条件。
+- [T01 技术刺探验收记录](docs/t01-technical-spike-acceptance.md)：官方插件路线修正、正式模块、自动测试、真实 package consumer、Harness Web 与浏览器验收证据。
 
 实现者先阅读 MVP 详细设计的第 1 至 21 节，再严格按照第 22 节任务依赖推进。发现设计矛盾时先修订设计并记录决定，不在代码中引入未经确认的替代方案。
 

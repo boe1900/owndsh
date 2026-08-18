@@ -10,7 +10,18 @@
   "scripts": {
     "build": "pnpm --recursive --if-present run build",
     "typecheck": "pnpm --recursive --if-present run typecheck",
-    "test": "node --test workspace.test.mjs",
-    "check": "pnpm run typecheck && pnpm run test && pnpm run build"
+    "test": "pnpm run build && pnpm --recursive --if-present run test && node --test workspace.test.mjs",
+    "pack:bundle": "pnpm --filter @enterprise-agent/dsh-bundle pack --pack-destination ../artifacts",
+    "check": "pnpm run typecheck && pnpm run test"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.1",
+    "@types/node": "22.20.0",
+    "@types/react": "18.3.28",
+    "esbuild": "0.28.1",
+    "lucide-react": "1.31.0",
+    "react": "18.3.1",
+    "typescript": "6.0.3",
+    "vitest": "4.1.8"
   }
 }

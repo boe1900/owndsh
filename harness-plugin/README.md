@@ -2,17 +2,19 @@
 
 This directory is the independent pnpm workspace for enterprise Harness
 plugins. It does not import source files from the sibling DeepSeek Harness
-checkout. Product packages added by later implementation tasks must compile
-against published, public `@deepseek-ai/dsh-*` extension points at the locked
-Harness baseline.
-
-T00 intentionally creates no plugin package. T01 owns the first technical
-spike packages, so the baseline workspace contains only its toolchain and
-invariant test.
+checkout. T01 establishes formal packages for PKCE, local Host APIs,
+OpenAI-compatible SSE, Session seed restoration, Client slots, and a
+self-contained bundle. They use the locked Harness release's public plugin
+surface and do not generate or mount a custom Typert Remote.
 
 Run the workspace gate with:
 
 ```sh
 pnpm install --frozen-lockfile
 pnpm check
+pnpm run pack:bundle
 ```
+
+The packed bundle is accepted by `scripts/t01-harness-smoke.mjs` as both a
+standalone package consumer and an installed plugin in a temporary Harness
+`web` profile. The script never writes to the sibling Harness checkout.

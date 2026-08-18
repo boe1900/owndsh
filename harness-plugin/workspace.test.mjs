@@ -6,7 +6,7 @@
  */
 
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
@@ -38,6 +38,42 @@ test('workspace only discovers product packages below packages', async () => {
     'utf8',
   )
 
-  assert.match(definition, /^packages:\n  - packages\/\*\n$/)
+  assert.match(definition, /^packages:\n  - packages\/\*\n/)
+  assert.match(definition, /allowBuilds:\n  esbuild: true\n$/)
   assert.doesNotMatch(definition, /deepseek-harness|\.\.\//)
+})
+
+test('T01 uses only the formal product package boundaries', async () => {
+  const packages = (await readdir(resolve(WORKSPACE_ROOT, 'packages'), { withFileTypes: true }))
+    .filter(entry => entry.isDirectory())
+    .map(entry => entry.name)
+    .sort()
+
+  assert.deepEqual(packages, [
+    'bundle',
+    'llm-gateway',
+    'platform-client',
+    'session-sync',
+    'ui',
+  ])
+})
+
+test('product sources do not import the sibling Harness or Typert Remote shims', async () => {
+  const pending = [resolve(WORKSPACE_ROOT, 'packages')]
+  const sourceFiles = []
+  while (pending.length > 0) {
+    const directory = pending.pop()
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = resolve(directory, entry.name)
+      if (entry.isDirectory()) {
+        if (entry.name !== 'lib' && entry.name !== 'node_modules') pending.push(path)
+      } else if (/\.(?:ts|tsx|mjs|yml)$/.test(entry.name)) {
+        sourceFiles.push(path)
+      }
+    }
+  }
+  const source = (await Promise.all(sourceFiles.map(path => readFile(path, 'utf8')))).join('\n')
+  assert.doesNotMatch(source, /from ['"][^'"]*deepseek-harness/)
+  assert.doesNotMatch(source, /declare module ['"]@deepseek-ai\/dsh-typert-protocol/)
+  assert.doesNotMatch(source, /TypertRemoteService|ctx\.remote\.\$mount/)
 })

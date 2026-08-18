@@ -1,0 +1,53 @@
+{
+  "name": "@enterprise-agent/dsh-bundle",
+  "version": "0.1.0",
+  "description": "Enterprise Agent Platform bundle for DeepSeek Harness",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/index.js.map",
+    "lib/client.js",
+    "lib/client.js.map",
+    "lib/types/**/*.d.ts",
+    "lib/types/**/*.d.ts.map",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-ui-sidebar"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "pnpm --filter @enterprise-agent/dsh-bundle^... run build && node scripts/build.mjs",
+    "typecheck": "pnpm --filter @enterprise-agent/dsh-bundle^... run build && tsc -p tsconfig.json --noEmit",
+    "test": "vitest run tests",
+    "pack": "pnpm pack"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "4.0.1"
+  },
+  "devDependencies": {
+    "@enterprise-agent/dsh-platform-client": "workspace:*",
+    "@enterprise-agent/dsh-session-sync": "workspace:*",
+    "@enterprise-agent/dsh-ui": "workspace:*"
+  }
+}

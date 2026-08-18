@@ -16,6 +16,8 @@ node_modules/
 dist/
 coverage/
 *.tsbuildinfo
+harness-plugin/packages/*/lib/
+/artifacts/
 
 # Editors and operating systems
 .idea/
