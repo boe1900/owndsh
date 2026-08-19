@@ -625,6 +625,8 @@ RELEASED   CHARGED_MAX
 
 分配作用域为 `ALL`、`DEPT` 或 `USER`，期望状态为 `INSTALLED` 或 `ABSENT`，并包含唯一目标版本和 `required`。解析优先级为 USER、DEPT、ALL；同一优先级冲突在管理写入时拒绝。回滚就是把 assignment 指向已发布旧版本并增加插件 revision。
 
+管理 catalog 的每个 `PluginPackage` 必须返回该 package 当前的完整 `assignments` 集合。assignment batch 是基于 package revision 的全量原子替换，不是增量 patch；管理端编辑时必须从完整集合初始化并回传完整集合，CAS 冲突后重新加载完整服务端事实再由管理员重试，禁止只提交当前筛选或当前页可见项而静默删除其他 subject。runtime 仍只返回当前用户解析后的有效 assignment，不暴露管理集合。
+
 ### 11.3 客户端调和
 
 `@enterprise-agent/dsh-plugin-distribution` 在每次 bootstrap revision 变化后调和，状态固定为：
@@ -1190,7 +1192,8 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 | T12 | `completed` | 2026-08-19 已交付 enterprise-admin PKCE、动态权限路由和身份/设备/模型/授权/配额/用量管理纵向页面；真实 Server Playwright、CAS 恢复与密钥隔离证据见 [`t12-admin-console-acceptance.md`](t12-admin-console-acceptance.md)。 |
 | T13 | `completed` | 2026-08-19 已实现 tgz 流式校验、RFC 8785 JCS/Ed25519、带 hash 互斥的 CAS、版本状态/CAS、USER>DEPT>ALL 分配、逐请求下载授权、Range、库存替换与 bootstrap 插件投影，见 [`t13-plugin-server-acceptance.md`](t13-plugin-server-acceptance.md)。 |
 | T14 | `completed` | 2026-08-19 已实现客户端下载、大小/SHA-256/Ed25519/compatibility 校验、固定 `ctx.subprocess` argv、原子状态文件、跨进程 Loader active 确认、ABSENT、库存与回滚；树外 package consumer 和锁定 rc.7 真实 CLI 证据见 [`t14-plugin-client-acceptance.md`](t14-plugin-client-acceptance.md)。 |
-| T15-T23 | `pending` | T15 是唯一下一项；T15 独立验收并提交前不得开始 T16。 |
+| T15 | `completed` | 2026-08-19 已交付管理端 tgz 上传/发布/退休、完整 assignment 原子替换与回滚、设备 inventory，以及桌面员工插件 tab；真实 Server Playwright 与 rc.7 Harness 重启/Loader ACTIVE 证据见 [`t15-plugin-pages-acceptance.md`](t15-plugin-pages-acceptance.md)。 |
+| T16-T23 | `pending` | T16 是唯一下一项；T16 独立验收并提交前不得开始 T17。 |
 
 ## 23. Definition of Done
 

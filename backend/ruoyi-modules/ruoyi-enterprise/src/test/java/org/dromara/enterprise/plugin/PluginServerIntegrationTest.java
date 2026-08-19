@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖真实 PostgreSQL 17/Flyway V1-V8、CAS 文件、Ed25519、设备与插件 JDBC/application 服务。
- * [OUTPUT]: 验证并发幂等上传、状态/CAS、USER-DEPT-ALL、下载授权、退休、库存、审计和文件补偿。
+ * [OUTPUT]: 验证并发幂等上传、catalog assignment 读回、状态/CAS、下载授权、库存、审计和文件补偿。
  * [POS]: T13 服务端纵向验收，跨越 artifact、domain、persistence 与 application 的真实事务边界。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -161,6 +161,10 @@ class PluginServerIntegrationTest {
         );
         assertThat(assignments).hasSize(3);
         assertThat(revisions.current(TENANT)).isEqualTo(revisionBeforeAssignments + 1);
+        assertThat(catalog.list(TENANT, 0, 10)).singleElement().satisfies(item -> {
+            assertThat(item.pluginPackage().revision()).isEqualTo(4);
+            assertThat(item.assignments()).containsExactlyElementsOf(assignments);
+        });
         assertResolved(resolver.resolve(TENANT, ADMIN_USER, ADMIN_DEPT), publishedOne.id(), "ABSENT");
         assertResolved(resolver.resolve(TENANT, PEER_USER, ADMIN_DEPT), publishedTwo.id(), "INSTALLED");
         assertResolved(resolver.resolve(TENANT, OTHER_USER, OTHER_DEPT), publishedOne.id(), "INSTALLED");

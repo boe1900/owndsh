@@ -56,6 +56,15 @@ import * as getQuotaPolicyWindows from "./getQuotaPolicyWindows";
 import * as getMyQuotaUsage from "./getMyQuotaUsage";
 import * as listUsageLedger from "./listUsageLedger";
 import * as streamEnterpriseChatCompletion from "./streamEnterpriseChatCompletion";
+import * as listPluginPackages from "./listPluginPackages";
+import * as uploadPluginVersion from "./uploadPluginVersion";
+import * as publishPluginVersion from "./publishPluginVersion";
+import * as retirePluginVersion from "./retirePluginVersion";
+import * as replacePluginAssignments from "./replacePluginAssignments";
+import * as listPluginInventory from "./listPluginInventory";
+import * as getPluginAssignments from "./getPluginAssignments";
+import * as downloadPluginVersion from "./downloadPluginVersion";
+import * as replacePluginInventory from "./replacePluginInventory";
 export default {
   authorizePlatformClient,
   listPublicIdentitySources,
@@ -111,4 +120,13 @@ export default {
   getMyQuotaUsage,
   listUsageLedger,
   streamEnterpriseChatCompletion,
+  listPluginPackages,
+  uploadPluginVersion,
+  publishPluginVersion,
+  retirePluginVersion,
+  replacePluginAssignments,
+  listPluginInventory,
+  getPluginAssignments,
+  downloadPluginVersion,
+  replacePluginInventory,
 };

@@ -10,6 +10,6 @@ identity.yaml: T04 身份治理 schema 分片，定义 OIDC/LDAP 配置、身份
 model.yaml: T08 provider/model/grant 管理、writeOnly credential、脱敏 probe 和引用 T13 插件分配的完整 bootstrap 外壳 schema 分片。
 quota.yaml: T09 quota policy/window、bootstrap quota、本人计数和 prompt-free ledger schema 分片。
 gateway.yaml: OpenAI-compatible 严格流式请求、thinking/effort、纯文本 message/function tool 与 chunk/usage schema 分片。
-plugin.yaml: T13 compatibility、版本状态、assignment、runtime 下载事实和设备库存 schema 分片。
+plugin.yaml: compatibility、版本状态、catalog 完整 assignment 集合、runtime 下载事实和设备库存 schema 分片。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

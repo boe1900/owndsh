@@ -18,6 +18,7 @@ enterprise/deleteGroupMapping.ts: 生成的外部组映射删除 operation 客�
 enterprise/deleteManagedModel.ts: 生成的受管模型删除 operation 客户端。
 enterprise/deleteModelGrant.ts: 生成的模型授权删除 operation 客户端。
 enterprise/deleteQuotaPolicy.ts: 生成的配额策略删除 operation 客户端。
+enterprise/downloadPluginVersion.ts: 生成的受授权插件版本二进制下载 operation 客户端。
 enterprise/disableIdentitySource.ts: 生成的身份源停用 operation 客户端。
 enterprise/disableManagedModel.ts: 生成的受管模型停用 operation 客户端。
 enterprise/disableModelProvider.ts: 生成的模型 Provider 停用 operation 客户端。
@@ -33,6 +34,7 @@ enterprise/getEnterpriseBootstrap.ts: 生成的企业 bootstrap operation 客户
 enterprise/getIdentitySource.ts: 生成的身份源详情 operation 客户端。
 enterprise/getManagedModel.ts: 生成的受管模型详情 operation 客户端。
 enterprise/getModelProvider.ts: 生成的模型 Provider 详情 operation 客户端。
+enterprise/getPluginAssignments.ts: 生成的当前设备插件 assignment operation 客户端。
 enterprise/getMyQuotaUsage.ts: 生成的员工当前配额用量 operation 客户端。
 enterprise/getQuotaPolicy.ts: 生成的配额策略详情 operation 客户端。
 enterprise/getQuotaPolicyWindows.ts: 生成的配额策略窗口 operation 客户端。
@@ -45,10 +47,16 @@ enterprise/listIdentitySources.ts: 生成的身份源 cursor 列表 operation �
 enterprise/listManagedModels.ts: 生成的受管模型 cursor 列表 operation 客户端。
 enterprise/listModelGrants.ts: 生成的模型授权 cursor 列表 operation 客户端。
 enterprise/listModelProviders.ts: 生成的模型 Provider cursor 列表 operation 客户端。
+enterprise/listPluginInventory.ts: 生成的管理端设备插件 inventory cursor 列表 operation 客户端。
+enterprise/listPluginPackages.ts: 生成的含版本与完整 assignment 集合的插件 catalog operation 客户端。
 enterprise/listPublicIdentitySources.ts: 生成的公开身份源列表 operation 客户端。
 enterprise/listQuotaPolicies.ts: 生成的配额策略 cursor 列表 operation 客户端。
 enterprise/listUsageLedger.ts: 生成的 prompt-free 用量 ledger cursor 列表 operation 客户端。
 enterprise/logoutPlatformSession.ts: 生成的平台会话注销 operation 客户端。
+enterprise/publishPluginVersion.ts: 生成的插件版本发布 CAS operation 客户端。
+enterprise/replacePluginAssignments.ts: 生成的 package 全量 assignment 原子替换 operation 客户端。
+enterprise/replacePluginInventory.ts: 生成的当前设备插件 inventory 原子上报 operation 客户端。
+enterprise/retirePluginVersion.ts: 生成的插件版本退休 CAS operation 客户端。
 enterprise/revokeDevice.ts: 生成的设备撤销 operation 客户端。
 enterprise/startOidcLogin.ts: 生成的 OIDC 登录启动 operation 客户端。
 enterprise/streamEnterpriseChatCompletion.ts: 生成的企业模型流 operation 客户端；管理端不直接消费此能力。
@@ -60,6 +68,7 @@ enterprise/updateManagedModel.ts: 生成的受管模型更新 operation 客户�
 enterprise/updateModelGrant.ts: 生成的模型授权更新 operation 客户端。
 enterprise/updateModelProvider.ts: 生成的模型 Provider 更新 operation 客户端。
 enterprise/updateQuotaPolicy.ts: 生成的配额策略更新 operation 客户端。
+enterprise/uploadPluginVersion.ts: 生成的受控 tgz multipart 上传 operation 客户端。
 
 `enterprise/` 由 `contracts/generated/enterprise-openapi.json` 经 Umi OpenAPI 生成器整体重建，目录内文件头和实现受生成器控制且禁止手工编辑；手写认证、错误、幂等与 revision 语义位于 `src/api/enterprise/`。
 

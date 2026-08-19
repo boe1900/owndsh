@@ -1,11 +1,18 @@
 # @enterprise-agent/dsh-ui
 
-Browser-side employee account surface for the locked Harness Client runtime.
+Browser-side employee account and managed-plugin surface for the locked Harness Client runtime.
 It registers the `enterprise` page through the official `settings.section`
 slot, a compact connection indicator through `sidebar.footer.action`, and the
 required sign-in step through `settings.onboarding`.
 
-All three surfaces share one `EnterpriseAccountStore`. Its browser API uses
+The Enterprise Settings section contains compact Account and Plugins tabs. The
+Plugins tab reads only the fixed same-origin `/enterprise/api/v1/local/plugins`
+projection and shows package, local version, desired revision/state, lifecycle,
+restart requirement, and stable failure codes. SHA-256, restart markers, tgz
+paths, trust keys, CLI output, and platform credentials are validated or removed
+before the snapshot reaches React.
+
+All three official slot surfaces share one `EnterpriseAccountStore`. Its browser API uses
 only fixed same-origin `/enterprise/api/v1/local/*` paths, sends `{}` for login,
 cancel, and logout actions, and follows status changes through the Host's SSE
 route. Runtime decoders project only account/device facts and reject unknown

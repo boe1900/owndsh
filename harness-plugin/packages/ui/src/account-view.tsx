@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 React、Lucide 图标与 EnterpriseAccountStore 的脱敏账号 snapshot/动作
- * [OUTPUT]: 对外提供账号 settings section、sidebar 状态入口、登录 onboarding 和状态文案投影
- * [POS]: dsh-ui 的员工登录呈现层，三个官方 slot 复用同一状态源且不接触 Host Context 或 Token
+ * [INPUT]: 依赖 React、Lucide 图标与 EnterpriseAccountStore 的脱敏账号/插件 snapshot 和动作
+ * [OUTPUT]: 对外提供账号/插件 settings tabs、sidebar 状态入口、登录 onboarding 与固定状态投影
+ * [POS]: dsh-ui 的员工呈现层，官方 slot 复用同一状态源且不接触 Host Context、Token 或执行细节
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -14,6 +14,7 @@ import {
   LoaderCircle,
   LogIn,
   LogOut,
+  Package,
   RefreshCw,
   Server,
   ShieldAlert,
@@ -24,13 +25,14 @@ import {
   createElement,
   useEffect,
   useId,
+  useState,
   useSyncExternalStore,
   type CSSProperties,
   type ReactNode,
 } from 'react'
 import type { EnterpriseAccountSnapshot } from './account-store.js'
 import { EnterpriseAccountStore } from './account-store.js'
-import type { EnterpriseConnectionState } from './local-api.js'
+import type { EnterpriseConnectionState, ManagedPluginState } from './local-api.js'
 
 export interface EnterpriseStoreInjected {
   readonly store: EnterpriseAccountStore
@@ -120,6 +122,20 @@ const CONNECTION_PRESENTATION: Record<EnterpriseConnectionState, StatePresentati
   },
 }
 
+const PLUGIN_PRESENTATION: Record<ManagedPluginState, StatePresentation> = {
+  EXPECTED: { title: '等待同步', description: '已接收企业分配', color: '#667085', icon: 'building' },
+  DOWNLOAD_PENDING: { title: '等待下载', description: '制品下载即将开始', color: '#2563eb', icon: 'progress' },
+  DOWNLOADING: { title: '正在下载', description: '正在获取受管制品', color: '#2563eb', icon: 'progress' },
+  VERIFIED: { title: '校验通过', description: '制品签名与兼容性有效', color: '#2563eb', icon: 'progress' },
+  INSTALLING: { title: '正在安装', description: '正在更新企业 profile', color: '#2563eb', icon: 'progress' },
+  RESTART_REQUIRED: { title: '等待重启', description: '重启 Harness 后生效', color: '#b54708', icon: 'warning' },
+  ACTIVE: { title: '已启用', description: 'Harness Loader 已确认生效', color: '#16803c', icon: 'success' },
+  REMOVE_PENDING: { title: '等待移除', description: '移除操作即将开始', color: '#b54708', icon: 'progress' },
+  REMOVING: { title: '正在移除', description: '正在更新企业 profile', color: '#b54708', icon: 'progress' },
+  FAILED: { title: '处理失败', description: '保留上一可用状态', color: '#c4320a', icon: 'error' },
+  ROLLBACK: { title: '正在回滚', description: '正在切换到企业指定版本', color: '#b54708', icon: 'progress' },
+}
+
 const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   ENT_AUTH_CANCELLED: '登录已取消。',
   ENT_AUTH_REQUIRED: '需要重新登录企业账号。',
@@ -140,6 +156,13 @@ const page: CSSProperties = {
   minWidth: 0,
 }
 
+const panel: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 20,
+  minWidth: 0,
+}
+
 const heading: CSSProperties = { fontSize: 20, fontWeight: 600, lineHeight: '28px', margin: 0 }
 
 const tabs: CSSProperties = {
@@ -151,14 +174,22 @@ const tabs: CSSProperties = {
 const tab: CSSProperties = {
   background: 'transparent',
   border: 0,
-  borderBottom: '2px solid var(--dsw-alias-accent-primary, #2563eb)',
-  color: 'var(--dsw-alias-label-primary, #101828)',
-  cursor: 'default',
+  borderBottom: '2px solid transparent',
+  color: 'var(--dsw-alias-label-secondary, #475467)',
+  cursor: 'pointer',
   font: 'inherit',
   fontSize: 14,
   fontWeight: 500,
   height: 38,
-  padding: '0 4px',
+  padding: '0 12px',
+}
+
+function tabStyle(active: boolean): CSSProperties {
+  return active ? {
+    ...tab,
+    borderBottomColor: 'var(--dsw-alias-accent-primary, #2563eb)',
+    color: 'var(--dsw-alias-label-primary, #101828)',
+  } : tab
 }
 
 const statusBand: CSSProperties = {
@@ -206,6 +237,36 @@ const detailValue: CSSProperties = {
 }
 
 const actions: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 8, minHeight: 34 }
+
+const pluginList: CSSProperties = {
+  borderBottom: '1px solid var(--dsw-alias-stroke-border-2, #e4e7ec)',
+  borderTop: '1px solid var(--dsw-alias-stroke-border-2, #e4e7ec)',
+  display: 'flex',
+  flexDirection: 'column',
+}
+
+const pluginRow: CSSProperties = {
+  alignItems: 'start',
+  borderBottom: '1px solid var(--dsw-alias-stroke-border-2, #e4e7ec)',
+  display: 'grid',
+  gap: 12,
+  gridTemplateColumns: 'minmax(0, 1.35fr) minmax(0, 0.7fr) minmax(0, 0.75fr) minmax(0, 1fr)',
+  minHeight: 72,
+  padding: '12px 0',
+}
+
+const pluginCellLabel: CSSProperties = {
+  color: 'var(--dsw-alias-label-tertiary, #667085)',
+  fontSize: 11,
+  lineHeight: '16px',
+}
+
+const pluginCellValue: CSSProperties = {
+  fontSize: 13,
+  lineHeight: '20px',
+  marginTop: 2,
+  overflowWrap: 'anywhere',
+}
 
 const baseButton: CSSProperties = {
   alignItems: 'center',
@@ -270,6 +331,10 @@ export function enterpriseStatePresentation(state: EnterpriseConnectionState): S
   return CONNECTION_PRESENTATION[state]
 }
 
+export function enterprisePluginStatePresentation(state: ManagedPluginState): StatePresentation {
+  return PLUGIN_PRESENTATION[state]
+}
+
 export function enterpriseErrorMessage(code: string): string {
   return ERROR_MESSAGES[code] ?? '企业服务操作失败。'
 }
@@ -310,7 +375,7 @@ function Detail({ icon, label, value }: { icon: ReactNode; label: string; value:
   </div>
 }
 
-function EnterpriseAccountContent({ store, headingId }: EnterpriseStoreInjected & { headingId: string }): ReactNode {
+function EnterpriseAccountContent({ store }: EnterpriseStoreInjected): ReactNode {
   const snapshot = useAccount(store)
   const status = snapshot.status
   const presentation = status === undefined
@@ -320,11 +385,7 @@ function EnterpriseAccountContent({ store, headingId }: EnterpriseStoreInjected 
   const user = bootstrap?.user ?? status?.user
   const error = snapshot.errorCode ?? status?.errorCode
 
-  return <section style={page} aria-labelledby={headingId}>
-    <h2 id={headingId} style={heading}>企业</h2>
-    <div role="tablist" aria-label="企业设置" style={tabs}>
-      <button role="tab" aria-selected="true" type="button" style={tab}>账号</button>
-    </div>
+  return <div role="tabpanel" aria-label="账号" style={panel}>
     <div style={{ ...statusBand, color: presentation.color }} data-enterprise-state={status?.state ?? snapshot.phase}>
       <StateIcon presentation={presentation} size={22} />
       <div style={{ minWidth: 0 }}>
@@ -352,13 +413,108 @@ function EnterpriseAccountContent({ store, headingId }: EnterpriseStoreInjected 
         <RefreshCw aria-hidden size={15} />刷新状态
       </button>
     </div>
-  </section>
+  </div>
 }
 
-/** 官方 `settings.section` 内的企业账号 tab。 */
+function EnterprisePluginContent({ store }: EnterpriseStoreInjected): ReactNode {
+  const snapshot = useAccount(store)
+  const connected = snapshot.status?.state === 'READY' || snapshot.status?.state === 'REFRESHING'
+  const pluginStatus = snapshot.pluginStatus
+  const summary = !connected
+    ? '登录企业账号后可用'
+    : snapshot.pluginsLoading === true && pluginStatus === undefined
+      ? '正在读取本地插件状态'
+      : `Assignment revision ${pluginStatus?.assignmentRevision ?? 0}`
+
+  return <div role="tabpanel" aria-label="插件" style={panel}>
+    <div style={{ ...statusBand, color: connected ? '#2563eb' : '#667085' }} data-enterprise-plugin-summary={connected ? 'connected' : 'signed-out'}>
+      <Package aria-hidden color="currentColor" size={22} strokeWidth={2} />
+      <div style={{ minWidth: 0 }}>
+        <div style={{ color: 'var(--dsw-alias-label-primary, #101828)', fontSize: 15, fontWeight: 600, lineHeight: '22px' }}>
+          受管插件
+        </div>
+        <div style={{ color: 'var(--dsw-alias-label-secondary, #475467)', fontSize: 13, lineHeight: '20px', marginTop: 2 }}>
+          {summary}
+        </div>
+      </div>
+    </div>
+    {snapshot.pluginErrorCode === undefined ? null : <div role="alert" style={{ color: 'var(--dsw-alias-status-error, #c4320a)', fontSize: 13 }}>
+      本地插件状态读取失败 <code>{snapshot.pluginErrorCode}</code>
+    </div>}
+    {pluginStatus?.fatalErrorCode === undefined ? null : <div role="alert" style={{ color: 'var(--dsw-alias-status-error, #c4320a)', fontSize: 13 }}>
+      插件状态文件不可用 <code>{pluginStatus.fatalErrorCode}</code>
+    </div>}
+    {pluginStatus?.lastReportErrorCode === undefined ? null : <div role="status" style={{ color: 'var(--dsw-alias-status-warning, #b54708)', fontSize: 13 }}>
+      设备状态上报失败 <code>{pluginStatus.lastReportErrorCode}</code>
+    </div>}
+    <div style={pluginList}>
+      {pluginStatus === undefined || pluginStatus.plugins.length === 0
+        ? <div style={{ color: 'var(--dsw-alias-label-secondary, #475467)', fontSize: 13, padding: '18px 0' }}>暂无受管插件</div>
+        : pluginStatus.plugins.map((plugin) => {
+          const presentation = enterprisePluginStatePresentation(plugin.state)
+          return <div key={plugin.packageName} style={pluginRow} data-enterprise-plugin-state={plugin.state}>
+            <div>
+              <div style={pluginCellLabel}>Package</div>
+              <div style={{ ...pluginCellValue, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>{plugin.packageName}</div>
+            </div>
+            <div>
+              <div style={pluginCellLabel}>本地版本</div>
+              <div style={pluginCellValue}>{plugin.version ?? '未安装'}</div>
+            </div>
+            <div>
+              <div style={pluginCellLabel}>期望</div>
+              <div style={pluginCellValue}>{plugin.desiredState === 'INSTALLED' ? '安装' : '移除'} · r{plugin.desiredRevision}</div>
+            </div>
+            <div style={{ alignItems: 'flex-start', color: presentation.color, display: 'flex', gap: 8, minWidth: 0 }}>
+              <StateIcon presentation={presentation} size={18} />
+              <div>
+                <div style={{ color: 'var(--dsw-alias-label-primary, #101828)', fontSize: 13, fontWeight: 500, lineHeight: '20px' }}>{presentation.title}</div>
+                <div style={{ color: 'var(--dsw-alias-label-secondary, #475467)', fontSize: 12, lineHeight: '18px' }}>{presentation.description}</div>
+                {plugin.lastErrorCode === null ? null : <code style={{ color: 'var(--dsw-alias-status-error, #c4320a)', fontSize: 11 }}>{plugin.lastErrorCode}</code>}
+              </div>
+            </div>
+          </div>
+        })}
+    </div>
+    <div style={actions}>
+      <button
+        type="button"
+        style={secondaryButton}
+        disabled={!connected || snapshot.pluginsLoading === true}
+        onClick={() => { void store.refreshPlugins() }}
+      >
+        <RefreshCw aria-hidden size={15} />{snapshot.pluginsLoading === true ? '正在刷新' : '刷新状态'}
+      </button>
+    </div>
+  </div>
+}
+
+/** 官方 `settings.section` 内的企业账号与插件 tabs。 */
 export function EnterpriseSettingsSection(props: EnterpriseSettingsSectionProps): ReactNode {
   const headingId = useId()
-  return <EnterpriseAccountContent store={props.store} headingId={headingId} />
+  const [activeTab, setActiveTab] = useState<'account' | 'plugins'>('account')
+  return <section style={page} aria-labelledby={headingId}>
+    <h2 id={headingId} style={heading}>企业</h2>
+    <div role="tablist" aria-label="企业设置" style={tabs}>
+      <button
+        role="tab"
+        aria-selected={activeTab === 'account'}
+        type="button"
+        style={tabStyle(activeTab === 'account')}
+        onClick={() => { setActiveTab('account') }}
+      >账号</button>
+      <button
+        role="tab"
+        aria-selected={activeTab === 'plugins'}
+        type="button"
+        style={tabStyle(activeTab === 'plugins')}
+        onClick={() => { setActiveTab('plugins'); void props.store.refreshPlugins() }}
+      >插件</button>
+    </div>
+    {activeTab === 'account'
+      ? <EnterpriseAccountContent store={props.store} />
+      : <EnterprisePluginContent store={props.store} />}
+  </section>
 }
 
 /** 官方 `sidebar.footer.action` 状态入口；公共契约只允许刷新，不劫持 settings 私有 open state。 */

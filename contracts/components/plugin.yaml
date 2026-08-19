@@ -1,6 +1,6 @@
 # [INPUT]: 依赖根协议的资源 ID、revision、cursor、requestId 与严格成功 envelope
-# [OUTPUT]: 提供 T13 插件 compatibility、版本、分配、下载元数据与设备库存 schemas
-# [POS]: contracts/components 的插件分发真源，签名声明字段与 runtime assignment 保持同构
+# [OUTPUT]: 提供插件 compatibility、含完整 assignment 集合的 catalog、下载元数据与设备库存 schemas
+# [POS]: contracts/components 的插件分发真源，使管理端全量替换与 runtime assignment 保持同构
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 PluginPackageId:
@@ -131,7 +131,7 @@ PluginVersionResponse:
 PluginPackage:
   type: object
   additionalProperties: false
-  required: [id, packageName, displayName, status, revision, versions]
+  required: [id, packageName, displayName, status, revision, versions, assignments]
   properties:
     id: {$ref: '#/PluginPackageId'}
     packageName: {$ref: '#/PluginPackageName'}
@@ -146,6 +146,10 @@ PluginPackage:
       type: array
       maxItems: 100
       items: {$ref: '#/PluginVersion'}
+    assignments:
+      type: array
+      maxItems: 200
+      items: {$ref: '#/PluginAssignment'}
 PluginPackagePageData:
   type: object
   additionalProperties: false

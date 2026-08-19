@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 RuoYi 后端动态路由、已迁移页面注册表与当前 Umi location
- * [OUTPUT]: 提供动态菜单 component/path 到 React 页面或 iframe 的安全解析
+ * [OUTPUT]: 提供含企业插件工作台的动态菜单 component/path 到 React 页面或 iframe 安全解析
  * [POS]: pages 的服务端菜单分发器，企业治理页面与权限菜单在此汇合
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -15,6 +15,7 @@ import EnterpriseDevicesPage from '@/pages/enterprise/devices';
 import EnterpriseGrantsPage from '@/pages/enterprise/grants';
 import EnterpriseIdentitySourcesPage from '@/pages/enterprise/identity-sources';
 import EnterpriseModelsPage from '@/pages/enterprise/model-catalog';
+import EnterprisePluginsPage from '@/pages/enterprise/plugins';
 import MonitorAdminPage from '@/pages/monitor/admin';
 import MonitorCachePage from '@/pages/monitor/cache';
 import MonitorIframePage from '@/pages/monitor/iframePage';
@@ -60,6 +61,7 @@ const migratedPages: Record<string, React.ComponentType> = {
   'enterprise/grants/index': EnterpriseGrantsPage,
   'enterprise/identity-sources/index': EnterpriseIdentitySourcesPage,
   'enterprise/models/index': EnterpriseModelsPage,
+  'enterprise/plugins/index': EnterprisePluginsPage,
   'monitor/admin/index': MonitorAdminPage,
   'monitor/cache/index': MonitorCachePage,
   'monitor/logininfo/index': MonitorLoginInfoPage,

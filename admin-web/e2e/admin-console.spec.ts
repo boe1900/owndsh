@@ -1,12 +1,16 @@
 /**
- * [INPUT]: 依赖真实 HTTPS 管理端/Server、PostgreSQL/Redis、受控 OIDC/模型上游与 Playwright
- * [OUTPUT]: 验证 T12 管理 PKCE、RuoYi 权限事实、可重复治理 CRUD、员工模型生效、设备撤销和密钥隔离
- * [POS]: e2e 的纵向验收主场景，只回收自身历史默认授权并输出无密钥桌面快照
+ * [INPUT]: 依赖真实 HTTPS 管理端/Server、PostgreSQL/Redis、受控上游、pnpm pack 与 Playwright
+ * [OUTPUT]: 验证 T12 治理闭环及 T15 插件上传/发布/分配/回滚/退休/inventory 完整流程
+ * [POS]: e2e 的纵向验收主场景，只操作唯一测试资源并输出无密钥桌面快照
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { execFile } from 'node:child_process';
+import { mkdtemp, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
+import { promisify } from 'node:util';
 import { expect, test, type APIRequestContext, type APIResponse, type Page } from '@playwright/test';
 
 const BASE_URL = process.env.ENT_E2E_BASE_URL || 'https://127.0.0.1';
@@ -17,6 +21,8 @@ const ASSET_DIR = resolve(process.cwd(), '../docs/assets');
 const IDENTITY_SECRET = 't12-oidc-client-secret';
 const PROVIDER_SECRET = 't12-provider-api-key';
 const ENTERPRISE_ADMIN_CLIENT_ID = 'enterprise-admin';
+const LOCKED_HARNESS_COMMIT = '99f6f02fecdb7dff40c3fbc9470f5907c29f74ca';
+const execFileAsync = promisify(execFile);
 
 interface Envelope<T> {
   data: T;
@@ -31,6 +37,18 @@ interface Revisioned {
 interface DesktopLogin {
   accessToken: string;
   installationId: string;
+}
+
+interface PluginCatalogItem extends Revisioned {
+  packageName: string;
+  versions: Array<Revisioned & { version: string; status: string; sha256: string }>;
+  assignments: Array<{
+    pluginVersionId: string;
+    subjectType: 'ALL' | 'DEPT' | 'USER';
+    subjectId: string | null;
+    desiredState: 'INSTALLED' | 'ABSENT';
+    required: boolean;
+  }>;
 }
 
 function api(path: string) {
@@ -51,10 +69,10 @@ async function jsonResponse<T>(response: APIResponse): Promise<T> {
   return parsed;
 }
 
-async function adminLogin(page: Page) {
+async function adminLogin(page: Page, screenshotName = 't12-01-admin-login.png') {
   await page.goto('/login');
   await expect(page.getByRole('heading', { name: '管理控制台' })).toBeVisible();
-  await page.screenshot({ path: resolve(ASSET_DIR, 't12-01-admin-login.png'), fullPage: true });
+  await page.screenshot({ path: resolve(ASSET_DIR, screenshotName), fullPage: true });
 
   await page.getByRole('button', { name: /使用企业身份登录/ }).click();
   await page.waitForURL(/\/enterprise\/auth\/login\.html/);
@@ -69,6 +87,56 @@ async function adminLogin(page: Page) {
   const token = await page.evaluate(() => sessionStorage.getItem('Admin-Token'));
   expect(token).toBeTruthy();
   return token as string;
+}
+
+async function createPluginBundle(root: string, packageName: string, version: string) {
+  const directory = resolve(root, version);
+  await mkdir(resolve(directory, 'lib'), { recursive: true });
+  await writeFile(
+    resolve(directory, 'package.json'),
+    JSON.stringify({
+      name: packageName,
+      displayName: 'T15 Managed Tools',
+      version,
+      type: 'module',
+      files: ['cordis.patch.yml', 'lib'],
+      dsh: { bundle: { patch: './cordis.patch.yml' } },
+      scripts: {},
+      dependencies: {},
+      peerDependencies: { '@deepseek-ai/dsh-llm': '0.1.0-rc.7' }
+    }, null, 2)
+  );
+  await writeFile(resolve(directory, 'cordis.patch.yml'), '- id: t15-managed-tools\n');
+  await writeFile(resolve(directory, 'lib/index.js'), `export const version = ${JSON.stringify(version)};\n`);
+  const before = new Set(await readdir(root));
+  await execFileAsync('corepack', ['pnpm@10.34.5', 'pack', '--pack-destination', root], { cwd: directory });
+  const artifact = (await readdir(root)).find(name => name.endsWith('.tgz') && !before.has(name));
+  expect(artifact).toBeTruthy();
+  return resolve(root, artifact as string);
+}
+
+async function selectRowOption(page: Page, row: ReturnType<Page['locator']>, label: string, option: string) {
+  const visibleDropdown = page.locator('.ant-select-dropdown:visible');
+  await expect(visibleDropdown).toHaveCount(0);
+  await row.getByRole('combobox', { name: label }).click();
+  const target = visibleDropdown.locator('.ant-select-item-option').filter({ hasText: option });
+  await expect(target).toBeVisible();
+  await target.dispatchEvent('click');
+  await expect(row).toContainText(option);
+  await expect(visibleDropdown).toHaveCount(0);
+}
+
+async function uploadPluginBundle(page: Page, artifact: string) {
+  await page.getByRole('button', { name: /上传插件/ }).click();
+  const drawer = page.getByRole('dialog', { name: '上传插件' });
+  await drawer.locator('input[type="file"]').setInputFiles(artifact);
+  await drawer.getByRole('button', { name: /上\s*传/ }).click();
+  await expect(page.getByText('插件版本已验证')).toBeVisible();
+}
+
+async function expandPackageRow(row: ReturnType<Page['locator']>) {
+  const expand = row.getByRole('button', { name: /展开行|Expand row/ });
+  if (await expand.count()) await expand.click();
 }
 
 async function selectOption(page: Page, label: string, option: string | RegExp) {
@@ -355,4 +423,182 @@ test('T12 管理控制台完成治理闭环且不回显密钥', async ({ page, r
   expect([401, 403]).toContain(revokedBootstrap.status());
   expect(await page.locator('body').innerText()).not.toContain(IDENTITY_SECRET);
   expect(await page.locator('body').innerText()).not.toContain(PROVIDER_SECRET);
+});
+
+test('T15 插件页面完成上传、发布、原子分配、回滚和设备状态闭环', async ({ page, request }) => {
+  test.setTimeout(180_000);
+  const suffix = Date.now().toString(36);
+  const packageName = `@example/t15-tools-${suffix}`;
+  const deviceName = `T15 Desktop ${suffix}`;
+  const temporary = await mkdtemp(resolve(tmpdir(), 'enterprise-t15-e2e-'));
+  try {
+    const versionOneArtifact = await createPluginBundle(temporary, packageName, '1.0.0');
+    const versionTwoArtifact = await createPluginBundle(temporary, packageName, '2.0.0');
+    const adminToken = await adminLogin(page, 't15-01-admin-login.png');
+    const userInfo = await jsonResponse<{
+      data: { user: { userId: string; deptId: string } };
+    }>(
+      await request.get(api('/system/user/getInfo'), {
+        headers: bearer(adminToken, { clientid: ENTERPRISE_ADMIN_CLIENT_ID })
+      })
+    );
+    const adminUserId = String(userInfo.data.user.userId);
+    const adminDeptId = String(userInfo.data.user.deptId);
+
+    const desktop = await desktopLogin(request);
+    const desktopHeaders = bearer(desktop.accessToken);
+    await jsonResponse(
+      await request.post(api('/enterprise/api/v1/devices/enroll'), {
+        headers: desktopHeaders,
+        data: {
+          installationId: desktop.installationId,
+          name: deviceName,
+          platform: 'darwin-arm64',
+          harnessVersion: '0.1.0-rc.7',
+          enterpriseBundleVersion: '0.1.0'
+        }
+      })
+    );
+
+    await page.goto('/enterprise/plugins');
+    await expect(page.getByRole('tab', { name: '插件目录' })).toBeVisible();
+    await uploadPluginBundle(page, versionOneArtifact);
+    let packageRow = page.getByRole('row').filter({ hasText: packageName });
+    await expect(packageRow).toBeVisible();
+    await expandPackageRow(packageRow);
+    let versionRow = page.getByRole('row').filter({ hasText: '1.0.0' }).filter({ hasText: 'VALIDATED' });
+    await versionRow.getByRole('button', { name: /发布/ }).click();
+    await expect(page.getByText('插件版本已发布')).toBeVisible();
+    packageRow = page.getByRole('row').filter({ hasText: packageName });
+    await expandPackageRow(packageRow);
+    await expect(page.getByRole('row').filter({ hasText: '1.0.0' }).filter({ hasText: 'PUBLISHED' }).last()).toBeVisible();
+
+    await uploadPluginBundle(page, versionTwoArtifact);
+    packageRow = page.getByRole('row').filter({ hasText: packageName });
+    await expandPackageRow(packageRow);
+    versionRow = page.getByRole('row').filter({ hasText: '2.0.0' }).filter({ hasText: 'VALIDATED' });
+    await versionRow.getByRole('button', { name: /发布/ }).click();
+    await expect(page.getByText('插件版本已发布')).toBeVisible();
+    packageRow = page.getByRole('row').filter({ hasText: packageName });
+    await expandPackageRow(packageRow);
+    await expect(page.getByRole('row').filter({ hasText: '2.0.0' }).filter({ hasText: 'PUBLISHED' }).last()).toBeVisible();
+
+    packageRow = page.getByRole('row').filter({ hasText: packageName });
+    await packageRow.getByRole('button', { name: /分配与回滚/ }).click();
+    let assignmentDrawer = page.getByRole('dialog', { name: new RegExp(packageName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) });
+    await assignmentDrawer.getByRole('button', { name: /添加分配/ }).click();
+    await assignmentDrawer.getByRole('button', { name: /添加分配/ }).click();
+    await assignmentDrawer.getByRole('button', { name: /添加分配/ }).click();
+    let assignmentRows = assignmentDrawer.locator('.enterprise-assignment-row');
+    await expect(assignmentRows).toHaveCount(3);
+
+    await selectRowOption(page, assignmentRows.nth(1), '对象类型', '部门');
+    await assignmentRows.nth(1).getByRole('textbox', { name: '对象 ID' }).fill(adminDeptId);
+    await assignmentRows.nth(1).getByRole('switch', { name: '强制' }).click();
+    await selectRowOption(page, assignmentRows.nth(2), '对象类型', '用户');
+    await assignmentRows.nth(2).getByRole('textbox', { name: '对象 ID' }).fill(adminUserId);
+    await selectRowOption(page, assignmentRows.nth(2), '期望状态', '移除');
+    await assignmentDrawer.getByRole('button', { name: /保存分配/ }).click();
+    await expect(page.getByText('插件分配已更新')).toBeVisible();
+
+    let catalog = await jsonResponse<Envelope<{ items: PluginCatalogItem[] }>>(
+      await request.get(api('/enterprise/admin/v1/plugins?limit=200'), { headers: bearer(adminToken) })
+    );
+    let pluginPackage = catalog.data.items.find(item => item.packageName === packageName);
+    expect(pluginPackage?.assignments.map(item => item.subjectType).sort()).toEqual(['ALL', 'DEPT', 'USER']);
+    const versionOne = pluginPackage?.versions.find(item => item.version === '1.0.0');
+    const versionTwo = pluginPackage?.versions.find(item => item.version === '2.0.0');
+    expect(versionOne?.status).toBe('PUBLISHED');
+    expect(versionTwo?.status).toBe('PUBLISHED');
+
+    packageRow = page.getByRole('row').filter({ hasText: packageName });
+    await packageRow.getByRole('button', { name: /分配与回滚/ }).click();
+    assignmentDrawer = page.getByRole('dialog', { name: new RegExp(packageName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) });
+    await jsonResponse(
+      await request.post(api(`/enterprise/admin/v1/plugins/${pluginPackage?.id}/assignments/batch`), {
+        headers: bearer(adminToken, {
+          'Idempotency-Key': randomUUID(),
+          'If-Match': String(pluginPackage?.revision)
+        }),
+        data: {
+          items: pluginPackage?.assignments.map(assignment => ({
+            pluginVersionId: assignment.pluginVersionId,
+            subjectType: assignment.subjectType,
+            subjectId: assignment.subjectId,
+            desiredState: assignment.desiredState,
+            required: assignment.required
+          }))
+        }
+      })
+    );
+    await assignmentDrawer.getByRole('button', { name: /保存分配/ }).click();
+    await expect(page.getByText('配置已被其他管理员更新，已重新加载服务端最新内容')).toBeVisible();
+    await assignmentDrawer.getByRole('button', { name: /保存分配/ }).click();
+    await expect(page.getByText('插件分配已更新')).toBeVisible();
+
+    packageRow = page.getByRole('row').filter({ hasText: packageName });
+    await packageRow.getByRole('button', { name: /分配与回滚/ }).click();
+    assignmentDrawer = page.getByRole('dialog', { name: new RegExp(packageName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) });
+    assignmentRows = assignmentDrawer.locator('.enterprise-assignment-row');
+    await expect(assignmentRows).toHaveCount(3);
+    for (let index = 0; index < 3; index += 1) {
+      await selectRowOption(page, assignmentRows.nth(index), '版本', '1.0.0 · PUBLISHED');
+    }
+    await assignmentDrawer.getByRole('button', { name: /保存分配/ }).click();
+    await expect(page.getByText('插件分配已更新')).toBeVisible();
+
+    catalog = await jsonResponse<Envelope<{ items: PluginCatalogItem[] }>>(
+      await request.get(api('/enterprise/admin/v1/plugins?limit=200'), { headers: bearer(adminToken) })
+    );
+    pluginPackage = catalog.data.items.find(item => item.packageName === packageName);
+    expect(pluginPackage?.assignments.map(item => item.pluginVersionId)).toEqual([
+      versionOne?.id,
+      versionOne?.id,
+      versionOne?.id
+    ]);
+
+    packageRow = page.getByRole('row').filter({ hasText: packageName });
+    await expandPackageRow(packageRow);
+    versionRow = page.getByRole('row').filter({ hasText: '2.0.0' }).filter({ hasText: 'PUBLISHED' }).last();
+    await versionRow.getByRole('button', { name: /退休/ }).click();
+    await page.locator('.ant-popconfirm:visible').getByRole('button').filter({ hasText: '确' }).click();
+    await expect(page.getByText('插件版本已退休')).toBeVisible();
+    packageRow = page.getByRole('row').filter({ hasText: packageName });
+    await expandPackageRow(packageRow);
+    await expect(page.getByRole('row').filter({ hasText: '2.0.0' }).filter({ hasText: 'RETIRED' }).last()).toBeVisible();
+    await page.screenshot({ path: resolve(ASSET_DIR, 't15-02-plugin-catalog.png'), fullPage: true });
+
+    const bootstrap = await jsonResponse<Envelope<{ plugins: { revision: number } }>>(
+      await request.get(api('/enterprise/api/v1/bootstrap'), { headers: desktopHeaders })
+    );
+    await jsonResponse(
+      await request.put(api('/enterprise/api/v1/plugins/inventory'), {
+        headers: desktopHeaders,
+        data: {
+          items: [{
+            packageName,
+            version: '1.0.0',
+            sha256: versionOne?.sha256,
+            desiredRevision: bootstrap.data.plugins.revision,
+            state: 'ACTIVE',
+            loaderPhase: 'active',
+            lastErrorCode: null,
+            observedAt: new Date().toISOString()
+          }]
+        }
+      })
+    );
+    await page.getByRole('tab', { name: '设备状态' }).click();
+    const inventoryPanel = page.getByRole('tabpanel', { name: '设备状态' });
+    await inventoryPanel.getByRole('button', { name: /刷新/ }).click();
+    const inventoryRow = inventoryPanel.getByRole('row').filter({ hasText: packageName });
+    await expect(inventoryRow).toContainText(ADMIN_USERNAME);
+    await expect(inventoryRow).toContainText('ACTIVE');
+    await page.screenshot({ path: resolve(ASSET_DIR, 't15-03-plugin-inventory.png'), fullPage: true });
+
+    const body = await page.locator('body').innerText();
+    expect(body).not.toMatch(/PRIVATE KEY|authorization|accessToken|\.tgz/i);
+  } finally {
+    await rm(temporary, { force: true, recursive: true });
+  }
 });

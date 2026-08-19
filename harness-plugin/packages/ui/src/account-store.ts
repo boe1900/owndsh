@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 local-api 的脱敏查询、状态 SSE 与登录/取消/退出动作
- * [OUTPUT]: 对外提供 EnterpriseAccountStore、稳定 snapshot 和串行账号操作
- * [POS]: dsh-ui 的浏览器状态控制器，在三个官方 slot 间共享连接事实且隔离 React 与网络细节
+ * [INPUT]: 依赖 local-api 的脱敏账号/插件查询、状态 SSE 与登录/取消/退出动作
+ * [OUTPUT]: 对外提供 EnterpriseAccountStore、账号/插件 snapshot、显式刷新和串行动作
+ * [POS]: dsh-ui 的浏览器状态控制器，在官方 slot 与 Settings tabs 间共享事实且隔离网络细节
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -9,6 +9,7 @@ import type {
   EnterpriseAccountBootstrap,
   EnterpriseLocalApi,
   EnterpriseLocalStatus,
+  EnterprisePluginStatus,
   EnterpriseStatusStream,
 } from './local-api.js'
 import { EnterpriseLocalApiError } from './local-api.js'
@@ -19,6 +20,9 @@ export interface EnterpriseAccountSnapshot {
   readonly phase: 'loading' | 'ready' | 'error'
   readonly status?: EnterpriseLocalStatus
   readonly bootstrap?: EnterpriseAccountBootstrap
+  readonly pluginStatus?: EnterprisePluginStatus
+  readonly pluginsLoading?: boolean
+  readonly pluginErrorCode?: string
   readonly busy?: EnterpriseAccountAction
   readonly errorCode?: string
 }
@@ -39,6 +43,7 @@ export class EnterpriseAccountStore {
   #lifetime: AbortController | undefined
   #events: EnterpriseStatusStream | undefined
   #bootstrapLoading = false
+  #pluginsLoading = false
 
   constructor(api: EnterpriseLocalApi) {
     this.#api = api
@@ -64,6 +69,12 @@ export class EnterpriseAccountStore {
       if (signal.aborted) return
       this.#set({ ...this.#snapshot, phase: this.#snapshot.status === undefined ? 'error' : 'ready', errorCode: failureCode(error) })
     }
+  }
+
+  /** 只在账号连接可用时重新读取本地受管插件投影。 */
+  async refreshPlugins(): Promise<void> {
+    if (this.#snapshot.status === undefined || !connected(this.#snapshot.status)) return
+    await this.#loadPlugins()
   }
 
   async startLogin(): Promise<void> {
@@ -133,10 +144,20 @@ export class EnterpriseAccountStore {
       ...(connected(status) && this.#snapshot.bootstrap !== undefined
         ? { bootstrap: this.#snapshot.bootstrap }
         : {}),
+      ...(connected(status) && this.#snapshot.pluginStatus !== undefined
+        ? { pluginStatus: this.#snapshot.pluginStatus }
+        : {}),
+      ...(connected(status) && this.#snapshot.pluginsLoading === true ? { pluginsLoading: true } : {}),
+      ...(connected(status) && this.#snapshot.pluginErrorCode !== undefined
+        ? { pluginErrorCode: this.#snapshot.pluginErrorCode }
+        : {}),
       ...(this.#snapshot.busy === undefined ? {} : { busy: this.#snapshot.busy }),
       ...(status.errorCode === undefined ? {} : { errorCode: status.errorCode }),
     })
-    if (connected(status)) void this.#loadBootstrap()
+    if (connected(status)) {
+      void this.#loadBootstrap()
+      void this.#loadPlugins()
+    }
   }
 
   async #loadBootstrap(): Promise<void> {
@@ -153,6 +174,28 @@ export class EnterpriseAccountStore {
       if (!signal.aborted) this.#set({ ...this.#snapshot, errorCode: failureCode(error) })
     } finally {
       this.#bootstrapLoading = false
+    }
+  }
+
+  async #loadPlugins(): Promise<void> {
+    if (this.#pluginsLoading) return
+    this.#pluginsLoading = true
+    const signal = this.#signal()
+    const { pluginErrorCode: _pluginErrorCode, ...withoutError } = this.#snapshot
+    this.#set({ ...withoutError, pluginsLoading: true })
+    try {
+      const pluginStatus = await this.#api.plugins(signal)
+      if (!signal.aborted && this.#snapshot.status !== undefined && connected(this.#snapshot.status)) {
+        const { pluginsLoading: _pluginsLoading, ...settled } = this.#snapshot
+        this.#set({ ...settled, pluginStatus })
+      }
+    } catch (error) {
+      if (!signal.aborted) {
+        const { pluginsLoading: _pluginsLoading, ...settled } = this.#snapshot
+        this.#set({ ...settled, pluginErrorCode: failureCode(error) })
+      }
+    } finally {
+      this.#pluginsLoading = false
     }
   }
 

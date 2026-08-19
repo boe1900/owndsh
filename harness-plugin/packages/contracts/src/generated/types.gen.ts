@@ -1060,6 +1060,7 @@ export type PluginPluginPackage = {
     status: PluginPackageStatus;
     revision: Revision;
     versions: Array<PluginPluginVersion>;
+    assignments: Array<PluginAssignment>;
 };
 
 export type PluginPluginPackageId = string;

@@ -1096,7 +1096,8 @@ export const zPluginPluginPackage = z.object({
     displayName: z.string().min(1).max(120),
     status: zPluginPackageStatus,
     revision: zRevision,
-    versions: z.array(zPluginPluginVersion).max(100)
+    versions: z.array(zPluginPluginVersion).max(100),
+    assignments: z.array(zPluginAssignment).max(200)
 }).strict();
 
 export const zPluginPackage = zPluginPluginPackage;

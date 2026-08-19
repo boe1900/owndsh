@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖浏览器 fetch/EventSource 与 platform-client 的同源 `/enterprise/api/v1/local/*` 脱敏协议
- * [OUTPUT]: 对外提供严格状态/bootstrap 解码、登录/取消/退出动作和状态事件订阅端口
- * [POS]: dsh-ui 的浏览器网络边界，只投影账号页所需事实并拒绝任何 Token 形态字段
+ * [OUTPUT]: 对外提供严格账号/插件状态解码、登录/取消/退出动作和状态事件订阅端口
+ * [POS]: dsh-ui 的浏览器网络边界，只投影 Settings 所需事实并拒绝秘密与本地执行细节
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -21,6 +21,22 @@ export const ENTERPRISE_CONNECTION_STATES = [
 ] as const
 
 export type EnterpriseConnectionState = typeof ENTERPRISE_CONNECTION_STATES[number]
+
+export const MANAGED_PLUGIN_STATES = [
+  'EXPECTED',
+  'DOWNLOAD_PENDING',
+  'DOWNLOADING',
+  'VERIFIED',
+  'INSTALLING',
+  'RESTART_REQUIRED',
+  'ACTIVE',
+  'REMOVE_PENDING',
+  'REMOVING',
+  'FAILED',
+  'ROLLBACK',
+] as const
+
+export type ManagedPluginState = typeof MANAGED_PLUGIN_STATES[number]
 
 export interface EnterpriseStatusUser {
   readonly id: string
@@ -50,6 +66,22 @@ export interface EnterpriseAccountBootstrap {
   }
 }
 
+export interface EnterprisePluginItem {
+  readonly packageName: string
+  readonly version: string | null
+  readonly desiredRevision: number
+  readonly desiredState: 'INSTALLED' | 'ABSENT'
+  readonly state: ManagedPluginState
+  readonly lastErrorCode: string | null
+}
+
+export interface EnterprisePluginStatus {
+  readonly assignmentRevision: number
+  readonly plugins: readonly EnterprisePluginItem[]
+  readonly fatalErrorCode?: string
+  readonly lastReportErrorCode?: string
+}
+
 export interface EnterpriseStatusStream {
   close(): void
 }
@@ -57,6 +89,7 @@ export interface EnterpriseStatusStream {
 export interface EnterpriseLocalApi {
   status(signal: AbortSignal): Promise<EnterpriseLocalStatus>
   bootstrap(signal: AbortSignal): Promise<EnterpriseAccountBootstrap | undefined>
+  plugins(signal: AbortSignal): Promise<EnterprisePluginStatus>
   startLogin(signal: AbortSignal): Promise<{ readonly flowId: string }>
   cancelLogin(signal: AbortSignal): Promise<{ readonly cancelled: boolean }>
   logout(signal: AbortSignal): Promise<{ readonly loggedOut: true }>
@@ -171,6 +204,58 @@ function decodeBootstrap(value: unknown): EnterpriseAccountBootstrap | undefined
   }
 }
 
+function nullableString(value: unknown): value is string | null {
+  return value === null || nonEmptyString(value)
+}
+
+function decodePluginItem(value: unknown): EnterprisePluginItem | undefined {
+  const item = record(value)
+  if (item === undefined
+    || !hasExactKeys(item, [
+      'packageName', 'version', 'sha256', 'desiredRevision', 'desiredState', 'state',
+      'lastErrorCode', 'restartMarker',
+    ])
+    || !nonEmptyString(item['packageName'])
+    || !nullableString(item['version'])
+    || !(item['sha256'] === null || (typeof item['sha256'] === 'string' && /^[0-9a-f]{64}$/.test(item['sha256'])))
+    || !Number.isSafeInteger(item['desiredRevision']) || Number(item['desiredRevision']) < 0
+    || !(item['desiredState'] === 'INSTALLED' || item['desiredState'] === 'ABSENT')
+    || !MANAGED_PLUGIN_STATES.includes(item['state'] as ManagedPluginState)
+    || !nullableString(item['lastErrorCode'])
+    || !nullableString(item['restartMarker'])) return undefined
+  return {
+    packageName: item['packageName'],
+    version: item['version'],
+    desiredRevision: Number(item['desiredRevision']),
+    desiredState: item['desiredState'],
+    state: item['state'] as ManagedPluginState,
+    lastErrorCode: item['lastErrorCode'],
+  }
+}
+
+/** 严格校验 Host 分发状态，并删除 SHA、进程 marker 与任何未声明字段。 */
+export function decodeEnterprisePluginStatus(value: unknown): EnterprisePluginStatus {
+  const source = record(value)
+  if (source === undefined
+    || !hasExactKeys(source, ['assignmentRevision', 'plugins'], ['fatalErrorCode', 'lastReportErrorCode'])
+    || !Number.isSafeInteger(source['assignmentRevision']) || Number(source['assignmentRevision']) < 0
+    || !Array.isArray(source['plugins']) || source['plugins'].length > 500
+    || (source['fatalErrorCode'] !== undefined && !nonEmptyString(source['fatalErrorCode']))
+    || (source['lastReportErrorCode'] !== undefined && !nonEmptyString(source['lastReportErrorCode']))) {
+    throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+  }
+  const plugins = source['plugins'].map(decodePluginItem)
+  if (plugins.some(item => item === undefined)) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+  return {
+    assignmentRevision: Number(source['assignmentRevision']),
+    plugins: plugins as EnterprisePluginItem[],
+    ...(source['fatalErrorCode'] === undefined ? {} : { fatalErrorCode: source['fatalErrorCode'] as string }),
+    ...(source['lastReportErrorCode'] === undefined
+      ? {}
+      : { lastReportErrorCode: source['lastReportErrorCode'] as string }),
+  }
+}
+
 function errorCode(value: unknown): string {
   const code = record(record(value)?.['error'])?.['code']
   return nonEmptyString(code) ? code : 'ENT_PLATFORM_UNAVAILABLE'
@@ -218,6 +303,7 @@ export function createEnterpriseLocalApi(
   return {
     status: async signal => decodeEnterpriseLocalStatus(await requestJson('/status', getInit(signal), fetcher)),
     bootstrap: async signal => decodeBootstrap(await requestJson('/bootstrap', getInit(signal), fetcher)),
+    plugins: async signal => decodeEnterprisePluginStatus(await requestJson('/plugins', getInit(signal), fetcher)),
     startLogin: async (signal) => {
       const data = record(await requestJson('/auth/start', postInit(signal), fetcher))
       if (data === undefined || !hasExactKeys(data, ['flowId']) || !nonEmptyString(data['flowId'])) {

@@ -21,6 +21,7 @@
     "accept:t07-browser": "node scripts/t07-browser-harness.mjs",
     "accept:t11-model": "node scripts/t11-harness-model-smoke.mjs",
     "accept:t14-dsh-plugin": "node scripts/t14-dsh-plugin-smoke.mjs",
+    "accept:t15-browser": "node scripts/t15-browser-harness.mjs",
     "check": "pnpm run typecheck && pnpm run test"
   },
   "devDependencies": {

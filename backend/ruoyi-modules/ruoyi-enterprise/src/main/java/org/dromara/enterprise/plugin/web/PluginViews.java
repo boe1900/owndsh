@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 投影 plugin catalog/version/assignment/runtime/inventory 领域对象。
- * [OUTPUT]: 对外提供字符串化 snowflake、Base64 Ed25519 与无 artifact 路径的严格 HTTP views。
+ * [OUTPUT]: 对外提供字符串化 snowflake、完整 catalog assignments、Base64 Ed25519 与无 artifact 路径的严格 HTTP views。
  * [POS]: plugin/web 的统一安全投影，管理端和 runtime 共享签名/compatibility 字段语义。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -26,7 +26,8 @@ public final class PluginViews {
         return new PackageView(
             Long.toString(value.pluginPackage().id()), value.pluginPackage().packageName(),
             value.pluginPackage().displayName(), value.pluginPackage().status().name(),
-            value.pluginPackage().revision(), value.versions().stream().map(PluginViews::version).toList()
+            value.pluginPackage().revision(), value.versions().stream().map(PluginViews::version).toList(),
+            value.assignments().stream().map(PluginViews::assignment).toList()
         );
     }
 
@@ -77,7 +78,8 @@ public final class PluginViews {
         String displayName,
         String status,
         long revision,
-        List<VersionView> versions
+        List<VersionView> versions,
+        List<AssignmentView> assignments
     ) {
     }
 

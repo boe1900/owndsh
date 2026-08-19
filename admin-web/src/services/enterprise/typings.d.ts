@@ -1,4 +1,35 @@
 declare namespace API {
+  type AdminPluginInventoryListResponse = {
+    data: {
+      items: {
+        deviceId: string;
+        username: string;
+        packageName: string;
+        version: string | null;
+        sha256: string | null;
+        desiredRevision: number;
+        state:
+          | "EXPECTED"
+          | "DOWNLOAD_PENDING"
+          | "DOWNLOADING"
+          | "VERIFIED"
+          | "INSTALLING"
+          | "RESTART_REQUIRED"
+          | "ACTIVE"
+          | "REMOVE_PENDING"
+          | "REMOVING"
+          | "FAILED"
+          | "ROLLBACK";
+        loaderPhase: string | null;
+        lastErrorCode: string | null;
+        observedAt: string;
+      }[];
+      page: { hasMore: boolean; limit: number; nextCursor: string | null };
+    };
+    /** Server-generated req_ prefix followed by one canonical ULID. */
+    requestId: string;
+  };
+
   type AuthorizationCode = string;
 
   type authorizePlatformClientParams = {
@@ -75,12 +106,20 @@ declare namespace API {
       plugins: {
         revision: number;
         assignments: {
+          pluginVersionId: string;
           packageName: string;
           version: string;
+          sizeBytes: number;
           sha256: string;
-          downloadUrl: string;
+          signatureBase64: string;
+          compatibility: {
+            harnessCommits: string[];
+            enterpriseBundleRange: string;
+            operatingSystems: ("darwin" | "linux" | "win32")[];
+          };
+          downloadUrl: string | null;
           required: boolean;
-          desiredState: string;
+          desiredState: "INSTALLED" | "ABSENT";
         }[];
       };
       sessionPolicy: {
@@ -122,12 +161,20 @@ declare namespace API {
     plugins: {
       revision: number;
       assignments: {
+        pluginVersionId: string;
         packageName: string;
         version: string;
+        sizeBytes: number;
         sha256: string;
-        downloadUrl: string;
+        signatureBase64: string;
+        compatibility: {
+          harnessCommits: string[];
+          enterpriseBundleRange: string;
+          operatingSystems: ("darwin" | "linux" | "win32")[];
+        };
+        downloadUrl: string | null;
         required: boolean;
-        desiredState: string;
+        desiredState: "INSTALLED" | "ABSENT";
       }[];
     };
     sessionPolicy: {
@@ -398,6 +445,10 @@ declare namespace API {
 
   type disableQuotaPolicyParams = {
     quotaId: string;
+  };
+
+  type downloadPluginVersionParams = {
+    pluginVersionId: string;
   };
 
   type enableIdentitySourceParams = {
@@ -970,6 +1021,20 @@ declare namespace API {
     limit?: number;
   };
 
+  type listPluginInventoryParams = {
+    /** Server-signed opaque cursor; clients must not parse it. */
+    cursor?: string;
+    /** Cursor page size. */
+    limit?: number;
+  };
+
+  type listPluginPackagesParams = {
+    /** Server-signed opaque cursor; clients must not parse it. */
+    cursor?: string;
+    /** Cursor page size. */
+    limit?: number;
+  };
+
   type listPublicIdentitySourcesParams = {
     transaction_id: string;
   };
@@ -1279,7 +1344,233 @@ declare namespace API {
 
   type PlatformClient = "dsh-desktop" | "enterprise-admin";
 
+  type PluginAssignmentBatchRequest = {
+    items: {
+      pluginVersionId: string;
+      subjectType: "ALL" | "DEPT" | "USER";
+      subjectId: string | null;
+      desiredState: "INSTALLED" | "ABSENT";
+      required: boolean;
+    }[];
+  };
+
+  type PluginAssignmentBatchResponse = {
+    data: {
+      id: string;
+      packageId: string;
+      pluginVersionId: string;
+      subjectType: "ALL" | "DEPT" | "USER";
+      subjectId: string | null;
+      desiredState: "INSTALLED" | "ABSENT";
+      required: boolean;
+      status: "ACTIVE" | "DISABLED";
+      revision: number;
+    }[];
+    /** Server-generated req_ prefix followed by one canonical ULID. */
+    requestId: string;
+  };
+
+  type PluginAssignmentId = string;
+
+  type PluginCompatibility = {
+    harnessCommits: string[];
+    enterpriseBundleRange: string;
+    operatingSystems: ("darwin" | "linux" | "win32")[];
+  };
+
+  type PluginInventoryRequest = {
+    items: {
+      packageName: string;
+      version: string | null;
+      sha256: string | null;
+      desiredRevision: number;
+      state:
+        | "EXPECTED"
+        | "DOWNLOAD_PENDING"
+        | "DOWNLOADING"
+        | "VERIFIED"
+        | "INSTALLING"
+        | "RESTART_REQUIRED"
+        | "ACTIVE"
+        | "REMOVE_PENDING"
+        | "REMOVING"
+        | "FAILED"
+        | "ROLLBACK";
+      loaderPhase: string | null;
+      lastErrorCode: string | null;
+      observedAt: string;
+    }[];
+  };
+
+  type PluginInventoryResponse = {
+    data: { reported: number };
+    /** Server-generated req_ prefix followed by one canonical ULID. */
+    requestId: string;
+  };
+
+  type PluginPackage = {
+    id: string;
+    packageName: string;
+    displayName: string;
+    status: "ACTIVE" | "DISABLED";
+    /** Monotonic compare-and-swap revision safe in JavaScript. */
+    revision: number;
+    versions: {
+      id: string;
+      packageId: string;
+      packageName: string;
+      version: string;
+      sizeBytes: number;
+      sha256: string;
+      signatureBase64: string;
+      compatibility: {
+        harnessCommits: string[];
+        enterpriseBundleRange: string;
+        operatingSystems: ("darwin" | "linux" | "win32")[];
+      };
+      status: "UPLOADED" | "VALIDATED" | "PUBLISHED" | "RETIRED";
+      createdAt: string;
+      revision: number;
+    }[];
+    assignments: {
+      id: string;
+      packageId: string;
+      pluginVersionId: string;
+      subjectType: "ALL" | "DEPT" | "USER";
+      subjectId: string | null;
+      desiredState: "INSTALLED" | "ABSENT";
+      required: boolean;
+      status: "ACTIVE" | "DISABLED";
+      revision: number;
+    }[];
+  };
+
+  type PluginPackageId = string;
+
+  type PluginPackageListResponse = {
+    data: {
+      items: {
+        id: string;
+        packageName: string;
+        displayName: string;
+        status: "ACTIVE" | "DISABLED";
+        revision: number;
+        versions: {
+          id: string;
+          packageId: string;
+          packageName: string;
+          version: string;
+          sizeBytes: number;
+          sha256: string;
+          signatureBase64: string;
+          compatibility: {
+            harnessCommits: string[];
+            enterpriseBundleRange: string;
+            operatingSystems: ("darwin" | "linux" | "win32")[];
+          };
+          status: "UPLOADED" | "VALIDATED" | "PUBLISHED" | "RETIRED";
+          createdAt: string;
+          revision: number;
+        }[];
+        assignments: {
+          id: string;
+          packageId: string;
+          pluginVersionId: string;
+          subjectType: "ALL" | "DEPT" | "USER";
+          subjectId: string | null;
+          desiredState: "INSTALLED" | "ABSENT";
+          required: boolean;
+          status: "ACTIVE" | "DISABLED";
+          revision: number;
+        }[];
+      }[];
+      page: { hasMore: boolean; limit: number; nextCursor: string | null };
+    };
+    /** Server-generated req_ prefix followed by one canonical ULID. */
+    requestId: string;
+  };
+
+  type PluginPackagePageData = {
+    items: {
+      id: string;
+      packageName: string;
+      displayName: string;
+      status: "ACTIVE" | "DISABLED";
+      revision: number;
+      versions: {
+        id: string;
+        packageId: string;
+        packageName: string;
+        version: string;
+        sizeBytes: number;
+        sha256: string;
+        signatureBase64: string;
+        compatibility: {
+          harnessCommits: string[];
+          enterpriseBundleRange: string;
+          operatingSystems: ("darwin" | "linux" | "win32")[];
+        };
+        status: "UPLOADED" | "VALIDATED" | "PUBLISHED" | "RETIRED";
+        createdAt: string;
+        revision: number;
+      }[];
+      assignments: {
+        id: string;
+        packageId: string;
+        pluginVersionId: string;
+        subjectType: "ALL" | "DEPT" | "USER";
+        subjectId: string | null;
+        desiredState: "INSTALLED" | "ABSENT";
+        required: boolean;
+        status: "ACTIVE" | "DISABLED";
+        revision: number;
+      }[];
+    }[];
+    page: { hasMore: boolean; limit: number; nextCursor: string | null };
+  };
+
+  type PluginVersion = {
+    id: string;
+    packageId: string;
+    packageName: string;
+    version: string;
+    sizeBytes: number;
+    sha256: string;
+    signatureBase64: string;
+    compatibility: {
+      harnessCommits: string[];
+      enterpriseBundleRange: string;
+      operatingSystems: ("darwin" | "linux" | "win32")[];
+    };
+    status: "UPLOADED" | "VALIDATED" | "PUBLISHED" | "RETIRED";
+    createdAt: string;
+    /** Monotonic compare-and-swap revision safe in JavaScript. */
+    revision: number;
+  };
+
   type PluginVersionId = string;
+
+  type PluginVersionResponse = {
+    data: {
+      id: string;
+      packageId: string;
+      packageName: string;
+      version: string;
+      sizeBytes: number;
+      sha256: string;
+      signatureBase64: string;
+      compatibility: {
+        harnessCommits: string[];
+        enterpriseBundleRange: string;
+        operatingSystems: ("darwin" | "linux" | "win32")[];
+      };
+      status: "UPLOADED" | "VALIDATED" | "PUBLISHED" | "RETIRED";
+      createdAt: string;
+      revision: number;
+    };
+    /** Server-generated req_ prefix followed by one canonical ULID. */
+    requestId: string;
+  };
 
   type ProtocolMetadata = {
     contractVersion: string;
@@ -1438,6 +1729,10 @@ declare namespace API {
     type: "OIDC" | "LDAP" | "LOCAL";
   };
 
+  type publishPluginVersionParams = {
+    pluginVersionId: string;
+  };
+
   type QuotaExceededDetails = {
     policyId: string;
     resetsAt: string;
@@ -1588,6 +1883,10 @@ declare namespace API {
 
   type RemoteSessionId = string;
 
+  type replacePluginAssignmentsParams = {
+    pluginPackageId: string;
+  };
+
   type RequestConflictDetails = {
     /** Server-generated req_ prefix followed by one canonical ULID. */
     originalRequestId: string;
@@ -1595,6 +1894,10 @@ declare namespace API {
   };
 
   type RequestId = string;
+
+  type retirePluginVersionParams = {
+    pluginVersionId: string;
+  };
 
   type Revision = integer;
 
@@ -1614,6 +1917,51 @@ declare namespace API {
 
   type revokeDeviceParams = {
     deviceId: string;
+  };
+
+  type RuntimePluginAssignments = {
+    /** Monotonic compare-and-swap revision safe in JavaScript. */
+    revision: number;
+    assignments: {
+      pluginVersionId: string;
+      packageName: string;
+      version: string;
+      sizeBytes: number;
+      sha256: string;
+      signatureBase64: string;
+      compatibility: {
+        harnessCommits: string[];
+        enterpriseBundleRange: string;
+        operatingSystems: ("darwin" | "linux" | "win32")[];
+      };
+      downloadUrl: string | null;
+      required: boolean;
+      desiredState: "INSTALLED" | "ABSENT";
+    }[];
+  };
+
+  type RuntimePluginAssignmentsResponse = {
+    data: {
+      revision: number;
+      assignments: {
+        pluginVersionId: string;
+        packageName: string;
+        version: string;
+        sizeBytes: number;
+        sha256: string;
+        signatureBase64: string;
+        compatibility: {
+          harnessCommits: string[];
+          enterpriseBundleRange: string;
+          operatingSystems: ("darwin" | "linux" | "win32")[];
+        };
+        downloadUrl: string | null;
+        required: boolean;
+        desiredState: "INSTALLED" | "ABSENT";
+      }[];
+    };
+    /** Server-generated req_ prefix followed by one canonical ULID. */
+    requestId: string;
   };
 
   type startOidcLoginParams = {

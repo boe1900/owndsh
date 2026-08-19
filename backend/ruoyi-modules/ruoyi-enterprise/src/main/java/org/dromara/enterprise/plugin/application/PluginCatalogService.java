@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖事务、PluginStore、带 hash 互斥的 tgz inspector/CAS store、JCS Ed25519 signer、revision、审计与 ID。
- * [OUTPUT]: 提供 catalog list、幂等上传、发布/退休和 package assignment 原子替换用例。
+ * [OUTPUT]: 提供含完整 assignments 的 catalog list、幂等上传、发布/退休和 package assignment 原子替换用例。
  * [POS]: plugin/application 的管理状态编排，文件系统补偿与数据库事务边界在此唯一协调。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -85,7 +85,11 @@ public final class PluginCatalogService {
 
     public List<CatalogItem> list(String tenantId, long afterId, int limit) {
         return plugins.listPackages(tenantId, afterId, limit).stream()
-            .map(value -> new CatalogItem(value, plugins.listVersions(tenantId, value.id())))
+            .map(value -> new CatalogItem(
+                value,
+                plugins.listVersions(tenantId, value.id()),
+                plugins.listAssignments(tenantId, value.id())
+            ))
             .toList();
     }
 
@@ -327,10 +331,15 @@ public final class PluginCatalogService {
         return Objects.requireNonNull(result, "插件事务没有返回结果");
     }
 
-    public record CatalogItem(PluginPackage pluginPackage, List<PluginVersion> versions) {
+    public record CatalogItem(
+        PluginPackage pluginPackage,
+        List<PluginVersion> versions,
+        List<PluginAssignment> assignments
+    ) {
         public CatalogItem {
             Objects.requireNonNull(pluginPackage, "pluginPackage");
             versions = List.copyOf(Objects.requireNonNull(versions, "versions"));
+            assignments = List.copyOf(Objects.requireNonNull(assignments, "assignments"));
         }
     }
 

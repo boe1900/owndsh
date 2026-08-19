@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖插件管理/runtime Controller、MockMvc、Range 流、权限注解与派生 OpenAPI schemas。
- * [OUTPUT]: 验证 T13 九个 operation、200/206 下载、400/403/413 错误和固定插件权限码。
+ * [OUTPUT]: 验证九个插件 operation、catalog 完整 assignment 投影、下载、稳定错误和固定权限码。
  * [POS]: T13 Server/OpenAPI 同步门禁，application services 使用 mock 以隔离 HTTP 翻译与二进制流。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -120,7 +120,7 @@ class T13ApiContractTest {
             .build();
 
         when(catalog.list("000000", 0, 51)).thenReturn(List.of(
-            new PluginCatalogService.CatalogItem(pluginPackage(), List.of(validated))
+            new PluginCatalogService.CatalogItem(pluginPackage(), List.of(validated), List.of(assignment()))
         ));
         when(catalog.upload(
             any(), any(UUID.class), any(InputStream.class), any(PluginCompatibility.class)
@@ -141,7 +141,11 @@ class T13ApiContractTest {
 
     @Test
     void servesEveryAdminPluginOperationWithSchemaValidResponses() throws Exception {
-        assertSchema(response(get("/enterprise/admin/v1/plugins"), 200), "PluginPackageListResponse");
+        String packages = response(get("/enterprise/admin/v1/plugins"), 200);
+        assertSchema(packages, "PluginPackageListResponse");
+        assertThat(JsonMapper.builder().build().readTree(packages)
+            .at("/data/items/0/assignments/0/pluginVersionId").asText())
+            .isEqualTo(Long.toString(VERSION_ID));
 
         String uploaded = response(uploadRequest(), 201);
         assertSchema(uploaded, "PluginVersionResponse");

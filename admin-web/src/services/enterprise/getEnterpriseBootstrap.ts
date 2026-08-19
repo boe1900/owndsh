@@ -33,12 +33,20 @@ export async function getEnterpriseBootstrap(options?: { [key: string]: any }) {
       plugins: {
         revision: number;
         assignments: {
+          pluginVersionId: string;
           packageName: string;
           version: string;
+          sizeBytes: number;
           sha256: string;
-          downloadUrl: string;
+          signatureBase64: string;
+          compatibility: {
+            harnessCommits: string[];
+            enterpriseBundleRange: string;
+            operatingSystems: ("darwin" | "linux" | "win32")[];
+          };
+          downloadUrl: string | null;
           required: boolean;
-          desiredState: string;
+          desiredState: "INSTALLED" | "ABSENT";
         }[];
       };
       sessionPolicy: {

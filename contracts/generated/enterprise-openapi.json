@@ -47396,7 +47396,8 @@
                               "displayName",
                               "status",
                               "revision",
-                              "versions"
+                              "versions",
+                              "assignments"
                             ],
                             "properties": {
                               "id": {
@@ -47538,6 +47539,84 @@
                                     "createdAt": {
                                       "type": "string",
                                       "format": "date-time"
+                                    },
+                                    "revision": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991,
+                                      "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                                      "examples": [
+                                        7
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              "assignments": {
+                                "type": "array",
+                                "maxItems": 200,
+                                "items": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "required": [
+                                    "id",
+                                    "packageId",
+                                    "pluginVersionId",
+                                    "subjectType",
+                                    "subjectId",
+                                    "desiredState",
+                                    "required",
+                                    "status",
+                                    "revision"
+                                  ],
+                                  "properties": {
+                                    "id": {
+                                      "type": "string",
+                                      "pattern": "^[1-9][0-9]{0,18}$"
+                                    },
+                                    "packageId": {
+                                      "type": "string",
+                                      "pattern": "^[1-9][0-9]{0,18}$"
+                                    },
+                                    "pluginVersionId": {
+                                      "type": "string",
+                                      "pattern": "^[1-9][0-9]{0,18}$"
+                                    },
+                                    "subjectType": {
+                                      "type": "string",
+                                      "enum": [
+                                        "ALL",
+                                        "DEPT",
+                                        "USER"
+                                      ]
+                                    },
+                                    "subjectId": {
+                                      "oneOf": [
+                                        {
+                                          "type": "string",
+                                          "pattern": "^[1-9][0-9]{0,18}$"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "desiredState": {
+                                      "type": "string",
+                                      "enum": [
+                                        "INSTALLED",
+                                        "ABSENT"
+                                      ]
+                                    },
+                                    "required": {
+                                      "type": "boolean"
+                                    },
+                                    "status": {
+                                      "type": "string",
+                                      "enum": [
+                                        "ACTIVE",
+                                        "DISABLED"
+                                      ]
                                     },
                                     "revision": {
                                       "type": "integer",
@@ -64182,7 +64261,8 @@
           "displayName",
           "status",
           "revision",
-          "versions"
+          "versions",
+          "assignments"
         ],
         "properties": {
           "id": {
@@ -64336,6 +64416,84 @@
                 }
               }
             }
+          },
+          "assignments": {
+            "type": "array",
+            "maxItems": 200,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "packageId",
+                "pluginVersionId",
+                "subjectType",
+                "subjectId",
+                "desiredState",
+                "required",
+                "status",
+                "revision"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]{0,18}$"
+                },
+                "packageId": {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]{0,18}$"
+                },
+                "pluginVersionId": {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]{0,18}$"
+                },
+                "subjectType": {
+                  "type": "string",
+                  "enum": [
+                    "ALL",
+                    "DEPT",
+                    "USER"
+                  ]
+                },
+                "subjectId": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[1-9][0-9]{0,18}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "desiredState": {
+                  "type": "string",
+                  "enum": [
+                    "INSTALLED",
+                    "ABSENT"
+                  ]
+                },
+                "required": {
+                  "type": "boolean"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "ACTIVE",
+                    "DISABLED"
+                  ]
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                  "examples": [
+                    7
+                  ]
+                }
+              }
+            }
           }
         }
       },
@@ -64359,7 +64517,8 @@
                 "displayName",
                 "status",
                 "revision",
-                "versions"
+                "versions",
+                "assignments"
               ],
               "properties": {
                 "id": {
@@ -64513,6 +64672,84 @@
                       }
                     }
                   }
+                },
+                "assignments": {
+                  "type": "array",
+                  "maxItems": 200,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "packageId",
+                      "pluginVersionId",
+                      "subjectType",
+                      "subjectId",
+                      "desiredState",
+                      "required",
+                      "status",
+                      "revision"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[1-9][0-9]{0,18}$"
+                      },
+                      "packageId": {
+                        "type": "string",
+                        "pattern": "^[1-9][0-9]{0,18}$"
+                      },
+                      "pluginVersionId": {
+                        "type": "string",
+                        "pattern": "^[1-9][0-9]{0,18}$"
+                      },
+                      "subjectType": {
+                        "type": "string",
+                        "enum": [
+                          "ALL",
+                          "DEPT",
+                          "USER"
+                        ]
+                      },
+                      "subjectId": {
+                        "oneOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^[1-9][0-9]{0,18}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "desiredState": {
+                        "type": "string",
+                        "enum": [
+                          "INSTALLED",
+                          "ABSENT"
+                        ]
+                      },
+                      "required": {
+                        "type": "boolean"
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "ACTIVE",
+                          "DISABLED"
+                        ]
+                      },
+                      "revision": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991,
+                        "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                        "examples": [
+                          7
+                        ]
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -64581,7 +64818,8 @@
                     "displayName",
                     "status",
                     "revision",
-                    "versions"
+                    "versions",
+                    "assignments"
                   ],
                   "properties": {
                     "id": {
@@ -64723,6 +64961,84 @@
                           "createdAt": {
                             "type": "string",
                             "format": "date-time"
+                          },
+                          "revision": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991,
+                            "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                            "examples": [
+                              7
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "assignments": {
+                      "type": "array",
+                      "maxItems": 200,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "id",
+                          "packageId",
+                          "pluginVersionId",
+                          "subjectType",
+                          "subjectId",
+                          "desiredState",
+                          "required",
+                          "status",
+                          "revision"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "pattern": "^[1-9][0-9]{0,18}$"
+                          },
+                          "packageId": {
+                            "type": "string",
+                            "pattern": "^[1-9][0-9]{0,18}$"
+                          },
+                          "pluginVersionId": {
+                            "type": "string",
+                            "pattern": "^[1-9][0-9]{0,18}$"
+                          },
+                          "subjectType": {
+                            "type": "string",
+                            "enum": [
+                              "ALL",
+                              "DEPT",
+                              "USER"
+                            ]
+                          },
+                          "subjectId": {
+                            "oneOf": [
+                              {
+                                "type": "string",
+                                "pattern": "^[1-9][0-9]{0,18}$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "desiredState": {
+                            "type": "string",
+                            "enum": [
+                              "INSTALLED",
+                              "ABSENT"
+                            ]
+                          },
+                          "required": {
+                            "type": "boolean"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "ACTIVE",
+                              "DISABLED"
+                            ]
                           },
                           "revision": {
                             "type": "integer",

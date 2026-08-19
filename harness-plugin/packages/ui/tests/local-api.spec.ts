@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 dsh-ui 同源 local-api、标准 Response 与 EventSource test double
- * [OUTPUT]: 验证十态严格解码、固定路径/空对象动作、SSE 与 Token 字段拒绝
+ * [OUTPUT]: 验证账号/插件严格解码、固定路径/空对象动作、脱敏投影、SSE 与秘密字段拒绝
  * [POS]: dsh-ui 浏览器网络边界测试，确保浏览器只能消费 Host 脱敏 DTO
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -8,8 +8,10 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   createEnterpriseLocalApi,
+  decodeEnterprisePluginStatus,
   decodeEnterpriseLocalStatus,
   ENTERPRISE_CONNECTION_STATES,
+  MANAGED_PLUGIN_STATES,
 } from '../src/local-api.js'
 
 const STATUS = {
@@ -17,6 +19,17 @@ const STATUS = {
   bundleVersion: '0.1.0',
   platformUrl: 'https://enterprise.example.com',
   transport: 'webServer.register' as const,
+}
+
+const PLUGIN = {
+  packageName: '@example/dsh-code-review',
+  version: '1.2.0',
+  sha256: 'a'.repeat(64),
+  desiredRevision: 7,
+  desiredState: 'INSTALLED' as const,
+  state: 'RESTART_REQUIRED' as const,
+  lastErrorCode: null,
+  restartMarker: 'run-20260819',
 }
 
 function ok(data: unknown): Response {
@@ -52,6 +65,44 @@ describe('enterprise local browser API', () => {
       user: { id: '10031', username: 'zhangsan', displayName: 'Zhang San', departmentId: '210' },
       device: { id: '90018', installationId: '4c96d076-a80a-4b6c-8df6-f0db804b6f0a', status: 'ACTIVE' },
     })
+  })
+
+  it('strictly validates plugin records and drops SHA and restart markers from the browser projection', async () => {
+    for (const state of MANAGED_PLUGIN_STATES) {
+      expect(decodeEnterprisePluginStatus({ assignmentRevision: 7, plugins: [{ ...PLUGIN, state }] }))
+        .toEqual({
+          assignmentRevision: 7,
+          plugins: [{
+            packageName: PLUGIN.packageName,
+            version: PLUGIN.version,
+            desiredRevision: 7,
+            desiredState: 'INSTALLED',
+            state,
+            lastErrorCode: null,
+          }],
+        })
+    }
+    expect(() => decodeEnterprisePluginStatus({
+      assignmentRevision: 7,
+      plugins: [{ ...PLUGIN, tgzPath: '/private/plugin.tgz' }],
+    })).toThrow('ENT_LOCAL_RESPONSE_INVALID')
+    expect(() => decodeEnterprisePluginStatus({
+      assignmentRevision: 7,
+      plugins: [{ ...PLUGIN, accessToken: 'must-not-cross' }],
+    })).toThrow('ENT_LOCAL_RESPONSE_INVALID')
+
+    const fetcher = vi.fn(async () => ok({
+      assignmentRevision: 7,
+      plugins: [PLUGIN],
+      lastReportErrorCode: 'ENT_PLATFORM_UNAVAILABLE',
+    }))
+    const projected = await createEnterpriseLocalApi(fetcher).plugins(new AbortController().signal)
+    expect(projected).toMatchObject({ assignmentRevision: 7, lastReportErrorCode: 'ENT_PLATFORM_UNAVAILABLE' })
+    expect(JSON.stringify(projected)).not.toMatch(/sha256|restartMarker|tgz|token|publicKey|cli/i)
+    expect(fetcher).toHaveBeenCalledWith(
+      '/enterprise/api/v1/local/plugins',
+      expect.objectContaining({ cache: 'no-store', signal: expect.any(AbortSignal) }),
+    )
   })
 
   it('uses same-origin fixed paths and strict empty-object POST actions', async () => {
