@@ -1,3 +1,10 @@
+/**
+ * [INPUT]: 依赖 Ant Design 命令式 Modal 与 ReactNode 内容
+ * [OUTPUT]: 提供 Promise 化确认框及取消转 boolean 的安全动作包装
+ * [POS]: utils 的破坏性操作确认边界，由业务页面决定具体命令
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
 import { Modal, type ModalFuncProps } from 'antd';
 import type { ReactNode } from 'react';
 

@@ -20,6 +20,10 @@ Device:
     - platform
     - harnessVersion
     - enterpriseBundleVersion
+    - desiredRevision
+    - pluginInventoryDigest
+    - pendingSessionEvents
+    - lastSuccessfulSyncAt
     - status
     - lastSeenAt
     - revokedAt
@@ -58,6 +62,24 @@ Device:
         - type: string
           minLength: 1
           maxLength: 64
+        - type: 'null'
+    desiredRevision:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/Revision'
+    pluginInventoryDigest:
+      oneOf:
+        - type: string
+          minLength: 64
+          maxLength: 64
+          pattern: '^[0-9a-f]{64}$'
+        - type: 'null'
+    pendingSessionEvents:
+      type: integer
+      minimum: 0
+      maximum: 9007199254740991
+    lastSuccessfulSyncAt:
+      oneOf:
+        - type: string
+          format: date-time
         - type: 'null'
     status:
       $ref: '#/DeviceStatus'

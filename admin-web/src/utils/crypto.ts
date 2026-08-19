@@ -1,3 +1,10 @@
+/**
+ * [INPUT]: 依赖 Web Crypto 随机源与 crypto-js AES/Base64 原语
+ * [OUTPUT]: 提供管理端请求兼容所需的随机 AES key、Base64 和 AES-ECB 转换函数
+ * [POS]: utils 的上游 RuoYi 加密兼容层，不承载企业平台 secret 生命周期
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
 import * as CryptoJSModule from 'crypto-js';
 
 const CryptoJS = ('default' in CryptoJSModule ? CryptoJSModule.default : CryptoJSModule) as typeof CryptoJSModule;

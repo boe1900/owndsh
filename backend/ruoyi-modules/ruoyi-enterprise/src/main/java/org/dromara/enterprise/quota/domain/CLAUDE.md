@@ -14,5 +14,6 @@ QuotaWindow.java: PostgreSQL 锁定窗口的非负 used/reserved 计数事实。
 ReservedWindow.java: reservation 固化的窗口、策略、类型和预留量快照。
 UsageReservation.java: 幂等键、requestId、状态、窗口快照和恢复期限的不可变预留事实。
 UsageLedger.java: 不含 prompt 的终态 Token 分类与 requestId 账本事实。
+UsageLedgerMetadata.java: 组合不可变账本与当前用户/部门/模型显示语义的只读管理投影，不参与计费。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

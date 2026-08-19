@@ -14,7 +14,7 @@ src/main/java/org/dromara/enterprise/common/: 企业 HTTP envelope、36 个稳�
 src/main/java/org/dromara/enterprise/audit/: 只追加审计领域契约与 JDBC sink，metadata 只能通过显式 marker DTO 进入 JSONB。
 src/main/java/org/dromara/enterprise/crypto/: HKDF-SHA-256 用途派生与 AES-256-GCM 秘密/cursor 保护，不暴露 master key 或派生 key。
 src/main/java/org/dromara/enterprise/revision/: 固定 BOOTSTRAP scope 的 optimistic CAS、稳定冲突错误码与审计同事务编排。
-src/main/resources/db/migration/: PostgreSQL `V1` 至 `V6` 真源，依次建立核心、插件、Session、审计/RBAC、默认 seed 与 quota runtime 可追溯增量；局部地图见 db/migration/CLAUDE.md。
+src/main/resources/db/migration/: PostgreSQL `V1` 至 `V7` 真源，依次建立核心、插件、Session、审计/RBAC、默认 seed、quota runtime 与管理观测字段可追溯增量；局部地图见 db/migration/CLAUDE.md。
 src/main/resources/static/enterprise/auth/: 无 Token 的公开身份源选择、密码与 OIDC 跳转页；局部地图见 auth/CLAUDE.md。
 src/test/java/org/dromara/enterprise/: 单元和 Testcontainers 集成验收，覆盖数据库、身份、PKCE/Redis、设备、模型、配额、协议和事务边界。
 

@@ -263,3 +263,25 @@
           $ref: '../enterprise-openapi.yaml#/components/responses/Error404'
         '409':
           $ref: '../enterprise-openapi.yaml#/components/responses/Error409'
+  /enterprise/admin/v1/users/{userId}/identity-summary:
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/EnterpriseUserIdPath'
+    get:
+      operationId: getUserExternalIdentitySummary
+      summary: List sanitized external identity bindings for one RuoYi user.
+      responses:
+        '200':
+          description: External identity summaries.
+          headers:
+            X-Request-Id:
+              $ref: '../enterprise-openapi.yaml#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '../enterprise-openapi.yaml#/components/schemas/ExternalIdentitySummaryResponse'
+        '400':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error400'
+        '401':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+        '403':
+          $ref: '../enterprise-openapi.yaml#/components/responses/Error403'

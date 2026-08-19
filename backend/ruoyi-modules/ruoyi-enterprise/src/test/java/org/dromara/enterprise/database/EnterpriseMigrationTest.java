@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 PostgresTestDatabase 装载真实 RuoYi 基线与 V1-V6 classpath migration。
- * [OUTPUT]: 验证一次性空企业 schema 迁移、21 张企业表和逐版本升级路径。
+ * [INPUT]: 依赖 PostgresTestDatabase 装载真实 RuoYi 基线与 V1-V7 classpath migration。
+ * [OUTPUT]: 验证一次性空企业 schema 迁移、21 张企业表、V7 可观测性列和逐版本升级路径。
  * [POS]: database 的持续 migration 门禁，防止后续任务只验证最终 schema 而遗漏中间版本不可升级。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -26,7 +26,7 @@ class EnterpriseMigrationTest {
 
         Flyway flyway = PostgresTestDatabase.migrate(database, null);
 
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("6");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("7");
         Integer tableCount = database.jdbc().queryForObject("""
             select count(*) from information_schema.tables
             where table_schema = 'public' and table_name like 'ent_%'
@@ -65,6 +65,20 @@ class EnterpriseMigrationTest {
                 expectedTables[version - 1]
             )).isTrue();
         }
+
+        Flyway latest = PostgresTestDatabase.migrate(database, "7");
+        assertThat(latest.info().current().getVersion().getVersion()).isEqualTo("7");
+        assertThat(database.jdbc().queryForObject(
+            "select count(*) from information_schema.columns where table_name='ent_device' "
+                + "and column_name in ('desired_revision','plugin_inventory_digest',"
+                + "'pending_session_events','last_successful_sync_at')",
+            Integer.class
+        )).isEqualTo(4);
+        assertThat(database.jdbc().queryForObject(
+            "select count(*) from information_schema.columns where table_name='ent_identity_source' "
+                + "and column_name in ('last_tested_at','last_test_ok','last_test_diagnostic')",
+            Integer.class
+        )).isEqualTo(3);
     }
 
     @Test
@@ -81,7 +95,7 @@ class EnterpriseMigrationTest {
             .run(context -> {
                 assertThat(context).hasSingleBean(Flyway.class);
                 assertThat(context.getBean(Flyway.class).info().current().getVersion().getVersion())
-                    .isEqualTo("6");
+                    .isEqualTo("7");
             });
     }
 }

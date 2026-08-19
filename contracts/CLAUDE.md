@@ -41,6 +41,6 @@ fixtures/quota-error.json: 带固定 QuotaExceededDetails 的第 17 节失败响
 fixtures/token-success.json: T05 12 小时 dsh-desktop Bearer Token 成功响应样例，只使用显式假值。
 fixtures/unexpected-error-property.json: 包含未声明调试字段的失败响应负例，验证 additionalProperties=false 在双端严格生效。
 fixtures/unknown-error-code.json: 未知稳定错误码负例，必须被 Java JSON Schema 与 TypeScript Zod 同时拒绝。
-generated/: 从完整 OpenAPI 逻辑文档派生的 fixture manifest、自包含 JSON Schema 与协议 SHA-256，供 Java 和 CI 消费，禁止手工编辑。
+generated/: 从完整 OpenAPI 逻辑文档派生的自包含 OpenAPI JSON、fixture manifest、JSON Schema 与协议 SHA-256，供管理端、Java 和 CI 消费，禁止手工编辑。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

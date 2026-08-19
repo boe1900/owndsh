@@ -10,5 +10,6 @@ V3__enterprise_session.sql: 建立远端 Session replica/event/batch、密文字
 V4__enterprise_audit.sql: 建立只追加审计、固定 built-in 角色、菜单、权限码与不可变触发器。
 V5__enterprise_seed.sql: 为默认 tenant 写入 LOCAL 身份源、DEFAULT 配额策略和 BOOTSTRAP revision。
 V6__enterprise_quota_runtime.sql: 冻结部署 IANA 时区，并给 reservation 增加崩溃恢复所需 requestId。
+V7__enterprise_admin_observability.sql: 持久化身份源最近连接测试与设备 heartbeat 的插件/同步脱敏摘要，供 T12 管理投影读取。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

@@ -1,8 +1,16 @@
+/**
+ * [INPUT]: 依赖 Umi/Vite 公开环境变量、静态资源模块与 import.meta.glob 运行时
+ * [OUTPUT]: 提供 admin-web 全局编译期环境和资源类型声明
+ * [POS]: src 的环境类型边界，只声明公开构建输入，不声明业务 DTO 或秘密
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
 interface ImportMetaEnv {
   readonly VITE_APP_TITLE?: string;
   readonly VITE_APP_LOGO_TITLE?: string;
   readonly VITE_APP_BASE_API?: string;
   readonly VITE_APP_CONTEXT_PATH?: string;
+  readonly VITE_APP_ADMIN_REDIRECT_URI?: string;
   readonly VITE_APP_ENV?: string;
   readonly VITE_APP_PORT?: string;
   readonly VITE_APP_CLIENT_ID?: string;

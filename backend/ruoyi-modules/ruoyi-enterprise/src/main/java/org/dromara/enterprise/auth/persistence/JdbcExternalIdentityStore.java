@@ -1,12 +1,14 @@
 /**
  * [INPUT]: 依赖 Spring JdbcOperations、Jackson JsonMapper 与 V1 ent_external_identity。
- * [OUTPUT]: 对外提供稳定 subject/source-user 双查询、JSONB groups 写入和 last_login touch。
+ * [OUTPUT]: 对外提供稳定 subject/source-user 双查询、tenant/user 摘要、JSONB groups 写入和 last_login touch。
  * [POS]: external identity PostgreSQL adapter，只持久化白名单组数组而非原始 claims。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.auth.persistence;
 
 import org.dromara.enterprise.auth.domain.ExternalIdentity;
+import org.dromara.enterprise.auth.domain.ExternalIdentitySummary;
+import org.dromara.enterprise.auth.domain.IdentitySourceType;
 import org.springframework.jdbc.core.JdbcOperations;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -31,6 +33,14 @@ public final class JdbcExternalIdentityStore implements ExternalIdentityStore {
         """;
     private static final String FIND_USER_SQL = "select " + COLUMNS + """
         from ent_external_identity where source_id = ? and user_id = ?
+        """;
+    private static final String FIND_USER_SUMMARIES_SQL = """
+        select e.source_id, s.name as source_name, s.type as source_type,
+            e.external_subject, e.last_login_at
+        from ent_external_identity e
+        join ent_identity_source s on s.id = e.source_id and s.tenant_id = e.tenant_id
+        where e.tenant_id = ? and e.user_id = ?
+        order by e.source_id
         """;
     private static final String INSERT_SQL = """
         insert into ent_external_identity(
@@ -65,6 +75,23 @@ public final class JdbcExternalIdentityStore implements ExternalIdentityStore {
         return jdbc.query(FIND_USER_SQL, (resultSet, rowNumber) -> map(resultSet), sourceId, userId)
             .stream()
             .findFirst();
+    }
+
+    @Override
+    public List<ExternalIdentitySummary> findSummariesByUser(String tenantId, long userId) {
+        if (tenantId == null || tenantId.isBlank() || userId <= 0) {
+            throw new IllegalArgumentException("tenantId/userId 非法");
+        }
+        return jdbc.query(FIND_USER_SUMMARIES_SQL, (resultSet, rowNumber) -> {
+            OffsetDateTime lastLogin = resultSet.getObject("last_login_at", OffsetDateTime.class);
+            return new ExternalIdentitySummary(
+                resultSet.getLong("source_id"),
+                resultSet.getString("source_name"),
+                IdentitySourceType.valueOf(resultSet.getString("source_type")),
+                resultSet.getString("external_subject"),
+                lastLogin == null ? null : lastLogin.toInstant()
+            );
+        }, tenantId, userId);
     }
 
     @Override

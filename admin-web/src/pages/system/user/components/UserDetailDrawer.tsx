@@ -1,9 +1,19 @@
+/**
+ * [INPUT]: 依赖 RuoYi 用户详情、企业外部身份摘要 API 与当前 ent:identity:read 权限
+ * [OUTPUT]: 提供用户基础事实、角色/部门和脱敏外部身份绑定详情抽屉
+ * [POS]: system/user/components 的只读详情视图，不展示 groups、claims、Token 或凭据
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
 import { ProDescriptions } from '@ant-design/pro-components';
 import { useRequest } from 'ahooks';
-import { Divider, Drawer, Switch } from 'antd';
+import { Divider, Drawer, Switch, Table, Tag } from 'antd';
 import { useEffect, useMemo } from 'react';
 import type { DictData } from '@/api/system/dict/data/types';
+import { getUserExternalIdentitySummary, type ExternalIdentitySummary } from '@/api/enterprise/identity';
 import { getUser } from '@/api/system/user';
+import { useUserStore } from '@/stores/userStore';
+import { hasPermi } from '@/utils/permission';
 
 interface UserDetailDrawerProps {
   open: boolean;
@@ -14,12 +24,21 @@ interface UserDetailDrawerProps {
 
 export default function UserDetailDrawer({ open, userId, genderOptions, onClose }: UserDetailDrawerProps) {
   const { data, loading, runAsync: loadUser, mutate } = useRequest(getUser, { manual: true });
+  const userInfo = useUserStore(state => state.userInfo);
+  const canReadIdentity = hasPermi(userInfo, ['ent:identity:read']);
+  const {
+    data: identityData,
+    loading: identityLoading,
+    runAsync: loadIdentities,
+    mutate: mutateIdentities
+  } = useRequest(getUserExternalIdentitySummary, { manual: true });
 
   useEffect(() => {
     if (open && userId) {
       loadUser(userId);
+      if (canReadIdentity) loadIdentities({ userId: String(userId) });
     }
-  }, [loadUser, open, userId]);
+  }, [canReadIdentity, loadIdentities, loadUser, open, userId]);
 
   const user = data?.data.user;
   const postIds = useMemo(() => (data?.data.postIds || []).map(String), [data?.data.postIds]);
@@ -37,6 +56,7 @@ export default function UserDetailDrawer({ open, userId, genderOptions, onClose 
   const closeDrawer = () => {
     onClose();
     mutate(undefined);
+    mutateIdentities(undefined);
   };
 
   return (
@@ -72,6 +92,30 @@ export default function UserDetailDrawer({ open, userId, genderOptions, onClose 
         ]}
       />
       <Divider />
+      {canReadIdentity && (
+        <>
+          <Table<ExternalIdentitySummary>
+            rowKey="sourceId"
+            size="small"
+            pagination={false}
+            loading={identityLoading}
+            dataSource={identityData?.data || []}
+            locale={{ emptyText: '未绑定外部身份' }}
+            columns={[
+              { title: '身份源', dataIndex: 'sourceName' },
+              { title: '类型', dataIndex: 'sourceType', width: 90, render: value => <Tag>{value}</Tag> },
+              { title: 'External Subject', dataIndex: 'externalSubject', ellipsis: true },
+              {
+                title: '最后登录',
+                dataIndex: 'lastLoginAt',
+                width: 180,
+                render: value => (value ? new Date(value).toLocaleString() : '-')
+              }
+            ]}
+          />
+          <Divider />
+        </>
+      )}
       <ProDescriptions
         column={2}
         bordered

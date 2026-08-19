@@ -17,6 +17,7 @@ import org.dromara.enterprise.auth.adapter.LocalIdentityAdapter;
 import org.dromara.enterprise.auth.adapter.LoginFailurePolicy;
 import org.dromara.enterprise.auth.adapter.OidcIdentityAdapter;
 import org.dromara.enterprise.auth.application.ExternalIdentityService;
+import org.dromara.enterprise.auth.application.ExternalIdentityQueryService;
 import org.dromara.enterprise.auth.application.CaptchaVerifier;
 import org.dromara.enterprise.auth.application.IdentityGroupMappingService;
 import org.dromara.enterprise.auth.application.IdentitySourceService;
@@ -217,6 +218,11 @@ public class EnterpriseIdentityConfiguration {
             auditSink,
             ids
         );
+    }
+
+    @Bean
+    ExternalIdentityQueryService externalIdentityQueryService(ExternalIdentityStore identityStore) {
+        return new ExternalIdentityQueryService(identityStore);
     }
 
     @Bean

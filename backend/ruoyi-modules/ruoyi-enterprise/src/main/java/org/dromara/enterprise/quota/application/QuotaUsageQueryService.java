@@ -9,7 +9,7 @@ package org.dromara.enterprise.quota.application;
 import org.dromara.enterprise.quota.domain.QuotaPolicy;
 import org.dromara.enterprise.quota.domain.QuotaWindow;
 import org.dromara.enterprise.quota.domain.QuotaWindowType;
-import org.dromara.enterprise.quota.domain.UsageLedger;
+import org.dromara.enterprise.quota.domain.UsageLedgerMetadata;
 import org.dromara.enterprise.quota.persistence.QuotaWindowStore;
 import org.dromara.enterprise.quota.persistence.UsageLedgerStore;
 
@@ -155,7 +155,7 @@ public final class QuotaUsageQueryService {
     public record ConcurrencyUsage(int limit, int current) {
     }
 
-    public record UsagePage(List<UsageLedger> items, UsageLedgerStore.UsageTotals summary) {
+    public record UsagePage(List<UsageLedgerMetadata> items, UsageLedgerStore.UsageTotals summary) {
         public UsagePage {
             items = List.copyOf(items);
             Objects.requireNonNull(summary, "summary");

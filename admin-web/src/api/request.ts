@@ -1,9 +1,16 @@
-﻿import { history } from '@umijs/max';
+/**
+ * [INPUT]: 依赖 Axios、enterprise-admin 标签页认证事实、RuoYi envelope 与企业稳定错误 envelope
+ * [OUTPUT]: 提供固定 client 绑定、统一认证、加密、重复提交保护和可判别 EnterpriseRequestError
+ * [POS]: api 的唯一 HTTP 传输边界，保持 RuoYi/企业 API 会话一致且不吞掉稳定错误事实
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
+import { history } from '@umijs/max';
 import { message, Modal } from 'antd';
 import axios, { type AxiosError, type AxiosRequestConfig } from 'axios';
 import { useAppStore } from '@/stores/appStore';
 import { useTagsViewStore } from '@/stores/tagsViewStore';
-import { getToken, removeToken } from '@/utils/auth';
+import { ENTERPRISE_ADMIN_CLIENT_ID, enterpriseAuthHeaders, getToken, removeToken } from '@/utils/auth';
 import { decryptBase64, decryptWithAes, encryptBase64, encryptWithAes, generateAesKey } from '@/utils/crypto';
 import { appEnv } from '@/utils/env';
 import { decrypt, encrypt } from '@/utils/jsencrypt';
@@ -28,6 +35,30 @@ export const isRelogin = { show: false };
 
 type HandledRequestError = Error & { isHandled?: boolean };
 
+interface EnterpriseErrorPayload {
+  code: string;
+  message: string;
+  requestId: string;
+  retryable: boolean;
+  details?: unknown;
+}
+
+export class EnterpriseRequestError extends Error {
+  readonly isHandled = true;
+
+  constructor(
+    message: string,
+    readonly code: string,
+    readonly status: number,
+    readonly requestId: string,
+    readonly retryable: boolean,
+    readonly details?: unknown
+  ) {
+    super(message);
+    this.name = 'EnterpriseRequestError';
+  }
+}
+
 function createHandledError(message: string) {
   const error = new Error(message) as HandledRequestError;
   error.isHandled = true;
@@ -38,11 +69,12 @@ export function isHandledRequestError(error: unknown) {
   return Boolean((error as { isHandled?: boolean } | undefined)?.isHandled);
 }
 
+export function isEnterpriseRequestError(error: unknown): error is EnterpriseRequestError {
+  return error instanceof EnterpriseRequestError;
+}
+
 export function globalHeaders() {
-  return {
-    Authorization: `Bearer ${getToken() || ''}`,
-    clientid: appEnv.clientId
-  };
+  return enterpriseAuthHeaders();
 }
 
 function showRequestError(content: string) {
@@ -98,7 +130,7 @@ const service = axios.create({
   timeout: 50000,
   headers: {
     'Content-Type': 'application/json;charset=utf-8',
-    clientid: appEnv.clientId
+    clientid: ENTERPRISE_ADMIN_CLIENT_ID
   },
   transitional: {
     clarifyTimeoutError: true
@@ -107,6 +139,7 @@ const service = axios.create({
 
 service.interceptors.request.use(config => {
   config.headers.set('Content-Language', useAppStore.getState().appLocale);
+  config.headers.set('clientid', ENTERPRISE_ADMIN_CLIENT_ID);
 
   const isToken = config.headers.get('isToken') === false;
   const isEncrypt = config.headers.get('isEncrypt') === 'true' || config.headers.get('isEncrypt') === true;
@@ -170,7 +203,9 @@ function normalizeErrorMessage(message?: string) {
   return message;
 }
 
-async function parseResponseErrorData(data: unknown): Promise<string | undefined> {
+async function parseResponseErrorData(
+  data: unknown
+): Promise<{ message?: string; enterprise?: EnterpriseErrorPayload } | undefined> {
   if (!data) return undefined;
   if (data instanceof Blob) return parseResponseErrorData(await data.text());
   if (data instanceof ArrayBuffer) return parseResponseErrorData(new TextDecoder().decode(data));
@@ -180,19 +215,43 @@ async function parseResponseErrorData(data: unknown): Promise<string | undefined
     try {
       return parseResponseErrorData(JSON.parse(text));
     } catch {
-      return text;
+      return { message: text };
     }
   }
   if (typeof data === 'object') {
-    const payload = data as { msg?: string; message?: string };
-    return payload.msg || payload.message;
+    const payload = data as { msg?: string; message?: string; error?: Partial<EnterpriseErrorPayload> };
+    const enterprise = payload.error;
+    if (
+      enterprise &&
+      typeof enterprise.code === 'string' &&
+      typeof enterprise.message === 'string' &&
+      typeof enterprise.requestId === 'string' &&
+      typeof enterprise.retryable === 'boolean'
+    ) {
+      return { message: enterprise.message, enterprise: enterprise as EnterpriseErrorPayload };
+    }
+    return { message: payload.msg || payload.message };
   }
   return undefined;
 }
 
 async function getErrorMessage(error: AxiosError) {
-  const responseMessage = await parseResponseErrorData(error.response?.data);
-  return responseMessage || normalizeErrorMessage(error.message) || '系统未知错误';
+  const parsed = await parseResponseErrorData(error.response?.data);
+  return parsed?.message || normalizeErrorMessage(error.message) || '系统未知错误';
+}
+
+async function getEnterpriseError(error: AxiosError): Promise<EnterpriseRequestError | undefined> {
+  const parsed = await parseResponseErrorData(error.response?.data);
+  if (!parsed?.enterprise) return undefined;
+  const enterprise = parsed.enterprise;
+  return new EnterpriseRequestError(
+    enterprise.message,
+    enterprise.code,
+    error.response?.status || 0,
+    enterprise.requestId,
+    enterprise.retryable,
+    enterprise.details
+  );
 }
 
 service.interceptors.response.use(
@@ -226,6 +285,15 @@ service.interceptors.response.use(
     return response.data;
   },
   async error => {
+    if (axios.isAxiosError(error)) {
+      const enterpriseError = await getEnterpriseError(error);
+      if (enterpriseError) {
+        if (enterpriseError.status === 401) showReloginConfirm();
+        else if (enterpriseError.code !== 'ENT_REVISION_CONFLICT') showRequestError(enterpriseError.message);
+        return Promise.reject(enterpriseError);
+      }
+    }
+
     if (axios.isAxiosError(error) && error.response?.status === 401) {
       showReloginConfirm();
       return Promise.reject(createHandledError('无效的会话，或者会话已过期，请重新登录。'));

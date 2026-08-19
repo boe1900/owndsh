@@ -785,6 +785,7 @@ MVP 必须产生以下 action：
 | `V4__enterprise_audit.sql` | 审计表、索引、固定角色、菜单和权限码 |
 | `V5__enterprise_seed.sql` | 默认本地身份源、默认 quota policy 和 bootstrap revision |
 | `V6__enterprise_quota_runtime.sql` | 冻结部署时区，并为 reservation 补齐崩溃恢复所需 requestId |
+| `V7__enterprise_admin_observability.sql` | 持久化身份源最近测试与设备 heartbeat 的插件/同步脱敏摘要，供管理控制台查询 |
 
 Flyway 使用独立 migration 数据库账号；运行时账号只有 DML 和 sequence 权限。migration 必须在空 PostgreSQL 和从前一 migration 升级两条路径测试。
 
@@ -1167,7 +1168,8 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 | T09 | `completed` | 2026-08-18 已实现 DEFAULT+DEPT+USER 叠加策略、冻结部署时区、PostgreSQL 防超卖 reservation、Redis RPM/并发 lease、结算/恢复和 prompt-free 用量 API；协议与并发证据见 [`t09-quota-management-acceptance.md`](t09-quota-management-acceptance.md)。 |
 | T10 | `completed` | 2026-08-18 已实现请求级 ACTIVE 授权、DeepSeek-compatible upstream、OpenAI SSE、配额预留/续租/结算、首字节前后错误和 accepted/finished 原子审计；完整证据见 [`t10-model-gateway-acceptance.md`](t10-model-gateway-acceptance.md)。 |
 | T11 | `completed` | 2026-08-19 已基于官方 rc.7 实现 EnterpriseGatewayAdapter、动态目录/default、中心直连、单次尝试、取消与 profile provider 覆盖；真实 `ctx.llm` 的无本地上游 Key 组合证据见 [`t11-harness-model-integration-acceptance.md`](t11-harness-model-integration-acceptance.md)。 |
-| T12-T23 | `pending` | 下一项只能从 T12 管理控制台开始；仍按依赖顺序一次完成一个任务。 |
+| T12 | `completed` | 2026-08-19 已交付 enterprise-admin PKCE、动态权限路由和身份/设备/模型/授权/配额/用量管理纵向页面；真实 Server Playwright、CAS 恢复与密钥隔离证据见 [`t12-admin-console-acceptance.md`](t12-admin-console-acceptance.md)。 |
+| T13-T23 | `pending` | 下一项只能从 T13 插件服务端开始；仍按依赖顺序一次完成一个任务。 |
 
 ## 23. Definition of Done
 

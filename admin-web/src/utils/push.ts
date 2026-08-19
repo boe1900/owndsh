@@ -1,10 +1,17 @@
+/**
+ * [INPUT]: 依赖统一认证头、enterprise-admin 标签页 Token、消息 API/store 与 SSE/WebSocket
+ * [OUTPUT]: 提供消息盒初始化、推送连接/重连/关闭和当前认证 header
+ * [POS]: utils 的实时消息传输生命周期，复用认证事实且不持久化平台 Token
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
 import { notification } from 'antd';
 import type { MessageVO } from '@/api/system/message/types';
 import { globalHeaders } from '@/api/request';
 import { getMessageBox } from '@/api/system/message';
 import { useNoticeStore, type NoticeItem } from '@/stores/noticeStore';
 import { useUserStore } from '@/stores/userStore';
-import { getToken } from '@/utils/auth';
+import { ENTERPRISE_ADMIN_CLIENT_ID, getToken } from '@/utils/auth';
 import { appEnv } from '@/utils/env';
 import { getReadMessageIds } from '@/utils/messageRead';
 import { parsePushMessage, resolveNoticeGroup, resolveNoticeTitle, shouldAppendNotice } from '@/utils/pushMessage';
@@ -84,7 +91,7 @@ function buildHttpUrl(path: string) {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   const url = `${base}${normalizedPath}`;
   const separator = url.includes('?') ? '&' : '?';
-  return `${url}${separator}Authorization=Bearer ${encodeURIComponent(getToken() || '')}&clientid=${encodeURIComponent(appEnv.clientId)}`;
+  return `${url}${separator}Authorization=Bearer ${encodeURIComponent(getToken() || '')}&clientid=${encodeURIComponent(ENTERPRISE_ADMIN_CLIENT_ID)}`;
 }
 
 function buildWsUrl(path: string) {

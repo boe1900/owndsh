@@ -7,16 +7,18 @@
   "packageManager": "pnpm@10.34.5",
   "scripts": {
     "build": "pnpm build:prod",
-    "build:dev": "pnpm run setup:umi && cross-env UMI_ENV=development BABEL_POLYFILL=none max build",
-    "build:prod": "pnpm run setup:umi && cross-env UMI_ENV=production BABEL_POLYFILL=none max build",
+    "build:dev": "pnpm run openapi && pnpm run setup:umi && cross-env UMI_ENV=development BABEL_POLYFILL=none max build",
+    "build:prod": "pnpm run openapi && pnpm run setup:umi && cross-env UMI_ENV=production BABEL_POLYFILL=none max build",
     "dev": "cross-env UMI_ENV=development MOCK=none BABEL_POLYFILL=none max dev",
     "fmt": "oxfmt .",
-    "lint": "oxlint src config vite.config.ts && pnpm run setup:umi && tsc --noEmit",
+    "lint": "oxlint src config vite.config.ts && pnpm run openapi && pnpm run setup:umi && tsc --noEmit",
     "lint:fix": "oxlint --fix src config vite.config.ts",
     "openapi": "max openapi",
     "preview": "max preview --port 8000",
     "setup:umi": "cross-env UMI_ENV=development BABEL_POLYFILL=none max setup",
-    "start": "cross-env UMI_ENV=development MOCK=none BABEL_POLYFILL=none max dev"
+    "start": "cross-env UMI_ENV=development MOCK=none BABEL_POLYFILL=none max dev",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.2",
@@ -48,6 +50,10 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.5",
     "@types/crypto-js": "4.2.2",
     "@types/node": "^26.1.1",
     "@types/nprogress": "0.2.3",
@@ -57,9 +63,12 @@
     "@umijs/lint": "^4.6.82",
     "@umijs/max-plugin-openapi": "^2.0.3",
     "cross-env": "^10.1.0",
+    "jsdom": "^30.0.1",
     "oxfmt": "^0.60.0",
     "oxlint": "^1.75.0",
-    "typescript": "^6.0.3"
+    "swagger-ui-dist": "4.19.1",
+    "typescript": "^6.0.3",
+    "vitest": "^0.34.6"
   },
   "engines": {
     "node": ">=20.19.0",

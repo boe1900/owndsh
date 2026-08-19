@@ -9,6 +9,7 @@ AuthFlowException.java: 平台认证状态机到第 17 节稳定错误码的失�
 AuthSources.java: 登录事务绑定的 CSRF 与 ACTIVE 公开身份源结果，不携带秘密配置。
 CaptchaVerifier.java: LOCAL 登录到宿主验证码设施的原子消费端口，只返回统一成功/失败事实。
 ExternalIdentityService.java: 在单事务内按稳定 subject 解析/创建/显式绑定用户，同步白名单 profile 和组映射且不自动授予角色。
+ExternalIdentityQueryService.java: 向管理端提供单个平台用户的脱敏外部身份摘要，不暴露 groups/claims/凭据。
 IdentityAlreadyLinkedException.java: 外部 subject 或 source-user 唯一绑定冲突的稳定 ENT_IDENTITY_ALREADY_LINKED 异常。
 IdentityChangeMetadata.java: 身份源与组映射变更的显式审计 metadata。
 IdentityGroupMappingService.java: 组映射 keyset 查询、部门校验、创建/删除 CAS、bootstrap revision 与审计事务。

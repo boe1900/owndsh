@@ -7,6 +7,7 @@
 package org.dromara.enterprise.quota.persistence;
 
 import org.dromara.enterprise.quota.domain.UsageLedger;
+import org.dromara.enterprise.quota.domain.UsageLedgerMetadata;
 
 import java.time.Instant;
 import java.util.List;
@@ -18,7 +19,7 @@ public interface UsageLedgerStore {
 
     Optional<UsageLedger> findByReservation(UUID reservationId);
 
-    List<UsageLedger> list(String tenantId, long afterId, int limit, UsageLedgerFilter filter);
+    List<UsageLedgerMetadata> list(String tenantId, long afterId, int limit, UsageLedgerFilter filter);
 
     UsageTotals summarize(String tenantId, UsageLedgerFilter filter);
 

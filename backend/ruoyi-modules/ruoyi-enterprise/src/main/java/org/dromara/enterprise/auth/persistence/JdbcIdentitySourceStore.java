@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 Spring JdbcOperations、Jackson JsonMapper 与 V1 ent_identity_source schema。
- * [OUTPUT]: 对外提供 keyset SQL、JSONB 配置映射、bytea 密文和 revision CAS 的 IdentitySourceStore。
+ * [INPUT]: 依赖 Spring JdbcOperations、Jackson JsonMapper 与 V1/V7 ent_identity_source schema。
+ * [OUTPUT]: 对外提供 keyset SQL、最近测试、JSONB 配置映射、bytea 密文和 revision CAS 的 IdentitySourceStore。
  * [POS]: 身份源 PostgreSQL adapter，秘密只进入独立 bytea/nonce/version 列且从不序列化到 JSON。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -34,7 +34,8 @@ public final class JdbcIdentitySourceStore implements IdentitySourceStore {
         secret_ciphertext, secret_nonce, secret_key_version,
         ldap_config_json::text as ldap_config_json,
         claim_mapping_json::text as claim_mapping_json,
-        status, revision, created_at, updated_at
+        status, revision, created_at, updated_at,
+        last_tested_at, last_test_ok, last_test_diagnostic
         """;
     private static final String LIST_SQL = "select " + COLUMNS + """
         from ent_identity_source
@@ -63,12 +64,18 @@ public final class JdbcIdentitySourceStore implements IdentitySourceStore {
             name = ?, issuer = ?, client_id = ?,
             secret_ciphertext = ?, secret_nonce = ?, secret_key_version = ?,
             ldap_config_json = ?::jsonb, claim_mapping_json = ?::jsonb,
-            revision = revision + 1, updated_at = ?
+            revision = revision + 1, updated_at = ?,
+            last_tested_at = null, last_test_ok = null, last_test_diagnostic = null
         where tenant_id = ? and id = ? and revision = ?
         """;
     private static final String STATUS_SQL = """
         update ent_identity_source set status = ?, revision = revision + 1, updated_at = ?
         where tenant_id = ? and id = ? and revision = ?
+        """;
+    private static final String CONNECTION_TEST_SQL = """
+        update ent_identity_source
+        set last_tested_at = ?, last_test_ok = ?, last_test_diagnostic = ?
+        where tenant_id = ? and id = ?
         """;
 
     private final JdbcOperations jdbc;
@@ -158,6 +165,24 @@ public final class JdbcIdentitySourceStore implements IdentitySourceStore {
         ) == 1;
     }
 
+    @Override
+    public boolean recordConnectionTest(
+        String tenantId,
+        long sourceId,
+        boolean ok,
+        String diagnostic,
+        Instant testedAt
+    ) {
+        return jdbc.update(
+            CONNECTION_TEST_SQL,
+            OffsetDateTime.ofInstant(testedAt, java.time.ZoneOffset.UTC),
+            ok,
+            diagnostic,
+            tenantId,
+            sourceId
+        ) == 1;
+    }
+
     private IdentitySource mapSource(ResultSet resultSet, int rowNumber) throws SQLException {
         IdentitySourceType type = IdentitySourceType.valueOf(resultSet.getString("type"));
         byte[] ciphertext = resultSet.getBytes("secret_ciphertext");
@@ -179,7 +204,10 @@ public final class JdbcIdentitySourceStore implements IdentitySourceStore {
             IdentitySourceStatus.valueOf(resultSet.getString("status")),
             resultSet.getLong("revision"),
             resultSet.getObject("created_at", OffsetDateTime.class).toInstant(),
-            resultSet.getObject("updated_at", OffsetDateTime.class).toInstant()
+            resultSet.getObject("updated_at", OffsetDateTime.class).toInstant(),
+            instant(resultSet, "last_tested_at"),
+            resultSet.getObject("last_test_ok", Boolean.class),
+            resultSet.getString("last_test_diagnostic")
         );
     }
 
@@ -207,6 +235,11 @@ public final class JdbcIdentitySourceStore implements IdentitySourceStore {
 
     private static String text(URI value) {
         return value == null ? null : value.toString();
+    }
+
+    private static Instant instant(ResultSet resultSet, String column) throws SQLException {
+        OffsetDateTime value = resultSet.getObject(column, OffsetDateTime.class);
+        return value == null ? null : value.toInstant();
     }
 
     private static void requirePage(long afterId, int limit) {

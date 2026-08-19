@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖模块化 enterprise-openapi.yaml、Swagger Parser 与 @hey-api/openapi-ts/Zod 插件
- * [OUTPUT]: bundle/hash 完整逻辑协议并生成 TypeScript DTO/Fetch/Zod、独立 JSON Schema 与错误映射，或只读检查漂移
+ * [OUTPUT]: bundle/hash 完整逻辑协议并生成自包含 OpenAPI JSON、TypeScript DTO/Fetch/Zod、JSON Schema 与错误映射，或只读检查漂移
  * [POS]: contracts 的唯一生成入口，使 Harness、Java 和 CI 从同一逻辑协议真源得到可比较产物
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -106,6 +106,9 @@ async function generateInto(typescriptOutput, jsonSchemaOutput) {
   const bundled = await SwaggerParser.bundle(OPENAPI_PATH)
   const metadata = protocolMetadata(validated, stableJson(bundled))
   const dereferenced = await SwaggerParser.dereference(OPENAPI_PATH)
+
+  await mkdir(jsonSchemaOutput, { recursive: true })
+  await writeFile(resolve(jsonSchemaOutput, 'enterprise-openapi.json'), stableJson(dereferenced))
 
   await createClient({
     input: OPENAPI_PATH,

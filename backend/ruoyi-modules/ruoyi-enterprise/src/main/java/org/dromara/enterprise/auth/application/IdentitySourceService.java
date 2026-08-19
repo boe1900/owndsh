@@ -200,7 +200,8 @@ public final class IdentitySourceService {
         IdentitySource updated = new IdentitySource(
             current.id(), current.tenantId(), current.type(), current.name(), current.issuer(), current.clientId(),
             current.encryptedSecret(), current.oidc(), current.ldap(), status, expectedRevision + 1,
-            current.createdAt(), now
+            current.createdAt(), now,
+            current.lastTestedAt(), current.lastTestOk(), current.lastTestDiagnostic()
         );
         return requireResult(transactions.execute(transactionStatus -> {
             requireRevision(current, expectedRevision);
@@ -217,7 +218,17 @@ public final class IdentitySourceService {
     }
 
     public IdentitySourceConnection testConnection(String tenantId, long sourceId) {
-        return adapters.testConnection(get(tenantId, sourceId));
+        IdentitySource source = get(tenantId, sourceId);
+        Instant testedAt = Instant.now(clock);
+        IdentitySourceConnection result;
+        try {
+            result = adapters.testConnection(source);
+        } catch (RuntimeException exception) {
+            sources.recordConnectionTest(tenantId, sourceId, false, "FAILED", testedAt);
+            throw exception;
+        }
+        sources.recordConnectionTest(tenantId, sourceId, result.ok(), result.diagnostic(), testedAt);
+        return result;
     }
 
     private void validateEndpoint(IdentitySourceSpec spec) {

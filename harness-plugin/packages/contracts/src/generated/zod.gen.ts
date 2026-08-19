@@ -255,6 +255,10 @@ export const zDeviceDevice = z.object({
     platform: z.string().min(1).max(64),
     harnessVersion: z.string().min(1).max(64).nullable(),
     enterpriseBundleVersion: z.string().min(1).max(64).nullable(),
+    desiredRevision: zRevision,
+    pluginInventoryDigest: z.string().length(64).regex(/^[0-9a-f]{64}$/).nullable(),
+    pendingSessionEvents: z.int().gte(0).lte(9007199254740991),
+    lastSuccessfulSyncAt: z.iso.datetime({ offset: true }).nullable(),
     status: zDeviceDeviceStatus,
     lastSeenAt: z.iso.datetime({ offset: true }).nullable(),
     revokedAt: z.iso.datetime({ offset: true }).nullable(),
@@ -508,6 +512,23 @@ export const zAuthAuthSourcesResponse = z.object({
 
 export const zAuthSourcesResponse = zAuthAuthSourcesResponse;
 
+export const zIdentityExternalIdentitySummary = z.object({
+    sourceId: zIdentityIdentitySourceId,
+    sourceName: z.string().min(1).max(100),
+    sourceType: zIdentityIdentitySourceType,
+    externalSubject: z.string().min(1).max(512),
+    lastLoginAt: z.iso.datetime({ offset: true }).nullable()
+}).strict();
+
+export const zExternalIdentitySummary = zIdentityExternalIdentitySummary;
+
+export const zIdentityExternalIdentitySummaryResponse = z.object({
+    data: z.array(zIdentityExternalIdentitySummary).max(32),
+    requestId: zRequestId
+}).strict();
+
+export const zExternalIdentitySummaryResponse = zIdentityExternalIdentitySummaryResponse;
+
 export const zIdentityIdentitySourceConnection = z.object({
     type: zIdentityIdentitySourceType,
     ok: z.boolean(),
@@ -566,7 +587,10 @@ export const zIdentityIdentitySource = z.object({
     status: zIdentityIdentitySourceStatus,
     revision: zRevision,
     createdAt: z.iso.datetime({ offset: true }),
-    updatedAt: z.iso.datetime({ offset: true })
+    updatedAt: z.iso.datetime({ offset: true }),
+    lastTestedAt: z.iso.datetime({ offset: true }).optional(),
+    lastTestOk: z.boolean().optional(),
+    lastTestDiagnostic: z.string().min(1).max(64).optional()
 }).strict();
 
 export const zIdentitySource = zIdentityIdentitySource;
@@ -1109,7 +1133,13 @@ export const zQuotaUsageLedgerItem = z.object({
     id: zQuotaUsageLedgerId,
     reservationId: z.uuid(),
     userId: zEnterpriseUserId,
+    username: z.string().min(1).max(100),
+    userDisplayName: z.string().min(1).max(30),
+    departmentId: zIdentityDepartmentId.nullable(),
+    departmentName: z.string().min(1).max(120).nullable(),
     modelId: zManagedModelId,
+    modelAlias: z.string().min(1).max(120),
+    modelDisplayName: z.string().min(1).max(120),
     requestId: zRequestId,
     inputTokens: z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
     outputTokens: z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
@@ -1186,6 +1216,8 @@ export const z1Enterprise1Admin1V11IdentitySources1SourceId1Actions1Disable = z.
 export const z1Enterprise1Admin1V11IdentitySources1SourceId1Actions1Enable = z.unknown();
 
 export const z1Enterprise1Admin1V11IdentitySources1SourceId1Actions1Test = z.unknown();
+
+export const z1Enterprise1Admin1V11Users1UserId1IdentitySummary = z.unknown();
 
 export const zBootstrap = z.unknown();
 
@@ -1389,6 +1421,8 @@ export const zIdentitySourceIdPath = zIdentityIdentitySourceId;
 export const zIdentitySourceIdQuery = zIdentityIdentitySourceId;
 
 export const zGroupMappingIdPath = zIdentityGroupMappingId;
+
+export const zEnterpriseUserIdPath = zEnterpriseUserId;
 
 export const zProviderIdPath = zModelModelProviderId;
 
@@ -1627,6 +1661,15 @@ export const zDeleteGroupMappingPath = z.object({
  * Group mapping deleted.
  */
 export const zDeleteGroupMappingResponse = zIdentityDeletedResourceResponse;
+
+export const zGetUserExternalIdentitySummaryPath = z.object({
+    userId: zEnterpriseUserId
+});
+
+/**
+ * External identity summaries.
+ */
+export const zGetUserExternalIdentitySummaryResponse = zIdentityExternalIdentitySummaryResponse;
 
 export const zListModelProvidersQuery = z.object({
     cursor: zCursor.optional(),

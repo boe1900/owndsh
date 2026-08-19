@@ -8,7 +8,8 @@ and authorization.
 
 The Harness contracts package generates TypeScript DTOs, Fetch bindings, strict
 Zod schemas, standalone JSON Schemas, and a hash of the fully bundled logical
-protocol. Generated files
+protocol. It also emits `generated/enterprise-openapi.json` for generators that
+cannot load the repository's modular YAML references directly. Generated files
 are committed but never edited directly. The Zod generator resolver preserves
 OpenAPI `additionalProperties: false` as `.strict()` instead of silently
 stripping undeclared wire fields.

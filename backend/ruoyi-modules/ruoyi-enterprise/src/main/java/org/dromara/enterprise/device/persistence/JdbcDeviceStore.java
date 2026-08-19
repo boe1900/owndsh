@@ -1,12 +1,13 @@
 /**
- * [INPUT]: 依赖 Spring JdbcOperations、V1 ent_device 与 RuoYi sys_user。
- * [OUTPUT]: 对外提供 owner join、keyset list、ACTIVE 更新和 revision CAS 的 DeviceStore。
+ * [INPUT]: 依赖 Spring JdbcOperations、V1/V7 ent_device 与 RuoYi sys_user。
+ * [OUTPUT]: 对外提供 owner join、heartbeat 摘要、keyset list、ACTIVE 更新和 revision CAS 的 DeviceStore。
  * [POS]: device/persistence 的 PostgreSQL adapter，所有更新同时限定 tenant/owner/status 事实。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.device.persistence;
 
 import org.dromara.enterprise.device.application.DeviceEnrollment;
+import org.dromara.enterprise.device.application.DeviceHeartbeat;
 import org.dromara.enterprise.device.domain.DeviceStatus;
 import org.dromara.enterprise.device.domain.EnterpriseDevice;
 import org.springframework.jdbc.core.JdbcOperations;
@@ -26,6 +27,7 @@ public final class JdbcDeviceStore implements DeviceStore {
     private static final String COLUMNS = """
         d.id, d.tenant_id, d.user_id, u.user_name as username, u.nick_name as display_name,
         d.installation_id, d.name, d.platform, d.harness_version, d.bundle_version,
+        d.desired_revision, d.plugin_inventory_digest, d.pending_session_events, d.last_successful_sync_at,
         d.status, d.last_seen_at, d.revoked_at, d.revision
         """;
     private static final String FROM = " from ent_device d join sys_user u on u.user_id = d.user_id ";
@@ -48,6 +50,8 @@ public final class JdbcDeviceStore implements DeviceStore {
         """;
     private static final String HEARTBEAT_SQL = """
         update ent_device set harness_version = ?, bundle_version = ?, last_seen_at = ?,
+            desired_revision = ?, plugin_inventory_digest = ?, pending_session_events = ?,
+            last_successful_sync_at = ?,
             revision = revision + 1
         where tenant_id = ? and installation_id = ? and user_id = ? and status = 'ACTIVE'
         """;
@@ -121,15 +125,18 @@ public final class JdbcDeviceStore implements DeviceStore {
         String tenantId,
         UUID installationId,
         long userId,
-        String harnessVersion,
-        String bundleVersion,
+        DeviceHeartbeat heartbeat,
         Instant seenAt
     ) {
         return jdbc.update(
             HEARTBEAT_SQL,
-            harnessVersion,
-            bundleVersion,
+            heartbeat.harnessVersion(),
+            heartbeat.enterpriseBundleVersion(),
             at(seenAt),
+            heartbeat.desiredRevision(),
+            heartbeat.pluginInventoryDigest(),
+            heartbeat.pendingSessionEvents(),
+            heartbeat.lastSuccessfulSyncAt() == null ? null : at(heartbeat.lastSuccessfulSyncAt()),
             tenantId,
             installationId,
             userId
@@ -153,6 +160,10 @@ public final class JdbcDeviceStore implements DeviceStore {
             resultSet.getString("platform"),
             resultSet.getString("harness_version"),
             resultSet.getString("bundle_version"),
+            resultSet.getLong("desired_revision"),
+            resultSet.getString("plugin_inventory_digest"),
+            resultSet.getLong("pending_session_events"),
+            instant(resultSet, "last_successful_sync_at"),
             DeviceStatus.valueOf(resultSet.getString("status")),
             instant(resultSet, "last_seen_at"),
             instant(resultSet, "revoked_at"),

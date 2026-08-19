@@ -26,7 +26,13 @@
               "id",
               "reservationId",
               "userId",
+              "username",
+              "userDisplayName",
+              "departmentId",
+              "departmentName",
               "modelId",
+              "modelAlias",
+              "modelDisplayName",
               "requestId",
               "inputTokens",
               "outputTokens",
@@ -50,10 +56,54 @@
                 "pattern": "^[1-9][0-9]{0,18}$",
                 "description": "Enterprise user snowflake ID serialized as a string."
               },
+              "username": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "userDisplayName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 30
+              },
+              "departmentId": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]{0,18}$",
+                    "description": "RuoYi department snowflake ID serialized as a string."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "departmentName": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "modelId": {
                 "type": "string",
                 "pattern": "^[1-9][0-9]{0,18}$",
                 "description": "Managed model snowflake ID serialized as a string."
+              },
+              "modelAlias": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "modelDisplayName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
               },
               "requestId": {
                 "type": "string",

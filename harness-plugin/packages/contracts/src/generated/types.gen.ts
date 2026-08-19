@@ -63,6 +63,10 @@ export type GroupMappingPageData = IdentityGroupMappingPageData;
 
 export type GroupMappingListResponse = IdentityGroupMappingListResponse;
 
+export type ExternalIdentitySummary = IdentityExternalIdentitySummary;
+
+export type ExternalIdentitySummaryResponse = IdentityExternalIdentitySummaryResponse;
+
 export type DeletedResource = IdentityDeletedResource;
 
 export type DeletedResourceResponse = IdentityDeletedResourceResponse;
@@ -420,6 +424,10 @@ export type DeviceDevice = {
     platform: string;
     harnessVersion: string | null;
     enterpriseBundleVersion: string | null;
+    desiredRevision: Revision;
+    pluginInventoryDigest: string | null;
+    pendingSessionEvents: number;
+    lastSuccessfulSyncAt: string | null;
     status: DeviceDeviceStatus;
     lastSeenAt: string | null;
     revokedAt: string | null;
@@ -572,6 +580,19 @@ export type IdentityDeletedResourceResponse = {
  */
 export type IdentityDepartmentId = string;
 
+export type IdentityExternalIdentitySummary = {
+    sourceId: IdentityIdentitySourceId;
+    sourceName: string;
+    sourceType: IdentityIdentitySourceType;
+    externalSubject: string;
+    lastLoginAt: string | null;
+};
+
+export type IdentityExternalIdentitySummaryResponse = {
+    data: Array<IdentityExternalIdentitySummary>;
+    requestId: RequestId;
+};
+
 export type IdentityGroupMapping = {
     id: IdentityGroupMappingId;
     sourceId: IdentityIdentitySourceId;
@@ -619,6 +640,9 @@ export type IdentityIdentitySource = {
     revision: Revision;
     createdAt: string;
     updatedAt: string;
+    lastTestedAt?: string;
+    lastTestOk?: boolean;
+    lastTestDiagnostic?: string;
 };
 
 export type IdentityIdentitySourceConnection = {
@@ -1050,7 +1074,13 @@ export type QuotaUsageLedgerItem = {
     id: QuotaUsageLedgerId;
     reservationId: string;
     userId: EnterpriseUserId;
+    username: string;
+    userDisplayName: string;
+    departmentId: IdentityDepartmentId | null;
+    departmentName: string | null;
     modelId: ManagedModelId;
+    modelAlias: string;
+    modelDisplayName: string;
     requestId: RequestId;
     inputTokens: number;
     outputTokens: number;
@@ -1121,6 +1151,8 @@ export type _1Enterprise1Admin1V11IdentitySources1SourceId1Actions1Disable = unk
 export type _1Enterprise1Admin1V11IdentitySources1SourceId1Actions1Enable = unknown;
 
 export type _1Enterprise1Admin1V11IdentitySources1SourceId1Actions1Test = unknown;
+
+export type _1Enterprise1Admin1V11Users1UserId1IdentitySummary = unknown;
 
 export type Bootstrap = unknown;
 
@@ -1327,6 +1359,8 @@ export type IdentitySourceIdPath = IdentityIdentitySourceId;
 export type IdentitySourceIdQuery = IdentityIdentitySourceId;
 
 export type GroupMappingIdPath = IdentityGroupMappingId;
+
+export type EnterpriseUserIdPath = EnterpriseUserId;
 
 export type ProviderIdPath = ModelModelProviderId;
 
@@ -2145,6 +2179,41 @@ export type DeleteGroupMappingResponses = {
 };
 
 export type DeleteGroupMappingResponse = DeleteGroupMappingResponses[keyof DeleteGroupMappingResponses];
+
+export type GetUserExternalIdentitySummaryData = {
+    body?: never;
+    path: {
+        userId: EnterpriseUserId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/users/{userId}/identity-summary';
+};
+
+export type GetUserExternalIdentitySummaryErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type GetUserExternalIdentitySummaryError = GetUserExternalIdentitySummaryErrors[keyof GetUserExternalIdentitySummaryErrors];
+
+export type GetUserExternalIdentitySummaryResponses = {
+    /**
+     * External identity summaries.
+     */
+    200: IdentityExternalIdentitySummaryResponse;
+};
+
+export type GetUserExternalIdentitySummaryResponse = GetUserExternalIdentitySummaryResponses[keyof GetUserExternalIdentitySummaryResponses];
 
 export type ListModelProvidersData = {
     body?: never;

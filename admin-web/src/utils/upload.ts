@@ -1,3 +1,10 @@
+/**
+ * [INPUT]: 依赖浏览器 File 元数据、Ant Design message 与上传约束
+ * [OUTPUT]: 提供扩展名/accept 构造、错误文本规范化和文件类型/大小校验
+ * [POS]: utils 的上传前置校验边界，服务端仍负责最终内容与权限验证
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
 import { message } from 'antd';
 
 export interface UploadValidationOptions {

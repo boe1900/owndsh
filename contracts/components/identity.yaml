@@ -212,6 +212,15 @@ IdentitySource:
     updatedAt:
       type: string
       format: date-time
+    lastTestedAt:
+      type: string
+      format: date-time
+    lastTestOk:
+      type: boolean
+    lastTestDiagnostic:
+      type: string
+      minLength: 1
+      maxLength: 64
 IdentitySourceResponse:
   type: object
   additionalProperties: false
@@ -342,5 +351,39 @@ DeletedResourceResponse:
   properties:
     data:
       $ref: '#/DeletedResource'
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+ExternalIdentitySummary:
+  type: object
+  additionalProperties: false
+  required: [sourceId, sourceName, sourceType, externalSubject, lastLoginAt]
+  properties:
+    sourceId:
+      $ref: '#/IdentitySourceId'
+    sourceName:
+      type: string
+      minLength: 1
+      maxLength: 100
+    sourceType:
+      $ref: '#/IdentitySourceType'
+    externalSubject:
+      type: string
+      minLength: 1
+      maxLength: 512
+    lastLoginAt:
+      oneOf:
+        - type: string
+          format: date-time
+        - type: 'null'
+ExternalIdentitySummaryResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data:
+      type: array
+      maxItems: 32
+      items:
+        $ref: '#/ExternalIdentitySummary'
     requestId:
       $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'

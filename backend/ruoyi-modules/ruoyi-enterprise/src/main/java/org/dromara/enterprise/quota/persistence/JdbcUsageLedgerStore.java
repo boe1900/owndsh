@@ -1,12 +1,13 @@
 /**
- * [INPUT]: 依赖 JdbcOperations 与 ent_usage_ledger/sys_user 的索引和外键。
- * [OUTPUT]: 对外提供唯一 ledger 插入、动态参数化筛选、keyset 分页与 Token 聚合。
- * [POS]: quota/persistence 的 prompt-free 用量 adapter，查询字段白名单固定且不拼接用户输入。
+ * [INPUT]: 依赖 JdbcOperations 与 ent_usage_ledger/sys_user/sys_dept/ent_managed_model 的索引和外键。
+ * [OUTPUT]: 对外提供唯一 ledger 插入、显示语义 join、动态参数化筛选、keyset 分页与 Token 聚合。
+ * [POS]: quota/persistence 的 prompt-free 用量 adapter，显示 join 和筛选字段白名单固定且不拼接用户输入。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.quota.persistence;
 
 import org.dromara.enterprise.quota.domain.UsageLedger;
+import org.dromara.enterprise.quota.domain.UsageLedgerMetadata;
 import org.dromara.enterprise.quota.domain.UsageResult;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.RowMapper;
@@ -26,6 +27,29 @@ public final class JdbcUsageLedgerStore implements UsageLedgerStore {
         rs.getLong("total_tokens"), UsageResult.valueOf(rs.getString("result")),
         rs.getString("upstream_request_id"), rs.getTimestamp("created_at").toInstant()
     );
+    private static final RowMapper<UsageLedgerMetadata> METADATA_MAPPER = (rs, rowNum) ->
+        new UsageLedgerMetadata(
+            MAPPER.mapRow(rs, rowNum),
+            rs.getString("username"),
+            rs.getString("user_display_name"),
+            rs.getObject("department_id", Long.class),
+            rs.getString("department_name"),
+            rs.getString("model_alias"),
+            rs.getString("model_display_name")
+        );
+    private static final String METADATA_SELECT = """
+        select l.*,
+               u.user_name as username,
+               u.nick_name as user_display_name,
+               u.dept_id as department_id,
+               d.dept_name as department_name,
+               m.alias as model_alias,
+               m.display_name as model_display_name
+          from ent_usage_ledger l
+          join sys_user u on u.user_id = l.user_id
+          left join sys_dept d on d.dept_id = u.dept_id
+          join ent_managed_model m on m.id = l.model_id and m.tenant_id = l.tenant_id
+        """;
     private final JdbcOperations jdbc;
 
     public JdbcUsageLedgerStore(JdbcOperations jdbc) {
@@ -55,26 +79,27 @@ public final class JdbcUsageLedgerStore implements UsageLedgerStore {
     }
 
     @Override
-    public List<UsageLedger> list(String tenantId, long afterId, int limit, UsageLedgerFilter filter) {
+    public List<UsageLedgerMetadata> list(String tenantId, long afterId, int limit, UsageLedgerFilter filter) {
         Query query = query(tenantId, filter);
-        query.sql.append(" and l.id > ? order by l.id limit ?");
+        query.where.append(" and l.id > ? order by l.id limit ?");
         query.arguments.add(afterId);
         query.arguments.add(limit);
-        return jdbc.query(query.sql.toString(), MAPPER, query.arguments.toArray());
+        return jdbc.query(METADATA_SELECT + query.where, METADATA_MAPPER, query.arguments.toArray());
     }
 
     @Override
     public UsageTotals summarize(String tenantId, UsageLedgerFilter filter) {
         Query query = query(tenantId, filter);
-        String from = query.sql.toString().replace("select l.*", """
+        String sql = """
             select count(*) as requests,
                    coalesce(sum(l.input_tokens), 0) as input_tokens,
                    coalesce(sum(l.output_tokens), 0) as output_tokens,
                    coalesce(sum(l.cache_tokens), 0) as cache_tokens,
                    coalesce(sum(l.total_tokens), 0) as total_tokens
-            """);
+              from ent_usage_ledger l
+            """ + query.where;
         return Objects.requireNonNull(jdbc.queryForObject(
-            from,
+            sql,
             (rs, rowNum) -> new UsageTotals(
                 rs.getLong("requests"), rs.getLong("input_tokens"), rs.getLong("output_tokens"),
                 rs.getLong("cache_tokens"), rs.getLong("total_tokens")
@@ -84,20 +109,20 @@ public final class JdbcUsageLedgerStore implements UsageLedgerStore {
     }
 
     private static Query query(String tenantId, UsageLedgerFilter filter) {
-        StringBuilder sql = new StringBuilder("select l.* from ent_usage_ledger l where l.tenant_id = ?");
+        StringBuilder where = new StringBuilder(" where l.tenant_id = ?");
         List<Object> arguments = new ArrayList<>();
         arguments.add(tenantId);
-        if (filter.userId() != null) append(sql, arguments, " and l.user_id = ?", filter.userId());
+        if (filter.userId() != null) append(where, arguments, " and l.user_id = ?", filter.userId());
         if (filter.departmentId() != null) append(
-            sql, arguments,
+            where, arguments,
             " and exists (select 1 from sys_user u where u.user_id = l.user_id and u.dept_id = ?)",
             filter.departmentId()
         );
-        if (filter.modelId() != null) append(sql, arguments, " and l.model_id = ?", filter.modelId());
-        if (filter.requestId() != null) append(sql, arguments, " and l.request_id = ?", filter.requestId());
-        if (filter.from() != null) append(sql, arguments, " and l.created_at >= ?", Timestamp.from(filter.from()));
-        if (filter.to() != null) append(sql, arguments, " and l.created_at < ?", Timestamp.from(filter.to()));
-        return new Query(sql, arguments);
+        if (filter.modelId() != null) append(where, arguments, " and l.model_id = ?", filter.modelId());
+        if (filter.requestId() != null) append(where, arguments, " and l.request_id = ?", filter.requestId());
+        if (filter.from() != null) append(where, arguments, " and l.created_at >= ?", Timestamp.from(filter.from()));
+        if (filter.to() != null) append(where, arguments, " and l.created_at < ?", Timestamp.from(filter.to()));
+        return new Query(where, arguments);
     }
 
     private static void append(StringBuilder sql, List<Object> arguments, String clause, Object value) {
@@ -105,6 +130,6 @@ public final class JdbcUsageLedgerStore implements UsageLedgerStore {
         arguments.add(value);
     }
 
-    private record Query(StringBuilder sql, List<Object> arguments) {
+    private record Query(StringBuilder where, List<Object> arguments) {
     }
 }

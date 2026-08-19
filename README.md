@@ -6,7 +6,7 @@ Enterprise Agent Platform 是基于 DeepSeek Harness 构建的企业 Agent 管�
 
 ## 当前阶段
 
-T00 至 T11 已完成：仓库包含锁定产品源码、Harness 官方插件 workspace、Java/TypeScript 同源 OpenAPI 3.1 协议和 PostgreSQL/Redis 企业模块。T11 已在官方 rc.7 `web` profile 中交付动态企业模型目录、default sentinel、Host 到中心的无本地上游 Key 模型流、稳定错误与取消；下一项只能从 T12 开始。实际证据见 [`docs/t11-harness-model-integration-acceptance.md`](docs/t11-harness-model-integration-acceptance.md)。
+T00 至 T12 已完成：仓库包含锁定产品源码、Harness 官方插件 workspace、Java/TypeScript 同源 OpenAPI 3.1 协议、PostgreSQL/Redis 企业模块和桌面管理控制台。T12 已交付 enterprise-admin PKCE、服务端权限路由以及身份、设备、模型、授权、配额和用量治理纵向页面；下一项只能从 T13 开始。实际证据见 [`docs/t12-admin-console-acceptance.md`](docs/t12-admin-console-acceptance.md)。
 
 ## 文档
 
@@ -23,6 +23,7 @@ T00 至 T11 已完成：仓库包含锁定产品源码、Harness 官方插件 wo
 - [T09 配额管理验收记录](docs/t09-quota-management-acceptance.md)：叠加策略、冻结时区、并发预留、Redis lease、结算恢复、用量 API 与跨端协议证据。
 - [T10 模型网关验收记录](docs/t10-model-gateway-acceptance.md)：请求级授权、DeepSeek SSE、配额终态、首字节错误、审计原子性与敏感信息隔离证据。
 - [T11 Harness 模型链路验收记录](docs/t11-harness-model-integration-acceptance.md)：官方 rc.7 adapter、动态目录/default、真实 `ctx.llm` 模型流、错误矩阵与无本地上游 Key 证据。
+- [T12 管理控制台验收记录](docs/t12-admin-console-acceptance.md)：enterprise-admin PKCE、动态权限路由、治理页面、真实 Server Playwright、CAS 恢复和密钥隔离证据。
 
 实现者先阅读 MVP 详细设计的第 1 至 21 节，再严格按照第 22 节任务依赖推进。发现设计矛盾时先修订设计并记录决定，不在代码中引入未经确认的替代方案。
 

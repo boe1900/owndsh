@@ -73,6 +73,11 @@ class DeviceLifecycleIntegrationTest {
         );
         assertThat(heartbeat.status()).isEqualTo(DeviceStatus.ACTIVE);
         assertThat(heartbeat.enterpriseBundleVersion()).isEqualTo("0.1.1");
+        assertThat(heartbeat.desiredRevision()).isEqualTo(8);
+        assertThat(heartbeat.pluginInventoryDigest())
+            .isEqualTo("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+        assertThat(heartbeat.pendingSessionEvents()).isEqualTo(12);
+        assertThat(heartbeat.lastSuccessfulSyncAt()).isEqualTo(Instant.parse("2026-08-18T06:00:00Z"));
 
         assertThatThrownBy(() -> service.enroll(
             harness(FIRST, OTHER_USER_ID), enrollment(FIRST, "Stolen Device")

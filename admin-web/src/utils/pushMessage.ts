@@ -1,3 +1,10 @@
+/**
+ * [INPUT]: 依赖后端推送 JSON 或纯文本消息
+ * [OUTPUT]: 提供消息类型/来源常量、容错解析、收件箱过滤与分组标题解析
+ * [POS]: utils 的纯推送语义层，与具体 SSE/WebSocket 连接解耦
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
 export const PUSH_MESSAGE_TYPE = {
   MESSAGE: 'message',
   NOTICE: 'notice',

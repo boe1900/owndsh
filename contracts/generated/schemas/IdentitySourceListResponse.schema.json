@@ -206,6 +206,18 @@
               "updatedAt": {
                 "type": "string",
                 "format": "date-time"
+              },
+              "lastTestedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "lastTestOk": {
+                "type": "boolean"
+              },
+              "lastTestDiagnostic": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
               }
             }
           }

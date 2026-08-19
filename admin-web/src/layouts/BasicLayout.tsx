@@ -1,4 +1,11 @@
-﻿import type { CSSProperties, ReactNode } from 'react';
+/**
+ * [INPUT]: 依赖企业管理会话、RuoYi 动态菜单、用户/布局状态与消息推送
+ * [OUTPUT]: 提供认证保护、权限菜单、企业 logout 和管理页面布局
+ * [POS]: 管理端运行时外壳，以服务端菜单与权限事实决定可见导航
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
+import type { CSSProperties, ReactNode } from 'react';
 import { LogoutOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
 import { ProLayout } from '@ant-design/pro-components';
 import { history, Outlet, useLocation } from '@umijs/max';
@@ -9,7 +16,7 @@ import 'dayjs/locale/zh-cn';
 import dayjs from 'dayjs';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { RuntimeMenuItem } from '@/api/types';
-import { logout } from '@/api/login';
+import { logoutEnterpriseAdmin } from '@/api/enterprise/auth';
 import { isHandledRequestError } from '@/api/request';
 import defaultAvatar from '@/assets/images/profile.jpg';
 import appLogo from '@/assets/logo/logo.png';
@@ -379,7 +386,7 @@ export default function BasicLayout() {
       label: '退出登录',
       onClick: async () => {
         try {
-          await logout();
+          await logoutEnterpriseAdmin();
         } finally {
           closePush();
           pushStartedRef.current = false;

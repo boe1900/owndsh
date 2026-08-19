@@ -112,8 +112,7 @@ public final class DeviceService {
                 context.tenantId(),
                 installationId,
                 session.userId(),
-                heartbeat.harnessVersion(),
-                heartbeat.enterpriseBundleVersion(),
+                heartbeat,
                 Instant.now(clock)
             )) {
                 throw new DeviceAccessException("ENT_DEVICE_REVOKED");

@@ -1,3 +1,10 @@
+/**
+ * [INPUT]: 依赖 dayjs、RuoYi 分页/树/Blob 约定与浏览器 JSON 解析
+ * [OUTPUT]: 提供查询序列化、日期/分页/排序转换、树处理及 Blob 错误解析工具
+ * [POS]: utils 的上游 RuoYi 协议兼容工具集，不包含企业治理判断
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
 import dayjs, { type ConfigType } from 'dayjs';
 import type { Key } from 'react';
 

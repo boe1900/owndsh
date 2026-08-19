@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 EnterpriseDevice 聚合根。
- * [OUTPUT]: 对外提供字符串 snowflake ID、UUID、版本、状态、时间与 revision 的设备协议投影。
+ * [OUTPUT]: 对外提供字符串 snowflake ID、UUID、版本、heartbeat 摘要、状态、时间与 revision 的设备协议投影。
  * [POS]: device/web 的唯一响应 DTO，隔离数据库命名与未来内部设备字段。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -22,6 +22,10 @@ public record DeviceView(
     String platform,
     String harnessVersion,
     String enterpriseBundleVersion,
+    long desiredRevision,
+    String pluginInventoryDigest,
+    long pendingSessionEvents,
+    Instant lastSuccessfulSyncAt,
     DeviceStatus status,
     Instant lastSeenAt,
     Instant revokedAt,
@@ -38,6 +42,10 @@ public record DeviceView(
             device.platform(),
             device.harnessVersion(),
             device.enterpriseBundleVersion(),
+            device.desiredRevision(),
+            device.pluginInventoryDigest(),
+            device.pendingSessionEvents(),
+            device.lastSuccessfulSyncAt(),
             device.status(),
             device.lastSeenAt(),
             device.revokedAt(),

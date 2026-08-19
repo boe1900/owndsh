@@ -1,0 +1,12 @@
+{
+  "data": [
+    {
+      "sourceId": "1900600000000000001",
+      "sourceName": "Corporate SSO",
+      "sourceType": "OIDC",
+      "externalSubject": "stable-subject-001",
+      "lastLoginAt": "2026-08-18T03:30:00Z"
+    }
+  ],
+  "requestId": "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+}

@@ -1,4 +1,11 @@
-﻿import { message } from 'antd';
+﻿/**
+ * [INPUT]: 依赖统一 request、RuoYi blob 错误协议和浏览器 Object URL
+ * [OUTPUT]: 提供表单下载、响应校验与本地文件保存函数
+ * [POS]: utils 的下载副作用边界，统一释放临时 URL 并展示服务端错误
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
+import { message } from 'antd';
 import request from '@/api/request';
 import { blobValidate, parseBlobErrorMessage, tansParams } from '@/utils/ruoyi';
 

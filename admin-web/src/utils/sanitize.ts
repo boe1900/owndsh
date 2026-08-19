@@ -1,3 +1,10 @@
+/**
+ * [INPUT]: 依赖浏览器 DOMParser 与显式 HTML tag/attribute/style/URL 白名单
+ * [OUTPUT]: 提供删除危险节点、事件属性和不安全 URL/CSS 的 sanitizeHtml
+ * [POS]: utils 的富文本展示安全边界，默认拒绝脚本化与可执行内容
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
 const DEFAULT_ALLOWED_TAGS = new Set([
   'a',
   'article',

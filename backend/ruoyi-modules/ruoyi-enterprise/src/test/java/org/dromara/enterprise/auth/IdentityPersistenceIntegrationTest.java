@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖真实 PostgreSQL V1-V5、身份 JDBC stores、三个身份 Application Service、AES-GCM 与只追加审计。
- * [OUTPUT]: 验证秘密隔离、资源 CAS、revision/审计回滚、稳定 subject、显式绑定冲突和部门映射冲突语义。
+ * [OUTPUT]: 验证秘密隔离、资源 CAS、稳定 subject/摘要、显式绑定冲突和部门映射冲突语义。
  * [POS]: T04 身份持久化事务退出门禁，以数据库最终事实证明领域规则而非用 mock 代替原子性。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -122,6 +122,12 @@ class IdentityPersistenceIntegrationTest {
             Long.toString(created.id())
         )).doesNotContain("top-secret");
 
+        assertThat(service.testConnection(TENANT, created.id()).diagnostic()).isEqualTo("READY");
+        IdentitySource tested = service.get(TENANT, created.id());
+        assertThat(tested.lastTestedAt()).isNotNull();
+        assertThat(tested.lastTestOk()).isTrue();
+        assertThat(tested.lastTestDiagnostic()).isEqualTo("READY");
+
         assertThatThrownBy(() -> service.update(
             mutation(), created.id(), 7, sourceSpec("Corporate OIDC", "https://id.example.test"), null
         )).isInstanceOfSatisfying(RevisionConflictException.class, exception -> {
@@ -133,6 +139,7 @@ class IdentityPersistenceIntegrationTest {
             mutation(), created.id(), 0, sourceSpec("Corporate SSO", "https://id.example.test"), null
         );
         assertThat(updated.revision()).isEqualTo(1);
+        assertThat(service.get(TENANT, updated.id()).lastTestedAt()).isNull();
         assertThat(revisions.current(TENANT)).isEqualTo(2);
 
         long sourceCount = count("ent_identity_source");
@@ -218,6 +225,14 @@ class IdentityPersistenceIntegrationTest {
             Long.class,
             source.id()
         )).isEqualTo(1);
+        assertThat(identities.findSummariesByUser(TENANT, linked.userId()))
+            .singleElement()
+            .satisfies(summary -> {
+                assertThat(summary.sourceId()).isEqualTo(source.id());
+                assertThat(summary.sourceName()).isEqualTo("People OIDC");
+                assertThat(summary.externalSubject()).isEqualTo("subject-001");
+                assertThat(summary.lastLoginAt()).isNotNull();
+            });
     }
 
     @Test

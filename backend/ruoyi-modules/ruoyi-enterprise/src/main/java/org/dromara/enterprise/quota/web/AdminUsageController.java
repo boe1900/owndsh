@@ -15,7 +15,7 @@ import org.dromara.enterprise.common.api.EnterpriseApiValidation;
 import org.dromara.enterprise.common.api.EnterpriseCursorCodec;
 import org.dromara.enterprise.common.api.EnterpriseResponse;
 import org.dromara.enterprise.quota.application.QuotaUsageQueryService;
-import org.dromara.enterprise.quota.domain.UsageLedger;
+import org.dromara.enterprise.quota.domain.UsageLedgerMetadata;
 import org.dromara.enterprise.quota.persistence.UsageLedgerStore;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -47,7 +47,7 @@ public final class AdminUsageController {
     }
 
     @GetMapping
-    @SaCheckPermission("ent:grant:read")
+    @SaCheckPermission("ent:model:read")
     public EnterpriseResponse<UsageLedgerPageView> list(
         @RequestParam(required = false) String cursor,
         @RequestParam(defaultValue = "50") int limit,
@@ -73,7 +73,7 @@ public final class AdminUsageController {
             context.tenantId(), afterId, pageLimit + 1, filter
         );
         boolean hasMore = result.items().size() > pageLimit;
-        List<UsageLedger> pageItems = hasMore ? result.items().subList(0, pageLimit) : result.items();
+        List<UsageLedgerMetadata> pageItems = hasMore ? result.items().subList(0, pageLimit) : result.items();
         String next = hasMore ? cursors.encode(context.tenantId(), scope, pageItems.getLast().id()) : null;
         UsageLedgerPageView data = new UsageLedgerPageView(
             pageItems.stream().map(UsageLedgerView::from).toList(),

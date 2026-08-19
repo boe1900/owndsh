@@ -1,10 +1,75 @@
-﻿.login-page {
+﻿/**
+ * [INPUT]: 依赖 Ant Design 登录/结果组件类名与管理端认证页面结构
+ * [OUTPUT]: 提供 RuoYi 登录、enterprise-admin PKCE 登录和认证回调的桌面/窄屏布局
+ * [POS]: assets/styles/pages 的认证视觉边界，不承载认证状态或凭据
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+.login-page {
   position: relative;
   min-height: 100vh;
   display: grid;
   grid-template-columns: minmax(420px, 1fr) 480px;
   overflow-x: hidden;
   background: #f4f7fb;
+}
+
+.enterprise-login-page {
+  grid-template-columns: 1fr;
+  padding: 24px;
+}
+
+.enterprise-login-shell {
+  width: min(420px, calc(100vw - 48px));
+  margin: auto;
+  padding: 40px;
+  color: #172033;
+  background: #fff;
+  border: 1px solid #e5eaf1;
+  border-radius: 8px;
+  box-shadow: 0 18px 54px rgba(23, 32, 51, 0.1);
+}
+
+.enterprise-login-mark {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 28px;
+  color: #fff;
+  font-size: 24px;
+  background: #1677ff;
+  border-radius: 8px;
+  place-items: center;
+}
+
+.enterprise-login-product {
+  color: #46566f;
+  font-weight: 600;
+}
+
+.enterprise-login-shell h1.ant-typography {
+  margin: 10px 0 12px;
+  font-size: 32px;
+  letter-spacing: 0;
+}
+
+.enterprise-login-shell p.ant-typography {
+  margin-bottom: 28px;
+  color: #697386;
+  line-height: 1.7;
+}
+
+.enterprise-login-session {
+  display: block;
+  margin-top: 18px;
+  text-align: center;
+}
+
+.enterprise-auth-result {
+  display: grid;
+  min-height: 100vh;
+  padding: 24px;
+  background: #f4f7fb;
+  place-items: center;
 }
 
 .auth-locale-select {

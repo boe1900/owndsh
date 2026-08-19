@@ -52,6 +52,8 @@ paths:
     $ref: './paths/identity.yaml#/~1enterprise~1admin~1v1~1group-mappings'
   /enterprise/admin/v1/group-mappings/{mappingId}:
     $ref: './paths/identity.yaml#/~1enterprise~1admin~1v1~1group-mappings~1{mappingId}'
+  /enterprise/admin/v1/users/{userId}/identity-summary:
+    $ref: './paths/identity.yaml#/~1enterprise~1admin~1v1~1users~1{userId}~1identity-summary'
   /enterprise/admin/v1/providers:
     $ref: './paths/model.yaml#/ProviderCollection'
   /enterprise/admin/v1/providers/{providerId}:
@@ -179,6 +181,9 @@ x-enterprise-fixtures:
     valid: true
   - file: fixtures/deleted-resource-success.json
     schema: DeletedResourceResponse
+    valid: true
+  - file: fixtures/external-identity-summary-success.json
+    schema: ExternalIdentitySummaryResponse
     valid: true
   - file: fixtures/auth-sources-success.json
     schema: AuthSourcesResponse
@@ -325,6 +330,12 @@ components:
       required: true
       schema:
         $ref: '#/components/schemas/GroupMappingId'
+    EnterpriseUserIdPath:
+      name: userId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/EnterpriseUserId'
     ProviderIdPath:
       name: providerId
       in: path
@@ -526,6 +537,8 @@ components:
     GroupMappingResponse: {$ref: './components/identity.yaml#/GroupMappingResponse'}
     GroupMappingPageData: {$ref: './components/identity.yaml#/GroupMappingPageData'}
     GroupMappingListResponse: {$ref: './components/identity.yaml#/GroupMappingListResponse'}
+    ExternalIdentitySummary: {$ref: './components/identity.yaml#/ExternalIdentitySummary'}
+    ExternalIdentitySummaryResponse: {$ref: './components/identity.yaml#/ExternalIdentitySummaryResponse'}
     DeletedResource: {$ref: './components/identity.yaml#/DeletedResource'}
     DeletedResourceResponse: {$ref: './components/identity.yaml#/DeletedResourceResponse'}
     PlatformClient: {$ref: './components/auth.yaml#/PlatformClient'}

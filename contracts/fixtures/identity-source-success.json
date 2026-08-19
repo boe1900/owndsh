@@ -18,7 +18,10 @@
     "status": "ACTIVE",
     "revision": 3,
     "createdAt": "2026-08-18T03:00:00Z",
-    "updatedAt": "2026-08-18T03:10:00Z"
+    "updatedAt": "2026-08-18T03:10:00Z",
+    "lastTestedAt": "2026-08-18T03:12:00Z",
+    "lastTestOk": true,
+    "lastTestDiagnostic": "READY"
   },
   "requestId": "req_01K2W3V4X5Y6Z7A8B9C0D1E2F3"
 }

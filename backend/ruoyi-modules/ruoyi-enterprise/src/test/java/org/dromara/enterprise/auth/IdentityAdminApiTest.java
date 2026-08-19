@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 T04 两个管理 Controller、认证 cursor、requestId filter/异常处理、MockMvc 与派生 JSON Schema。
- * [OUTPUT]: 验证十个 operation、cursor keyset/binding、权限码、revision 错误及秘密不出响应。
- * [POS]: T04 身份管理 HTTP 契约门禁，领域服务使用 mock 以把测试焦点限定在协议翻译和权限入口。
+ * [INPUT]: 依赖身份/组/用户摘要三个管理 Controller、认证 cursor、requestId filter/异常处理、MockMvc 与派生 JSON Schema。
+ * [OUTPUT]: 验证身份管理与用户摘要 operation、cursor/权限/revision 及秘密不出响应。
+ * [POS]: T04/T12 身份管理 HTTP 契约门禁，领域服务使用 mock 以把测试焦点限定在协议翻译和权限入口。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.auth;
@@ -13,15 +13,18 @@ import com.networknt.schema.Schema;
 import com.networknt.schema.SchemaRegistry;
 import com.networknt.schema.SpecificationVersion;
 import org.dromara.enterprise.auth.adapter.IdentitySourceConnection;
+import org.dromara.enterprise.auth.application.ExternalIdentityQueryService;
 import org.dromara.enterprise.auth.application.IdentityGroupMappingService;
 import org.dromara.enterprise.auth.application.IdentitySourceService;
 import org.dromara.enterprise.auth.application.SecretInput;
 import org.dromara.enterprise.auth.domain.ExternalGroupMapping;
+import org.dromara.enterprise.auth.domain.ExternalIdentitySummary;
 import org.dromara.enterprise.auth.domain.IdentitySource;
 import org.dromara.enterprise.auth.domain.IdentitySourceStatus;
 import org.dromara.enterprise.auth.domain.IdentitySourceType;
 import org.dromara.enterprise.auth.domain.OidcSettings;
 import org.dromara.enterprise.auth.web.AdminGroupMappingController;
+import org.dromara.enterprise.auth.web.AdminExternalIdentityController;
 import org.dromara.enterprise.auth.web.AdminIdentitySourceController;
 import org.dromara.enterprise.auth.web.EnterpriseRequestContext;
 import org.dromara.enterprise.auth.web.IdentityAdminRequestContextResolver;
@@ -77,6 +80,7 @@ class IdentityAdminApiTest {
 
     private IdentitySourceService sources;
     private IdentityGroupMappingService mappings;
+    private ExternalIdentityQueryService externalIdentities;
     private EnterpriseCursorCodec cursors;
     private MockMvc mvc;
     private IdentitySource source;
@@ -86,6 +90,7 @@ class IdentityAdminApiTest {
     void setUp() {
         sources = mock(IdentitySourceService.class);
         mappings = mock(IdentityGroupMappingService.class);
+        externalIdentities = mock(ExternalIdentityQueryService.class);
         cursors = new EnterpriseCursorCodec(new org.dromara.enterprise.crypto.SecretCipher(new byte[32]));
         source = source();
         mapping = new ExternalGroupMapping(
@@ -101,7 +106,8 @@ class IdentityAdminApiTest {
         );
         mvc = standaloneSetup(
             new AdminIdentitySourceController(sources, contexts, cursors),
-            new AdminGroupMappingController(mappings, contexts, cursors)
+            new AdminGroupMappingController(mappings, contexts, cursors),
+            new AdminExternalIdentityController(externalIdentities, contexts)
         ).setControllerAdvice(new EnterpriseExceptionHandler())
             .addFilters(new EnterpriseRequestIdFilter())
             .build();
@@ -119,10 +125,15 @@ class IdentityAdminApiTest {
         when(sources.setStatus(any(), anyLong(), anyLong(), any())).thenReturn(source);
         when(mappings.list("000000", source.id(), 0, 51)).thenReturn(List.of(mapping));
         when(mappings.create(any(), anyLong(), anyString(), anyLong())).thenReturn(mapping);
+        when(externalIdentities.summaries("000000", 1761100000000000001L)).thenReturn(List.of(
+            new ExternalIdentitySummary(
+                source.id(), source.name(), source.type(), "stable-subject-001", Instant.parse("2026-08-18T03:30:00Z")
+            )
+        ));
     }
 
     @Test
-    void executesEveryT04OperationWithGeneratedSuccessSchemas() throws Exception {
+    void executesEveryIdentityOperationWithGeneratedSuccessSchemas() throws Exception {
         assertResponse(
             mvc.perform(get("/enterprise/admin/v1/identity-sources"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(),
@@ -185,6 +196,14 @@ class IdentityAdminApiTest {
             mvc.perform(delete("/enterprise/admin/v1/group-mappings/{id}", MAPPING_ID).header("If-Match", "0"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(),
             "DeletedResourceResponse"
+        );
+        assertResponse(
+            mvc.perform(get("/enterprise/admin/v1/users/{userId}/identity-summary", "1761100000000000001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].externalSubject").value("stable-subject-001"))
+                .andExpect(jsonPath("$.data[0].lastGroups").doesNotExist())
+                .andReturn().getResponse().getContentAsString(),
+            "ExternalIdentitySummaryResponse"
         );
     }
 
@@ -270,6 +289,9 @@ class IdentityAdminApiTest {
             "list", "ent:identity:read",
             "create", "ent:identity:write",
             "delete", "ent:identity:write"
+        ));
+        assertPermissions(AdminExternalIdentityController.class, Map.of(
+            "summaries", "ent:identity:read"
         ));
     }
 

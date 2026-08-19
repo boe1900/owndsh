@@ -1,3 +1,10 @@
+/**
+ * [INPUT]: 依赖 RuoYi 用户/部门/角色 API、权限事实与用户详情组件
+ * [OUTPUT]: 提供用户 CRUD、状态、角色、导入导出及企业身份摘要入口
+ * [POS]: pages/system/user 的主工作台，企业扩展保持只读且不复制 RuoYi 用户管理能力
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
 import {
   DeleteOutlined,
   DownloadOutlined,
@@ -35,8 +42,8 @@ import TreePanel from '@/components/common/TreePanel';
 import { useDateRangeQuery } from '@/hooks/useDateRangeQuery';
 import { useDict } from '@/hooks/useDict';
 import { useTableExport } from '@/hooks/useTableExport';
-import { useTableSelection } from '@/hooks/useTableSelection';
 import { useTableScroll } from '@/hooks/useTableScroll';
+import { useTableSelection } from '@/hooks/useTableSelection';
 import { useUserStore } from '@/stores/userStore';
 import { dictOptions } from '@/utils/dict';
 import { confirmAction } from '@/utils/modal';
@@ -67,8 +74,6 @@ function toTreeSelectData(depts: DeptTreeVO[]): TreeSelectNode[] {
     children: dept.children ? toTreeSelectData(dept.children) : undefined
   }));
 }
-
-
 export default function SystemUserPage() {
   const actionRef = useRef<ActionType | undefined>(undefined);
   const { tableScroll } = useTableScroll(1220);

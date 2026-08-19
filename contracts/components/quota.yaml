@@ -268,7 +268,13 @@ UsageLedgerItem:
     - id
     - reservationId
     - userId
+    - username
+    - userDisplayName
+    - departmentId
+    - departmentName
     - modelId
+    - modelAlias
+    - modelDisplayName
     - requestId
     - inputTokens
     - outputTokens
@@ -284,8 +290,34 @@ UsageLedgerItem:
       format: uuid
     userId:
       $ref: '../enterprise-openapi.yaml#/components/schemas/EnterpriseUserId'
+    username:
+      type: string
+      minLength: 1
+      maxLength: 100
+    userDisplayName:
+      type: string
+      minLength: 1
+      maxLength: 30
+    departmentId:
+      oneOf:
+        - $ref: '../enterprise-openapi.yaml#/components/schemas/DepartmentId'
+        - type: 'null'
+    departmentName:
+      oneOf:
+        - type: string
+          minLength: 1
+          maxLength: 120
+        - type: 'null'
     modelId:
       $ref: '../enterprise-openapi.yaml#/components/schemas/ManagedModelId'
+    modelAlias:
+      type: string
+      minLength: 1
+      maxLength: 120
+    modelDisplayName:
+      type: string
+      minLength: 1
+      maxLength: 120
     requestId:
       $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
     inputTokens:

@@ -1,7 +1,46 @@
-﻿.page-surface {
+﻿/**
+ * [INPUT]: 依赖管理页面共享语义类名与全局主题 token
+ * [OUTPUT]: 提供通用页面表面及企业表格、筛选、辅助文本和窄屏布局
+ * [POS]: assets/styles/pages 的跨治理页面视觉基线，不绑定具体业务组件
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+.page-surface {
   min-height: calc(100vh - 168px);
   padding: 24px;
   background: var(--app-surface-react);
   border: 1px solid var(--app-border-react);
   border-radius: 8px;
+}
+
+.enterprise-table-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.enterprise-subtable {
+  margin-top: 20px;
+}
+
+.enterprise-filter {
+  gap: 8px 0;
+  margin-bottom: 16px;
+}
+
+.enterprise-number-input {
+  width: 100%;
+}
+
+.enterprise-secondary {
+  color: var(--app-text-secondary-react, #697386);
+  font-size: 12px;
+}
+
+.enterprise-monospace {
+  max-width: 260px;
+  overflow: hidden;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

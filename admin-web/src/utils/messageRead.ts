@@ -1,3 +1,10 @@
+/**
+ * [INPUT]: 依赖浏览器 localStorage 与当前 RuoYi 用户标识
+ * [OUTPUT]: 提供消息已读 ID 集合的容错读取、覆盖和单项/批量标记
+ * [POS]: utils 的本地消息阅读状态边界，不保存消息正文或企业会话数据
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
 const STORAGE_PREFIX = 'plus-ui-react:message-read:';
 
 function storageKey(userId?: string | number) {

@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖真实 PostgreSQL 17、V1-V6、quota JDBC adapters、事务、审计与并发连接。
- * [OUTPUT]: 验证策略/CAS/bootstrap、50 并发防超卖、全部状态、幂等、结算、恢复和用量查询。
+ * [INPUT]: 依赖真实 PostgreSQL 17、V1-V7、quota JDBC adapters、事务、审计与并发连接。
+ * [OUTPUT]: 验证策略/CAS/bootstrap、50 并发防超卖、全部状态、幂等、结算、恢复和带语义投影的用量查询。
  * [POS]: T09 主要数据库验收；Redis 原子/TTL 由独立真实 Redis 测试覆盖，T10 网关不在此实现。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -247,6 +247,14 @@ class QuotaManagementIntegrationTest {
             new UsageLedgerStore.UsageLedgerFilter(null, null, MODEL_ID, ledger.requestId(), null, null)
         );
         assertThat(filtered.items()).singleElement().extracting("id").isEqualTo(ledger.id());
+        assertThat(filtered.items()).singleElement().satisfies(value -> {
+            assertThat(value.username()).isNotBlank();
+            assertThat(value.userDisplayName()).isNotBlank();
+            assertThat(value.departmentId()).isEqualTo(departmentId);
+            assertThat(value.departmentName()).isNotBlank();
+            assertThat(value.modelAlias()).isEqualTo("t09-model");
+            assertThat(value.modelDisplayName()).isEqualTo("T09 Model");
+        });
         assertThat(filtered.summary().totalTokens()).isEqualTo(17);
         assertThat(database.jdbc().queryForObject(
             "select count(*) from ent_audit_event where action = 'RESERVATION_RECOVERED'",

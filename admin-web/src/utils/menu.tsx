@@ -1,3 +1,10 @@
+/**
+ * [INPUT]: 依赖服务端 BackendRoute、Ant Design/Iconify 图标与路径规范化工具
+ * [OUTPUT]: 提供动态图标解析、菜单树构造、query 拼接和后端路由扁平化
+ * [POS]: utils 的服务端路由到 Umi/Pro Layout 菜单适配边界，不授予权限
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
 import {
   ApartmentOutlined,
   ApiOutlined,

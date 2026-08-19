@@ -37,6 +37,7 @@ import org.dromara.enterprise.quota.domain.QuotaStatus;
 import org.dromara.enterprise.quota.domain.QuotaSubjectType;
 import org.dromara.enterprise.quota.domain.QuotaWindowType;
 import org.dromara.enterprise.quota.domain.UsageLedger;
+import org.dromara.enterprise.quota.domain.UsageLedgerMetadata;
 import org.dromara.enterprise.quota.domain.UsageResult;
 import org.dromara.enterprise.quota.persistence.QuotaSubjectStore;
 import org.dromara.enterprise.quota.persistence.UsageLedgerStore;
@@ -267,7 +268,7 @@ class T09ApiContractTest {
             "update", "ent:grant:write", "delete", "ent:grant:write", "enable", "ent:grant:write",
             "disable", "ent:grant:write", "windows", "ent:grant:read"
         ));
-        assertPermissions(AdminUsageController.class, Map.of("list", "ent:grant:read"));
+        assertPermissions(AdminUsageController.class, Map.of("list", "ent:model:read"));
     }
 
     private String response(org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request, int code)
@@ -335,7 +336,10 @@ class T09ApiContractTest {
             null, Instant.parse("2026-08-18T10:59:00Z")
         );
         return new QuotaUsageQueryService.UsagePage(
-            List.of(ledger), new UsageLedgerStore.UsageTotals(1, 100, 50, 25, 175)
+            List.of(new UsageLedgerMetadata(
+                ledger, "alice", "Alice", DEPARTMENT_ID, "Research", "deepseek-chat", "DeepSeek Chat"
+            )),
+            new UsageLedgerStore.UsageTotals(1, 100, 50, 25, 175)
         );
     }
 

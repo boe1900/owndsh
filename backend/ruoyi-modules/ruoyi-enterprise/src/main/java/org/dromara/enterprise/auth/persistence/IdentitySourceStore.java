@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 接收 tenant/keyset 分页查询、完整 IdentitySource 与资源 expected revision。
- * [OUTPUT]: 对外提供身份源 seek-page/find/insert/update/status CAS 持久化端口。
+ * [INPUT]: 接收 tenant/keyset 分页查询、完整 IdentitySource、连接测试结果与资源 expected revision。
+ * [OUTPUT]: 对外提供身份源 seek-page/find/insert/update/status CAS 及最近测试持久化端口。
  * [POS]: IdentitySourceService 的 DIP 边界，隐藏 JSONB、bytea 和 PostgreSQL SQL。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -33,5 +33,13 @@ public interface IdentitySourceStore {
         IdentitySourceStatus status,
         long expectedRevision,
         Instant updatedAt
+    );
+
+    boolean recordConnectionTest(
+        String tenantId,
+        long sourceId,
+        boolean ok,
+        String diagnostic,
+        Instant testedAt
     );
 }
