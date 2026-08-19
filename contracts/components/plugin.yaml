@@ -1,0 +1,424 @@
+# [INPUT]: 依赖根协议的资源 ID、revision、cursor、requestId 与严格成功 envelope
+# [OUTPUT]: 提供 T13 插件 compatibility、版本、分配、下载元数据与设备库存 schemas
+# [POS]: contracts/components 的插件分发真源，签名声明字段与 runtime assignment 保持同构
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+PluginPackageId:
+  type: string
+  pattern: '^[1-9][0-9]{0,18}$'
+PluginVersionId:
+  type: string
+  pattern: '^[1-9][0-9]{0,18}$'
+PluginAssignmentId:
+  type: string
+  pattern: '^[1-9][0-9]{0,18}$'
+PluginVersionStatus:
+  type: string
+  enum: [UPLOADED, VALIDATED, PUBLISHED, RETIRED]
+PluginPackageStatus:
+  type: string
+  enum: [ACTIVE, DISABLED]
+PluginSubjectType:
+  type: string
+  enum: [ALL, DEPT, USER]
+PluginDesiredState:
+  type: string
+  enum: [INSTALLED, ABSENT]
+PluginAssignmentStatus:
+  type: string
+  enum: [ACTIVE, DISABLED]
+ManagedPluginState:
+  type: string
+  enum:
+    - EXPECTED
+    - DOWNLOAD_PENDING
+    - DOWNLOADING
+    - VERIFIED
+    - INSTALLING
+    - RESTART_REQUIRED
+    - ACTIVE
+    - REMOVE_PENDING
+    - REMOVING
+    - FAILED
+    - ROLLBACK
+PluginOperatingSystem:
+  type: string
+  enum: [darwin, linux, win32]
+PluginPackageName:
+  type: string
+  minLength: 1
+  maxLength: 214
+  pattern: '^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$'
+PluginSemanticVersion:
+  type: string
+  minLength: 1
+  maxLength: 64
+  pattern: '^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$'
+PluginSha256:
+  type: string
+  pattern: '^[0-9a-f]{64}$'
+PluginCompatibility:
+  type: object
+  additionalProperties: false
+  required: [harnessCommits, enterpriseBundleRange, operatingSystems]
+  properties:
+    harnessCommits:
+      type: array
+      minItems: 1
+      maxItems: 20
+      uniqueItems: true
+      items:
+        type: string
+        pattern: '^[0-9a-f]{40}$'
+    enterpriseBundleRange:
+      type: string
+      minLength: 1
+      maxLength: 120
+    operatingSystems:
+      type: array
+      minItems: 1
+      maxItems: 3
+      uniqueItems: true
+      items: {$ref: '#/PluginOperatingSystem'}
+
+PluginVersion:
+  type: object
+  additionalProperties: false
+  required:
+    - id
+    - packageId
+    - packageName
+    - version
+    - sizeBytes
+    - sha256
+    - signatureBase64
+    - compatibility
+    - status
+    - createdAt
+    - revision
+  properties:
+    id: {$ref: '#/PluginVersionId'}
+    packageId: {$ref: '#/PluginPackageId'}
+    packageName: {$ref: '#/PluginPackageName'}
+    version: {$ref: '#/PluginSemanticVersion'}
+    sizeBytes:
+      type: integer
+      format: int64
+      minimum: 1
+      maximum: 52428800
+    sha256: {$ref: '#/PluginSha256'}
+    signatureBase64:
+      type: string
+      minLength: 86
+      maxLength: 88
+      pattern: '^[A-Za-z0-9+/]{86}==$'
+    compatibility: {$ref: '#/PluginCompatibility'}
+    status: {$ref: '#/PluginVersionStatus'}
+    createdAt:
+      type: string
+      format: date-time
+    revision:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/Revision'
+PluginVersionResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/PluginVersion'}
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+
+PluginPackage:
+  type: object
+  additionalProperties: false
+  required: [id, packageName, displayName, status, revision, versions]
+  properties:
+    id: {$ref: '#/PluginPackageId'}
+    packageName: {$ref: '#/PluginPackageName'}
+    displayName:
+      type: string
+      minLength: 1
+      maxLength: 120
+    status: {$ref: '#/PluginPackageStatus'}
+    revision:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/Revision'
+    versions:
+      type: array
+      maxItems: 100
+      items: {$ref: '#/PluginVersion'}
+PluginPackagePageData:
+  type: object
+  additionalProperties: false
+  required: [items, page]
+  properties:
+    items:
+      type: array
+      maxItems: 200
+      items: {$ref: '#/PluginPackage'}
+    page:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/CursorPage'
+PluginPackageListResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/PluginPackagePageData'}
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+
+PluginAssignmentWrite:
+  type: object
+  additionalProperties: false
+  required: [pluginVersionId, subjectType, subjectId, desiredState, required]
+  properties:
+    pluginVersionId: {$ref: '#/PluginVersionId'}
+    subjectType: {$ref: '#/PluginSubjectType'}
+    subjectId:
+      oneOf:
+        - type: string
+          pattern: '^[1-9][0-9]{0,18}$'
+        - type: 'null'
+    desiredState: {$ref: '#/PluginDesiredState'}
+    required:
+      type: boolean
+PluginAssignmentBatchRequest:
+  type: object
+  additionalProperties: false
+  required: [items]
+  properties:
+    items:
+      type: array
+      maxItems: 200
+      items: {$ref: '#/PluginAssignmentWrite'}
+PluginAssignment:
+  type: object
+  additionalProperties: false
+  required:
+    - id
+    - packageId
+    - pluginVersionId
+    - subjectType
+    - subjectId
+    - desiredState
+    - required
+    - status
+    - revision
+  properties:
+    id: {$ref: '#/PluginAssignmentId'}
+    packageId: {$ref: '#/PluginPackageId'}
+    pluginVersionId: {$ref: '#/PluginVersionId'}
+    subjectType: {$ref: '#/PluginSubjectType'}
+    subjectId:
+      oneOf:
+        - type: string
+          pattern: '^[1-9][0-9]{0,18}$'
+        - type: 'null'
+    desiredState: {$ref: '#/PluginDesiredState'}
+    required:
+      type: boolean
+    status: {$ref: '#/PluginAssignmentStatus'}
+    revision:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/Revision'
+PluginAssignmentBatchResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data:
+      type: array
+      maxItems: 200
+      items: {$ref: '#/PluginAssignment'}
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+
+RuntimePluginAssignment:
+  type: object
+  additionalProperties: false
+  required:
+    - pluginVersionId
+    - packageName
+    - version
+    - sizeBytes
+    - sha256
+    - signatureBase64
+    - compatibility
+    - downloadUrl
+    - required
+    - desiredState
+  properties:
+    pluginVersionId: {$ref: '#/PluginVersionId'}
+    packageName: {$ref: '#/PluginPackageName'}
+    version: {$ref: '#/PluginSemanticVersion'}
+    sizeBytes:
+      type: integer
+      format: int64
+      minimum: 1
+    sha256: {$ref: '#/PluginSha256'}
+    signatureBase64:
+      type: string
+      minLength: 86
+      maxLength: 88
+      pattern: '^[A-Za-z0-9+/]{86}==$'
+    compatibility: {$ref: '#/PluginCompatibility'}
+    downloadUrl:
+      oneOf:
+        - type: string
+          minLength: 1
+          maxLength: 2048
+        - type: 'null'
+    required:
+      type: boolean
+    desiredState: {$ref: '#/PluginDesiredState'}
+RuntimePluginAssignments:
+  type: object
+  additionalProperties: false
+  required: [revision, assignments]
+  properties:
+    revision:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/Revision'
+    assignments:
+      type: array
+      maxItems: 200
+      items: {$ref: '#/RuntimePluginAssignment'}
+RuntimePluginAssignmentsResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/RuntimePluginAssignments'}
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+
+PluginInventoryItem:
+  type: object
+  additionalProperties: false
+  required:
+    - packageName
+    - version
+    - sha256
+    - desiredRevision
+    - state
+    - loaderPhase
+    - lastErrorCode
+    - observedAt
+  properties:
+    packageName: {$ref: '#/PluginPackageName'}
+    version:
+      oneOf:
+        - $ref: '#/PluginSemanticVersion'
+        - type: 'null'
+    sha256:
+      oneOf:
+        - $ref: '#/PluginSha256'
+        - type: 'null'
+    desiredRevision:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/Revision'
+    state: {$ref: '#/ManagedPluginState'}
+    loaderPhase:
+      oneOf:
+        - type: string
+          minLength: 1
+          maxLength: 32
+        - type: 'null'
+    lastErrorCode:
+      oneOf:
+        - type: string
+          minLength: 1
+          maxLength: 64
+        - type: 'null'
+    observedAt:
+      type: string
+      format: date-time
+PluginInventoryRequest:
+  type: object
+  additionalProperties: false
+  required: [items]
+  properties:
+    items:
+      type: array
+      maxItems: 500
+      items: {$ref: '#/PluginInventoryItem'}
+PluginInventoryAck:
+  type: object
+  additionalProperties: false
+  required: [reported]
+  properties:
+    reported:
+      type: integer
+      minimum: 0
+      maximum: 500
+PluginInventoryResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/PluginInventoryAck'}
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+AdminPluginInventoryItem:
+  type: object
+  additionalProperties: false
+  required:
+    - deviceId
+    - username
+    - packageName
+    - version
+    - sha256
+    - desiredRevision
+    - state
+    - loaderPhase
+    - lastErrorCode
+    - observedAt
+  properties:
+    deviceId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/EnterpriseDeviceId'
+    username:
+      type: string
+      minLength: 1
+      maxLength: 100
+    packageName: {$ref: '#/PluginPackageName'}
+    version:
+      oneOf:
+        - $ref: '#/PluginSemanticVersion'
+        - type: 'null'
+    sha256:
+      oneOf:
+        - $ref: '#/PluginSha256'
+        - type: 'null'
+    desiredRevision:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/Revision'
+    state: {$ref: '#/ManagedPluginState'}
+    loaderPhase:
+      oneOf:
+        - type: string
+          minLength: 1
+          maxLength: 32
+        - type: 'null'
+    lastErrorCode:
+      oneOf:
+        - type: string
+          minLength: 1
+          maxLength: 64
+        - type: 'null'
+    observedAt:
+      type: string
+      format: date-time
+AdminPluginInventoryPageData:
+  type: object
+  additionalProperties: false
+  required: [items, page]
+  properties:
+    items:
+      type: array
+      maxItems: 200
+      items: {$ref: '#/AdminPluginInventoryItem'}
+    page:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/CursorPage'
+AdminPluginInventoryListResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/AdminPluginInventoryPageData'}
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'

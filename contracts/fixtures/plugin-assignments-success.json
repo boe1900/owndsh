@@ -1,0 +1,24 @@
+{
+  "data": {
+    "revision": 12,
+    "assignments": [
+      {
+        "pluginVersionId": "1901300000000000101",
+        "packageName": "@example/acme-tools",
+        "version": "1.2.3",
+        "sizeBytes": 4096,
+        "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "signatureBase64": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+        "compatibility": {
+          "harnessCommits": ["99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"],
+          "enterpriseBundleRange": ">=0.1.0 <0.2.0",
+          "operatingSystems": ["darwin", "linux"]
+        },
+        "downloadUrl": "/enterprise/api/v1/plugins/versions/1901300000000000101/download",
+        "required": true,
+        "desiredState": "INSTALLED"
+      }
+    ]
+  },
+  "requestId": "req_01K2W3V4X5Y6Z7A8B9C0D1E2F3"
+}

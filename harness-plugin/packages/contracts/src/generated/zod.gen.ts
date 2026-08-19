@@ -35,11 +35,6 @@ export const zEnterpriseDeviceId = z.string().regex(/^[1-9][0-9]{0,18}$/);
 export const zManagedModelId = z.string().regex(/^[1-9][0-9]{0,18}$/);
 
 /**
- * Managed plugin version snowflake ID serialized as a string.
- */
-export const zPluginVersionId = z.string().regex(/^[1-9][0-9]{0,18}$/);
-
-/**
  * Harness-compatible remote Session identifier.
  */
 export const zRemoteSessionId = z.string().min(1).max(200).regex(/^[A-Za-z0-9._:\/-]+$/);
@@ -644,20 +639,6 @@ export const zBootstrapDevice = z.object({
     status: z.literal('ACTIVE')
 }).strict();
 
-export const zBootstrapPluginAssignment = z.object({
-    packageName: z.string().min(1).max(214),
-    version: z.string().min(1).max(64),
-    sha256: z.string().regex(/^[0-9a-f]{64}$/),
-    downloadUrl: z.string().min(1).max(2048),
-    required: z.boolean(),
-    desiredState: z.literal('INSTALLED')
-}).strict();
-
-export const zBootstrapPlugins = z.object({
-    revision: zRevision,
-    assignments: z.array(zBootstrapPluginAssignment)
-}).strict();
-
 export const zBootstrapSessionPolicy = z.object({
     enabled: z.boolean(),
     retentionDays: z.int().gte(1),
@@ -942,6 +923,232 @@ export const zModelProviderUpdateRequest = z.object({
 
 export const zProviderUpdateRequest = zModelProviderUpdateRequest;
 
+export const zManagedPluginState = z.enum([
+    'EXPECTED',
+    'DOWNLOAD_PENDING',
+    'DOWNLOADING',
+    'VERIFIED',
+    'INSTALLING',
+    'RESTART_REQUIRED',
+    'ACTIVE',
+    'REMOVE_PENDING',
+    'REMOVING',
+    'FAILED',
+    'ROLLBACK'
+]);
+
+export const zPluginPluginAssignmentId = z.string().regex(/^[1-9][0-9]{0,18}$/);
+
+export const zPluginAssignmentId = zPluginPluginAssignmentId;
+
+export const zPluginAssignmentStatus = z.enum(['ACTIVE', 'DISABLED']);
+
+export const zPluginDesiredState = z.enum(['INSTALLED', 'ABSENT']);
+
+export const zPluginInventoryAck = z.object({
+    reported: z.int().gte(0).lte(500)
+}).strict();
+
+export const zPluginPluginInventoryResponse = z.object({
+    data: zPluginInventoryAck,
+    requestId: zRequestId
+}).strict();
+
+export const zPluginInventoryResponse = zPluginPluginInventoryResponse;
+
+export const zPluginOperatingSystem = z.enum([
+    'darwin',
+    'linux',
+    'win32'
+]);
+
+export const zPluginPluginCompatibility = z.object({
+    harnessCommits: z.array(z.string().regex(/^[0-9a-f]{40}$/)).min(1).max(20),
+    enterpriseBundleRange: z.string().min(1).max(120),
+    operatingSystems: z.array(zPluginOperatingSystem).min(1).max(3)
+}).strict();
+
+export const zPluginCompatibility = zPluginPluginCompatibility;
+
+export const zPluginPluginPackageId = z.string().regex(/^[1-9][0-9]{0,18}$/);
+
+export const zPluginPackageId = zPluginPluginPackageId;
+
+export const zPluginPackageName = z.string().min(1).max(214).regex(/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/);
+
+export const zPluginPackageStatus = z.enum(['ACTIVE', 'DISABLED']);
+
+export const zPluginSemanticVersion = z.string().min(1).max(64).regex(/^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/);
+
+export const zPluginSha256 = z.string().regex(/^[0-9a-f]{64}$/);
+
+export const zAdminPluginInventoryItem = z.object({
+    deviceId: zEnterpriseDeviceId,
+    username: z.string().min(1).max(100),
+    packageName: zPluginPackageName,
+    version: zPluginSemanticVersion.nullable(),
+    sha256: zPluginSha256.nullable(),
+    desiredRevision: zRevision,
+    state: zManagedPluginState,
+    loaderPhase: z.string().min(1).max(32).nullable(),
+    lastErrorCode: z.string().min(1).max(64).nullable(),
+    observedAt: z.iso.datetime({ offset: true })
+}).strict();
+
+export const zAdminPluginInventoryPageData = z.object({
+    items: z.array(zAdminPluginInventoryItem).max(200),
+    page: zCursorPage
+}).strict();
+
+export const zPluginAdminPluginInventoryListResponse = z.object({
+    data: zAdminPluginInventoryPageData,
+    requestId: zRequestId
+}).strict();
+
+export const zAdminPluginInventoryListResponse = zPluginAdminPluginInventoryListResponse;
+
+export const zPluginInventoryItem = z.object({
+    packageName: zPluginPackageName,
+    version: zPluginSemanticVersion.nullable(),
+    sha256: zPluginSha256.nullable(),
+    desiredRevision: zRevision,
+    state: zManagedPluginState,
+    loaderPhase: z.string().min(1).max(32).nullable(),
+    lastErrorCode: z.string().min(1).max(64).nullable(),
+    observedAt: z.iso.datetime({ offset: true })
+}).strict();
+
+export const zPluginPluginInventoryRequest = z.object({
+    items: z.array(zPluginInventoryItem).max(500)
+}).strict();
+
+export const zPluginInventoryRequest = zPluginPluginInventoryRequest;
+
+export const zPluginSubjectType = z.enum([
+    'ALL',
+    'DEPT',
+    'USER'
+]);
+
+export const zPluginPluginVersionId = z.string().regex(/^[1-9][0-9]{0,18}$/);
+
+export const zPluginVersionId = zPluginPluginVersionId;
+
+export const zPluginAssignment = z.object({
+    id: zPluginPluginAssignmentId,
+    packageId: zPluginPluginPackageId,
+    pluginVersionId: zPluginPluginVersionId,
+    subjectType: zPluginSubjectType,
+    subjectId: z.string().regex(/^[1-9][0-9]{0,18}$/).nullable(),
+    desiredState: zPluginDesiredState,
+    required: z.boolean(),
+    status: zPluginAssignmentStatus,
+    revision: zRevision
+}).strict();
+
+export const zPluginPluginAssignmentBatchResponse = z.object({
+    data: z.array(zPluginAssignment).max(200),
+    requestId: zRequestId
+}).strict();
+
+export const zPluginAssignmentBatchResponse = zPluginPluginAssignmentBatchResponse;
+
+export const zPluginAssignmentWrite = z.object({
+    pluginVersionId: zPluginPluginVersionId,
+    subjectType: zPluginSubjectType,
+    subjectId: z.string().regex(/^[1-9][0-9]{0,18}$/).nullable(),
+    desiredState: zPluginDesiredState,
+    required: z.boolean()
+}).strict();
+
+export const zPluginPluginAssignmentBatchRequest = z.object({
+    items: z.array(zPluginAssignmentWrite).max(200)
+}).strict();
+
+export const zPluginAssignmentBatchRequest = zPluginPluginAssignmentBatchRequest;
+
+export const zPluginVersionStatus = z.enum([
+    'UPLOADED',
+    'VALIDATED',
+    'PUBLISHED',
+    'RETIRED'
+]);
+
+export const zPluginPluginVersion = z.object({
+    id: zPluginPluginVersionId,
+    packageId: zPluginPluginPackageId,
+    packageName: zPluginPackageName,
+    version: zPluginSemanticVersion,
+    sizeBytes: z.coerce.bigint().gte(BigInt(1)).lte(BigInt(52428800)),
+    sha256: zPluginSha256,
+    signatureBase64: z.string().min(86).max(88).regex(/^[A-Za-z0-9+\/]{86}==$/),
+    compatibility: zPluginPluginCompatibility,
+    status: zPluginVersionStatus,
+    createdAt: z.iso.datetime({ offset: true }),
+    revision: zRevision
+}).strict();
+
+export const zPluginVersion = zPluginPluginVersion;
+
+export const zPluginPluginPackage = z.object({
+    id: zPluginPluginPackageId,
+    packageName: zPluginPackageName,
+    displayName: z.string().min(1).max(120),
+    status: zPluginPackageStatus,
+    revision: zRevision,
+    versions: z.array(zPluginPluginVersion).max(100)
+}).strict();
+
+export const zPluginPackage = zPluginPluginPackage;
+
+export const zPluginPluginPackagePageData = z.object({
+    items: z.array(zPluginPluginPackage).max(200),
+    page: zCursorPage
+}).strict();
+
+export const zPluginPackagePageData = zPluginPluginPackagePageData;
+
+export const zPluginPluginPackageListResponse = z.object({
+    data: zPluginPluginPackagePageData,
+    requestId: zRequestId
+}).strict();
+
+export const zPluginPackageListResponse = zPluginPluginPackageListResponse;
+
+export const zPluginPluginVersionResponse = z.object({
+    data: zPluginPluginVersion,
+    requestId: zRequestId
+}).strict();
+
+export const zPluginVersionResponse = zPluginPluginVersionResponse;
+
+export const zRuntimePluginAssignment = z.object({
+    pluginVersionId: zPluginPluginVersionId,
+    packageName: zPluginPackageName,
+    version: zPluginSemanticVersion,
+    sizeBytes: z.coerce.bigint().gte(BigInt(1)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
+    sha256: zPluginSha256,
+    signatureBase64: z.string().min(86).max(88).regex(/^[A-Za-z0-9+\/]{86}==$/),
+    compatibility: zPluginPluginCompatibility,
+    downloadUrl: z.string().min(1).max(2048).nullable(),
+    required: z.boolean(),
+    desiredState: zPluginDesiredState
+}).strict();
+
+export const zPluginRuntimePluginAssignments = z.object({
+    revision: zRevision,
+    assignments: z.array(zRuntimePluginAssignment).max(200)
+}).strict();
+
+export const zRuntimePluginAssignments = zPluginRuntimePluginAssignments;
+
+export const zPluginRuntimePluginAssignmentsResponse = z.object({
+    data: zPluginRuntimePluginAssignments,
+    requestId: zRequestId
+}).strict();
+
+export const zRuntimePluginAssignmentsResponse = zPluginRuntimePluginAssignmentsResponse;
+
 export const zQuotaConcurrencyUsage = z.object({
     limit: z.int().gte(1),
     current: z.int().gte(0)
@@ -990,7 +1197,7 @@ export const zModelBootstrapSnapshot = z.object({
     device: zBootstrapDevice,
     models: z.array(zModelBootstrapModel),
     quotas: z.array(zQuotaBootstrapQuota),
-    plugins: zBootstrapPlugins,
+    plugins: zPluginRuntimePluginAssignments,
     sessionPolicy: zBootstrapSessionPolicy
 }).strict();
 
@@ -1245,6 +1452,24 @@ export const zProviderItem = z.unknown();
 
 export const zProviderTest = z.unknown();
 
+export const zAdminPluginInventory = z.unknown();
+
+export const zPluginAssignmentBatch = z.unknown();
+
+export const zPluginCollection = z.unknown();
+
+export const zPluginVersionPublish = z.unknown();
+
+export const zPluginVersionRetire = z.unknown();
+
+export const zPluginVersionUpload = z.unknown();
+
+export const zPluginRuntimePluginAssignments2 = z.unknown();
+
+export const zRuntimePluginDownload = z.unknown();
+
+export const zRuntimePluginInventory = z.unknown();
+
 export const zAdminUsage = z.unknown();
 
 export const zMyUsage = z.unknown();
@@ -1294,6 +1519,12 @@ export const zModelStatusWritable = zModelModelStatus;
 export const zGrantSubjectTypeWritable = zModelGrantSubjectType;
 
 export const zProviderProbeCategoryWritable = zModelProviderProbeCategory;
+
+export const zPluginPackageIdWritable = zPluginPluginPackageId;
+
+export const zPluginVersionIdWritable = zPluginPluginVersionId;
+
+export const zPluginAssignmentIdWritable = zPluginPluginAssignmentId;
 
 export const zQuotaPolicyIdWritable = zQuotaQuotaPolicyId;
 
@@ -1431,6 +1662,10 @@ export const zManagedModelIdPath = zManagedModelId;
 export const zModelGrantIdPath = zModelModelGrantId;
 
 export const zQuotaPolicyIdPath = zQuotaQuotaPolicyId;
+
+export const zPluginPackageIdPath = zPluginPluginPackageId;
+
+export const zPluginVersionIdPath = zPluginPluginVersionId;
 
 /**
  * Server-signed opaque cursor; clients must not parse it.
@@ -2026,3 +2261,104 @@ export const zStreamEnterpriseChatCompletionHeaders = z.object({
  * OpenAI-compatible chat completion events ending with a usage chunk and data [DONE].
  */
 export const zStreamEnterpriseChatCompletionResponse = z.string();
+
+export const zListPluginPackagesQuery = z.object({
+    cursor: zCursor.optional(),
+    limit: zPageLimit.optional()
+});
+
+/**
+ * Plugin package page with versions.
+ */
+export const zListPluginPackagesResponse = zPluginPluginPackageListResponse;
+
+export const zUploadPluginVersionBody = z.object({
+    artifact: z.string(),
+    compatibility: zPluginPluginCompatibility
+}).strict();
+
+export const zUploadPluginVersionHeaders = z.object({
+    'Idempotency-Key': z.uuid().length(36).regex(/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/)
+});
+
+/**
+ * Existing version returned for an idempotent natural key.
+ */
+export const zUploadPluginVersionResponse = zPluginPluginVersionResponse;
+
+export const zPublishPluginVersionHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zPublishPluginVersionPath = z.object({
+    pluginVersionId: zPluginPluginVersionId
+});
+
+/**
+ * Published plugin version.
+ */
+export const zPublishPluginVersionResponse = zPluginPluginVersionResponse;
+
+export const zRetirePluginVersionHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zRetirePluginVersionPath = z.object({
+    pluginVersionId: zPluginPluginVersionId
+});
+
+/**
+ * Retired plugin version.
+ */
+export const zRetirePluginVersionResponse = zPluginPluginVersionResponse;
+
+export const zReplacePluginAssignmentsBody = zPluginPluginAssignmentBatchRequest;
+
+export const zReplacePluginAssignmentsHeaders = z.object({
+    'Idempotency-Key': z.uuid().length(36).regex(/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/),
+    'If-Match': zRevision
+});
+
+export const zReplacePluginAssignmentsPath = z.object({
+    pluginPackageId: zPluginPluginPackageId
+});
+
+/**
+ * Replaced plugin assignments.
+ */
+export const zReplacePluginAssignmentsResponse = zPluginPluginAssignmentBatchResponse;
+
+export const zListPluginInventoryQuery = z.object({
+    cursor: zCursor.optional(),
+    limit: zPageLimit.optional()
+});
+
+/**
+ * Managed device plugin inventory page.
+ */
+export const zListPluginInventoryResponse = zPluginAdminPluginInventoryListResponse;
+
+/**
+ * Effective assignments for the active Harness device owner.
+ */
+export const zGetPluginAssignmentsResponse = zPluginRuntimePluginAssignmentsResponse;
+
+export const zDownloadPluginVersionHeaders = z.object({
+    Range: z.string().regex(/^bytes=[0-9]*-[0-9]*$/).optional()
+});
+
+export const zDownloadPluginVersionPath = z.object({
+    pluginVersionId: zPluginPluginVersionId
+});
+
+/**
+ * Complete tgz artifact.
+ */
+export const zDownloadPluginVersionResponse = z.string();
+
+export const zReplacePluginInventoryBody = zPluginPluginInventoryRequest;
+
+/**
+ * Inventory replacement accepted.
+ */
+export const zReplacePluginInventoryResponse = zPluginPluginInventoryResponse;

@@ -96,6 +96,24 @@ paths:
     $ref: './paths/quota.yaml#/AdminUsage'
   /enterprise/gateway/v1/chat/completions:
     $ref: './paths/gateway.yaml#/ChatCompletions'
+  /enterprise/admin/v1/plugins:
+    $ref: './paths/plugin.yaml#/PluginCollection'
+  /enterprise/admin/v1/plugins/versions:
+    $ref: './paths/plugin.yaml#/PluginVersionUpload'
+  /enterprise/admin/v1/plugins/versions/{pluginVersionId}/actions/publish:
+    $ref: './paths/plugin.yaml#/PluginVersionPublish'
+  /enterprise/admin/v1/plugins/versions/{pluginVersionId}/actions/retire:
+    $ref: './paths/plugin.yaml#/PluginVersionRetire'
+  /enterprise/admin/v1/plugins/{pluginPackageId}/assignments/batch:
+    $ref: './paths/plugin.yaml#/PluginAssignmentBatch'
+  /enterprise/admin/v1/plugins/inventory:
+    $ref: './paths/plugin.yaml#/AdminPluginInventory'
+  /enterprise/api/v1/plugins/assignments:
+    $ref: './paths/plugin.yaml#/RuntimePluginAssignments'
+  /enterprise/api/v1/plugins/versions/{pluginVersionId}/download:
+    $ref: './paths/plugin.yaml#/RuntimePluginDownload'
+  /enterprise/api/v1/plugins/inventory:
+    $ref: './paths/plugin.yaml#/RuntimePluginInventory'
 
 x-enterprise-error-statuses:
   '400':
@@ -248,6 +266,15 @@ x-enterprise-fixtures:
   - file: fixtures/gateway-request-route-forgery.json
     schema: ChatCompletionRequest
     valid: false
+  - file: fixtures/plugin-version-success.json
+    schema: PluginVersionResponse
+    valid: true
+  - file: fixtures/plugin-assignments-success.json
+    schema: RuntimePluginAssignmentsResponse
+    valid: true
+  - file: fixtures/plugin-inventory-success.json
+    schema: PluginInventoryResponse
+    valid: true
 
 components:
   securitySchemes:
@@ -360,6 +387,18 @@ components:
       required: true
       schema:
         $ref: '#/components/schemas/QuotaPolicyId'
+    PluginPackageIdPath:
+      name: pluginPackageId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/PluginPackageId'
+    PluginVersionIdPath:
+      name: pluginVersionId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/PluginVersionId'
     Cursor:
       name: cursor
       in: query
@@ -593,6 +632,22 @@ components:
     BootstrapModel: {$ref: './components/model.yaml#/BootstrapModel'}
     BootstrapSnapshot: {$ref: './components/model.yaml#/BootstrapSnapshot'}
     BootstrapResponse: {$ref: './components/model.yaml#/BootstrapResponse'}
+    PluginPackageId: {$ref: './components/plugin.yaml#/PluginPackageId'}
+    PluginVersionId: {$ref: './components/plugin.yaml#/PluginVersionId'}
+    PluginAssignmentId: {$ref: './components/plugin.yaml#/PluginAssignmentId'}
+    PluginCompatibility: {$ref: './components/plugin.yaml#/PluginCompatibility'}
+    PluginVersion: {$ref: './components/plugin.yaml#/PluginVersion'}
+    PluginVersionResponse: {$ref: './components/plugin.yaml#/PluginVersionResponse'}
+    PluginPackage: {$ref: './components/plugin.yaml#/PluginPackage'}
+    PluginPackagePageData: {$ref: './components/plugin.yaml#/PluginPackagePageData'}
+    PluginPackageListResponse: {$ref: './components/plugin.yaml#/PluginPackageListResponse'}
+    PluginAssignmentBatchRequest: {$ref: './components/plugin.yaml#/PluginAssignmentBatchRequest'}
+    PluginAssignmentBatchResponse: {$ref: './components/plugin.yaml#/PluginAssignmentBatchResponse'}
+    RuntimePluginAssignments: {$ref: './components/plugin.yaml#/RuntimePluginAssignments'}
+    RuntimePluginAssignmentsResponse: {$ref: './components/plugin.yaml#/RuntimePluginAssignmentsResponse'}
+    PluginInventoryRequest: {$ref: './components/plugin.yaml#/PluginInventoryRequest'}
+    PluginInventoryResponse: {$ref: './components/plugin.yaml#/PluginInventoryResponse'}
+    AdminPluginInventoryListResponse: {$ref: './components/plugin.yaml#/AdminPluginInventoryListResponse'}
     QuotaPolicyId: {$ref: './components/quota.yaml#/QuotaPolicyId'}
     QuotaWindowId: {$ref: './components/quota.yaml#/QuotaWindowId'}
     UsageLedgerId: {$ref: './components/quota.yaml#/UsageLedgerId'}
@@ -642,10 +697,6 @@ components:
       type: string
       pattern: '^[1-9][0-9]{0,18}$'
       description: Managed model snowflake ID serialized as a string.
-    PluginVersionId:
-      type: string
-      pattern: '^[1-9][0-9]{0,18}$'
-      description: Managed plugin version snowflake ID serialized as a string.
     RemoteSessionId:
       type: string
       minLength: 1

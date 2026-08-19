@@ -42,6 +42,7 @@ import org.dromara.enterprise.model.persistence.ProviderStore;
 import org.dromara.enterprise.revision.JdbcBootstrapRevisionStore;
 import org.dromara.enterprise.revision.RevisionConflictException;
 import org.dromara.enterprise.quota.application.EffectiveQuotaResolver;
+import org.dromara.enterprise.plugin.application.EffectivePluginResolver;
 import org.dromara.enterprise.test.PostgresTestDatabase;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
@@ -259,8 +260,11 @@ class ModelManagementIntegrationTest {
         );
         EffectiveQuotaResolver quotas = mock(EffectiveQuotaResolver.class);
         when(quotas.resolve(TENANT, user.id(), user.departmentId())).thenReturn(List.of());
+        EffectivePluginResolver plugins = mock(EffectivePluginResolver.class);
+        when(plugins.resolve(TENANT, user.id(), user.departmentId()))
+            .thenReturn(new EffectivePluginResolver.ResolvedAssignments(revisions.current(TENANT), List.of()));
         return new BootstrapService(
-            devices, new JdbcBootstrapUserStore(database.jdbc()), resolver, quotas, revisions
+            devices, new JdbcBootstrapUserStore(database.jdbc()), resolver, quotas, plugins, revisions
         );
     }
 

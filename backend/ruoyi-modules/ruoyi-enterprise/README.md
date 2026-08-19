@@ -6,7 +6,8 @@ bootstrap revision CAS 和只追加审计事务基础设施；T04 在同一模�
 Authorization Code + PKCE、Sa-Token 终端隔离、公开登录页与设备生命周期；T08 增加
 provider/model/grant 管理、provider 密钥保护、有效默认解析和 runtime bootstrap 模型目录；T09
 增加 Flyway `V6`、叠加配额、PostgreSQL reservation、Redis lease、结算恢复和用量 API；T10
-增加请求级授权、DeepSeek-compatible upstream、OpenAI SSE、计费终态和模型调用审计。
+增加请求级授权、DeepSeek-compatible upstream、OpenAI SSE、计费终态和模型调用审计；T13 增加
+Flyway `V8`、不落地解压的 tgz 验包、RFC 8785 JCS/Ed25519、CAS 制品、插件状态/分配、下载授权与库存。
 
 ## 身份边界
 
@@ -52,7 +53,7 @@ master key 的独立 `API_CURSOR` 用途进行 AES-GCM 认证，并绑定 tenant
 - RuoYi `sys_user/sys_dept` 使用固定部署的全局主键；tenant 约束施加在 `ent_model_*` 企业事实链上。
   本模块不声称支持详细设计明确排除的 SaaS 多租户。
 - `/enterprise/api/v1/bootstrap` 每次重新验证 `dsh-desktop` Token 对应的 ACTIVE 设备与当前用户，
-  当前填充有效模型与全部适用配额；插件和 Session policy 保持未启用外壳，留给后续任务。
+  当前填充有效模型、全部适用配额和 USER>DEPT>ALL 插件期望；Session policy 保持未启用外壳，留给 T16。
 
 模型管理入口为 `/enterprise/admin/v1/providers`、`/enterprise/admin/v1/models` 和
 `/enterprise/admin/v1/model-grants`，分别使用冻结的 `ent:model:*` 与 `ent:grant:*` 权限码。
@@ -88,12 +89,30 @@ master key 的独立 `API_CURSOR` 用途进行 AES-GCM 认证，并绑定 tenant
 - provider credential 仅在建连局部解密并清零临时 byte/char 容器；请求正文、原始上游错误、URL、
   Authorization、reasoning 和 tool 内容都不能进入异常、日志、审计或 ledger。
 
+## 插件服务端边界
+
+- multipart 上传先有界写入 `.part` 并计算整包 SHA-256，再由 Commons Compress 单遍读取；不解压到
+  文件系统，拒绝路径逃逸、链接、设备文件、`.node`、安装脚本、非空 dependencies 与非精确 Harness peer。
+- 整包按 SHA-256 内容寻址；同 hash 的终结和事务补偿由进程锁加 artifact root 文件锁串行化，
+  避免并发失败删除其他 tenant 已引用制品。签名声明使用 RFC 8785 JCS 与 Ed25519 PKCS#8 私钥。
+- 版本只允许 `UPLOADED -> VALIDATED -> PUBLISHED -> RETIRED`，只有 PUBLISHED 可新分配；相同
+  package/version 或 tenant 内相同 SHA-256 返回已有版本，不复制事实。
+- assignment 原子替换并按 USER、当前 DEPT、ALL 裁决，`ABSENT` 可以覆盖较低优先级安装期望。
+  下载每次重验 ACTIVE 设备、当前用户和当前 assignment；assignment 已引用的退休版本仍可回滚下载。
+- runtime 下载支持完整或单一 bytes Range，并固定 gzip、长度、ETag、attachment 与 `nosniff`；
+  inventory 是当前设备最多 500 条 package 唯一的全量替换，数据库和审计同事务。
+
+管理入口位于 `/enterprise/admin/v1/plugins`，使用 `ent:plugin:read/write`；runtime 入口位于
+`/enterprise/api/v1/plugins`。部署必须配置 `enterprise.plugin.artifact-root` 和只读 PKCS#8
+`enterprise.plugin.signing-private-key-file`；默认压缩/解压上限分别为 50 MiB/200 MiB。
+
 ## 数据库
 
 本模块只支持 PostgreSQL。Flyway migration 位于 `src/main/resources/db/migration`，假定 RuoYi
 PostgreSQL 基线已经存在，并为企业表创建显式外键、检查约束和索引。`V4` 向 `sys_role` 增加
 真实的 `built_in` 列并写入固定角色和权限集合；`V5` 为默认 tenant `000000` 写入 LOCAL 身份源、
-默认配额策略和 `BOOTSTRAP` revision；`V6` 冻结部署时区并给 reservation 增加可恢复 requestId。
+默认配额策略和 `BOOTSTRAP` revision；`V6` 冻结部署时区并给 reservation 增加可恢复 requestId；
+`V8` 把历史 assignment 期望态前向迁移为 `INSTALLED/ABSENT` 并冻结客户端调和库存状态。
 
 ## 测试
 
@@ -110,6 +129,7 @@ PATH=/usr/local/opt/openjdk@21/bin:$PATH \
 测试从真实 RuoYi PostgreSQL 基线启动数据库，分别验证一次性迁移和逐版本升级；不会使用 H2
 模拟 PostgreSQL 约束。身份/设备/网关测试还会启动 WireMock OIDC/DeepSeek、OpenLDAP StartTLS、
 Redis 8 和 PostgreSQL 17 Testcontainers，并使用 OpenAPI 派生 JSON Schema 验证认证、设备、模型、
-配额、bootstrap、用量与模型流接口的成功/失败响应。
+配额、bootstrap、用量、模型流与插件接口的成功/失败响应。插件测试还覆盖恶意归档、JCS/Ed25519、
+并发幂等上传、assignment 优先级、越权下载、退休回滚、库存原子替换和文件补偿。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

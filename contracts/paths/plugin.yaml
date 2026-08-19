@@ -1,0 +1,200 @@
+# [INPUT]: 依赖 plugin.yaml DTO 与根协议的 ID、cursor、revision、幂等键和统一错误响应
+# [OUTPUT]: 提供 T13 管理上传/发布/退休/分配/库存及 runtime 分配/下载/上报 Path Item
+# [POS]: contracts/paths 的插件纵向分片，下载每次重算 assignment 且 Range 不绕过设备授权
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+PluginCollection:
+  get:
+    operationId: listPluginPackages
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Cursor'
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Limit'
+    responses:
+      '200':
+        description: Plugin package page with versions.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/PluginPackageListResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+
+PluginVersionUpload:
+  post:
+    operationId: uploadPluginVersion
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [artifact, compatibility]
+            properties:
+              artifact:
+                type: string
+                format: binary
+              compatibility:
+                $ref: '../enterprise-openapi.yaml#/components/schemas/PluginCompatibility'
+          encoding:
+            compatibility:
+              contentType: application/json
+    responses:
+      '201':
+        description: Validated and signed plugin version.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/PluginVersionResponse'}
+      '200':
+        description: Existing version returned for an idempotent natural key.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/PluginVersionResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '413': {$ref: '../enterprise-openapi.yaml#/components/responses/Error413'}
+
+PluginVersionPublish:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/PluginVersionIdPath'
+  post:
+    operationId: publishPluginVersion
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    responses:
+      '200':
+        description: Published plugin version.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/PluginVersionResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+
+PluginVersionRetire:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/PluginVersionIdPath'
+  post:
+    operationId: retirePluginVersion
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    responses:
+      '200':
+        description: Retired plugin version.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/PluginVersionResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+
+PluginAssignmentBatch:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/PluginPackageIdPath'
+  post:
+    operationId: replacePluginAssignments
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IdempotencyKey'
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/PluginAssignmentBatchRequest'}
+    responses:
+      '200':
+        description: Replaced plugin assignments.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/PluginAssignmentBatchResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+
+AdminPluginInventory:
+  get:
+    operationId: listPluginInventory
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Cursor'
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Limit'
+    responses:
+      '200':
+        description: Managed device plugin inventory page.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/AdminPluginInventoryListResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+
+RuntimePluginAssignments:
+  get:
+    operationId: getPluginAssignments
+    responses:
+      '200':
+        description: Effective assignments for the active Harness device owner.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/RuntimePluginAssignmentsResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+
+RuntimePluginDownload:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/PluginVersionIdPath'
+  get:
+    operationId: downloadPluginVersion
+    parameters:
+      - name: Range
+        in: header
+        required: false
+        schema:
+          type: string
+          pattern: '^bytes=[0-9]*-[0-9]*$'
+    responses:
+      '200':
+        description: Complete tgz artifact.
+        headers:
+          Accept-Ranges:
+            schema: {type: string, const: bytes}
+        content:
+          application/gzip:
+            schema: {type: string, format: binary}
+      '206':
+        description: Single byte range of the tgz artifact.
+        headers:
+          Accept-Ranges:
+            schema: {type: string, const: bytes}
+          Content-Range:
+            required: true
+            schema: {type: string}
+        content:
+          application/gzip:
+            schema: {type: string, format: binary}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+
+RuntimePluginInventory:
+  put:
+    operationId: replacePluginInventory
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/PluginInventoryRequest'}
+    responses:
+      '200':
+        description: Inventory replacement accepted.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/PluginInventoryResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}

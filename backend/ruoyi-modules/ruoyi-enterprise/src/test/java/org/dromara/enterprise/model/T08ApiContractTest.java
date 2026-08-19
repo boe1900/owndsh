@@ -47,6 +47,7 @@ import org.dromara.enterprise.model.web.AdminProviderController;
 import org.dromara.enterprise.model.web.BootstrapController;
 import org.dromara.enterprise.model.web.ProviderTestRequest;
 import org.dromara.enterprise.model.web.ProviderWriteRequest;
+import org.dromara.enterprise.plugin.application.EffectivePluginResolver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -373,7 +374,8 @@ class T08ApiContractTest {
             List.of(new EffectiveModelResolver.EffectiveModel(
                 Long.parseLong(MODEL_ID), "deepseek-chat", "DeepSeek Chat", 65536, 8192, false, 10, true
             )),
-            List.of()
+            List.of(),
+            new EffectivePluginResolver.ResolvedAssignments(9, List.of())
         );
     }
 

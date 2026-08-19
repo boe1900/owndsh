@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 OpenAPI 生成的 fixture manifest/Zod schema、错误状态映射和品牌 ID 公共 API
- * [OUTPUT]: 验证全部正反 fixture、详细设计第 17 节错误码、gateway 严格请求、未知字段与品牌类型隔离
+ * [OUTPUT]: 验证全部正反 fixture、错误码、gateway/plugin 严格契约、未知字段与品牌类型隔离
  * [POS]: contracts 的双端协议回归测试之一，与 Java JSON Schema 测试消费相同 fixture 声明
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -19,13 +19,19 @@ import {
   parseRemoteSessionId,
   zChatCompletionRequest,
   zMyQuotaUsageResponse,
+  zPluginAssignmentBatchRequest,
+  zPluginCompatibility,
+  zPluginInventoryResponse,
+  zPluginVersionResponse,
   zQuotaExceededDetails,
   zQuotaPolicyListResponse,
   zQuotaPolicyResponse,
   zQuotaWindowListResponse,
   zRequestConflictDetails,
+  zRuntimePluginAssignmentsResponse,
   zUsageLedgerListResponse,
   type EnterpriseUserId,
+  type PluginCompatibility,
 } from '../src/index.js'
 import * as generatedSchemas from '../src/generated/zod.gen.js'
 
@@ -187,5 +193,37 @@ describe('generated enterprise contracts', () => {
       messages: [{ role: 'user', content: 'hello', reasoning_content: 'forged' }],
       stream: true,
     }).success).toBe(false)
+  })
+
+  it('exports strict T13 plugin schemas through the package facade', async () => {
+    const fixtures = [
+      ['plugin-version-success.json', zPluginVersionResponse],
+      ['plugin-assignments-success.json', zRuntimePluginAssignmentsResponse],
+      ['plugin-inventory-success.json', zPluginInventoryResponse],
+    ] as const
+    for (const [file, schema] of fixtures) {
+      const value: unknown = JSON.parse(await readFile(resolve(CONTRACT_ROOT, 'fixtures', file), 'utf8'))
+      expect(schema.safeParse(value).success, file).toBe(true)
+    }
+
+    const compatibility: PluginCompatibility = {
+      harnessCommits: ['99f6f02fecdb7dff40c3fbc9470f5907c29f74ca'],
+      enterpriseBundleRange: '>=0.1.0 <0.2.0',
+      operatingSystems: ['darwin', 'linux'],
+    }
+    expect(zPluginCompatibility.safeParse(compatibility).success).toBe(true)
+    expect(zPluginCompatibility.safeParse({
+      ...compatibility,
+      minHarnessCommit: compatibility.harnessCommits[0],
+    }).success).toBe(false)
+    expect(zPluginAssignmentBatchRequest.safeParse({
+      items: [{
+        pluginVersionId: '1901300000000000101',
+        subjectType: 'ALL',
+        subjectId: null,
+        desiredState: 'INSTALLED',
+        required: false,
+      }],
+    }).success).toBe(true)
   })
 })

@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 投影 BootstrapService 的用户、ACTIVE 设备、revision、有效模型与有效配额。
+ * [INPUT]: 投影 BootstrapService 的用户、ACTIVE 设备、revision、有效模型/配额与 T13 插件分配。
  * [OUTPUT]: 对外提供 T06 严格客户端所需的完整脱敏 bootstrap 外壳。
- * [POS]: model/web 的 runtime 配置输出边界；T13/T16 未实现切片保持空或 disabled，不伪造业务事实。
+ * [POS]: model/web 的 runtime 配置输出边界；插件复用下载授权事实，T16 Session 仍保持 disabled。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.model.web;
@@ -9,6 +9,7 @@ package org.dromara.enterprise.model.web;
 import org.dromara.enterprise.model.application.BootstrapService;
 
 import java.util.List;
+import java.util.Base64;
 
 public record BootstrapView(
     long revision,
@@ -37,7 +38,17 @@ public record BootstrapView(
                 Long.toString(value.id()), value.subjectType().name(), value.dailyTokenLimit(),
                 value.monthlyTokenLimit(), value.rpm(), value.concurrency()
             )).toList(),
-            new Plugins(0, List.of()),
+            new Plugins(
+                snapshot.plugins().revision(),
+                snapshot.plugins().assignments().stream().map(value -> new PluginAssignment(
+                    Long.toString(value.pluginVersionId()), value.packageName(), value.version(), value.sizeBytes(),
+                    value.sha256(), Base64.getEncoder().encodeToString(value.signature()), value.compatibility(),
+                    value.desiredState().name().equals("INSTALLED")
+                        ? "/enterprise/api/v1/plugins/versions/" + value.pluginVersionId() + "/download"
+                        : null,
+                    value.required(), value.desiredState().name()
+                )).toList()
+            ),
             new SessionPolicy(false, 90, 1_048_576)
         );
     }
@@ -72,9 +83,13 @@ public record BootstrapView(
     }
 
     public record PluginAssignment(
+        String pluginVersionId,
         String packageName,
         String version,
+        long sizeBytes,
         String sha256,
+        String signatureBase64,
+        org.dromara.enterprise.plugin.domain.PluginCompatibility compatibility,
         String downloadUrl,
         boolean required,
         String desiredState

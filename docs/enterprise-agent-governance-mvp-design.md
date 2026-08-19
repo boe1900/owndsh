@@ -610,11 +610,14 @@ RELEASED   CHARGED_MAX
 - 根 `package/package.json` 的 `name`、`version`、`type=module`、`dsh.bundle.patch` 和 patch 文件存在。
 - `scripts` 不得包含 `preinstall`、`install`、`postinstall`、`prepare`；归档不得包含 `.node`。
 - `dependencies` 必须为空；Harness 依赖只能声明为与企业发行版精确兼容的 `peerDependencies`，其他运行依赖必须在构建时 bundle 进 JavaScript。
-- compatibility 必须声明允许的 Harness commit 范围、企业 bundle 版本范围和操作系统。
+- compatibility 必须声明允许的 Harness commit 集合、企业 bundle SemVer 范围和操作系统；JSON
+  字段固定为 `harnessCommits`、`enterpriseBundleRange`、`operatingSystems`。Git commit 不具备可比较
+  的版本顺序，因此不得用 `min/max` 或字典序伪造 commit 范围；首个发行版至少包含锁定的
+  `99f6f02fecdb7dff40c3fbc9470f5907c29f74ca`，操作系统值只允许 `darwin/linux/win32`。
 
 上传通过后计算整个 tgz 的 SHA-256，并以 Ed25519 对签名声明的 RFC 8785 JSON Canonicalization Scheme UTF-8 结果签名。声明字段固定为字符串 `artifactId`、`packageName`、`version`、十进制整数 `sizeBytes`、小写十六进制 `sha256` 和对象 `compatibility`；服务端与客户端使用同一组规范化测试向量，禁止自行拼接字段。私钥只在 Server secret 中，公钥写进员工最初安装的企业 bundle Config；bootstrap 返回的公钥不能替换本地信任根。
 
-制品先写 `$ENT_ARTIFACT_ROOT/tmp/<upload-id>.part`，验包和签名成功后原子移动到 `$ENT_ARTIFACT_ROOT/sha256/<hash前两位>/<完整hash>.tgz`。数据库事务失败时删除临时文件；已发布版本引用的制品不得删除，退休且无 assignment 引用的制品保留 30 天后由清理任务删除。
+制品先写 `$ENT_ARTIFACT_ROOT/tmp/<upload-id>.part`，同一 SHA-256 的 CAS 终结与数据库补偿由进程内锁加 artifact root 文件锁跨进程串行化，验包和签名成功后原子移动到 `$ENT_ARTIFACT_ROOT/sha256/<hash前两位>/<完整hash>.tgz`。数据库事务失败时删除临时文件和本次独占创建且尚未被其他事务复用的最终文件；已发布版本引用的制品不得删除，退休且无 assignment 引用的制品保留 30 天后由清理任务删除。
 
 ### 11.2 发布和分配
 
@@ -650,6 +653,21 @@ CLI 成功后写入 `$DSH_HOME/enterprise/managed-plugins.json`，记录 assignm
 | `PUT` | `/enterprise/api/v1/plugins/inventory` | 幂等上报每个受管插件的本地状态和 Loader 状态 |
 
 下载授权必须重新解析当前 assignment，不能只凭不可猜 ID。`ABSENT`、已退休且未被当前 assignment 引用、其他用户专属版本均拒绝下载。
+
+### 11.5 管理 API
+
+| 方法 | 路径 | 用途 |
+|---|---|---|
+| `GET` | `/enterprise/admin/v1/plugins` | package 与版本 cursor 列表 |
+| `POST` | `/enterprise/admin/v1/plugins/versions` | multipart 上传 tgz 与 compatibility，package 由 package.json 确定 |
+| `POST` | `/enterprise/admin/v1/plugins/versions/{id}/actions/publish` | 发布已验证版本 |
+| `POST` | `/enterprise/admin/v1/plugins/versions/{id}/actions/retire` | 退休已发布版本 |
+| `POST` | `/enterprise/admin/v1/plugins/{packageId}/assignments/batch` | 原子替换 package 的 assignment 集合 |
+| `GET` | `/enterprise/admin/v1/plugins/inventory` | 查询设备受管插件观测状态 |
+
+上传的 multipart 字段固定为二进制 `artifact` 和 JSON `compatibility`；`Idempotency-Key` 仍要求
+UUID v4。publish/retire 和 assignment batch 使用 `If-Match` 对版本或 package revision 做 CAS。
+package/version、相同 SHA-256 的自然唯一键是上传重试的最终幂等事实，不能依赖进程内缓存。
 
 ## 12. Session Event 同步与恢复
 
@@ -786,6 +804,7 @@ MVP 必须产生以下 action：
 | `V5__enterprise_seed.sql` | 默认本地身份源、默认 quota policy 和 bootstrap revision |
 | `V6__enterprise_quota_runtime.sql` | 冻结部署时区，并为 reservation 补齐崩溃恢复所需 requestId |
 | `V7__enterprise_admin_observability.sql` | 持久化身份源最近测试与设备 heartbeat 的插件/同步脱敏摘要，供管理控制台查询 |
+| `V8__enterprise_plugin_server.sql` | 修正 assignment desired state，并补齐插件服务端库存观测约束 |
 
 Flyway 使用独立 migration 数据库账号；运行时账号只有 DML 和 sequence 权限。migration 必须在空 PostgreSQL 和从前一 migration 升级两条路径测试。
 
@@ -1169,7 +1188,9 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 | T10 | `completed` | 2026-08-18 已实现请求级 ACTIVE 授权、DeepSeek-compatible upstream、OpenAI SSE、配额预留/续租/结算、首字节前后错误和 accepted/finished 原子审计；完整证据见 [`t10-model-gateway-acceptance.md`](t10-model-gateway-acceptance.md)。 |
 | T11 | `completed` | 2026-08-19 已基于官方 rc.7 实现 EnterpriseGatewayAdapter、动态目录/default、中心直连、单次尝试、取消与 profile provider 覆盖；真实 `ctx.llm` 的无本地上游 Key 组合证据见 [`t11-harness-model-integration-acceptance.md`](t11-harness-model-integration-acceptance.md)。 |
 | T12 | `completed` | 2026-08-19 已交付 enterprise-admin PKCE、动态权限路由和身份/设备/模型/授权/配额/用量管理纵向页面；真实 Server Playwright、CAS 恢复与密钥隔离证据见 [`t12-admin-console-acceptance.md`](t12-admin-console-acceptance.md)。 |
-| T13-T23 | `pending` | 下一项只能从 T13 插件服务端开始；仍按依赖顺序一次完成一个任务。 |
+| T13 | `completed` | 2026-08-19 已实现 tgz 流式校验、RFC 8785 JCS/Ed25519、带 hash 互斥的 CAS、版本状态/CAS、USER>DEPT>ALL 分配、逐请求下载授权、Range、库存替换与 bootstrap 插件投影，见 [`t13-plugin-server-acceptance.md`](t13-plugin-server-acceptance.md)。 |
+| T14 | `pending` | 唯一下一项；实现客户端下载、双重校验、`ctx.subprocess` argv、状态文件、重启 active、清单与回滚。 |
+| T15-T23 | `pending` | T14 独立验收并提交前不得开始 T15。 |
 
 ## 23. Definition of Done
 

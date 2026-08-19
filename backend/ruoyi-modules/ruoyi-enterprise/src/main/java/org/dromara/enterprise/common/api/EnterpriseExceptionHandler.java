@@ -24,6 +24,9 @@ import org.dromara.enterprise.model.application.ModelResourceNotFoundException;
 import org.dromara.enterprise.model.gateway.GatewayException;
 import org.dromara.enterprise.quota.application.QuotaExceededException;
 import org.dromara.enterprise.quota.application.QuotaResourceNotFoundException;
+import org.dromara.enterprise.plugin.application.PluginAccessException;
+import org.dromara.enterprise.plugin.application.PluginResourceNotFoundException;
+import org.dromara.enterprise.plugin.artifact.PluginArtifactException;
 import org.dromara.enterprise.quota.application.RequestAlreadyCompletedException;
 import org.dromara.enterprise.quota.application.RequestInProgressException;
 import org.dromara.enterprise.revision.RevisionConflictException;
@@ -122,6 +125,32 @@ public final class EnterpriseExceptionHandler {
     @ExceptionHandler(QuotaResourceNotFoundException.class)
     public ResponseEntity<EnterpriseErrorResponse> quotaNotFound(HttpServletRequest request) {
         return error(HttpStatus.NOT_FOUND, "ENT_RESOURCE_NOT_FOUND", "配额资源不存在", false, null, request);
+    }
+
+    @ExceptionHandler(PluginResourceNotFoundException.class)
+    public ResponseEntity<EnterpriseErrorResponse> pluginNotFound(HttpServletRequest request) {
+        return error(HttpStatus.NOT_FOUND, "ENT_RESOURCE_NOT_FOUND", "插件资源不存在", false, null, request);
+    }
+
+    @ExceptionHandler(PluginAccessException.class)
+    public ResponseEntity<EnterpriseErrorResponse> pluginNotAssigned(HttpServletRequest request) {
+        return error(
+            HttpStatus.FORBIDDEN, PluginAccessException.ERROR_CODE, "未分配该插件版本", false, null, request
+        );
+    }
+
+    @ExceptionHandler(PluginArtifactException.class)
+    public ResponseEntity<EnterpriseErrorResponse> pluginArtifact(
+        PluginArtifactException exception,
+        HttpServletRequest request
+    ) {
+        HttpStatus status = exception.kind() == PluginArtifactException.Kind.TOO_LARGE
+            ? HttpStatus.PAYLOAD_TOO_LARGE
+            : HttpStatus.BAD_REQUEST;
+        String message = exception.kind() == PluginArtifactException.Kind.TOO_LARGE
+            ? "插件归档超过限制"
+            : "插件归档无效";
+        return error(status, exception.errorCode(), message, false, null, request);
     }
 
     @ExceptionHandler(GatewayException.class)

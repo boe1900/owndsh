@@ -26,6 +26,7 @@ import org.dromara.enterprise.model.persistence.ModelGrantStore;
 import org.dromara.enterprise.model.persistence.ProviderStore;
 import org.dromara.enterprise.revision.BootstrapRevisionStore;
 import org.dromara.enterprise.quota.application.EffectiveQuotaResolver;
+import org.dromara.enterprise.plugin.application.EffectivePluginResolver;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -119,8 +120,11 @@ public class EnterpriseModelConfiguration {
         BootstrapUserStore userStore,
         EffectiveModelResolver resolver,
         EffectiveQuotaResolver quotaResolver,
+        EffectivePluginResolver pluginResolver,
         BootstrapRevisionStore revisionStore
     ) {
-        return new BootstrapService(deviceService, userStore, resolver, quotaResolver, revisionStore);
+        return new BootstrapService(
+            deviceService, userStore, resolver, quotaResolver, pluginResolver, revisionStore
+        );
     }
 }

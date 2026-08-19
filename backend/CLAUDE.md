@@ -21,7 +21,7 @@ ruoyi-admin/: Spring Boot 应用装配层，承载 T01/T02 验收并装配 ruoyi
 ruoyi-api/: 模块间 API 契约层，保持领域模块不经 Controller/Mapper 横向耦合。
 ruoyi-common/: RuoYi 公共基础设施与框架能力；ruoyi-common-security 对企业 API 保留登录校验，并把固定 client/device 裁决下沉到可信 Token session。
 ruoyi-extend/: 监控、任务等可选扩展模块，MVP 按详细设计裁剪非必要运行能力。
-ruoyi-modules/: 业务模块聚合层，包含边界独立的 `ruoyi-enterprise` PostgreSQL/Redis、crypto/revision/audit、identity/PKCE/device/model/quota 纵向模块。
+ruoyi-modules/: 业务模块聚合层，包含边界独立的 `ruoyi-enterprise` PostgreSQL/Redis、crypto/revision/audit、identity/PKCE/device/model/quota/plugin 纵向模块。
 script/: RuoYi 上游数据库与部署辅助脚本，企业迁移真源后续由 Flyway 独立管理。
 
 本目录是锁定提交 `7180b529776834fee912113b23f0bd7a387a8222` 的源码快照，不含上游 `.git`。企业改动必须保持 Maven 模块边界，并在触及业务文件时补齐对应 L3 契约。

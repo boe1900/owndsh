@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 PostgresTestDatabase 装载真实 RuoYi 基线与 V1-V7 classpath migration。
- * [OUTPUT]: 验证一次性空企业 schema 迁移、21 张企业表、V7 可观测性列和逐版本升级路径。
+ * [INPUT]: 依赖 PostgresTestDatabase 装载真实 RuoYi 基线与 V1-V8 classpath migration。
+ * [OUTPUT]: 验证空 schema、逐版本升级及 V8 desired-state/库存状态前向兼容迁移。
  * [POS]: database 的持续 migration 门禁，防止后续任务只验证最终 schema 而遗漏中间版本不可升级。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -17,6 +17,7 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import javax.sql.DataSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @Tag("dev")
 class EnterpriseMigrationTest {
@@ -26,7 +27,7 @@ class EnterpriseMigrationTest {
 
         Flyway flyway = PostgresTestDatabase.migrate(database, null);
 
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("7");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("8");
         Integer tableCount = database.jdbc().queryForObject("""
             select count(*) from information_schema.tables
             where table_schema = 'public' and table_name like 'ent_%'
@@ -66,8 +67,8 @@ class EnterpriseMigrationTest {
             )).isTrue();
         }
 
-        Flyway latest = PostgresTestDatabase.migrate(database, "7");
-        assertThat(latest.info().current().getVersion().getVersion()).isEqualTo("7");
+        Flyway versionSeven = PostgresTestDatabase.migrate(database, "7");
+        assertThat(versionSeven.info().current().getVersion().getVersion()).isEqualTo("7");
         assertThat(database.jdbc().queryForObject(
             "select count(*) from information_schema.columns where table_name='ent_device' "
                 + "and column_name in ('desired_revision','plugin_inventory_digest',"
@@ -79,6 +80,40 @@ class EnterpriseMigrationTest {
                 + "and column_name in ('last_tested_at','last_test_ok','last_test_diagnostic')",
             Integer.class
         )).isEqualTo(3);
+
+        long userId = database.jdbc().queryForObject(
+            "select user_id from sys_user where del_flag='0' order by user_id limit 1", Long.class
+        );
+        database.jdbc().update("""
+            insert into ent_plugin_package(id,tenant_id,package_name,display_name,status,revision)
+            values (1913000000000000001,'000000','@test/migration','Migration','ACTIVE',0)
+            """);
+        database.jdbc().update("""
+            insert into ent_plugin_version(
+                id,tenant_id,package_id,version,artifact_ref,size_bytes,sha256,signature,
+                compatibility_json,status,created_by,revision
+            ) values (1913000000000000101,'000000',1913000000000000001,'1.0.0','sha256/aa/test.tgz',1,
+                repeat('a',64),decode(repeat('00',64),'hex'),'{}','PUBLISHED',?,0)
+            """, userId);
+        database.jdbc().update("""
+            insert into ent_plugin_assignment(
+                id,tenant_id,package_id,plugin_version_id,subject_type,subject_id,
+                desired_state,required,status,revision
+            ) values
+                (1913000000000000201,'000000',1913000000000000001,1913000000000000101,
+                 'ALL',null,'ACTIVE',true,'ACTIVE',0),
+                (1913000000000000202,'000000',1913000000000000001,1913000000000000101,
+                 'USER',?,'DISABLED',false,'ACTIVE',0)
+            """, userId);
+
+        Flyway latest = PostgresTestDatabase.migrate(database, "8");
+        assertThat(latest.info().current().getVersion().getVersion()).isEqualTo("8");
+        assertThat(database.jdbc().queryForList(
+            "select desired_state from ent_plugin_assignment order by id", String.class
+        )).containsExactly("INSTALLED", "ABSENT");
+        assertThatThrownBy(() -> database.jdbc().update(
+            "update ent_plugin_assignment set desired_state='ACTIVE' where id=1913000000000000201"
+        )).isInstanceOf(RuntimeException.class);
     }
 
     @Test
@@ -95,7 +130,7 @@ class EnterpriseMigrationTest {
             .run(context -> {
                 assertThat(context).hasSingleBean(Flyway.class);
                 assertThat(context.getBean(Flyway.class).info().current().getVersion().getVersion())
-                    .isEqualTo("7");
+                    .isEqualTo("8");
             });
     }
 }

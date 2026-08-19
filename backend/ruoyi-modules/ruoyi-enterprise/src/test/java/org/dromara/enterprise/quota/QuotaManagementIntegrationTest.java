@@ -12,6 +12,7 @@ import org.dromara.enterprise.device.domain.EnterpriseDevice;
 import org.dromara.enterprise.model.application.BootstrapService;
 import org.dromara.enterprise.model.application.BootstrapUser;
 import org.dromara.enterprise.model.web.BootstrapView;
+import org.dromara.enterprise.plugin.application.EffectivePluginResolver;
 import org.dromara.enterprise.quota.application.EffectiveQuotaResolver;
 import org.dromara.enterprise.quota.application.QuotaExceededException;
 import org.dromara.enterprise.quota.application.QuotaMutationContext;
@@ -156,7 +157,8 @@ class QuotaManagementIntegrationTest {
                 "darwin-arm64", "0.1.0-rc.5", "0.1.0", DeviceStatus.ACTIVE, Instant.now(), null, 0
             ),
             List.of(),
-            resolver.resolve(TENANT, userId, departmentId)
+            resolver.resolve(TENANT, userId, departmentId),
+            new EffectivePluginResolver.ResolvedAssignments(2, List.of())
         ));
         assertThat(bootstrap.quotas()).hasSize(3);
         assertThat(bootstrap.quotas().getLast().policyId()).isEqualTo(Long.toString(user.id()));

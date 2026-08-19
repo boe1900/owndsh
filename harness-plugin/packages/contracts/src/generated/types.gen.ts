@@ -175,6 +175,38 @@ export type BootstrapSnapshot = ModelBootstrapSnapshot;
 
 export type BootstrapResponse = ModelBootstrapResponse;
 
+export type PluginPackageId = PluginPluginPackageId;
+
+export type PluginVersionId = PluginPluginVersionId;
+
+export type PluginAssignmentId = PluginPluginAssignmentId;
+
+export type PluginCompatibility = PluginPluginCompatibility;
+
+export type PluginVersion = PluginPluginVersion;
+
+export type PluginVersionResponse = PluginPluginVersionResponse;
+
+export type PluginPackage = PluginPluginPackage;
+
+export type PluginPackagePageData = PluginPluginPackagePageData;
+
+export type PluginPackageListResponse = PluginPluginPackageListResponse;
+
+export type PluginAssignmentBatchRequest = PluginPluginAssignmentBatchRequest;
+
+export type PluginAssignmentBatchResponse = PluginPluginAssignmentBatchResponse;
+
+export type RuntimePluginAssignments = PluginRuntimePluginAssignments;
+
+export type RuntimePluginAssignmentsResponse = PluginRuntimePluginAssignmentsResponse;
+
+export type PluginInventoryRequest = PluginPluginInventoryRequest;
+
+export type PluginInventoryResponse = PluginPluginInventoryResponse;
+
+export type AdminPluginInventoryListResponse = PluginAdminPluginInventoryListResponse;
+
 export type QuotaPolicyId = QuotaQuotaPolicyId;
 
 export type QuotaWindowId = QuotaQuotaWindowId;
@@ -263,11 +295,6 @@ export type EnterpriseDeviceId = string;
  * Managed model snowflake ID serialized as a string.
  */
 export type ManagedModelId = string;
-
-/**
- * Managed plugin version snowflake ID serialized as a string.
- */
-export type PluginVersionId = string;
 
 /**
  * Harness-compatible remote Session identifier.
@@ -738,20 +765,6 @@ export type ModelBootstrapModel = {
     isDefault: boolean;
 };
 
-export type BootstrapPluginAssignment = {
-    packageName: string;
-    version: string;
-    sha256: string;
-    downloadUrl: string;
-    required: boolean;
-    desiredState: 'INSTALLED';
-};
-
-export type BootstrapPlugins = {
-    revision: Revision;
-    assignments: Array<BootstrapPluginAssignment>;
-};
-
 export type ModelBootstrapResponse = {
     data: ModelBootstrapSnapshot;
     requestId: RequestId;
@@ -769,7 +782,7 @@ export type ModelBootstrapSnapshot = {
     device: BootstrapDevice;
     models: Array<ModelBootstrapModel>;
     quotas: Array<QuotaBootstrapQuota>;
-    plugins: BootstrapPlugins;
+    plugins: PluginRuntimePluginAssignments;
     sessionPolicy: BootstrapSessionPolicy;
 };
 
@@ -946,6 +959,175 @@ export type ModelProviderUpdateRequest = {
     replaceSecret: boolean;
     connectTimeoutMs: ProviderTimeoutMs;
     readTimeoutMs: ProviderTimeoutMs;
+};
+
+export type AdminPluginInventoryItem = {
+    deviceId: EnterpriseDeviceId;
+    username: string;
+    packageName: PluginPackageName;
+    version: PluginSemanticVersion | null;
+    sha256: PluginSha256 | null;
+    desiredRevision: Revision;
+    state: ManagedPluginState;
+    loaderPhase: string | null;
+    lastErrorCode: string | null;
+    observedAt: string;
+};
+
+export type PluginAdminPluginInventoryListResponse = {
+    data: AdminPluginInventoryPageData;
+    requestId: RequestId;
+};
+
+export type AdminPluginInventoryPageData = {
+    items: Array<AdminPluginInventoryItem>;
+    page: CursorPage;
+};
+
+export type ManagedPluginState = 'EXPECTED' | 'DOWNLOAD_PENDING' | 'DOWNLOADING' | 'VERIFIED' | 'INSTALLING' | 'RESTART_REQUIRED' | 'ACTIVE' | 'REMOVE_PENDING' | 'REMOVING' | 'FAILED' | 'ROLLBACK';
+
+export type PluginAssignment = {
+    id: PluginPluginAssignmentId;
+    packageId: PluginPluginPackageId;
+    pluginVersionId: PluginPluginVersionId;
+    subjectType: PluginSubjectType;
+    subjectId: string | null;
+    desiredState: PluginDesiredState;
+    required: boolean;
+    status: PluginAssignmentStatus;
+    revision: Revision;
+};
+
+export type PluginPluginAssignmentBatchRequest = {
+    items: Array<PluginAssignmentWrite>;
+};
+
+export type PluginPluginAssignmentBatchResponse = {
+    data: Array<PluginAssignment>;
+    requestId: RequestId;
+};
+
+export type PluginPluginAssignmentId = string;
+
+export type PluginAssignmentStatus = 'ACTIVE' | 'DISABLED';
+
+export type PluginAssignmentWrite = {
+    pluginVersionId: PluginPluginVersionId;
+    subjectType: PluginSubjectType;
+    subjectId: string | null;
+    desiredState: PluginDesiredState;
+    required: boolean;
+};
+
+export type PluginPluginCompatibility = {
+    harnessCommits: Array<string>;
+    enterpriseBundleRange: string;
+    operatingSystems: Array<PluginOperatingSystem>;
+};
+
+export type PluginDesiredState = 'INSTALLED' | 'ABSENT';
+
+export type PluginInventoryAck = {
+    reported: number;
+};
+
+export type PluginInventoryItem = {
+    packageName: PluginPackageName;
+    version: PluginSemanticVersion | null;
+    sha256: PluginSha256 | null;
+    desiredRevision: Revision;
+    state: ManagedPluginState;
+    loaderPhase: string | null;
+    lastErrorCode: string | null;
+    observedAt: string;
+};
+
+export type PluginPluginInventoryRequest = {
+    items: Array<PluginInventoryItem>;
+};
+
+export type PluginPluginInventoryResponse = {
+    data: PluginInventoryAck;
+    requestId: RequestId;
+};
+
+export type PluginOperatingSystem = 'darwin' | 'linux' | 'win32';
+
+export type PluginPluginPackage = {
+    id: PluginPluginPackageId;
+    packageName: PluginPackageName;
+    displayName: string;
+    status: PluginPackageStatus;
+    revision: Revision;
+    versions: Array<PluginPluginVersion>;
+};
+
+export type PluginPluginPackageId = string;
+
+export type PluginPluginPackageListResponse = {
+    data: PluginPluginPackagePageData;
+    requestId: RequestId;
+};
+
+export type PluginPackageName = string;
+
+export type PluginPluginPackagePageData = {
+    items: Array<PluginPluginPackage>;
+    page: CursorPage;
+};
+
+export type PluginPackageStatus = 'ACTIVE' | 'DISABLED';
+
+export type PluginSemanticVersion = string;
+
+export type PluginSha256 = string;
+
+export type PluginSubjectType = 'ALL' | 'DEPT' | 'USER';
+
+export type PluginPluginVersion = {
+    id: PluginPluginVersionId;
+    packageId: PluginPluginPackageId;
+    packageName: PluginPackageName;
+    version: PluginSemanticVersion;
+    sizeBytes: number;
+    sha256: PluginSha256;
+    signatureBase64: string;
+    compatibility: PluginPluginCompatibility;
+    status: PluginVersionStatus;
+    createdAt: string;
+    revision: Revision;
+};
+
+export type PluginPluginVersionId = string;
+
+export type PluginPluginVersionResponse = {
+    data: PluginPluginVersion;
+    requestId: RequestId;
+};
+
+export type PluginVersionStatus = 'UPLOADED' | 'VALIDATED' | 'PUBLISHED' | 'RETIRED';
+
+export type RuntimePluginAssignment = {
+    pluginVersionId: PluginPluginVersionId;
+    packageName: PluginPackageName;
+    version: PluginSemanticVersion;
+    sizeBytes: number;
+    sha256: PluginSha256;
+    signatureBase64: string;
+    compatibility: PluginPluginCompatibility;
+    downloadUrl: string | null;
+    required: boolean;
+    desiredState: PluginDesiredState;
+};
+
+export type PluginRuntimePluginAssignments = {
+    revision: Revision;
+    assignments: Array<RuntimePluginAssignment>;
+};
+
+export type PluginRuntimePluginAssignmentsResponse = {
+    data: PluginRuntimePluginAssignments;
+    requestId: RequestId;
 };
 
 export type QuotaBootstrapQuota = {
@@ -1180,6 +1362,24 @@ export type ProviderItem = unknown;
 
 export type ProviderTest = unknown;
 
+export type AdminPluginInventory = unknown;
+
+export type PluginAssignmentBatch = unknown;
+
+export type PluginCollection = unknown;
+
+export type PluginVersionPublish = unknown;
+
+export type PluginVersionRetire = unknown;
+
+export type PluginVersionUpload = unknown;
+
+export type PluginRuntimePluginAssignments2 = unknown;
+
+export type RuntimePluginDownload = unknown;
+
+export type RuntimePluginInventory = unknown;
+
 export type AdminUsage = unknown;
 
 export type MyUsage = unknown;
@@ -1241,6 +1441,12 @@ export type ProviderUpdateRequestWritable = ModelProviderUpdateRequestWritable;
 export type ProviderProbeRequestWritable = ModelProviderProbeRequestWritable;
 
 export type ProviderProbeCategoryWritable = ModelProviderProbeCategory;
+
+export type PluginPackageIdWritable = PluginPluginPackageId;
+
+export type PluginVersionIdWritable = PluginPluginVersionId;
+
+export type PluginAssignmentIdWritable = PluginPluginAssignmentId;
 
 export type QuotaPolicyIdWritable = QuotaQuotaPolicyId;
 
@@ -1369,6 +1575,10 @@ export type ManagedModelIdPath = ManagedModelId;
 export type ModelGrantIdPath = ModelModelGrantId;
 
 export type QuotaPolicyIdPath = QuotaQuotaPolicyId;
+
+export type PluginPackageIdPath = PluginPluginPackageId;
+
+export type PluginVersionIdPath = PluginPluginVersionId;
 
 /**
  * Server-signed opaque cursor; clients must not parse it.
@@ -3514,3 +3724,380 @@ export type StreamEnterpriseChatCompletionResponses = {
 };
 
 export type StreamEnterpriseChatCompletionResponse = StreamEnterpriseChatCompletionResponses[keyof StreamEnterpriseChatCompletionResponses];
+
+export type ListPluginPackagesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Server-signed opaque cursor; clients must not parse it.
+         */
+        cursor?: Cursor;
+        /**
+         * Cursor page size.
+         */
+        limit?: PageLimit;
+    };
+    url: '/enterprise/admin/v1/plugins';
+};
+
+export type ListPluginPackagesErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type ListPluginPackagesError = ListPluginPackagesErrors[keyof ListPluginPackagesErrors];
+
+export type ListPluginPackagesResponses = {
+    /**
+     * Plugin package page with versions.
+     */
+    200: PluginPluginPackageListResponse;
+};
+
+export type ListPluginPackagesResponse = ListPluginPackagesResponses[keyof ListPluginPackagesResponses];
+
+export type UploadPluginVersionData = {
+    body: {
+        artifact: Blob | File;
+        compatibility: PluginPluginCompatibility;
+    };
+    headers: {
+        /**
+         * Caller-generated UUID v4 reused only for one logical write.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/enterprise/admin/v1/plugins/versions';
+};
+
+export type UploadPluginVersionErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Request or archive is too large.
+     */
+    413: EnterpriseErrorResponse;
+};
+
+export type UploadPluginVersionError = UploadPluginVersionErrors[keyof UploadPluginVersionErrors];
+
+export type UploadPluginVersionResponses = {
+    /**
+     * Existing version returned for an idempotent natural key.
+     */
+    200: PluginPluginVersionResponse;
+    /**
+     * Validated and signed plugin version.
+     */
+    201: PluginPluginVersionResponse;
+};
+
+export type UploadPluginVersionResponse = UploadPluginVersionResponses[keyof UploadPluginVersionResponses];
+
+export type PublishPluginVersionData = {
+    body?: never;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        pluginVersionId: PluginPluginVersionId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/plugins/versions/{pluginVersionId}/actions/publish';
+};
+
+export type PublishPluginVersionErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type PublishPluginVersionError = PublishPluginVersionErrors[keyof PublishPluginVersionErrors];
+
+export type PublishPluginVersionResponses = {
+    /**
+     * Published plugin version.
+     */
+    200: PluginPluginVersionResponse;
+};
+
+export type PublishPluginVersionResponse = PublishPluginVersionResponses[keyof PublishPluginVersionResponses];
+
+export type RetirePluginVersionData = {
+    body?: never;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        pluginVersionId: PluginPluginVersionId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/plugins/versions/{pluginVersionId}/actions/retire';
+};
+
+export type RetirePluginVersionErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type RetirePluginVersionError = RetirePluginVersionErrors[keyof RetirePluginVersionErrors];
+
+export type RetirePluginVersionResponses = {
+    /**
+     * Retired plugin version.
+     */
+    200: PluginPluginVersionResponse;
+};
+
+export type RetirePluginVersionResponse = RetirePluginVersionResponses[keyof RetirePluginVersionResponses];
+
+export type ReplacePluginAssignmentsData = {
+    body: PluginPluginAssignmentBatchRequest;
+    headers: {
+        /**
+         * Caller-generated UUID v4 reused only for one logical write.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        pluginPackageId: PluginPluginPackageId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/plugins/{pluginPackageId}/assignments/batch';
+};
+
+export type ReplacePluginAssignmentsErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type ReplacePluginAssignmentsError = ReplacePluginAssignmentsErrors[keyof ReplacePluginAssignmentsErrors];
+
+export type ReplacePluginAssignmentsResponses = {
+    /**
+     * Replaced plugin assignments.
+     */
+    200: PluginPluginAssignmentBatchResponse;
+};
+
+export type ReplacePluginAssignmentsResponse = ReplacePluginAssignmentsResponses[keyof ReplacePluginAssignmentsResponses];
+
+export type ListPluginInventoryData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Server-signed opaque cursor; clients must not parse it.
+         */
+        cursor?: Cursor;
+        /**
+         * Cursor page size.
+         */
+        limit?: PageLimit;
+    };
+    url: '/enterprise/admin/v1/plugins/inventory';
+};
+
+export type ListPluginInventoryErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type ListPluginInventoryError = ListPluginInventoryErrors[keyof ListPluginInventoryErrors];
+
+export type ListPluginInventoryResponses = {
+    /**
+     * Managed device plugin inventory page.
+     */
+    200: PluginAdminPluginInventoryListResponse;
+};
+
+export type ListPluginInventoryResponse = ListPluginInventoryResponses[keyof ListPluginInventoryResponses];
+
+export type GetPluginAssignmentsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/enterprise/api/v1/plugins/assignments';
+};
+
+export type GetPluginAssignmentsErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type GetPluginAssignmentsError = GetPluginAssignmentsErrors[keyof GetPluginAssignmentsErrors];
+
+export type GetPluginAssignmentsResponses = {
+    /**
+     * Effective assignments for the active Harness device owner.
+     */
+    200: PluginRuntimePluginAssignmentsResponse;
+};
+
+export type GetPluginAssignmentsResponse = GetPluginAssignmentsResponses[keyof GetPluginAssignmentsResponses];
+
+export type DownloadPluginVersionData = {
+    body?: never;
+    headers?: {
+        Range?: string;
+    };
+    path: {
+        pluginVersionId: PluginPluginVersionId;
+    };
+    query?: never;
+    url: '/enterprise/api/v1/plugins/versions/{pluginVersionId}/download';
+};
+
+export type DownloadPluginVersionErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+};
+
+export type DownloadPluginVersionError = DownloadPluginVersionErrors[keyof DownloadPluginVersionErrors];
+
+export type DownloadPluginVersionResponses = {
+    /**
+     * Complete tgz artifact.
+     */
+    200: Blob | File;
+    /**
+     * Single byte range of the tgz artifact.
+     */
+    206: Blob | File;
+};
+
+export type DownloadPluginVersionResponse = DownloadPluginVersionResponses[keyof DownloadPluginVersionResponses];
+
+export type ReplacePluginInventoryData = {
+    body: PluginPluginInventoryRequest;
+    path?: never;
+    query?: never;
+    url: '/enterprise/api/v1/plugins/inventory';
+};
+
+export type ReplacePluginInventoryErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type ReplacePluginInventoryError = ReplacePluginInventoryErrors[keyof ReplacePluginInventoryErrors];
+
+export type ReplacePluginInventoryResponses = {
+    /**
+     * Inventory replacement accepted.
+     */
+    200: PluginPluginInventoryResponse;
+};
+
+export type ReplacePluginInventoryResponse = ReplacePluginInventoryResponses[keyof ReplacePluginInventoryResponses];

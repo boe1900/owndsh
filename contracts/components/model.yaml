@@ -395,7 +395,7 @@ BootstrapSnapshot:
       type: array
       items: {$ref: './quota.yaml#/BootstrapQuota'}
     plugins:
-      $ref: '#/BootstrapPlugins'
+      $ref: './plugin.yaml#/RuntimePluginAssignments'
     sessionPolicy:
       $ref: '#/BootstrapSessionPolicy'
 BootstrapUser:
@@ -429,41 +429,6 @@ BootstrapDevice:
     status:
       type: string
       const: ACTIVE
-BootstrapPlugins:
-  type: object
-  additionalProperties: false
-  required: [revision, assignments]
-  properties:
-    revision:
-      $ref: '../enterprise-openapi.yaml#/components/schemas/Revision'
-    assignments:
-      type: array
-      items: {$ref: '#/BootstrapPluginAssignment'}
-BootstrapPluginAssignment:
-  type: object
-  additionalProperties: false
-  required: [packageName, version, sha256, downloadUrl, required, desiredState]
-  properties:
-    packageName:
-      type: string
-      minLength: 1
-      maxLength: 214
-    version:
-      type: string
-      minLength: 1
-      maxLength: 64
-    sha256:
-      type: string
-      pattern: '^[0-9a-f]{64}$'
-    downloadUrl:
-      type: string
-      minLength: 1
-      maxLength: 2048
-    required:
-      type: boolean
-    desiredState:
-      type: string
-      const: INSTALLED
 BootstrapSessionPolicy:
   type: object
   additionalProperties: false
