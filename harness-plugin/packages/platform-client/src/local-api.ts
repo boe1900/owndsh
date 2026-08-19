@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 Harness `ctx.webServer.register()` route port 与 EnterprisePlatformService 脱敏操作端口
- * [OUTPUT]: 对外提供 registerEnterpriseLocalApi、严格 JSON action 路由、状态/bootstrap 查询与 SSE
+ * [INPUT]: 依赖 Harness `ctx.webServer.register()` route port、平台操作端口与插件调和只读状态回调
+ * [OUTPUT]: 对外提供 registerEnterpriseLocalApi、严格 JSON action 路由、平台/插件状态查询与 SSE
  * [POS]: platform-client 的 Host/Client 同源协作边界，只序列化脱敏 DTO 而不接触平台 Token
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -50,6 +50,8 @@ export interface SessionCopyProbeResult {
 
 export interface EnterpriseLocalApiOptions {
   readonly platform: EnterpriseLocalPlatformPort
+  /** 由组合层绑定 distribution，避免 platform-client 反向依赖具体插件包。 */
+  readonly pluginStatus: () => unknown
   readonly enableTechnicalProbe?: boolean
   readonly restoreSessionCopy?: (input: SessionCopyProbeInput) => Promise<SessionCopyProbeResult>
 }
@@ -191,6 +193,18 @@ export function registerEnterpriseLocalApi(
           return
         }
         writeJson(response, 200, { data: options.platform.bootstrap() ?? null })
+      },
+    }))
+
+    disposers.push(webServer.register({
+      kind: 'exact',
+      path: `${LOCAL_API_PREFIX}/plugins`,
+      handler: (request, response) => {
+        if (request.method !== 'GET') {
+          methodNotAllowed(response, 'GET')
+          return
+        }
+        writeJson(response, 200, { data: options.pluginStatus() })
       },
     }))
 

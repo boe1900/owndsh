@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Node fs/os/path/crypto 在 DSH_HOME 下原子读写非秘密 installation 文件
- * [OUTPUT]: 对外提供 loadOrCreateInstallation、resolveEnterpriseDevicePath 与严格 InstallationRecord
+ * [OUTPUT]: 对外提供 loadOrCreateInstallation、resolveEnterpriseDshHome、resolveEnterpriseDevicePath 与严格 InstallationRecord
  * [POS]: platform-client 的唯一持久化边界，只保存 UUID/显示名/创建时间而永不接触 Token
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -27,7 +27,8 @@ export interface InstallationOptions {
   readonly createId?: () => string
 }
 
-function resolveDshHome(options: InstallationOptions): string {
+/** 按显式配置、DSH_HOME、用户目录的顺序解析唯一 Harness home。 */
+export function resolveEnterpriseDshHome(options: Pick<InstallationOptions, 'dshHome' | 'env'> = {}): string {
   if (options.dshHome !== undefined && options.dshHome.trim() !== '') return resolve(options.dshHome)
   const configured = (options.env ?? process.env)['DSH_HOME']
   if (configured !== undefined && configured.trim() !== '') return resolve(configured)
@@ -36,7 +37,7 @@ function resolveDshHome(options: InstallationOptions): string {
 
 /** 解析 platform-client 唯一的持久化路径。 */
 export function resolveEnterpriseDevicePath(options: InstallationOptions = {}): string {
-  return join(resolveDshHome(options), 'enterprise', 'device.json')
+  return join(resolveEnterpriseDshHome(options), 'enterprise', 'device.json')
 }
 
 function parseInstallation(text: string): InstallationRecord {

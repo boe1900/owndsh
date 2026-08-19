@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 platform-client 本地 API 注册器与 Node 原生 HTTP server/fetch
- * [OUTPUT]: 验证方法/content-type/体积/DTO、脱敏状态/bootstrap、SSE、探针开关与 disposer
+ * [OUTPUT]: 验证方法/content-type/体积/DTO、脱敏平台/插件状态、SSE、探针开关与 disposer
  * [POS]: platform-client Host/Client 协作回归测试，以真实 HTTP 锁定官方 webServer 契约
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -22,6 +22,7 @@ describe('enterprise local API', () => {
   let currentStatus: EnterprisePlatformStatus
   let listeners: Set<(status: EnterprisePlatformStatus) => void>
   let platform: EnterpriseLocalPlatformPort
+  let pluginStatus: ReturnType<typeof vi.fn>
 
   beforeEach(async () => {
     routes = new Map()
@@ -43,6 +44,19 @@ describe('enterprise local API', () => {
         return () => { listeners.delete(listener) }
       },
     }
+    pluginStatus = vi.fn(() => ({
+      assignmentRevision: 7,
+      plugins: [{
+        packageName: '@example/dsh-code-review',
+        version: '1.2.0',
+        sha256: 'a'.repeat(64),
+        desiredRevision: 7,
+        desiredState: 'INSTALLED',
+        state: 'RESTART_REQUIRED',
+        lastErrorCode: null,
+        restartMarker: null,
+      }],
+    }))
     webServer = {
       register: (route) => {
         if (routes.has(route.path)) throw new Error(`duplicate route ${route.path}`)
@@ -68,7 +82,7 @@ describe('enterprise local API', () => {
   })
 
   it('serves desensitized state and bootstrap without CORS or Token fields', async () => {
-    registerEnterpriseLocalApi(webServer, { platform })
+    registerEnterpriseLocalApi(webServer, { platform, pluginStatus })
     const response = await fetch(`${baseUrl}/enterprise/api/v1/local/status`)
     expect(response.headers.get('access-control-allow-origin')).toBeNull()
     const body = await response.json()
@@ -77,13 +91,18 @@ describe('enterprise local API', () => {
 
     const bootstrap = await fetch(`${baseUrl}/enterprise/api/v1/local/bootstrap`)
     await expect(bootstrap.json()).resolves.toEqual({ data: null })
+    const plugins = await fetch(`${baseUrl}/enterprise/api/v1/local/plugins`)
+    expect(plugins.headers.get('cache-control')).toBe('no-store')
+    await expect(plugins.json()).resolves.toEqual({ data: pluginStatus.mock.results[0]?.value })
+    expect(pluginStatus).toHaveBeenCalledOnce()
+    expect(JSON.stringify(pluginStatus.mock.results[0]?.value)).not.toMatch(/token|authorization|publicKey/i)
     const rejected = await fetch(`${baseUrl}/enterprise/api/v1/local/status`, { method: 'POST' })
     expect(rejected.status).toBe(405)
     expect(rejected.headers.get('allow')).toBe('GET')
   })
 
   it('validates empty JSON action DTOs and dispatches login, cancel, and logout', async () => {
-    registerEnterpriseLocalApi(webServer, { platform })
+    registerEnterpriseLocalApi(webServer, { platform, pluginStatus })
     const start = await fetch(`${baseUrl}/enterprise/api/v1/local/auth/start`, {
       body: '{}', headers: { 'content-type': 'application/json' }, method: 'POST',
     })
@@ -113,7 +132,7 @@ describe('enterprise local API', () => {
   })
 
   it('streams initial and changed status through local SSE and unsubscribes on close', async () => {
-    const dispose = registerEnterpriseLocalApi(webServer, { platform })
+    const dispose = registerEnterpriseLocalApi(webServer, { platform, pluginStatus })
     const response = await fetch(`${baseUrl}/enterprise/api/v1/local/events`)
     expect(response.headers.get('content-type')).toBe('text/event-stream; charset=utf-8')
     const reader = response.body?.getReader()
@@ -144,7 +163,9 @@ describe('enterprise local API', () => {
       sourceSessionId: input.sourceSessionId,
       seedLength: input.events.length,
     }))
-    registerEnterpriseLocalApi(webServer, { platform, enableTechnicalProbe: true, restoreSessionCopy })
+    registerEnterpriseLocalApi(webServer, {
+      platform, pluginStatus, enableTechnicalProbe: true, restoreSessionCopy,
+    })
     const response = await fetch(`${baseUrl}/enterprise/api/v1/local/session-copies`, {
       body: JSON.stringify({
         sourceSessionId: 'remote-1',
@@ -164,6 +185,7 @@ describe('enterprise local API', () => {
   it('rejects invalid and oversized probe DTOs and removes every route', async () => {
     const dispose = registerEnterpriseLocalApi(webServer, {
       platform,
+      pluginStatus,
       enableTechnicalProbe: true,
       restoreSessionCopy: vi.fn(),
     })

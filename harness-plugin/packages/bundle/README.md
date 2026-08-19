@@ -7,10 +7,10 @@ ships one Cordis Host plugin, one `dsh.client` lazy-CJS browser bundle, and the
 The profile layer sets provider `enterprise` and model `enterprise/default` on
 `agent-default-model`, disables the built-in DeepSeek and pi-ai provider rows,
 and disables the personal Models settings page. The Host plugin registers the
-enterprise adapter through the official rc.7 `ctx.llm` service. The package
-declares an exact `@deepseek-ai/dsh-llm@0.1.0-rc.7` peer; rc.7 resolves that
-Service Definition from the Harness app dependency fallback instead of
-installing a second runtime into the profile.
+enterprise adapter through official rc.7 `ctx.llm`, and the distribution
+Service through official `ctx.subprocess` plus `ctx.pluginInventory`. Exact
+rc.7 peers resolve from the Harness app dependency fallback instead of
+installing second Service Definitions into the profile.
 
 The tarball is self-contained at runtime: workspace packages are build inputs,
 not installed dependencies. Install it with:
@@ -20,9 +20,11 @@ dsh plugin --profile web add ./enterprise-agent-dsh-bundle-0.1.0.tgz
 ```
 
 The profile overlay must set `config.baseUrl` to the enterprise platform HTTPS
-origin; the bundle intentionally has no default platform address. Optional
-`bootstrapIntervalMs`, `requestTimeoutMs`, and `disposeTimeoutMs` values override
-the documented T06 defaults. The Host half publishes `ctx.enterprisePlatform`
+origin and `config.trustedPluginPublicKey` to the installation-owned Ed25519
+SPKI public key; neither has a runtime default. The platform bootstrap cannot
+replace that trust root. `bootstrapIntervalMs`, `requestTimeoutMs`,
+`disposeTimeoutMs`, managed profile and `dshCommand` use the detailed-design
+defaults unless the installation layer overrides them. The Host half publishes `ctx.enterprisePlatform`
 and mounts only same-origin `/enterprise/api/v1/local/*` JSON/SSE routes. Model
 streams do not traverse that browser control plane: the Host adapter calls the
 enterprise HTTPS center directly through the in-memory authenticated Service.

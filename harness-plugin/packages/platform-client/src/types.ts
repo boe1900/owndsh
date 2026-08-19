@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 zod 对详细设计第 8 节 bootstrap 脱敏快照做严格边界校验
- * [OUTPUT]: 对外提供 BootstrapSnapshot、含平台 origin 的 EnterprisePlatformStatus、连接状态与运行时 schema
+ * [INPUT]: 依赖 zod 与 T13 插件协议对详细设计第 8 节 bootstrap 脱敏快照做严格边界校验
+ * [OUTPUT]: 对外提供含完整插件签名/compatibility/ABSENT 的 BootstrapSnapshot、平台状态与运行时 schema
  * [POS]: platform-client 的无秘密数据契约，隔离中心 HTTP 输入与 Host 内部状态
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -23,6 +23,17 @@ export type EnterpriseConnectionState =
 
 const numericId = z.string().regex(/^[1-9][0-9]{0,18}$/)
 const revision = zRevision
+const pluginVersionId = numericId
+const pluginPackageName = z.string().min(1).max(214)
+  .regex(/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/)
+const pluginVersion = z.string().min(1).max(64)
+  .regex(/^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/)
+const pluginSha256 = z.string().regex(/^[0-9a-f]{64}$/)
+const pluginCompatibility = z.object({
+  harnessCommits: z.array(z.string().regex(/^[0-9a-f]{40}$/)).min(1).max(20),
+  enterpriseBundleRange: z.string().min(1).max(120),
+  operatingSystems: z.array(z.enum(['darwin', 'linux', 'win32'])).min(1).max(3),
+}).strict()
 const installationId = z.uuid().regex(
   /^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/,
 )
@@ -52,20 +63,24 @@ export const zBootstrapSnapshot = z.object({
   quotas: z.array(z.object({
     policyId: numericId,
     scope: z.enum(['DEFAULT', 'DEPT', 'USER']),
-    dailyTokenLimit: z.number().int().nonnegative().safe(),
-    monthlyTokenLimit: z.number().int().nonnegative().safe(),
-    rpm: z.number().int().positive().safe(),
-    concurrency: z.number().int().positive().safe(),
+    dailyTokenLimit: z.number().int().positive().safe().nullable(),
+    monthlyTokenLimit: z.number().int().positive().safe().nullable(),
+    rpm: z.number().int().positive().safe().nullable(),
+    concurrency: z.number().int().positive().safe().nullable(),
   }).strict()),
   plugins: z.object({
     revision,
     assignments: z.array(z.object({
-      packageName: z.string().min(1).max(214),
-      version: z.string().min(1).max(64),
-      sha256: z.string().regex(/^[0-9a-f]{64}$/),
-      downloadUrl: z.string().min(1).max(2048),
+      pluginVersionId,
+      packageName: pluginPackageName,
+      version: pluginVersion,
+      sizeBytes: z.number().int().positive().safe(),
+      sha256: pluginSha256,
+      signatureBase64: z.string().min(86).max(88).regex(/^[A-Za-z0-9+/]{86}==$/),
+      compatibility: pluginCompatibility,
+      downloadUrl: z.string().min(1).max(2048).nullable(),
       required: z.boolean(),
-      desiredState: z.literal('INSTALLED'),
+      desiredState: z.enum(['INSTALLED', 'ABSENT']),
     }).strict()),
   }).strict(),
   sessionPolicy: z.object({

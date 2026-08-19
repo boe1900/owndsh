@@ -1,0 +1,35 @@
+{
+  "name": "@enterprise-agent/dsh-plugin-distribution",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    }
+  },
+  "files": ["lib", "README.md"],
+  "scripts": {
+    "build": "pnpm --filter @enterprise-agent/dsh-plugin-distribution^... run build && tsc -p tsconfig.json",
+    "typecheck": "pnpm --filter @enterprise-agent/dsh-plugin-distribution^... run build && tsc -p tsconfig.json --noEmit",
+    "test": "vitest run tests"
+  },
+  "dependencies": {
+    "@enterprise-agent/dsh-contracts": "workspace:*",
+    "@enterprise-agent/dsh-platform-client": "workspace:*",
+    "semver": "7.8.4"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "4.0.1",
+    "@deepseek-ai/dsh-host-plugin-inventory": "0.1.0-rc.7",
+    "@deepseek-ai/dsh-subprocess": "0.1.0-rc.7"
+  },
+  "devDependencies": {
+    "@deepseek-ai/dsh-host-plugin-inventory": "link:../../../../deepseek-harness/packages/host/plugin-inventory",
+    "@deepseek-ai/dsh-subprocess": "link:../../../../deepseek-harness/packages/subprocess/subprocess",
+    "@types/semver": "7.7.1"
+  }
+}

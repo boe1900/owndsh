@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖已构建 bundle tgz、同级锁定 Harness checkout、Corepack pnpm 与临时 DSH_HOME
- * [OUTPUT]: 提供无 ambient shim consumer、profile layer、真实 Web/API/SSE/Client、installation 与 Session seed smoke
+ * [OUTPUT]: 提供无 ambient shim consumer、profile layer、真实 Web/API/SSE/Client、插件状态、installation 与 Session seed smoke
  * [POS]: harness-plugin 的 T01/T06 组合验收入口，只写临时目录并断言同级 Harness 跟踪工作区始终干净
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -133,6 +133,7 @@ try {
     '- id: enterprise-agent',
     '  config:',
     "    baseUrl: 'https://enterprise.example.invalid'",
+    "    trustedPluginPublicKey: 'MCowBQYDK2VwAyEAgl6STzO84FyXlwmeHinWGgY/TgbGBUUBLF1xPT7SvT8='",
     '    enableTechnicalProbe: true',
     '',
   ].join('\n'))
@@ -153,6 +154,15 @@ try {
       bundleVersion: '0.1.0',
       platformUrl: 'https://enterprise.example.invalid',
       transport: 'webServer.register',
+    },
+  })
+
+  const plugins = await fetch(`${ready.url}/enterprise/api/v1/local/plugins`)
+  assert.equal(plugins.status, 200)
+  assert.deepEqual(await plugins.json(), {
+    data: {
+      assignmentRevision: 0,
+      plugins: [],
     },
   })
 
@@ -216,6 +226,7 @@ try {
     installationFile: 'non-secret',
     localEvents: 'passed',
     packageConsumer: 'passed',
+    pluginStatusApi: 'passed',
     profile: 'web',
     sessionSeed: 'passed',
     statusApi: 'passed',

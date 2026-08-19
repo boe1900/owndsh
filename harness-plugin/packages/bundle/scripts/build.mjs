@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 esbuild、TypeScript CLI、bundle Host 入口、Harness dsh-llm peer 和 dsh-ui Client 源入口
- * [OUTPUT]: 生成内联产品包且保留官方 Cordis/LLM peer 的 Host ESM、lazy-CJS Client、声明与 sourcemap
+ * [INPUT]: 依赖 esbuild、TypeScript CLI、bundle Host 入口、Harness Cordis/LLM/Schemastery peers 和 dsh-ui Client
+ * [OUTPUT]: 生成内联产品包且保留官方运行时单例 peers 的 Host ESM、lazy-CJS Client、声明与 sourcemap
  * [POS]: bundle 的发布构建器，消化产品 workspace 依赖并保持 Harness 核心类由目标 profile 提供
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -27,7 +27,7 @@ await build({
   absWorkingDir: PACKAGE_ROOT,
   bundle: true,
   entryPoints: ['src/index.ts'],
-  external: ['@deepseek-ai/cordis', '@deepseek-ai/dsh-llm'],
+  external: ['@deepseek-ai/cordis', '@deepseek-ai/dsh-llm', '@deepseek-ai/schemastery'],
   format: 'esm',
   outfile: 'lib/index.js',
   platform: 'node',

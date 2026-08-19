@@ -31,7 +31,10 @@ installation 文件，也不会通过本地 HTTP/SSE 返回给浏览器。
 - `POST /enterprise/api/v1/local/auth/cancel`
 - `POST /enterprise/api/v1/local/logout`
 - `GET /enterprise/api/v1/local/bootstrap`
+- `GET /enterprise/api/v1/local/plugins`
 - `GET /enterprise/api/v1/local/events`
 
 POST action 必须使用 `application/json` 且 body 为严格空对象 `{}`。本地 API 不配置
-CORS。T01 Session-copy 技术 seam 仅在验收 overlay 显式开启，发行 patch 默认关闭。
+CORS。插件状态由 bundle 通过只读回调接入，platform-client 不反向依赖 distribution 包；返回值不含
+tgz 路径、公钥、CLI 输出或 Token。T01 Session-copy 技术 seam 仅在验收 overlay 显式开启，发行
+patch 默认关闭。

@@ -39,15 +39,27 @@ importers:
         specifier: 4.0.1
         version: 4.0.1
     devDependencies:
+      '@deepseek-ai/dsh-host-plugin-inventory':
+        specifier: link:../../../../deepseek-harness/packages/host/plugin-inventory
+        version: link:../../../../deepseek-harness/packages/host/plugin-inventory
       '@deepseek-ai/dsh-llm':
         specifier: link:../../../../deepseek-harness/packages/llm/llm
         version: link:../../../../deepseek-harness/packages/llm/llm
+      '@deepseek-ai/dsh-subprocess':
+        specifier: link:../../../../deepseek-harness/packages/subprocess/subprocess
+        version: link:../../../../deepseek-harness/packages/subprocess/subprocess
+      '@deepseek-ai/schemastery':
+        specifier: 3.18.1
+        version: 3.18.1
       '@enterprise-agent/dsh-llm-gateway':
         specifier: workspace:*
         version: link:../llm-gateway
       '@enterprise-agent/dsh-platform-client':
         specifier: workspace:*
         version: link:../platform-client
+      '@enterprise-agent/dsh-plugin-distribution':
+        specifier: workspace:*
+        version: link:../plugin-distribution
       '@enterprise-agent/dsh-session-sync':
         specifier: workspace:*
         version: link:../session-sync
@@ -93,6 +105,31 @@ importers:
         specifier: 4.4.3
         version: 4.4.3
 
+  packages/plugin-distribution:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.1
+        version: 4.0.1
+      '@enterprise-agent/dsh-contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@enterprise-agent/dsh-platform-client':
+        specifier: workspace:*
+        version: link:../platform-client
+      semver:
+        specifier: 7.8.4
+        version: 7.8.4
+    devDependencies:
+      '@deepseek-ai/dsh-host-plugin-inventory':
+        specifier: link:../../../../deepseek-harness/packages/host/plugin-inventory
+        version: link:../../../../deepseek-harness/packages/host/plugin-inventory
+      '@deepseek-ai/dsh-subprocess':
+        specifier: link:../../../../deepseek-harness/packages/subprocess/subprocess
+        version: link:../../../../deepseek-harness/packages/subprocess/subprocess
+      '@types/semver':
+        specifier: 7.7.1
+        version: 7.7.1
+
   packages/session-sync: {}
 
   packages/ui:
@@ -133,6 +170,9 @@ packages:
 
   '@deepseek-ai/cosmokit@1.8.2':
     resolution: {integrity: sha512-muBOKtSrUKU5m/xpq8ZXWL6hQ/jgd4PhU2PqH97bcxIiLEJfNwZOGQEx4t/aS/GgxRAR+ra9pMHPMtTHU4sqqA==}
+
+  '@deepseek-ai/schemastery@3.18.1':
+    resolution: {integrity: sha512-Qn0FCSwCQnpnj6SB31I6i2sIKgKWnkbJM8O0EU91Gv2UsYVvtZTl6IA0sCwk2e2MZf5S8w5hpq9QkeVvK9qwxg==}
 
   '@esbuild/aix-ppc64@0.28.1':
     resolution: {integrity: sha512-Svl7tq8k/08+p6CXPpRjQ1fKX+1odH/BQbb48fV6fj3CWHhsoIOoY87w1oHXm0qEpkIK3ZfVgp0hed3XBXzXMQ==}
@@ -444,6 +484,9 @@ packages:
 
   '@types/react@18.3.28':
     resolution: {integrity: sha512-z9VXpC7MWrhfWipitjNdgCauoMLRdIILQsAEV+ZesIzBq/oUlxk0m3ApZuMFCXdnS4U7KrI+l3WRUEGQ8K1QKw==}
+
+  '@types/semver@7.7.1':
+    resolution: {integrity: sha512-FmgJfu+MOcQ370SD0ev7EI8TlCAfKYU+B4m5T3yXc1CiRN94g/SZPtsCkk506aUDtlMnFZvasDwHHUcZUEaYuA==}
 
   '@vitest/expect@4.1.8':
     resolution: {integrity: sha512-h3nDO677RDLEGlBxyQ5CW8RlMThSKSRLUePLOx09gNIWRL40edgA1GCZSZgf1W55MFAG6/Sw14KeaAnqv0NKdQ==}
@@ -988,6 +1031,11 @@ snapshots:
 
   '@deepseek-ai/cosmokit@1.8.2': {}
 
+  '@deepseek-ai/schemastery@3.18.1':
+    dependencies:
+      '@deepseek-ai/cosmokit': 1.8.2
+      '@standard-schema/spec': 1.1.0
+
   '@esbuild/aix-ppc64@0.28.1':
     optional: true
 
@@ -1191,6 +1239,8 @@ snapshots:
     dependencies:
       '@types/prop-types': 15.7.15
       csstype: 3.2.3
+
+  '@types/semver@7.7.1': {}
 
   '@vitest/expect@4.1.8':
     dependencies:

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 EnterprisePlatformService、Cordis Context、真实 Node HTTP 假平台/本地 route carrier 与临时 DSH_HOME
- * [OUTPUT]: 验证 PKCE→Token→enroll→bootstrap、状态订阅、错误关联、内存秘密、刷新退避、撤销、取消与停稳
+ * [OUTPUT]: 验证 PKCE→Token→enroll→bootstrap、Cordis 代理调用、错误关联、内存秘密、刷新退避与停稳
  * [POS]: platform-client T06 核心生命周期测试，跨越真实 socket 而不伪造 Token 存储边界
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -24,6 +24,7 @@ type BootstrapMode = 'ok' | 'unavailable' | 'revoked'
 const REQUEST_ID = `req_${'0'.repeat(26)}`
 
 interface Environment {
+  readonly context: Context
   readonly home: string
   readonly platformUrl: string
   readonly localUrl: string
@@ -173,7 +174,13 @@ describe('EnterprisePlatformService', () => {
             plugins: {
               revision: 7,
               assignments: [{
-                packageName: '@example/dsh-code-review', version: '1.2.0', sha256: 'a'.repeat(64),
+                pluginVersionId: '880', packageName: '@example/dsh-code-review', version: '1.2.0',
+                sizeBytes: 4096, sha256: 'a'.repeat(64), signatureBase64: `${'A'.repeat(86)}==`,
+                compatibility: {
+                  harnessCommits: ['99f6f02fecdb7dff40c3fbc9470f5907c29f74ca'],
+                  enterpriseBundleRange: '>=0.1.0 <0.2.0',
+                  operatingSystems: ['darwin', 'linux', 'win32'],
+                },
                 downloadUrl: '/enterprise/api/v1/plugins/versions/880/download', required: true,
                 desiredState: 'INSTALLED',
               }],
@@ -265,6 +272,7 @@ describe('EnterprisePlatformService', () => {
     )
     let closed = false
     const result: Environment = {
+      context: ctx,
       home,
       platformUrl,
       localUrl,
@@ -314,24 +322,25 @@ describe('EnterprisePlatformService', () => {
 
   it('completes PKCE, enroll and bootstrap while keeping Token in Host memory only', async () => {
     const env = await environment()
+    const platform = env.context.enterprisePlatform
     const states: EnterprisePlatformStatus['state'][] = []
-    const unsubscribe = env.service.subscribe(value => { states.push(value.state) })
+    const unsubscribe = platform.subscribe(value => { states.push(value.state) })
     await login(env)
-    const status = env.service.status()
+    const status = platform.status()
     expect(status).toMatchObject({ state: 'READY', revision: 1, user: { username: 'zhangsan' } })
-    expect(env.service.bootstrap()?.device.installationId)
+    expect(platform.bootstrap()?.device.installationId)
       .toBe(env.authorizeUrls[0]?.searchParams.get('installation_id'))
     expect(env.authorizeUrls[0]?.searchParams.get('client_id')).toBe('dsh-desktop')
     expect(env.authorizeUrls[0]?.searchParams.get('code_challenge_method')).toBe('S256')
 
-    const probe = await env.service.request('/enterprise/api/v1/probe')
+    const probe = await platform.request('/enterprise/api/v1/probe')
     await expect(probe.json()).resolves.toEqual({ data: { authorized: true } })
-    await expect(env.service.request('/enterprise/api/v1/rejected')).rejects.toMatchObject({
+    await expect(platform.request('/enterprise/api/v1/rejected')).rejects.toMatchObject({
       code: 'ENT_QUOTA_DAILY_EXCEEDED',
       httpStatus: 429,
       requestId: REQUEST_ID,
     })
-    await expect(env.service.request('https://attacker.invalid/steal')).rejects.toMatchObject({
+    await expect(platform.request('https://attacker.invalid/steal')).rejects.toMatchObject({
       code: 'ENT_INVALID_REQUEST',
     })
     await expect(env.service.request('/enterprise/api/v1/probe', {

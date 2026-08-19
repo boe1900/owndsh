@@ -6,7 +6,7 @@ Enterprise Agent Platform 是基于 DeepSeek Harness 构建的企业 Agent 管�
 
 ## 当前阶段
 
-T00 至 T13 已完成：仓库包含锁定产品源码、Harness 官方插件 workspace、Java/TypeScript 同源 OpenAPI 3.1 协议、PostgreSQL/Redis 企业模块、桌面管理控制台和插件分发服务端。T13 已交付流式 tgz 验包、RFC 8785 JCS/Ed25519、带 hash 互斥的 CAS、版本/分配状态机、逐请求下载授权、库存替换与 bootstrap 插件投影；下一项只能从 T14 开始。实际证据见 [`docs/t13-plugin-server-acceptance.md`](docs/t13-plugin-server-acceptance.md)。
+T00 至 T14 已完成：仓库包含锁定产品源码、Harness 官方插件 workspace、Java/TypeScript 同源 OpenAPI 3.1 协议、PostgreSQL/Redis 企业模块、桌面管理控制台和插件分发闭环。T14 已交付客户端下载、大小/SHA-256/Ed25519/compatibility 校验、官方 `ctx.subprocess` argv、原子状态文件、重启后 Loader active 确认、库存与回滚；下一项只能从 T15 开始。实际证据见 [`docs/t14-plugin-client-acceptance.md`](docs/t14-plugin-client-acceptance.md)。
 
 ## 文档
 
@@ -25,6 +25,7 @@ T00 至 T13 已完成：仓库包含锁定产品源码、Harness 官方插件 wo
 - [T11 Harness 模型链路验收记录](docs/t11-harness-model-integration-acceptance.md)：官方 rc.7 adapter、动态目录/default、真实 `ctx.llm` 模型流、错误矩阵与无本地上游 Key 证据。
 - [T12 管理控制台验收记录](docs/t12-admin-console-acceptance.md)：enterprise-admin PKCE、动态权限路由、治理页面、真实 Server Playwright、CAS 恢复和密钥隔离证据。
 - [T13 插件服务端验收记录](docs/t13-plugin-server-acceptance.md)：tgz 安全检查、JCS/Ed25519、CAS、发布分配、下载授权、库存、协议与真实 PostgreSQL 证据。
+- [T14 插件客户端验收记录](docs/t14-plugin-client-acceptance.md)：受管下载验签、官方 CLI argv、原子状态、重启确认、回滚、树外 consumer 与真实 rc.7 CLI 证据。
 
 实现者先阅读 MVP 详细设计的第 1 至 21 节，再严格按照第 22 节任务依赖推进。发现设计矛盾时先修订设计并记录决定，不在代码中引入未经确认的替代方案。
 

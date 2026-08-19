@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 Cordis Service/WebServer、T02 contracts、PKCE/installation/browser 原语与 Node fetch
- * [OUTPUT]: 对外提供 ctx.enterprisePlatform、EnterprisePlatformService、七个方法、脱敏平台 origin 与可关联稳定错误
- * [POS]: platform-client 的 Host 业务核心，独占内存 Token、登录状态机、认证 fetch 与 bootstrap 刷新生命周期
+ * [INPUT]: 依赖 Cordis Service/WebServer、T02 contracts、PKCE/installation/browser 原语、插件只读状态回调与 Node fetch
+ * [OUTPUT]: 对外提供 ctx.enterprisePlatform、EnterprisePlatformService、七个方法、平台/插件本地 API 与可关联稳定错误
+ * [POS]: platform-client 的 Host 业务核心，以 Cordis shadow-compatible 私有状态承载 Token、登录与刷新生命周期
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -90,6 +90,7 @@ export interface EnterprisePlatformInternals {
   readonly allowInsecureLoopbackBaseUrl?: boolean
   readonly refreshRetryInitialMs?: number
   readonly refreshRetryMaxMs?: number
+  readonly pluginStatus?: () => unknown
 }
 
 interface ResolvedConfig {
@@ -163,32 +164,32 @@ function isAbort(error: unknown): boolean {
 export class EnterprisePlatformService extends Service {
   static inject = ['webServer']
 
-  readonly #config: ResolvedConfig
-  readonly #fetch: typeof globalThis.fetch
-  readonly #openBrowser: (url: string, signal: AbortSignal) => Promise<void>
-  readonly #now: () => Date
-  readonly #createFlowId: () => string
-  readonly #createState: () => string
-  readonly #installation: Promise<InstallationRecord>
-  readonly #lifetime = new AbortController()
-  readonly #activeRequests = new Set<AbortController>()
-  readonly #listeners = new Set<(status: EnterprisePlatformStatus) => void>()
-  readonly #refreshRetryInitialMs: number
-  readonly #refreshRetryMaxMs: number
-  readonly #disposeLocalApi: () => void
+  private readonly config: ResolvedConfig
+  private readonly fetch: typeof globalThis.fetch
+  private readonly openBrowser: (url: string, signal: AbortSignal) => Promise<void>
+  private readonly now: () => Date
+  private readonly createFlowId: () => string
+  private readonly createState: () => string
+  private readonly installation: Promise<InstallationRecord>
+  private readonly lifetime = new AbortController()
+  private readonly activeRequests = new Set<AbortController>()
+  private readonly listeners = new Set<(status: EnterprisePlatformStatus) => void>()
+  private readonly refreshRetryInitialMs: number
+  private readonly refreshRetryMaxMs: number
+  private readonly disposeLocalApi: () => void
 
-  #status: EnterprisePlatformStatus
-  #token: string | undefined
-  #tokenExpiresAt = 0
-  #bootstrap: BootstrapSnapshot | undefined
-  #connectedAt: string | undefined
-  #login: LoginTransaction | undefined
-  #loginTask: Promise<void> | undefined
-  #refreshTask: Promise<void> | undefined
-  #refreshTimer: NodeJS.Timeout | undefined
-  #refreshRetryMs: number
-  #disposed = false
-  #disposeTask: Promise<void> | undefined
+  private currentStatus: EnterprisePlatformStatus
+  private token: string | undefined
+  private tokenExpiresAt = 0
+  private bootstrapSnapshot: BootstrapSnapshot | undefined
+  private connectedAt: string | undefined
+  private login: LoginTransaction | undefined
+  private loginTask: Promise<void> | undefined
+  private refreshTask: Promise<void> | undefined
+  private refreshTimer: NodeJS.Timeout | undefined
+  private refreshRetryMs: number
+  private disposed = false
+  private disposeTask: Promise<void> | undefined
 
   constructor(
     ctx: Context & { readonly webServer: WebServerRoutePort },
@@ -197,78 +198,79 @@ export class EnterprisePlatformService extends Service {
   ) {
     const resolvedConfig = resolveConfig(config, internals.allowInsecureLoopbackBaseUrl === true)
     super(ctx, 'enterprisePlatform')
-    this.#config = resolvedConfig
-    this.#fetch = internals.fetch ?? globalThis.fetch
-    this.#openBrowser = internals.openBrowser ?? openSystemBrowser
-    this.#now = internals.now ?? (() => new Date())
-    this.#createFlowId = internals.createFlowId ?? randomUUID
-    this.#createState = internals.createState ?? (() => randomBytes(32).toString('base64url'))
-    this.#refreshRetryInitialMs = positiveInteger(internals.refreshRetryInitialMs, 1_000, 'refreshRetryInitialMs')
-    this.#refreshRetryMaxMs = positiveInteger(internals.refreshRetryMaxMs, 60_000, 'refreshRetryMaxMs')
-    this.#refreshRetryMs = this.#refreshRetryInitialMs
-    this.#status = {
+    this.config = resolvedConfig
+    this.fetch = internals.fetch ?? globalThis.fetch
+    this.openBrowser = internals.openBrowser ?? openSystemBrowser
+    this.now = internals.now ?? (() => new Date())
+    this.createFlowId = internals.createFlowId ?? randomUUID
+    this.createState = internals.createState ?? (() => randomBytes(32).toString('base64url'))
+    this.refreshRetryInitialMs = positiveInteger(internals.refreshRetryInitialMs, 1_000, 'refreshRetryInitialMs')
+    this.refreshRetryMaxMs = positiveInteger(internals.refreshRetryMaxMs, 60_000, 'refreshRetryMaxMs')
+    this.refreshRetryMs = this.refreshRetryInitialMs
+    this.currentStatus = {
       state: 'SIGNED_OUT',
-      bundleVersion: this.#config.bundleVersion,
-      platformUrl: this.#config.baseUrl.origin,
+      bundleVersion: this.config.bundleVersion,
+      platformUrl: this.config.baseUrl.origin,
       transport: 'webServer.register',
     }
-    this.#installation = loadOrCreateInstallation({
-      ...(this.#config.dshHome === undefined ? {} : { dshHome: this.#config.dshHome }),
-      ...(this.#config.installationName === undefined ? {} : { name: this.#config.installationName }),
+    this.installation = loadOrCreateInstallation({
+      ...(this.config.dshHome === undefined ? {} : { dshHome: this.config.dshHome }),
+      ...(this.config.installationName === undefined ? {} : { name: this.config.installationName }),
       ...internals.installation,
     })
-    void this.#installation.catch(() => {
-      this.#transition('FAILED', { errorCode: 'ENT_PLATFORM_UNAVAILABLE' })
+    void this.installation.catch(() => {
+      this.transition('FAILED', { errorCode: 'ENT_PLATFORM_UNAVAILABLE' })
     })
-    this.#disposeLocalApi = registerEnterpriseLocalApi(ctx.webServer, {
+    this.disposeLocalApi = registerEnterpriseLocalApi(ctx.webServer, {
       platform: {
         status: () => this.status(),
         startLogin: () => this.startLogin(),
-        cancelLogin: () => this.#cancelLogin(),
+        cancelLogin: () => this.cancelLogin(),
         logout: () => this.logout(),
         bootstrap: () => this.bootstrap(),
         subscribe: listener => this.subscribe(listener),
       },
-      ...(this.#config.enableTechnicalProbe === undefined
+      pluginStatus: internals.pluginStatus ?? (() => ({ assignmentRevision: 0, plugins: [] })),
+      ...(this.config.enableTechnicalProbe === undefined
         ? {}
-        : { enableTechnicalProbe: this.#config.enableTechnicalProbe }),
-      ...(this.#config.restoreSessionCopy === undefined
+        : { enableTechnicalProbe: this.config.enableTechnicalProbe }),
+      ...(this.config.restoreSessionCopy === undefined
         ? {}
-        : { restoreSessionCopy: this.#config.restoreSessionCopy }),
+        : { restoreSessionCopy: this.config.restoreSessionCopy }),
     })
     ctx.effect(() => () => this.dispose(), 'enterprisePlatform.dispose()')
   }
 
   /** 幂等启动一个浏览器 PKCE 流程，并在浏览器完成前返回。 */
   async startLogin(): Promise<EnterpriseLoginFlow> {
-    this.#assertOpen()
-    if (this.#login !== undefined) return { flowId: this.#login.flowId }
-    if (this.#status.state === 'READY' || this.#status.state === 'REFRESHING') {
+    this.assertOpen()
+    if (this.login !== undefined) return { flowId: this.login.flowId }
+    if (this.currentStatus.state === 'READY' || this.currentStatus.state === 'REFRESHING') {
       throw new EnterprisePlatformError('ENT_INVALID_REQUEST', 'logout before starting another login')
     }
-    this.#clearSession()
+    this.clearSession()
     const transaction: LoginTransaction = {
-      flowId: this.#createFlowId(),
+      flowId: this.createFlowId(),
       abort: new AbortController(),
     }
-    this.#login = transaction
-    this.#transition('AUTHORIZING', { flowId: transaction.flowId })
-    this.#loginTask = this.#runLogin(transaction)
-      .catch(error => { this.#finishLoginFailure(transaction, error) })
+    this.login = transaction
+    this.transition('AUTHORIZING', { flowId: transaction.flowId })
+    this.loginTask = this.runLogin(transaction)
+      .catch(error => { this.finishLoginFailure(transaction, error) })
       .finally(() => {
         transaction.callback?.cancel()
-        if (this.#login === transaction) this.#login = undefined
+        if (this.login === transaction) this.login = undefined
       })
     return { flowId: transaction.flowId }
   }
 
   /** 中心可达时撤销当前会话，之后始终清空全部本地认证状态。 */
   async logout(): Promise<void> {
-    this.#assertOpen()
-    this.#cancelLogin()
-    await this.#loginTask
+    this.assertOpen()
+    this.cancelLogin()
+    await this.loginTask
     let failure: unknown
-    if (this.#status.state !== 'SIGNED_OUT') {
+    if (this.currentStatus.state !== 'SIGNED_OUT') {
       try {
         await this.request(`${AUTH_PATH}/logout`, { method: 'POST' })
       } catch (error) {
@@ -276,30 +278,30 @@ export class EnterprisePlatformService extends Service {
           || (error.code !== 'ENT_AUTH_REQUIRED' && error.code !== 'ENT_AUTH_SESSION_EXPIRED')) failure = error
       }
     }
-    this.#clearSession()
-    this.#transition('SIGNED_OUT')
+    this.clearSession()
+    this.transition('SIGNED_OUT')
     if (failure !== undefined) throw failure
   }
 
   /** 返回浏览器安全连接事实的副本。 */
   status(): EnterprisePlatformStatus {
-    return cloneStatus(this.#status)
+    return cloneStatus(this.currentStatus)
   }
 
   /** 返回最新已校验 bootstrap 副本，永不返回平台凭据。 */
   bootstrap(): BootstrapSnapshot | undefined {
-    return this.#bootstrap === undefined ? undefined : structuredClone(this.#bootstrap)
+    return this.bootstrapSnapshot === undefined ? undefined : structuredClone(this.bootstrapSnapshot)
   }
 
   /** 订阅 Host 内存状态快照；disposer 幂等移除监听器且不会暴露 Token。 */
   subscribe(listener: (status: EnterprisePlatformStatus) => void): () => void {
-    this.#assertOpen()
-    this.#listeners.add(listener)
+    this.assertOpen()
+    this.listeners.add(listener)
     let subscribed = true
     return () => {
       if (!subscribed) return
       subscribed = false
-      this.#listeners.delete(listener)
+      this.listeners.delete(listener)
     }
   }
 
@@ -308,31 +310,31 @@ export class EnterprisePlatformService extends Service {
    * 该方法是唯一读取内存 Token 的代码路径。
    */
   async request(input: string | URL, init: RequestInit = {}): Promise<Response> {
-    this.#assertOpen()
-    const url = new URL(input.toString(), this.#config.baseUrl)
-    if (url.origin !== this.#config.baseUrl.origin || url.username !== '' || url.password !== '') {
+    this.assertOpen()
+    const url = new URL(input.toString(), this.config.baseUrl)
+    if (url.origin !== this.config.baseUrl.origin || url.username !== '' || url.password !== '') {
       throw new EnterprisePlatformError('ENT_INVALID_REQUEST', 'authenticated requests must stay on the platform origin')
     }
-    if (!TRANSITIONAL_REQUEST_PATHS.has(url.pathname) && this.#status.state !== 'READY') {
+    if (!TRANSITIONAL_REQUEST_PATHS.has(url.pathname) && this.currentStatus.state !== 'READY') {
       throw new EnterprisePlatformError('ENT_AUTH_REQUIRED', 'enterprise platform is not ready')
     }
-    if (this.#tokenExpiresAt !== 0 && this.#now().getTime() >= this.#tokenExpiresAt) {
-      this.#expireAuthentication('ENT_AUTH_SESSION_EXPIRED')
+    if (this.tokenExpiresAt !== 0 && this.now().getTime() >= this.tokenExpiresAt) {
+      this.expireAuthentication('ENT_AUTH_SESSION_EXPIRED')
       throw new EnterprisePlatformError('ENT_AUTH_SESSION_EXPIRED', 'platform session expired')
     }
-    const token = this.#token
+    const token = this.token
     if (token === undefined) throw new EnterprisePlatformError('ENT_AUTH_REQUIRED', 'platform login is required')
     const headers = new Headers(init.headers)
     if (headers.has('authorization')) {
       throw new EnterprisePlatformError('ENT_INVALID_REQUEST', 'authorization header is managed by enterprisePlatform')
     }
     headers.set('authorization', `Bearer ${token}`)
-    const response = await this.#executeFetch(url, { ...init, headers, redirect: 'error' })
+    const response = await this.executeFetch(url, { ...init, headers, redirect: 'error' })
     if (!response.ok) {
-      const error = await this.#decodeResponseError(response)
-      if (error.code === 'ENT_DEVICE_REVOKED') this.#expireDevice()
+      const error = await this.decodeResponseError(response)
+      if (error.code === 'ENT_DEVICE_REVOKED') this.expireDevice()
       else if (error.code === 'ENT_AUTH_REQUIRED' || error.code === 'ENT_AUTH_SESSION_EXPIRED') {
-        this.#expireAuthentication(error.code)
+        this.expireAuthentication(error.code)
       }
       throw error
     }
@@ -341,29 +343,29 @@ export class EnterprisePlatformService extends Service {
 
   /** 中止登录、刷新与 fetch，关闭 SSE/路由，并在返回前等待停稳。 */
   dispose(): Promise<void> {
-    if (this.#disposeTask !== undefined) return this.#disposeTask
-    this.#disposed = true
-    this.#disposeTask = this.#performDispose()
-    return this.#disposeTask
+    if (this.disposeTask !== undefined) return this.disposeTask
+    this.disposed = true
+    this.disposeTask = this.performDispose()
+    return this.disposeTask
   }
 
-  async #performDispose(): Promise<void> {
-    this.#cancelLogin()
-    this.#clearRefreshTimer()
-    this.#lifetime.abort(new DOMException('enterprise platform disposed', 'AbortError'))
-    for (const controller of this.#activeRequests) controller.abort()
-    this.#disposeLocalApi()
-    this.#listeners.clear()
-    this.#clearSession()
+  private async performDispose(): Promise<void> {
+    this.cancelLogin()
+    this.clearRefreshTimer()
+    this.lifetime.abort(new DOMException('enterprise platform disposed', 'AbortError'))
+    for (const controller of this.activeRequests) controller.abort()
+    this.disposeLocalApi()
+    this.listeners.clear()
+    this.clearSession()
     const pending = Promise.allSettled([
-      ...(this.#loginTask === undefined ? [] : [this.#loginTask]),
-      ...(this.#refreshTask === undefined ? [] : [this.#refreshTask]),
+      ...(this.loginTask === undefined ? [] : [this.loginTask]),
+      ...(this.refreshTask === undefined ? [] : [this.refreshTask]),
     ])
     let timer: NodeJS.Timeout | undefined
     const timeout = new Promise<never>((_resolve, reject) => {
       timer = setTimeout(() => reject(new EnterprisePlatformError(
         'ENT_PLATFORM_DISPOSED', 'enterprise platform disposal timed out', true,
-      )), this.#config.disposeTimeoutMs)
+      )), this.config.disposeTimeoutMs)
       timer.unref()
     })
     try {
@@ -373,18 +375,18 @@ export class EnterprisePlatformService extends Service {
     }
   }
 
-  async #runLogin(transaction: LoginTransaction): Promise<void> {
-    const installation = await this.#installation
+  private async runLogin(transaction: LoginTransaction): Promise<void> {
+    const installation = await this.installation
     transaction.abort.signal.throwIfAborted()
-    const state = this.#createState()
+    const state = this.createState()
     const pkce = createPkceS256()
     const callback = await startLoopbackCallback({
       expectedState: state,
-      timeoutMs: this.#config.callbackTimeoutMs,
+      timeoutMs: this.config.callbackTimeoutMs,
       signal: transaction.abort.signal,
     })
     transaction.callback = callback
-    const authorizeUrl = new URL(`${AUTH_PATH}/authorize`, this.#config.baseUrl)
+    const authorizeUrl = new URL(`${AUTH_PATH}/authorize`, this.config.baseUrl)
     authorizeUrl.search = new URLSearchParams({
       client_id: 'dsh-desktop',
       redirect_uri: callback.redirectUri,
@@ -394,7 +396,7 @@ export class EnterprisePlatformService extends Service {
       installation_id: installation.installationId,
     }).toString()
     const [, result] = await Promise.all([
-      this.#openBrowser(authorizeUrl.toString(), transaction.abort.signal),
+      this.openBrowser(authorizeUrl.toString(), transaction.abort.signal),
       callback.result,
     ])
     transaction.abort.signal.throwIfAborted()
@@ -407,21 +409,21 @@ export class EnterprisePlatformService extends Service {
       codeVerifier: pkce.verifier,
       installationId: installation.installationId,
     }
-    const tokenResponse = zTokenResponse.parse(await this.#fetchPublicJson(
+    const tokenResponse = zTokenResponse.parse(await this.fetchPublicJson(
       `${AUTH_PATH}/token`,
       { body: JSON.stringify(tokenRequest), headers: { 'content-type': 'application/json' }, method: 'POST' },
       transaction.abort.signal,
     ))
-    this.#token = tokenResponse.data.accessToken
-    this.#tokenExpiresAt = this.#now().getTime() + tokenResponse.data.expiresIn * 1_000
-    this.#transition('ENROLLING', { flowId: transaction.flowId })
+    this.token = tokenResponse.data.accessToken
+    this.tokenExpiresAt = this.now().getTime() + tokenResponse.data.expiresIn * 1_000
+    this.transition('ENROLLING', { flowId: transaction.flowId })
 
     const enrollRequest: DeviceEnrollRequest = {
       installationId: installation.installationId,
       name: installation.name,
       platform: hostPlatform(),
-      harnessVersion: this.#config.harnessVersion,
-      enterpriseBundleVersion: this.#config.bundleVersion,
+      harnessVersion: this.config.harnessVersion,
+      enterpriseBundleVersion: this.config.bundleVersion,
     }
     const enrolled = zDeviceResponse.parse(await (await this.request(`${API_PATH}/devices/enroll`, {
       body: JSON.stringify(enrollRequest),
@@ -432,17 +434,17 @@ export class EnterprisePlatformService extends Service {
     if (enrolled.data.status !== 'ACTIVE') {
       throw new EnterprisePlatformError('ENT_DEVICE_REVOKED', 'enterprise device is revoked')
     }
-    this.#transition('BOOTSTRAPPING', { flowId: transaction.flowId })
-    await this.#loadBootstrap(transaction.abort.signal)
+    this.transition('BOOTSTRAPPING', { flowId: transaction.flowId })
+    await this.loadBootstrap(transaction.abort.signal)
     transaction.abort.signal.throwIfAborted()
-    this.#refreshRetryMs = this.#refreshRetryInitialMs
-    this.#transition('READY')
-    this.#scheduleRefresh(this.#config.bootstrapIntervalMs)
+    this.refreshRetryMs = this.refreshRetryInitialMs
+    this.transition('READY')
+    this.scheduleRefresh(this.config.bootstrapIntervalMs)
   }
 
-  async #fetchPublicJson(path: string, init: RequestInit, signal: AbortSignal): Promise<unknown> {
-    const response = await this.#executeFetch(new URL(path, this.#config.baseUrl), { ...init, signal, redirect: 'error' })
-    if (!response.ok) throw await this.#decodeResponseError(response)
+  private async fetchPublicJson(path: string, init: RequestInit, signal: AbortSignal): Promise<unknown> {
+    const response = await this.executeFetch(new URL(path, this.config.baseUrl), { ...init, signal, redirect: 'error' })
+    if (!response.ok) throw await this.decodeResponseError(response)
     try {
       return await response.json()
     } catch {
@@ -450,7 +452,7 @@ export class EnterprisePlatformService extends Service {
     }
   }
 
-  async #loadBootstrap(signal?: AbortSignal): Promise<void> {
+  private async loadBootstrap(signal?: AbortSignal): Promise<void> {
     const response = await this.request(`${API_PATH}/bootstrap`, signal === undefined ? {} : { signal })
     let value: unknown
     try {
@@ -462,71 +464,71 @@ export class EnterprisePlatformService extends Service {
     if (!parsed.success) {
       throw new EnterprisePlatformError('ENT_PLATFORM_UNAVAILABLE', 'platform returned an invalid bootstrap', true)
     }
-    const installation = await this.#installation
+    const installation = await this.installation
     if (parsed.data.data.device.installationId !== installation.installationId) {
       throw new EnterprisePlatformError('ENT_DEVICE_REVOKED', 'bootstrap device does not match this installation')
     }
-    this.#bootstrap = parsed.data.data
-    this.#connectedAt = this.#now().toISOString()
+    this.bootstrapSnapshot = parsed.data.data
+    this.connectedAt = this.now().toISOString()
   }
 
-  #scheduleRefresh(delayMs: number): void {
-    this.#clearRefreshTimer()
-    if (this.#disposed || this.#tokenExpiresAt === 0) return
-    this.#refreshTimer = setTimeout(() => {
-      this.#refreshTimer = undefined
-      this.#refreshTask = this.#refreshBootstrap().finally(() => { this.#refreshTask = undefined })
+  private scheduleRefresh(delayMs: number): void {
+    this.clearRefreshTimer()
+    if (this.disposed || this.tokenExpiresAt === 0) return
+    this.refreshTimer = setTimeout(() => {
+      this.refreshTimer = undefined
+      this.refreshTask = this.refreshBootstrap().finally(() => { this.refreshTask = undefined })
     }, delayMs)
-    this.#refreshTimer.unref()
+    this.refreshTimer.unref()
   }
 
-  async #refreshBootstrap(): Promise<void> {
-    if (this.#disposed) return
-    this.#transition('REFRESHING')
+  private async refreshBootstrap(): Promise<void> {
+    if (this.disposed) return
+    this.transition('REFRESHING')
     try {
-      await this.#loadBootstrap(this.#lifetime.signal)
-      this.#refreshRetryMs = this.#refreshRetryInitialMs
-      this.#transition('READY')
-      this.#scheduleRefresh(this.#config.bootstrapIntervalMs)
+      await this.loadBootstrap(this.lifetime.signal)
+      this.refreshRetryMs = this.refreshRetryInitialMs
+      this.transition('READY')
+      this.scheduleRefresh(this.config.bootstrapIntervalMs)
     } catch (error) {
-      if (this.#disposed || isAbort(error)) return
+      if (this.disposed || isAbort(error)) return
       if (error instanceof EnterprisePlatformError && error.code === 'ENT_DEVICE_REVOKED') {
-        this.#expireDevice()
+        this.expireDevice()
         return
       }
       if (error instanceof EnterprisePlatformError
         && (error.code === 'ENT_AUTH_REQUIRED' || error.code === 'ENT_AUTH_SESSION_EXPIRED')) {
-        this.#expireAuthentication(error.code)
+        this.expireAuthentication(error.code)
         return
       }
       const code = error instanceof EnterprisePlatformError ? error.code : 'ENT_PLATFORM_UNAVAILABLE'
-      this.#transition('REFRESHING', { errorCode: code })
-      const delay = Math.min(this.#refreshRetryMs, this.#refreshRetryMaxMs)
-      this.#refreshRetryMs = Math.min(delay * 2, this.#refreshRetryMaxMs)
-      this.#scheduleRefresh(delay)
+      this.transition('REFRESHING', { errorCode: code })
+      const delay = Math.min(this.refreshRetryMs, this.refreshRetryMaxMs)
+      this.refreshRetryMs = Math.min(delay * 2, this.refreshRetryMaxMs)
+      this.scheduleRefresh(delay)
     }
   }
 
-  async #executeFetch(input: URL, init: RequestInit): Promise<Response> {
+  private async executeFetch(input: URL, init: RequestInit): Promise<Response> {
     const controller = new AbortController()
-    this.#activeRequests.add(controller)
-    const signals = [controller.signal, this.#lifetime.signal]
+    this.activeRequests.add(controller)
+    const signals = [controller.signal, this.lifetime.signal]
     if (init.signal !== null && init.signal !== undefined) signals.push(init.signal)
     const timeout = setTimeout(() => controller.abort(new DOMException('platform request timed out', 'TimeoutError')),
-      this.#config.requestTimeoutMs)
+      this.config.requestTimeoutMs)
     timeout.unref()
     try {
-      return await this.#fetch(input, { ...init, signal: AbortSignal.any(signals) })
+      return await this.fetch(input, { ...init, signal: AbortSignal.any(signals) })
     } catch (error) {
-      if (init.signal?.aborted === true || this.#lifetime.signal.aborted || isAbort(error)) throw error
+      if (init.signal?.aborted === true || this.lifetime.signal.aborted || isAbort(error)) throw error
       throw new EnterprisePlatformError('ENT_PLATFORM_UNAVAILABLE', 'enterprise platform is unavailable', true)
     } finally {
       clearTimeout(timeout)
-      this.#activeRequests.delete(controller)
+      this.activeRequests.delete(controller)
     }
   }
 
-  async #decodeResponseError(response: Response): Promise<EnterprisePlatformError> {
+  private async decodeResponseError(response: Response): Promise<EnterprisePlatformError> {
     try {
       const error = decodeEnterpriseError(await response.json())
       return new EnterprisePlatformError(
@@ -548,82 +550,82 @@ export class EnterprisePlatformService extends Service {
     }
   }
 
-  #finishLoginFailure(transaction: LoginTransaction, error: unknown): void {
-    if (this.#disposed || this.#login !== transaction) return
-    this.#clearSession()
+  private finishLoginFailure(transaction: LoginTransaction, error: unknown): void {
+    if (this.disposed || this.login !== transaction) return
+    this.clearSession()
     if (transaction.abort.signal.aborted
       || error instanceof PkceLoopbackError && error.code === 'ENT_AUTH_CANCELLED'
       || isAbort(error)) {
-      this.#transition('CANCELLED', { flowId: transaction.flowId, errorCode: 'ENT_AUTH_CANCELLED' })
+      this.transition('CANCELLED', { flowId: transaction.flowId, errorCode: 'ENT_AUTH_CANCELLED' })
       return
     }
     if (error instanceof PkceLoopbackError && error.code === 'ENT_AUTH_TIMEOUT') {
-      this.#transition('FAILED', { flowId: transaction.flowId, errorCode: 'ENT_AUTH_TIMEOUT' })
+      this.transition('FAILED', { flowId: transaction.flowId, errorCode: 'ENT_AUTH_TIMEOUT' })
       return
     }
     if (error instanceof PkceLoopbackError) {
-      this.#transition('FAILED', { flowId: transaction.flowId, errorCode: error.code })
+      this.transition('FAILED', { flowId: transaction.flowId, errorCode: error.code })
       return
     }
     const code = error instanceof EnterprisePlatformError ? error.code : 'ENT_PLATFORM_UNAVAILABLE'
-    if (code === 'ENT_DEVICE_REVOKED') this.#transition('DEVICE_REVOKED', { errorCode: code })
-    else this.#transition('FAILED', { flowId: transaction.flowId, errorCode: code })
+    if (code === 'ENT_DEVICE_REVOKED') this.transition('DEVICE_REVOKED', { errorCode: code })
+    else this.transition('FAILED', { flowId: transaction.flowId, errorCode: code })
   }
 
-  #cancelLogin(): boolean {
-    const transaction = this.#login
+  private cancelLogin(): boolean {
+    const transaction = this.login
     if (transaction === undefined) return false
     transaction.abort.abort(new DOMException('login cancelled', 'AbortError'))
     transaction.callback?.cancel()
     return true
   }
 
-  #expireAuthentication(code: 'ENT_AUTH_REQUIRED' | 'ENT_AUTH_SESSION_EXPIRED'): void {
-    this.#clearSession()
-    this.#transition('AUTH_EXPIRED', { errorCode: code })
+  private expireAuthentication(code: 'ENT_AUTH_REQUIRED' | 'ENT_AUTH_SESSION_EXPIRED'): void {
+    this.clearSession()
+    this.transition('AUTH_EXPIRED', { errorCode: code })
   }
 
-  #expireDevice(): void {
-    this.#clearSession()
-    this.#transition('DEVICE_REVOKED', { errorCode: 'ENT_DEVICE_REVOKED' })
+  private expireDevice(): void {
+    this.clearSession()
+    this.transition('DEVICE_REVOKED', { errorCode: 'ENT_DEVICE_REVOKED' })
   }
 
-  #clearSession(): void {
-    this.#token = undefined
-    this.#tokenExpiresAt = 0
-    this.#bootstrap = undefined
-    this.#connectedAt = undefined
-    this.#clearRefreshTimer()
+  private clearSession(): void {
+    this.token = undefined
+    this.tokenExpiresAt = 0
+    this.bootstrapSnapshot = undefined
+    this.connectedAt = undefined
+    this.clearRefreshTimer()
   }
 
-  #clearRefreshTimer(): void {
-    if (this.#refreshTimer !== undefined) clearTimeout(this.#refreshTimer)
-    this.#refreshTimer = undefined
+  private clearRefreshTimer(): void {
+    if (this.refreshTimer !== undefined) clearTimeout(this.refreshTimer)
+    this.refreshTimer = undefined
   }
 
-  #transition(
+  private transition(
     state: EnterprisePlatformStatus['state'],
     detail: { readonly flowId?: string; readonly errorCode?: string } = {},
   ): void {
-    if (this.#disposed) return
-    const snapshot = this.#bootstrap
-    this.#status = {
+    if (this.disposed) return
+    const snapshot = this.bootstrapSnapshot
+    this.currentStatus = {
       state,
-      bundleVersion: this.#config.bundleVersion,
-      platformUrl: this.#config.baseUrl.origin,
+      bundleVersion: this.config.bundleVersion,
+      platformUrl: this.config.baseUrl.origin,
       transport: 'webServer.register',
       ...detail,
       ...(snapshot === undefined ? {} : {
         user: snapshot.user,
         revision: snapshot.revision,
-        ...(this.#connectedAt === undefined ? {} : { connectedAt: this.#connectedAt }),
+        ...(this.connectedAt === undefined ? {} : { connectedAt: this.connectedAt }),
       }),
     }
     const published = this.status()
-    for (const listener of this.#listeners) listener(published)
+    for (const listener of this.listeners) listener(published)
   }
 
-  #assertOpen(): void {
-    if (this.#disposed) throw new EnterprisePlatformError('ENT_PLATFORM_DISPOSED', 'enterprise platform is disposed')
+  private assertOpen(): void {
+    if (this.disposed) throw new EnterprisePlatformError('ENT_PLATFORM_DISPOSED', 'enterprise platform is disposed')
   }
 }
