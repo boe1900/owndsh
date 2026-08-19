@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖官方 Session/SessionPersistence 类型与 platform-client 认证请求端口
- * [OUTPUT]: 对外提供同步配置、cursor/status、远端列表、恢复输入及最小组合 Context 类型
+ * [OUTPUT]: 对外提供同步配置、cursor/status、远端列表、恢复/删除输入及最小组合 Context 类型
  * [POS]: session-sync 的结构化契约层，禁止正文进入状态文件和浏览器同步状态
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -12,7 +12,7 @@ import type {
   EnterprisePlatformService,
   EnterprisePlatformStatus,
 } from '@enterprise-agent/dsh-platform-client'
-import type { OwnedSessionListResponse } from '@enterprise-agent/dsh-contracts'
+import type { DeletedSession, OwnedSessionListResponse } from '@enterprise-agent/dsh-contracts'
 
 export type SessionCursorState =
   | 'PENDING'
@@ -24,6 +24,7 @@ export type SessionCursorState =
   | 'SOURCE_DEVICE_CONFLICT'
   | 'FORMAT_UNSUPPORTED'
   | 'CONTENT_EXPIRED'
+  | 'DELETED'
   | 'FAILED'
 
 /** `$DSH_HOME/enterprise/session-sync.json` 中唯一允许持久化的每 Session 元数据。 */
@@ -65,6 +66,8 @@ export interface RestoreRemoteSessionResult {
   readonly seedLength: number
   readonly durable: boolean
 }
+
+export type DeleteRemoteSessionResult = DeletedSession
 
 export interface RemoteSessionPage {
   readonly response: OwnedSessionListResponse['data']

@@ -161,7 +161,7 @@ describe('enterprise local API', () => {
     dispose()
   })
 
-  it('serves Session sync status, remote cursor pages, restore actions, and SSE without content leakage', async () => {
+  it('serves Session sync status, remote cursor pages, restore/delete actions, and SSE without content leakage', async () => {
     const syncListeners = new Set<(status: unknown) => void>()
     const syncStatus = {
       backlog: 1,
@@ -186,6 +186,9 @@ describe('enterprise local API', () => {
       restoreRemote: vi.fn(async input => ({
         sessionId: 'restored-1', sourceSessionId: input.sourceSessionId, seedLength: 3, durable: true,
       })),
+      deleteRemote: vi.fn(async sessionId => ({
+        replicaId: '701', sessionId, status: 'DELETED', deletedAt: '2026-08-19T06:00:00.000Z',
+      })),
     }
     const dispose = registerEnterpriseLocalApi(webServer, {
       platform, pluginStatus, sessionSync: () => sessionSync,
@@ -208,6 +211,16 @@ describe('enterprise local API', () => {
       data: { sessionId: 'restored-1', sourceSessionId: 'remote-1', seedLength: 3, durable: true },
     })
     expect(sessionSync.restoreRemote).toHaveBeenCalledWith({ sourceSessionId: 'remote-1', targetCwd: '/tmp/work' })
+    const deleted = await fetch(`${baseUrl}/enterprise/api/v1/local/sessions/remote-1`, { method: 'DELETE' })
+    expect(deleted.status).toBe(200)
+    await expect(deleted.json()).resolves.toEqual({
+      data: {
+        replicaId: '701', sessionId: 'remote-1', status: 'DELETED',
+        deletedAt: '2026-08-19T06:00:00.000Z',
+      },
+    })
+    expect(sessionSync.deleteRemote).toHaveBeenCalledWith('remote-1')
+    expect((await fetch(`${baseUrl}/enterprise/api/v1/local/sessions/remote-1`, { method: 'POST' })).status).toBe(405)
     expect((await fetch(`${baseUrl}/enterprise/api/v1/local/sessions?limit=20&limit=30`)).status).toBe(400)
 
     const response = await fetch(`${baseUrl}/enterprise/api/v1/local/events`)

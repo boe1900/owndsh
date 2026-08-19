@@ -24,6 +24,7 @@ t14-plugin-client-acceptance.md: T14 独立验收证据，记录下载验签、�
 t15-plugin-pages-acceptance.md: T15 独立验收证据，记录管理插件页面、完整 assignment CAS、设备 inventory、员工插件 tab 与真实 rc.7 重启闭环。
 t16-session-server-acceptance.md: T16 独立验收证据，记录官方 format v0、精确 JSONL/hash、源设备并发复制、AES-GCM、正文权限、tombstone 与 retention。
 t17-session-client-acceptance.md: T17 独立验收证据，记录 dirty queue、确认游标、退避终态、树外 consumer 与锁定 rc.7 同步恢复链路。
-assets/: 无密钥验收媒体，保存 T05、T07、T12、T15 的真实页面流程截图/GIF；局部地图见 assets/CLAUDE.md。
+t18-session-pages-acceptance.md: T18 独立验收证据，记录管理正文权限/审计/tombstone、员工同步/恢复/删除与 rc.7 重启不重传。
+assets/: 无密钥验收媒体，保存 T05、T07、T12、T15、T18 的真实页面流程截图/GIF；局部地图见 assets/CLAUDE.md。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

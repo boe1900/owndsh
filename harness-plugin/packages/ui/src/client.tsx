@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖官方 Client `slots`、EnterpriseAccountStore 与账号/插件 Settings 及账号辅助组件
- * [OUTPUT]: 对外提供 Client apply，并注册企业 Settings tabs、sidebar 状态和登录 onboarding
+ * [INPUT]: 依赖官方 Client `slots`、EnterpriseAccountStore 与账号/插件/Session Settings 及账号辅助组件
+ * [OUTPUT]: 对外提供 Client apply，并注册企业三 tab Settings、sidebar 状态和登录 onboarding
  * [POS]: dsh-ui 的浏览器组合根，只向 React 注入共享脱敏 store，不传递 Host Context
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -17,6 +17,7 @@ import { createEnterpriseLocalApi } from './local-api.js'
 export * from './account-store.js'
 export * from './account-view.js'
 export * from './local-api.js'
+export * from './session-view.js'
 
 interface SlotContextPort {
   readonly slots: {

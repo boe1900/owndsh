@@ -35,11 +35,12 @@ installation 文件，也不会通过本地 HTTP/SSE 返回给浏览器。
 - `GET /enterprise/api/v1/local/sessions/sync`
 - `GET /enterprise/api/v1/local/sessions?cursor=&limit=`
 - `POST /enterprise/api/v1/local/sessions/{id}/copies`
+- `DELETE /enterprise/api/v1/local/sessions/{id}`
 - `GET /enterprise/api/v1/local/events`
 
 POST action 必须使用 `application/json` 且 body 为严格空对象 `{}`。本地 API 不配置
 CORS。Session 恢复 action 的 body 只接受 `{ "targetCwd": "..." }`，成功返回 `201`；列表 limit
-范围为 1 至 200。插件与 Session 状态都由 bundle 通过最小反转端口接入，platform-client 不反向依赖
+范围为 1 至 200。Session 删除只接受路径 ID，成功返回不含正文的 tombstone；路由不接受任意平台 URL。插件与 Session 状态都由 bundle 通过最小反转端口接入，platform-client 不反向依赖
 distribution 或 session-sync 包；复合 SSE 分别发送 `status` 和 `session-sync` event，返回值不含
 tgz 路径、公钥、CLI 输出、Session 正文或 Token。T01 Session-copy 技术 seam 仅在验收 overlay 显式
 开启，发行 patch 默认关闭。

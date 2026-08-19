@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 local-api 的脱敏账号/插件查询、状态 SSE 与登录/取消/退出动作
- * [OUTPUT]: 对外提供 EnterpriseAccountStore、账号/插件 snapshot、显式刷新和串行动作
+ * [INPUT]: 依赖 local-api 的脱敏账号/插件/Session 查询、复合 SSE 与账号/恢复/删除动作
+ * [OUTPUT]: 对外提供 EnterpriseAccountStore、账号/插件/Session snapshot、cursor 分页与串行动作
  * [POS]: dsh-ui 的浏览器状态控制器，在官方 slot 与 Settings tabs 间共享事实且隔离网络细节
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -10,11 +10,14 @@ import type {
   EnterpriseLocalApi,
   EnterpriseLocalStatus,
   EnterprisePluginStatus,
+  EnterpriseRemoteSession,
+  EnterpriseSessionSyncStatus,
   EnterpriseStatusStream,
 } from './local-api.js'
 import { EnterpriseLocalApiError } from './local-api.js'
 
 export type EnterpriseAccountAction = 'login' | 'cancel' | 'logout'
+export type EnterpriseSessionAction = 'restore' | 'delete'
 
 export interface EnterpriseAccountSnapshot {
   readonly phase: 'loading' | 'ready' | 'error'
@@ -23,6 +26,13 @@ export interface EnterpriseAccountSnapshot {
   readonly pluginStatus?: EnterprisePluginStatus
   readonly pluginsLoading?: boolean
   readonly pluginErrorCode?: string
+  readonly sessionSyncStatus?: EnterpriseSessionSyncStatus
+  readonly remoteSessions?: readonly EnterpriseRemoteSession[]
+  readonly sessionsNextCursor?: string | null
+  readonly sessionsLoading?: boolean
+  readonly sessionErrorCode?: string
+  readonly sessionBusy?: { readonly action: EnterpriseSessionAction; readonly sessionId: string }
+  readonly lastRestoredSessionId?: string
   readonly busy?: EnterpriseAccountAction
   readonly errorCode?: string
 }
@@ -44,6 +54,7 @@ export class EnterpriseAccountStore {
   #events: EnterpriseStatusStream | undefined
   #bootstrapLoading = false
   #pluginsLoading = false
+  #sessionsLoading = false
 
   constructor(api: EnterpriseLocalApi) {
     this.#api = api
@@ -77,6 +88,34 @@ export class EnterpriseAccountStore {
     await this.#loadPlugins()
   }
 
+  /** 刷新同步摘要与远端第一页。 */
+  async refreshSessions(): Promise<void> {
+    if (this.#snapshot.status === undefined || !connected(this.#snapshot.status)) return
+    await this.#loadSessions(undefined, false)
+  }
+
+  /** 使用服务端不透明 cursor 追加远端 Session。 */
+  async loadMoreSessions(): Promise<void> {
+    const cursor = this.#snapshot.sessionsNextCursor
+    if (cursor === undefined || cursor === null) return
+    await this.#loadSessions(cursor, true)
+  }
+
+  async restoreSession(sessionId: string, targetCwd: string): Promise<void> {
+    await this.#sessionAction('restore', sessionId, async signal => {
+      const restored = await this.#api.restoreSession(sessionId, targetCwd, signal)
+      this.#set({ ...this.#snapshot, lastRestoredSessionId: restored.sessionId })
+      await this.#loadSessions(undefined, false)
+    })
+  }
+
+  async deleteSession(sessionId: string): Promise<void> {
+    await this.#sessionAction('delete', sessionId, async signal => {
+      await this.#api.deleteSession(sessionId, signal)
+      await this.#loadSessions(undefined, false)
+    })
+  }
+
   async startLogin(): Promise<void> {
     await this.#action('login', signal => this.#api.startLogin(signal))
   }
@@ -93,6 +132,11 @@ export class EnterpriseAccountStore {
     this.#lifetime = new AbortController()
     this.#events = this.#api.events(
       status => { this.#acceptStatus(status) },
+      status => {
+        if (this.#snapshot.status !== undefined && connected(this.#snapshot.status)) {
+          this.#set({ ...this.#snapshot, sessionSyncStatus: status })
+        }
+      },
       () => {
         this.#set({
           ...this.#snapshot,
@@ -151,12 +195,32 @@ export class EnterpriseAccountStore {
       ...(connected(status) && this.#snapshot.pluginErrorCode !== undefined
         ? { pluginErrorCode: this.#snapshot.pluginErrorCode }
         : {}),
+      ...(connected(status) && this.#snapshot.sessionSyncStatus !== undefined
+        ? { sessionSyncStatus: this.#snapshot.sessionSyncStatus }
+        : {}),
+      ...(connected(status) && this.#snapshot.remoteSessions !== undefined
+        ? { remoteSessions: this.#snapshot.remoteSessions }
+        : {}),
+      ...(connected(status) && this.#snapshot.sessionsNextCursor !== undefined
+        ? { sessionsNextCursor: this.#snapshot.sessionsNextCursor }
+        : {}),
+      ...(connected(status) && this.#snapshot.sessionsLoading === true ? { sessionsLoading: true } : {}),
+      ...(connected(status) && this.#snapshot.sessionErrorCode !== undefined
+        ? { sessionErrorCode: this.#snapshot.sessionErrorCode }
+        : {}),
+      ...(connected(status) && this.#snapshot.sessionBusy !== undefined
+        ? { sessionBusy: this.#snapshot.sessionBusy }
+        : {}),
+      ...(connected(status) && this.#snapshot.lastRestoredSessionId !== undefined
+        ? { lastRestoredSessionId: this.#snapshot.lastRestoredSessionId }
+        : {}),
       ...(this.#snapshot.busy === undefined ? {} : { busy: this.#snapshot.busy }),
       ...(status.errorCode === undefined ? {} : { errorCode: status.errorCode }),
     })
     if (connected(status)) {
       void this.#loadBootstrap()
       void this.#loadPlugins()
+      void this.#loadSessions(undefined, false)
     }
   }
 
@@ -196,6 +260,58 @@ export class EnterpriseAccountStore {
       }
     } finally {
       this.#pluginsLoading = false
+    }
+  }
+
+  async #loadSessions(cursor: string | undefined, append: boolean): Promise<void> {
+    if (this.#sessionsLoading) return
+    this.#sessionsLoading = true
+    const signal = this.#signal()
+    const { sessionErrorCode: _sessionErrorCode, ...withoutError } = this.#snapshot
+    this.#set({ ...withoutError, sessionsLoading: true })
+    try {
+      const [sessionSyncStatus, page] = await Promise.all([
+        this.#api.sessionSync(signal),
+        this.#api.sessions(signal, cursor, 50),
+      ])
+      if (!signal.aborted && this.#snapshot.status !== undefined && connected(this.#snapshot.status)) {
+        const { sessionsLoading: _sessionsLoading, ...settled } = this.#snapshot
+        this.#set({
+          ...settled,
+          sessionSyncStatus,
+          remoteSessions: append ? [...(this.#snapshot.remoteSessions ?? []), ...page.items] : page.items,
+          sessionsNextCursor: page.page.hasMore ? page.page.nextCursor : null,
+        })
+      }
+    } catch (error) {
+      if (!signal.aborted) {
+        const { sessionsLoading: _sessionsLoading, ...settled } = this.#snapshot
+        this.#set({ ...settled, sessionErrorCode: failureCode(error) })
+      }
+    } finally {
+      this.#sessionsLoading = false
+    }
+  }
+
+  async #sessionAction(
+    action: EnterpriseSessionAction,
+    sessionId: string,
+    operation: (signal: AbortSignal) => Promise<void>,
+  ): Promise<void> {
+    if (this.#snapshot.sessionBusy !== undefined) return
+    const signal = this.#signal()
+    const { sessionErrorCode: _sessionErrorCode, lastRestoredSessionId: _lastRestoredSessionId,
+      ...withoutResult } = this.#snapshot
+    this.#set({ ...withoutResult, sessionBusy: { action, sessionId } })
+    try {
+      await operation(signal)
+    } catch (error) {
+      if (!signal.aborted) this.#set({ ...this.#snapshot, sessionErrorCode: failureCode(error) })
+    } finally {
+      if (!signal.aborted) {
+        const { sessionBusy: _sessionBusy, ...settled } = this.#snapshot
+        this.#set(settled)
+      }
     }
   }
 

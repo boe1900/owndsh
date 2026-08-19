@@ -24,5 +24,11 @@ t15-03-plugin-inventory.png: T15 设备插件 ACTIVE inventory。
 t15-04-harness-restart-required.png: T15 Harness 员工插件等待重启状态。
 t15-05-harness-active.png: T15 Harness Loader 确认插件已启用状态。
 t15-plugin-pages.gif: T15 管理端到 Harness 的真实插件页面闭环。
+t18-01-admin-session-content.png: T18 管理员拥有独立正文权限时的 Session 时间线。
+t18-02-auditor-session-content.png: T18 审计员只读正文且无删除入口的权限裁剪。
+t18-03-session-deleted.png: T18 ACTIVE Session 删除后的 DELETED tombstone 管理事实。
+t18-04-harness-session-restored.png: T18 锁定 rc.7 Harness 跨设备恢复并上传新本地副本。
+t18-05-harness-session-deleted.png: T18 员工删除恢复副本后的 DELETED 不重传游标。
+t18-session-pages.gif: T18 员工登录、远端列表、恢复、删除确认与删除完成的真实桌面流程。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

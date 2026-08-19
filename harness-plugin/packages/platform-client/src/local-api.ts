@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Harness `ctx.webServer.register()` route port、平台操作端口及插件/Session 只读反转端口
- * [OUTPUT]: 对外提供 registerEnterpriseLocalApi、严格 JSON action、远端 Session 分页/恢复与复合 SSE
+ * [OUTPUT]: 对外提供 registerEnterpriseLocalApi、严格 JSON action、远端 Session 分页/恢复/删除与复合 SSE
  * [POS]: platform-client 的 Host/Client 同源协作边界，只序列化脱敏 DTO 并把认证 HTTP 留在 Host Service
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -57,6 +57,7 @@ export interface EnterpriseLocalSessionPort {
     readonly sourceSessionId: string
     readonly targetCwd: string
   }): Promise<unknown>
+  deleteRemote(sessionId: string): Promise<unknown>
 }
 
 export interface EnterpriseLocalApiOptions {
@@ -277,18 +278,25 @@ export function registerEnterpriseLocalApi(
       kind: 'prefix',
       path: `${LOCAL_API_PREFIX}/sessions`,
       handler: async (request, response) => {
-        const match = /^\/enterprise\/api\/v1\/local\/sessions\/([^/]+)\/copies$/.exec(requestUrl(request).pathname)
-        if (match === null) {
+        const pathname = requestUrl(request).pathname
+        const copyMatch = /^\/enterprise\/api\/v1\/local\/sessions\/([^/]+)\/copies$/.exec(pathname)
+        const itemMatch = /^\/enterprise\/api\/v1\/local\/sessions\/([^/]+)$/.exec(pathname)
+        if (copyMatch === null && itemMatch === null) {
           writeJson(response, 404, { error: { code: 'ENT_RESOURCE_NOT_FOUND' } })
           return
         }
-        if (request.method !== 'POST') {
-          methodNotAllowed(response, 'POST')
+        const expectedMethod = copyMatch === null ? 'DELETE' : 'POST'
+        if (request.method !== expectedMethod) {
+          methodNotAllowed(response, expectedMethod)
           return
         }
         try {
-          const sourceSessionId = decodeURIComponent(match[1] ?? '')
+          const sourceSessionId = decodeURIComponent((copyMatch ?? itemMatch)?.[1] ?? '')
           if (sourceSessionId.length === 0 || sourceSessionId.length > 128) throw new TypeError('sessionId is invalid')
+          if (itemMatch !== null) {
+            writeJson(response, 200, { data: await localSession(options).deleteRemote(sourceSessionId) })
+            return
+          }
           const input = parseRestoreInput(await readJson(request))
           writeJson(response, 201, {
             data: await localSession(options).restoreRemote({ sourceSessionId, targetCwd: input.targetCwd }),

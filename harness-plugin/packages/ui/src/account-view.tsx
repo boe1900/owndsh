@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 React、Lucide 图标与 EnterpriseAccountStore 的脱敏账号/插件 snapshot 和动作
- * [OUTPUT]: 对外提供账号/插件 settings tabs、sidebar 状态入口、登录 onboarding 与固定状态投影
+ * [INPUT]: 依赖 React、Lucide 图标与 EnterpriseAccountStore 的脱敏账号/插件/Session snapshot 和动作
+ * [OUTPUT]: 对外提供账号/插件/会话同步 settings tabs、sidebar 状态入口、登录 onboarding 与固定状态投影
  * [POS]: dsh-ui 的员工呈现层，官方 slot 复用同一状态源且不接触 Host Context、Token 或执行细节
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -32,7 +32,11 @@ import {
 } from 'react'
 import type { EnterpriseAccountSnapshot } from './account-store.js'
 import { EnterpriseAccountStore } from './account-store.js'
-import type { EnterpriseConnectionState, ManagedPluginState } from './local-api.js'
+import type {
+  EnterpriseConnectionState,
+  ManagedPluginState,
+} from './local-api.js'
+import { EnterpriseSessionContent } from './session-view.js'
 
 export interface EnterpriseStoreInjected {
   readonly store: EnterpriseAccountStore
@@ -489,10 +493,10 @@ function EnterprisePluginContent({ store }: EnterpriseStoreInjected): ReactNode 
   </div>
 }
 
-/** 官方 `settings.section` 内的企业账号与插件 tabs。 */
+/** 官方 `settings.section` 内的企业账号、插件与会话同步 tabs。 */
 export function EnterpriseSettingsSection(props: EnterpriseSettingsSectionProps): ReactNode {
   const headingId = useId()
-  const [activeTab, setActiveTab] = useState<'account' | 'plugins'>('account')
+  const [activeTab, setActiveTab] = useState<'account' | 'plugins' | 'sessions'>('account')
   return <section style={page} aria-labelledby={headingId}>
     <h2 id={headingId} style={heading}>企业</h2>
     <div role="tablist" aria-label="企业设置" style={tabs}>
@@ -510,10 +514,19 @@ export function EnterpriseSettingsSection(props: EnterpriseSettingsSectionProps)
         style={tabStyle(activeTab === 'plugins')}
         onClick={() => { setActiveTab('plugins'); void props.store.refreshPlugins() }}
       >插件</button>
+      <button
+        role="tab"
+        aria-selected={activeTab === 'sessions'}
+        type="button"
+        style={tabStyle(activeTab === 'sessions')}
+        onClick={() => { setActiveTab('sessions'); void props.store.refreshSessions() }}
+      >会话同步</button>
     </div>
     {activeTab === 'account'
       ? <EnterpriseAccountContent store={props.store} />
-      : <EnterprisePluginContent store={props.store} />}
+      : activeTab === 'plugins'
+        ? <EnterprisePluginContent store={props.store} />
+        : <EnterpriseSessionContent store={props.store} />}
   </section>
 }
 

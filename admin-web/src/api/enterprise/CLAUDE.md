@@ -12,5 +12,6 @@ model/: provider 和受管模型业务 API，密钥只允许一次性创建或�
 mutation.ts: 创建幂等键和 If-Match revision 请求头唯一构造入口。
 plugin/: 插件 catalog、版本状态、全量分配和设备 inventory 业务 API；局部地图见 plugin/CLAUDE.md。
 quota/: 模型授权、配额策略、窗口和 prompt-free 用量业务 API。
+session/: Session metadata、受权限保护正文的严格 JSONL 解码与 tombstone 删除业务 API。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

@@ -14,5 +14,6 @@ t14-plugin-distribution-consumer.mjs: T14 树外 consumer，安装三个发布 t
 t15-browser-harness.mjs: T15 真实浏览器组合载体，以签名测试 bundle 驱动真实 CLI 安装，在同一临时 web profile 重启后证明 Loader ACTIVE，并由控制端点收口清理与上游清洁度断言。
 t17-harness-session-smoke.mjs: T17 锁定 rc.7 组合门禁，以 gated 假平台和真实 JSONL backend 验证非阻塞 append、确认游标、远端列表与新 ID 恢复。
 t17-session-sync-consumer.mjs: T17 树外 consumer，安装产品 tgz 与 npm 官方 rc.7 包并运行真实 SessionStore/JSONL persistence 同步恢复链路。
+t18-browser-harness.mjs: T18 真实浏览器组合载体，以跨设备远端副本驱动恢复/上传/删除，重启同一临时 profile 验证 DELETED 游标阻止重传并守护锁定 Harness 清洁度。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

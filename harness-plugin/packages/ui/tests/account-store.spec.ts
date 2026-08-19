@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 EnterpriseAccountStore、local-api 端口和可控 SSE test double
- * [OUTPUT]: 验证订阅生命周期、账号动作、READY bootstrap/插件加载与稳定错误投影
+ * [OUTPUT]: 验证订阅生命周期、账号动作、READY bootstrap/插件/Session 加载、恢复删除与错误投影
  * [POS]: dsh-ui 账号状态控制器测试，覆盖三个官方 slot 共享的行为真源
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -38,6 +38,21 @@ describe('EnterpriseAccountStore', () => {
           lastErrorCode: null,
         }],
       })),
+      sessionSync: vi.fn(async () => ({ backlog: 0, lastSuccessfulSyncAt: null, cursors: [] })),
+      sessions: vi.fn(async () => ({
+        items: [{
+          id: 'remote-1', title: 'Remote Session', sourceDeviceId: '90018', sourceDeviceName: 'Zhang Mac',
+          formatVersion: 0, lastSeq: 2, eventCount: 3, status: 'ACTIVE',
+          createdAt: '2026-08-19T04:00:00.000Z', updatedAt: '2026-08-19T05:00:00.000Z',
+        }],
+        page: { hasMore: false, limit: 50, nextCursor: null },
+      })),
+      restoreSession: vi.fn(async sourceSessionId => ({
+        sessionId: 'restored-1', sourceSessionId, seedLength: 3, durable: true,
+      })),
+      deleteSession: vi.fn(async sessionId => ({
+        replicaId: '701', sessionId, status: 'DELETED', deletedAt: '2026-08-19T06:00:00.000Z',
+      })),
       startLogin: vi.fn(async () => { current = { ...base, state: 'AUTHORIZING', flowId: 'flow-1' }; return { flowId: 'flow-1' } }),
       cancelLogin: vi.fn(async () => { current = { ...base, state: 'CANCELLED', errorCode: 'ENT_AUTH_CANCELLED' }; return { cancelled: true } }),
       logout: vi.fn(async () => { current = { ...base, state: 'SIGNED_OUT' }; return { loggedOut: true } }),
@@ -62,6 +77,12 @@ describe('EnterpriseAccountStore', () => {
     })
     await vi.waitFor(() => { expect(store.getSnapshot().bootstrap?.device.id).toBe('90018') })
     await vi.waitFor(() => { expect(store.getSnapshot().pluginStatus?.assignmentRevision).toBe(7) })
+    await vi.waitFor(() => { expect(store.getSnapshot().remoteSessions?.[0]?.id).toBe('remote-1') })
+    await store.restoreSession('remote-1', '/tmp/work')
+    expect(store.getSnapshot().lastRestoredSessionId).toBe('restored-1')
+    expect(api.restoreSession).toHaveBeenCalledWith('remote-1', '/tmp/work', expect.any(AbortSignal))
+    await store.deleteSession('remote-1')
+    expect(api.deleteSession).toHaveBeenCalledWith('remote-1', expect.any(AbortSignal))
     await store.refreshPlugins()
     expect(api.plugins).toHaveBeenCalledTimes(2)
     await store.logout()
@@ -78,6 +99,10 @@ describe('EnterpriseAccountStore', () => {
       status: vi.fn(async () => { throw new EnterpriseLocalApiError('ENT_PLATFORM_UNAVAILABLE', 503) }),
       bootstrap: vi.fn(),
       plugins: vi.fn(),
+      sessionSync: vi.fn(),
+      sessions: vi.fn(),
+      restoreSession: vi.fn(),
+      deleteSession: vi.fn(),
       startLogin: vi.fn(),
       cancelLogin: vi.fn(),
       logout: vi.fn(),

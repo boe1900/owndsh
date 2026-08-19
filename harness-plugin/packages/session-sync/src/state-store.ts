@@ -14,7 +14,7 @@ import type { SessionCursorFile, SessionCursorRecord, SessionCursorState } from 
 
 const STATES = new Set<SessionCursorState>([
   'PENDING', 'SYNCING', 'RETRY_WAIT', 'SYNCED', 'SEQ_GAP', 'DIVERGED',
-  'SOURCE_DEVICE_CONFLICT', 'FORMAT_UNSUPPORTED', 'CONTENT_EXPIRED', 'FAILED',
+  'SOURCE_DEVICE_CONFLICT', 'FORMAT_UNSUPPORTED', 'CONTENT_EXPIRED', 'DELETED', 'FAILED',
 ])
 const HASH = /^[A-Za-z0-9+/]{43}=$/
 const DEVICE_ID = /^[1-9][0-9]{0,18}$/

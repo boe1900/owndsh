@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖浏览器 fetch/EventSource 与 platform-client 的同源 `/enterprise/api/v1/local/*` 脱敏协议
- * [OUTPUT]: 对外提供严格账号/插件状态解码、登录/取消/退出动作和状态事件订阅端口
- * [POS]: dsh-ui 的浏览器网络边界，只投影 Settings 所需事实并拒绝秘密与本地执行细节
+ * [OUTPUT]: 对外提供严格账号/插件/Session 状态解码、登录/恢复/删除动作和复合事件订阅端口
+ * [POS]: dsh-ui 的浏览器网络边界，只投影 Settings 所需事实并拒绝秘密、正文与本地执行细节
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -37,6 +37,22 @@ export const MANAGED_PLUGIN_STATES = [
 ] as const
 
 export type ManagedPluginState = typeof MANAGED_PLUGIN_STATES[number]
+
+export const SESSION_SYNC_STATES = [
+  'PENDING',
+  'SYNCING',
+  'RETRY_WAIT',
+  'SYNCED',
+  'SEQ_GAP',
+  'DIVERGED',
+  'SOURCE_DEVICE_CONFLICT',
+  'FORMAT_UNSUPPORTED',
+  'CONTENT_EXPIRED',
+  'DELETED',
+  'FAILED',
+] as const
+
+export type EnterpriseSessionSyncState = typeof SESSION_SYNC_STATES[number]
 
 export interface EnterpriseStatusUser {
   readonly id: string
@@ -82,6 +98,58 @@ export interface EnterprisePluginStatus {
   readonly lastReportErrorCode?: string
 }
 
+export interface EnterpriseSessionCursor {
+  readonly sessionId: string
+  readonly lastAckSeq: number
+  readonly state: EnterpriseSessionSyncState
+  readonly lastErrorCode: string | null
+  readonly updatedAt: string
+  readonly lastSuccessAt: string | null
+}
+
+export interface EnterpriseSessionSyncStatus {
+  readonly backlog: number
+  readonly lastSuccessfulSyncAt: string | null
+  readonly cursors: readonly EnterpriseSessionCursor[]
+  readonly fatalErrorCode?: string
+}
+
+export interface EnterpriseRemoteSession {
+  readonly id: string
+  readonly title: string | null
+  readonly sourceDeviceId: string
+  readonly sourceDeviceName: string
+  readonly formatVersion: 0
+  readonly lastSeq: number
+  readonly eventCount: number
+  readonly status: 'ACTIVE'
+  readonly createdAt: string
+  readonly updatedAt: string
+}
+
+export interface EnterpriseRemoteSessionPage {
+  readonly items: readonly EnterpriseRemoteSession[]
+  readonly page: {
+    readonly hasMore: boolean
+    readonly limit: number
+    readonly nextCursor: string | null
+  }
+}
+
+export interface EnterpriseSessionRestoreResult {
+  readonly sessionId: string
+  readonly sourceSessionId: string
+  readonly seedLength: number
+  readonly durable: true
+}
+
+export interface EnterpriseSessionDeleteResult {
+  readonly replicaId: string
+  readonly sessionId: string
+  readonly status: 'DELETED'
+  readonly deletedAt: string
+}
+
 export interface EnterpriseStatusStream {
   close(): void
 }
@@ -90,11 +158,16 @@ export interface EnterpriseLocalApi {
   status(signal: AbortSignal): Promise<EnterpriseLocalStatus>
   bootstrap(signal: AbortSignal): Promise<EnterpriseAccountBootstrap | undefined>
   plugins(signal: AbortSignal): Promise<EnterprisePluginStatus>
+  sessionSync(signal: AbortSignal): Promise<EnterpriseSessionSyncStatus>
+  sessions(signal: AbortSignal, cursor?: string, limit?: number): Promise<EnterpriseRemoteSessionPage>
+  restoreSession(sessionId: string, targetCwd: string, signal: AbortSignal): Promise<EnterpriseSessionRestoreResult>
+  deleteSession(sessionId: string, signal: AbortSignal): Promise<EnterpriseSessionDeleteResult>
   startLogin(signal: AbortSignal): Promise<{ readonly flowId: string }>
   cancelLogin(signal: AbortSignal): Promise<{ readonly cancelled: boolean }>
   logout(signal: AbortSignal): Promise<{ readonly loggedOut: true }>
   events(
     onStatus: (status: EnterpriseLocalStatus) => void,
+    onSessionSync: (status: EnterpriseSessionSyncStatus) => void,
     onError: () => void,
   ): EnterpriseStatusStream
 }
@@ -208,6 +281,33 @@ function nullableString(value: unknown): value is string | null {
   return value === null || nonEmptyString(value)
 }
 
+const RFC_3339_PATTERN = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/
+
+function timestamp(value: unknown): value is string {
+  return nonEmptyString(value) && value.length <= 64
+    && RFC_3339_PATTERN.test(value) && Number.isFinite(Date.parse(value))
+}
+
+function nullableTimestamp(value: unknown): value is string | null {
+  return value === null || timestamp(value)
+}
+
+function sessionId(value: unknown): value is string {
+  return nonEmptyString(value) && value.length <= 128
+}
+
+function enterpriseId(value: unknown): value is string {
+  return typeof value === 'string' && /^[1-9][0-9]{0,18}$/.test(value)
+}
+
+function errorCodeValue(value: unknown): value is string {
+  return nonEmptyString(value) && value.length <= 128 && /^[A-Z][A-Z0-9_]*$/.test(value)
+}
+
+function safeNonNegativeInteger(value: unknown): value is number {
+  return Number.isSafeInteger(value) && Number(value) >= 0
+}
+
 function decodePluginItem(value: unknown): EnterprisePluginItem | undefined {
   const item = record(value)
   if (item === undefined
@@ -256,6 +356,114 @@ export function decodeEnterprisePluginStatus(value: unknown): EnterprisePluginSt
   }
 }
 
+function decodeSessionCursor(value: unknown): EnterpriseSessionCursor | undefined {
+  const cursor = record(value)
+  if (cursor === undefined
+    || !hasExactKeys(cursor, [
+      'sessionId', 'sourceDeviceId', 'lastAckSeq', 'rollingHash', 'state',
+      'lastErrorCode', 'updatedAt', 'lastSuccessAt',
+    ])
+    || !sessionId(cursor['sessionId']) || !enterpriseId(cursor['sourceDeviceId'])
+    || !Number.isSafeInteger(cursor['lastAckSeq']) || Number(cursor['lastAckSeq']) < -1
+    || typeof cursor['rollingHash'] !== 'string' || !/^[A-Za-z0-9+/]{43}=$/.test(cursor['rollingHash'])
+    || !SESSION_SYNC_STATES.includes(cursor['state'] as EnterpriseSessionSyncState)
+    || !(cursor['lastErrorCode'] === null || errorCodeValue(cursor['lastErrorCode']))
+    || !timestamp(cursor['updatedAt']) || !nullableTimestamp(cursor['lastSuccessAt'])) return undefined
+  return {
+    sessionId: cursor['sessionId'],
+    lastAckSeq: Number(cursor['lastAckSeq']),
+    state: cursor['state'] as EnterpriseSessionSyncState,
+    lastErrorCode: cursor['lastErrorCode'],
+    updatedAt: cursor['updatedAt'],
+    lastSuccessAt: cursor['lastSuccessAt'],
+  }
+}
+
+/** 严格校验 Host 同步投影，并在浏览器边界删除 source device 与 rolling hash。 */
+export function decodeEnterpriseSessionSyncStatus(value: unknown): EnterpriseSessionSyncStatus {
+  const source = record(value)
+  if (source === undefined
+    || !hasExactKeys(source, ['backlog', 'lastSuccessfulSyncAt', 'cursors'], ['fatalErrorCode'])
+    || !safeNonNegativeInteger(source['backlog'])
+    || !nullableTimestamp(source['lastSuccessfulSyncAt'])
+    || !Array.isArray(source['cursors']) || source['cursors'].length > 10_000
+    || source['fatalErrorCode'] !== undefined && !errorCodeValue(source['fatalErrorCode'])) {
+    throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+  }
+  const cursors = source['cursors'].map(decodeSessionCursor)
+  if (cursors.some(cursor => cursor === undefined)) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+  return {
+    backlog: Number(source['backlog']),
+    lastSuccessfulSyncAt: source['lastSuccessfulSyncAt'],
+    cursors: cursors as EnterpriseSessionCursor[],
+    ...(source['fatalErrorCode'] === undefined ? {} : { fatalErrorCode: source['fatalErrorCode'] as string }),
+  }
+}
+
+function decodeRemoteSession(value: unknown): EnterpriseRemoteSession | undefined {
+  const item = record(value)
+  if (item === undefined
+    || !hasExactKeys(item, [
+      'id', 'title', 'sourceDeviceId', 'sourceDeviceName', 'formatVersion', 'lastSeq',
+      'eventCount', 'status', 'createdAt', 'updatedAt',
+    ])
+    || !sessionId(item['id'])
+    || !(item['title'] === null || typeof item['title'] === 'string' && item['title'].length <= 512)
+    || !enterpriseId(item['sourceDeviceId'])
+    || !nonEmptyString(item['sourceDeviceName']) || item['sourceDeviceName'].length > 120
+    || item['formatVersion'] !== 0 || !safeNonNegativeInteger(item['lastSeq'])
+    || !safeNonNegativeInteger(item['eventCount']) || Number(item['eventCount']) < 1
+    || item['status'] !== 'ACTIVE' || !timestamp(item['createdAt']) || !timestamp(item['updatedAt'])) return undefined
+  return item as unknown as EnterpriseRemoteSession
+}
+
+/** 远端列表只接受 T16 ACTIVE metadata 契约，拒绝正文或额外字段混入。 */
+export function decodeEnterpriseRemoteSessionPage(value: unknown): EnterpriseRemoteSessionPage {
+  const source = record(value)
+  const page = record(source?.['page'])
+  if (source === undefined || !hasExactKeys(source, ['items', 'page'])
+    || !Array.isArray(source['items']) || source['items'].length > 200
+    || page === undefined || !hasExactKeys(page, ['hasMore', 'limit', 'nextCursor'])
+    || typeof page['hasMore'] !== 'boolean'
+    || !Number.isSafeInteger(page['limit']) || Number(page['limit']) < 1 || Number(page['limit']) > 200
+    || !(page['nextCursor'] === null
+      || nonEmptyString(page['nextCursor']) && page['nextCursor'].length <= 4096)
+    || page['hasMore'] && page['nextCursor'] === null
+    || !page['hasMore'] && page['nextCursor'] !== null) {
+    throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+  }
+  const items = source['items'].map(decodeRemoteSession)
+  if (items.some(item => item === undefined)) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+  return {
+    items: items as EnterpriseRemoteSession[],
+    page: {
+      hasMore: page['hasMore'],
+      limit: Number(page['limit']),
+      nextCursor: page['nextCursor'],
+    },
+  }
+}
+
+function decodeSessionRestoreResult(value: unknown): EnterpriseSessionRestoreResult {
+  const result = record(value)
+  if (result === undefined || !hasExactKeys(result, ['sessionId', 'sourceSessionId', 'seedLength', 'durable'])
+    || !sessionId(result['sessionId']) || !sessionId(result['sourceSessionId'])
+    || !safeNonNegativeInteger(result['seedLength']) || result['durable'] !== true) {
+    throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+  }
+  return result as unknown as EnterpriseSessionRestoreResult
+}
+
+function decodeSessionDeleteResult(value: unknown): EnterpriseSessionDeleteResult {
+  const result = record(value)
+  if (result === undefined || !hasExactKeys(result, ['replicaId', 'sessionId', 'status', 'deletedAt'])
+    || !enterpriseId(result['replicaId']) || !sessionId(result['sessionId'])
+    || result['status'] !== 'DELETED' || !timestamp(result['deletedAt'])) {
+    throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+  }
+  return result as unknown as EnterpriseSessionDeleteResult
+}
+
 function errorCode(value: unknown): string {
   const code = record(record(value)?.['error'])?.['code']
   return nonEmptyString(code) ? code : 'ENT_PLATFORM_UNAVAILABLE'
@@ -295,6 +503,21 @@ function postInit(signal: AbortSignal): RequestInit {
   }
 }
 
+function jsonInit(method: 'POST', body: unknown, signal: AbortSignal): RequestInit {
+  return {
+    body: JSON.stringify(body),
+    cache: 'no-store',
+    headers: { accept: 'application/json', 'content-type': 'application/json' },
+    method,
+    signal,
+  }
+}
+
+function encodedSessionId(value: string): string {
+  if (!sessionId(value)) throw new EnterpriseLocalApiError('ENT_INVALID_REQUEST')
+  return encodeURIComponent(value)
+}
+
 /** 创建只访问同源固定路径的浏览器 API；调用方无法注入平台 origin 或 Authorization。 */
 export function createEnterpriseLocalApi(
   fetcher: typeof fetch = fetch,
@@ -304,6 +527,33 @@ export function createEnterpriseLocalApi(
     status: async signal => decodeEnterpriseLocalStatus(await requestJson('/status', getInit(signal), fetcher)),
     bootstrap: async signal => decodeBootstrap(await requestJson('/bootstrap', getInit(signal), fetcher)),
     plugins: async signal => decodeEnterprisePluginStatus(await requestJson('/plugins', getInit(signal), fetcher)),
+    sessionSync: async signal => decodeEnterpriseSessionSyncStatus(
+      await requestJson('/sessions/sync', getInit(signal), fetcher),
+    ),
+    sessions: async (signal, cursor, limit = 50) => {
+      if (!Number.isSafeInteger(limit) || limit < 1 || limit > 200
+        || cursor !== undefined && (cursor.length === 0 || cursor.length > 4096)) {
+        throw new EnterpriseLocalApiError('ENT_INVALID_REQUEST')
+      }
+      const query = new URLSearchParams({ limit: String(limit) })
+      if (cursor !== undefined) query.set('cursor', cursor)
+      return decodeEnterpriseRemoteSessionPage(await requestJson(`/sessions?${query}`, getInit(signal), fetcher))
+    },
+    restoreSession: async (sourceSessionId, targetCwd, signal) => {
+      if (targetCwd.length === 0 || targetCwd.length > 4096) {
+        throw new EnterpriseLocalApiError('ENT_INVALID_REQUEST')
+      }
+      return decodeSessionRestoreResult(await requestJson(
+        `/sessions/${encodedSessionId(sourceSessionId)}/copies`,
+        jsonInit('POST', { targetCwd }, signal),
+        fetcher,
+      ))
+    },
+    deleteSession: async (sourceSessionId, signal) => decodeSessionDeleteResult(await requestJson(
+      `/sessions/${encodedSessionId(sourceSessionId)}`,
+      { cache: 'no-store', headers: { accept: 'application/json' }, method: 'DELETE', signal },
+      fetcher,
+    )),
     startLogin: async (signal) => {
       const data = record(await requestJson('/auth/start', postInit(signal), fetcher))
       if (data === undefined || !hasExactKeys(data, ['flowId']) || !nonEmptyString(data['flowId'])) {
@@ -325,11 +575,18 @@ export function createEnterpriseLocalApi(
       }
       return { loggedOut: true }
     },
-    events: (onStatus, onError) => {
+    events: (onStatus, onSessionSync, onError) => {
       const source = eventSourceFactory(`${LOCAL_API_PREFIX}/events`)
       source.addEventListener('status', (event) => {
         try {
           onStatus(decodeEnterpriseLocalStatus(JSON.parse((event as MessageEvent<string>).data)))
+        } catch {
+          onError()
+        }
+      })
+      source.addEventListener('session-sync', (event) => {
+        try {
+          onSessionSync(decodeEnterpriseSessionSyncStatus(JSON.parse((event as MessageEvent<string>).data)))
         } catch {
           onError()
         }

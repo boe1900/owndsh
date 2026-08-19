@@ -6,6 +6,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest'
+import { Session, type SessionEvent } from '@deepseek-ai/dsh-session'
 import {
   restoreSessionCopy,
   type SessionStorePort,
@@ -13,8 +14,24 @@ import {
 
 describe('restoreSessionCopy', () => {
   it('creates a new lineage-bound Session from the exact seed and flushes it', async () => {
-    const events = [{ type: 'turn/start', seq: 0, time: 1, data: { turn: 1 } }]
-    const create = vi.fn((id: string) => ({ id }))
+    const events: SessionEvent[] = [
+      { type: 'turn/start', seq: 0, time: 1, data: { turn: 1 } },
+      {
+        type: 'user/message', seq: 1, time: 2,
+        data: {
+          id: 'restore-user-message', role: 'user',
+          content: [{ type: 'text', text: 'restore me' }], source: { kind: 'user' },
+        },
+        surfaceOp: 'append',
+      },
+      { type: 'turn/end', seq: 2, time: 3, data: { turn: 1, reason: { kind: 'completed' } } },
+    ]
+    const create = vi.fn<SessionStorePort['create']>((id, options) => Session.create(id, options.seed, {
+      version: 0,
+      id,
+      createdAt: 1,
+      ...options.meta,
+    }))
     const flush = vi.fn(async () => true)
     const sessions: SessionStorePort = { create, flush }
     await expect(restoreSessionCopy(sessions, {
@@ -25,14 +42,15 @@ describe('restoreSessionCopy', () => {
     })).resolves.toEqual({
       sessionId: 'local-copy-1',
       sourceSessionId: 'remote-1',
-      seedLength: 1,
+      seedLength: 3,
       durable: true,
     })
     expect(create).toHaveBeenCalledWith('local-copy-1', {
       seed: events,
-      meta: { cwd: '/tmp/work', parentSession: 'remote-1', seedLength: 1 },
+      meta: { cwd: '/tmp/work', parentSession: 'remote-1', seedLength: 3 },
     })
     expect(flush).toHaveBeenCalledOnce()
+    expect(create.mock.results[0]?.value.events.slice(0, events.length)).toEqual(events)
   })
 
   it('rejects invalid identity or cwd before creating a Session', async () => {

@@ -1,43 +1,40 @@
 /**
- * [INPUT]: 依赖真实 HTTPS 管理端/Server、PostgreSQL/Redis、受控上游、pnpm pack 与 Playwright
+ * [INPUT]: 依赖真实 HTTPS 管理端/Server、PostgreSQL/Redis、受控上游、共享企业认证夹具、pnpm pack 与 Playwright
  * [OUTPUT]: 验证 T12 治理闭环及 T15 插件上传/发布/分配/回滚/退休/inventory 完整流程
  * [POS]: e2e 的纵向验收主场景，只操作唯一测试资源并输出无密钥桌面快照
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { mkdtemp, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { promisify } from 'node:util';
-import { expect, test, type APIRequestContext, type APIResponse, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+import {
+  ADMIN_USERNAME,
+  ENTERPRISE_ADMIN_CLIENT_ID,
+  adminLogin as loginAdmin,
+  api,
+  bearer,
+  desktopLogin,
+  jsonResponse,
+  type Envelope
+} from './support/enterprise-auth';
 
-const BASE_URL = process.env.ENT_E2E_BASE_URL || 'https://127.0.0.1';
-const ADMIN_USERNAME = process.env.ENT_E2E_ADMIN_USERNAME || 'admin';
-const ADMIN_PASSWORD = process.env.ENT_E2E_ADMIN_PASSWORD || 'admin123';
 const MOCK_ORIGIN = process.env.ENT_E2E_UPSTREAM_ORIGIN || 'http://127.0.0.1:19090';
 const ASSET_DIR = resolve(process.cwd(), '../docs/assets');
 const IDENTITY_SECRET = 't12-oidc-client-secret';
 const PROVIDER_SECRET = 't12-provider-api-key';
-const ENTERPRISE_ADMIN_CLIENT_ID = 'enterprise-admin';
 const LOCKED_HARNESS_COMMIT = '99f6f02fecdb7dff40c3fbc9470f5907c29f74ca';
 const execFileAsync = promisify(execFile);
-
-interface Envelope<T> {
-  data: T;
-  requestId: string;
-}
 
 interface Revisioned {
   id: string;
   revision: number;
 }
 
-interface DesktopLogin {
-  accessToken: string;
-  installationId: string;
-}
 
 interface PluginCatalogItem extends Revisioned {
   packageName: string;
@@ -51,42 +48,8 @@ interface PluginCatalogItem extends Revisioned {
   }>;
 }
 
-function api(path: string) {
-  return `/dev-api${path}`;
-}
-
-function bearer(token: string, headers: Record<string, string> = {}) {
-  return { Authorization: `Bearer ${token}`, ...headers };
-}
-
-async function jsonResponse<T>(response: APIResponse): Promise<T> {
-  const body = await response.text();
-  expect(response.ok(), `${response.status()} ${response.url()}\n${body}`).toBeTruthy();
-  const parsed = JSON.parse(body) as T & { code?: number; msg?: string };
-  if (typeof parsed.code === 'number') {
-    expect(parsed.code, `${response.url()}\n${body}`).toBe(200);
-  }
-  return parsed;
-}
-
 async function adminLogin(page: Page, screenshotName = 't12-01-admin-login.png') {
-  await page.goto('/login');
-  await expect(page.getByRole('heading', { name: '管理控制台' })).toBeVisible();
-  await page.screenshot({ path: resolve(ASSET_DIR, screenshotName), fullPage: true });
-
-  await page.getByRole('button', { name: /使用企业身份登录/ }).click();
-  await page.waitForURL(/\/enterprise\/auth\/login\.html/);
-  await expect(page.getByRole('heading', { name: '登录企业工作区' })).toBeVisible();
-  await page.getByRole('button').filter({ hasText: 'Local' }).click();
-  await page.getByLabel('账号').fill(ADMIN_USERNAME);
-  await page.getByLabel('密码').fill(ADMIN_PASSWORD);
-  await page.getByRole('button', { name: '登录', exact: true }).click();
-  await page.waitForURL(/\/index$/, { timeout: 30_000 });
-  await expect(page.getByText('企业治理')).toBeVisible();
-
-  const token = await page.evaluate(() => sessionStorage.getItem('Admin-Token'));
-  expect(token).toBeTruthy();
-  return token as string;
+  return loginAdmin(page, resolve(ASSET_DIR, screenshotName));
 }
 
 async function createPluginBundle(root: string, packageName: string, version: string) {
@@ -145,67 +108,6 @@ async function selectOption(page: Page, label: string, option: string | RegExp) 
     .locator('.ant-select-dropdown:visible .ant-select-item-option')
     .filter({ hasText: option })
     .click();
-}
-
-async function desktopLogin(request: APIRequestContext): Promise<DesktopLogin> {
-  const installationId = randomUUID();
-  const verifier = randomBytes(32).toString('base64url');
-  const challenge = createHash('sha256').update(verifier).digest('base64url');
-  const state = randomBytes(24).toString('base64url');
-  const redirectUri = 'http://127.0.0.1:18443/callback';
-  const authorize = await request.get('/enterprise/auth/v1/authorize', {
-    maxRedirects: 0,
-    params: {
-      client_id: 'dsh-desktop',
-      redirect_uri: redirectUri,
-      state,
-      code_challenge: challenge,
-      code_challenge_method: 'S256',
-      installation_id: installationId
-    }
-  });
-  expect(authorize.status()).toBe(303);
-  const loginLocation = authorize.headers().location;
-  expect(loginLocation).toContain('/enterprise/auth/login.html?transaction_id=');
-  const transactionId = new URL(loginLocation, BASE_URL).searchParams.get('transaction_id');
-  expect(transactionId).toBeTruthy();
-
-  const sources = await jsonResponse<Envelope<{ csrfToken: string; sources: Array<{ id: string; type: string }> }>>(
-    await request.get('/enterprise/auth/v1/sources', { params: { transaction_id: transactionId as string } })
-  );
-  const local = sources.data.sources.find(source => source.type === 'LOCAL');
-  expect(local).toBeTruthy();
-
-  const password = await request.post('/enterprise/auth/v1/password', {
-    maxRedirects: 0,
-    form: {
-      transactionId: transactionId as string,
-      sourceId: local?.id as string,
-      csrfToken: sources.data.csrfToken,
-      username: ADMIN_USERNAME,
-      password: ADMIN_PASSWORD
-    }
-  });
-  expect(password.status()).toBe(303);
-  const callback = new URL(password.headers().location);
-  expect(callback.searchParams.get('state')).toBe(state);
-  const code = callback.searchParams.get('code');
-  expect(code).toBeTruthy();
-
-  const token = await jsonResponse<Envelope<{ accessToken: string; clientId: string }>>(
-    await request.post('/enterprise/auth/v1/token', {
-      data: {
-        grantType: 'authorization_code',
-        code,
-        clientId: 'dsh-desktop',
-        redirectUri,
-        codeVerifier: verifier,
-        installationId
-      }
-    })
-  );
-  expect(token.data.clientId).toBe('dsh-desktop');
-  return { accessToken: token.data.accessToken, installationId };
 }
 
 test('T12 管理控制台完成治理闭环且不回显密钥', async ({ page, request }) => {

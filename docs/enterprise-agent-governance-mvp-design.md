@@ -1201,7 +1201,8 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 | T15 | `completed` | 2026-08-19 已交付管理端 tgz 上传/发布/退休、完整 assignment 原子替换与回滚、设备 inventory，以及桌面员工插件 tab；真实 Server Playwright 与 rc.7 Harness 重启/Loader ACTIVE 证据见 [`t15-plugin-pages-acceptance.md`](t15-plugin-pages-acceptance.md)。 |
 | T16 | `completed` | 2026-08-19 已实现官方 format v0 精确 JSONL/SHA-256/rolling hash、ACTIVE 源设备行锁复制、AES-GCM、本人/admin 读取、正文独立权限、tombstone 与 90 天 retention；完整证据见 [`t16-session-server-acceptance.md`](t16-session-server-acceptance.md)。 |
 | T17 | `completed` | 2026-08-19 已实现 dirty queue、flush/readFrom 双边界批次、无正文原子确认游标、READY 断点发现、退避/终态、远端列表与完整验证后的新 ID 耐久恢复；树外 consumer 和锁定 rc.7 真实 Session/Persistence 证据见 [`t17-session-client-acceptance.md`](t17-session-client-acceptance.md)。 |
-| T18-T23 | `pending` | T18 是唯一下一项；T18 独立验收并提交前不得开始 T19。 |
+| T18 | `completed` | 2026-08-19 已交付管理 Session metadata/正文/删除权限面、员工同步状态/远端列表/恢复/删除 tab；真实 Server Playwright、读取审计、跨设备 rc.7 Harness 恢复与 DELETED 重启不重传证据见 [`t18-session-pages-acceptance.md`](t18-session-pages-acceptance.md)。 |
+| T19-T23 | `pending` | T19 是唯一下一项；T19 独立验收并提交前不得开始 T20。 |
 
 ## 23. Definition of Done
 

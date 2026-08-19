@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖官方 Session/SessionPersistence、enterprisePlatform、精确线协议与原子 cursor store
- * [OUTPUT]: 对外提供 EnterpriseSessionSyncService 的 dirty queue、单 worker、退避、远端列表与恢复事务
+ * [OUTPUT]: 对外提供 EnterpriseSessionSyncService 的 dirty queue、单 worker、退避、远端列表、恢复与 tombstone 删除事务
  * [POS]: session-sync 的生命周期核心，使本地耐久写入与远端复制解耦并把远端确认作为唯一游标提交点
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -9,6 +9,7 @@ import { stat } from 'node:fs/promises'
 import { Service } from '@deepseek-ai/cordis'
 import { SessionId, type Session, type SessionEvent } from '@deepseek-ai/dsh-session'
 import {
+  zDeletedSessionResponse,
   zOwnedSessionListResponse,
   zSessionBatchAcceptedResponse,
   zSessionExportResponse,
@@ -26,6 +27,7 @@ import { SessionCursorStore } from './state-store.js'
 import type {
   RestoreRemoteSessionInput,
   RestoreRemoteSessionResult,
+  DeleteRemoteSessionResult,
   SessionCursorFile,
   SessionCursorRecord,
   SessionCursorState,
@@ -101,7 +103,7 @@ function stateForCode(code: string): SessionCursorState {
 
 function isTerminalState(state: SessionCursorState): boolean {
   return state === 'SEQ_GAP' || state === 'DIVERGED' || state === 'SOURCE_DEVICE_CONFLICT'
-    || state === 'FORMAT_UNSUPPORTED' || state === 'CONTENT_EXPIRED' || state === 'FAILED'
+    || state === 'FORMAT_UNSUPPORTED' || state === 'CONTENT_EXPIRED' || state === 'DELETED' || state === 'FAILED'
 }
 
 function cursorRecord(
@@ -189,7 +191,7 @@ export class EnterpriseSessionSyncService extends Service {
     const successful = cursors.flatMap(cursor => cursor.lastSuccessAt === null ? [] : [cursor.lastSuccessAt])
       .sort()
     return {
-      backlog: cursors.filter(cursor => cursor.state !== 'SYNCED').length + uncommittedJobs,
+      backlog: cursors.filter(cursor => cursor.state !== 'SYNCED' && cursor.state !== 'DELETED').length + uncommittedJobs,
       lastSuccessfulSyncAt: successful.at(-1) ?? null,
       cursors,
       ...(this.fatalErrorCode === undefined ? {} : { fatalErrorCode: this.fatalErrorCode }),
@@ -215,6 +217,74 @@ export class EnterpriseSessionSyncService extends Service {
       signal: this.lifetime.signal,
     })
     return zOwnedSessionListResponse.parse(await responseJson(response)).data
+  }
+
+  /** 停稳同 Session worker 后删除远端副本，并以本地 DELETED 游标阻止后续自动重传。 */
+  async deleteRemote(sessionId: string): Promise<DeleteRemoteSessionResult> {
+    this.assertOpen()
+    const escapedSessionId = escapeSessionId(sessionId)
+    await this.startup
+    const job = this.jobs.get(sessionId)
+    const resume = job === undefined ? undefined : {
+      dirty: job.dirty,
+      paused: job.paused,
+    }
+    if (job !== undefined) {
+      if (job.timer !== undefined) clearTimeout(job.timer)
+      job.timer = undefined
+      job.dirty = false
+      job.paused = true
+      if (job.worker !== undefined) await job.worker
+    }
+    try {
+      const cursor = this.cursors.get(sessionId)
+      let hasLocalReplica = cursor !== undefined || job !== undefined
+        || this.syncContext.sessions.get(SessionId(sessionId)) !== undefined
+      if (!hasLocalReplica) {
+        const headers = await this.syncContext.sessionPersistence.list(this.lifetime.signal)
+        hasLocalReplica = headers.some(header => String(header.id) === sessionId)
+      }
+      const sourceDeviceId = cursor?.sourceDeviceId ?? (hasLocalReplica
+        ? this.platform.bootstrap()?.device.id
+        : undefined)
+      if (hasLocalReplica && sourceDeviceId === undefined) {
+        throw new SessionSyncError('ENT_AUTH_REQUIRED', 'platform bootstrap is unavailable', true)
+      }
+      const response = await this.platform.request(`${SESSION_API_PATH}/${escapedSessionId}`, {
+        method: 'DELETE',
+        signal: this.lifetime.signal,
+      })
+      let deleted: ReturnType<typeof zDeletedSessionResponse.parse>['data']
+      try {
+        deleted = zDeletedSessionResponse.parse(await responseJson(response)).data
+      } catch (error) {
+        if (error instanceof SessionSyncError) throw error
+        throw new SessionSyncError('ENT_SESSION_DIVERGED', 'delete acknowledgement is invalid', false,
+          response.status, { cause: error })
+      }
+      if (deleted.sessionId !== sessionId) {
+        throw new SessionSyncError('ENT_SESSION_DIVERGED', 'delete acknowledgement does not match the Session')
+      }
+      if (sourceDeviceId !== undefined) {
+        await this.commitCursor(cursorRecord(cursor, {
+          sessionId,
+          sourceDeviceId,
+          lastAckSeq: cursor?.lastAckSeq ?? -1,
+          rollingHash: cursor?.rollingHash ?? INITIAL_HASH_BASE64,
+          state: 'DELETED',
+          lastErrorCode: null,
+          lastSuccessAt: cursor?.lastSuccessAt ?? null,
+        }, deleted.deletedAt))
+      }
+      return deleted
+    } catch (error) {
+      if (job !== undefined && resume !== undefined && !this.disposed) {
+        job.paused = resume.paused
+        job.dirty = resume.dirty
+        if (job.dirty && !job.paused) this.scheduleRetry(job, 0)
+      }
+      throw error
+    }
   }
 
   /** 完整验证远端日志后，以新 ID 创建并耐久化本地副本。 */

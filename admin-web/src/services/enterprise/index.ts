@@ -65,6 +65,14 @@ import * as listPluginInventory from "./listPluginInventory";
 import * as getPluginAssignments from "./getPluginAssignments";
 import * as downloadPluginVersion from "./downloadPluginVersion";
 import * as replacePluginInventory from "./replacePluginInventory";
+import * as listOwnedSessions from "./listOwnedSessions";
+import * as appendSessionBatch from "./appendSessionBatch";
+import * as exportOwnedSession from "./exportOwnedSession";
+import * as deleteOwnedSession from "./deleteOwnedSession";
+import * as recordSessionRestore from "./recordSessionRestore";
+import * as listAdminSessions from "./listAdminSessions";
+import * as readAdminSessionContent from "./readAdminSessionContent";
+import * as deleteAdminSession from "./deleteAdminSession";
 export default {
   authorizePlatformClient,
   listPublicIdentitySources,
@@ -129,4 +137,12 @@ export default {
   getPluginAssignments,
   downloadPluginVersion,
   replacePluginInventory,
+  listOwnedSessions,
+  appendSessionBatch,
+  exportOwnedSession,
+  deleteOwnedSession,
+  recordSessionRestore,
+  listAdminSessions,
+  readAdminSessionContent,
+  deleteAdminSession,
 };

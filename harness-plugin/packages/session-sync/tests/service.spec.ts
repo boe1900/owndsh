@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Cordis Context、真实 cursor 临时文件及 fake 官方 Session/Persistence/platform ports
- * [OUTPUT]: 验证非阻塞 dirty queue、flush/readFrom、单 worker、断点续传、退避终态与全量验证后恢复
+ * [OUTPUT]: 验证非阻塞 dirty queue、flush/readFrom、单 worker、断点续传、退避终态、恢复与 tombstone 删除
  * [POS]: session-sync T17 状态机验收，覆盖本地耐久优先和无半成品恢复两条关键不变量
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -172,6 +172,88 @@ async function environment(options: {
 }
 
 describe('EnterpriseSessionSyncService', () => {
+  it('stops the local worker before deleting a remote replica and persists a no-backlog tombstone', async () => {
+    const events = new Map<string, SessionEvent[]>([['session-delete', [event(0)]]])
+    const env = await environment({ events })
+    const live = { id: SessionId('session-delete') } as Session
+    env.live.set('session-delete', live)
+    const methods: string[] = []
+    env.platform.requestHandler = async (_input, init) => {
+      methods.push(init?.method ?? 'GET')
+      if (init?.method === 'DELETE') {
+        return Response.json({
+          data: {
+            replicaId: '701', sessionId: 'session-delete', status: 'DELETED',
+            deletedAt: '2026-08-19T06:00:00.000Z',
+          },
+          requestId: REQUEST_ID,
+        })
+      }
+      return acknowledgement(init)
+    }
+    env.ctx.emit('session/event', live, event(0))
+    await vi.waitFor(() => {
+      expect(env.service.status().cursors[0]).toMatchObject({ state: 'SYNCED', lastAckSeq: 0 })
+    })
+
+    await expect(env.service.deleteRemote('session-delete')).resolves.toMatchObject({
+      sessionId: 'session-delete', status: 'DELETED',
+    })
+    expect(env.service.status()).toMatchObject({ backlog: 0, cursors: [{ state: 'DELETED' }] })
+    env.ctx.emit('session/event', live, event(1))
+    await new Promise(resolve => setTimeout(resolve, 30))
+    expect(methods).toEqual(['POST', 'DELETE'])
+    await expect(env.store.read()).resolves.toMatchObject({ sessions: [{ state: 'DELETED' }] })
+  })
+
+  it('persists a tombstone when deletion wins the race with the first debounced upload', async () => {
+    const events = new Map<string, SessionEvent[]>([['session-delete-pending', [event(0)]]])
+    const env = await environment({ events, debounceMs: 1_000 })
+    const live = { id: SessionId('session-delete-pending') } as Session
+    env.live.set('session-delete-pending', live)
+    const methods: string[] = []
+    env.platform.requestHandler = async (_input, init) => {
+      methods.push(init?.method ?? 'GET')
+      return Response.json({
+        data: {
+          replicaId: '702', sessionId: 'session-delete-pending', status: 'DELETED',
+          deletedAt: '2026-08-19T06:01:00.000Z',
+        },
+        requestId: REQUEST_ID,
+      })
+    }
+    env.ctx.emit('session/event', live, event(0))
+    expect(env.service.status()).toMatchObject({ backlog: 1, cursors: [] })
+
+    await expect(env.service.deleteRemote('session-delete-pending')).resolves.toMatchObject({
+      sessionId: 'session-delete-pending', status: 'DELETED',
+    })
+    expect(methods).toEqual(['DELETE'])
+    expect(env.service.status()).toMatchObject({
+      backlog: 0,
+      cursors: [{ state: 'DELETED', lastAckSeq: -1, rollingHash: INITIAL_ROLLING_HASH.toString('base64') }],
+    })
+    await expect(env.store.read()).resolves.toMatchObject({ sessions: [{ state: 'DELETED', lastAckSeq: -1 }] })
+    env.ctx.emit('session/event', live, event(1))
+    await new Promise(resolve => setTimeout(resolve, 30))
+    expect(methods).toEqual(['DELETE'])
+  })
+
+  it('maps a malformed delete acknowledgement to a stable divergence error', async () => {
+    const env = await environment()
+    env.platform.requestHandler = async () => Response.json({
+      data: {
+        replicaId: '701', sessionId: 'session-delete', status: 'DELETED',
+        deletedAt: 'not-rfc-3339',
+      },
+      requestId: REQUEST_ID,
+    })
+
+    await expect(env.service.deleteRemote('session-delete')).rejects.toMatchObject({
+      code: 'ENT_SESSION_DIVERGED', retryable: false, httpStatus: 200,
+    })
+  })
+
   it('keeps append notification non-blocking and serializes dirty work after flush/readFrom', async () => {
     const events = new Map<string, SessionEvent[]>([['session-live', [event(0)]]])
     const env = await environment({ events })

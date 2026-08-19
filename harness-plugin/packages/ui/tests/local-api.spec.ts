@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 dsh-ui 同源 local-api、标准 Response 与 EventSource test double
- * [OUTPUT]: 验证账号/插件严格解码、固定路径/空对象动作、脱敏投影、SSE 与秘密字段拒绝
+ * [OUTPUT]: 验证账号/插件/Session 严格解码、固定路径、恢复/删除、脱敏投影、复合 SSE 与秘密字段拒绝
  * [POS]: dsh-ui 浏览器网络边界测试，确保浏览器只能消费 Host 脱敏 DTO
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -10,8 +10,11 @@ import {
   createEnterpriseLocalApi,
   decodeEnterprisePluginStatus,
   decodeEnterpriseLocalStatus,
+  decodeEnterpriseRemoteSessionPage,
+  decodeEnterpriseSessionSyncStatus,
   ENTERPRISE_CONNECTION_STATES,
   MANAGED_PLUGIN_STATES,
+  SESSION_SYNC_STATES,
 } from '../src/local-api.js'
 
 const STATUS = {
@@ -30,6 +33,23 @@ const PLUGIN = {
   state: 'RESTART_REQUIRED' as const,
   lastErrorCode: null,
   restartMarker: 'run-20260819',
+}
+
+const SESSION_SYNC = {
+  backlog: 1,
+  lastSuccessfulSyncAt: '2026-08-19T05:00:00.000Z',
+  cursors: [{
+    sessionId: 'session-t18', sourceDeviceId: '90018', lastAckSeq: 4,
+    rollingHash: `${'A'.repeat(43)}=`, state: 'RETRY_WAIT' as const,
+    lastErrorCode: 'ENT_PLATFORM_UNAVAILABLE', updatedAt: '2026-08-19T05:01:00.000Z',
+    lastSuccessAt: '2026-08-19T05:00:00.000Z',
+  }],
+}
+
+const REMOTE_SESSION = {
+  id: 'session-t18', title: 'Remote Session', sourceDeviceId: '90018', sourceDeviceName: 'Zhang Mac',
+  formatVersion: 0 as const, lastSeq: 4, eventCount: 5, status: 'ACTIVE' as const,
+  createdAt: '2026-08-19T04:00:00.000Z', updatedAt: '2026-08-19T05:00:00.000Z',
 }
 
 function ok(data: unknown): Response {
@@ -105,6 +125,78 @@ describe('enterprise local browser API', () => {
     )
   })
 
+  it('strictly projects Session sync/list DTOs without hashes, source IDs, or content bytes', () => {
+    for (const state of SESSION_SYNC_STATES) {
+      expect(decodeEnterpriseSessionSyncStatus({
+        ...SESSION_SYNC, cursors: [{ ...SESSION_SYNC.cursors[0], state }],
+      }).cursors[0]?.state).toBe(state)
+    }
+    const sync = decodeEnterpriseSessionSyncStatus(SESSION_SYNC)
+    expect(sync.cursors[0]).toEqual({
+      sessionId: 'session-t18', lastAckSeq: 4, state: 'RETRY_WAIT',
+      lastErrorCode: 'ENT_PLATFORM_UNAVAILABLE', updatedAt: '2026-08-19T05:01:00.000Z',
+      lastSuccessAt: '2026-08-19T05:00:00.000Z',
+    })
+    expect(JSON.stringify(sync)).not.toMatch(/rollingHash|sourceDeviceId|payload|events/i)
+    expect(decodeEnterpriseRemoteSessionPage({
+      items: [REMOTE_SESSION], page: { hasMore: false, limit: 50, nextCursor: null },
+    }).items).toEqual([REMOTE_SESSION])
+    expect(() => decodeEnterpriseSessionSyncStatus({ ...SESSION_SYNC, accessToken: 'must-not-cross' }))
+      .toThrow('ENT_LOCAL_RESPONSE_INVALID')
+    expect(() => decodeEnterpriseRemoteSessionPage({
+      items: [{ ...REMOTE_SESSION, payloadBase64: 'must-not-cross' }],
+      page: { hasMore: false, limit: 50, nextCursor: null },
+    })).toThrow('ENT_LOCAL_RESPONSE_INVALID')
+    for (const invalidTime of ['2026-08-19 05:00:00Z', '2026-08-19T05:00:00', '2026-13-19T05:00:00Z']) {
+      expect(() => decodeEnterpriseSessionSyncStatus({
+        ...SESSION_SYNC, lastSuccessfulSyncAt: invalidTime,
+      })).toThrow('ENT_LOCAL_RESPONSE_INVALID')
+    }
+    expect(() => decodeEnterpriseRemoteSessionPage({
+      items: [{ ...REMOTE_SESSION, sourceDeviceName: 'x'.repeat(121) }],
+      page: { hasMore: false, limit: 50, nextCursor: null },
+    })).toThrow('ENT_LOCAL_RESPONSE_INVALID')
+    expect(() => decodeEnterpriseRemoteSessionPage({
+      items: [REMOTE_SESSION], page: { hasMore: true, limit: 50, nextCursor: 'x'.repeat(4097) },
+    })).toThrow('ENT_LOCAL_RESPONSE_INVALID')
+  })
+
+  it('uses fixed same-origin Session paths for list, restore, and delete', async () => {
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input)
+      if (path.endsWith('/sessions/sync')) return ok(SESSION_SYNC)
+      if (path.includes('/sessions?')) return ok({
+        items: [REMOTE_SESSION], page: { hasMore: false, limit: 20, nextCursor: null },
+      })
+      if (path.endsWith('/sessions/session-t18/copies')) {
+        return ok({ sessionId: 'restored-t18', sourceSessionId: 'session-t18', seedLength: 5, durable: true })
+      }
+      if (path.endsWith('/sessions/session-t18')) return ok({
+        replicaId: '701', sessionId: 'session-t18', status: 'DELETED',
+        deletedAt: '2026-08-19T06:00:00.000Z',
+      })
+      throw new Error(`unexpected path ${path}`)
+    })
+    const api = createEnterpriseLocalApi(fetcher)
+    const signal = new AbortController().signal
+    await api.sessionSync(signal)
+    await api.sessions(signal, 'opaque', 20)
+    await api.restoreSession('session-t18', '/tmp/work', signal)
+    await api.deleteSession('session-t18', signal)
+
+    expect(fetcher.mock.calls.map(call => String(call[0]))).toEqual([
+      '/enterprise/api/v1/local/sessions/sync',
+      '/enterprise/api/v1/local/sessions?limit=20&cursor=opaque',
+      '/enterprise/api/v1/local/sessions/session-t18/copies',
+      '/enterprise/api/v1/local/sessions/session-t18',
+    ])
+    expect(fetcher.mock.calls[2]?.[1]).toMatchObject({ body: '{"targetCwd":"/tmp/work"}', method: 'POST' })
+    expect(fetcher.mock.calls[3]?.[1]).toMatchObject({ method: 'DELETE' })
+    for (const call of fetcher.mock.calls) {
+      expect(new Headers(call[1]?.headers).get('authorization')).toBeNull()
+    }
+  })
+
   it('uses same-origin fixed paths and strict empty-object POST actions', async () => {
     const fetcher = vi.fn(async (input: RequestInfo | URL) => {
       const path = String(input)
@@ -141,10 +233,13 @@ describe('enterprise local browser API', () => {
       close,
     }) as unknown as EventSource)
     const onStatus = vi.fn()
+    const onSessionSync = vi.fn()
     const onError = vi.fn()
-    const stream = createEnterpriseLocalApi(fetch, factory).events(onStatus, onError)
+    const stream = createEnterpriseLocalApi(fetch, factory).events(onStatus, onSessionSync, onError)
     listeners.get('status')?.(new MessageEvent('status', { data: JSON.stringify({ ...STATUS, state: 'READY' }) }))
     expect(onStatus).toHaveBeenCalledWith({ ...STATUS, state: 'READY' })
+    listeners.get('session-sync')?.(new MessageEvent('session-sync', { data: JSON.stringify(SESSION_SYNC) }))
+    expect(onSessionSync).toHaveBeenCalledWith(decodeEnterpriseSessionSyncStatus(SESSION_SYNC))
     stream.close()
     expect(close).toHaveBeenCalledOnce()
   })

@@ -30,6 +30,70 @@ declare namespace API {
     requestId: string;
   };
 
+  type AdminSession = {
+    replicaId: string;
+    sessionId: string;
+    /** Enterprise user snowflake ID serialized as a string. */
+    ownerUserId: string;
+    ownerUsername: string;
+    /** Enterprise device snowflake ID serialized as a string. */
+    sourceDeviceId: string;
+    sourceDeviceName: string;
+    formatVersion: number;
+    lastSeq: number;
+    eventCount: number;
+    status: "ACTIVE" | "DELETED" | "EXPIRED";
+    createdAt: string;
+    updatedAt: string;
+    deletedAt: string | null;
+  };
+
+  type AdminSessionListResponse = {
+    data: {
+      items: {
+        replicaId: string;
+        sessionId: string;
+        ownerUserId: string;
+        ownerUsername: string;
+        sourceDeviceId: string;
+        sourceDeviceName: string;
+        formatVersion: number;
+        lastSeq: number;
+        eventCount: number;
+        status: "ACTIVE" | "DELETED" | "EXPIRED";
+        createdAt: string;
+        updatedAt: string;
+        deletedAt: string | null;
+      }[];
+      page: { hasMore: boolean; limit: number; nextCursor: string | null };
+    };
+    /** Server-generated req_ prefix followed by one canonical ULID. */
+    requestId: string;
+  };
+
+  type AdminSessionPageData = {
+    items: {
+      replicaId: string;
+      sessionId: string;
+      ownerUserId: string;
+      ownerUsername: string;
+      sourceDeviceId: string;
+      sourceDeviceName: string;
+      formatVersion: number;
+      lastSeq: number;
+      eventCount: number;
+      status: "ACTIVE" | "DELETED" | "EXPIRED";
+      createdAt: string;
+      updatedAt: string;
+      deletedAt: string | null;
+    }[];
+    page: { hasMore: boolean; limit: number; nextCursor: string | null };
+  };
+
+  type appendSessionBatchParams = {
+    sessionId: string;
+  };
+
   type AuthorizationCode = string;
 
   type authorizePlatformClientParams = {
@@ -284,6 +348,10 @@ declare namespace API {
     nextCursor: string | null;
   };
 
+  type deleteAdminSessionParams = {
+    replicaId: string;
+  };
+
   type DeletedResource = {
     id: string;
     deleted: boolean;
@@ -291,6 +359,24 @@ declare namespace API {
 
   type DeletedResourceResponse = {
     data: { id: string; deleted: boolean };
+    /** Server-generated req_ prefix followed by one canonical ULID. */
+    requestId: string;
+  };
+
+  type DeletedSession = {
+    replicaId: string;
+    sessionId: string;
+    status: string;
+    deletedAt: string;
+  };
+
+  type DeletedSessionResponse = {
+    data: {
+      replicaId: string;
+      sessionId: string;
+      status: string;
+      deletedAt: string;
+    };
     /** Server-generated req_ prefix followed by one canonical ULID. */
     requestId: string;
   };
@@ -305,6 +391,10 @@ declare namespace API {
 
   type deleteModelGrantParams = {
     grantId: string;
+  };
+
+  type deleteOwnedSessionParams = {
+    sessionId: string;
   };
 
   type deleteQuotaPolicyParams = {
@@ -607,6 +697,12 @@ declare namespace API {
   };
 
   type EnterpriseUserId = string;
+
+  type exportOwnedSessionParams = {
+    fromSeq?: number;
+    limit?: number;
+    sessionId: string;
+  };
 
   type ExternalIdentitySummary = {
     /** Identity source snowflake ID serialized as a string. */
@@ -978,6 +1074,13 @@ declare namespace API {
     startTls: boolean;
   };
 
+  type listAdminSessionsParams = {
+    /** Server-signed opaque cursor; clients must not parse it. */
+    cursor?: string;
+    /** Cursor page size. */
+    limit?: number;
+  };
+
   type listDevicesParams = {
     /** Server-signed opaque cursor; clients must not parse it. */
     cursor?: string;
@@ -1015,6 +1118,13 @@ declare namespace API {
   };
 
   type listModelProvidersParams = {
+    /** Server-signed opaque cursor; clients must not parse it. */
+    cursor?: string;
+    /** Cursor page size. */
+    limit?: number;
+  };
+
+  type listOwnedSessionsParams = {
     /** Server-signed opaque cursor; clients must not parse it. */
     cursor?: string;
     /** Cursor page size. */
@@ -1321,6 +1431,56 @@ declare namespace API {
       completion_tokens?: number;
       total_tokens?: number;
     } | null;
+  };
+
+  type OwnedSession = {
+    id: string;
+    title: string | null;
+    /** Enterprise device snowflake ID serialized as a string. */
+    sourceDeviceId: string;
+    sourceDeviceName: string;
+    formatVersion: number;
+    lastSeq: number;
+    eventCount: number;
+    status: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+
+  type OwnedSessionListResponse = {
+    data: {
+      items: {
+        id: string;
+        title: string | null;
+        sourceDeviceId: string;
+        sourceDeviceName: string;
+        formatVersion: number;
+        lastSeq: number;
+        eventCount: number;
+        status: string;
+        createdAt: string;
+        updatedAt: string;
+      }[];
+      page: { hasMore: boolean; limit: number; nextCursor: string | null };
+    };
+    /** Server-generated req_ prefix followed by one canonical ULID. */
+    requestId: string;
+  };
+
+  type OwnedSessionPageData = {
+    items: {
+      id: string;
+      title: string | null;
+      sourceDeviceId: string;
+      sourceDeviceName: string;
+      formatVersion: number;
+      lastSeq: number;
+      eventCount: number;
+      status: string;
+      createdAt: string;
+      updatedAt: string;
+    }[];
+    page: { hasMore: boolean; limit: number; nextCursor: string | null };
   };
 
   type PageLimit = integer;
@@ -1881,6 +2041,16 @@ declare namespace API {
     resetsAt: string;
   };
 
+  type readAdminSessionContentParams = {
+    fromSeq?: number;
+    limit?: number;
+    replicaId: string;
+  };
+
+  type recordSessionRestoreParams = {
+    sessionId: string;
+  };
+
   type RemoteSessionId = string;
 
   type replacePluginAssignmentsParams = {
@@ -1963,6 +2133,132 @@ declare namespace API {
     /** Server-generated req_ prefix followed by one canonical ULID. */
     requestId: string;
   };
+
+  type SessionBatchAccepted = {
+    acceptedThroughSeq: number;
+    rollingHash: string;
+  };
+
+  type SessionBatchAcceptedResponse = {
+    data: { acceptedThroughSeq: number; rollingHash: string };
+    /** Server-generated req_ prefix followed by one canonical ULID. */
+    requestId: string;
+  };
+
+  type SessionBatchRequest = {
+    idempotencyKey: string;
+    fromSeq: number;
+    toSeq: number;
+    previousRollingHash: string;
+    payloadSha256: string;
+    payloadBase64: string;
+    header: {
+      version: number;
+      id: string;
+      createdAt: number;
+      cwd?: string;
+      parentSession?: string;
+      seedLength?: number;
+      origin?: string;
+      delegationDepth?: number;
+      agentPreset?: string;
+    } | null;
+    title: string | null;
+  };
+
+  type SessionExport = {
+    sessionId: string;
+    header: {
+      version: number;
+      id: string;
+      createdAt: number;
+      cwd?: string;
+      parentSession?: string;
+      seedLength?: number;
+      origin?: string;
+      delegationDepth?: number;
+      agentPreset?: string;
+    };
+    title: string | null;
+    fromSeq: number;
+    toSeq: number;
+    eventCount: number;
+    previousRollingHash: string;
+    rollingHash: string;
+    payloadSha256: string;
+    payloadBase64: string;
+    hasMore: boolean;
+  };
+
+  type SessionExportResponse = {
+    data: {
+      sessionId: string;
+      header: {
+        version: number;
+        id: string;
+        createdAt: number;
+        cwd?: string;
+        parentSession?: string;
+        seedLength?: number;
+        origin?: string;
+        delegationDepth?: number;
+        agentPreset?: string;
+      };
+      title: string | null;
+      fromSeq: number;
+      toSeq: number;
+      eventCount: number;
+      previousRollingHash: string;
+      rollingHash: string;
+      payloadSha256: string;
+      payloadBase64: string;
+      hasMore: boolean;
+    };
+    /** Server-generated req_ prefix followed by one canonical ULID. */
+    requestId: string;
+  };
+
+  type SessionHashBase64 = string;
+
+  type SessionHeader = {
+    version: number;
+    id: string;
+    createdAt: number;
+    cwd?: string;
+    parentSession?: string;
+    seedLength?: number;
+    origin?: string;
+    delegationDepth?: number;
+    agentPreset?: string;
+  };
+
+  type SessionId = string;
+
+  type SessionReplicaId = string;
+
+  type SessionRestoreRecord = {
+    sourceSessionId: string;
+    restoredSessionId: string;
+    recordedAt: string;
+  };
+
+  type SessionRestoreRecordRequest = {
+    restoredSessionId: string;
+  };
+
+  type SessionRestoreRecordResponse = {
+    data: {
+      sourceSessionId: string;
+      restoredSessionId: string;
+      recordedAt: string;
+    };
+    /** Server-generated req_ prefix followed by one canonical ULID. */
+    requestId: string;
+  };
+
+  type SessionSequence = integer;
+
+  type SessionStatus = "ACTIVE" | "DELETED" | "EXPIRED";
 
   type startOidcLoginParams = {
     sourceId: string;

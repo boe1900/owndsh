@@ -20,7 +20,7 @@ gen/: RuoYi API 类型与请求客户端生成配置。
 package.json: React 19 管理端依赖、脚本和 Node/pnpm 工具链约束真源。
 playwright.config.ts: 真实 Server Chromium 串行 E2E、截图和 trace 配置。
 pnpm-lock.yaml: plus-ui 锁定依赖图，保证管理端原始构建可复现。
-src/: 管理端页面、组件、状态和 API 源码，包含 T12 治理控制台、T15 插件工作台与生成协议客户端。
+src/: 管理端页面、组件、状态和 API 源码，包含 T12 治理控制台、T15 插件工作台、T18 Session 权限页与生成协议客户端。
 tsconfig.json: TypeScript 6 编译边界与路径映射。
 vite.config.ts: Vite/Umi 共享的环境读取、alias、依赖预构建、代理与分包配置。
 vitest.config.ts: Testing Library/jsdom 快速测试配置，与 Umi 生产构建隔离。

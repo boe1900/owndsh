@@ -22,6 +22,11 @@ T17 adds `ctx.enterpriseSessionSync` through official rc.7 `sessions` and
 `sessionPersistence`: local append remains network-independent, acknowledged
 cursors are atomic and content-free, and a fully verified remote log is
 restored under a new durable Session ID.
+T18 exposes that service through the third Enterprise Settings tab: strict
+same-origin DTOs show cursor states and remote metadata, restore a cross-device
+copy into an existing local directory, and delete a remote copy only after an
+explicit confirmation. A persisted `DELETED` cursor prevents that local copy
+from being uploaded again after a Harness restart.
 
 Run the workspace gate with:
 
@@ -38,6 +43,7 @@ pnpm run pack:bundle
 pnpm run accept:t11-model
 pnpm run accept:t14-dsh-plugin
 pnpm run accept:t17-session
+pnpm run accept:t18-browser
 ```
 
 The packed bundle is accepted by `scripts/t01-harness-smoke.mjs` as both a
@@ -63,3 +69,8 @@ accept:t17-session` installs the enterprise bundle into a temporary locked
 Harness `web` profile and proves append network isolation, real
 flush/readFrom, remote list, new-ID restoration, content-free cursor state, and
 upstream cleanliness.
+`pnpm run accept:t18-browser` starts a controlled cross-device platform and a
+temporary locked Harness `web` profile for the real Settings workflow. After
+the operator restores and deletes the new copy, its completion endpoint
+restarts the same profile and proves the persisted tombstone causes zero
+retransmissions before removing the temporary `DSH_HOME`.
