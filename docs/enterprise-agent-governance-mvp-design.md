@@ -788,8 +788,8 @@ MVP 必须产生以下 action：
 | `ent_plugin_version` | `id,tenant_id,package_id,version,artifact_ref,size_bytes,sha256,signature,compatibility_json,status,created_by,created_at,revision` | 唯一 `(package_id,version)`；唯一 `(tenant_id,sha256)` |
 | `ent_plugin_assignment` | `id,tenant_id,package_id,plugin_version_id,subject_type,subject_id,desired_state,required,status,revision` | 外键保证 version 属于 package；非 ALL 唯一 `(package_id,subject_type,subject_id)`，ALL 使用 `subject_id is null` 的部分唯一索引保证每 package 只有一条；type 检查 `ALL/DEPT/USER` |
 | `ent_device_plugin` | `id,tenant_id,device_id,package_name,version,sha256,desired_revision,state,loader_phase,last_error_code,observed_at` | 唯一 `(device_id,package_name)`；索引 `(state,observed_at)` |
-| `ent_session_replica` | `id,tenant_id,session_id,owner_user_id,source_device_id,format_version,content_key_version,header_ciphertext,header_nonce,title_ciphertext,title_nonce,last_seq,event_count,rolling_hash,status,created_at,updated_at,deleted_at` | 唯一 `(tenant_id,owner_user_id,session_id)`；`last_seq >= -1`；event 使用 replica 的 content key version；索引 owner/status/updated |
-| `ent_session_event` | `tenant_id,replica_id,seq,event_type,event_time,ciphertext,nonce,event_hash,created_at` | 主键 `(replica_id,seq)`；禁止业务 update；索引 `(replica_id,event_type)` |
+| `ent_session_replica` | `id,tenant_id,session_id,owner_user_id,source_device_id,format_version,content_key_version,header_ciphertext,header_nonce,title_ciphertext,title_nonce,last_seq,event_count,rolling_hash,status,created_at,updated_at,deleted_at` | 唯一 `(tenant_id,owner_user_id,session_id)`；官方 rc.7 `format_version=0`；`last_seq >= -1`；索引 owner/status/updated 与 status/updated retention |
+| `ent_session_event` | `tenant_id,replica_id,seq,event_type,event_time,ciphertext,nonce,event_hash,created_at` | 主键 `(replica_id,seq)`；`event_hash` 保存包含当前事件后的 rolling-hash checkpoint；禁止业务 update；索引 `(replica_id,event_type)` |
 | `ent_replication_batch` | `id,tenant_id,replica_id,device_id,idempotency_key,from_seq,to_seq,payload_sha256,result_hash,created_at` | 唯一 `(tenant_id,idempotency_key)`；范围检查 |
 | `ent_audit_event` | `id,tenant_id,occurred_at,actor_type,actor_id,device_id,action,resource_type,resource_id,result,reason_code,request_id,source_ip,user_agent_hash,metadata_json` | 索引 `(occurred_at)`、`(actor_id,occurred_at)`、`(action,occurred_at)`、`request_id`、`(resource_type,resource_id)` |
 
@@ -807,6 +807,7 @@ MVP 必须产生以下 action：
 | `V6__enterprise_quota_runtime.sql` | 冻结部署时区，并为 reservation 补齐崩溃恢复所需 requestId |
 | `V7__enterprise_admin_observability.sql` | 持久化身份源最近测试与设备 heartbeat 的插件/同步脱敏摘要，供管理控制台查询 |
 | `V8__enterprise_plugin_server.sql` | 修正 assignment desired state，并补齐插件服务端库存观测约束 |
+| `V9__enterprise_session_format.sql` | 前向修正 V3 的历史正数约束为官方 rc.7 format v0，并补齐 hash 长度与 retention 索引 |
 
 Flyway 使用独立 migration 数据库账号；运行时账号只有 DML 和 sequence 权限。migration 必须在空 PostgreSQL 和从前一 migration 升级两条路径测试。
 
@@ -854,6 +855,11 @@ Flyway 在已有 RuoYi PostgreSQL schema 上以 version `0` 建立 baseline，�
 | 审计 | `/enterprise/admin/v1/audit-events` | 只读筛选与 cursor 分页 |
 
 所有管理创建请求必须带 `Idempotency-Key`，更新和状态动作必须带 `If-Match: <revision>`。删除授权等幂等操作重复执行返回当前状态。批量分配每次最多 200 个 subject，并在一个事务中全成或全败。
+
+Session 管理端以服务端 `replicaId` 作为详情资源 ID：metadata list 使用 `ent:session:read` 且不解密
+header/title/event；`GET /enterprise/admin/v1/sessions/{replicaId}/content` 独立要求
+`ent:session:content:read` 并写 `SESSION_CONTENT_READ`；删除使用 `ent:session:delete`。员工 runtime 路径
+仍以本人 `sessionId` 定位，owner 和 source device 只取自服务端 Token terminal 与设备表。
 
 provider `test` 使用尚未保存的 base URL 和可选新密钥执行一次 `/models` 或最小 chat 探测，结果只返回成功、延迟、上游状态类别和 requestId；不回显响应正文。
 
@@ -1193,7 +1199,8 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 | T13 | `completed` | 2026-08-19 已实现 tgz 流式校验、RFC 8785 JCS/Ed25519、带 hash 互斥的 CAS、版本状态/CAS、USER>DEPT>ALL 分配、逐请求下载授权、Range、库存替换与 bootstrap 插件投影，见 [`t13-plugin-server-acceptance.md`](t13-plugin-server-acceptance.md)。 |
 | T14 | `completed` | 2026-08-19 已实现客户端下载、大小/SHA-256/Ed25519/compatibility 校验、固定 `ctx.subprocess` argv、原子状态文件、跨进程 Loader active 确认、ABSENT、库存与回滚；树外 package consumer 和锁定 rc.7 真实 CLI 证据见 [`t14-plugin-client-acceptance.md`](t14-plugin-client-acceptance.md)。 |
 | T15 | `completed` | 2026-08-19 已交付管理端 tgz 上传/发布/退休、完整 assignment 原子替换与回滚、设备 inventory，以及桌面员工插件 tab；真实 Server Playwright 与 rc.7 Harness 重启/Loader ACTIVE 证据见 [`t15-plugin-pages-acceptance.md`](t15-plugin-pages-acceptance.md)。 |
-| T16-T23 | `pending` | T16 是唯一下一项；T16 独立验收并提交前不得开始 T17。 |
+| T16 | `completed` | 2026-08-19 已实现官方 format v0 精确 JSONL/SHA-256/rolling hash、ACTIVE 源设备行锁复制、AES-GCM、本人/admin 读取、正文独立权限、tombstone 与 90 天 retention；完整证据见 [`t16-session-server-acceptance.md`](t16-session-server-acceptance.md)。 |
+| T17-T23 | `pending` | T17 是唯一下一项；T17 独立验收并提交前不得开始 T18。 |
 
 ## 23. Definition of Done
 

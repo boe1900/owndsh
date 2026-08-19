@@ -207,6 +207,50 @@ export type PluginInventoryResponse = PluginPluginInventoryResponse;
 
 export type AdminPluginInventoryListResponse = PluginAdminPluginInventoryListResponse;
 
+export type SessionId = SessionSessionId;
+
+export type SessionReplicaId = SessionSessionReplicaId;
+
+export type SessionSequence = SessionSessionSequence;
+
+export type SessionHashBase64 = SessionSessionHashBase64;
+
+export type SessionStatus = SessionSessionStatus;
+
+export type SessionHeader = SessionSessionHeader;
+
+export type SessionBatchRequest = SessionSessionBatchRequest;
+
+export type SessionBatchAccepted = SessionSessionBatchAccepted;
+
+export type SessionBatchAcceptedResponse = SessionSessionBatchAcceptedResponse;
+
+export type OwnedSession = SessionOwnedSession;
+
+export type OwnedSessionPageData = SessionOwnedSessionPageData;
+
+export type OwnedSessionListResponse = SessionOwnedSessionListResponse;
+
+export type AdminSession = SessionAdminSession;
+
+export type AdminSessionPageData = SessionAdminSessionPageData;
+
+export type AdminSessionListResponse = SessionAdminSessionListResponse;
+
+export type SessionExport = SessionSessionExport;
+
+export type SessionExportResponse = SessionSessionExportResponse;
+
+export type DeletedSession = SessionDeletedSession;
+
+export type DeletedSessionResponse = SessionDeletedSessionResponse;
+
+export type SessionRestoreRecordRequest = SessionSessionRestoreRecordRequest;
+
+export type SessionRestoreRecord = SessionSessionRestoreRecord;
+
+export type SessionRestoreRecordResponse = SessionSessionRestoreRecordResponse;
+
 export type QuotaPolicyId = QuotaQuotaPolicyId;
 
 export type QuotaWindowId = QuotaQuotaWindowId;
@@ -297,7 +341,7 @@ export type EnterpriseDeviceId = string;
 export type ManagedModelId = string;
 
 /**
- * Harness-compatible remote Session identifier.
+ * Harness Session identifier; server rejects control characters at the HTTP boundary.
  */
 export type RemoteSessionId = string;
 
@@ -1295,6 +1339,144 @@ export type QuotaUsageSummary = {
     totalTokens: number;
 };
 
+export type SessionAdminSession = {
+    replicaId: SessionSessionReplicaId;
+    sessionId: SessionSessionId;
+    ownerUserId: EnterpriseUserId;
+    ownerUsername: string;
+    sourceDeviceId: EnterpriseDeviceId;
+    sourceDeviceName: string;
+    formatVersion: 0;
+    lastSeq: SessionSessionSequence;
+    eventCount: number;
+    status: SessionSessionStatus;
+    createdAt: string;
+    updatedAt: string;
+    deletedAt: string | null;
+};
+
+export type SessionAdminSessionListResponse = {
+    data: SessionAdminSessionPageData;
+    requestId: RequestId;
+};
+
+export type SessionAdminSessionPageData = {
+    items: Array<SessionAdminSession>;
+    page: CursorPage;
+};
+
+export type SessionDeletedSession = {
+    replicaId: SessionSessionReplicaId;
+    sessionId: SessionSessionId;
+    status: 'DELETED';
+    deletedAt: string;
+};
+
+export type SessionDeletedSessionResponse = {
+    data: SessionDeletedSession;
+    requestId: RequestId;
+};
+
+export type SessionOwnedSession = {
+    id: SessionSessionId;
+    title: string | null;
+    sourceDeviceId: EnterpriseDeviceId;
+    sourceDeviceName: string;
+    formatVersion: 0;
+    lastSeq: SessionSessionSequence;
+    eventCount: number;
+    status: 'ACTIVE';
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type SessionOwnedSessionListResponse = {
+    data: SessionOwnedSessionPageData;
+    requestId: RequestId;
+};
+
+export type SessionOwnedSessionPageData = {
+    items: Array<SessionOwnedSession>;
+    page: CursorPage;
+};
+
+export type SessionSessionBatchAccepted = {
+    acceptedThroughSeq: SessionSessionSequence;
+    rollingHash: SessionSessionHashBase64;
+};
+
+export type SessionSessionBatchAcceptedResponse = {
+    data: SessionSessionBatchAccepted;
+    requestId: RequestId;
+};
+
+export type SessionSessionBatchRequest = {
+    idempotencyKey: string;
+    fromSeq: SessionSessionSequence;
+    toSeq: SessionSessionSequence;
+    previousRollingHash: SessionSessionHashBase64;
+    payloadSha256: SessionSessionHashBase64;
+    payloadBase64: string;
+    header: SessionSessionHeader | null;
+    title: string | null;
+};
+
+export type SessionSessionExport = {
+    sessionId: SessionSessionId;
+    header: SessionSessionHeader;
+    title: string | null;
+    fromSeq: SessionSessionSequence;
+    toSeq: SessionSessionSequence;
+    eventCount: number;
+    previousRollingHash: SessionSessionHashBase64;
+    rollingHash: SessionSessionHashBase64;
+    payloadSha256: SessionSessionHashBase64;
+    payloadBase64: string;
+    hasMore: boolean;
+};
+
+export type SessionSessionExportResponse = {
+    data: SessionSessionExport;
+    requestId: RequestId;
+};
+
+export type SessionSessionHashBase64 = string;
+
+export type SessionSessionHeader = {
+    version: 0;
+    id: SessionSessionId;
+    createdAt: SessionSessionSequence;
+    cwd?: string;
+    parentSession?: SessionSessionId;
+    seedLength?: SessionSessionSequence;
+    origin?: 'subagent';
+    delegationDepth?: SessionSessionSequence;
+    agentPreset?: string;
+};
+
+export type SessionSessionId = string;
+
+export type SessionSessionReplicaId = string;
+
+export type SessionSessionRestoreRecord = {
+    sourceSessionId: SessionSessionId;
+    restoredSessionId: SessionSessionId;
+    recordedAt: string;
+};
+
+export type SessionSessionRestoreRecordRequest = {
+    restoredSessionId: SessionSessionId;
+};
+
+export type SessionSessionRestoreRecordResponse = {
+    data: SessionSessionRestoreRecord;
+    requestId: RequestId;
+};
+
+export type SessionSessionSequence = number;
+
+export type SessionSessionStatus = 'ACTIVE' | 'DELETED' | 'EXPIRED';
+
 export type Authorize = unknown;
 
 export type Logout = unknown;
@@ -1395,6 +1577,22 @@ export type QuotaItem = unknown;
 
 export type QuotaWindows = unknown;
 
+export type AdminSessionCollection = unknown;
+
+export type AdminSessionContent = unknown;
+
+export type AdminSessionItem = unknown;
+
+export type RuntimeSessionBatch = unknown;
+
+export type RuntimeSessionCollection = unknown;
+
+export type RuntimeSessionExport = unknown;
+
+export type RuntimeSessionItem = unknown;
+
+export type RuntimeSessionRestoreRecord = unknown;
+
 export type IdentitySourceIdWritable = IdentityIdentitySourceId;
 
 export type GroupMappingIdWritable = IdentityGroupMappingId;
@@ -1448,6 +1646,16 @@ export type PluginPackageIdWritable = PluginPluginPackageId;
 export type PluginVersionIdWritable = PluginPluginVersionId;
 
 export type PluginAssignmentIdWritable = PluginPluginAssignmentId;
+
+export type SessionIdWritable = SessionSessionId;
+
+export type SessionReplicaIdWritable = SessionSessionReplicaId;
+
+export type SessionSequenceWritable = SessionSessionSequence;
+
+export type SessionHashBase64Writable = SessionSessionHashBase64;
+
+export type SessionStatusWritable = SessionSessionStatus;
 
 export type QuotaPolicyIdWritable = QuotaQuotaPolicyId;
 
@@ -1600,6 +1808,14 @@ export type IfMatchRevision = Revision;
  * Caller-generated UUID v4 reused only for one logical write.
  */
 export type IdempotencyKey = string;
+
+export type EventLimit = number;
+
+export type FromSeq = SessionSessionSequence;
+
+export type SessionIdPath = SessionSessionId;
+
+export type SessionReplicaIdPath = SessionSessionReplicaId;
 
 export type AuthorizePlatformClientData = {
     body?: never;
@@ -4102,3 +4318,319 @@ export type ReplacePluginInventoryResponses = {
 };
 
 export type ReplacePluginInventoryResponse = ReplacePluginInventoryResponses[keyof ReplacePluginInventoryResponses];
+
+export type ListOwnedSessionsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Server-signed opaque cursor; clients must not parse it.
+         */
+        cursor?: Cursor;
+        /**
+         * Cursor page size.
+         */
+        limit?: PageLimit;
+    };
+    url: '/enterprise/api/v1/sessions';
+};
+
+export type ListOwnedSessionsErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type ListOwnedSessionsError = ListOwnedSessionsErrors[keyof ListOwnedSessionsErrors];
+
+export type ListOwnedSessionsResponses = {
+    /**
+     * Current user's ACTIVE remote Session replicas.
+     */
+    200: SessionOwnedSessionListResponse;
+};
+
+export type ListOwnedSessionsResponse = ListOwnedSessionsResponses[keyof ListOwnedSessionsResponses];
+
+export type AppendSessionBatchData = {
+    body: SessionSessionBatchRequest;
+    path: {
+        sessionId: SessionSessionId;
+    };
+    query?: never;
+    url: '/enterprise/api/v1/sessions/{sessionId}/batches';
+};
+
+export type AppendSessionBatchErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+    /**
+     * Request or archive is too large.
+     */
+    413: EnterpriseErrorResponse;
+};
+
+export type AppendSessionBatchError = AppendSessionBatchErrors[keyof AppendSessionBatchErrors];
+
+export type AppendSessionBatchResponses = {
+    /**
+     * Batch accepted, including a complete idempotent replay.
+     */
+    200: SessionSessionBatchAcceptedResponse;
+};
+
+export type AppendSessionBatchResponse = AppendSessionBatchResponses[keyof AppendSessionBatchResponses];
+
+export type ExportOwnedSessionData = {
+    body?: never;
+    path: {
+        sessionId: SessionSessionId;
+    };
+    query?: {
+        fromSeq?: SessionSessionSequence;
+        limit?: number;
+    };
+    url: '/enterprise/api/v1/sessions/{sessionId}/export';
+};
+
+export type ExportOwnedSessionErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+};
+
+export type ExportOwnedSessionError = ExportOwnedSessionErrors[keyof ExportOwnedSessionErrors];
+
+export type ExportOwnedSessionResponses = {
+    /**
+     * Exact JSONL bytes and rolling-hash proof for one event page.
+     */
+    200: SessionSessionExportResponse;
+};
+
+export type ExportOwnedSessionResponse = ExportOwnedSessionResponses[keyof ExportOwnedSessionResponses];
+
+export type DeleteOwnedSessionData = {
+    body?: never;
+    path: {
+        sessionId: SessionSessionId;
+    };
+    query?: never;
+    url: '/enterprise/api/v1/sessions/{sessionId}';
+};
+
+export type DeleteOwnedSessionErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+};
+
+export type DeleteOwnedSessionError = DeleteOwnedSessionErrors[keyof DeleteOwnedSessionErrors];
+
+export type DeleteOwnedSessionResponses = {
+    /**
+     * Session content deleted and tombstoned.
+     */
+    200: SessionDeletedSessionResponse;
+};
+
+export type DeleteOwnedSessionResponse = DeleteOwnedSessionResponses[keyof DeleteOwnedSessionResponses];
+
+export type RecordSessionRestoreData = {
+    body: SessionSessionRestoreRecordRequest;
+    path: {
+        sessionId: SessionSessionId;
+    };
+    query?: never;
+    url: '/enterprise/api/v1/sessions/{sessionId}/restore-record';
+};
+
+export type RecordSessionRestoreErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+};
+
+export type RecordSessionRestoreError = RecordSessionRestoreErrors[keyof RecordSessionRestoreErrors];
+
+export type RecordSessionRestoreResponses = {
+    /**
+     * Successful local-copy creation associated in audit.
+     */
+    200: SessionSessionRestoreRecordResponse;
+};
+
+export type RecordSessionRestoreResponse = RecordSessionRestoreResponses[keyof RecordSessionRestoreResponses];
+
+export type ListAdminSessionsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Server-signed opaque cursor; clients must not parse it.
+         */
+        cursor?: Cursor;
+        /**
+         * Cursor page size.
+         */
+        limit?: PageLimit;
+    };
+    url: '/enterprise/admin/v1/sessions';
+};
+
+export type ListAdminSessionsErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type ListAdminSessionsError = ListAdminSessionsErrors[keyof ListAdminSessionsErrors];
+
+export type ListAdminSessionsResponses = {
+    /**
+     * Session metadata only; no title, header or event content is decrypted.
+     */
+    200: SessionAdminSessionListResponse;
+};
+
+export type ListAdminSessionsResponse = ListAdminSessionsResponses[keyof ListAdminSessionsResponses];
+
+export type ReadAdminSessionContentData = {
+    body?: never;
+    path: {
+        replicaId: SessionSessionReplicaId;
+    };
+    query?: {
+        fromSeq?: SessionSessionSequence;
+        limit?: number;
+    };
+    url: '/enterprise/admin/v1/sessions/{replicaId}/content';
+};
+
+export type ReadAdminSessionContentErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+};
+
+export type ReadAdminSessionContentError = ReadAdminSessionContentErrors[keyof ReadAdminSessionContentErrors];
+
+export type ReadAdminSessionContentResponses = {
+    /**
+     * Decrypted content page; requires ent:session:content:read and emits audit.
+     */
+    200: SessionSessionExportResponse;
+};
+
+export type ReadAdminSessionContentResponse = ReadAdminSessionContentResponses[keyof ReadAdminSessionContentResponses];
+
+export type DeleteAdminSessionData = {
+    body?: never;
+    path: {
+        replicaId: SessionSessionReplicaId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/sessions/{replicaId}';
+};
+
+export type DeleteAdminSessionErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+};
+
+export type DeleteAdminSessionError = DeleteAdminSessionErrors[keyof DeleteAdminSessionErrors];
+
+export type DeleteAdminSessionResponses = {
+    /**
+     * Session content deleted and tombstoned by an authorized administrator.
+     */
+    200: SessionDeletedSessionResponse;
+};
+
+export type DeleteAdminSessionResponse = DeleteAdminSessionResponses[keyof DeleteAdminSessionResponses];

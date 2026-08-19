@@ -15,7 +15,8 @@ construct IDs through the matching `parse*Id()` helper.
 
 The public surface also exports the T08 provider, managed-model, and grant DTOs,
 the T09 bootstrap quota, policy/window, active-device usage, and prompt-free
-ledger DTOs, plus the T10/T11 gateway request with its validated reasoning pair.
+ledger DTOs, the T10/T11 gateway request with its validated reasoning pair, and
+the T16 format-v0 Session batch/list/export/tombstone DTOs and strict schemas.
 Provider credentials remain write-only; provider routes and credentials are
 intentionally absent from every client-controlled gateway field and runtime
 response type.

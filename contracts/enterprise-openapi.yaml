@@ -114,6 +114,22 @@ paths:
     $ref: './paths/plugin.yaml#/RuntimePluginDownload'
   /enterprise/api/v1/plugins/inventory:
     $ref: './paths/plugin.yaml#/RuntimePluginInventory'
+  /enterprise/api/v1/sessions:
+    $ref: './paths/session.yaml#/RuntimeSessionCollection'
+  /enterprise/api/v1/sessions/{sessionId}/batches:
+    $ref: './paths/session.yaml#/RuntimeSessionBatch'
+  /enterprise/api/v1/sessions/{sessionId}/export:
+    $ref: './paths/session.yaml#/RuntimeSessionExport'
+  /enterprise/api/v1/sessions/{sessionId}:
+    $ref: './paths/session.yaml#/RuntimeSessionItem'
+  /enterprise/api/v1/sessions/{sessionId}/restore-record:
+    $ref: './paths/session.yaml#/RuntimeSessionRestoreRecord'
+  /enterprise/admin/v1/sessions:
+    $ref: './paths/session.yaml#/AdminSessionCollection'
+  /enterprise/admin/v1/sessions/{replicaId}/content:
+    $ref: './paths/session.yaml#/AdminSessionContent'
+  /enterprise/admin/v1/sessions/{replicaId}:
+    $ref: './paths/session.yaml#/AdminSessionItem'
 
 x-enterprise-error-statuses:
   '400':
@@ -274,6 +290,21 @@ x-enterprise-fixtures:
     valid: true
   - file: fixtures/plugin-inventory-success.json
     schema: PluginInventoryResponse
+    valid: true
+  - file: fixtures/session-batch-success.json
+    schema: SessionBatchAcceptedResponse
+    valid: true
+  - file: fixtures/session-list-success.json
+    schema: OwnedSessionListResponse
+    valid: true
+  - file: fixtures/session-export-success.json
+    schema: SessionExportResponse
+    valid: true
+  - file: fixtures/admin-session-list-success.json
+    schema: AdminSessionListResponse
+    valid: true
+  - file: fixtures/session-deleted-success.json
+    schema: DeletedSessionResponse
     valid: true
 
 components:
@@ -648,6 +679,28 @@ components:
     PluginInventoryRequest: {$ref: './components/plugin.yaml#/PluginInventoryRequest'}
     PluginInventoryResponse: {$ref: './components/plugin.yaml#/PluginInventoryResponse'}
     AdminPluginInventoryListResponse: {$ref: './components/plugin.yaml#/AdminPluginInventoryListResponse'}
+    SessionId: {$ref: './components/session.yaml#/SessionId'}
+    SessionReplicaId: {$ref: './components/session.yaml#/SessionReplicaId'}
+    SessionSequence: {$ref: './components/session.yaml#/SessionSequence'}
+    SessionHashBase64: {$ref: './components/session.yaml#/SessionHashBase64'}
+    SessionStatus: {$ref: './components/session.yaml#/SessionStatus'}
+    SessionHeader: {$ref: './components/session.yaml#/SessionHeader'}
+    SessionBatchRequest: {$ref: './components/session.yaml#/SessionBatchRequest'}
+    SessionBatchAccepted: {$ref: './components/session.yaml#/SessionBatchAccepted'}
+    SessionBatchAcceptedResponse: {$ref: './components/session.yaml#/SessionBatchAcceptedResponse'}
+    OwnedSession: {$ref: './components/session.yaml#/OwnedSession'}
+    OwnedSessionPageData: {$ref: './components/session.yaml#/OwnedSessionPageData'}
+    OwnedSessionListResponse: {$ref: './components/session.yaml#/OwnedSessionListResponse'}
+    AdminSession: {$ref: './components/session.yaml#/AdminSession'}
+    AdminSessionPageData: {$ref: './components/session.yaml#/AdminSessionPageData'}
+    AdminSessionListResponse: {$ref: './components/session.yaml#/AdminSessionListResponse'}
+    SessionExport: {$ref: './components/session.yaml#/SessionExport'}
+    SessionExportResponse: {$ref: './components/session.yaml#/SessionExportResponse'}
+    DeletedSession: {$ref: './components/session.yaml#/DeletedSession'}
+    DeletedSessionResponse: {$ref: './components/session.yaml#/DeletedSessionResponse'}
+    SessionRestoreRecordRequest: {$ref: './components/session.yaml#/SessionRestoreRecordRequest'}
+    SessionRestoreRecord: {$ref: './components/session.yaml#/SessionRestoreRecord'}
+    SessionRestoreRecordResponse: {$ref: './components/session.yaml#/SessionRestoreRecordResponse'}
     QuotaPolicyId: {$ref: './components/quota.yaml#/QuotaPolicyId'}
     QuotaWindowId: {$ref: './components/quota.yaml#/QuotaWindowId'}
     UsageLedgerId: {$ref: './components/quota.yaml#/UsageLedgerId'}
@@ -700,9 +753,8 @@ components:
     RemoteSessionId:
       type: string
       minLength: 1
-      maxLength: 200
-      pattern: '^[A-Za-z0-9._:/-]+$'
-      description: Harness-compatible remote Session identifier.
+      maxLength: 128
+      description: Harness Session identifier; server rejects control characters at the HTTP boundary.
     CursorPage:
       type: object
       additionalProperties: false

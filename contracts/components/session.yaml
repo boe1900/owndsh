@@ -1,0 +1,307 @@
+# [INPUT]: 依赖官方 rc.7 SessionHeader v0、精确 JSONL/hash 线协议与根协议 cursor/requestId/品牌 ID
+# [OUTPUT]: 提供批次、本人列表、管理 metadata、正文导出、tombstone 与恢复审计 schemas
+# [POS]: contracts/components 的 Session 服务端真源，metadata 列表与受权限保护的正文投影严格分离
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+SessionId:
+  type: string
+  minLength: 1
+  maxLength: 128
+SessionReplicaId:
+  type: string
+  pattern: '^[1-9][0-9]{0,18}$'
+SessionSequence:
+  type: integer
+  minimum: 0
+  maximum: 9007199254740991
+SessionHashBase64:
+  type: string
+  minLength: 44
+  maxLength: 44
+  pattern: '^[A-Za-z0-9+/]{43}=$'
+SessionStatus:
+  type: string
+  enum: [ACTIVE, DELETED, EXPIRED]
+
+SessionHeader:
+  type: object
+  additionalProperties: false
+  required: [version, id, createdAt]
+  properties:
+    version:
+      type: integer
+      const: 0
+    id: {$ref: '#/SessionId'}
+    createdAt: {$ref: '#/SessionSequence'}
+    cwd:
+      type: string
+      minLength: 1
+      maxLength: 4096
+    parentSession: {$ref: '#/SessionId'}
+    seedLength: {$ref: '#/SessionSequence'}
+    origin:
+      type: string
+      const: subagent
+    delegationDepth: {$ref: '#/SessionSequence'}
+    agentPreset:
+      type: string
+      minLength: 1
+      maxLength: 255
+
+SessionBatchRequest:
+  type: object
+  additionalProperties: false
+  required:
+    - idempotencyKey
+    - fromSeq
+    - toSeq
+    - previousRollingHash
+    - payloadSha256
+    - payloadBase64
+    - header
+    - title
+  properties:
+    idempotencyKey:
+      type: string
+      minLength: 1
+      maxLength: 255
+    fromSeq: {$ref: '#/SessionSequence'}
+    toSeq: {$ref: '#/SessionSequence'}
+    previousRollingHash: {$ref: '#/SessionHashBase64'}
+    payloadSha256: {$ref: '#/SessionHashBase64'}
+    payloadBase64:
+      type: string
+      minLength: 4
+      maxLength: 5592408
+      pattern: '^[A-Za-z0-9+/]+={0,2}$'
+    header:
+      oneOf:
+        - $ref: '#/SessionHeader'
+        - type: 'null'
+    title:
+      oneOf:
+        - type: string
+          maxLength: 512
+        - type: 'null'
+
+SessionBatchAccepted:
+  type: object
+  additionalProperties: false
+  required: [acceptedThroughSeq, rollingHash]
+  properties:
+    acceptedThroughSeq: {$ref: '#/SessionSequence'}
+    rollingHash: {$ref: '#/SessionHashBase64'}
+SessionBatchAcceptedResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/SessionBatchAccepted'}
+    requestId: {$ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'}
+
+OwnedSession:
+  type: object
+  additionalProperties: false
+  required:
+    - id
+    - title
+    - sourceDeviceId
+    - sourceDeviceName
+    - formatVersion
+    - lastSeq
+    - eventCount
+    - status
+    - createdAt
+    - updatedAt
+  properties:
+    id: {$ref: '#/SessionId'}
+    title:
+      oneOf:
+        - type: string
+          maxLength: 512
+        - type: 'null'
+    sourceDeviceId: {$ref: '../enterprise-openapi.yaml#/components/schemas/EnterpriseDeviceId'}
+    sourceDeviceName:
+      type: string
+      minLength: 1
+      maxLength: 120
+    formatVersion:
+      type: integer
+      const: 0
+    lastSeq: {$ref: '#/SessionSequence'}
+    eventCount:
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+    status:
+      type: string
+      const: ACTIVE
+    createdAt: {type: string, format: date-time}
+    updatedAt: {type: string, format: date-time}
+OwnedSessionPageData:
+  type: object
+  additionalProperties: false
+  required: [items, page]
+  properties:
+    items:
+      type: array
+      maxItems: 200
+      items: {$ref: '#/OwnedSession'}
+    page: {$ref: '../enterprise-openapi.yaml#/components/schemas/CursorPage'}
+OwnedSessionListResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/OwnedSessionPageData'}
+    requestId: {$ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'}
+
+AdminSession:
+  type: object
+  additionalProperties: false
+  required:
+    - replicaId
+    - sessionId
+    - ownerUserId
+    - ownerUsername
+    - sourceDeviceId
+    - sourceDeviceName
+    - formatVersion
+    - lastSeq
+    - eventCount
+    - status
+    - createdAt
+    - updatedAt
+    - deletedAt
+  properties:
+    replicaId: {$ref: '#/SessionReplicaId'}
+    sessionId: {$ref: '#/SessionId'}
+    ownerUserId: {$ref: '../enterprise-openapi.yaml#/components/schemas/EnterpriseUserId'}
+    ownerUsername:
+      type: string
+      minLength: 1
+      maxLength: 30
+    sourceDeviceId: {$ref: '../enterprise-openapi.yaml#/components/schemas/EnterpriseDeviceId'}
+    sourceDeviceName:
+      type: string
+      minLength: 1
+      maxLength: 120
+    formatVersion:
+      type: integer
+      const: 0
+    lastSeq: {$ref: '#/SessionSequence'}
+    eventCount:
+      type: integer
+      minimum: 1
+      maximum: 9007199254740991
+    status: {$ref: '#/SessionStatus'}
+    createdAt: {type: string, format: date-time}
+    updatedAt: {type: string, format: date-time}
+    deletedAt:
+      oneOf:
+        - type: string
+          format: date-time
+        - type: 'null'
+AdminSessionPageData:
+  type: object
+  additionalProperties: false
+  required: [items, page]
+  properties:
+    items:
+      type: array
+      maxItems: 200
+      items: {$ref: '#/AdminSession'}
+    page: {$ref: '../enterprise-openapi.yaml#/components/schemas/CursorPage'}
+AdminSessionListResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/AdminSessionPageData'}
+    requestId: {$ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'}
+
+SessionExport:
+  type: object
+  additionalProperties: false
+  required:
+    - sessionId
+    - header
+    - title
+    - fromSeq
+    - toSeq
+    - eventCount
+    - previousRollingHash
+    - rollingHash
+    - payloadSha256
+    - payloadBase64
+    - hasMore
+  properties:
+    sessionId: {$ref: '#/SessionId'}
+    header: {$ref: '#/SessionHeader'}
+    title:
+      oneOf:
+        - type: string
+          maxLength: 512
+        - type: 'null'
+    fromSeq: {$ref: '#/SessionSequence'}
+    toSeq: {$ref: '#/SessionSequence'}
+    eventCount:
+      type: integer
+      minimum: 1
+      maximum: 200
+    previousRollingHash: {$ref: '#/SessionHashBase64'}
+    rollingHash: {$ref: '#/SessionHashBase64'}
+    payloadSha256: {$ref: '#/SessionHashBase64'}
+    payloadBase64:
+      type: string
+      minLength: 4
+      pattern: '^[A-Za-z0-9+/]+={0,2}$'
+    hasMore: {type: boolean}
+SessionExportResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/SessionExport'}
+    requestId: {$ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'}
+
+DeletedSession:
+  type: object
+  additionalProperties: false
+  required: [replicaId, sessionId, status, deletedAt]
+  properties:
+    replicaId: {$ref: '#/SessionReplicaId'}
+    sessionId: {$ref: '#/SessionId'}
+    status:
+      type: string
+      const: DELETED
+    deletedAt: {type: string, format: date-time}
+DeletedSessionResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/DeletedSession'}
+    requestId: {$ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'}
+
+SessionRestoreRecordRequest:
+  type: object
+  additionalProperties: false
+  required: [restoredSessionId]
+  properties:
+    restoredSessionId: {$ref: '#/SessionId'}
+SessionRestoreRecord:
+  type: object
+  additionalProperties: false
+  required: [sourceSessionId, restoredSessionId, recordedAt]
+  properties:
+    sourceSessionId: {$ref: '#/SessionId'}
+    restoredSessionId: {$ref: '#/SessionId'}
+    recordedAt: {type: string, format: date-time}
+SessionRestoreRecordResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/SessionRestoreRecord'}
+    requestId: {$ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'}

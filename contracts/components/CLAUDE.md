@@ -11,5 +11,6 @@ model.yaml: T08 provider/model/grant 管理、writeOnly credential、脱敏 prob
 quota.yaml: T09 quota policy/window、bootstrap quota、本人计数和 prompt-free ledger schema 分片。
 gateway.yaml: OpenAI-compatible 严格流式请求、thinking/effort、纯文本 message/function tool 与 chunk/usage schema 分片。
 plugin.yaml: compatibility、版本状态、catalog 完整 assignment 集合、runtime 下载事实和设备库存 schema 分片。
+session.yaml: 官方 rc.7 format v0 header、精确 JSONL/hash、本人/admin metadata、正文页、tombstone 与恢复审计 schema 分片。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

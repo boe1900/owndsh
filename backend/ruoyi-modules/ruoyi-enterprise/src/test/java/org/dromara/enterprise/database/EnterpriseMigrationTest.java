@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 PostgresTestDatabase 装载真实 RuoYi 基线与 V1-V8 classpath migration。
- * [OUTPUT]: 验证空 schema、逐版本升级及 V8 desired-state/库存状态前向兼容迁移。
+ * [INPUT]: 依赖 PostgresTestDatabase 装载真实 RuoYi 基线与 V1-V9 classpath migration。
+ * [OUTPUT]: 验证空 schema、逐版本升级、V8 插件状态与 V9 官方 Session format v0 约束。
  * [POS]: database 的持续 migration 门禁，防止后续任务只验证最终 schema 而遗漏中间版本不可升级。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -27,7 +27,7 @@ class EnterpriseMigrationTest {
 
         Flyway flyway = PostgresTestDatabase.migrate(database, null);
 
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("8");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("9");
         Integer tableCount = database.jdbc().queryForObject("""
             select count(*) from information_schema.tables
             where table_schema = 'public' and table_name like 'ent_%'
@@ -106,14 +106,35 @@ class EnterpriseMigrationTest {
                  'USER',?,'DISABLED',false,'ACTIVE',0)
             """, userId);
 
-        Flyway latest = PostgresTestDatabase.migrate(database, "8");
-        assertThat(latest.info().current().getVersion().getVersion()).isEqualTo("8");
+        Flyway versionEight = PostgresTestDatabase.migrate(database, "8");
+        assertThat(versionEight.info().current().getVersion().getVersion()).isEqualTo("8");
         assertThat(database.jdbc().queryForList(
             "select desired_state from ent_plugin_assignment order by id", String.class
         )).containsExactly("INSTALLED", "ABSENT");
         assertThatThrownBy(() -> database.jdbc().update(
             "update ent_plugin_assignment set desired_state='ACTIVE' where id=1913000000000000201"
         )).isInstanceOf(RuntimeException.class);
+
+        Flyway latest = PostgresTestDatabase.migrate(database, "9");
+        assertThat(latest.info().current().getVersion().getVersion()).isEqualTo("9");
+        database.jdbc().update("""
+            insert into ent_device(
+                id,tenant_id,user_id,installation_id,name,platform,status,last_seen_at,revision
+            ) values (1913000000000000301,'000000',?,'123e4567-e89b-42d3-a456-426614174016',
+                'Migration Device','darwin-arm64','ACTIVE',now(),0)
+            """, userId);
+        database.jdbc().update("""
+            insert into ent_session_replica(
+                id,tenant_id,session_id,owner_user_id,source_device_id,format_version,
+                content_key_version,header_ciphertext,header_nonce,last_seq,event_count,
+                rolling_hash,status,created_at,updated_at
+            ) values (1913000000000000401,'000000','migration-v0',?,1913000000000000301,
+                0,1,decode(repeat('00',16),'hex'),decode(repeat('00',12),'hex'),0,1,
+                decode(repeat('00',32),'hex'),'ACTIVE',now(),now())
+            """, userId);
+        assertThatThrownBy(() -> database.jdbc().update("""
+            update ent_session_replica set format_version=1 where id=1913000000000000401
+            """)).isInstanceOf(RuntimeException.class);
     }
 
     @Test
@@ -130,7 +151,7 @@ class EnterpriseMigrationTest {
             .run(context -> {
                 assertThat(context).hasSingleBean(Flyway.class);
                 assertThat(context.getBean(Flyway.class).info().current().getVersion().getVersion())
-                    .isEqualTo("8");
+                    .isEqualTo("9");
             });
     }
 }

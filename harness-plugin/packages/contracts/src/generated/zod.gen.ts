@@ -35,9 +35,9 @@ export const zEnterpriseDeviceId = z.string().regex(/^[1-9][0-9]{0,18}$/);
 export const zManagedModelId = z.string().regex(/^[1-9][0-9]{0,18}$/);
 
 /**
- * Harness-compatible remote Session identifier.
+ * Harness Session identifier; server rejects control characters at the HTTP boundary.
  */
-export const zRemoteSessionId = z.string().min(1).max(200).regex(/^[A-Za-z0-9._:\/-]+$/);
+export const zRemoteSessionId = z.string().min(1).max(128);
 
 export const zCursorPage = z.object({
     hasMore: z.boolean(),
@@ -1385,6 +1385,192 @@ export const zQuotaUsageLedgerListResponse = z.object({
 
 export const zUsageLedgerListResponse = zQuotaUsageLedgerListResponse;
 
+export const zSessionSessionHashBase64 = z.string().length(44).regex(/^[A-Za-z0-9+\/]{43}=$/);
+
+export const zSessionHashBase64 = zSessionSessionHashBase64;
+
+export const zSessionSessionId = z.string().min(1).max(128);
+
+export const zSessionId = zSessionSessionId;
+
+export const zSessionSessionReplicaId = z.string().regex(/^[1-9][0-9]{0,18}$/);
+
+export const zSessionReplicaId = zSessionSessionReplicaId;
+
+export const zSessionDeletedSession = z.object({
+    replicaId: zSessionSessionReplicaId,
+    sessionId: zSessionSessionId,
+    status: z.literal('DELETED'),
+    deletedAt: z.iso.datetime({ offset: true })
+}).strict();
+
+export const zDeletedSession = zSessionDeletedSession;
+
+export const zSessionDeletedSessionResponse = z.object({
+    data: zSessionDeletedSession,
+    requestId: zRequestId
+}).strict();
+
+export const zDeletedSessionResponse = zSessionDeletedSessionResponse;
+
+export const zSessionSessionRestoreRecord = z.object({
+    sourceSessionId: zSessionSessionId,
+    restoredSessionId: zSessionSessionId,
+    recordedAt: z.iso.datetime({ offset: true })
+}).strict();
+
+export const zSessionRestoreRecord = zSessionSessionRestoreRecord;
+
+export const zSessionSessionRestoreRecordRequest = z.object({
+    restoredSessionId: zSessionSessionId
+}).strict();
+
+export const zSessionRestoreRecordRequest = zSessionSessionRestoreRecordRequest;
+
+export const zSessionSessionRestoreRecordResponse = z.object({
+    data: zSessionSessionRestoreRecord,
+    requestId: zRequestId
+}).strict();
+
+export const zSessionRestoreRecordResponse = zSessionSessionRestoreRecordResponse;
+
+export const zSessionSessionSequence = z.int().gte(0).lte(9007199254740991);
+
+export const zSessionSequence = zSessionSessionSequence;
+
+export const zSessionOwnedSession = z.object({
+    id: zSessionSessionId,
+    title: z.string().max(512).nullable(),
+    sourceDeviceId: zEnterpriseDeviceId,
+    sourceDeviceName: z.string().min(1).max(120),
+    formatVersion: z.literal(0),
+    lastSeq: zSessionSessionSequence,
+    eventCount: z.int().gte(1).lte(9007199254740991),
+    status: z.literal('ACTIVE'),
+    createdAt: z.iso.datetime({ offset: true }),
+    updatedAt: z.iso.datetime({ offset: true })
+}).strict();
+
+export const zOwnedSession = zSessionOwnedSession;
+
+export const zSessionOwnedSessionPageData = z.object({
+    items: z.array(zSessionOwnedSession).max(200),
+    page: zCursorPage
+}).strict();
+
+export const zOwnedSessionPageData = zSessionOwnedSessionPageData;
+
+export const zSessionOwnedSessionListResponse = z.object({
+    data: zSessionOwnedSessionPageData,
+    requestId: zRequestId
+}).strict();
+
+export const zOwnedSessionListResponse = zSessionOwnedSessionListResponse;
+
+export const zSessionSessionBatchAccepted = z.object({
+    acceptedThroughSeq: zSessionSessionSequence,
+    rollingHash: zSessionSessionHashBase64
+}).strict();
+
+export const zSessionBatchAccepted = zSessionSessionBatchAccepted;
+
+export const zSessionSessionBatchAcceptedResponse = z.object({
+    data: zSessionSessionBatchAccepted,
+    requestId: zRequestId
+}).strict();
+
+export const zSessionBatchAcceptedResponse = zSessionSessionBatchAcceptedResponse;
+
+export const zSessionSessionHeader = z.object({
+    version: z.literal(0),
+    id: zSessionSessionId,
+    createdAt: zSessionSessionSequence,
+    cwd: z.string().min(1).max(4096).optional(),
+    parentSession: zSessionSessionId.optional(),
+    seedLength: zSessionSessionSequence.optional(),
+    origin: z.literal('subagent').optional(),
+    delegationDepth: zSessionSessionSequence.optional(),
+    agentPreset: z.string().min(1).max(255).optional()
+}).strict();
+
+export const zSessionHeader = zSessionSessionHeader;
+
+export const zSessionSessionBatchRequest = z.object({
+    idempotencyKey: z.string().min(1).max(255),
+    fromSeq: zSessionSessionSequence,
+    toSeq: zSessionSessionSequence,
+    previousRollingHash: zSessionSessionHashBase64,
+    payloadSha256: zSessionSessionHashBase64,
+    payloadBase64: z.string().min(4).max(5592408).regex(/^[A-Za-z0-9+\/]+={0,2}$/),
+    header: zSessionSessionHeader.nullable(),
+    title: z.string().max(512).nullable()
+}).strict();
+
+export const zSessionBatchRequest = zSessionSessionBatchRequest;
+
+export const zSessionSessionExport = z.object({
+    sessionId: zSessionSessionId,
+    header: zSessionSessionHeader,
+    title: z.string().max(512).nullable(),
+    fromSeq: zSessionSessionSequence,
+    toSeq: zSessionSessionSequence,
+    eventCount: z.int().gte(1).lte(200),
+    previousRollingHash: zSessionSessionHashBase64,
+    rollingHash: zSessionSessionHashBase64,
+    payloadSha256: zSessionSessionHashBase64,
+    payloadBase64: z.string().min(4).regex(/^[A-Za-z0-9+\/]+={0,2}$/),
+    hasMore: z.boolean()
+}).strict();
+
+export const zSessionExport = zSessionSessionExport;
+
+export const zSessionSessionExportResponse = z.object({
+    data: zSessionSessionExport,
+    requestId: zRequestId
+}).strict();
+
+export const zSessionExportResponse = zSessionSessionExportResponse;
+
+export const zSessionSessionStatus = z.enum([
+    'ACTIVE',
+    'DELETED',
+    'EXPIRED'
+]);
+
+export const zSessionStatus = zSessionSessionStatus;
+
+export const zSessionAdminSession = z.object({
+    replicaId: zSessionSessionReplicaId,
+    sessionId: zSessionSessionId,
+    ownerUserId: zEnterpriseUserId,
+    ownerUsername: z.string().min(1).max(30),
+    sourceDeviceId: zEnterpriseDeviceId,
+    sourceDeviceName: z.string().min(1).max(120),
+    formatVersion: z.literal(0),
+    lastSeq: zSessionSessionSequence,
+    eventCount: z.int().gte(1).lte(9007199254740991),
+    status: zSessionSessionStatus,
+    createdAt: z.iso.datetime({ offset: true }),
+    updatedAt: z.iso.datetime({ offset: true }),
+    deletedAt: z.iso.datetime({ offset: true }).nullable()
+}).strict();
+
+export const zAdminSession = zSessionAdminSession;
+
+export const zSessionAdminSessionPageData = z.object({
+    items: z.array(zSessionAdminSession).max(200),
+    page: zCursorPage
+}).strict();
+
+export const zAdminSessionPageData = zSessionAdminSessionPageData;
+
+export const zSessionAdminSessionListResponse = z.object({
+    data: zSessionAdminSessionPageData,
+    requestId: zRequestId
+}).strict();
+
+export const zAdminSessionListResponse = zSessionAdminSessionListResponse;
+
 export const zAuthorize = z.unknown();
 
 export const zLogout = z.unknown();
@@ -1485,6 +1671,22 @@ export const zQuotaItem = z.unknown();
 
 export const zQuotaWindows = z.unknown();
 
+export const zAdminSessionCollection = z.unknown();
+
+export const zAdminSessionContent = z.unknown();
+
+export const zAdminSessionItem = z.unknown();
+
+export const zRuntimeSessionBatch = z.unknown();
+
+export const zRuntimeSessionCollection = z.unknown();
+
+export const zRuntimeSessionExport = z.unknown();
+
+export const zRuntimeSessionItem = z.unknown();
+
+export const zRuntimeSessionRestoreRecord = z.unknown();
+
 export const zIdentitySourceIdWritable = zIdentityIdentitySourceId;
 
 export const zGroupMappingIdWritable = zIdentityGroupMappingId;
@@ -1526,6 +1728,16 @@ export const zPluginPackageIdWritable = zPluginPluginPackageId;
 export const zPluginVersionIdWritable = zPluginPluginVersionId;
 
 export const zPluginAssignmentIdWritable = zPluginPluginAssignmentId;
+
+export const zSessionIdWritable = zSessionSessionId;
+
+export const zSessionReplicaIdWritable = zSessionSessionReplicaId;
+
+export const zSessionSequenceWritable = zSessionSessionSequence;
+
+export const zSessionHashBase64Writable = zSessionSessionHashBase64;
+
+export const zSessionStatusWritable = zSessionSessionStatus;
 
 export const zQuotaPolicyIdWritable = zQuotaQuotaPolicyId;
 
@@ -1687,6 +1899,14 @@ export const zIfMatchRevision = zRevision;
  * Caller-generated UUID v4 reused only for one logical write.
  */
 export const zIdempotencyKey = z.uuid().length(36).regex(/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/);
+
+export const zEventLimit = z.int().gte(1).lte(200).default(200);
+
+export const zFromSeq = zSessionSessionSequence.default(0);
+
+export const zSessionIdPath = zSessionSessionId;
+
+export const zSessionReplicaIdPath = zSessionSessionReplicaId;
 
 export const zAuthorizePlatformClientQuery = z.object({
     client_id: zAuthPlatformClient,
@@ -2363,3 +2583,91 @@ export const zReplacePluginInventoryBody = zPluginPluginInventoryRequest;
  * Inventory replacement accepted.
  */
 export const zReplacePluginInventoryResponse = zPluginPluginInventoryResponse;
+
+export const zListOwnedSessionsQuery = z.object({
+    cursor: zCursor.optional(),
+    limit: zPageLimit.optional()
+});
+
+/**
+ * Current user's ACTIVE remote Session replicas.
+ */
+export const zListOwnedSessionsResponse = zSessionOwnedSessionListResponse;
+
+export const zAppendSessionBatchBody = zSessionSessionBatchRequest;
+
+export const zAppendSessionBatchPath = z.object({
+    sessionId: zSessionSessionId
+});
+
+/**
+ * Batch accepted, including a complete idempotent replay.
+ */
+export const zAppendSessionBatchResponse = zSessionSessionBatchAcceptedResponse;
+
+export const zExportOwnedSessionPath = z.object({
+    sessionId: zSessionSessionId
+});
+
+export const zExportOwnedSessionQuery = z.object({
+    fromSeq: zSessionSessionSequence.optional().default(0),
+    limit: z.int().gte(1).lte(200).optional().default(200)
+});
+
+/**
+ * Exact JSONL bytes and rolling-hash proof for one event page.
+ */
+export const zExportOwnedSessionResponse = zSessionSessionExportResponse;
+
+export const zDeleteOwnedSessionPath = z.object({
+    sessionId: zSessionSessionId
+});
+
+/**
+ * Session content deleted and tombstoned.
+ */
+export const zDeleteOwnedSessionResponse = zSessionDeletedSessionResponse;
+
+export const zRecordSessionRestoreBody = zSessionSessionRestoreRecordRequest;
+
+export const zRecordSessionRestorePath = z.object({
+    sessionId: zSessionSessionId
+});
+
+/**
+ * Successful local-copy creation associated in audit.
+ */
+export const zRecordSessionRestoreResponse = zSessionSessionRestoreRecordResponse;
+
+export const zListAdminSessionsQuery = z.object({
+    cursor: zCursor.optional(),
+    limit: zPageLimit.optional()
+});
+
+/**
+ * Session metadata only; no title, header or event content is decrypted.
+ */
+export const zListAdminSessionsResponse = zSessionAdminSessionListResponse;
+
+export const zReadAdminSessionContentPath = z.object({
+    replicaId: zSessionSessionReplicaId
+});
+
+export const zReadAdminSessionContentQuery = z.object({
+    fromSeq: zSessionSessionSequence.optional().default(0),
+    limit: z.int().gte(1).lte(200).optional().default(200)
+});
+
+/**
+ * Decrypted content page; requires ent:session:content:read and emits audit.
+ */
+export const zReadAdminSessionContentResponse = zSessionSessionExportResponse;
+
+export const zDeleteAdminSessionPath = z.object({
+    replicaId: zSessionSessionReplicaId
+});
+
+/**
+ * Session content deleted and tombstoned by an authorized administrator.
+ */
+export const zDeleteAdminSessionResponse = zSessionDeletedSessionResponse;

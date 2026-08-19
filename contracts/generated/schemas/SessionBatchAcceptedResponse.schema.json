@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:enterprise-agent:contracts:SessionBatchAcceptedResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "data",
+    "requestId"
+  ],
+  "properties": {
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "acceptedThroughSeq",
+        "rollingHash"
+      ],
+      "properties": {
+        "acceptedThroughSeq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "rollingHash": {
+          "type": "string",
+          "minLength": 44,
+          "maxLength": 44,
+          "pattern": "^[A-Za-z0-9+/]{43}=$"
+        }
+      }
+    },
+    "requestId": {
+      "type": "string",
+      "description": "Server-generated req_ prefix followed by one canonical ULID.",
+      "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+      "examples": [
+        "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+      ]
+    }
+  }
+}

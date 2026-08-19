@@ -33,6 +33,11 @@ provider, base URL, upstream model, credential, or arbitrary top-level extension
 point. Successful stream events remain SSE rather than the enterprise JSON
 success envelope.
 
+T16 adds the official rc.7 Session format-v0 header, exact JSONL batch hashes,
+rolling-hash proofs, owner metadata pages, separately authorized admin content,
+and deletion tombstones. Admin metadata schemas deliberately omit title, header,
+payload, and ciphertext; only the content operation can project decrypted bytes.
+
 ```sh
 cd harness-plugin
 pnpm --filter @enterprise-agent/dsh-contracts generate

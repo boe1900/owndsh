@@ -22,6 +22,7 @@ t12-admin-console-acceptance.md: T12 独立验收证据，记录管理 PKCE、�
 t13-plugin-server-acceptance.md: T13 独立验收证据，记录流式验包、JCS/Ed25519、CAS、状态/分配、下载授权、库存、协议与真实 PostgreSQL 事务结果。
 t14-plugin-client-acceptance.md: T14 独立验收证据，记录下载验签、官方 CLI argv、原子状态、重启确认、回滚、树外 consumer 与真实 rc.7 CLI 结果。
 t15-plugin-pages-acceptance.md: T15 独立验收证据，记录管理插件页面、完整 assignment CAS、设备 inventory、员工插件 tab 与真实 rc.7 重启闭环。
+t16-session-server-acceptance.md: T16 独立验收证据，记录官方 format v0、精确 JSONL/hash、源设备并发复制、AES-GCM、正文权限、tombstone 与 retention。
 assets/: 无密钥验收媒体，保存 T05、T07、T12、T15 的真实页面流程截图/GIF；局部地图见 assets/CLAUDE.md。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

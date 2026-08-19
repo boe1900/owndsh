@@ -1,0 +1,20 @@
+{
+  "data": {
+    "items": [
+      {
+        "id": "session-01",
+        "title": "Fix refund processing",
+        "sourceDeviceId": "1901600000000000001",
+        "sourceDeviceName": "Engineering Desktop",
+        "formatVersion": 0,
+        "lastSeq": 0,
+        "eventCount": 1,
+        "status": "ACTIVE",
+        "createdAt": "2026-08-19T08:00:00Z",
+        "updatedAt": "2026-08-19T08:01:00Z"
+      }
+    ],
+    "page": {"hasMore": false, "limit": 50, "nextCursor": null}
+  },
+  "requestId": "req_01K2W3V4X5Y6Z7A8B9C0D1E2F3"
+}

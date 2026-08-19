@@ -221,7 +221,37 @@
       "schema": "PluginInventoryResponse",
       "valid": true,
       "zodExport": "zPluginInventoryResponse"
+    },
+    {
+      "file": "fixtures/session-batch-success.json",
+      "schema": "SessionBatchAcceptedResponse",
+      "valid": true,
+      "zodExport": "zSessionBatchAcceptedResponse"
+    },
+    {
+      "file": "fixtures/session-list-success.json",
+      "schema": "OwnedSessionListResponse",
+      "valid": true,
+      "zodExport": "zOwnedSessionListResponse"
+    },
+    {
+      "file": "fixtures/session-export-success.json",
+      "schema": "SessionExportResponse",
+      "valid": true,
+      "zodExport": "zSessionExportResponse"
+    },
+    {
+      "file": "fixtures/admin-session-list-success.json",
+      "schema": "AdminSessionListResponse",
+      "valid": true,
+      "zodExport": "zAdminSessionListResponse"
+    },
+    {
+      "file": "fixtures/session-deleted-success.json",
+      "schema": "DeletedSessionResponse",
+      "valid": true,
+      "zodExport": "zDeletedSessionResponse"
     }
   ],
-  "protocolSha256": "123204f96562c0c703b4d4fa0dc3878a2497cfe6479e985face6b178e22227d9"
+  "protocolSha256": "573ed0f3ef82a912fbaf9f25914e0bbb7b152d40618add0ef2540a1e641817a0"
 }

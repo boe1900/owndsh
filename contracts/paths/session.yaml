@@ -1,0 +1,176 @@
+# [INPUT]: 依赖 session.yaml schemas 与根协议 cursor/limit/统一错误响应
+# [OUTPUT]: 提供 runtime append/list/export/delete/restore-record 和 admin metadata/content/delete Path Item
+# [POS]: contracts/paths 的 T16 Session 纵向分片，正文读取权限与 metadata 列表从协议入口即分离
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+RuntimeSessionCollection:
+  get:
+    operationId: listOwnedSessions
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Cursor'
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Limit'
+    responses:
+      '200':
+        description: Current user's ACTIVE remote Session replicas.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/OwnedSessionListResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+
+RuntimeSessionBatch:
+  parameters:
+    - $ref: '#/components/parameters/SessionIdPath'
+  post:
+    operationId: appendSessionBatch
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/SessionBatchRequest'}
+    responses:
+      '200':
+        description: Batch accepted, including a complete idempotent replay.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/SessionBatchAcceptedResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+      '413': {$ref: '../enterprise-openapi.yaml#/components/responses/Error413'}
+
+RuntimeSessionExport:
+  parameters:
+    - $ref: '#/components/parameters/SessionIdPath'
+  get:
+    operationId: exportOwnedSession
+    parameters:
+      - $ref: '#/components/parameters/FromSeq'
+      - $ref: '#/components/parameters/EventLimit'
+    responses:
+      '200':
+        description: Exact JSONL bytes and rolling-hash proof for one event page.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/SessionExportResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+
+RuntimeSessionItem:
+  parameters:
+    - $ref: '#/components/parameters/SessionIdPath'
+  delete:
+    operationId: deleteOwnedSession
+    responses:
+      '200':
+        description: Session content deleted and tombstoned.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/DeletedSessionResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+
+RuntimeSessionRestoreRecord:
+  parameters:
+    - $ref: '#/components/parameters/SessionIdPath'
+  post:
+    operationId: recordSessionRestore
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/SessionRestoreRecordRequest'}
+    responses:
+      '200':
+        description: Successful local-copy creation associated in audit.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/SessionRestoreRecordResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+
+AdminSessionCollection:
+  get:
+    operationId: listAdminSessions
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Cursor'
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Limit'
+    responses:
+      '200':
+        description: Session metadata only; no title, header or event content is decrypted.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/AdminSessionListResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+
+AdminSessionContent:
+  parameters:
+    - $ref: '#/components/parameters/SessionReplicaIdPath'
+  get:
+    operationId: readAdminSessionContent
+    parameters:
+      - $ref: '#/components/parameters/FromSeq'
+      - $ref: '#/components/parameters/EventLimit'
+    responses:
+      '200':
+        description: Decrypted content page; requires ent:session:content:read and emits audit.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/SessionExportResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+
+AdminSessionItem:
+  parameters:
+    - $ref: '#/components/parameters/SessionReplicaIdPath'
+  delete:
+    operationId: deleteAdminSession
+    responses:
+      '200':
+        description: Session content deleted and tombstoned by an authorized administrator.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/DeletedSessionResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+
+components:
+  parameters:
+    SessionIdPath:
+      name: sessionId
+      in: path
+      required: true
+      schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/SessionId'}
+    SessionReplicaIdPath:
+      name: replicaId
+      in: path
+      required: true
+      schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/SessionReplicaId'}
+    FromSeq:
+      name: fromSeq
+      in: query
+      required: false
+      schema:
+        allOf:
+          - $ref: '../enterprise-openapi.yaml#/components/schemas/SessionSequence'
+        default: 0
+    EventLimit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 200

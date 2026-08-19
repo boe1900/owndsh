@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 OpenAPI 生成的 fixture manifest/Zod schema、错误状态映射和品牌 ID 公共 API
- * [OUTPUT]: 验证全部正反 fixture、错误码、gateway/plugin 严格契约、未知字段与品牌类型隔离
+ * [OUTPUT]: 验证全部正反 fixture、错误码、gateway/plugin/Session 严格契约、未知字段与品牌类型隔离
  * [POS]: contracts 的双端协议回归测试之一，与 Java JSON Schema 测试消费相同 fixture 声明
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -29,6 +29,12 @@ import {
   zQuotaWindowListResponse,
   zRequestConflictDetails,
   zRuntimePluginAssignmentsResponse,
+  zAdminSessionListResponse,
+  zDeletedSessionResponse,
+  zOwnedSessionListResponse,
+  zSessionBatchAcceptedResponse,
+  zSessionBatchRequest,
+  zSessionExportResponse,
   zUsageLedgerListResponse,
   type EnterpriseUserId,
   type PluginCompatibility,
@@ -225,5 +231,36 @@ describe('generated enterprise contracts', () => {
         required: false,
       }],
     }).success).toBe(true)
+  })
+
+  it('exports strict T16 Session schemas and preserves the official v0 header', async () => {
+    const fixtures = [
+      ['session-batch-success.json', zSessionBatchAcceptedResponse],
+      ['session-list-success.json', zOwnedSessionListResponse],
+      ['session-export-success.json', zSessionExportResponse],
+      ['admin-session-list-success.json', zAdminSessionListResponse],
+      ['session-deleted-success.json', zDeletedSessionResponse],
+    ] as const
+    for (const [file, schema] of fixtures) {
+      const value: unknown = JSON.parse(await readFile(resolve(CONTRACT_ROOT, 'fixtures', file), 'utf8'))
+      expect(schema.safeParse(value).success, file).toBe(true)
+    }
+
+    const upload = {
+      idempotencyKey: 'device:session-01:0:0',
+      fromSeq: 0,
+      toSeq: 0,
+      previousRollingHash: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
+      payloadSha256: 'dThQQyfB0fyRNBMGkgmwgJ5kj4bHgMKYltmuhxgETxE=',
+      payloadBase64: 'eyJ0eXBlIjoidHVybi9zdGFydCIsInNlcSI6MCwidGltZSI6MTc4NjkwMDAwMDAwMCwiZGF0YSI6eyJ0dXJuIjoxfX0K',
+      header: { version: 0, id: 'session-01', createdAt: 1786900000000, delegationDepth: 0 },
+      title: null,
+    }
+    expect(zSessionBatchRequest.safeParse(upload).success).toBe(true)
+    expect(zSessionBatchRequest.safeParse({
+      ...upload,
+      header: { ...upload.header, version: 1 },
+    }).success).toBe(false)
+    expect(zSessionBatchRequest.safeParse({ ...upload, actorId: 'forged' }).success).toBe(false)
   })
 })

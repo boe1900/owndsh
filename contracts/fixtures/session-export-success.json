@@ -1,0 +1,22 @@
+{
+  "data": {
+    "sessionId": "session-01",
+    "header": {
+      "version": 0,
+      "id": "session-01",
+      "createdAt": 1786900000000,
+      "cwd": "/work/repo",
+      "delegationDepth": 0
+    },
+    "title": "Fix refund processing",
+    "fromSeq": 0,
+    "toSeq": 0,
+    "eventCount": 1,
+    "previousRollingHash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+    "rollingHash": "RBIRKkwhb8HIofWMvPq20HtIciKKnlI+c4DsI2dUWaQ=",
+    "payloadSha256": "dThQQyfB0fyRNBMGkgmwgJ5kj4bHgMKYltmuhxgETxE=",
+    "payloadBase64": "eyJ0eXBlIjoidHVybi9zdGFydCIsInNlcSI6MCwidGltZSI6MTc4NjkwMDAwMDAwMCwiZGF0YSI6eyJ0dXJuIjoxfX0K",
+    "hasMore": false
+  },
+  "requestId": "req_01K2W3V4X5Y6Z7A8B9C0D1E2F3"
+}

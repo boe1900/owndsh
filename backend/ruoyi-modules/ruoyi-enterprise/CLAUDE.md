@@ -11,11 +11,12 @@ src/main/java/org/dromara/enterprise/device/: Token terminal 授权的 enroll/he
 src/main/java/org/dromara/enterprise/model/: provider/model/grant 管理、AES-GCM 密钥生命周期、有效默认解析、runtime bootstrap 与模型网关纵向模块；局部地图见 model/CLAUDE.md。
 src/main/java/org/dromara/enterprise/quota/: 配额策略、自然窗口、PostgreSQL 预留、Redis lease、结算恢复与用量查询纵向模块；局部地图见 quota/CLAUDE.md。
 src/main/java/org/dromara/enterprise/plugin/: tgz 流式验包、JCS/Ed25519、CAS 制品、version/assignment、下载授权与设备库存纵向模块；局部地图见 plugin/CLAUDE.md。
+src/main/java/org/dromara/enterprise/session/: 精确 JSONL/hash、AES-GCM 远端副本、本人/管理读取、tombstone 与 retention 纵向模块；局部地图见 session/CLAUDE.md。
 src/main/java/org/dromara/enterprise/common/: 企业 HTTP envelope、36 个稳定错误映射、requestId/metadata 与认证 cursor 公共边界；局部地图见 common/CLAUDE.md。
 src/main/java/org/dromara/enterprise/audit/: 只追加审计领域契约与 JDBC sink，metadata 只能通过显式 marker DTO 进入 JSONB。
 src/main/java/org/dromara/enterprise/crypto/: HKDF-SHA-256 用途派生与 AES-256-GCM 秘密/cursor 保护，不暴露 master key 或派生 key。
 src/main/java/org/dromara/enterprise/revision/: 固定 BOOTSTRAP scope 的 optimistic CAS、稳定冲突错误码与审计同事务编排。
-src/main/resources/db/migration/: PostgreSQL `V1` 至 `V8` 真源，依次建立核心、插件、Session、审计/RBAC、默认 seed、quota runtime、管理观测字段与插件状态约束增量；局部地图见 db/migration/CLAUDE.md。
+src/main/resources/db/migration/: PostgreSQL `V1` 至 `V9` 真源，依次建立核心、插件、Session、审计/RBAC、默认 seed、quota runtime、管理观测、插件状态与 Session v0 约束增量；局部地图见 db/migration/CLAUDE.md。
 src/main/resources/static/enterprise/auth/: 无 Token 的公开身份源选择、密码与 OIDC 跳转页；局部地图见 auth/CLAUDE.md。
 src/test/java/org/dromara/enterprise/: 单元和 Testcontainers 集成验收，覆盖数据库、身份、PKCE/Redis、设备、模型、配额、插件、协议和事务边界。
 

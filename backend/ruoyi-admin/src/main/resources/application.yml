@@ -63,6 +63,10 @@ enterprise:
   gateway:
     max-request-bytes: ${ENT_MODEL_REQUEST_MAX_BYTES:10485760}
     max-sse-event-bytes: ${ENT_MODEL_SSE_EVENT_MAX_BYTES:1048576}
+  session:
+    max-batch-bytes: ${ENT_SESSION_BATCH_MAX_BYTES:4194304}
+    retention-days: ${ENT_SESSION_RETENTION_DAYS:90}
+    retention-batch-size: ${ENT_SESSION_RETENTION_BATCH_SIZE:100}
 
 # Spring配置
 spring:

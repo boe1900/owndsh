@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖身份/设备/模型/配额/网关/revision 领域异常、Sa-Token 异常、Spring MVC 绑定异常与当前 requestId。
+ * [INPUT]: 依赖身份/设备/模型/配额/插件/Session/网关/revision 异常、Sa-Token、MVC 绑定与当前 requestId。
  * [OUTPUT]: 对外提供详细设计第 17 节稳定 status/code/retryable/error envelope。
  * [POS]: common/api 的企业 Controller 专用异常边界，优先于 RuoYi 通用 R 响应处理器。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -30,6 +30,7 @@ import org.dromara.enterprise.plugin.artifact.PluginArtifactException;
 import org.dromara.enterprise.quota.application.RequestAlreadyCompletedException;
 import org.dromara.enterprise.quota.application.RequestInProgressException;
 import org.dromara.enterprise.revision.RevisionConflictException;
+import org.dromara.enterprise.session.application.SessionException;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -137,6 +138,29 @@ public final class EnterpriseExceptionHandler {
         return error(
             HttpStatus.FORBIDDEN, PluginAccessException.ERROR_CODE, "未分配该插件版本", false, null, request
         );
+    }
+
+    @ExceptionHandler(SessionException.class)
+    public ResponseEntity<EnterpriseErrorResponse> session(
+        SessionException exception,
+        HttpServletRequest request
+    ) {
+        HttpStatus status = switch (exception.kind()) {
+            case FORMAT_UNSUPPORTED -> HttpStatus.BAD_REQUEST;
+            case BATCH_TOO_LARGE -> HttpStatus.PAYLOAD_TOO_LARGE;
+            case SEQ_GAP, DIVERGED, SOURCE_DEVICE_CONFLICT -> HttpStatus.CONFLICT;
+            case CONTENT_EXPIRED, NOT_FOUND -> HttpStatus.NOT_FOUND;
+        };
+        String message = switch (exception.kind()) {
+            case FORMAT_UNSUPPORTED -> "Session 格式不受支持";
+            case BATCH_TOO_LARGE -> "Session 批次超过限制";
+            case SEQ_GAP -> "Session 事件序列存在缺口";
+            case DIVERGED -> "Session 事件链已经分叉";
+            case SOURCE_DEVICE_CONFLICT -> "Session 已绑定其他源设备";
+            case CONTENT_EXPIRED -> "Session 正文已删除或过期";
+            case NOT_FOUND -> "Session 不存在";
+        };
+        return error(status,exception.errorCode(),message,false,null,request);
     }
 
     @ExceptionHandler(PluginArtifactException.class)

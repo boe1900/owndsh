@@ -6,7 +6,7 @@ Enterprise Agent Platform 是基于 DeepSeek Harness 构建的企业 Agent 管�
 
 ## 当前阶段
 
-T00 至 T15 已完成：仓库包含锁定产品源码、Harness 官方插件 workspace、Java/TypeScript 同源 OpenAPI 3.1 协议、PostgreSQL/Redis 企业模块、桌面管理控制台和插件分发闭环。T15 已交付管理端 tgz 上传/发布/退休、完整 assignment 原子替换与回滚、设备 inventory，以及桌面员工插件 tab 的重启/Loader ACTIVE 状态；下一项只能从 T16 开始。实际证据见 [`docs/t15-plugin-pages-acceptance.md`](docs/t15-plugin-pages-acceptance.md)。
+T00 至 T16 已完成：仓库包含锁定产品源码、Harness 官方插件 workspace、Java/TypeScript 同源 OpenAPI 3.1 协议、PostgreSQL/Redis 企业模块、桌面管理控制台、插件分发闭环和 Session 远端副本服务。T16 已交付官方 format v0 精确 JSONL/hash、源设备绑定并发复制、AES-GCM、本人/管理读取、正文独立权限、删除 tombstone 与 retention；下一项只能从 T17 开始。实际证据见 [`docs/t16-session-server-acceptance.md`](docs/t16-session-server-acceptance.md)。
 
 ## 文档
 
@@ -27,6 +27,7 @@ T00 至 T15 已完成：仓库包含锁定产品源码、Harness 官方插件 wo
 - [T13 插件服务端验收记录](docs/t13-plugin-server-acceptance.md)：tgz 安全检查、JCS/Ed25519、CAS、发布分配、下载授权、库存、协议与真实 PostgreSQL 证据。
 - [T14 插件客户端验收记录](docs/t14-plugin-client-acceptance.md)：受管下载验签、官方 CLI argv、原子状态、重启确认、回滚、树外 consumer 与真实 rc.7 CLI 证据。
 - [T15 插件页面验收记录](docs/t15-plugin-pages-acceptance.md)：管理端插件纵向闭环、完整 assignment CAS、设备 inventory、员工插件 tab 与真实 rc.7 Harness 重启证据。
+- [T16 Session 服务端验收记录](docs/t16-session-server-acceptance.md)：官方 format v0、精确 JSONL/hash、并发复制、AES-GCM、正文权限、tombstone 与 retention 证据。
 
 实现者先阅读 MVP 详细设计的第 1 至 21 节，再严格按照第 22 节任务依赖推进。发现设计矛盾时先修订设计并记录决定，不在代码中引入未经确认的替代方案。
 

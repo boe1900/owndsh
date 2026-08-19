@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖安全随机数、毫秒时钟与当前 HttpServletRequest attribute。
- * [OUTPUT]: 对外提供一次请求内稳定、符合 req_ + canonical ULID 的 requestId。
+ * [OUTPUT]: 对外提供一次请求内稳定及后台任务可生成的 req_ + canonical ULID requestId。
  * [POS]: common/api 的关联 ID 真源，Controller、filter、错误处理和审计必须复用同一值。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -33,6 +33,10 @@ public final class EnterpriseRequestIds {
         String requestId = generate(Instant.now().toEpochMilli());
         request.setAttribute(ATTRIBUTE, requestId);
         return requestId;
+    }
+
+    public static String generate() {
+        return generate(Instant.now().toEpochMilli());
     }
 
     static String generate(long timestampMillis) {
