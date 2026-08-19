@@ -10,7 +10,10 @@ and disables the personal Models settings page. The Host plugin registers the
 enterprise adapter through official rc.7 `ctx.llm`, and the distribution
 Service through official `ctx.subprocess` plus `ctx.pluginInventory`. Exact
 rc.7 peers resolve from the Harness app dependency fallback instead of
-installing second Service Definitions into the profile.
+installing second Service Definitions into the profile. It also injects the
+official `sessions` and `sessionPersistence` Services and mounts
+`EnterpriseSessionSyncService`; the build keeps those official runtime
+singletons external while inlining product workspace modules.
 
 The tarball is self-contained at runtime: workspace packages are build inputs,
 not installed dependencies. Install it with:
@@ -24,7 +27,10 @@ origin and `config.trustedPluginPublicKey` to the installation-owned Ed25519
 SPKI public key; neither has a runtime default. The platform bootstrap cannot
 replace that trust root. `bootstrapIntervalMs`, `requestTimeoutMs`,
 `disposeTimeoutMs`, managed profile and `dshCommand` use the detailed-design
-defaults unless the installation layer overrides them. The Host half publishes `ctx.enterprisePlatform`
+defaults unless the installation layer overrides them. Session replication adds
+`sessionDebounceMs=2000`, `sessionRetryInitialMs=1000`,
+`sessionRetryMaxMs=60000`, and `sessionMaxBatchEvents=200`; the authenticated
+bootstrap remains the source of the byte limit and enablement policy. The Host half publishes `ctx.enterprisePlatform`
 and mounts only same-origin `/enterprise/api/v1/local/*` JSON/SSE routes. Model
 streams do not traverse that browser control plane: the Host adapter calls the
 enterprise HTTPS center directly through the in-memory authenticated Service.

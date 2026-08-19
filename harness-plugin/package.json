@@ -15,13 +15,16 @@
     "pack:contracts": "pnpm --filter @enterprise-agent/dsh-contracts build && pnpm --filter @enterprise-agent/dsh-contracts pack --pack-destination ../artifacts",
     "pack:platform-client": "pnpm --filter @enterprise-agent/dsh-contracts build && pnpm --filter @enterprise-agent/dsh-platform-client build && pnpm --filter @enterprise-agent/dsh-contracts pack --pack-destination ../artifacts && pnpm --filter @enterprise-agent/dsh-platform-client pack --pack-destination ../artifacts",
     "pack:plugin-distribution": "pnpm --filter @enterprise-agent/dsh-plugin-distribution build && pnpm --filter @enterprise-agent/dsh-contracts pack --pack-destination ../artifacts && pnpm --filter @enterprise-agent/dsh-platform-client pack --pack-destination ../artifacts && pnpm --filter @enterprise-agent/dsh-plugin-distribution pack --pack-destination ../artifacts",
+    "pack:session-sync": "pnpm --filter @enterprise-agent/dsh-session-sync build && pnpm --filter @enterprise-agent/dsh-contracts pack --pack-destination ../artifacts && pnpm --filter @enterprise-agent/dsh-platform-client pack --pack-destination ../artifacts && pnpm --filter @enterprise-agent/dsh-session-sync pack --pack-destination ../artifacts",
     "smoke:contracts": "node scripts/t02-contract-consumer.mjs",
     "smoke:platform-client": "node scripts/t06-platform-client-consumer.mjs",
     "smoke:plugin-distribution": "node scripts/t14-plugin-distribution-consumer.mjs",
+    "smoke:session-sync": "node scripts/t17-session-sync-consumer.mjs",
     "accept:t07-browser": "node scripts/t07-browser-harness.mjs",
     "accept:t11-model": "node scripts/t11-harness-model-smoke.mjs",
     "accept:t14-dsh-plugin": "node scripts/t14-dsh-plugin-smoke.mjs",
     "accept:t15-browser": "node scripts/t15-browser-harness.mjs",
+    "accept:t17-session": "node scripts/t17-harness-session-smoke.mjs",
     "check": "pnpm run typecheck && pnpm run test"
   },
   "devDependencies": {

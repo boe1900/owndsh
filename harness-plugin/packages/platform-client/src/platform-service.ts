@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 Cordis Service/WebServer、T02 contracts、PKCE/installation/browser 原语、插件只读状态回调与 Node fetch
- * [OUTPUT]: 对外提供 ctx.enterprisePlatform、EnterprisePlatformService、七个方法、平台/插件本地 API 与可关联稳定错误
+ * [INPUT]: 依赖 Cordis Service/WebServer、T02 contracts、PKCE/installation/browser 原语、插件/Session 反转端口与 Node fetch
+ * [OUTPUT]: 对外提供 ctx.enterprisePlatform、七方法、平台/插件/Session 本地 API 与可关联稳定错误
  * [POS]: platform-client 的 Host 业务核心，以 Cordis shadow-compatible 私有状态承载 Token、登录与刷新生命周期
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -24,6 +24,7 @@ import {
 } from './installation.js'
 import {
   registerEnterpriseLocalApi,
+  type EnterpriseLocalSessionPort,
   type SessionCopyProbeInput,
   type SessionCopyProbeResult,
   type WebServerRoutePort,
@@ -91,6 +92,7 @@ export interface EnterprisePlatformInternals {
   readonly refreshRetryInitialMs?: number
   readonly refreshRetryMaxMs?: number
   readonly pluginStatus?: () => unknown
+  readonly sessionSync?: () => EnterpriseLocalSessionPort | undefined
 }
 
 interface ResolvedConfig {
@@ -231,6 +233,7 @@ export class EnterprisePlatformService extends Service {
         subscribe: listener => this.subscribe(listener),
       },
       pluginStatus: internals.pluginStatus ?? (() => ({ assignmentRevision: 0, plugins: [] })),
+      ...(internals.sessionSync === undefined ? {} : { sessionSync: internals.sessionSync }),
       ...(this.config.enableTechnicalProbe === undefined
         ? {}
         : { enableTechnicalProbe: this.config.enableTechnicalProbe }),

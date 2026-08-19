@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 bundle manifest/Config/patch、构建产物和 Node vm 中的官方 React lazy-CJS seed 模型
- * [OUTPUT]: 验证 dsh.bundle/dsh.client、模型/分发注入、固定信任根、Harness peers、自包含代码与 Client apply
+ * [OUTPUT]: 验证 dsh.bundle/dsh.client、模型/分发/Session 注入、固定信任根、Harness peers 与 Client apply
  * [POS]: bundle 发布不变量测试，拒绝 Typert ambient shim、Harness 源码路径和未打包运行依赖
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -28,10 +28,14 @@ describe('enterprise bundle', () => {
     ])
     expect(manifest.dependencies).toBeUndefined()
     expect(manifest.peerDependencies['@deepseek-ai/dsh-llm']).toBe('0.1.0-rc.7')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-session']).toBe('0.1.0-rc.7')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-session-persistence']).toBe('0.1.0-rc.7')
     expect(manifest.peerDependencies['@deepseek-ai/dsh-subprocess']).toBe('0.1.0-rc.7')
     expect(manifest.peerDependencies['@deepseek-ai/dsh-host-plugin-inventory']).toBe('0.1.0-rc.7')
     expect(manifest.peerDependencies['@deepseek-ai/schemastery']).toBe('3.18.1')
-    expect(inject).toEqual(['webServer', 'sessions', 'llm', 'subprocess', 'pluginInventory'])
+    expect(inject).toEqual([
+      'webServer', 'sessions', 'sessionPersistence', 'llm', 'subprocess', 'pluginInventory',
+    ])
     expect(Config({
       baseUrl: 'https://enterprise.example.com',
       trustedPluginPublicKey: 'ed25519-spki',
@@ -41,6 +45,10 @@ describe('enterprise bundle', () => {
       bootstrapIntervalMs: 60_000,
       requestTimeoutMs: 30_000,
       disposeTimeoutMs: 3_000,
+      sessionDebounceMs: 2_000,
+      sessionRetryInitialMs: 1_000,
+      sessionRetryMaxMs: 60_000,
+      sessionMaxBatchEvents: 200,
     })
     const patch = await readFile(resolve(ROOT, 'cordis.patch.yml'), 'utf8')
     expect(patch).toContain("name: '@enterprise-agent/dsh-bundle'")
@@ -88,8 +96,11 @@ describe('enterprise bundle', () => {
     expect(combined).not.toContain('/deepseek-harness/')
     expect(combined).not.toContain('../deepseek-harness')
     expect(combined).toContain("from '@deepseek-ai/dsh-llm'")
+    expect(combined).toContain("from '@deepseek-ai/dsh-session'")
+    expect(combined).toContain("from '@deepseek-ai/dsh-session-persistence'")
     expect(combined).toContain("from '@deepseek-ai/schemastery'")
     expect(combined).toContain('enterprisePluginDistribution')
+    expect(combined).toContain('enterpriseSessionSync')
     expect(combined).toContain('ENT_PLUGIN_CORE_PROTECTED')
   })
 })

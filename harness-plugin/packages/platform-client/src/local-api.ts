@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 Harness `ctx.webServer.register()` route port、平台操作端口与插件调和只读状态回调
- * [OUTPUT]: 对外提供 registerEnterpriseLocalApi、严格 JSON action 路由、平台/插件状态查询与 SSE
- * [POS]: platform-client 的 Host/Client 同源协作边界，只序列化脱敏 DTO 而不接触平台 Token
+ * [INPUT]: 依赖 Harness `ctx.webServer.register()` route port、平台操作端口及插件/Session 只读反转端口
+ * [OUTPUT]: 对外提供 registerEnterpriseLocalApi、严格 JSON action、远端 Session 分页/恢复与复合 SSE
+ * [POS]: platform-client 的 Host/Client 同源协作边界，只序列化脱敏 DTO 并把认证 HTTP 留在 Host Service
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -48,10 +48,23 @@ export interface SessionCopyProbeResult {
   readonly seedLength: number
 }
 
+/** platform-client 反向消费的 Session Service 最小面，避免包依赖环。 */
+export interface EnterpriseLocalSessionPort {
+  status(): unknown
+  subscribe(listener: (status: unknown) => void): () => void
+  listRemote(cursor?: string, limit?: number): Promise<unknown>
+  restoreRemote(input: {
+    readonly sourceSessionId: string
+    readonly targetCwd: string
+  }): Promise<unknown>
+}
+
 export interface EnterpriseLocalApiOptions {
   readonly platform: EnterpriseLocalPlatformPort
   /** 由组合层绑定 distribution，避免 platform-client 反向依赖具体插件包。 */
   readonly pluginStatus: () => unknown
+  /** 由组合层延迟绑定 session-sync，保持认证 Service 先于其消费者构造。 */
+  readonly sessionSync?: () => EnterpriseLocalSessionPort | undefined
   readonly enableTechnicalProbe?: boolean
   readonly restoreSessionCopy?: (input: SessionCopyProbeInput) => Promise<SessionCopyProbeResult>
 }
@@ -83,8 +96,13 @@ function actionErrorStatus(error: unknown): number {
   if (error instanceof SyntaxError || error instanceof TypeError) return 400
   const code = errorCode(error)
   if (code === 'ENT_INVALID_REQUEST') return 400
+  if (code === 'ENT_SESSION_FORMAT_UNSUPPORTED') return 400
   if (code === 'ENT_AUTH_REQUIRED' || code === 'ENT_AUTH_SESSION_EXPIRED') return 401
   if (code === 'ENT_DEVICE_REVOKED' || code === 'ENT_PERMISSION_DENIED') return 403
+  if (code === 'ENT_SESSION_CONTENT_EXPIRED' || code === 'ENT_RESOURCE_NOT_FOUND') return 404
+  if (code === 'ENT_SESSION_SEQ_GAP' || code === 'ENT_SESSION_DIVERGED'
+    || code === 'ENT_SESSION_SOURCE_DEVICE_CONFLICT') return 409
+  if (code === 'ENT_SESSION_BATCH_TOO_LARGE') return 413
   return 503
 }
 
@@ -129,6 +147,49 @@ function parseSessionCopyInput(value: unknown): SessionCopyProbeInput {
   }
 }
 
+function parseRestoreInput(value: unknown): { readonly targetCwd: string } {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new TypeError('session restore body must be an object')
+  }
+  const body = value as Record<string, unknown>
+  if (Object.keys(body).join(',') !== 'targetCwd'
+    || typeof body['targetCwd'] !== 'string' || body['targetCwd'].length === 0
+    || body['targetCwd'].length > 4096) {
+    throw new TypeError('session restore body is invalid')
+  }
+  return { targetCwd: body['targetCwd'] }
+}
+
+function requestUrl(request: IncomingMessage): URL {
+  return new URL(request.url ?? '/', 'http://enterprise.local')
+}
+
+function parseSessionListQuery(request: IncomingMessage): { readonly cursor?: string; readonly limit?: number } {
+  const parameters = requestUrl(request).searchParams
+  if ([...parameters.keys()].some(key => key !== 'cursor' && key !== 'limit')) {
+    throw new TypeError('unknown Session list query')
+  }
+  if (parameters.getAll('cursor').length > 1 || parameters.getAll('limit').length > 1) {
+    throw new TypeError('duplicate Session list query')
+  }
+  const cursor = parameters.get('cursor') ?? undefined
+  const rawLimit = parameters.get('limit') ?? undefined
+  if (cursor !== undefined && (cursor.length === 0 || cursor.length > 4096)) throw new TypeError('cursor is invalid')
+  if (rawLimit === undefined) return cursor === undefined ? {} : { cursor }
+  if (!/^[1-9][0-9]{0,2}$/.test(rawLimit)) throw new TypeError('limit is invalid')
+  const limit = Number(rawLimit)
+  if (limit > 200) throw new TypeError('limit is invalid')
+  return { ...(cursor === undefined ? {} : { cursor }), limit }
+}
+
+function localSession(options: EnterpriseLocalApiOptions): EnterpriseLocalSessionPort {
+  const service = options.sessionSync?.()
+  if (service === undefined) {
+    throw Object.assign(new Error('Session sync is unavailable'), { code: 'ENT_PLATFORM_UNAVAILABLE' })
+  }
+  return service
+}
+
 function registerJsonAction(
   webServer: WebServerRoutePort,
   path: string,
@@ -162,6 +223,7 @@ export function registerEnterpriseLocalApi(
 ): () => void {
   const disposers: (() => void)[] = []
   const eventResponses = new Set<ServerResponse>()
+  const eventCleanups = new Map<ServerResponse, () => void>()
   try {
     disposers.push(webServer.register({
       kind: 'exact',
@@ -172,6 +234,74 @@ export function registerEnterpriseLocalApi(
           return
         }
         writeJson(response, 200, { data: options.platform.status() })
+      },
+    }))
+
+    disposers.push(webServer.register({
+      kind: 'exact',
+      path: `${LOCAL_API_PREFIX}/sessions/sync`,
+      handler: (request, response) => {
+        if (request.method !== 'GET') {
+          methodNotAllowed(response, 'GET')
+          return
+        }
+        try {
+          writeJson(response, 200, { data: localSession(options).status() })
+        } catch (error) {
+          writeJson(response, actionErrorStatus(error), { error: { code: errorCode(error) } })
+        }
+      },
+    }))
+
+    disposers.push(webServer.register({
+      kind: 'exact',
+      path: `${LOCAL_API_PREFIX}/sessions`,
+      handler: async (request, response) => {
+        if (request.method !== 'GET') {
+          methodNotAllowed(response, 'GET')
+          return
+        }
+        try {
+          const query = parseSessionListQuery(request)
+          writeJson(response, 200, { data: await localSession(options).listRemote(query.cursor, query.limit) })
+        } catch (error) {
+          const status = actionErrorStatus(error)
+          writeJson(response, status, {
+            error: { code: status === 400 ? 'ENT_INVALID_REQUEST' : errorCode(error) },
+          })
+        }
+      },
+    }))
+
+    disposers.push(webServer.register({
+      kind: 'prefix',
+      path: `${LOCAL_API_PREFIX}/sessions`,
+      handler: async (request, response) => {
+        const match = /^\/enterprise\/api\/v1\/local\/sessions\/([^/]+)\/copies$/.exec(requestUrl(request).pathname)
+        if (match === null) {
+          writeJson(response, 404, { error: { code: 'ENT_RESOURCE_NOT_FOUND' } })
+          return
+        }
+        if (request.method !== 'POST') {
+          methodNotAllowed(response, 'POST')
+          return
+        }
+        try {
+          const sourceSessionId = decodeURIComponent(match[1] ?? '')
+          if (sourceSessionId.length === 0 || sourceSessionId.length > 128) throw new TypeError('sessionId is invalid')
+          const input = parseRestoreInput(await readJson(request))
+          writeJson(response, 201, {
+            data: await localSession(options).restoreRemote({ sourceSessionId, targetCwd: input.targetCwd }),
+          })
+        } catch (error) {
+          const status = actionErrorStatus(error)
+          writeJson(response, status, {
+            error: {
+              code: status === 413 ? 'ENT_REQUEST_TOO_LARGE'
+                : status === 400 ? 'ENT_INVALID_REQUEST' : errorCode(error),
+            },
+          })
+        }
       },
     }))
 
@@ -228,11 +358,21 @@ export function registerEnterpriseLocalApi(
           response.write(`event: status\ndata: ${JSON.stringify(status)}\n\n`)
         }
         publish(options.platform.status())
-        const unsubscribe = options.platform.subscribe(publish)
-        request.once('close', () => {
+        const unsubscribePlatform = options.platform.subscribe(publish)
+        const session = options.sessionSync?.()
+        const publishSession = (status: unknown): void => {
+          response.write(`event: session-sync\ndata: ${JSON.stringify(status)}\n\n`)
+        }
+        if (session !== undefined) publishSession(session.status())
+        const unsubscribeSession = session?.subscribe(publishSession) ?? (() => undefined)
+        const cleanup = (): void => {
           eventResponses.delete(response)
-          unsubscribe()
-        })
+          eventCleanups.delete(response)
+          unsubscribePlatform()
+          unsubscribeSession()
+        }
+        eventCleanups.set(response, cleanup)
+        request.once('close', cleanup)
       },
     }))
 
@@ -262,8 +402,12 @@ export function registerEnterpriseLocalApi(
     throw error
   }
   return () => {
-    for (const response of eventResponses) response.end()
+    for (const response of eventResponses) {
+      eventCleanups.get(response)?.()
+      response.end()
+    }
     eventResponses.clear()
+    eventCleanups.clear()
     for (const dispose of disposers.reverse()) dispose()
   }
 }

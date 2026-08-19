@@ -18,6 +18,10 @@ T14 adds `ctx.enterprisePluginDistribution` through the official rc.7
 `ctx.subprocess` and `ctx.pluginInventory` services. It downloads and verifies
 center-managed tgz artifacts, invokes the official CLI with fixed argv, keeps
 atomic local state, and waits for a new process to confirm the Loader row.
+T17 adds `ctx.enterpriseSessionSync` through official rc.7 `sessions` and
+`sessionPersistence`: local append remains network-independent, acknowledged
+cursors are atomic and content-free, and a fully verified remote log is
+restored under a new durable Session ID.
 
 Run the workspace gate with:
 
@@ -28,9 +32,12 @@ pnpm run pack:platform-client
 pnpm run smoke:platform-client
 pnpm run pack:plugin-distribution
 pnpm run smoke:plugin-distribution
+pnpm run pack:session-sync
+pnpm run smoke:session-sync
 pnpm run pack:bundle
 pnpm run accept:t11-model
 pnpm run accept:t14-dsh-plugin
+pnpm run accept:t17-session
 ```
 
 The packed bundle is accepted by `scripts/t01-harness-smoke.mjs` as both a
@@ -49,3 +56,10 @@ fresh package consumer without ambient declarations. `pnpm run
 accept:t14-dsh-plugin` uses a temporary `DSH_HOME` and paths containing spaces
 to prove exact add, downgrade rollback, profile reconciliation, and remove
 against the locked unmodified CLI.
+`pnpm run smoke:session-sync` installs the published product tarballs and npm
+rc.7 Session peers into a fresh consumer without ambient declarations, then
+executes a real JSONL persistence sync/restore chain. `pnpm run
+accept:t17-session` installs the enterprise bundle into a temporary locked
+Harness `web` profile and proves append network isolation, real
+flush/readFrom, remote list, new-ID restoration, content-free cursor state, and
+upstream cleanliness.

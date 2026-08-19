@@ -45,6 +45,12 @@ importers:
       '@deepseek-ai/dsh-llm':
         specifier: link:../../../../deepseek-harness/packages/llm/llm
         version: link:../../../../deepseek-harness/packages/llm/llm
+      '@deepseek-ai/dsh-session':
+        specifier: link:../../../../deepseek-harness/packages/core/session
+        version: link:../../../../deepseek-harness/packages/core/session
+      '@deepseek-ai/dsh-session-persistence':
+        specifier: link:../../../../deepseek-harness/packages/session/session-persistence
+        version: link:../../../../deepseek-harness/packages/session/session-persistence
       '@deepseek-ai/dsh-subprocess':
         specifier: link:../../../../deepseek-harness/packages/subprocess/subprocess
         version: link:../../../../deepseek-harness/packages/subprocess/subprocess
@@ -130,7 +136,24 @@ importers:
         specifier: 7.7.1
         version: 7.7.1
 
-  packages/session-sync: {}
+  packages/session-sync:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.1
+        version: 4.0.1
+      '@enterprise-agent/dsh-contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@enterprise-agent/dsh-platform-client':
+        specifier: workspace:*
+        version: link:../platform-client
+    devDependencies:
+      '@deepseek-ai/dsh-session':
+        specifier: link:../../../../deepseek-harness/packages/core/session
+        version: link:../../../../deepseek-harness/packages/core/session
+      '@deepseek-ai/dsh-session-persistence':
+        specifier: link:../../../../deepseek-harness/packages/session/session-persistence
+        version: link:../../../../deepseek-harness/packages/session/session-persistence
 
   packages/ui:
     dependencies:

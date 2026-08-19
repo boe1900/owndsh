@@ -221,16 +221,19 @@ describe('EnterprisePlatformService', () => {
 
     const localServer = createServer((request, response) => {
       const path = new URL(request.url ?? '/', 'http://127.0.0.1').pathname
-      const route = routes.get(path)
+      const route = routes.get(`exact:${path}`) ?? [...routes.values()].find(candidate => (
+        candidate.kind === 'prefix' && (path === candidate.path || path.startsWith(`${candidate.path}/`))
+      ))
       if (route === undefined) return void response.writeHead(404).end()
       void Promise.resolve(route.handler(request, response))
     })
     const localUrl = await listen(localServer)
     const webServer: WebServerRoutePort = {
       register: (route) => {
-        if (routes.has(route.path)) throw new Error(`duplicate route ${route.path}`)
-        routes.set(route.path, route)
-        return () => { routes.delete(route.path) }
+        const key = `${route.kind}:${route.path}`
+        if (routes.has(key)) throw new Error(`duplicate route ${key}`)
+        routes.set(key, route)
+        return () => { routes.delete(key) }
       },
     }
     const ctx = new Context()
@@ -377,7 +380,11 @@ describe('EnterprisePlatformService', () => {
     await env.service.dispose()
     const routes = new Map<string, Route>()
     const webServer: WebServerRoutePort = {
-      register: route => { routes.set(route.path, route); return () => { routes.delete(route.path) } },
+      register: route => {
+        const key = `${route.kind}:${route.path}`
+        routes.set(key, route)
+        return () => { routes.delete(key) }
+      },
     }
     const ctx = new Context()
     ctx.reflect.provide('webServer', webServer)

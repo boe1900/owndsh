@@ -911,7 +911,7 @@ T01 必须在产品仓库的独立 `harness-plugin` workspace 构建预编译 bu
 
 该包依赖 `sessions`、`sessionPersistence` 和 `enterprisePlatform`。它提供内部 `ctx.enterpriseSessionSync` Service，由 platform-client 的本地 API 查询与触发恢复，不增加 model-visible Session Event；同步状态是本地基础设施状态，不写进对话日志。
 
-同一 session 只有一个上传 worker。新事件到达 syncing 状态时只设置 dirty，当前批次完成后重新读取。对 `ENT_SESSION_DIVERGED`、`ENT_SESSION_SOURCE_DEVICE_CONFLICT` 和 `ENT_SESSION_FORMAT_UNSUPPORTED` 进入人工可见终态，不无限重试；认证、网络和 5xx 才退避重试。
+同一 session 只有一个上传 worker。新事件到达 syncing 状态时只设置 dirty，当前批次完成后重新读取。对 `ENT_SESSION_SEQ_GAP`、`ENT_SESSION_DIVERGED`、`ENT_SESSION_SOURCE_DEVICE_CONFLICT`、`ENT_SESSION_FORMAT_UNSUPPORTED` 和 `ENT_SESSION_CONTENT_EXPIRED` 进入人工可见终态，不无限重试；认证、网络和 5xx 才退避重试。
 
 ### 16.5 `@enterprise-agent/dsh-plugin-distribution`
 
@@ -1200,7 +1200,8 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 | T14 | `completed` | 2026-08-19 已实现客户端下载、大小/SHA-256/Ed25519/compatibility 校验、固定 `ctx.subprocess` argv、原子状态文件、跨进程 Loader active 确认、ABSENT、库存与回滚；树外 package consumer 和锁定 rc.7 真实 CLI 证据见 [`t14-plugin-client-acceptance.md`](t14-plugin-client-acceptance.md)。 |
 | T15 | `completed` | 2026-08-19 已交付管理端 tgz 上传/发布/退休、完整 assignment 原子替换与回滚、设备 inventory，以及桌面员工插件 tab；真实 Server Playwright 与 rc.7 Harness 重启/Loader ACTIVE 证据见 [`t15-plugin-pages-acceptance.md`](t15-plugin-pages-acceptance.md)。 |
 | T16 | `completed` | 2026-08-19 已实现官方 format v0 精确 JSONL/SHA-256/rolling hash、ACTIVE 源设备行锁复制、AES-GCM、本人/admin 读取、正文独立权限、tombstone 与 90 天 retention；完整证据见 [`t16-session-server-acceptance.md`](t16-session-server-acceptance.md)。 |
-| T17-T23 | `pending` | T17 是唯一下一项；T17 独立验收并提交前不得开始 T18。 |
+| T17 | `completed` | 2026-08-19 已实现 dirty queue、flush/readFrom 双边界批次、无正文原子确认游标、READY 断点发现、退避/终态、远端列表与完整验证后的新 ID 耐久恢复；树外 consumer 和锁定 rc.7 真实 Session/Persistence 证据见 [`t17-session-client-acceptance.md`](t17-session-client-acceptance.md)。 |
+| T18-T23 | `pending` | T18 是唯一下一项；T18 独立验收并提交前不得开始 T19。 |
 
 ## 23. Definition of Done
 
