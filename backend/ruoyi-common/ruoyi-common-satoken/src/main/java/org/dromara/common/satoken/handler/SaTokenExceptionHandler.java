@@ -1,3 +1,9 @@
+/**
+ * [INPUT]: 依赖 Sa-Token 登录/权限异常与当前 Servlet 请求路径。
+ * [OUTPUT]: 对外提供无 Token 回显的统一 401/403 响应与安全失败类型日志。
+ * [POS]: common-satoken 的全局认证失败边界，不信任可能携带原始 Token 的异常 message。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 package org.dromara.common.satoken.handler;
 
 import cn.dev33.satoken.exception.NotLoginException;
@@ -30,7 +36,7 @@ public class SaTokenExceptionHandler {
     public R<Void> handleNotAccessException(RuntimeException e, HttpServletRequest request) {
         String requestURI = request.getRequestURI();
         String reason = e instanceof NotRoleException ? "角色权限校验失败" : "权限码校验失败";
-        log.error("请求地址'{}',{}'{}'", requestURI, reason, e.getMessage());
+        log.warn("请求地址'{}',{}", requestURI, reason);
         return R.fail(HttpStatus.HTTP_FORBIDDEN, "没有访问权限，请联系管理员授权");
     }
 
@@ -44,7 +50,7 @@ public class SaTokenExceptionHandler {
     @ExceptionHandler(NotLoginException.class)
     public R<Void> handleNotLoginException(NotLoginException e, HttpServletRequest request) {
         String requestURI = request.getRequestURI();
-        log.error("请求地址'{}',认证失败'{}',无法访问系统资源", requestURI, e.getMessage());
+        log.warn("请求地址'{}',认证失败 type='{}',无法访问系统资源", requestURI, e.getType());
         String msg = switch (e.getType()) {
             case NotLoginException.TOKEN_TIMEOUT,
                  NotLoginException.TOKEN_FREEZE -> "登录已过期，请重新登录";

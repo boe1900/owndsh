@@ -1,3 +1,9 @@
+/**
+ * [INPUT]: 依赖 Sa-Token JWT 简单模式、Redis DAO、权限解析与外部注入的签名密钥配置。
+ * [OUTPUT]: 对外装配不共享会话的 StpLogic、SaTokenDao、权限服务与稳定异常处理。
+ * [POS]: common-satoken 的认证 composition root，不生成、保存或记录平台 Token 签名秘密。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 package org.dromara.common.satoken.config;
 
 import cn.dev33.satoken.dao.SaTokenDao;

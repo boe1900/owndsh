@@ -7,6 +7,8 @@
 server:
   # 服务器的HTTP端口，默认为8080
   port: 8080
+  # 拒绝新请求后等待已接受请求在 shutdown phase 内完成。
+  shutdown: graceful
   servlet:
     # 应用的访问路径
     context-path: /
@@ -14,8 +16,8 @@ server:
   forward-headers-strategy: native
   # jetty 配置
   jetty:
-    # HTTP post内容的最大大小。当值为-1时，默认值为大小是无限的
-    max-http-form-post-size: -1
+    # 公开登录 form 只承载短字段，不允许无界 URL-encoded body。
+    max-http-form-post-size: 1MB
     threads:
       # 最小线程数
       min: 8
@@ -63,8 +65,10 @@ enterprise:
   gateway:
     max-request-bytes: ${ENT_MODEL_REQUEST_MAX_BYTES:10485760}
     max-sse-event-bytes: ${ENT_MODEL_SSE_EVENT_MAX_BYTES:1048576}
+  http:
+    max-json-request-bytes: ${ENT_JSON_REQUEST_MAX_BYTES:2097152}
   session:
-    max-batch-bytes: ${ENT_SESSION_BATCH_MAX_BYTES:4194304}
+    max-batch-bytes: ${ENT_SESSION_BATCH_MAX_BYTES:1048576}
     retention-days: ${ENT_SESSION_RETENTION_DAYS:90}
     retention-batch-size: ${ENT_SESSION_RETENTION_BATCH_SIZE:100}
   audit:
@@ -86,6 +90,9 @@ spring:
       thread-name-prefix: async-
       # 由spring自己初始化线程池
       mode: force
+  lifecycle:
+    # 与 server.shutdown 共同定义单阶段 drain 的有界等待时间。
+    timeout-per-shutdown-phase: 30s
   # 资源信息
   messages:
     # 国际化资源文件路径
@@ -95,10 +102,10 @@ spring:
   # 文件上传
   servlet:
     multipart:
-      # 单个文件大小
-      max-file-size: 10MB
-      # 设置总上传的文件大小
-      max-request-size: 20MB
+      # 与插件压缩包业务上限一致；业务层仍执行流式精确计数。
+      max-file-size: 50MB
+      # 预留 multipart 边界和 compatibility 字段开销。
+      max-request-size: 52MB
   mvc:
     # 设置静态资源路径 防止所有请求都去查静态资源
     static-path-pattern: /static/**
@@ -122,8 +129,14 @@ sa-token:
   is-concurrent: true
   # 在多人登录同一账号时，是否共用一个token (为true时所有登录共用一个token, 为false时每次登录新建一个token)
   is-share: false
-  # jwt秘钥
-  jwt-secret-key: abcdefghijklmnopqrstuvwxyz
+  # 平台 Token 签名密钥必须由环境提供，缺失时启动失败。
+  jwt-secret-key: ${SA_TOKEN_JWT_SECRET_KEY}
+
+# 企业管理端经同源反向代理访问，默认不为任何跨域 origin 授权。
+web:
+  cors:
+    allow-credentials: false
+    allowed-origin-patterns: []
 
 # security配置
 security:

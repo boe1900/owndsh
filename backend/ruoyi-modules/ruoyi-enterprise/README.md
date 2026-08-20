@@ -8,7 +8,7 @@ provider/model/grant 管理、provider 密钥保护、有效默认解析和 runt
 增加 Flyway `V6`、叠加配额、PostgreSQL reservation、Redis lease、结算恢复和用量 API；T10
 增加请求级授权、DeepSeek-compatible upstream、OpenAI SSE、计费终态和模型调用审计；T13 增加
 Flyway `V8`、不落地解压的 tgz 验包、RFC 8785 JCS/Ed25519、CAS 制品、插件状态/分配、下载授权与库存；T16
-增加 Flyway `V9`、官方 Session format v0 精确 JSONL/hash、AES-GCM 远端副本、读取权限、tombstone 与 retention。
+增加 Flyway `V9`、官方 Session format v0 精确 JSONL/hash、AES-GCM 远端副本、读取权限、tombstone 与 retention。T19 补齐显式审计白名单与查询/retention；T20 在模块前置增加 2 MiB 普通 JSON 上限、稳定 413 和未知故障秘密隔离。
 
 ## 身份边界
 
@@ -121,7 +121,13 @@ master key 的独立 `API_CURSOR` 用途进行 AES-GCM 认证，并绑定 tenant
   `EXPIRED`，两者都阻止后台重传。restore-record 只记录 Host 已完成的关联审计，本地新副本属于 T17。
 
 runtime 入口位于 `/enterprise/api/v1/sessions`，管理入口位于 `/enterprise/admin/v1/sessions`。默认单批
-上限 4 MiB、保留 90 天、每批清理 100 条，分别由 `enterprise.session.*` 配置覆盖。
+上限 1 MiB、保留 90 天、每批清理 100 条，分别由 `enterprise.session.*` 配置覆盖。
+
+## 安全与故障边界
+
+- 普通 enterprise JSON 在 MVC 解序列化前有界读取，客户端不能用 chunked 绕过 2 MiB 限制；模型网关保留自己的 10 MiB 流式边界，插件 multipart 保留 50 MiB 制品精确计数。
+- 数据库、Redis 或磁盘的未知运行时故障返回 retryable `ENT_PLATFORM_UNAVAILABLE`；服务端日志只写 requestId 和异常类型，不写可能含凭据的 message 或 stack。
+- PostgreSQL、Redis、artifact 与 master/signing key 的隔离备份恢复由仓库 T20 演练脚本验证；生产入口、TLS 与可信代理由 T21 部署交付承担。
 
 ## 数据库
 

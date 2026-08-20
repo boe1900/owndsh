@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 Commons Compress 测试归档生成器、临时目录与真实 PluginArtifactInspector/Store。
- * [OUTPUT]: 验证合法 pnpm tgz、恶意 entry/metadata 拒绝、三项上限、CAS 与同 hash 事务互斥。
- * [POS]: T13 不可信归档安全门禁，不依赖系统 tar 或把恶意 entry 写入文件系统。
+ * [OUTPUT]: 验证合法 pnpm tgz、恶意 entry/metadata 拒绝、三项上限、CAS、磁盘故障与同 hash 互斥。
+ * [POS]: plugin artifact 的不可信输入与 fail-closed 门禁，不依赖系统 tar 或解压落地。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.plugin;
@@ -131,6 +131,24 @@ class PluginArtifactSecurityTest {
         try (var paths = Files.list(temporary.resolve("small/tmp"))) {
             assertThat(paths).isEmpty();
         }
+    }
+
+    @Test
+    void failsClosedWhenArtifactStorageCannotInitializeOrAcceptWrites() throws Exception {
+        Path invalidRoot = temporary.resolve("artifact-root-file");
+        Files.writeString(invalidRoot, "not-a-directory");
+        assertThatThrownBy(() -> new PluginArtifactStore(invalidRoot, 1_000_000))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessage("\u63d2\u4ef6 artifact root \u65e0\u6cd5\u521d\u59cb\u5316");
+
+        Path root = temporary.resolve("runtime-disk-fault");
+        PluginArtifactStore store = new PluginArtifactStore(root, 1_000_000);
+        Files.delete(root.resolve("tmp"));
+        Files.writeString(root.resolve("tmp"), "writes-blocked");
+        assertThatThrownBy(() -> store.writePending(
+            UUID.randomUUID(), new ByteArrayInputStream(validArchive("1.0.0"))
+        )).isInstanceOf(IllegalStateException.class)
+            .hasMessage("\u63d2\u4ef6\u4e0a\u4f20\u4e34\u65f6\u6587\u4ef6\u5199\u5165\u5931\u8d25");
     }
 
     @Test

@@ -978,12 +978,13 @@ Client 包通过 `settings.section` 注册一个 `enterprise` 设置页，通过
 | `ENT_MASTER_KEY_FILE` | 32 字节 master key 的 secret 文件 |
 | `ENT_PLUGIN_SIGNING_PRIVATE_KEY_FILE` | Ed25519 私钥 secret 文件 |
 | `ENT_PLUGIN_SIGNING_PUBLIC_KEY_FILE` | 对应公钥，供安装包生成 bundle 配置 |
+| `SA_TOKEN_JWT_SECRET_KEY` | 平台 Sa-Token JWT 签名密钥，不接受仓库默认值 |
 | `SPRING_DATASOURCE_*` | PostgreSQL 连接 |
 | `REDIS_*` | Redis 地址、认证和 TLS 配置 |
 | `ENT_ARTIFACT_ROOT` | 插件制品持久目录 |
 | `ENT_DEPLOYMENT_TIME_ZONE` | 日/月配额时区，初始化后冻结 |
 
-默认配置包括 Session 90 天、审计 365 天、bootstrap/heartbeat 60 秒、授权码 60 秒、登录事务 5 分钟、模型请求体 10 MiB、Session batch 1 MiB、插件压缩 50 MiB 和解压 200 MiB。部署可变值必须绑定到 `@ConfigurationProperties` 并在启动时校验。
+默认配置包括 Session 90 天、审计 365 天、bootstrap/heartbeat 60 秒、授权码 60 秒、登录事务 5 分钟、普通企业 JSON 2 MiB、模型请求体 10 MiB、Session batch 1 MiB、插件压缩 50 MiB 和解压 200 MiB。URL-encoded form 上限 1 MiB，multipart 单文件/总请求上限为 50/52 MiB；Server 使用 30 秒有界 graceful drain。部署可变值必须绑定到 `@ConfigurationProperties` 并在启动时校验。
 
 ### 18.2 Harness bundle Config
 
@@ -1013,6 +1014,8 @@ Client 包通过 `settings.section` 注册一个 `enterprise` 设置页，通过
 - 管理员权限、资源 owner、设备状态、模型 grant 和插件 assignment 每次由服务端读取当前事实；bootstrap 缓存不能授权。
 - 数据库、Redis、artifact 目录和 master/signing key 必须进入备份与恢复演练；key 文件不进入普通数据库备份。
 - migration 不创建已知密码的默认管理员。空库首次启动要求 `ENT_BOOTSTRAP_ADMIN_USERNAME` 和 `ENT_BOOTSTRAP_ADMIN_PASSWORD_FILE`，事务创建一个本地 `enterprise_admin` 后写初始化完成标记；后续启动忽略这两个值，首次登录强制改密。
+
+T20 验收应用边界的 CORS、限流、请求体、超时、drain、日志、不可达与数据恢复，但不提前创建 T21 的部署树。生产 TLS/可信 forwarding header 清洗、初始化管理员、正式备份入口和健康检查由 T21 在 Compose/Nginx/安装交付中实现；T20 只交付不依赖该部署树的可重复演练。
 
 ## 19. 页面与交互
 
@@ -1167,7 +1170,7 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 | T17 Session 客户端 | T11,T16 | 实现 dirty queue、flush/readFrom、游标、重试终态、远端列表和 seed 恢复 | 本地 append 不等待网络；断点续传；新 ID 恢复；格式/hash 错误无半成品 |
 | T18 Session 页面 | T16,T17 | 管理 Session 列表/正文/删除，员工同步与恢复 tab | 正文权限 Playwright、读取审计、跨设备恢复 snapshot 和 GIF 通过 |
 | T19 审计闭环 | T05,T10,T13,T16 | 补齐所有 action、管理查询页、metadata 白名单和 retention | 第 13 节 action 覆盖测试；requestId 演示可关联；敏感模式扫描为零 |
-| T20 安全与故障 | T11,T12,T15,T18,T19 | 限流、请求体限制、超时、关闭 drain、日志扫描、备份恢复、服务不可达和磁盘故障 | 第 18.3 节安全负例、kill/restart、数据库/Redis/制品恢复演练通过 |
+| T20 安全与故障 | T11,T12,T15,T18,T19 | 限流、请求体限制、超时、关闭 drain、日志扫描、备份恢复、服务不可达和磁盘故障 | 第 18.3 节应用安全负例、kill/restart、数据库/Redis/制品/key 恢复演练通过；TLS/proxy/bootstrap admin 依赖于 T21 |
 | T21 部署交付 | T20 | Compose、Nginx TLS、初始化管理员、secret 生成、健康检查、备份/升级/回滚脚本和文档 | 全新 Linux amd64 主机按文档安装成功；回滚保留数据库和 key |
 | T22 端到端候选版 | T21 | 固化假 IdP/LDAP/上游/测试插件，自动化第 21.1 节，录制产品 GIF | 14 步全部通过；完整 release checks 和镜像扫描通过 |
 | T23 试点 | T22 | 部署 20 用户环境、收集第 21.2 节指标，只修阻断和高频问题 | 两周数据形成明确继续/调整结论；未把远期功能塞入候选版 |
@@ -1205,7 +1208,8 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 | T17 | `completed` | 2026-08-19 已实现 dirty queue、flush/readFrom 双边界批次、无正文原子确认游标、READY 断点发现、退避/终态、远端列表与完整验证后的新 ID 耐久恢复；树外 consumer 和锁定 rc.7 真实 Session/Persistence 证据见 [`t17-session-client-acceptance.md`](t17-session-client-acceptance.md)。 |
 | T18 | `completed` | 2026-08-19 已交付管理 Session metadata/正文/删除权限面、员工同步状态/远端列表/恢复/删除 tab；真实 Server Playwright、读取审计、跨设备 rc.7 Harness 恢复与 DELETED 重启不重传证据见 [`t18-session-pages-acceptance.md`](t18-session-pages-acceptance.md)。 |
 | T19 | `completed` | 2026-08-20 已交付 30-action 显式 metadata 白名单、tenant 隔离审计查询、365 天有界 retention、用户治理事务接缝、heartbeat 防洪和管理员/审计员只读页面；真实 PostgreSQL/Server/Playwright 与敏感模式扫描证据见 [`t19-audit-closure-acceptance.md`](t19-audit-closure-acceptance.md)。 |
-| T20-T23 | `pending` | T20 是唯一下一项；T20 独立验收并提交前不得开始 T21。 |
+| T20 | `completed` | 2026-08-20 已交付默认同源 CORS、通用 JSON/Session/form/multipart 有界请求、无默认 JWT secret、30 秒 graceful drain、未知故障日志隔离、CI 秘密扫描与 PostgreSQL/Redis/artifact/key 恢复演练，见 [`t20-security-fault-acceptance.md`](t20-security-fault-acceptance.md)。 |
+| T21-T23 | `pending` | T21 是唯一下一项；T21 独立验收并提交前不得开始 T22。 |
 
 ## 23. Definition of Done
 

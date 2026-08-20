@@ -10,7 +10,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "enterprise.session")
 public class EnterpriseSessionProperties {
-    private int maxBatchBytes = 4 * 1024 * 1024;
+    private int maxBatchBytes = 1024 * 1024;
     private int retentionDays = 90;
     private int retentionBatchSize = 100;
 

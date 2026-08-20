@@ -1,3 +1,9 @@
+/**
+ * [INPUT]: 依赖 common-web 日期/JSON/异常能力与默认拒绝跨域的 CorsProperties。
+ * [OUTPUT]: 对外装配 MVC formatter、性能拦截、CORS filter 与通用响应边界。
+ * [POS]: common-web 的 Spring MVC 自动配置根，集中注册而不承载业务授权。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 package org.dromara.common.web.config;
 
 import cn.hutool.core.date.DateTime;

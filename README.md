@@ -6,7 +6,7 @@ Enterprise Agent Platform 是基于 DeepSeek Harness 构建的企业 Agent 管�
 
 ## 当前阶段
 
-T00 至 T19 已完成：仓库包含锁定产品源码、Harness 官方插件 workspace、Java/TypeScript 同源 OpenAPI 3.1 协议、PostgreSQL/Redis 企业模块、桌面管理控制台、插件分发闭环、Session 端到端复制与审计闭环。T19 已交付 30-action 显式 metadata 白名单、tenant 隔离审计查询、365 天有界 retention、用户治理事务接缝、heartbeat 防洪和管理员/审计员只读页面，并用真实 PostgreSQL、Server 与管理端证明同 requestId 双记录关联和员工 API 403；下一项只能从 T20 开始。实际证据见 [`docs/t19-audit-closure-acceptance.md`](docs/t19-audit-closure-acceptance.md)。
+T00 至 T20 已完成：仓库包含锁定产品源码、Harness 官方插件 workspace、Java/TypeScript 同源 OpenAPI 3.1 协议、PostgreSQL/Redis 企业模块、桌面管理控制台、插件分发闭环、Session 端到端复制、审计闭环和安全/故障基线。T20 已收紧同源 CORS、平台 JWT secret、通用 JSON/Session/form/multipart 请求体上限与 graceful drain，并完成日志秘密扫描、服务不可达、磁盘只读、PostgreSQL/Redis kill-restart 以及数据库/Redis/制品/key 恢复演练；下一项只能从 T21 开始。实际证据见 [`docs/t20-security-fault-acceptance.md`](docs/t20-security-fault-acceptance.md)。
 
 ## 文档
 
@@ -31,6 +31,7 @@ T00 至 T19 已完成：仓库包含锁定产品源码、Harness 官方插件 wo
 - [T17 Session 客户端验收记录](docs/t17-session-client-acceptance.md)：dirty queue、确认游标、退避终态、树外 consumer 与锁定 rc.7 同步恢复证据。
 - [T18 Session 页面验收记录](docs/t18-session-pages-acceptance.md)：管理正文权限/审计/tombstone、员工同步/恢复/删除与锁定 rc.7 重启不重传证据。
 - [T19 审计闭环验收记录](docs/t19-audit-closure-acceptance.md)：30-action metadata 白名单、requestId 关联、只读权限、retention、用户治理和 heartbeat 防洪证据。
+- [T20 安全与故障验收记录](docs/t20-security-fault-acceptance.md)：有界请求、同源 CORS、graceful drain、日志扫描、服务/磁盘故障与四类数据恢复证据。
 
 实现者先阅读 MVP 详细设计的第 1 至 21 节，再严格按照第 22 节任务依赖推进。发现设计矛盾时先修订设计并记录决定，不在代码中引入未经确认的替代方案。
 
@@ -91,3 +92,5 @@ node scripts/upstream-baseline.mjs import
 ## 安全
 
 仓库不得提交 `.env`、模型 API Key、OIDC client secret、LDAP manager 密码、平台 Token、master key、插件签名私钥、生产证书或真实 Session 数据。开发和测试只使用显式假数据及可撤销凭据。
+
+平台启动必须由环境提供 `SA_TOKEN_JWT_SECRET_KEY`。CI 可以用 `node scripts/scan-sensitive-logs.mjs --literal-file <controlled-literals> <logs...>` 扫描测试日志；开发环境可用 `./scripts/t20-recovery-drill.sh` 重复隔离的恢复与故障演练。

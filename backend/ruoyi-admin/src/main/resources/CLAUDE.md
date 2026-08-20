@@ -4,7 +4,7 @@
 
 成员清单
 
-application.yml: 默认应用配置，装配 enterprise URI/master key、冻结时区、模型/Session 上限、Session 90 天与审计 365 天 retention、公开认证白名单及可信 forwarding header 策略。
+application.yml: 默认应用配置，装配强制 JWT secret、同源 CORS、JSON/form/multipart/模型/Session 上限、30 秒 graceful drain、retention 及 T21 信任代理前置策略。
 application-dev.yml: 开发环境数据库、Redis 与日志覆盖，不保存生产秘密。
 application-prod.yml: 生产运行参数覆盖，与部署环境变量共同生效。
 banner.txt: RuoYi 应用启动 banner。

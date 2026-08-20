@@ -26,6 +26,7 @@ t16-session-server-acceptance.md: T16 独立验收证据，记录官方 format v
 t17-session-client-acceptance.md: T17 独立验收证据，记录 dirty queue、确认游标、退避终态、树外 consumer 与锁定 rc.7 同步恢复链路。
 t18-session-pages-acceptance.md: T18 独立验收证据，记录管理正文权限/审计/tombstone、员工同步/恢复/删除与 rc.7 重启不重传。
 t19-audit-closure-acceptance.md: T19 独立验收证据，记录 30-action metadata 白名单、requestId 关联、只读权限、retention、用户治理和 heartbeat 防洪。
+t20-security-fault-acceptance.md: T20 独立验收证据，记录分层安全上限、drain、秘密扫描、服务/磁盘故障与四类恢复演练。
 assets/: 无密钥验收媒体，保存 T05、T07、T12、T15、T18、T19 的真实页面流程截图/GIF；局部地图见 assets/CLAUDE.md。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

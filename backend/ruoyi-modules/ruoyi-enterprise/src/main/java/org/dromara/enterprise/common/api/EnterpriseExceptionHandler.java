@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖身份/设备/模型/配额/插件/Session/网关/revision 异常、Sa-Token、MVC 绑定与当前 requestId。
- * [OUTPUT]: 对外提供详细设计第 17 节稳定 status/code/retryable/error envelope。
+ * [OUTPUT]: 对外提供详细设计第 17 节稳定错误 envelope，未知故障日志只保留类型与 requestId。
  * [POS]: common/api 的企业 Controller 专用异常边界，优先于 RuoYi 通用 R 响应处理器。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -294,7 +294,7 @@ public final class EnterpriseExceptionHandler {
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<EnterpriseErrorResponse> unexpected(RuntimeException exception, HttpServletRequest request) {
         String requestId = EnterpriseRequestIds.current(request);
-        log.error("企业 API 执行失败 requestId={}", requestId, exception);
+        log.error("企业 API 执行失败 requestId={} type={}", requestId, exception.getClass().getSimpleName());
         return error(
             HttpStatus.SERVICE_UNAVAILABLE,
             "ENT_PLATFORM_UNAVAILABLE",
