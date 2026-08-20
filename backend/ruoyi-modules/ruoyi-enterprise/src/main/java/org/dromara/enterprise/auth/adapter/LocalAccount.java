@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 由 LocalAccountStore 从 sys_user 投影登录所需最小字段。
- * [OUTPUT]: 对外提供包含不可序列化用途密码 hash 的内部 LocalAccount。
+ * [INPUT]: 由 LocalAccountStore 从 sys_user 投影登录与首次改密所需最小字段。
+ * [OUTPUT]: 对外提供包含不可序列化密码 hash 和改密标记的内部 LocalAccount。
  * [POS]: LOCAL adapter 的持久化投影，不作为 Controller DTO 或审计 metadata。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -18,6 +18,7 @@ public final class LocalAccount {
     private final String email;
     private final String passwordHash;
     private final boolean enabled;
+    private final boolean passwordChangeRequired;
 
     public LocalAccount(
         long userId,
@@ -27,12 +28,25 @@ public final class LocalAccount {
         String passwordHash,
         boolean enabled
     ) {
+        this(userId, username, displayName, email, passwordHash, enabled, false);
+    }
+
+    public LocalAccount(
+        long userId,
+        String username,
+        String displayName,
+        String email,
+        String passwordHash,
+        boolean enabled,
+        boolean passwordChangeRequired
+    ) {
         this.userId = userId;
         this.username = Objects.requireNonNull(username, "username");
         this.displayName = Objects.requireNonNull(displayName, "displayName");
         this.email = email;
         this.passwordHash = Objects.requireNonNull(passwordHash, "passwordHash");
         this.enabled = enabled;
+        this.passwordChangeRequired = passwordChangeRequired;
     }
 
     public long userId() {
@@ -57,6 +71,10 @@ public final class LocalAccount {
 
     public boolean enabled() {
         return enabled;
+    }
+
+    public boolean passwordChangeRequired() {
+        return passwordChangeRequired;
     }
 
     @Override

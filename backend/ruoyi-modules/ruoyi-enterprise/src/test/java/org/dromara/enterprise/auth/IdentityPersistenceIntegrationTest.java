@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖真实 PostgreSQL V1-V5、身份 JDBC stores、三个身份 Application Service、AES-GCM 与只追加审计。
- * [OUTPUT]: 验证秘密隔离、资源 CAS、稳定 subject/摘要、显式绑定冲突和部门映射冲突语义。
+ * [INPUT]: 依赖真实 PostgreSQL V1-V12、身份 JDBC stores、三个身份 Application Service、AES-GCM 与只追加审计。
+ * [OUTPUT]: 验证秘密隔离、资源 CAS、显式活动用户名冲突下的稳定 subject/摘要、绑定冲突和部门映射冲突语义。
  * [POS]: T04 身份持久化事务退出门禁，以数据库最终事实证明领域规则而非用 mock 代替原子性。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -44,6 +44,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongSupplier;
@@ -194,6 +195,8 @@ class IdentityPersistenceIntegrationTest {
         );
         mappingService(audit).create(mutation(), source.id(), "engineering", DEPARTMENT_A);
         ExternalIdentityService service = externalIdentityService();
+        long collidingUserId = sequence.incrementAndGet();
+        users.insert(collidingUserId, "admin", "Existing Admin", null, DEPARTMENT_A, Instant.EPOCH);
 
         IdentityPrincipal first = principal(source, "subject-001", "admin", "First Name", "first@example.test",
             List.of("engineering", "unmapped"));
@@ -202,7 +205,7 @@ class IdentityPersistenceIntegrationTest {
         assertThat(linked.linkedNow()).isTrue();
         assertThat(linked.userProvisioned()).isTrue();
         assertThat(linked.departmentId()).isEqualTo(DEPARTMENT_A);
-        assertThat(linked.userId()).isNotEqualTo(1761100000000000001L);
+        assertThat(linked.userId()).isNotEqualTo(collidingUserId);
         assertThat(database.jdbc().queryForObject(
             "select user_name from sys_user where user_id=?", String.class, linked.userId()
         )).startsWith("admin_");

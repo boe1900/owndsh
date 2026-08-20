@@ -6,7 +6,7 @@ Enterprise Agent Platform 是基于 DeepSeek Harness 构建的企业 Agent 管�
 
 ## 当前阶段
 
-T00 至 T20 已完成：仓库包含锁定产品源码、Harness 官方插件 workspace、Java/TypeScript 同源 OpenAPI 3.1 协议、PostgreSQL/Redis 企业模块、桌面管理控制台、插件分发闭环、Session 端到端复制、审计闭环和安全/故障基线。T20 已收紧同源 CORS、平台 JWT secret、通用 JSON/Session/form/multipart 请求体上限与 graceful drain，并完成日志秘密扫描、服务不可达、磁盘只读、PostgreSQL/Redis kill-restart 以及数据库/Redis/制品/key 恢复演练；下一项只能从 T21 开始。实际证据见 [`docs/t20-security-fault-acceptance.md`](docs/t20-security-fault-acceptance.md)。
+T00 至 T21 已完成：仓库包含锁定产品源码、Harness 官方插件 workspace、Java/TypeScript 同源 OpenAPI 3.1 协议、PostgreSQL/Redis 企业模块、桌面管理控制台、插件分发闭环、Session 端到端复制、审计闭环、安全/故障基线和 Linux `amd64` 单机交付。T21 已交付只发布 Gateway HTTPS 的锁定 Compose、可信代理头、一次性初始化管理员、secret 生成、健康检查、数据/key 分离备份、恢复、升级和仅应用回滚，并完成全新安装与数据/key 保持演练；下一项只能从 T22 开始。实际证据见 [`docs/t21-deployment-delivery-acceptance.md`](docs/t21-deployment-delivery-acceptance.md)。
 
 ## 文档
 
@@ -32,6 +32,7 @@ T00 至 T20 已完成：仓库包含锁定产品源码、Harness 官方插件 wo
 - [T18 Session 页面验收记录](docs/t18-session-pages-acceptance.md)：管理正文权限/审计/tombstone、员工同步/恢复/删除与锁定 rc.7 重启不重传证据。
 - [T19 审计闭环验收记录](docs/t19-audit-closure-acceptance.md)：30-action metadata 白名单、requestId 关联、只读权限、retention、用户治理和 heartbeat 防洪证据。
 - [T20 安全与故障验收记录](docs/t20-security-fault-acceptance.md)：有界请求、同源 CORS、graceful drain、日志扫描、服务/磁盘故障与四类数据恢复证据。
+- [T21 部署交付验收记录](docs/t21-deployment-delivery-acceptance.md)：Linux amd64 release、TLS Compose、一次性管理员、secret、健康检查、备份恢复、升级与仅应用回滚证据。
 
 实现者先阅读 MVP 详细设计的第 1 至 21 节，再严格按照第 22 节任务依赖推进。发现设计矛盾时先修订设计并记录决定，不在代码中引入未经确认的替代方案。
 

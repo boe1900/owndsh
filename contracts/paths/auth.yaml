@@ -47,7 +47,7 @@ Sources:
 Password:
   post:
     operationId: completePasswordLogin
-    summary: Authenticate one LOCAL or LDAP source within an HTTPS login transaction; LOCAL reuses RuoYi captcha.
+    summary: Authenticate LOCAL or LDAP over HTTPS; bootstrap LOCAL accounts change the initial password in the same transaction.
     security: []
     requestBody:
       required: true
@@ -57,7 +57,7 @@ Password:
             $ref: '../enterprise-openapi.yaml#/components/schemas/PasswordLoginRequest'
     responses:
       '303':
-        description: Redirect the browser to the exact client callback with a one-time code.
+        description: Redirect to the exact client callback, or back to the same LOCAL transaction when initial password change is required.
         headers:
           Location:
             required: true

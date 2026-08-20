@@ -13,6 +13,7 @@ import com.networknt.schema.SchemaRegistry;
 import com.networknt.schema.SpecificationVersion;
 import org.dromara.enterprise.auth.application.AuthSources;
 import org.dromara.enterprise.auth.application.PlatformAuthorizationService;
+import org.dromara.enterprise.auth.application.PasswordChangeRequiredException;
 import org.dromara.enterprise.auth.application.PublicIdentitySource;
 import org.dromara.enterprise.auth.application.TokenExchangeResult;
 import org.dromara.enterprise.auth.domain.IdentitySourceType;
@@ -50,6 +51,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -102,7 +104,7 @@ class T05ApiContractTest {
             List.of(new PublicIdentitySource(1900100000000000001L, "Local", IdentitySourceType.LOCAL))
         ));
         when(authorization.password(
-            anyString(), anyString(), anyLong(), anyString(), anyString(), any(char[].class),
+            anyString(), anyString(), anyLong(), anyString(), anyString(), any(char[].class), nullable(char[].class),
             anyString(), anyString(), any()
         )).thenReturn(URI.create("http://127.0.0.1:18080/callback?code=code&state=client-state-0001"));
         when(authorization.startOidc(anyString(), anyString(), anyLong()))
@@ -117,6 +119,31 @@ class T05ApiContractTest {
         when(devices.list(any(), anyLong(), anyInt())).thenReturn(List.of(device));
         when(devices.get(any(), anyLong())).thenReturn(device);
         when(devices.revoke(any(), anyLong(), anyLong())).thenReturn(revokedDevice());
+    }
+
+    @Test
+    void redirectsRejectedInitialPasswordChangeBackToTheSameTransaction() throws Exception {
+        when(authorization.password(
+            anyString(), anyString(), anyLong(), anyString(), anyString(), any(char[].class), any(char[].class),
+            anyString(), anyString(), any()
+        )).thenThrow(new PasswordChangeRequiredException(true));
+
+        mvc.perform(post("/enterprise/auth/v1/password")
+                .secure(true)
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .param("transactionId", TRANSACTION)
+                .param("sourceId", "1900100000000000001")
+                .param("csrfToken", "csrf_01J5T05PKCEDEVICELOGIN00000")
+                .param("username", "platform.admin")
+                .param("password", "not-logged")
+                .param("newPassword", "weak-password")
+                .param("captchaId", "captcha-uuid")
+                .param("captchaCode", "12"))
+            .andExpect(status().isSeeOther())
+            .andExpect(redirectedUrl(
+                "/enterprise/auth/login.html?transaction_id=" + TRANSACTION
+                    + "&source_id=1900100000000000001&password_change=rejected"
+            ));
     }
 
     @Test

@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 LocalAccountStore、RuoYi LoginFailurePolicy 与 Hutool BCrypt。
- * [OUTPUT]: 对外提供 LOCAL 密码认证、稳定 userId subject 和不枚举账号的统一 principal。
- * [POS]: IdentityAdapter 的本地实现，复用现有 hash/锁定事实但不签发平台会话。
+ * [INPUT]: 依赖 LocalAccountStore 原子改密、RuoYi LoginFailurePolicy、共享 LOCAL 密码策略与 BCrypt。
+ * [OUTPUT]: 对外提供 LOCAL 认证、首次强制改密、稳定 userId subject 和不枚举账号的 principal。
+ * [POS]: IdentityAdapter 的本地实现，旧密码校验成功后才允许一次条件改密，不承担平台会话签发。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.auth.adapter;
@@ -11,6 +11,7 @@ import org.dromara.enterprise.auth.domain.IdentityCredential;
 import org.dromara.enterprise.auth.domain.IdentityPrincipal;
 import org.dromara.enterprise.auth.domain.IdentitySource;
 import org.dromara.enterprise.auth.domain.IdentitySourceType;
+import org.dromara.enterprise.auth.domain.LocalPasswordPolicy;
 import org.dromara.enterprise.auth.domain.PasswordCredentials;
 
 import java.util.Arrays;
@@ -65,6 +66,7 @@ public final class LocalIdentityAdapter implements IdentityAdapter {
         if (!matched[0]) {
             throw new IdentityAuthenticationException();
         }
+        enforceInitialPasswordChange(authenticated, passwordCredentials);
         return new IdentityPrincipal(
             Long.toString(source.id()),
             type(),
@@ -74,6 +76,29 @@ public final class LocalIdentityAdapter implements IdentityAdapter {
             authenticated.email(),
             List.of()
         );
+    }
+
+    private void enforceInitialPasswordChange(LocalAccount account, PasswordCredentials credentials) {
+        if (!account.passwordChangeRequired()) return;
+        char[] newPassword = credentials.newPassword();
+        if (newPassword == null) throw new LocalPasswordChangeRequiredException(false);
+        try {
+            try {
+                LocalPasswordPolicy.validate(account.username(), newPassword);
+            } catch (IllegalArgumentException exception) {
+                throw new LocalPasswordChangeRequiredException(true);
+            }
+            String newPasswordText = new String(newPassword);
+            if (BCrypt.checkpw(newPasswordText, account.passwordHash())) {
+                throw new LocalPasswordChangeRequiredException(true);
+            }
+            String newHash = BCrypt.hashpw(newPasswordText);
+            if (!accounts.changePasswordIfRequired(account.userId(), account.passwordHash(), newHash)) {
+                throw new IdentityAuthenticationException();
+            }
+        } finally {
+            Arrays.fill(newPassword, '\0');
+        }
     }
 
     @Override

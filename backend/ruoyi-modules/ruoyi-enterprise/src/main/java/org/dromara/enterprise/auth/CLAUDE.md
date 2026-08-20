@@ -4,7 +4,7 @@
 
 成员清单
 
-EnterpriseIdentityConfiguration.java: 身份纵向模块 composition root，从部署 URI/master key、Redis/JDBC/事务装配三个 adapter、PKCE 状态机与 Sa-Token 端口。
+EnterpriseIdentityConfiguration.java: 身份纵向模块 composition root，统一校验可带合法端口的 HTTPS authority，并从部署 URI/master key、Redis/JDBC/事务装配三个 adapter、PKCE 状态机与 Sa-Token 端口。
 EnterpriseIdentityProperties.java: enterprise tenant/public base/admin redirect、crypto master key 路径和开发期非 HTTPS OIDC 开关的强类型配置边界。
 adapter/: OIDC、LDAP、LOCAL 协议实现与统一 IdentityAdapter 路由；局部地图见 adapter/CLAUDE.md。
 application/: 身份配置/绑定事务与 PKCE 登录、Token、logout 状态机；局部地图见 application/CLAUDE.md。

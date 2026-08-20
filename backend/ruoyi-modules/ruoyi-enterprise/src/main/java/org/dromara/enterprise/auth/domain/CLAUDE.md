@@ -18,7 +18,8 @@ OidcClaimMapping.java: OIDC 原始 claims 到统一 principal 的显式白名单
 OidcCodeCredentials.java: T05 状态校验后用于 code+PKCE 交换的一次性脱敏凭据。
 OidcLoginState.java: 与平台 code 分区保存的 OIDC state/nonce/verifier/callback 一次性事实。
 OidcSettings.java: 强制 openid scope 与不可变 claim mapping 的 OIDC 配置。
-PasswordCredentials.java: LOCAL/LDAP 一次性用户名密码凭据，防御性复制并支持清零。
+LocalPasswordPolicy.java: bootstrap 与首次改密共享的 LOCAL 长度、字符类别、空白和用户名隔离规则。
+PasswordCredentials.java: LOCAL/LDAP 一次性当前密码与可选 LOCAL 新密码凭据，防御性复制并全量清零。
 Pkce.java: RFC 7636 verifier/challenge 语法、S256 计算与 constant-time 比较真源。
 PlatformAuthorizationCode.java: 60 秒一次性 code，绑定 client/redirect/challenge/user/installation/session device。
 PlatformClient.java: 固定 dsh-desktop/enterprise-admin 参数集合、回环/管理回调 allowlist 与 terminal 类型。

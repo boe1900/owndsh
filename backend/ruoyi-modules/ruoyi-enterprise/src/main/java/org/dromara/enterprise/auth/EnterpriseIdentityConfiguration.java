@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 JDBC/Jackson/事务/Redisson/ID generator、部署 URI/master key 与 RuoYi 登录/会话 ports。
- * [OUTPUT]: 对外装配 T04 身份能力及 T05 Redis PKCE/平台会话 Application Service。
+ * [OUTPUT]: 对外装配 T04 身份能力、T05 Redis PKCE/平台会话 Service 与统一 HTTPS authority 校验。
  * [POS]: auth 纵向模块的 Spring composition root，领域与 adapter 均不使用静态容器查找。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -257,16 +257,17 @@ public class EnterpriseIdentityConfiguration {
         );
     }
 
-    private static URI requirePublicBaseUrl(URI value) {
+    static URI requirePublicBaseUrl(URI value) {
+        int port = value == null ? -1 : value.getPort();
         if (value == null
             || !"https".equals(value.getScheme())
             || value.getHost() == null
             || value.getUserInfo() != null
-            || value.getPort() != -1
+            || (port != -1 && (port < 1 || port > 65_535))
             || !(value.getRawPath() == null || value.getRawPath().isEmpty() || "/".equals(value.getRawPath()))
             || value.getRawQuery() != null
             || value.getRawFragment() != null) {
-            throw new IllegalStateException("enterprise.public-base-url 必须是无路径、端口、查询和 fragment 的 HTTPS 根地址");
+            throw new IllegalStateException("enterprise.public-base-url 必须是可选合法端口且无路径、查询和 fragment 的 HTTPS 根地址");
         }
         return value;
     }

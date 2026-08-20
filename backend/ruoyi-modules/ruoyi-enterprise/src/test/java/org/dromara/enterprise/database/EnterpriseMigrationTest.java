@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 PostgresTestDatabase 装载真实 RuoYi 基线与 V1-V11 classpath migration。
- * [OUTPUT]: 验证空 schema、逐版本升级、V8 插件状态、V9 Session v0、V10 审计索引与 V11 心跳闸门。
+ * [INPUT]: 依赖 PostgresTestDatabase 装载真实 RuoYi 基线与 V1-V12 classpath migration。
+ * [OUTPUT]: 验证空 schema、逐版本升级、运行增量及 V12 部署状态/默认账号安全退役。
  * [POS]: database 的持续 migration 门禁，防止后续任务只验证最终 schema 而遗漏中间版本不可升级。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -27,12 +27,12 @@ class EnterpriseMigrationTest {
 
         Flyway flyway = PostgresTestDatabase.migrate(database, null);
 
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("11");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("12");
         Integer tableCount = database.jdbc().queryForObject("""
             select count(*) from information_schema.tables
             where table_schema = 'public' and table_name like 'ent_%'
             """, Integer.class);
-        assertThat(tableCount).isEqualTo(21);
+        assertThat(tableCount).isEqualTo(22);
         assertThat(database.jdbc().queryForObject(
             "select revision from ent_platform_revision where tenant_id='000000' and scope='BOOTSTRAP'",
             Long.class
@@ -41,6 +41,14 @@ class EnterpriseMigrationTest {
             "select type from ent_identity_source where tenant_id='000000'",
             String.class
         )).isEqualTo("LOCAL");
+        assertThat(database.jdbc().queryForObject(
+            "select count(*) from sys_user where user_name in ('admin','test','test1')",
+            Integer.class
+        )).isZero();
+        assertThat(database.jdbc().queryForObject(
+            "select count(*) from sys_client where client_secret in ('pc123','app123')",
+            Integer.class
+        )).isZero();
     }
 
     @Test
@@ -144,12 +152,33 @@ class EnterpriseMigrationTest {
                and indexname in ('ix_ent_audit_event_tenant_id','ix_ent_audit_event_tenant_retention')
             """, Integer.class)).isEqualTo(2);
 
-        Flyway latest = PostgresTestDatabase.migrate(database, "11");
-        assertThat(latest.info().current().getVersion().getVersion()).isEqualTo("11");
+        Flyway versionEleven = PostgresTestDatabase.migrate(database, "11");
+        assertThat(versionEleven.info().current().getVersion().getVersion()).isEqualTo("11");
         assertThat(database.jdbc().queryForObject("""
             select count(*) from information_schema.columns
              where table_name='ent_device' and column_name='last_heartbeat_audit_at'
             """, Integer.class)).isOne();
+
+        Flyway latest = PostgresTestDatabase.migrate(database, "12");
+        assertThat(latest.info().current().getVersion().getVersion()).isEqualTo("12");
+        assertThat(database.jdbc().queryForObject("""
+            select count(*) from information_schema.columns
+             where table_name='sys_user' and column_name='password_change_required'
+            """, Integer.class)).isOne();
+        assertThat(database.jdbc().queryForObject(
+            "select to_regclass('ent_deployment_state') is not null", Boolean.class
+        )).isTrue();
+        assertThat(database.jdbc().queryForObject(
+            "select count(*) from sys_user where user_id=? and status='1' and del_flag='2' "
+                + "and user_name=concat('retired_', user_id)",
+            Integer.class,
+            userId
+        )).isOne();
+        assertThat(database.jdbc().queryForObject(
+            "select count(*) from ent_device where id=1913000000000000301 and user_id=?",
+            Integer.class,
+            userId
+        )).isOne();
     }
 
     @Test
@@ -166,7 +195,7 @@ class EnterpriseMigrationTest {
             .run(context -> {
                 assertThat(context).hasSingleBean(Flyway.class);
                 assertThat(context.getBean(Flyway.class).info().current().getVersion().getVersion())
-                    .isEqualTo("11");
+                    .isEqualTo("12");
             });
     }
 }

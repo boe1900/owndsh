@@ -2084,6 +2084,7 @@ export const zAuthPasswordLoginRequestWritable = z.object({
     csrfToken: z.string().min(32).max(64).regex(/^[A-Za-z0-9_-]+$/),
     username: z.string().min(1).max(100),
     password: z.string().min(1).max(256),
+    newPassword: z.string().min(14).max(128).optional(),
     captchaId: z.string().min(1).max(128).optional(),
     captchaCode: z.string().min(1).max(16).optional()
 }).strict();

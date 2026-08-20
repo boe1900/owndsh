@@ -1,0 +1,122 @@
+# [INPUT]: 依赖 Compose 内网 DNS、configtree Docker secrets、持久 artifact 路径与唯一外部 HTTPS URI。
+# [OUTPUT]: 提供 PostgreSQL/Redis/Flyway、公开最小 health、完整禁用样例能力所需占位配置和 T21 bootstrap 的生产装配。
+# [POS]: ruoyi-admin 的单机 Linux amd64 交付 profile，所有秘密从 /run/secrets 文件读取或引用。
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+spring:
+  config:
+    import: configtree:/run/secrets/
+  datasource:
+    type: com.zaxxer.hikari.HikariDataSource
+    dynamic:
+      primary: master
+      strict: true
+      datasource:
+        master:
+          type: ${spring.datasource.type}
+          driver-class-name: org.postgresql.Driver
+          url: jdbc:postgresql://postgres:5432/${ENT_POSTGRES_DATABASE:enterprise_agent}?sslmode=disable&reWriteBatchedInserts=true
+          username: ${ENT_POSTGRES_USERNAME:enterprise_agent}
+      hikari:
+        max-pool-size: 20
+        min-idle: 4
+        connection-timeout: 30000
+        validation-timeout: 5000
+        idle-timeout: 600000
+        max-lifetime: 1800000
+        keepalive-time: 30000
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
+  data:
+    redis:
+      host: redis
+      port: 6379
+      database: 0
+      timeout: 10s
+      ssl:
+        enabled: false
+  boot:
+    admin:
+      client:
+        enabled: false
+  ai:
+    mcp:
+      server:
+        enabled: false
+      client:
+        enabled: false
+
+enterprise:
+  public-base-url: ${ENT_PUBLIC_BASE_URL}
+  admin-redirect-uri: ${ENT_ADMIN_REDIRECT_URI}
+  crypto:
+    master-key-file: ${ENT_MASTER_KEY_FILE:/run/secrets/enterprise_master_key}
+  plugin:
+    artifact-root: ${ENT_ARTIFACT_ROOT:/var/lib/enterprise/artifacts}
+    signing-private-key-file: ${ENT_PLUGIN_SIGNING_PRIVATE_KEY_FILE:/run/secrets/plugin_signing_private_key}
+  deployment:
+    bootstrap:
+      username: ${ENT_BOOTSTRAP_ADMIN_USERNAME:}
+      password-file: ${ENT_BOOTSTRAP_ADMIN_PASSWORD_FILE:}
+
+sa-token:
+  jwt-secret-key: ${sa_token_jwt_secret_key}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+
+springdoc:
+  api-docs:
+    enabled: false
+
+api-decrypt:
+  enabled: false
+
+message:
+  enabled: false
+  allowedOrigins: []
+
+mail:
+  enabled: false
+
+snail-job:
+  enabled: false
+  # 上游示例 Job Bean 即使客户端关闭仍会解析该占位符；保留与 prod profile 一致的非发布端口。
+  port: 2${server.port}
+
+snail-ai:
+  enabled: false
+
+warm-flow:
+  enabled: false
+  ui: false
+
+liteflow:
+  enable: false
+
+mqtt:
+  client:
+    enabled: false
+
+security:
+  actuator-basic-auth-enabled: false
+  excludes:
+    - /*.html
+    - /**/*.html
+    - /**/*.css
+    - /**/*.js
+    - /favicon.ico
+    - /error
+    - /enterprise/auth/v1/**
+    - /actuator/health

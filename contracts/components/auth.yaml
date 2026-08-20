@@ -1,6 +1,6 @@
 # [INPUT]: 依赖根协议的 RequestId 与统一 envelope 约定，以及详细设计第 6 节固定 public client/PKCE 边界
-# [OUTPUT]: 提供 T05 登录事务、公开身份源、条件验证码密码交换、授权码 Token 和注销 schema
-# [POS]: contracts/components 的认证协议分片，只描述平台最小登录门面而不是通用 OAuth2 Server
+# [OUTPUT]: 提供登录事务、公开身份源、LOCAL 首次改密/条件验证码、授权码 Token 和注销 schema
+# [POS]: contracts/components 的认证协议分片，首次改密复用同一 HTTPS 事务而不增加密码重置旁路
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 PlatformClient:
@@ -104,6 +104,12 @@ PasswordLoginRequest:
       minLength: 1
       maxLength: 256
       writeOnly: true
+    newPassword:
+      type: string
+      minLength: 14
+      maxLength: 128
+      writeOnly: true
+      description: Required only after a LOCAL bootstrap account is redirected to the first-login password change form.
     captchaId:
       type: string
       minLength: 1

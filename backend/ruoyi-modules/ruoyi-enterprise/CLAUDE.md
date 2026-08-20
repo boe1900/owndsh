@@ -14,10 +14,11 @@ src/main/java/org/dromara/enterprise/plugin/: tgz 流式验包、JCS/Ed25519、C
 src/main/java/org/dromara/enterprise/session/: 精确 JSONL/hash、AES-GCM 远端副本、本人/管理读取、tombstone 与 retention 纵向模块；局部地图见 session/CLAUDE.md。
 src/main/java/org/dromara/enterprise/common/: 企业 HTTP envelope、36 个稳定错误映射、requestId/metadata、认证 cursor、有界 JSON 请求与故障日志隔离公共边界；局部地图见 common/CLAUDE.md。
 src/main/java/org/dromara/enterprise/audit/: 30-action 显式 metadata DTO、只追加 JDBC sink、tenant/keyset 管理查询、365 天有界 retention 与用户治理事务监听纵向模块；局部地图见 audit/CLAUDE.md。
+src/main/java/org/dromara/enterprise/deployment/: deploy profile 一次性管理员、PostgreSQL 锁和初始化完成标记边界；局部地图见 deployment/CLAUDE.md。
 src/main/java/org/dromara/enterprise/crypto/: HKDF-SHA-256 用途派生与 AES-256-GCM 秘密/cursor 保护，不暴露 master key 或派生 key。
 src/main/java/org/dromara/enterprise/revision/: 固定 BOOTSTRAP scope 的 optimistic CAS、稳定冲突错误码与审计同事务编排。
-src/main/resources/db/migration/: PostgreSQL `V1` 至 `V11` 真源，依次建立核心、插件、Session、审计/RBAC、默认 seed、quota runtime、管理观测、插件状态、Session v0、审计查询索引与 heartbeat 审计限频增量；局部地图见 db/migration/CLAUDE.md。
-src/main/resources/static/enterprise/auth/: 无 Token 的公开身份源选择、密码与 OIDC 跳转页；局部地图见 auth/CLAUDE.md。
+src/main/resources/db/migration/: PostgreSQL `V1` 至 `V12` 真源，建立企业事实、审计/RBAC、运行增量以及部署 marker/首次改密/已知凭据清理；局部地图见 db/migration/CLAUDE.md。
+src/main/resources/static/enterprise/auth/: 无 Token 的公开身份源选择、LOCAL 首次改密/验证码、LDAP 密码与 OIDC 跳转页；局部地图见 auth/CLAUDE.md。
 src/test/java/org/dromara/enterprise/: 单元和 Testcontainers 集成验收，覆盖数据库、身份、PKCE/Redis、设备、模型、配额、插件、协议和事务边界。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

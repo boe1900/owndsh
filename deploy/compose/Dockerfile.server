@@ -1,0 +1,21 @@
+# [INPUT]: 依赖仓库 backend 源码、Maven lock、可替换 registry 前缀与固定 digest 的 Maven/JRE Linux 镜像。
+# [OUTPUT]: 构建只含可执行 ruoyi-admin.jar 的非 root Java 21 Server 镜像。
+# [POS]: T21 Server 生产制品定义，migration 和 application-deploy.yml 随 JAR 同版交付。
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+ARG EAP_BASE_IMAGE_REGISTRY=docker.io/library
+FROM ${EAP_BASE_IMAGE_REGISTRY}/maven:3.9.11-eclipse-temurin-21-alpine@sha256:922927df2c662cdd47ddb116443d6bec4696cfae3de1a0ddac8fcc7b87ce61ae AS build
+WORKDIR /workspace/backend
+COPY backend/ ./
+RUN mvn -B -ntp -Pprod -DskipTests -pl ruoyi-admin -am package
+
+FROM ${EAP_BASE_IMAGE_REGISTRY}/eclipse-temurin:21.0.8_9-jre-alpine-3.22@sha256:990397e0495ac088ab6ee3d949a2e97b715a134d8b96c561c5d130b3786a489d
+RUN addgroup -S -g 10001 enterprise \
+    && adduser -S -D -H -u 10001 -G enterprise enterprise \
+    && mkdir -p /app/logs /app/tmp /var/lib/enterprise/artifacts \
+    && chown -R 10001:10001 /app /var/lib/enterprise
+WORKDIR /app
+COPY --from=build --chown=10001:10001 /workspace/backend/ruoyi-admin/target/ruoyi-admin.jar /app/app.jar
+USER 10001:10001
+EXPOSE 8080
+CMD ["java", "-Djava.security.egd=file:/dev/urandom", "-jar", "/app/app.jar"]

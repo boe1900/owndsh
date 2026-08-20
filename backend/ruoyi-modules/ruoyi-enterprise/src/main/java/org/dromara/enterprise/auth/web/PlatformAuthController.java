@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 PlatformAuthorizationService、固定 enterprise 配置、可信 request metadata 与 HTTPS 密码/验证码表单。
- * [OUTPUT]: 提供 authorize/sources/password/OIDC start+callback/token/logout 七个 T05 HTTP 入口。
- * [POS]: auth/web 的最小平台登录门面，只翻译协议并把密码生命周期限制在单次请求内。
+ * [INPUT]: 依赖 PlatformAuthorizationService、固定 enterprise 配置、可信 metadata 与 HTTPS 密码/首次改密表单。
+ * [OUTPUT]: 提供 authorize/sources/password/OIDC start+callback/token/logout，并把首次改密重定向回原事务。
+ * [POS]: auth/web 的最小平台登录门面，只翻译协议并把当前/新密码生命周期限制在单次请求内。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.auth.web;
@@ -11,6 +11,7 @@ import org.dromara.enterprise.auth.EnterpriseIdentityProperties;
 import org.dromara.enterprise.auth.application.AuthFlowException;
 import org.dromara.enterprise.auth.application.IdentityLoginContext;
 import org.dromara.enterprise.auth.application.PlatformAuthorizationService;
+import org.dromara.enterprise.auth.application.PasswordChangeRequiredException;
 import org.dromara.enterprise.auth.application.TokenExchangeResult;
 import org.dromara.enterprise.auth.domain.PlatformClient;
 import org.dromara.enterprise.common.api.EnterpriseRequestMetadata;
@@ -84,6 +85,7 @@ public final class PlatformAuthController {
         @RequestParam String csrfToken,
         @RequestParam String username,
         @RequestParam String password,
+        @RequestParam(required = false) String newPassword,
         @RequestParam(required = false) String captchaId,
         @RequestParam(required = false) String captchaCode,
         HttpServletRequest request
@@ -91,21 +93,35 @@ public final class PlatformAuthController {
         requireHttps(request);
         EnterpriseRequestMetadata metadata = EnterpriseRequestMetadata.from(request);
         char[] passwordChars = password.toCharArray();
+        char[] newPasswordChars = newPassword == null || newPassword.isEmpty() ? null : newPassword.toCharArray();
         try {
-            URI callback = authorization.password(
-                tenantId,
-                transactionId,
-                positiveId(sourceId),
-                csrfToken,
-                username,
-                passwordChars,
-                captchaId,
-                captchaCode,
-                loginContext(metadata)
-            );
-            return ResponseEntity.status(HttpStatus.SEE_OTHER).location(callback).build();
+            long parsedSourceId = positiveId(sourceId);
+            try {
+                URI callback = authorization.password(
+                    tenantId,
+                    transactionId,
+                    parsedSourceId,
+                    csrfToken,
+                    username,
+                    passwordChars,
+                    newPasswordChars,
+                    captchaId,
+                    captchaCode,
+                    loginContext(metadata)
+                );
+                return ResponseEntity.status(HttpStatus.SEE_OTHER).location(callback).build();
+            } catch (PasswordChangeRequiredException exception) {
+                String changeState = exception.rejected() ? "rejected" : "required";
+                URI retry = URI.create(
+                    "/enterprise/auth/login.html?transaction_id=" + transactionId
+                        + "&source_id=" + parsedSourceId
+                        + "&password_change=" + changeState
+                );
+                return ResponseEntity.status(HttpStatus.SEE_OTHER).location(retry).build();
+            }
         } finally {
             Arrays.fill(passwordChars, '\0');
+            if (newPasswordChars != null) Arrays.fill(newPasswordChars, '\0');
         }
     }
 

@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖真实 PostgreSQL 17/Flyway V1-V8、CAS 文件、Ed25519、设备与插件 JDBC/application 服务。
- * [OUTPUT]: 验证并发幂等上传、catalog assignment 读回、状态/CAS、下载授权、库存、审计和文件补偿。
+ * [INPUT]: 依赖真实 PostgreSQL 17/Flyway V1-V12、三个显式活动用户 fixture、CAS 文件、Ed25519、设备与插件 JDBC/application 服务。
+ * [OUTPUT]: 验证不借用默认账号的并发幂等上传、catalog assignment 读回、状态/CAS、下载授权、库存、审计和文件补偿。
  * [POS]: T13 服务端纵向验收，跨越 artifact、domain、persistence 与 application 的真实事务边界。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -60,9 +60,9 @@ import static org.mockito.Mockito.mock;
 @Tag("dev")
 class PluginServerIntegrationTest {
     private static final String TENANT = "000000";
-    private static final long ADMIN_USER = 1_761_100_000_000_000_001L;
-    private static final long PEER_USER = 1_901_300_000_000_900_001L;
-    private static final long OTHER_USER = 1_761_100_000_000_000_003L;
+    private static final long ADMIN_USER = 1_901_300_000_000_900_001L;
+    private static final long PEER_USER = 1_901_300_000_000_900_002L;
+    private static final long OTHER_USER = 1_901_300_000_000_900_003L;
     private static final long ADMIN_DEPT = 1_761_000_000_000_000_103L;
     private static final long OTHER_DEPT = 1_761_000_000_000_000_108L;
     private static final long ADMIN_DEVICE = 1_901_300_000_000_900_011L;
@@ -80,15 +80,15 @@ class PluginServerIntegrationTest {
     static void createDatabase() {
         database = PostgresTestDatabase.create("t13_plugin_server");
         PostgresTestDatabase.migrate(database, null);
-        database.jdbc().update("""
-            insert into sys_user(
-                user_id,dept_id,user_name,nick_name,user_type,email,phone_number,gender,avatar,password,
-                status,del_flag,login_ip,login_date,create_dept,create_by,create_time,update_by,update_time,remark
-            )
-            select ?,dept_id,'t13-peer','T13 Peer',user_type,'','',gender,avatar,password,
-                   status,del_flag,login_ip,login_date,create_dept,create_by,now(),null,null,'T13 fixture'
-            from sys_user where user_id=?
-            """, PEER_USER, ADMIN_USER);
+        PostgresTestDatabase.insertActiveUser(
+            database, ADMIN_USER, ADMIN_DEPT, "t13-admin", "T13 Admin"
+        );
+        PostgresTestDatabase.insertActiveUser(
+            database, PEER_USER, ADMIN_DEPT, "t13-peer", "T13 Peer"
+        );
+        PostgresTestDatabase.insertActiveUser(
+            database, OTHER_USER, OTHER_DEPT, "t13-other", "T13 Other"
+        );
         insertDevice(ADMIN_DEVICE, ADMIN_USER, ADMIN_INSTALLATION, "T13 Admin Desktop");
         insertDevice(PEER_DEVICE, PEER_USER, PEER_INSTALLATION, "T13 Peer Desktop");
     }

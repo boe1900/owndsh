@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Sa-Token Servlet 上下文、RuoYi 安全白名单/client 规则与当前 HTTP 请求路径。
- * [OUTPUT]: 提供异步分发可用的 Sa-Token filter，以及企业 API 服务端 client 隔离后的统一鉴权拦截器。
+ * [OUTPUT]: 提供异步分发可用的 Sa-Token filter、可配置 Actuator Basic Auth，以及企业 API 服务端 client 隔离后的统一鉴权拦截器。
  * [POS]: ruoyi-common-security 的全局入口；非企业路由保留 clientid 交叉校验，企业路由把裁决下沉到可信 Token session。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -30,6 +30,7 @@ import org.dromara.common.satoken.utils.LoginHelper;
 import org.dromara.common.security.config.properties.SecurityProperties;
 import org.dromara.common.security.handler.AllUrlHandler;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -134,6 +135,12 @@ public class SecurityConfig implements WebMvcConfigurer {
      * @return Sa-Token Servlet 过滤器
      */
     @Bean
+    @ConditionalOnProperty(
+        prefix = "security",
+        name = "actuator-basic-auth-enabled",
+        havingValue = "true",
+        matchIfMissing = true
+    )
     public SaServletFilter getSaServletFilter() {
         String username = SpringUtils.getProperty("spring.boot.admin.client.username");
         String password = SpringUtils.getProperty("spring.boot.admin.client.password");

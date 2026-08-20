@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖真实 PostgreSQL 17/V1-V6、quota JDBC 状态机、JdbcAuditSink、事务与 fake DeepSeek SSE。
- * [OUTPUT]: 验证 accepted/SENT、settled/finished 原子提交及 finished 审计失败时 ledger/状态共同回滚。
+ * [INPUT]: 依赖真实 PostgreSQL 17/V1-V12、显式活动用户 fixture、quota JDBC 状态机、JdbcAuditSink、事务与 fake DeepSeek SSE。
+ * [OUTPUT]: 验证不借用默认账号的 accepted/SENT、settled/finished 原子提交及 finished 审计失败时 ledger/状态共同回滚。
  * [POS]: T10 数据库事务验收，Redis lease 原子/TTL 继续由 T09 真实 Redis 专项测试证明。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -62,6 +62,8 @@ class ModelGatewayTransactionIntegrationTest {
     private static final long PROVIDER_ID = 1_901_000_000_000_000_001L;
     private static final long MODEL_ID = 1_901_000_000_000_000_002L;
     private static final long DEVICE_ID = 1_901_000_000_000_000_003L;
+    private static final long USER_ID = 1_901_000_000_000_900_001L;
+    private static final long DEPARTMENT_ID = 1_761_000_000_000_000_103L;
     private static final UUID INSTALLATION = UUID.fromString("123e4567-e89b-42d3-a456-426614174020");
     private static final AtomicLong IDS = new AtomicLong(1_901_000_100_000_000_000L);
     private static final JsonMapper JSON = JsonMapper.builder().build();
@@ -71,21 +73,15 @@ class ModelGatewayTransactionIntegrationTest {
     private static QuotaReservationService quotas;
     private static JdbcAuditSink jdbcAudit;
     private static SecretCipher cipher;
-    private static long userId;
-    private static long departmentId;
     private static GatewayRouteResolver.GatewayRoute route;
 
     @BeforeAll
     static void setUp() {
         database = PostgresTestDatabase.create("t10_model_gateway");
         PostgresTestDatabase.migrate(database, null);
-        Map<String, Object> user = database.jdbc().queryForMap("""
-            select user_id, dept_id from sys_user
-             where status = '0' and del_flag = '0' and dept_id is not null
-             order by user_id limit 1
-            """);
-        userId = ((Number) user.get("user_id")).longValue();
-        departmentId = ((Number) user.get("dept_id")).longValue();
+        PostgresTestDatabase.insertActiveUser(
+            database, USER_ID, DEPARTMENT_ID, "t10-gateway-user", "T10 Gateway User"
+        );
         insertFacts();
 
         var transactionManager = new DataSourceTransactionManager(database.dataSource());
@@ -106,9 +102,9 @@ class ModelGatewayTransactionIntegrationTest {
             "transaction-test-secret".getBytes(StandardCharsets.UTF_8)
         );
         route = new GatewayRouteResolver.GatewayRoute(
-            new BootstrapUser(userId, "gateway-user", "Gateway User", departmentId),
+            new BootstrapUser(USER_ID, "t10-gateway-user", "T10 Gateway User", DEPARTMENT_ID),
             new EnterpriseDevice(
-                DEVICE_ID, TENANT, userId, "gateway-user", "Gateway User", INSTALLATION,
+                DEVICE_ID, TENANT, USER_ID, "t10-gateway-user", "T10 Gateway User", INSTALLATION,
                 "T10 Desktop", "darwin-arm64", "1", "1", DeviceStatus.ACTIVE, Instant.now(), null, 0
             ),
             new ManagedModel(
@@ -187,7 +183,7 @@ class ModelGatewayTransactionIntegrationTest {
 
     private static DeviceCallContext context(String requestId) {
         return new DeviceCallContext(
-            TENANT, new PlatformSession(userId, PlatformClient.DSH_DESKTOP, "harness", INSTALLATION.toString()),
+            TENANT, new PlatformSession(USER_ID, PlatformClient.DSH_DESKTOP, "harness", INSTALLATION.toString()),
             requestId, "127.0.0.1", new byte[32]
         );
     }
@@ -211,7 +207,7 @@ class ModelGatewayTransactionIntegrationTest {
             insert into ent_device (
                 id, tenant_id, user_id, installation_id, name, platform, status, revision
             ) values (?, ?, ?, ?, 'T10 Desktop', 'darwin-arm64', 'ACTIVE', 0)
-            """, DEVICE_ID, TENANT, userId, INSTALLATION);
+            """, DEVICE_ID, TENANT, USER_ID, INSTALLATION);
     }
 
     private static final class SuccessfulUpstream implements DeepSeekUpstreamClient {

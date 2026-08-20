@@ -1,0 +1,16 @@
+# [INPUT]: 依赖尚无 BOOTSTRAP_ADMIN_COMPLETED marker 的数据库、临时用户名和密码文件。
+# [OUTPUT]: 仅为首次 Server 启动增加一次性 bootstrap 输入，不改变常规 Compose 拓扑。
+# [POS]: 安装事务的短生命周期 overlay；marker 成功后必须停用并删除安装目录中的密码副本。
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+services:
+  server:
+    environment:
+      ENT_BOOTSTRAP_ADMIN_USERNAME: ${ENT_BOOTSTRAP_ADMIN_USERNAME:?ENT_BOOTSTRAP_ADMIN_USERNAME must be set}
+      ENT_BOOTSTRAP_ADMIN_PASSWORD_FILE: /run/secrets/bootstrap_admin_password
+    secrets:
+      - bootstrap_admin_password
+
+secrets:
+  bootstrap_admin_password:
+    file: ${EAP_BOOTSTRAP_PASSWORD_FILE:?EAP_BOOTSTRAP_PASSWORD_FILE must be set}

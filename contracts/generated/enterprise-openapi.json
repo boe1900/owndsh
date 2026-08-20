@@ -624,7 +624,7 @@
     "/enterprise/auth/v1/password": {
       "post": {
         "operationId": "completePasswordLogin",
-        "summary": "Authenticate one LOCAL or LDAP source within an HTTPS login transaction; LOCAL reuses RuoYi captcha.",
+        "summary": "Authenticate LOCAL or LDAP over HTTPS; bootstrap LOCAL accounts change the initial password in the same transaction.",
         "security": [],
         "requestBody": {
           "required": true,
@@ -669,6 +669,13 @@
                     "maxLength": 256,
                     "writeOnly": true
                   },
+                  "newPassword": {
+                    "type": "string",
+                    "minLength": 14,
+                    "maxLength": 128,
+                    "writeOnly": true,
+                    "description": "Required only after a LOCAL bootstrap account is redirected to the first-login password change form."
+                  },
                   "captchaId": {
                     "type": "string",
                     "minLength": 1,
@@ -689,7 +696,7 @@
         },
         "responses": {
           "303": {
-            "description": "Redirect the browser to the exact client callback with a one-time code.",
+            "description": "Redirect to the exact client callback, or back to the same LOCAL transaction when initial password change is required.",
             "headers": {
               "Location": {
                 "required": true,
@@ -68996,6 +69003,13 @@
             "minLength": 1,
             "maxLength": 256,
             "writeOnly": true
+          },
+          "newPassword": {
+            "type": "string",
+            "minLength": 14,
+            "maxLength": 128,
+            "writeOnly": true,
+            "description": "Required only after a LOCAL bootstrap account is redirected to the first-login password change form."
           },
           "captchaId": {
             "type": "string",

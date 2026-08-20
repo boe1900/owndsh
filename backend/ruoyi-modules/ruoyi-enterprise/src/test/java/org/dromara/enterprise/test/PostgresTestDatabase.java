@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 Docker、postgres:17-alpine、仓库 RuoYi PostgreSQL 基线与 classpath Flyway migration。
- * [OUTPUT]: 为测试提供隔离数据库、真实基线装载、目标版本迁移和 JdbcTemplate。
- * [POS]: T03 集成测试基础设施，集中管理容器生命周期而不把 Docker 细节散入断言。
+ * [OUTPUT]: 为测试提供隔离数据库、真实基线装载、目标版本迁移、JdbcTemplate 与活动用户 fixture。
+ * [POS]: 集成测试数据库基础设施，集中管理容器生命周期及跨模块共用的最小关系事实。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.test;
@@ -90,6 +90,35 @@ public final class PostgresTestDatabase {
         Flyway flyway = configuration.load();
         flyway.migrate();
         return flyway;
+    }
+
+    /**
+     * 在最新 enterprise schema 中创建不依赖上游默认账号的活动测试用户。
+     *
+     * @param database 测试数据库
+     * @param userId 用户 ID
+     * @param departmentId 已存在的部门 ID
+     * @param username 测试内唯一用户名
+     * @param displayName 显示名
+     */
+    public static void insertActiveUser(
+        Database database,
+        long userId,
+        long departmentId,
+        String username,
+        String displayName
+    ) {
+        database.jdbc().update("""
+            insert into sys_user (
+                user_id, dept_id, user_name, nick_name, user_type, email, phone_number, gender,
+                avatar, password, status, del_flag, login_ip, login_date, create_dept, create_by,
+                create_time, update_by, update_time, remark, password_change_required
+            ) values (
+                ?, ?, ?, ?, 'sys_user', '', '', '2', null,
+                '$2a$12$usLcV18ZuGIDnGQ6.EMwOOhF5Pt7YJQWcKX1w1vJSPff8nb5Oh5CO',
+                '0', '0', '127.0.0.1', null, ?, ?, now(), null, null, 'Integration test fixture', false
+            )
+            """, userId, departmentId, username, displayName, departmentId, userId);
     }
 
     private static void exec(String... command) {

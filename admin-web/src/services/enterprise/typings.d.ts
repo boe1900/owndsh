@@ -2047,6 +2047,8 @@ declare namespace API {
     csrfToken: string;
     username: string;
     password: string;
+    /** Required only after a LOCAL bootstrap account is redirected to the first-login password change form. */
+    newPassword?: string;
     /** Required for LOCAL only when the existing RuoYi captcha switch is enabled. */
     captchaId?: string;
     /** Required for LOCAL only when the existing RuoYi captcha switch is enabled. */

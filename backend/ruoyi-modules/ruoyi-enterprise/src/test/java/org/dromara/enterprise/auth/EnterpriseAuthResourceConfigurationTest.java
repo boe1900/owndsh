@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 EnterpriseAuthResourceConfiguration、Spring MVC 测试上下文与模块内真实静态资源
- * [OUTPUT]: 验证公开登录页三项资源从 classpath 映射并保持正确内容类型
+ * [OUTPUT]: 验证公开登录三项资源、首次改密字段/控制逻辑从 classpath 映射且类型正确
  * [POS]: auth 的浏览器入口回归门禁，防止授权跳转落入 RuoYi 404 envelope
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -40,13 +40,15 @@ class EnterpriseAuthResourceConfigurationTest {
     void servesOnlyTheThreePublicLoginAssets() throws Exception {
         mvc.perform(get("/enterprise/auth/login.html"))
             .andExpect(status().isOk())
-            .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML));
+            .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"newPassword\"")));
         mvc.perform(get("/enterprise/auth/login.css"))
             .andExpect(status().isOk())
             .andExpect(content().contentTypeCompatibleWith("text/css"));
         mvc.perform(get("/enterprise/auth/login.js"))
             .andExpect(status().isOk())
-            .andExpect(content().contentTypeCompatibleWith("text/javascript"));
+            .andExpect(content().contentTypeCompatibleWith("text/javascript"))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("passwordChangeRequested")));
         mvc.perform(get("/enterprise/auth/CLAUDE.md"))
             .andExpect(status().isNotFound());
     }

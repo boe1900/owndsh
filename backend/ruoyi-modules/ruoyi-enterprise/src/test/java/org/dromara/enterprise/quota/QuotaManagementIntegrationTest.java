@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖真实 PostgreSQL 17、V1-V7、quota JDBC adapters、事务、审计与并发连接。
- * [OUTPUT]: 验证策略/CAS/bootstrap、50 并发防超卖、全部状态、幂等、结算、恢复和带语义投影的用量查询。
+ * [INPUT]: 依赖真实 PostgreSQL 17、V1-V12、显式活动用户 fixture、quota JDBC adapters、事务、审计与并发连接。
+ * [OUTPUT]: 验证不借用默认账号的策略/CAS/bootstrap、50 并发防超卖、全部状态、幂等、结算、恢复和带语义投影的用量查询。
  * [POS]: T09 主要数据库验收；Redis 原子/TTL 由独立真实 Redis 测试覆盖，T10 网关不在此实现。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -75,12 +75,12 @@ class QuotaManagementIntegrationTest {
     private static final long PROVIDER_ID = 1_900_900_000_000_000_001L;
     private static final long MODEL_ID = 1_900_900_000_000_000_002L;
     private static final long DEVICE_ID = 1_900_900_000_000_000_003L;
+    private static final long USER_ID = 1_900_900_000_000_900_001L;
+    private static final long DEPARTMENT_ID = 1_761_000_000_000_000_103L;
     private static final UUID INSTALLATION = UUID.fromString("123e4567-e89b-42d3-a456-426614174099");
     private static final AtomicLong SEQUENCE = new AtomicLong(1_900_900_100_000_000_000L);
 
     private static PostgresTestDatabase.Database database;
-    private static long userId;
-    private static long departmentId;
     private static QuotaPolicyStore policyStore;
     private static UsageReservationStore reservationStore;
     private static UsageLedgerStore ledgerStore;
@@ -93,13 +93,9 @@ class QuotaManagementIntegrationTest {
     static void setUp() {
         database = PostgresTestDatabase.create("t09_quota_management");
         PostgresTestDatabase.migrate(database, null);
-        Map<String, Object> user = database.jdbc().queryForMap("""
-            select user_id, dept_id from sys_user
-             where status = '0' and del_flag = '0' and dept_id is not null
-             order by user_id limit 1
-            """);
-        userId = ((Number) user.get("user_id")).longValue();
-        departmentId = ((Number) user.get("dept_id")).longValue();
+        PostgresTestDatabase.insertActiveUser(
+            database, USER_ID, DEPARTMENT_ID, "t09-quota-user", "T09 Quota User"
+        );
         insertModelAndDevice();
 
         var transactionManager = new DataSourceTransactionManager(database.dataSource());
@@ -135,36 +131,36 @@ class QuotaManagementIntegrationTest {
 
         QuotaMutationContext mutation = mutation("req_01ARZ3NDEKTSV4RRFFQ69G5FAA");
         QuotaPolicy department = policyService.create(mutation, spec(
-            "T09 Department", QuotaSubjectType.DEPT, departmentId, 500_000L, 10_000_000L, 15, 3
+            "T09 Department", QuotaSubjectType.DEPT, DEPARTMENT_ID, 500_000L, 10_000_000L, 15, 3
         ));
         QuotaPolicy user = policyService.create(mutation, spec(
-            "T09 User", QuotaSubjectType.USER, userId, 100_000L, 2_000_000L, 10, 2
+            "T09 User", QuotaSubjectType.USER, USER_ID, 100_000L, 2_000_000L, 10, 2
         ));
-        assertThat(resolver.resolve(TENANT, userId, departmentId))
+        assertThat(resolver.resolve(TENANT, USER_ID, DEPARTMENT_ID))
             .extracting(QuotaPolicy::subjectType)
             .containsExactly(QuotaSubjectType.DEFAULT, QuotaSubjectType.DEPT, QuotaSubjectType.USER);
         long userPolicyId = user.id();
         String userPolicyName = user.name();
         assertThatThrownBy(() -> policyService.update(mutation, userPolicyId, 99, spec(
-            userPolicyName, QuotaSubjectType.USER, userId, 100_000L, null, null, null
+            userPolicyName, QuotaSubjectType.USER, USER_ID, 100_000L, null, null, null
         ))).isInstanceOf(RevisionConflictException.class);
 
         BootstrapView bootstrap = BootstrapView.from(new BootstrapService.BootstrapSnapshot(
             2,
-            new BootstrapUser(userId, "quota-user", "Quota User", departmentId),
+            new BootstrapUser(USER_ID, "t09-quota-user", "T09 Quota User", DEPARTMENT_ID),
             new EnterpriseDevice(
-                DEVICE_ID, TENANT, userId, "quota-user", "Quota User", INSTALLATION, "T09 Desktop",
+                DEVICE_ID, TENANT, USER_ID, "t09-quota-user", "T09 Quota User", INSTALLATION, "T09 Desktop",
                 "darwin-arm64", "0.1.0-rc.5", "0.1.0", DeviceStatus.ACTIVE, Instant.now(), null, 0
             ),
             List.of(),
-            resolver.resolve(TENANT, userId, departmentId),
+            resolver.resolve(TENANT, USER_ID, DEPARTMENT_ID),
             new EffectivePluginResolver.ResolvedAssignments(2, List.of())
         ));
         assertThat(bootstrap.quotas()).hasSize(3);
         assertThat(bootstrap.quotas().getLast().policyId()).isEqualTo(Long.toString(user.id()));
 
         QuotaPolicy temporary = policyService.create(mutation, spec(
-            "T09 Temporary", QuotaSubjectType.USER, userId, null, null, 1, null
+            "T09 Temporary", QuotaSubjectType.USER, USER_ID, null, null, 1, null
         ));
         policyService.delete(mutation, temporary.id(), 0);
         assertThatThrownBy(() -> policyService.get(TENANT, temporary.id()))
@@ -174,9 +170,9 @@ class QuotaManagementIntegrationTest {
         defaultPolicy = policyService.setStatus(mutation, defaultPolicy.id(), defaultPolicy.revision(), QuotaStatus.DISABLED);
         department = policyService.setStatus(mutation, department.id(), department.revision(), QuotaStatus.DISABLED);
         user = policyService.update(mutation, user.id(), user.revision(), spec(
-            user.name(), QuotaSubjectType.USER, userId, 250L, 10_000L, null, null
+            user.name(), QuotaSubjectType.USER, USER_ID, 250L, 10_000L, null, null
         ));
-        assertThat(resolver.resolve(TENANT, userId, departmentId)).containsExactly(user);
+        assertThat(resolver.resolve(TENANT, USER_ID, DEPARTMENT_ID)).containsExactly(user);
 
         List<QuotaReservationService.ActiveReservation> accepted = reserveConcurrently(50, 10);
         assertThat(accepted).hasSize(25);
@@ -197,7 +193,7 @@ class QuotaManagementIntegrationTest {
         )).isZero();
 
         user = policyService.update(mutation, user.id(), user.revision(), spec(
-            user.name(), QuotaSubjectType.USER, userId, 100_000L, 2_000_000L, null, null
+            user.name(), QuotaSubjectType.USER, USER_ID, 100_000L, 2_000_000L, null, null
         ));
         QuotaReservationService.ActiveReservation released = reservationService.reserve(command(20, "0FAB"));
         assertThatThrownBy(() -> reservationService.reserve(replay(released, 20)))
@@ -240,7 +236,7 @@ class QuotaManagementIntegrationTest {
             .extracting("requestId", "totalTokens", "result")
             .containsExactly(expiredSent.reservation().requestId(), 40L, UsageResult.CHARGED_MAX);
 
-        assertThat(usageQuery.myUsage(TENANT, userId, departmentId)).singleElement().satisfies(value -> {
+        assertThat(usageQuery.myUsage(TENANT, USER_ID, DEPARTMENT_ID)).singleElement().satisfies(value -> {
             assertThat(value.daily().usedTokens()).isEqualTo(87);
             assertThat(value.daily().reservedTokens()).isZero();
         });
@@ -252,7 +248,7 @@ class QuotaManagementIntegrationTest {
         assertThat(filtered.items()).singleElement().satisfies(value -> {
             assertThat(value.username()).isNotBlank();
             assertThat(value.userDisplayName()).isNotBlank();
-            assertThat(value.departmentId()).isEqualTo(departmentId);
+            assertThat(value.departmentId()).isEqualTo(DEPARTMENT_ID);
             assertThat(value.departmentName()).isNotBlank();
             assertThat(value.modelAlias()).isEqualTo("t09-model");
             assertThat(value.modelDisplayName()).isEqualTo("T09 Model");
@@ -305,7 +301,7 @@ class QuotaManagementIntegrationTest {
     private static QuotaReservationCommand command(long estimatedTokens, String suffix) {
         UUID key = UUID.randomUUID();
         return new QuotaReservationCommand(
-            TENANT, userId, departmentId, DEVICE_ID, MODEL_ID, key,
+            TENANT, USER_ID, DEPARTMENT_ID, DEVICE_ID, MODEL_ID, key,
             "req_01ARZ3NDEKTSV4RRFFQ69G" + suffix, estimatedTokens, "127.0.0.1", new byte[32]
         );
     }
@@ -315,7 +311,7 @@ class QuotaManagementIntegrationTest {
         long estimatedTokens
     ) {
         return new QuotaReservationCommand(
-            TENANT, userId, departmentId, DEVICE_ID, MODEL_ID, value.reservation().idempotencyKey(),
+            TENANT, USER_ID, DEPARTMENT_ID, DEVICE_ID, MODEL_ID, value.reservation().idempotencyKey(),
             "req_01ARZ3NDEKTSV4RRFFQ69GZZZZ", estimatedTokens, "127.0.0.1", new byte[32]
         );
     }
@@ -335,7 +331,7 @@ class QuotaManagementIntegrationTest {
     }
 
     private static QuotaMutationContext mutation(String requestId) {
-        return new QuotaMutationContext(TENANT, userId, requestId, "127.0.0.1", new byte[32]);
+        return new QuotaMutationContext(TENANT, USER_ID, requestId, "127.0.0.1", new byte[32]);
     }
 
     private static void insertModelAndDevice() {
@@ -357,7 +353,7 @@ class QuotaManagementIntegrationTest {
             insert into ent_device (
                 id, tenant_id, user_id, installation_id, name, platform, status, revision
             ) values (?, ?, ?, ?, 'T09 Desktop', 'darwin-arm64', 'ACTIVE', 0)
-            """, DEVICE_ID, TENANT, userId, INSTALLATION);
+            """, DEVICE_ID, TENANT, USER_ID, INSTALLATION);
     }
 
     private static final class NoopRateLimiter implements QuotaRateLimiter {

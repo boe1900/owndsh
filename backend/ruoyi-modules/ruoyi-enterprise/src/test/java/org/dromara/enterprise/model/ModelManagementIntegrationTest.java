@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖真实 PostgreSQL 17、V1-V5 migrations、模型 JDBC adapters、事务、AES-GCM 与设备服务。
- * [OUTPUT]: 验证 CRUD/CAS/回滚、幂等删除、密文保持、授权并集、默认优先级、停用和 ACTIVE bootstrap。
+ * [INPUT]: 依赖真实 PostgreSQL 17、V1-V12 migrations、显式活动用户 fixture、模型 JDBC adapters、事务、AES-GCM 与设备服务。
+ * [OUTPUT]: 验证不借用默认账号的 CRUD/CAS/回滚、幂等删除、密文保持、授权并集、默认优先级、停用和 ACTIVE bootstrap。
  * [POS]: T08 主要数据库验收，跨越 service/store/revision/audit 边界但不进入 T09/T10。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -56,7 +56,6 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongSupplier;
@@ -70,6 +69,8 @@ import static org.mockito.Mockito.when;
 class ModelManagementIntegrationTest {
     private static final String TENANT = "000000";
     private static final String SECRET = "t08-provider-secret-never-returned-or-logged";
+    private static final long USER_ID = 1_900_800_000_000_900_001L;
+    private static final long DEPARTMENT_ID = 1_761_000_000_000_000_103L;
 
     private static PostgresTestDatabase.Database database;
 
@@ -77,6 +78,9 @@ class ModelManagementIntegrationTest {
     static void createDatabase() {
         database = PostgresTestDatabase.create("t08_model_management");
         PostgresTestDatabase.migrate(database, null);
+        PostgresTestDatabase.insertActiveUser(
+            database, USER_ID, DEPARTMENT_ID, "t08-model-user", "T08 Model User"
+        );
     }
 
     @Test
@@ -104,7 +108,7 @@ class ModelManagementIntegrationTest {
             transaction, grantStore, modelStore, revisions, audit, ids
         );
         EffectiveModelResolver resolver = new EffectiveModelResolver(grantStore);
-        UserFact user = currentUser();
+        UserFact user = new UserFact(USER_ID, DEPARTMENT_ID);
         ModelMutationContext context = new ModelMutationContext(
             TENANT, user.id(), "req_01ARZ3NDEKTSV4RRFFQ69G5FAV", "127.0.0.1", new byte[32]
         );
@@ -265,17 +269,6 @@ class ModelManagementIntegrationTest {
             .thenReturn(new EffectivePluginResolver.ResolvedAssignments(revisions.current(TENANT), List.of()));
         return new BootstrapService(
             devices, new JdbcBootstrapUserStore(database.jdbc()), resolver, quotas, plugins, revisions
-        );
-    }
-
-    private UserFact currentUser() {
-        Map<String, Object> row = database.jdbc().queryForMap("""
-            select user_id, dept_id from sys_user
-            where status = '0' and del_flag = '0' and dept_id is not null
-            order by user_id limit 1
-            """);
-        return new UserFact(
-            ((Number) row.get("user_id")).longValue(), ((Number) row.get("dept_id")).longValue()
         );
     }
 

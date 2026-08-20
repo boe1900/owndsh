@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 接收未经信任的本地登录用户名。
- * [OUTPUT]: 对外提供 sys_user 最小账号投影的可选查询。
- * [POS]: LOCAL adapter 的持久化 DIP 端口，隐藏 RuoYi Mapper 与表结构。
+ * [INPUT]: 接收未经信任的本地用户名，以及认证后受限的 userId/旧 hash/新 hash 改密条件。
+ * [OUTPUT]: 对外提供 sys_user 最小账号查询与仅对首次改密标记生效的原子密码更新。
+ * [POS]: LOCAL adapter 的持久化 DIP 端口，条件更新阻止并发首次改密覆盖和任意密码重置。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.auth.adapter;
@@ -13,4 +13,8 @@ import java.util.Optional;
  */
 public interface LocalAccountStore {
     Optional<LocalAccount> findByUsername(String username);
+
+    default boolean changePasswordIfRequired(long userId, String expectedHash, String newHash) {
+        return false;
+    }
 }

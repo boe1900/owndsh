@@ -13,6 +13,7 @@ import org.dromara.enterprise.audit.AuditResult;
 import org.dromara.enterprise.audit.AuditSink;
 import org.dromara.enterprise.auth.adapter.IdentityAdapterRegistry;
 import org.dromara.enterprise.auth.adapter.IdentityAuthenticationException;
+import org.dromara.enterprise.auth.adapter.LocalPasswordChangeRequiredException;
 import org.dromara.enterprise.auth.adapter.OidcIdentityAdapter;
 import org.dromara.enterprise.auth.domain.IdentityCredential;
 import org.dromara.enterprise.auth.domain.IdentityPrincipal;
@@ -184,6 +185,24 @@ public final class PlatformAuthorizationService {
         String captchaCode,
         IdentityLoginContext context
     ) {
+        return password(
+            tenantId, transactionId, sourceId, csrfToken, username, password, null,
+            captchaId, captchaCode, context
+        );
+    }
+
+    public URI password(
+        String tenantId,
+        String transactionId,
+        long sourceId,
+        String csrfToken,
+        String username,
+        char[] password,
+        char[] newPassword,
+        String captchaId,
+        String captchaCode,
+        IdentityLoginContext context
+    ) {
         LoginTransaction transaction = requireTransaction(transactionId);
         requireCsrf(transaction, csrfToken);
         IdentitySource source = requireSource(tenantId, sourceId);
@@ -193,8 +212,10 @@ public final class PlatformAuthorizationService {
             auditFailure(transaction, source.type(), context);
             throw new AuthFlowException("ENT_AUTH_REQUIRED");
         }
-        try (PasswordCredentials credential = new PasswordCredentials(username, password)) {
+        try (PasswordCredentials credential = new PasswordCredentials(username, password, newPassword)) {
             return authenticateAndComplete(transaction, source, credential, context);
+        } catch (LocalPasswordChangeRequiredException exception) {
+            throw new PasswordChangeRequiredException(exception.rejected());
         } catch (IdentityAuthenticationException exception) {
             auditFailure(transaction, source.type(), context);
             throw new AuthFlowException("ENT_AUTH_REQUIRED");

@@ -1209,7 +1209,8 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 | T18 | `completed` | 2026-08-19 已交付管理 Session metadata/正文/删除权限面、员工同步状态/远端列表/恢复/删除 tab；真实 Server Playwright、读取审计、跨设备 rc.7 Harness 恢复与 DELETED 重启不重传证据见 [`t18-session-pages-acceptance.md`](t18-session-pages-acceptance.md)。 |
 | T19 | `completed` | 2026-08-20 已交付 30-action 显式 metadata 白名单、tenant 隔离审计查询、365 天有界 retention、用户治理事务接缝、heartbeat 防洪和管理员/审计员只读页面；真实 PostgreSQL/Server/Playwright 与敏感模式扫描证据见 [`t19-audit-closure-acceptance.md`](t19-audit-closure-acceptance.md)。 |
 | T20 | `completed` | 2026-08-20 已交付默认同源 CORS、通用 JSON/Session/form/multipart 有界请求、无默认 JWT secret、30 秒 graceful drain、未知故障日志隔离、CI 秘密扫描与 PostgreSQL/Redis/artifact/key 恢复演练，见 [`t20-security-fault-acceptance.md`](t20-security-fault-acceptance.md)。 |
-| T21-T23 | `pending` | T21 是唯一下一项；T21 独立验收并提交前不得开始 T22。 |
+| T21 | `completed` | 2026-08-20 已交付锁定 Linux amd64 release、只发布 Gateway HTTPS 的 Compose/Nginx、一次性初始化管理员、secret/health、数据与 key 分离备份恢复、升级和仅应用回滚；全新安装、恢复与 `0.1.0 -> 0.1.1 -> 应用回滚` 证据见 [`t21-deployment-delivery-acceptance.md`](t21-deployment-delivery-acceptance.md)。 |
+| T22-T23 | `pending` | T22 是唯一下一项；T22 独立验收并提交前不得开始 T23。 |
 
 ## 23. Definition of Done
 

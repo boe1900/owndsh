@@ -8,7 +8,7 @@
 .codex/: plus-ui 上游 Codex 协作配置，随锁定源码快照保留。
 .editorconfig: 管理端源码编辑器格式基线。
 .env.development: 上游开发环境公开变量默认值，不得写入真实密钥。
-.env.production: 上游生产构建公开变量默认值，不得作为部署 secret 载体。
+.env.production: T21 同源企业生产公开变量，关闭消息/监控/样例入口、旧 client 与 RSA，不得作为部署 secret 载体。
 .gitignore: pnpm、Umi/Vite、测试与编辑器产物排除规则。
 .oxfmtrc.json: Oxfmt 格式化规则。
 .oxlintrc.json: Oxlint 静态检查规则。
@@ -23,7 +23,7 @@ pnpm-lock.yaml: plus-ui 锁定依赖图，保证管理端原始构建可复现�
 src/: 管理端页面、组件、状态和 API 源码，包含 T12 治理控制台、T15 插件工作台、T18 Session 权限页、T19 审计只读查询页与生成协议客户端。
 tsconfig.json: TypeScript 6 编译边界与路径映射。
 vite.config.ts: Vite/Umi 共享的环境读取、alias、依赖预构建、代理与分包配置。
-vitest.config.ts: Testing Library/jsdom 快速测试配置，与 Umi 生产构建隔离。
+vitest.config.ts: Testing Library/jsdom 快速测试配置，以 10 秒有界预算吸收并行 UI 调度开销并与 Umi 生产构建隔离。
 
 本目录是锁定提交 `29fc02f0a6d5a2462872487524a11c64e956534b` 的源码快照，不含上游 `.git`。企业页面只能消费服务端协议与权限事实，不复制授权算法。
 

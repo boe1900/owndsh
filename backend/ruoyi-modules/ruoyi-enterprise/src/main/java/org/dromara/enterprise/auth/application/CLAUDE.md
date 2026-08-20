@@ -21,7 +21,8 @@ IdentityResourceNotFoundException.java: tenant 限定身份资源不存在边界
 IdentitySourceService.java: 身份源 keyset 查询、秘密加密、资源 CAS、连接检查、bootstrap revision 与审计事务。
 IdentitySourceSpec.java: 不含 client secret/manager password 的身份源写规格。
 IssuedPlatformSession.java: Sa-Token adapter 返回的 opaque Token 与绝对有效秒数。
-PlatformAuthorizationService.java: authorize/password/OIDC/token/logout 状态机；LOCAL 先消费 RuoYi 验证码，凭据成功后再原子消费事务并产生用户绑定和 60 秒 code。
+PasswordChangeRequiredException.java: 保持登录事务有效并要求浏览器重新展示 LOCAL 首次改密表单的控制信号。
+PlatformAuthorizationService.java: authorize/password/OIDC/token/logout 状态机；LOCAL 先消费验证码并完成必要改密，凭据成功后才消费事务并产生绑定和 60 秒 code。
 PlatformSession.java: 从服务端 Token/terminal 读取的可信 user/client/device 请求事实。
 PlatformSessionGateway.java: 12 小时非共享 Sa-Token 签发、当前会话与单 installation 撤销端口。
 PublicIdentitySource.java: ACTIVE 身份源的 id/name/type 公开选择投影。

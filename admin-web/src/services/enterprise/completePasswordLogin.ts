@@ -2,7 +2,7 @@
 /* eslint-disable */
 import request from "@/api/enterprise/generated-request";
 
-/** Authenticate one LOCAL or LDAP source within an HTTPS login transaction; LOCAL reuses RuoYi captcha. POST /enterprise/auth/v1/password */
+/** Authenticate LOCAL or LDAP over HTTPS; bootstrap LOCAL accounts change the initial password in the same transaction. POST /enterprise/auth/v1/password */
 export async function completePasswordLogin(
   body: {
     transactionId: string;
@@ -11,6 +11,8 @@ export async function completePasswordLogin(
     csrfToken: string;
     username: string;
     password: string;
+    /** Required only after a LOCAL bootstrap account is redirected to the first-login password change form. */
+    newPassword?: string;
     /** Required for LOCAL only when the existing RuoYi captcha switch is enabled. */
     captchaId?: string;
     /** Required for LOCAL only when the existing RuoYi captcha switch is enabled. */

@@ -15,5 +15,6 @@ V8__enterprise_plugin_server.sql: 把历史 ACTIVE/DISABLED assignment 前向迁
 V9__enterprise_session_format.sql: 前向修正官方 rc.7 Session format v0 约束，并补齐 hash 长度与 retention 扫描索引。
 V10__enterprise_audit_query.sql: 为 tenant 隔离的 audit cursor 查询与有界 retention 清理补齐复合索引。
 V11__enterprise_heartbeat_audit_throttle.sql: 持久化设备最近 heartbeat 审计时间，供数据库行锁内原子执行一小时成功审计限频。
+V12__enterprise_deployment_bootstrap.sql: 建立无 secret 部署标记与 LOCAL 首次改密字段；按精确已知 hash 退役基线账号且保留历史外键，清除已知 client secret。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
