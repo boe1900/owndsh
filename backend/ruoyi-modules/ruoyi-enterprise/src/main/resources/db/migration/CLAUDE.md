@@ -13,5 +13,7 @@ V6__enterprise_quota_runtime.sql: 冻结部署 IANA 时区，并给 reservation 
 V7__enterprise_admin_observability.sql: 持久化身份源最近连接测试与设备 heartbeat 的插件/同步脱敏摘要，供 T12 管理投影读取。
 V8__enterprise_plugin_server.sql: 把历史 ACTIVE/DISABLED assignment 前向迁移为 INSTALLED/ABSENT，并冻结 T13 客户端调和库存状态约束。
 V9__enterprise_session_format.sql: 前向修正官方 rc.7 Session format v0 约束，并补齐 hash 长度与 retention 扫描索引。
+V10__enterprise_audit_query.sql: 为 tenant 隔离的 audit cursor 查询与有界 retention 清理补齐复合索引。
+V11__enterprise_heartbeat_audit_throttle.sql: 持久化设备最近 heartbeat 审计时间，供数据库行锁内原子执行一小时成功审计限频。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

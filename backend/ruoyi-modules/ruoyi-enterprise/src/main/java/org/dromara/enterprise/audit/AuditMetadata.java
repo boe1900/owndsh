@@ -6,8 +6,15 @@
  */
 package org.dromara.enterprise.audit;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 /**
  * 审计 metadata marker。每个 action 应定义自己的不可变 DTO。
  */
 public interface AuditMetadata {
+    /**
+     * 返回该 DTO 唯一允许承载的 action。
+     */
+    @JsonIgnore
+    AuditAction action();
 }

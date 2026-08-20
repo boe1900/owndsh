@@ -6,6 +6,7 @@
  */
 package org.dromara.enterprise.session.application;
 
+import org.dromara.enterprise.audit.AuditAction;
 import org.dromara.enterprise.audit.AuditMetadata;
 
 public sealed interface SessionAuditMetadata extends AuditMetadata permits
@@ -17,20 +18,44 @@ public sealed interface SessionAuditMetadata extends AuditMetadata permits
     SessionAuditMetadata.Expired {
 
     record BatchAppended(long fromSeq, long toSeq, int eventCount) implements SessionAuditMetadata {
+        @Override
+        public AuditAction action() {
+            return AuditAction.SESSION_BATCH_APPENDED;
+        }
     }
 
     record Exported(long fromSeq, long toSeq, int eventCount) implements SessionAuditMetadata {
+        @Override
+        public AuditAction action() {
+            return AuditAction.SESSION_EXPORTED;
+        }
     }
 
     record Restored(String restoredSessionId, long eventCount) implements SessionAuditMetadata {
+        @Override
+        public AuditAction action() {
+            return AuditAction.SESSION_RESTORED;
+        }
     }
 
     record ContentRead(long fromSeq, long toSeq, int eventCount) implements SessionAuditMetadata {
+        @Override
+        public AuditAction action() {
+            return AuditAction.SESSION_CONTENT_READ;
+        }
     }
 
     record Deleted(String previousStatus, long eventCount) implements SessionAuditMetadata {
+        @Override
+        public AuditAction action() {
+            return AuditAction.SESSION_DELETED;
+        }
     }
 
     record Expired(long lastSeq, long eventCount) implements SessionAuditMetadata {
+        @Override
+        public AuditAction action() {
+            return AuditAction.SESSION_EXPIRED;
+        }
     }
 }

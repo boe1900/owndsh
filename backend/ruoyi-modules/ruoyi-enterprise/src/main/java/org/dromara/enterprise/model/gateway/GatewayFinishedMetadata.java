@@ -6,6 +6,7 @@
  */
 package org.dromara.enterprise.model.gateway;
 
+import org.dromara.enterprise.audit.AuditAction;
 import org.dromara.enterprise.audit.AuditMetadata;
 
 import java.util.Objects;
@@ -45,5 +46,10 @@ public record GatewayFinishedMetadata(
         UPSTREAM_UNAVAILABLE,
         UPSTREAM_TIMEOUT,
         PLATFORM_FAILURE
+    }
+
+    @Override
+    public AuditAction action() {
+        return AuditAction.MODEL_REQUEST_FINISHED;
     }
 }

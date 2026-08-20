@@ -151,6 +151,313 @@ export const zEnterpriseErrorResponse = z.object({
     error: zEnterpriseError
 }).strict();
 
+export const zAuditAuditAction = z.enum([
+    'LOGIN_SUCCEEDED',
+    'LOGIN_FAILED',
+    'LOGOUT',
+    'IDENTITY_SOURCE_CHANGED',
+    'USER_LINKED',
+    'DEVICE_ENROLLED',
+    'DEVICE_HEARTBEAT',
+    'DEVICE_REVOKED',
+    'PROVIDER_CHANGED',
+    'MODEL_CHANGED',
+    'MODEL_GRANT_CHANGED',
+    'MODEL_REQUEST_ACCEPTED',
+    'MODEL_REQUEST_FINISHED',
+    'QUOTA_CHANGED',
+    'QUOTA_REJECTED',
+    'RESERVATION_RECOVERED',
+    'PLUGIN_UPLOADED',
+    'PLUGIN_PUBLISHED',
+    'PLUGIN_ASSIGNED',
+    'PLUGIN_DOWNLOADED',
+    'PLUGIN_INVENTORY_REPORTED',
+    'SESSION_BATCH_APPENDED',
+    'SESSION_EXPORTED',
+    'SESSION_RESTORED',
+    'SESSION_CONTENT_READ',
+    'SESSION_DELETED',
+    'SESSION_EXPIRED',
+    'ROLE_ASSIGNED',
+    'USER_STATUS_CHANGED',
+    'CONFIG_CHANGED'
+]);
+
+export const zAuditAction = zAuditAuditAction;
+
+export const zAuditAuditActorType = z.enum(['USER', 'SYSTEM']);
+
+export const zAuditActorType = zAuditAuditActorType;
+
+export const zAuditAuditEventId = z.string().regex(/^[1-9][0-9]{0,18}$/);
+
+export const zAuditEventId = zAuditAuditEventId;
+
+export const zAuditAuditResult = z.enum(['SUCCESS', 'FAILURE']);
+
+export const zAuditResult = zAuditAuditResult;
+
+export const zAuditAuditTypeName = z.string().regex(/^[A-Z][A-Z0-9_]{0,63}$/);
+
+export const zAuditTypeName = zAuditAuditTypeName;
+
+export const zAuthAuditMetadata = z.object({
+    clientId: z.enum(['dsh-desktop', 'enterprise-admin']),
+    sourceType: z.enum([
+        'OIDC',
+        'LDAP',
+        'LOCAL'
+    ]).optional()
+}).strict();
+
+export const zDeviceEnrollmentAuditMetadata = z.object({
+    platform: z.string().min(1).max(64),
+    created: z.boolean()
+}).strict();
+
+export const zDeviceHeartbeatAuditMetadata = z.object({
+    desiredRevision: z.int().gte(0),
+    pendingSyncItems: z.int().gte(0),
+    hasSuccessfulSync: z.boolean()
+}).strict();
+
+export const zEmptyAuditMetadata = z.record(z.string(), z.never());
+
+export const zGatewayAcceptedAuditMetadata = z.object({
+    modelId: z.int().gte(1),
+    reservationId: z.uuid(),
+    estimatedTokens: z.int().gte(1)
+}).strict();
+
+export const zGatewayFinishedAuditMetadata = z.object({
+    modelId: z.int().gte(1),
+    reservationId: z.uuid(),
+    outcome: z.enum(['SETTLED', 'CHARGED_MAX']),
+    chargedTokens: z.int().gte(0),
+    durationMs: z.int().gte(0),
+    failure: z.enum([
+        'NONE',
+        'USAGE_MISSING',
+        'CLIENT_CANCELLED',
+        'UPSTREAM_AUTH_FAILED',
+        'UPSTREAM_INVALID_RESPONSE',
+        'UPSTREAM_UNAVAILABLE',
+        'UPSTREAM_TIMEOUT',
+        'PLATFORM_FAILURE'
+    ])
+}).strict();
+
+export const zIdentityChangeAuditMetadata = z.object({
+    operation: z.enum([
+        'CREATE',
+        'UPDATE',
+        'ENABLE',
+        'DISABLE',
+        'GROUP_MAPPING_CREATE',
+        'GROUP_MAPPING_DELETE'
+    ]),
+    sourceType: z.enum([
+        'OIDC',
+        'LDAP',
+        'LOCAL'
+    ]),
+    protectedValueChanged: z.boolean(),
+    resourceRevision: z.int().gte(0),
+    bootstrapRevision: z.int().gte(0)
+}).strict();
+
+export const zIdentityLinkAuditMetadata = z.object({
+    sourceType: z.enum([
+        'OIDC',
+        'LDAP',
+        'LOCAL'
+    ]),
+    userProvisioned: z.boolean(),
+    externalGroupCount: z.int().gte(0),
+    mappedGroupCount: z.int().gte(0),
+    unmappedGroupCount: z.int().gte(0),
+    departmentConflict: z.boolean()
+}).strict();
+
+export const zModelChangeAuditMetadata = z.object({
+    operation: z.enum([
+        'CREATE',
+        'UPDATE',
+        'ENABLE',
+        'DISABLE',
+        'DELETE'
+    ]),
+    reasoning: z.boolean(),
+    resourceRevision: z.int().gte(0),
+    bootstrapRevision: z.int().gte(0)
+}).strict();
+
+export const zModelGrantChangeAuditMetadata = z.object({
+    operation: z.enum([
+        'CREATE',
+        'UPDATE',
+        'DELETE'
+    ]),
+    subjectType: z.enum(['USER', 'DEPT']),
+    defaultGrant: z.boolean(),
+    status: z.enum(['ACTIVE', 'DISABLED']),
+    resourceRevision: z.int().gte(0),
+    bootstrapRevision: z.int().gte(0)
+}).strict();
+
+export const zPluginAuditMetadata = z.object({
+    operation: z.enum([
+        'UPLOAD',
+        'PUBLISH',
+        'RETIRE',
+        'ASSIGN',
+        'DOWNLOAD',
+        'INVENTORY'
+    ]),
+    resourceRevision: z.int().gte(0),
+    bootstrapRevision: z.int().gte(0),
+    itemCount: z.int().gte(0).lte(500),
+    required: z.boolean()
+}).strict();
+
+export const zProviderChangeAuditMetadata = z.object({
+    operation: z.enum([
+        'CREATE',
+        'UPDATE',
+        'ENABLE',
+        'DISABLE'
+    ]),
+    providerType: z.literal('DEEPSEEK_OPENAI'),
+    protectedValueChanged: z.boolean(),
+    resourceRevision: z.int().gte(0),
+    bootstrapRevision: z.int().gte(0)
+}).strict();
+
+export const zQuotaChangeAuditMetadata = z.object({
+    subjectType: z.enum([
+        'DEFAULT',
+        'DEPT',
+        'USER'
+    ]),
+    status: z.enum(['ACTIVE', 'DISABLED']),
+    previousRevision: z.int().gte(-1),
+    currentRevision: z.int().gte(0)
+}).strict();
+
+export const zQuotaRejectionAuditMetadata = z.object({
+    kind: z.enum([
+        'DAILY',
+        'MONTHLY',
+        'RPM',
+        'CONCURRENCY'
+    ]),
+    policyId: z.int().gte(1),
+    estimatedTokens: z.int().gte(1)
+}).strict();
+
+export const zReservationRecoveredAuditMetadata = z.object({
+    previousState: z.enum(['RESERVED', 'SENT']),
+    recoveredState: z.enum(['RELEASED', 'CHARGED_MAX'])
+}).strict();
+
+export const zRevisionChangedAuditMetadata = z.object({
+    previousRevision: z.int().gte(0),
+    currentRevision: z.int().gte(1)
+}).strict();
+
+export const zRoleAssignedAuditMetadata = z.object({
+    roleCount: z.int().gte(1)
+}).strict();
+
+export const zSessionDeletedAuditMetadata = z.object({
+    previousStatus: z.enum([
+        'ACTIVE',
+        'DELETED',
+        'EXPIRED'
+    ]),
+    eventCount: z.int().gte(0)
+}).strict();
+
+export const zSessionExpiredAuditMetadata = z.object({
+    lastSeq: z.int().gte(-1),
+    eventCount: z.int().gte(0)
+}).strict();
+
+export const zSessionRangeAuditMetadata = z.object({
+    fromSeq: z.int().gte(0),
+    toSeq: z.int().gte(0),
+    eventCount: z.int().gte(0)
+}).strict();
+
+export const zSessionRestoredAuditMetadata = z.object({
+    restoredSessionId: z.string().min(1).max(128),
+    eventCount: z.int().gte(0)
+}).strict();
+
+export const zUserStatusChangedAuditMetadata = z.object({
+    previousStatus: z.string().min(1).max(16),
+    currentStatus: z.string().min(1).max(16)
+}).strict();
+
+export const zAuditAuditMetadata = z.union([
+    zEmptyAuditMetadata,
+    zAuthAuditMetadata,
+    zIdentityChangeAuditMetadata,
+    zIdentityLinkAuditMetadata,
+    zDeviceEnrollmentAuditMetadata,
+    zDeviceHeartbeatAuditMetadata,
+    zProviderChangeAuditMetadata,
+    zModelChangeAuditMetadata,
+    zModelGrantChangeAuditMetadata,
+    zGatewayAcceptedAuditMetadata,
+    zGatewayFinishedAuditMetadata,
+    zQuotaChangeAuditMetadata,
+    zQuotaRejectionAuditMetadata,
+    zReservationRecoveredAuditMetadata,
+    zPluginAuditMetadata,
+    zSessionRangeAuditMetadata,
+    zSessionRestoredAuditMetadata,
+    zSessionDeletedAuditMetadata,
+    zSessionExpiredAuditMetadata,
+    zRoleAssignedAuditMetadata,
+    zUserStatusChangedAuditMetadata,
+    zRevisionChangedAuditMetadata
+]);
+
+export const zAuditMetadata = zAuditAuditMetadata;
+
+export const zAuditAuditEvent = z.object({
+    id: zAuditAuditEventId,
+    occurredAt: z.iso.datetime({ offset: true }),
+    actorType: zAuditAuditActorType,
+    actorId: zEnterpriseUserId.nullable(),
+    deviceId: zEnterpriseDeviceId.nullable(),
+    action: zAuditAuditAction,
+    resourceType: zAuditAuditTypeName,
+    resourceId: z.string().min(1).max(255),
+    result: zAuditAuditResult,
+    reasonCode: zAuditAuditTypeName.nullable(),
+    requestId: zRequestId,
+    metadata: zAuditAuditMetadata
+}).strict();
+
+export const zAuditEvent = zAuditAuditEvent;
+
+export const zAuditAuditEventPageData = z.object({
+    items: z.array(zAuditAuditEvent).max(200),
+    page: zCursorPage
+}).strict();
+
+export const zAuditEventPageData = zAuditAuditEventPageData;
+
+export const zAuditAuditEventListResponse = z.object({
+    data: zAuditAuditEventPageData,
+    requestId: zRequestId
+}).strict();
+
+export const zAuditEventListResponse = zAuditAuditEventListResponse;
+
 export const zAuthAuthTransactionId = z.string().min(32).max(64).regex(/^[A-Za-z0-9_-]+$/);
 
 export const zAuthTransactionId = zAuthAuthTransactionId;
@@ -1571,6 +1878,8 @@ export const zSessionAdminSessionListResponse = z.object({
 
 export const zAdminSessionListResponse = zSessionAdminSessionListResponse;
 
+export const zAdminAuditCollection = z.unknown();
+
 export const zAuthorize = z.unknown();
 
 export const zLogout = z.unknown();
@@ -1739,6 +2048,16 @@ export const zSessionHashBase64Writable = zSessionSessionHashBase64;
 
 export const zSessionStatusWritable = zSessionSessionStatus;
 
+export const zAuditEventIdWritable = zAuditAuditEventId;
+
+export const zAuditActorTypeWritable = zAuditAuditActorType;
+
+export const zAuditResultWritable = zAuditAuditResult;
+
+export const zAuditTypeNameWritable = zAuditAuditTypeName;
+
+export const zAuditActionWritable = zAuditAuditAction;
+
 export const zQuotaPolicyIdWritable = zQuotaQuotaPolicyId;
 
 export const zQuotaWindowIdWritable = zQuotaQuotaWindowId;
@@ -1756,6 +2075,8 @@ export const zUsageResultWritable = zQuotaUsageResult;
 export const zChatRoleWritable = zGatewayChatRole;
 
 export const zJsonSchemaObjectWritable = zGatewayJsonSchemaObject;
+
+export const zEmptyAuditMetadataWritable = z.record(z.string(), z.never());
 
 export const zAuthPasswordLoginRequestWritable = z.object({
     transactionId: zAuthAuthTransactionId,
@@ -2671,3 +2992,22 @@ export const zDeleteAdminSessionPath = z.object({
  * Session content deleted and tombstoned by an authorized administrator.
  */
 export const zDeleteAdminSessionResponse = zSessionDeletedSessionResponse;
+
+export const zListAuditEventsQuery = z.object({
+    cursor: zCursor.optional(),
+    limit: zPageLimit.optional(),
+    actorId: zEnterpriseUserId.optional(),
+    action: zAuditAuditAction.optional(),
+    resourceType: zAuditAuditTypeName.optional(),
+    resourceId: z.string().min(1).max(255).optional(),
+    result: zAuditAuditResult.optional(),
+    reasonCode: zAuditAuditTypeName.optional(),
+    requestId: zRequestId.optional(),
+    from: z.iso.datetime({ offset: true }).optional(),
+    to: z.iso.datetime({ offset: true }).optional()
+});
+
+/**
+ * Append-only audit metadata page; source IP and user-agent hash are not returned.
+ */
+export const zListAuditEventsResponse = zAuditAuditEventListResponse;

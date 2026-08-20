@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖真实 PostgreSQL migration、JdbcDeviceStore、JdbcAuditSink、DeviceService 与 fake Sa-Token port。
- * [OUTPUT]: 验证多设备注册、owner 固定、心跳、revision CAS、单设备撤销和另一设备继续有效。
+ * [OUTPUT]: 验证多设备注册、owner 固定、心跳审计限频/状态切换、revision CAS 与单设备撤销隔离。
  * [POS]: T05 设备数据库/事务验收，状态与审计均落真实 PostgreSQL，只有外部 Sa-Token port 被替换。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -62,15 +62,13 @@ class DeviceLifecycleIntegrationTest {
 
         var first = service.enroll(harness(FIRST, USER_ID), enrollment(FIRST, "Alice Mac"));
         var second = service.enroll(harness(SECOND, USER_ID), enrollment(SECOND, "Alice Linux"));
-        var heartbeat = service.heartbeat(
-            harness(SECOND, USER_ID),
-            new DeviceHeartbeat(
-                "0.2.9", "0.1.1", 8,
-                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-                12,
-                Instant.parse("2026-08-18T06:00:00Z")
-            )
+        var degradedHeartbeat = new DeviceHeartbeat(
+            "0.2.9", "0.1.1", 8,
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            12,
+            Instant.parse("2026-08-18T06:00:00Z")
         );
+        var heartbeat = service.heartbeat(harness(SECOND, USER_ID), degradedHeartbeat);
         assertThat(heartbeat.status()).isEqualTo(DeviceStatus.ACTIVE);
         assertThat(heartbeat.enterpriseBundleVersion()).isEqualTo("0.1.1");
         assertThat(heartbeat.desiredRevision()).isEqualTo(8);
@@ -78,6 +76,28 @@ class DeviceLifecycleIntegrationTest {
             .isEqualTo("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
         assertThat(heartbeat.pendingSessionEvents()).isEqualTo(12);
         assertThat(heartbeat.lastSuccessfulSyncAt()).isEqualTo(Instant.parse("2026-08-18T06:00:00Z"));
+        assertThat(heartbeat.lastHeartbeatAuditAt()).isNotNull();
+
+        service.heartbeat(harness(SECOND, USER_ID), degradedHeartbeat);
+        assertThat(heartbeatAuditCount(database)).isOne();
+
+        var recoveredHeartbeat = new DeviceHeartbeat(
+            "0.2.9", "0.1.1", 8,
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            0,
+            Instant.parse("2026-08-18T06:05:00Z")
+        );
+        service.heartbeat(harness(SECOND, USER_ID), recoveredHeartbeat);
+        assertThat(heartbeatAuditCount(database)).isEqualTo(2);
+        service.heartbeat(harness(SECOND, USER_ID), recoveredHeartbeat);
+        assertThat(heartbeatAuditCount(database)).isEqualTo(2);
+
+        database.jdbc().update(
+            "update ent_device set last_heartbeat_audit_at = now() - interval '2 hours' where id = ?",
+            second.id()
+        );
+        service.heartbeat(harness(SECOND, USER_ID), recoveredHeartbeat);
+        assertThat(heartbeatAuditCount(database)).isEqualTo(3);
 
         assertThatThrownBy(() -> service.enroll(
             harness(FIRST, OTHER_USER_ID), enrollment(FIRST, "Stolen Device")
@@ -114,6 +134,8 @@ class DeviceLifecycleIntegrationTest {
             "DEVICE_ENROLLED",
             "DEVICE_ENROLLED",
             "DEVICE_HEARTBEAT",
+            "DEVICE_HEARTBEAT",
+            "DEVICE_HEARTBEAT",
             "DEVICE_REVOKED"
         );
         assertThat(database.jdbc().queryForObject(
@@ -121,6 +143,13 @@ class DeviceLifecycleIntegrationTest {
             Integer.class,
             USER_ID
         )).isEqualTo(1);
+    }
+
+    private static int heartbeatAuditCount(PostgresTestDatabase.Database database) {
+        return database.jdbc().queryForObject(
+            "select count(*) from ent_audit_event where action = 'DEVICE_HEARTBEAT'",
+            Integer.class
+        );
     }
 
     private static DeviceEnrollment enrollment(UUID installationId, String name) {

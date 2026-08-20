@@ -12,5 +12,6 @@ quota.yaml: T09 quota CRUD/状态/窗口、本人用量及管理员 ledger 十�
 gateway.yaml: T10 `/enterprise/gateway/v1/chat/completions` SSE operation 与完整首字节前错误矩阵。
 plugin.yaml: T13 六个管理与三个 runtime operation，冻结 multipart、revision、权限、逐请求授权及单 Range 边界。
 session.yaml: T16 三个管理与五个 runtime operation，冻结设备源绑定、正文独立权限、导出 hash 与 tombstone 边界。
+audit.yaml: T19 单一管理只读 operation，冻结九维筛选、cursor 和 ent:audit:read 权限边界。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

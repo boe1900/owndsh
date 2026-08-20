@@ -1,3 +1,9 @@
+/**
+ * [INPUT]: 依赖 Servlet 请求、重复读 wrapper、JSON 脱敏工具与统一敏感字段常量
+ * [OUTPUT]: 提供 URL/耗时访问日志；企业 API 省略全部参数，其他请求删除认证与秘密参数
+ * [POS]: common-web 的统一请求日志边界，业务 Controller 之前阻断 credential、prompt 和 Token 落盘
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 package org.dromara.common.web.interceptor;
 
 import cn.hutool.core.io.IoUtil;
@@ -17,7 +23,9 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Web 调用时间统计拦截器，同时记录请求参数并对敏感字段做脱敏处理。
@@ -35,6 +43,14 @@ public class PlusWebInvokeTimeInterceptor implements HandlerInterceptor {
      */
     private static final int MAX_PARAM_LOG_LENGTH = 4000;
 
+    private static final String ENTERPRISE_API_PREFIX = "/enterprise/";
+
+    private static final Set<String> SENSITIVE_PARAMETER_NAMES = Set.of(
+        "authorization", "token", "accesstoken", "refreshtoken", "password", "oldpassword",
+        "newpassword", "confirmpassword", "credential", "secret", "clientsecret", "managerpassword",
+        "prompt", "message", "messages", "tool", "tools", "toolchoice", "sessionevent"
+    );
+
     /**
      * 请求进入控制器前记录入参并启动耗时统计。
      *
@@ -47,8 +63,10 @@ public class PlusWebInvokeTimeInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         String url = request.getMethod() + " " + request.getRequestURI();
-        // 打印请求参数
-        if (isJsonRequest(request)) {
+        // 企业 API 包含身份、模型和 Session 数据，只记录路径与耗时。
+        if (omitRequestParameters(request)) {
+            log.info("[PLUS]开始请求 => URL[{}],参数已省略", url);
+        } else if (isJsonRequest(request)) {
             String jsonParam = "";
             if (request instanceof RepeatedlyRequestWrapper) {
                 jsonParam = IoUtil.read(request.getReader());
@@ -60,7 +78,7 @@ public class PlusWebInvokeTimeInterceptor implements HandlerInterceptor {
         } else {
             Map<String, String[]> parameterMap = request.getParameterMap();
             if (MapUtil.isNotEmpty(parameterMap)) {
-                Map<String, String[]> map = new LinkedHashMap<>(parameterMap);
+                Map<String, String[]> map = sanitizeParameters(parameterMap);
                 MapUtil.removeAny(map, SystemConstants.EXCLUDE_PROPERTIES);
                 String parameters = JsonUtils.toJsonString(map);
                 log.info("[PLUS]开始请求 => URL[{}],参数类型[param],参数:[{}]", url, limit(parameters));
@@ -102,6 +120,21 @@ public class PlusWebInvokeTimeInterceptor implements HandlerInterceptor {
      */
     private String limit(String value) {
         return StringUtils.substring(value, 0, MAX_PARAM_LOG_LENGTH);
+    }
+
+    static Map<String, String[]> sanitizeParameters(Map<String, String[]> parameters) {
+        Map<String, String[]> sanitized = new LinkedHashMap<>(parameters);
+        sanitized.keySet().removeIf(PlusWebInvokeTimeInterceptor::isSensitiveParameter);
+        return sanitized;
+    }
+
+    private static boolean isSensitiveParameter(String name) {
+        String normalized = name.replace("_", "").replace("-", "").toLowerCase(Locale.ROOT);
+        return SENSITIVE_PARAMETER_NAMES.contains(normalized);
+    }
+
+    private static boolean omitRequestParameters(HttpServletRequest request) {
+        return request.getRequestURI().startsWith(ENTERPRISE_API_PREFIX);
     }
 
     /**

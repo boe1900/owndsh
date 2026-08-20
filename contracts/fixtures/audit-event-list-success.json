@@ -1,0 +1,47 @@
+{
+  "data": {
+    "items": [
+      {
+        "id": "1900000000000000001",
+        "occurredAt": "2026-08-20T03:00:00Z",
+        "actorType": "USER",
+        "actorId": "1001",
+        "deviceId": "9001",
+        "action": "MODEL_REQUEST_ACCEPTED",
+        "resourceType": "MODEL_REQUEST",
+        "resourceId": "123e4567-e89b-42d3-a456-426614174000",
+        "result": "SUCCESS",
+        "reasonCode": null,
+        "requestId": "req_01K2ZJ4Y8K7W4R5S6T7V8X9YZA",
+        "metadata": {
+          "modelId": 7001,
+          "reservationId": "123e4567-e89b-42d3-a456-426614174000",
+          "estimatedTokens": 512
+        }
+      },
+      {
+        "id": "1900000000000000002",
+        "occurredAt": "2026-08-20T03:00:01Z",
+        "actorType": "USER",
+        "actorId": "1001",
+        "deviceId": "9001",
+        "action": "MODEL_REQUEST_FINISHED",
+        "resourceType": "MODEL_REQUEST",
+        "resourceId": "123e4567-e89b-42d3-a456-426614174000",
+        "result": "SUCCESS",
+        "reasonCode": null,
+        "requestId": "req_01K2ZJ4Y8K7W4R5S6T7V8X9YZA",
+        "metadata": {
+          "modelId": 7001,
+          "reservationId": "123e4567-e89b-42d3-a456-426614174000",
+          "outcome": "SETTLED",
+          "chargedTokens": 321,
+          "durationMs": 800,
+          "failure": "NONE"
+        }
+      }
+    ],
+    "page": {"hasMore": false, "limit": 50, "nextCursor": null}
+  },
+  "requestId": "req_01K2ZJ4Y8K7W4R5S6T7V8X9YZB"
+}

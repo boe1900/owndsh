@@ -6,6 +6,7 @@
  */
 package org.dromara.enterprise.auth.application;
 
+import org.dromara.enterprise.audit.AuditAction;
 import org.dromara.enterprise.audit.AuditMetadata;
 import org.dromara.enterprise.auth.domain.IdentitySourceType;
 
@@ -17,7 +18,7 @@ import java.util.Objects;
 public record IdentityChangeMetadata(
     Operation operation,
     IdentitySourceType sourceType,
-    boolean secretReplaced,
+    boolean protectedValueChanged,
     long resourceRevision,
     long bootstrapRevision
 ) implements AuditMetadata {
@@ -36,5 +37,10 @@ public record IdentityChangeMetadata(
         DISABLE,
         GROUP_MAPPING_CREATE,
         GROUP_MAPPING_DELETE
+    }
+
+    @Override
+    public AuditAction action() {
+        return AuditAction.IDENTITY_SOURCE_CHANGED;
     }
 }

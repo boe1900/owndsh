@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 RuoYi 后端动态路由、已迁移页面注册表与当前 Umi location
- * [OUTPUT]: 提供含企业插件与 Session 工作台的动态菜单 component/path 到 React 页面或 iframe 安全解析
+ * [OUTPUT]: 提供含企业插件、Session 与审计工作台的动态菜单 component/path 到 React 页面或 iframe 安全解析
  * [POS]: pages 的服务端菜单分发器，企业治理页面与权限菜单在此汇合
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -11,6 +11,7 @@ import { useMemo } from 'react';
 import AiChatPage from '@/pages/ai/chat';
 import DemoDemoPage from '@/pages/demo/demo';
 import DemoTreePage from '@/pages/demo/tree';
+import EnterpriseAuditPage from '@/pages/enterprise/audit';
 import EnterpriseDevicesPage from '@/pages/enterprise/devices';
 import EnterpriseGrantsPage from '@/pages/enterprise/grants';
 import EnterpriseIdentitySourcesPage from '@/pages/enterprise/identity-sources';
@@ -58,6 +59,7 @@ const migratedPages: Record<string, React.ComponentType> = {
   'ai/chat/index': AiChatPage,
   'demo/demo/index': DemoDemoPage,
   'demo/tree/index': DemoTreePage,
+  'enterprise/audit/index': EnterpriseAuditPage,
   'enterprise/devices/index': EnterpriseDevicesPage,
   'enterprise/grants/index': EnterpriseGrantsPage,
   'enterprise/identity-sources/index': EnterpriseIdentitySourcesPage,

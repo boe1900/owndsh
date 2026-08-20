@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 Spring JdbcOperations、V1/V7 ent_device 与 RuoYi sys_user。
- * [OUTPUT]: 对外提供 owner join、heartbeat 摘要、keyset list、ACTIVE 更新和 revision CAS 的 DeviceStore。
- * [POS]: device/persistence 的 PostgreSQL adapter，所有更新同时限定 tenant/owner/status 事实。
+ * [INPUT]: 依赖 Spring JdbcOperations、V1/V7/V11 ent_device 与 RuoYi sys_user。
+ * [OUTPUT]: 对外提供 owner join、heartbeat 摘要/审计限频、keyset list、ACTIVE 更新和 revision CAS 的 DeviceStore。
+ * [POS]: device/persistence 的 PostgreSQL adapter，用行锁原子合并 heartbeat 更新与审计闸门判定。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.device.persistence;
@@ -28,6 +28,7 @@ public final class JdbcDeviceStore implements DeviceStore {
         d.id, d.tenant_id, d.user_id, u.user_name as username, u.nick_name as display_name,
         d.installation_id, d.name, d.platform, d.harness_version, d.bundle_version,
         d.desired_revision, d.plugin_inventory_digest, d.pending_session_events, d.last_successful_sync_at,
+        d.last_heartbeat_audit_at,
         d.status, d.last_seen_at, d.revoked_at, d.revision
         """;
     private static final String FROM = " from ent_device d join sys_user u on u.user_id = d.user_id ";
@@ -49,11 +50,26 @@ public final class JdbcDeviceStore implements DeviceStore {
         where tenant_id = ? and installation_id = ? and user_id = ? and status = 'ACTIVE'
         """;
     private static final String HEARTBEAT_SQL = """
-        update ent_device set harness_version = ?, bundle_version = ?, last_seen_at = ?,
-            desired_revision = ?, plugin_inventory_digest = ?, pending_session_events = ?,
-            last_successful_sync_at = ?,
-            revision = revision + 1
-        where tenant_id = ? and installation_id = ? and user_id = ? and status = 'ACTIVE'
+        with candidate as (
+            select id,
+                   last_heartbeat_audit_at is null
+                       or last_heartbeat_audit_at <= cast(? as timestamptz) - interval '1 hour'
+                       or (pending_session_events = 0) <> (cast(? as bigint) = 0)
+                       or (last_successful_sync_at is null) <> (cast(? as timestamptz) is null)
+                       as audit_due
+              from ent_device
+             where tenant_id = ? and installation_id = ? and user_id = ? and status = 'ACTIVE'
+             for update
+        )
+        update ent_device d
+           set harness_version = ?, bundle_version = ?, last_seen_at = ?,
+               desired_revision = ?, plugin_inventory_digest = ?, pending_session_events = ?,
+               last_successful_sync_at = ?,
+               last_heartbeat_audit_at = case when candidate.audit_due then ? else d.last_heartbeat_audit_at end,
+               revision = d.revision + 1
+          from candidate
+         where d.id = candidate.id
+        returning candidate.audit_due
         """;
     private static final String REVOKE_SQL = """
         update ent_device set status = 'REVOKED', revoked_at = ?, revision = revision + 1
@@ -121,26 +137,32 @@ public final class JdbcDeviceStore implements DeviceStore {
     }
 
     @Override
-    public boolean heartbeat(
+    public HeartbeatResult heartbeat(
         String tenantId,
         UUID installationId,
         long userId,
         DeviceHeartbeat heartbeat,
         Instant seenAt
     ) {
-        return jdbc.update(
+        Instant successfulSyncAt = heartbeat.lastSuccessfulSyncAt();
+        return jdbc.query(
             HEARTBEAT_SQL,
+            (resultSet, rowNumber) -> new HeartbeatResult(true, resultSet.getBoolean("audit_due")),
+            at(seenAt),
+            heartbeat.pendingSessionEvents(),
+            successfulSyncAt == null ? null : at(successfulSyncAt),
+            tenantId,
+            installationId,
+            userId,
             heartbeat.harnessVersion(),
             heartbeat.enterpriseBundleVersion(),
             at(seenAt),
             heartbeat.desiredRevision(),
             heartbeat.pluginInventoryDigest(),
             heartbeat.pendingSessionEvents(),
-            heartbeat.lastSuccessfulSyncAt() == null ? null : at(heartbeat.lastSuccessfulSyncAt()),
-            tenantId,
-            installationId,
-            userId
-        ) == 1;
+            successfulSyncAt == null ? null : at(successfulSyncAt),
+            at(seenAt)
+        ).stream().findFirst().orElseGet(() -> new HeartbeatResult(false, false));
     }
 
     @Override
@@ -164,6 +186,7 @@ public final class JdbcDeviceStore implements DeviceStore {
             resultSet.getString("plugin_inventory_digest"),
             resultSet.getLong("pending_session_events"),
             instant(resultSet, "last_successful_sync_at"),
+            instant(resultSet, "last_heartbeat_audit_at"),
             DeviceStatus.valueOf(resultSet.getString("status")),
             instant(resultSet, "last_seen_at"),
             instant(resultSet, "revoked_at"),

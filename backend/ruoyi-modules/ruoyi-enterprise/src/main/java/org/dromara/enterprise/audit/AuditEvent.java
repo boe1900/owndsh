@@ -42,6 +42,9 @@ public record AuditEvent(
         Objects.requireNonNull(result, "result");
         requireText(requestId, "requestId");
         Objects.requireNonNull(metadata, "metadata");
+        if (metadata.action() != action) {
+            throw new IllegalArgumentException("action 与 metadata DTO 不匹配");
+        }
         if (userAgentHash != null && userAgentHash.length != 32) {
             throw new IllegalArgumentException("userAgentHash 必须是 SHA-256");
         }

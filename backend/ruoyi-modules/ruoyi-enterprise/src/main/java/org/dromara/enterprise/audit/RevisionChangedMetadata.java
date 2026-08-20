@@ -18,4 +18,9 @@ public record RevisionChangedMetadata(long previousRevision, long currentRevisio
             throw new IllegalArgumentException("revision 必须原子递增 1");
         }
     }
+
+    @Override
+    public AuditAction action() {
+        return AuditAction.CONFIG_CHANGED;
+    }
 }

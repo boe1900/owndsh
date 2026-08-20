@@ -6,6 +6,7 @@
  */
 package org.dromara.enterprise.auth.application;
 
+import org.dromara.enterprise.audit.AuditAction;
 import org.dromara.enterprise.audit.AuditMetadata;
 import org.dromara.enterprise.auth.domain.IdentitySourceType;
 
@@ -27,5 +28,10 @@ public record IdentityLinkMetadata(
         if (externalGroupCount < 0 || mappedGroupCount < 0 || unmappedGroupCount < 0) {
             throw new IllegalArgumentException("组计数不能为负数");
         }
+    }
+
+    @Override
+    public AuditAction action() {
+        return AuditAction.USER_LINKED;
     }
 }

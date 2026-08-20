@@ -10,4 +10,8 @@ package org.dromara.enterprise.audit;
  * 无附加字段的审计 metadata。
  */
 public record EmptyAuditMetadata() implements AuditMetadata {
+    @Override
+    public AuditAction action() {
+        return AuditAction.DEVICE_REVOKED;
+    }
 }

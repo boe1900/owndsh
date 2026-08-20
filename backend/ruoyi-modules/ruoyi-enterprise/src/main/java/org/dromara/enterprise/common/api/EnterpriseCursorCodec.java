@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 SecretCipher 的 API_CURSOR 用途、tenant 和列表筛选 scope。
- * [OUTPUT]: 对外提供绑定查询边界的 URL-safe 不透明 keyset cursor 编解码。
+ * [INPUT]: 依赖 SecretCipher 的 API_CURSOR 用途、JCA SHA-256、tenant 和任意列表筛选 scope。
+ * [OUTPUT]: 对外提供筛选 scope 摘要绑定的 URL-safe 不透明 keyset cursor 编解码。
  * [POS]: common/api 的 cursor 信任边界，以 AES-GCM 认证阻止跨 tenant、跨列表或篡改重放。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -13,6 +13,9 @@ import org.dromara.enterprise.crypto.SecretCipherException;
 import org.dromara.enterprise.crypto.SecretPurpose;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.Objects;
 
@@ -83,9 +86,20 @@ public final class EnterpriseCursorCodec {
         return new SecretAad(
             tenantId,
             "api_cursor",
-            Objects.requireNonNull(scope, "scope"),
+            scopeDigest(scope),
             "after_id",
             SecretCipher.KEY_VERSION
         );
+    }
+
+    private static String scopeDigest(String scope) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(
+                Objects.requireNonNull(scope, "scope").getBytes(StandardCharsets.UTF_8)
+            );
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("JVM 不支持 SHA-256", exception);
+        }
     }
 }

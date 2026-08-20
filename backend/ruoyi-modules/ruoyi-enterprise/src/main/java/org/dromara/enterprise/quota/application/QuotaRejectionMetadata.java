@@ -6,6 +6,7 @@
  */
 package org.dromara.enterprise.quota.application;
 
+import org.dromara.enterprise.audit.AuditAction;
 import org.dromara.enterprise.audit.AuditMetadata;
 
 public record QuotaRejectionMetadata(
@@ -17,5 +18,10 @@ public record QuotaRejectionMetadata(
         if (kind == null || policyId <= 0 || estimatedTokens <= 0) {
             throw new IllegalArgumentException("quota rejection metadata 非法");
         }
+    }
+
+    @Override
+    public AuditAction action() {
+        return AuditAction.QUOTA_REJECTED;
     }
 }

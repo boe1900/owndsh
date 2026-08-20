@@ -30,5 +30,9 @@ t18-03-session-deleted.png: T18 ACTIVE Session 删除后的 DELETED tombstone �
 t18-04-harness-session-restored.png: T18 锁定 rc.7 Harness 跨设备恢复并上传新本地副本。
 t18-05-harness-session-deleted.png: T18 员工删除恢复副本后的 DELETED 不重传游标。
 t18-session-pages.gif: T18 员工登录、远端列表、恢复、删除确认与删除完成的真实桌面流程。
+t19-01-request-id-correlation.png: T19 管理员按模型 requestId 查询 accepted/finished 双审计记录。
+t19-02-metadata-whitelist.png: T19 显式 metadata 抽屉仅展示模型调用计数与关联 ID。
+t19-03-auditor-read-only.png: T19 审计员只读查询相同 requestId 且无治理写入口。
+t19-audit-closure.gif: T19 requestId 关联、metadata 白名单与审计员只读权限的真实管理端流程。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

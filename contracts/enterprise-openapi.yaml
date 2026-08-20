@@ -130,6 +130,8 @@ paths:
     $ref: './paths/session.yaml#/AdminSessionContent'
   /enterprise/admin/v1/sessions/{replicaId}:
     $ref: './paths/session.yaml#/AdminSessionItem'
+  /enterprise/admin/v1/audit-events:
+    $ref: './paths/audit.yaml#/AdminAuditCollection'
 
 x-enterprise-error-statuses:
   '400':
@@ -305,6 +307,9 @@ x-enterprise-fixtures:
     valid: true
   - file: fixtures/session-deleted-success.json
     schema: DeletedSessionResponse
+    valid: true
+  - file: fixtures/audit-event-list-success.json
+    schema: AuditEventListResponse
     valid: true
 
 components:
@@ -701,6 +706,15 @@ components:
     SessionRestoreRecordRequest: {$ref: './components/session.yaml#/SessionRestoreRecordRequest'}
     SessionRestoreRecord: {$ref: './components/session.yaml#/SessionRestoreRecord'}
     SessionRestoreRecordResponse: {$ref: './components/session.yaml#/SessionRestoreRecordResponse'}
+    AuditEventId: {$ref: './components/audit.yaml#/AuditEventId'}
+    AuditActorType: {$ref: './components/audit.yaml#/AuditActorType'}
+    AuditResult: {$ref: './components/audit.yaml#/AuditResult'}
+    AuditTypeName: {$ref: './components/audit.yaml#/AuditTypeName'}
+    AuditAction: {$ref: './components/audit.yaml#/AuditAction'}
+    AuditMetadata: {$ref: './components/audit.yaml#/AuditMetadata'}
+    AuditEvent: {$ref: './components/audit.yaml#/AuditEvent'}
+    AuditEventPageData: {$ref: './components/audit.yaml#/AuditEventPageData'}
+    AuditEventListResponse: {$ref: './components/audit.yaml#/AuditEventListResponse'}
     QuotaPolicyId: {$ref: './components/quota.yaml#/QuotaPolicyId'}
     QuotaWindowId: {$ref: './components/quota.yaml#/QuotaWindowId'}
     UsageLedgerId: {$ref: './components/quota.yaml#/UsageLedgerId'}

@@ -6,6 +6,7 @@
  */
 package org.dromara.enterprise.model.application;
 
+import org.dromara.enterprise.audit.AuditAction;
 import org.dromara.enterprise.audit.AuditMetadata;
 import org.dromara.enterprise.model.domain.ProviderType;
 
@@ -14,7 +15,7 @@ import java.util.Objects;
 public record ProviderChangeMetadata(
     Operation operation,
     ProviderType providerType,
-    boolean secretReplaced,
+    boolean protectedValueChanged,
     long resourceRevision,
     long bootstrapRevision
 ) implements AuditMetadata {
@@ -25,4 +26,9 @@ public record ProviderChangeMetadata(
     }
 
     public enum Operation { CREATE, UPDATE, ENABLE, DISABLE }
+
+    @Override
+    public AuditAction action() {
+        return AuditAction.PROVIDER_CHANGED;
+    }
 }

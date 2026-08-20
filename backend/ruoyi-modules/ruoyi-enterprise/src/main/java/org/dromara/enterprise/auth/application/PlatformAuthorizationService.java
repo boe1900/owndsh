@@ -286,7 +286,7 @@ public final class PlatformAuthorizationService {
             positiveId(), tenantId, Instant.now(clock), AuditActorType.USER, session.userId(), null,
             AuditAction.LOGOUT, "PLATFORM_SESSION", session.deviceId(), AuditResult.SUCCESS, null,
             context.requestId(), context.sourceIp(), context.userAgentHash(),
-            new AuthAuditMetadata(session.client().clientId(), null)
+            new AuthAuditMetadata.Logout(session.client().clientId())
         )));
         sessions.logoutCurrent();
     }
@@ -347,7 +347,7 @@ public final class PlatformAuthorizationService {
             positiveId(), context.tenantId(), Instant.now(clock), AuditActorType.USER, userId, null,
             AuditAction.LOGIN_SUCCEEDED, "PLATFORM_SESSION", transaction.sessionDeviceId(),
             AuditResult.SUCCESS, null, context.requestId(), context.sourceIp(), context.userAgentHash(),
-            new AuthAuditMetadata(transaction.client().clientId(), sourceType)
+            new AuthAuditMetadata.LoginSucceeded(transaction.client().clientId(), sourceType)
         )));
     }
 
@@ -360,7 +360,7 @@ public final class PlatformAuthorizationService {
             positiveId(), context.tenantId(), Instant.now(clock), AuditActorType.SYSTEM, null, null,
             AuditAction.LOGIN_FAILED, "LOGIN_TRANSACTION", transaction.id(), AuditResult.FAILURE,
             "ENT_AUTH_REQUIRED", context.requestId(), context.sourceIp(), context.userAgentHash(),
-            new AuthAuditMetadata(transaction.client().clientId(), sourceType)
+            new AuthAuditMetadata.LoginFailed(transaction.client().clientId(), sourceType)
         )));
     }
 

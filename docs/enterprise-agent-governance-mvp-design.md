@@ -775,7 +775,7 @@ MVP 必须产生以下 action：
 | `ent_external_identity` | `id,tenant_id,source_id,user_id,issuer,external_subject,last_groups_json,last_login_at` | 唯一 `(source_id,issuer,external_subject)`；唯一 `(source_id,user_id)`；外键 user/source restrict |
 | `ent_external_group_mapping` | `id,tenant_id,source_id,external_group,dept_id,revision` | 唯一 `(source_id,external_group)` |
 | `ent_platform_revision` | `tenant_id,scope,revision,updated_at` | 主键 `(tenant_id,scope)`；MVP 固定一行 `scope=BOOTSTRAP`，管理写事务原子加一 |
-| `ent_device` | `id,tenant_id,user_id,installation_id,name,platform,harness_version,bundle_version,status,last_seen_at,revoked_at,revision` | 唯一 `(tenant_id,installation_id)`；索引 `(user_id,status)` 和 `last_seen_at` |
+| `ent_device` | `id,tenant_id,user_id,installation_id,name,platform,harness_version,bundle_version,status,last_seen_at,last_heartbeat_audit_at,revoked_at,revision` | 唯一 `(tenant_id,installation_id)`；索引 `(user_id,status)` 和 `last_seen_at`；`last_heartbeat_audit_at` 只用于行锁内 heartbeat 审计限频 |
 | `ent_model_provider` | `id,tenant_id,name,provider_type,base_url,credential_ciphertext,credential_nonce,key_version,status,connect_timeout_ms,read_timeout_ms,revision` | 唯一 `(tenant_id,name)`；type 检查 `DEEPSEEK_OPENAI`；密钥字段同时空或同时非空 |
 | `ent_managed_model` | `id,tenant_id,provider_id,alias,display_name,upstream_model,context_window,max_output_tokens,reasoning,sort_order,status,revision` | 唯一 `(tenant_id,alias)`；正数检查；索引 `(provider_id,status)` |
 | `ent_model_grant` | `id,tenant_id,model_id,subject_type,subject_id,is_default,status,revision` | 唯一 `(model_id,subject_type,subject_id)`；type 检查 `USER/DEPT`；部分唯一索引限制同一 subject 一个有效默认 |
@@ -808,6 +808,8 @@ MVP 必须产生以下 action：
 | `V7__enterprise_admin_observability.sql` | 持久化身份源最近测试与设备 heartbeat 的插件/同步脱敏摘要，供管理控制台查询 |
 | `V8__enterprise_plugin_server.sql` | 修正 assignment desired state，并补齐插件服务端库存观测约束 |
 | `V9__enterprise_session_format.sql` | 前向修正 V3 的历史正数约束为官方 rc.7 format v0，并补齐 hash 长度与 retention 索引 |
+| `V10__enterprise_audit_query.sql` | 为 tenant 隔离审计 cursor 查询与有界 retention 清理补齐复合索引 |
+| `V11__enterprise_heartbeat_audit_throttle.sql` | 持久化每设备最近 heartbeat 审计时间，在数据库行锁内原子执行一小时成功审计限频 |
 
 Flyway 使用独立 migration 数据库账号；运行时账号只有 DML 和 sequence 权限。migration 必须在空 PostgreSQL 和从前一 migration 升级两条路径测试。
 
@@ -1202,7 +1204,8 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 | T16 | `completed` | 2026-08-19 已实现官方 format v0 精确 JSONL/SHA-256/rolling hash、ACTIVE 源设备行锁复制、AES-GCM、本人/admin 读取、正文独立权限、tombstone 与 90 天 retention；完整证据见 [`t16-session-server-acceptance.md`](t16-session-server-acceptance.md)。 |
 | T17 | `completed` | 2026-08-19 已实现 dirty queue、flush/readFrom 双边界批次、无正文原子确认游标、READY 断点发现、退避/终态、远端列表与完整验证后的新 ID 耐久恢复；树外 consumer 和锁定 rc.7 真实 Session/Persistence 证据见 [`t17-session-client-acceptance.md`](t17-session-client-acceptance.md)。 |
 | T18 | `completed` | 2026-08-19 已交付管理 Session metadata/正文/删除权限面、员工同步状态/远端列表/恢复/删除 tab；真实 Server Playwright、读取审计、跨设备 rc.7 Harness 恢复与 DELETED 重启不重传证据见 [`t18-session-pages-acceptance.md`](t18-session-pages-acceptance.md)。 |
-| T19-T23 | `pending` | T19 是唯一下一项；T19 独立验收并提交前不得开始 T20。 |
+| T19 | `completed` | 2026-08-20 已交付 30-action 显式 metadata 白名单、tenant 隔离审计查询、365 天有界 retention、用户治理事务接缝、heartbeat 防洪和管理员/审计员只读页面；真实 PostgreSQL/Server/Playwright 与敏感模式扫描证据见 [`t19-audit-closure-acceptance.md`](t19-audit-closure-acceptance.md)。 |
+| T20-T23 | `pending` | T20 是唯一下一项；T20 独立验收并提交前不得开始 T21。 |
 
 ## 23. Definition of Done
 

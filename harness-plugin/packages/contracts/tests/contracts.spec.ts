@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 OpenAPI 生成的 fixture manifest/Zod schema、错误状态映射和品牌 ID 公共 API
- * [OUTPUT]: 验证全部正反 fixture、错误码、gateway/plugin/Session 严格契约、未知字段与品牌类型隔离
+ * [OUTPUT]: 验证全部正反 fixture、错误码、gateway/plugin/Session/audit 严格契约、未知字段与品牌类型隔离
  * [POS]: contracts 的双端协议回归测试之一，与 Java JSON Schema 测试消费相同 fixture 声明
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -113,6 +113,11 @@ describe('generated enterprise contracts', () => {
       enterpriseErrorHttpStatus(code as keyof typeof expectedErrorStatuses),
     ]))).toEqual(expectedErrorStatuses)
     expect(Object.keys(expectedErrorStatuses)).toHaveLength(36)
+  })
+
+  it('keeps empty audit metadata strict without generating an invalid Zod chain', () => {
+    expect(generatedSchemas.zEmptyAuditMetadata.safeParse({}).success).toBe(true)
+    expect(generatedSchemas.zEmptyAuditMetadata.safeParse({ unexpected: true }).success).toBe(false)
   })
 
   it('strictly decodes known errors and rejects unknown enums or fields', async () => {

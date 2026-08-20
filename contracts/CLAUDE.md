@@ -5,9 +5,9 @@
 成员清单
 
 README.md: 协议真源使用规则，定义手写与生成边界、双端消费方式和漂移门禁。
-enterprise-openapi.yaml: OpenAPI 3.1 逻辑协议导航根，定义通用边界、36 个稳定错误码和 71 个 operation，并引用受控 Path Item/schema 分片。
-paths/: T04 identity、T05 auth/device、T08 model/bootstrap、T09 quota/usage、T10 gateway、T13 plugin 与 T16 session operation 分片目录；局部地图见 paths/CLAUDE.md。
-components/: 身份治理、认证/PKCE、设备、模型、配额、网关、插件与 Session 协议 schema 分片；局部地图见 components/CLAUDE.md。
+enterprise-openapi.yaml: OpenAPI 3.1 逻辑协议导航根，定义通用边界、36 个稳定错误码和 72 个 operation，并引用受控 Path Item/schema 分片。
+paths/: T04 identity、T05 auth/device、T08 model/bootstrap、T09 quota/usage、T10 gateway、T13 plugin、T16 session 与 T19 audit operation 分片目录；局部地图见 paths/CLAUDE.md。
+components/: 身份治理、认证/PKCE、设备、模型、配额、网关、插件、Session 与审计协议 schema 分片；局部地图见 components/CLAUDE.md。
 fixtures/auth-sources-success.json: T05 登录事务、CSRF 与公开身份源成功响应样例。
 fixtures/device-list-success.json: T05 管理设备 cursor 列表成功响应样例。
 fixtures/device-success.json: T05 单设备 enroll/heartbeat/get/revoke 统一成功响应样例。
@@ -43,6 +43,7 @@ fixtures/session-list-success.json: T16 员工本人 ACTIVE 远端副本与解�
 fixtures/session-export-success.json: T16 官方 v0 header、精确 JSONL payload 与前后 hash 证明成功样例。
 fixtures/admin-session-list-success.json: T16 不解密正文的管理 metadata cursor 列表成功样例。
 fixtures/session-deleted-success.json: T16 正文清除并保留 DELETED tombstone 成功响应样例。
+fixtures/audit-event-list-success.json: T19 同 requestId 的模型 accepted/finished 双记录与封闭 metadata 成功响应样例。
 fixtures/protocol-page-success.json: 带品牌 ID、revision 和 cursor page metadata 的成功响应样例。
 fixtures/protocol-success.json: 最小统一成功响应样例，验证 data/requestId envelope。
 fixtures/quota-error.json: 带固定 QuotaExceededDetails 的第 17 节失败响应样例。

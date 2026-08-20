@@ -6,6 +6,7 @@
  */
 package org.dromara.enterprise.plugin.application;
 
+import org.dromara.enterprise.audit.AuditAction;
 import org.dromara.enterprise.audit.AuditMetadata;
 
 import java.util.Objects;
@@ -25,4 +26,15 @@ public record PluginAuditMetadata(
     }
 
     public enum Operation { UPLOAD, PUBLISH, RETIRE, ASSIGN, DOWNLOAD, INVENTORY }
+
+    @Override
+    public AuditAction action() {
+        return switch (operation) {
+            case UPLOAD -> AuditAction.PLUGIN_UPLOADED;
+            case PUBLISH, RETIRE -> AuditAction.PLUGIN_PUBLISHED;
+            case ASSIGN -> AuditAction.PLUGIN_ASSIGNED;
+            case DOWNLOAD -> AuditAction.PLUGIN_DOWNLOADED;
+            case INVENTORY -> AuditAction.PLUGIN_INVENTORY_REPORTED;
+        };
+    }
 }

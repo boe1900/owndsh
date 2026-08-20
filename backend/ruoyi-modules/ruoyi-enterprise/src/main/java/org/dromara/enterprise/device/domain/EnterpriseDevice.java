@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 聚合 ent_device 与 sys_user 的设备、owner、版本、heartbeat 摘要、状态和 revision 投影。
- * [OUTPUT]: 对外提供满足摘要范围与 ACTIVE/revokedAt 不变量的不可变企业设备。
+ * [INPUT]: 聚合 ent_device 与 sys_user 的设备、owner、版本、heartbeat 摘要/审计闸门、状态和 revision 投影。
+ * [OUTPUT]: 对外提供满足摘要范围、审计时间与 ACTIVE/revokedAt 不变量的不可变企业设备。
  * [POS]: device 领域聚合根，installation ID 是服务端会话绑定事实而不是授权 header。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -25,6 +25,7 @@ public record EnterpriseDevice(
     String pluginInventoryDigest,
     long pendingSessionEvents,
     Instant lastSuccessfulSyncAt,
+    Instant lastHeartbeatAuditAt,
     DeviceStatus status,
     Instant lastSeenAt,
     Instant revokedAt,
@@ -70,7 +71,7 @@ public record EnterpriseDevice(
     ) {
         this(
             id, tenantId, userId, username, displayName, installationId, name, platform,
-            harnessVersion, enterpriseBundleVersion, 0, null, 0, null,
+            harnessVersion, enterpriseBundleVersion, 0, null, 0, null, null,
             status, lastSeenAt, revokedAt, revision
         );
     }

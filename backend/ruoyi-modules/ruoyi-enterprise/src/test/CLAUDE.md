@@ -15,7 +15,7 @@ java/org/dromara/enterprise/auth/PlatformAuthorizationSecurityTest.java: 使用�
 java/org/dromara/enterprise/auth/RedisAuthStateStoreIntegrationTest.java: 使用 Redis 8 验证 5 分钟事务、60 秒 code、GETDEL 唯一消费、过期/取消与 OIDC key 分区。
 java/org/dromara/enterprise/auth/T05ApiContractTest.java: 以 MockMvc 和派生 JSON Schema 验证七个认证及五个设备 operation 与权限注解。
 java/org/dromara/enterprise/device/DeviceContextIsolationTest.java: 证明伪造 X-Device-Id 不会覆盖 Sa-Token terminal 的 installation 授权事实。
-java/org/dromara/enterprise/device/DeviceLifecycleIntegrationTest.java: 以真实 PostgreSQL 验证多设备 owner、heartbeat、CAS、审计同事务与单设备撤销隔离。
+java/org/dromara/enterprise/device/DeviceLifecycleIntegrationTest.java: 以真实 PostgreSQL 验证多设备 owner、heartbeat 审计限频/状态切换、CAS、审计同事务与单设备撤销隔离。
 java/org/dromara/enterprise/model/ProviderProbeTest.java: 使用 WireMock 验证 `/models` Bearer 探测、状态分类、正文隔离与 no-redirect。
 java/org/dromara/enterprise/model/EffectiveModelResolverTest.java: 纯单元验证 USER 默认缺失时的 DEPT 默认选择与空候选边界。
 java/org/dromara/enterprise/model/T08ApiContractTest.java: 以 MockMvc/JSON Schema 验证模型管理及 bootstrap 全 operation 的成功/失败协议、权限码与密钥不回显。
@@ -37,9 +37,10 @@ java/org/dromara/enterprise/plugin/PluginServerIntegrationTest.java: 以真实 P
 java/org/dromara/enterprise/plugin/T13ApiContractTest.java: 以 MockMvc/JSON Schema 验证九个插件 operation、catalog 完整 assignment 投影、权限码、稳定错误和下载头。
 java/org/dromara/enterprise/plugin/PluginTestArtifacts.java: 集中生成无脚本、无依赖、精确 rc.7 peer 的合法预构建 bundle tgz fixture。
 java/org/dromara/enterprise/session/: T16 精确 JSONL/hash、并发远端副本、正文权限、tombstone 与 V9 协议纵向门禁；局部地图见 session/CLAUDE.md。
+java/org/dromara/enterprise/audit/: T19 30-action metadata 白名单、requestId 关联、用户治理接缝与 365 天 retention 门禁；局部地图见 audit/CLAUDE.md。
 java/org/dromara/enterprise/test/OpenLdapTestServer.java: 共享 OpenLDAP Testcontainer 与测试专用 TLS trust，集中管理 LDAP 集成环境。
 java/org/dromara/enterprise/test/RedisTestServer.java: 共享 Redis 8 Testcontainer，并为每项认证测试清理隔离 keyspace。
-java/org/dromara/enterprise/database/EnterpriseMigrationTest.java: 从真实 RuoYi PostgreSQL 基线验证 V1-V9 逐版本升级、空库迁移、官方 Session format v0 约束与 Boot 4 自动迁移装配。
+java/org/dromara/enterprise/database/EnterpriseMigrationTest.java: 从真实 RuoYi PostgreSQL 基线验证 V1-V11 逐版本升级、空库迁移、Session v0、审计索引/心跳闸门与 Boot 4 自动迁移装配。
 java/org/dromara/enterprise/database/RbacSeedTest.java: 验证五个 built-in 角色、14 个冻结权限码、最小权限集合与数据库不可变 trigger。
 java/org/dromara/enterprise/revision/RevisionAuditIntegrationTest.java: 验证 BOOTSTRAP CAS、稳定冲突码、显式 metadata、只追加审计及同事务回滚。
 java/org/dromara/enterprise/test/PostgresTestDatabase.java: 共享 PostgreSQL 17 Testcontainer，为每组验收创建独立数据库并加载上游真实基线。

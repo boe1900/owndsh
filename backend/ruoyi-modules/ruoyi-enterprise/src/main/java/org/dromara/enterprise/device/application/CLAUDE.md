@@ -12,6 +12,6 @@ DeviceEnrollmentMetadata.java: DEVICE_ENROLLED 审计只记录平台和首次创
 DeviceHeartbeat.java: Runtime heartbeat 的版本、revision、插件摘要与 Session 积压白名单输入。
 DeviceHeartbeatMetadata.java: DEVICE_HEARTBEAT 审计的 revision/积压/同步状态投影。
 DeviceNotFoundException.java: tenant 限定设备不存在边界，不泄漏其他 tenant 事实。
-DeviceService.java: 单事务设备状态与审计编排；授权只读 Token terminal，提交后按 installation 精确撤销 Sa-Token。
+DeviceService.java: 单事务设备状态与审计编排；heartbeat 只在 store 原子闸门判定首次、满一小时或健康状态切换时 append，提交后按 installation 精确撤销 Sa-Token。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

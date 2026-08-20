@@ -6,7 +6,12 @@
  */
 package org.dromara.enterprise.device.application;
 
+import org.dromara.enterprise.audit.AuditAction;
 import org.dromara.enterprise.audit.AuditMetadata;
 
 public record DeviceEnrollmentMetadata(String platform, boolean created) implements AuditMetadata {
+    @Override
+    public AuditAction action() {
+        return AuditAction.DEVICE_ENROLLED;
+    }
 }

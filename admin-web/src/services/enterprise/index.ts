@@ -73,6 +73,7 @@ import * as recordSessionRestore from "./recordSessionRestore";
 import * as listAdminSessions from "./listAdminSessions";
 import * as readAdminSessionContent from "./readAdminSessionContent";
 import * as deleteAdminSession from "./deleteAdminSession";
+import * as listAuditEvents from "./listAuditEvents";
 export default {
   authorizePlatformClient,
   listPublicIdentitySources,
@@ -145,4 +146,5 @@ export default {
   listAdminSessions,
   readAdminSessionContent,
   deleteAdminSession,
+  listAuditEvents,
 };

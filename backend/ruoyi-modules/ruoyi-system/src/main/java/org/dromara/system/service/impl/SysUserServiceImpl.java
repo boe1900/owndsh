@@ -1,3 +1,9 @@
+/**
+ * [INPUT]: 依赖用户/部门/角色/岗位 stores、RuoYi 权限事实与 UserGovernanceEventPublisher
+ * [OUTPUT]: 提供系统用户查询写入、角色替换、状态变更，并在治理事实提交前发布脱敏事件
+ * [POS]: system/service 的用户聚合应用服务；企业审计只订阅事件，不侵入基础用户模型或反向形成模块依赖
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 package org.dromara.system.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
@@ -28,6 +34,7 @@ import org.dromara.system.domain.vo.SysPostVo;
 import org.dromara.system.domain.vo.SysRoleVo;
 import org.dromara.system.domain.vo.SysUserExportVo;
 import org.dromara.system.domain.vo.SysUserVo;
+import org.dromara.system.event.UserGovernanceEventPublisher;
 import org.dromara.system.mapper.*;
 import org.dromara.system.service.ISysUserService;
 import org.springframework.cache.annotation.CacheEvict;
@@ -53,6 +60,7 @@ public class SysUserServiceImpl implements ISysUserService, UserService {
     private final SysPostMapper postMapper;
     private final SysUserRoleMapper userRoleMapper;
     private final SysUserPostMapper userPostMapper;
+    private final UserGovernanceEventPublisher governanceEvents;
 
     /**
      * 分页查询用户列表。
@@ -308,6 +316,7 @@ public class SysUserServiceImpl implements ISysUserService, UserService {
         insertUserPost(user, false);
         // 新增用户与角色管理
         insertUserRole(user, false);
+        governanceEvents.rolesAssigned(user.getUserId(), user.getRoleIds());
         return rows;
     }
 
@@ -345,6 +354,7 @@ public class SysUserServiceImpl implements ISysUserService, UserService {
         if (flag < 1) {
             throw new ServiceException("修改用户{}信息失败", user.getUserName());
         }
+        governanceEvents.rolesAssigned(user.getUserId(), user.getRoleIds());
         return flag;
     }
 
@@ -358,6 +368,7 @@ public class SysUserServiceImpl implements ISysUserService, UserService {
     @Transactional(rollbackFor = Exception.class)
     public void insertUserAuth(Long userId, Long[] roleIds) {
         insertUserRole(userId, roleIds, true);
+        governanceEvents.rolesAssigned(userId, roleIds);
     }
 
     /**
@@ -368,11 +379,16 @@ public class SysUserServiceImpl implements ISysUserService, UserService {
      * @return 结果
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int updateUserStatus(Long userId, String status) {
-        return userMapper.lambda()
+        SysUser current = userMapper.selectById(userId);
+        if (current == null) return 0;
+        int rows = userMapper.lambda()
             .set(SysUser::getStatus, status)
             .eq(SysUser::getUserId, userId)
             .updateCount();
+        if (rows > 0) governanceEvents.statusChanged(userId, current.getStatus(), status);
+        return rows;
     }
 
     /**

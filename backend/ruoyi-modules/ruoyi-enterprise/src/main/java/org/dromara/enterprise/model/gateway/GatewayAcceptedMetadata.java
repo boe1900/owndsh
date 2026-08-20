@@ -6,6 +6,7 @@
  */
 package org.dromara.enterprise.model.gateway;
 
+import org.dromara.enterprise.audit.AuditAction;
 import org.dromara.enterprise.audit.AuditMetadata;
 
 import java.util.Objects;
@@ -16,5 +17,10 @@ public record GatewayAcceptedMetadata(long modelId, UUID reservationId, long est
     public GatewayAcceptedMetadata {
         if (modelId <= 0 || estimatedTokens <= 0) throw new IllegalArgumentException("accepted metadata 数值非法");
         Objects.requireNonNull(reservationId, "reservationId");
+    }
+
+    @Override
+    public AuditAction action() {
+        return AuditAction.MODEL_REQUEST_ACCEPTED;
     }
 }

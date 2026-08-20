@@ -6,6 +6,7 @@
  */
 package org.dromara.enterprise.model.application;
 
+import org.dromara.enterprise.audit.AuditAction;
 import org.dromara.enterprise.audit.AuditMetadata;
 import org.dromara.enterprise.model.domain.GrantSubjectType;
 import org.dromara.enterprise.model.domain.ModelStatus;
@@ -28,4 +29,9 @@ public record ModelGrantChangeMetadata(
     }
 
     public enum Operation { CREATE, UPDATE, DELETE }
+
+    @Override
+    public AuditAction action() {
+        return AuditAction.MODEL_GRANT_CHANGED;
+    }
 }

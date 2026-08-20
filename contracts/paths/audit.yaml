@@ -1,0 +1,56 @@
+# [INPUT]: 依赖 audit.yaml schemas 与根协议 cursor/limit/requestId/统一错误响应
+# [OUTPUT]: 提供 ent:audit:read 保护的管理审计多维筛选 Path Item
+# [POS]: contracts/paths 的 T19 审计纵向分片，只有只读查询能力
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+AdminAuditCollection:
+  get:
+    operationId: listAuditEvents
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Cursor'
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Limit'
+      - name: actorId
+        in: query
+        required: false
+        schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/EnterpriseUserId'}
+      - name: action
+        in: query
+        required: false
+        schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/AuditAction'}
+      - name: resourceType
+        in: query
+        required: false
+        schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/AuditTypeName'}
+      - name: resourceId
+        in: query
+        required: false
+        schema: {type: string, minLength: 1, maxLength: 255}
+      - name: result
+        in: query
+        required: false
+        schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/AuditResult'}
+      - name: reasonCode
+        in: query
+        required: false
+        schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/AuditTypeName'}
+      - name: requestId
+        in: query
+        required: false
+        schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'}
+      - name: from
+        in: query
+        required: false
+        schema: {type: string, format: date-time}
+      - name: to
+        in: query
+        required: false
+        schema: {type: string, format: date-time}
+    responses:
+      '200':
+        description: Append-only audit metadata page; source IP and user-agent hash are not returned.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/AuditEventListResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}

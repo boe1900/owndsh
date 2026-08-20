@@ -6,8 +6,53 @@
  */
 package org.dromara.enterprise.auth.application;
 
+import org.dromara.enterprise.audit.AuditAction;
 import org.dromara.enterprise.audit.AuditMetadata;
 import org.dromara.enterprise.auth.domain.IdentitySourceType;
 
-public record AuthAuditMetadata(String clientId, IdentitySourceType sourceType) implements AuditMetadata {
+import java.util.Objects;
+
+public sealed interface AuthAuditMetadata extends AuditMetadata permits
+    AuthAuditMetadata.LoginSucceeded,
+    AuthAuditMetadata.LoginFailed,
+    AuthAuditMetadata.Logout {
+
+    record LoginSucceeded(String clientId, IdentitySourceType sourceType) implements AuthAuditMetadata {
+        public LoginSucceeded {
+            requireClient(clientId);
+            Objects.requireNonNull(sourceType, "sourceType");
+        }
+
+        @Override
+        public AuditAction action() {
+            return AuditAction.LOGIN_SUCCEEDED;
+        }
+    }
+
+    record LoginFailed(String clientId, IdentitySourceType sourceType) implements AuthAuditMetadata {
+        public LoginFailed {
+            requireClient(clientId);
+            Objects.requireNonNull(sourceType, "sourceType");
+        }
+
+        @Override
+        public AuditAction action() {
+            return AuditAction.LOGIN_FAILED;
+        }
+    }
+
+    record Logout(String clientId) implements AuthAuditMetadata {
+        public Logout {
+            requireClient(clientId);
+        }
+
+        @Override
+        public AuditAction action() {
+            return AuditAction.LOGOUT;
+        }
+    }
+
+    private static void requireClient(String clientId) {
+        if (clientId == null || clientId.isBlank()) throw new IllegalArgumentException("clientId 不能为空");
+    }
 }

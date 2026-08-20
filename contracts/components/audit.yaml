@@ -1,0 +1,290 @@
+# [INPUT]: 依赖第 13 节 30 action、显式 Java metadata DTO 与根协议 ID/cursor/requestId
+# [OUTPUT]: 提供审计事件、封闭 metadata 联合和 cursor page schemas
+# [POS]: contracts/components 的 T19 审计真源，任意 metadata key 无法通过 additionalProperties=false
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+AuditEventId: {type: string, pattern: '^[1-9][0-9]{0,18}$'}
+AuditActorType: {type: string, enum: [USER, SYSTEM]}
+AuditResult: {type: string, enum: [SUCCESS, FAILURE]}
+AuditTypeName: {type: string, pattern: '^[A-Z][A-Z0-9_]{0,63}$'}
+AuditAction:
+  type: string
+  enum:
+    - LOGIN_SUCCEEDED
+    - LOGIN_FAILED
+    - LOGOUT
+    - IDENTITY_SOURCE_CHANGED
+    - USER_LINKED
+    - DEVICE_ENROLLED
+    - DEVICE_HEARTBEAT
+    - DEVICE_REVOKED
+    - PROVIDER_CHANGED
+    - MODEL_CHANGED
+    - MODEL_GRANT_CHANGED
+    - MODEL_REQUEST_ACCEPTED
+    - MODEL_REQUEST_FINISHED
+    - QUOTA_CHANGED
+    - QUOTA_REJECTED
+    - RESERVATION_RECOVERED
+    - PLUGIN_UPLOADED
+    - PLUGIN_PUBLISHED
+    - PLUGIN_ASSIGNED
+    - PLUGIN_DOWNLOADED
+    - PLUGIN_INVENTORY_REPORTED
+    - SESSION_BATCH_APPENDED
+    - SESSION_EXPORTED
+    - SESSION_RESTORED
+    - SESSION_CONTENT_READ
+    - SESSION_DELETED
+    - SESSION_EXPIRED
+    - ROLE_ASSIGNED
+    - USER_STATUS_CHANGED
+    - CONFIG_CHANGED
+
+EmptyAuditMetadata: {type: object, additionalProperties: false, properties: {}}
+AuthAuditMetadata:
+  type: object
+  additionalProperties: false
+  required: [clientId]
+  properties:
+    clientId: {type: string, enum: [dsh-desktop, enterprise-admin]}
+    sourceType: {type: string, enum: [OIDC, LDAP, LOCAL]}
+IdentityChangeAuditMetadata:
+  type: object
+  additionalProperties: false
+  required: [operation, sourceType, protectedValueChanged, resourceRevision, bootstrapRevision]
+  properties:
+    operation: {type: string, enum: [CREATE, UPDATE, ENABLE, DISABLE, GROUP_MAPPING_CREATE, GROUP_MAPPING_DELETE]}
+    sourceType: {type: string, enum: [OIDC, LDAP, LOCAL]}
+    protectedValueChanged: {type: boolean}
+    resourceRevision: {type: integer, minimum: 0}
+    bootstrapRevision: {type: integer, minimum: 0}
+IdentityLinkAuditMetadata:
+  type: object
+  additionalProperties: false
+  required: [sourceType, userProvisioned, externalGroupCount, mappedGroupCount, unmappedGroupCount, departmentConflict]
+  properties:
+    sourceType: {type: string, enum: [OIDC, LDAP, LOCAL]}
+    userProvisioned: {type: boolean}
+    externalGroupCount: {type: integer, minimum: 0}
+    mappedGroupCount: {type: integer, minimum: 0}
+    unmappedGroupCount: {type: integer, minimum: 0}
+    departmentConflict: {type: boolean}
+DeviceEnrollmentAuditMetadata:
+  type: object
+  additionalProperties: false
+  required: [platform, created]
+  properties:
+    platform: {type: string, minLength: 1, maxLength: 64}
+    created: {type: boolean}
+DeviceHeartbeatAuditMetadata:
+  type: object
+  additionalProperties: false
+  required: [desiredRevision, pendingSyncItems, hasSuccessfulSync]
+  properties:
+    desiredRevision: {type: integer, minimum: 0}
+    pendingSyncItems: {type: integer, minimum: 0}
+    hasSuccessfulSync: {type: boolean}
+ProviderChangeAuditMetadata:
+  type: object
+  additionalProperties: false
+  required: [operation, providerType, protectedValueChanged, resourceRevision, bootstrapRevision]
+  properties:
+    operation: {type: string, enum: [CREATE, UPDATE, ENABLE, DISABLE]}
+    providerType: {type: string, const: DEEPSEEK_OPENAI}
+    protectedValueChanged: {type: boolean}
+    resourceRevision: {type: integer, minimum: 0}
+    bootstrapRevision: {type: integer, minimum: 0}
+ModelChangeAuditMetadata:
+  type: object
+  additionalProperties: false
+  required: [operation, reasoning, resourceRevision, bootstrapRevision]
+  properties:
+    operation: {type: string, enum: [CREATE, UPDATE, ENABLE, DISABLE, DELETE]}
+    reasoning: {type: boolean}
+    resourceRevision: {type: integer, minimum: 0}
+    bootstrapRevision: {type: integer, minimum: 0}
+ModelGrantChangeAuditMetadata:
+  type: object
+  additionalProperties: false
+  required: [operation, subjectType, defaultGrant, status, resourceRevision, bootstrapRevision]
+  properties:
+    operation: {type: string, enum: [CREATE, UPDATE, DELETE]}
+    subjectType: {type: string, enum: [USER, DEPT]}
+    defaultGrant: {type: boolean}
+    status: {type: string, enum: [ACTIVE, DISABLED]}
+    resourceRevision: {type: integer, minimum: 0}
+    bootstrapRevision: {type: integer, minimum: 0}
+GatewayAcceptedAuditMetadata:
+  type: object
+  additionalProperties: false
+  required: [modelId, reservationId, estimatedTokens]
+  properties:
+    modelId: {type: integer, minimum: 1}
+    reservationId: {type: string, format: uuid}
+    estimatedTokens: {type: integer, minimum: 1}
+GatewayFinishedAuditMetadata:
+  type: object
+  additionalProperties: false
+  required: [modelId, reservationId, outcome, chargedTokens, durationMs, failure]
+  properties:
+    modelId: {type: integer, minimum: 1}
+    reservationId: {type: string, format: uuid}
+    outcome: {type: string, enum: [SETTLED, CHARGED_MAX]}
+    chargedTokens: {type: integer, minimum: 0}
+    durationMs: {type: integer, minimum: 0}
+    failure:
+      type: string
+      enum: [NONE, USAGE_MISSING, CLIENT_CANCELLED, UPSTREAM_AUTH_FAILED, UPSTREAM_INVALID_RESPONSE, UPSTREAM_UNAVAILABLE, UPSTREAM_TIMEOUT, PLATFORM_FAILURE]
+QuotaChangeAuditMetadata:
+  type: object
+  additionalProperties: false
+  required: [subjectType, status, previousRevision, currentRevision]
+  properties:
+    subjectType: {type: string, enum: [DEFAULT, DEPT, USER]}
+    status: {type: string, enum: [ACTIVE, DISABLED]}
+    previousRevision: {type: integer, minimum: -1}
+    currentRevision: {type: integer, minimum: 0}
+QuotaRejectionAuditMetadata:
+  type: object
+  additionalProperties: false
+  required: [kind, policyId, estimatedTokens]
+  properties:
+    kind: {type: string, enum: [DAILY, MONTHLY, RPM, CONCURRENCY]}
+    policyId: {type: integer, minimum: 1}
+    estimatedTokens: {type: integer, minimum: 1}
+ReservationRecoveredAuditMetadata:
+  type: object
+  additionalProperties: false
+  required: [previousState, recoveredState]
+  properties:
+    previousState: {type: string, enum: [RESERVED, SENT]}
+    recoveredState: {type: string, enum: [RELEASED, CHARGED_MAX]}
+PluginAuditMetadata:
+  type: object
+  additionalProperties: false
+  required: [operation, resourceRevision, bootstrapRevision, itemCount, required]
+  properties:
+    operation: {type: string, enum: [UPLOAD, PUBLISH, RETIRE, ASSIGN, DOWNLOAD, INVENTORY]}
+    resourceRevision: {type: integer, minimum: 0}
+    bootstrapRevision: {type: integer, minimum: 0}
+    itemCount: {type: integer, minimum: 0, maximum: 500}
+    required: {type: boolean}
+SessionRangeAuditMetadata:
+  type: object
+  additionalProperties: false
+  required: [fromSeq, toSeq, eventCount]
+  properties:
+    fromSeq: {type: integer, minimum: 0}
+    toSeq: {type: integer, minimum: 0}
+    eventCount: {type: integer, minimum: 0}
+SessionRestoredAuditMetadata:
+  type: object
+  additionalProperties: false
+  required: [restoredSessionId, eventCount]
+  properties:
+    restoredSessionId: {type: string, minLength: 1, maxLength: 128}
+    eventCount: {type: integer, minimum: 0}
+SessionDeletedAuditMetadata:
+  type: object
+  additionalProperties: false
+  required: [previousStatus, eventCount]
+  properties:
+    previousStatus: {type: string, enum: [ACTIVE, DELETED, EXPIRED]}
+    eventCount: {type: integer, minimum: 0}
+SessionExpiredAuditMetadata:
+  type: object
+  additionalProperties: false
+  required: [lastSeq, eventCount]
+  properties:
+    lastSeq: {type: integer, minimum: -1}
+    eventCount: {type: integer, minimum: 0}
+RoleAssignedAuditMetadata:
+  type: object
+  additionalProperties: false
+  required: [roleCount]
+  properties:
+    roleCount: {type: integer, minimum: 1}
+UserStatusChangedAuditMetadata:
+  type: object
+  additionalProperties: false
+  required: [previousStatus, currentStatus]
+  properties:
+    previousStatus: {type: string, minLength: 1, maxLength: 16}
+    currentStatus: {type: string, minLength: 1, maxLength: 16}
+RevisionChangedAuditMetadata:
+  type: object
+  additionalProperties: false
+  required: [previousRevision, currentRevision]
+  properties:
+    previousRevision: {type: integer, minimum: 0}
+    currentRevision: {type: integer, minimum: 1}
+
+AuditMetadata:
+  anyOf:
+    - $ref: '#/EmptyAuditMetadata'
+    - $ref: '#/AuthAuditMetadata'
+    - $ref: '#/IdentityChangeAuditMetadata'
+    - $ref: '#/IdentityLinkAuditMetadata'
+    - $ref: '#/DeviceEnrollmentAuditMetadata'
+    - $ref: '#/DeviceHeartbeatAuditMetadata'
+    - $ref: '#/ProviderChangeAuditMetadata'
+    - $ref: '#/ModelChangeAuditMetadata'
+    - $ref: '#/ModelGrantChangeAuditMetadata'
+    - $ref: '#/GatewayAcceptedAuditMetadata'
+    - $ref: '#/GatewayFinishedAuditMetadata'
+    - $ref: '#/QuotaChangeAuditMetadata'
+    - $ref: '#/QuotaRejectionAuditMetadata'
+    - $ref: '#/ReservationRecoveredAuditMetadata'
+    - $ref: '#/PluginAuditMetadata'
+    - $ref: '#/SessionRangeAuditMetadata'
+    - $ref: '#/SessionRestoredAuditMetadata'
+    - $ref: '#/SessionDeletedAuditMetadata'
+    - $ref: '#/SessionExpiredAuditMetadata'
+    - $ref: '#/RoleAssignedAuditMetadata'
+    - $ref: '#/UserStatusChangedAuditMetadata'
+    - $ref: '#/RevisionChangedAuditMetadata'
+
+AuditEvent:
+  type: object
+  additionalProperties: false
+  required: [id, occurredAt, actorType, actorId, deviceId, action, resourceType, resourceId, result, reasonCode, requestId, metadata]
+  properties:
+    id: {$ref: '#/AuditEventId'}
+    occurredAt: {type: string, format: date-time}
+    actorType: {$ref: '#/AuditActorType'}
+    actorId:
+      oneOf:
+        - $ref: '../enterprise-openapi.yaml#/components/schemas/EnterpriseUserId'
+        - type: 'null'
+    deviceId:
+      oneOf:
+        - $ref: '../enterprise-openapi.yaml#/components/schemas/EnterpriseDeviceId'
+        - type: 'null'
+    action: {$ref: '#/AuditAction'}
+    resourceType: {$ref: '#/AuditTypeName'}
+    resourceId: {type: string, minLength: 1, maxLength: 255}
+    result: {$ref: '#/AuditResult'}
+    reasonCode:
+      oneOf:
+        - $ref: '#/AuditTypeName'
+        - type: 'null'
+    requestId: {$ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'}
+    metadata: {$ref: '#/AuditMetadata'}
+AuditEventPageData:
+  type: object
+  additionalProperties: false
+  required: [items, page]
+  properties:
+    items:
+      type: array
+      maxItems: 200
+      items: {$ref: '#/AuditEvent'}
+    page: {$ref: '../enterprise-openapi.yaml#/components/schemas/CursorPage'}
+AuditEventListResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/AuditEventPageData'}
+    requestId: {$ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'}

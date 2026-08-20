@@ -6,7 +6,7 @@ Enterprise Agent Platform 是基于 DeepSeek Harness 构建的企业 Agent 管�
 
 ## 当前阶段
 
-T00 至 T18 已完成：仓库包含锁定产品源码、Harness 官方插件 workspace、Java/TypeScript 同源 OpenAPI 3.1 协议、PostgreSQL/Redis 企业模块、桌面管理控制台、插件分发闭环和 Session 端到端复制基础设施。T18 已交付管理 Session metadata/正文/删除权限面、员工同步状态/远端列表/恢复/删除 tab，并用真实 PostgreSQL、Server、管理端和锁定 rc.7 Harness 证明跨设备恢复以及 tombstone 重启不重传；下一项只能从 T19 开始。实际证据见 [`docs/t18-session-pages-acceptance.md`](docs/t18-session-pages-acceptance.md)。
+T00 至 T19 已完成：仓库包含锁定产品源码、Harness 官方插件 workspace、Java/TypeScript 同源 OpenAPI 3.1 协议、PostgreSQL/Redis 企业模块、桌面管理控制台、插件分发闭环、Session 端到端复制与审计闭环。T19 已交付 30-action 显式 metadata 白名单、tenant 隔离审计查询、365 天有界 retention、用户治理事务接缝、heartbeat 防洪和管理员/审计员只读页面，并用真实 PostgreSQL、Server 与管理端证明同 requestId 双记录关联和员工 API 403；下一项只能从 T20 开始。实际证据见 [`docs/t19-audit-closure-acceptance.md`](docs/t19-audit-closure-acceptance.md)。
 
 ## 文档
 
@@ -30,6 +30,7 @@ T00 至 T18 已完成：仓库包含锁定产品源码、Harness 官方插件 wo
 - [T16 Session 服务端验收记录](docs/t16-session-server-acceptance.md)：官方 format v0、精确 JSONL/hash、并发复制、AES-GCM、正文权限、tombstone 与 retention 证据。
 - [T17 Session 客户端验收记录](docs/t17-session-client-acceptance.md)：dirty queue、确认游标、退避终态、树外 consumer 与锁定 rc.7 同步恢复证据。
 - [T18 Session 页面验收记录](docs/t18-session-pages-acceptance.md)：管理正文权限/审计/tombstone、员工同步/恢复/删除与锁定 rc.7 重启不重传证据。
+- [T19 审计闭环验收记录](docs/t19-audit-closure-acceptance.md)：30-action metadata 白名单、requestId 关联、只读权限、retention、用户治理和 heartbeat 防洪证据。
 
 实现者先阅读 MVP 详细设计的第 1 至 21 节，再严格按照第 22 节任务依赖推进。发现设计矛盾时先修订设计并记录决定，不在代码中引入未经确认的替代方案。
 

@@ -6,6 +6,7 @@
  */
 package org.dromara.enterprise.quota.application;
 
+import org.dromara.enterprise.audit.AuditAction;
 import org.dromara.enterprise.audit.AuditMetadata;
 import org.dromara.enterprise.quota.domain.ReservationState;
 
@@ -17,5 +18,10 @@ public record ReservationRecoveredMetadata(
         boolean valid = previousState == ReservationState.RESERVED && recoveredState == ReservationState.RELEASED
             || previousState == ReservationState.SENT && recoveredState == ReservationState.CHARGED_MAX;
         if (!valid) throw new IllegalArgumentException("reservation 恢复状态非法");
+    }
+
+    @Override
+    public AuditAction action() {
+        return AuditAction.RESERVATION_RECOVERED;
     }
 }

@@ -251,6 +251,24 @@ export type SessionRestoreRecord = SessionSessionRestoreRecord;
 
 export type SessionRestoreRecordResponse = SessionSessionRestoreRecordResponse;
 
+export type AuditEventId = AuditAuditEventId;
+
+export type AuditActorType = AuditAuditActorType;
+
+export type AuditResult = AuditAuditResult;
+
+export type AuditTypeName = AuditAuditTypeName;
+
+export type AuditAction = AuditAuditAction;
+
+export type AuditMetadata = AuditAuditMetadata;
+
+export type AuditEvent = AuditAuditEvent;
+
+export type AuditEventPageData = AuditAuditEventPageData;
+
+export type AuditEventListResponse = AuditAuditEventListResponse;
+
 export type QuotaPolicyId = QuotaQuotaPolicyId;
 
 export type QuotaWindowId = QuotaQuotaWindowId;
@@ -413,6 +431,180 @@ export type EnterpriseError = {
 
 export type EnterpriseErrorResponse = {
     error: EnterpriseError;
+};
+
+export type AuditAuditAction = 'LOGIN_SUCCEEDED' | 'LOGIN_FAILED' | 'LOGOUT' | 'IDENTITY_SOURCE_CHANGED' | 'USER_LINKED' | 'DEVICE_ENROLLED' | 'DEVICE_HEARTBEAT' | 'DEVICE_REVOKED' | 'PROVIDER_CHANGED' | 'MODEL_CHANGED' | 'MODEL_GRANT_CHANGED' | 'MODEL_REQUEST_ACCEPTED' | 'MODEL_REQUEST_FINISHED' | 'QUOTA_CHANGED' | 'QUOTA_REJECTED' | 'RESERVATION_RECOVERED' | 'PLUGIN_UPLOADED' | 'PLUGIN_PUBLISHED' | 'PLUGIN_ASSIGNED' | 'PLUGIN_DOWNLOADED' | 'PLUGIN_INVENTORY_REPORTED' | 'SESSION_BATCH_APPENDED' | 'SESSION_EXPORTED' | 'SESSION_RESTORED' | 'SESSION_CONTENT_READ' | 'SESSION_DELETED' | 'SESSION_EXPIRED' | 'ROLE_ASSIGNED' | 'USER_STATUS_CHANGED' | 'CONFIG_CHANGED';
+
+export type AuditAuditActorType = 'USER' | 'SYSTEM';
+
+export type AuditAuditEvent = {
+    id: AuditAuditEventId;
+    occurredAt: string;
+    actorType: AuditAuditActorType;
+    actorId: EnterpriseUserId | null;
+    deviceId: EnterpriseDeviceId | null;
+    action: AuditAuditAction;
+    resourceType: AuditAuditTypeName;
+    resourceId: string;
+    result: AuditAuditResult;
+    reasonCode: AuditAuditTypeName | null;
+    requestId: RequestId;
+    metadata: AuditAuditMetadata;
+};
+
+export type AuditAuditEventId = string;
+
+export type AuditAuditEventListResponse = {
+    data: AuditAuditEventPageData;
+    requestId: RequestId;
+};
+
+export type AuditAuditEventPageData = {
+    items: Array<AuditAuditEvent>;
+    page: CursorPage;
+};
+
+export type AuditAuditMetadata = EmptyAuditMetadata | AuthAuditMetadata | IdentityChangeAuditMetadata | IdentityLinkAuditMetadata | DeviceEnrollmentAuditMetadata | DeviceHeartbeatAuditMetadata | ProviderChangeAuditMetadata | ModelChangeAuditMetadata | ModelGrantChangeAuditMetadata | GatewayAcceptedAuditMetadata | GatewayFinishedAuditMetadata | QuotaChangeAuditMetadata | QuotaRejectionAuditMetadata | ReservationRecoveredAuditMetadata | PluginAuditMetadata | SessionRangeAuditMetadata | SessionRestoredAuditMetadata | SessionDeletedAuditMetadata | SessionExpiredAuditMetadata | RoleAssignedAuditMetadata | UserStatusChangedAuditMetadata | RevisionChangedAuditMetadata;
+
+export type AuditAuditResult = 'SUCCESS' | 'FAILURE';
+
+export type AuditAuditTypeName = string;
+
+export type AuthAuditMetadata = {
+    clientId: 'dsh-desktop' | 'enterprise-admin';
+    sourceType?: 'OIDC' | 'LDAP' | 'LOCAL';
+};
+
+export type DeviceEnrollmentAuditMetadata = {
+    platform: string;
+    created: boolean;
+};
+
+export type DeviceHeartbeatAuditMetadata = {
+    desiredRevision: number;
+    pendingSyncItems: number;
+    hasSuccessfulSync: boolean;
+};
+
+export type EmptyAuditMetadata = {
+    [key: string]: never;
+};
+
+export type GatewayAcceptedAuditMetadata = {
+    modelId: number;
+    reservationId: string;
+    estimatedTokens: number;
+};
+
+export type GatewayFinishedAuditMetadata = {
+    modelId: number;
+    reservationId: string;
+    outcome: 'SETTLED' | 'CHARGED_MAX';
+    chargedTokens: number;
+    durationMs: number;
+    failure: 'NONE' | 'USAGE_MISSING' | 'CLIENT_CANCELLED' | 'UPSTREAM_AUTH_FAILED' | 'UPSTREAM_INVALID_RESPONSE' | 'UPSTREAM_UNAVAILABLE' | 'UPSTREAM_TIMEOUT' | 'PLATFORM_FAILURE';
+};
+
+export type IdentityChangeAuditMetadata = {
+    operation: 'CREATE' | 'UPDATE' | 'ENABLE' | 'DISABLE' | 'GROUP_MAPPING_CREATE' | 'GROUP_MAPPING_DELETE';
+    sourceType: 'OIDC' | 'LDAP' | 'LOCAL';
+    protectedValueChanged: boolean;
+    resourceRevision: number;
+    bootstrapRevision: number;
+};
+
+export type IdentityLinkAuditMetadata = {
+    sourceType: 'OIDC' | 'LDAP' | 'LOCAL';
+    userProvisioned: boolean;
+    externalGroupCount: number;
+    mappedGroupCount: number;
+    unmappedGroupCount: number;
+    departmentConflict: boolean;
+};
+
+export type ModelChangeAuditMetadata = {
+    operation: 'CREATE' | 'UPDATE' | 'ENABLE' | 'DISABLE' | 'DELETE';
+    reasoning: boolean;
+    resourceRevision: number;
+    bootstrapRevision: number;
+};
+
+export type ModelGrantChangeAuditMetadata = {
+    operation: 'CREATE' | 'UPDATE' | 'DELETE';
+    subjectType: 'USER' | 'DEPT';
+    defaultGrant: boolean;
+    status: 'ACTIVE' | 'DISABLED';
+    resourceRevision: number;
+    bootstrapRevision: number;
+};
+
+export type PluginAuditMetadata = {
+    operation: 'UPLOAD' | 'PUBLISH' | 'RETIRE' | 'ASSIGN' | 'DOWNLOAD' | 'INVENTORY';
+    resourceRevision: number;
+    bootstrapRevision: number;
+    itemCount: number;
+    required: boolean;
+};
+
+export type ProviderChangeAuditMetadata = {
+    operation: 'CREATE' | 'UPDATE' | 'ENABLE' | 'DISABLE';
+    providerType: 'DEEPSEEK_OPENAI';
+    protectedValueChanged: boolean;
+    resourceRevision: number;
+    bootstrapRevision: number;
+};
+
+export type QuotaChangeAuditMetadata = {
+    subjectType: 'DEFAULT' | 'DEPT' | 'USER';
+    status: 'ACTIVE' | 'DISABLED';
+    previousRevision: number;
+    currentRevision: number;
+};
+
+export type QuotaRejectionAuditMetadata = {
+    kind: 'DAILY' | 'MONTHLY' | 'RPM' | 'CONCURRENCY';
+    policyId: number;
+    estimatedTokens: number;
+};
+
+export type ReservationRecoveredAuditMetadata = {
+    previousState: 'RESERVED' | 'SENT';
+    recoveredState: 'RELEASED' | 'CHARGED_MAX';
+};
+
+export type RevisionChangedAuditMetadata = {
+    previousRevision: number;
+    currentRevision: number;
+};
+
+export type RoleAssignedAuditMetadata = {
+    roleCount: number;
+};
+
+export type SessionDeletedAuditMetadata = {
+    previousStatus: 'ACTIVE' | 'DELETED' | 'EXPIRED';
+    eventCount: number;
+};
+
+export type SessionExpiredAuditMetadata = {
+    lastSeq: number;
+    eventCount: number;
+};
+
+export type SessionRangeAuditMetadata = {
+    fromSeq: number;
+    toSeq: number;
+    eventCount: number;
+};
+
+export type SessionRestoredAuditMetadata = {
+    restoredSessionId: string;
+    eventCount: number;
+};
+
+export type UserStatusChangedAuditMetadata = {
+    previousStatus: string;
+    currentStatus: string;
 };
 
 export type AuthAuthSourcesData = {
@@ -1477,6 +1669,8 @@ export type SessionSessionSequence = number;
 
 export type SessionSessionStatus = 'ACTIVE' | 'DELETED' | 'EXPIRED';
 
+export type AdminAuditCollection = unknown;
+
 export type Authorize = unknown;
 
 export type Logout = unknown;
@@ -1657,6 +1851,16 @@ export type SessionHashBase64Writable = SessionSessionHashBase64;
 
 export type SessionStatusWritable = SessionSessionStatus;
 
+export type AuditEventIdWritable = AuditAuditEventId;
+
+export type AuditActorTypeWritable = AuditAuditActorType;
+
+export type AuditResultWritable = AuditAuditResult;
+
+export type AuditTypeNameWritable = AuditAuditTypeName;
+
+export type AuditActionWritable = AuditAuditAction;
+
 export type QuotaPolicyIdWritable = QuotaQuotaPolicyId;
 
 export type QuotaWindowIdWritable = QuotaQuotaWindowId;
@@ -1676,6 +1880,10 @@ export type GatewayModelWritable = GatewayGatewayModelWritable;
 export type ChatRoleWritable = GatewayChatRole;
 
 export type JsonSchemaObjectWritable = GatewayJsonSchemaObject;
+
+export type EmptyAuditMetadataWritable = {
+    [key: string]: never;
+};
 
 export type AuthPasswordLoginRequestWritable = {
     transactionId: AuthAuthTransactionId;
@@ -4634,3 +4842,54 @@ export type DeleteAdminSessionResponses = {
 };
 
 export type DeleteAdminSessionResponse = DeleteAdminSessionResponses[keyof DeleteAdminSessionResponses];
+
+export type ListAuditEventsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Server-signed opaque cursor; clients must not parse it.
+         */
+        cursor?: Cursor;
+        /**
+         * Cursor page size.
+         */
+        limit?: PageLimit;
+        actorId?: EnterpriseUserId;
+        action?: AuditAuditAction;
+        resourceType?: AuditAuditTypeName;
+        resourceId?: string;
+        result?: AuditAuditResult;
+        reasonCode?: AuditAuditTypeName;
+        requestId?: RequestId;
+        from?: string;
+        to?: string;
+    };
+    url: '/enterprise/admin/v1/audit-events';
+};
+
+export type ListAuditEventsErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type ListAuditEventsError = ListAuditEventsErrors[keyof ListAuditEventsErrors];
+
+export type ListAuditEventsResponses = {
+    /**
+     * Append-only audit metadata page; source IP and user-agent hash are not returned.
+     */
+    200: AuditAuditEventListResponse;
+};
+
+export type ListAuditEventsResponse = ListAuditEventsResponses[keyof ListAuditEventsResponses];

@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖可信 PlatformSession、DeviceStore、数据库事务、AuditSink、Sa-Token gateway 与 ID generator。
- * [OUTPUT]: 提供 enroll/heartbeat/active check、管理员 list/get/revoke 的 T05 设备用例。
- * [POS]: device application 的唯一状态编排，数据库状态与审计同事务，单设备 Token 撤销在提交后执行。
+ * [INPUT]: 依赖可信 PlatformSession、DeviceStore 原子 heartbeat 审计闸门、数据库事务、AuditSink、Sa-Token gateway 与 ID generator。
+ * [OUTPUT]: 提供 enroll/限频 heartbeat/active check、管理员 list/get/revoke 的设备用例。
+ * [POS]: device application 的唯一状态编排，数据库状态与防洪审计同事务，单设备 Token 撤销在提交后执行。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.device.application;
@@ -108,27 +108,30 @@ public final class DeviceService {
             EnterpriseDevice existing = devices.findByInstallation(context.tenantId(), installationId)
                 .orElseThrow(DeviceNotFoundException::new);
             requireOwnerAndActive(existing, session.userId());
-            if (!devices.heartbeat(
+            DeviceStore.HeartbeatResult heartbeatResult = devices.heartbeat(
                 context.tenantId(),
                 installationId,
                 session.userId(),
                 heartbeat,
                 Instant.now(clock)
-            )) {
+            );
+            if (!heartbeatResult.updated()) {
                 throw new DeviceAccessException("ENT_DEVICE_REVOKED");
             }
             EnterpriseDevice updated = devices.findByInstallation(context.tenantId(), installationId)
                 .orElseThrow(DeviceNotFoundException::new);
-            audit(
-                context,
-                updated,
-                AuditAction.DEVICE_HEARTBEAT,
-                new DeviceHeartbeatMetadata(
-                    heartbeat.desiredRevision(),
-                    heartbeat.pendingSessionEvents(),
-                    heartbeat.lastSuccessfulSyncAt() != null
-                )
-            );
+            if (heartbeatResult.auditDue()) {
+                audit(
+                    context,
+                    updated,
+                    AuditAction.DEVICE_HEARTBEAT,
+                    new DeviceHeartbeatMetadata(
+                        heartbeat.desiredRevision(),
+                        heartbeat.pendingSessionEvents(),
+                        heartbeat.lastSuccessfulSyncAt() != null
+                    )
+                );
+            }
             return updated;
         }));
     }

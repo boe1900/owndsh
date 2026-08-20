@@ -124,7 +124,9 @@ async function generateInto(typescriptOutput, jsonSchemaOutput) {
           object(context) {
             const schema = context.nodes.base(context)
             const additionalProperties = context.schema.additionalProperties
-            return (additionalProperties === false || additionalProperties?.type === 'never')
+            const propertyCount = Object.keys(context.schema.properties ?? {}).length
+            return propertyCount > 0
+              && (additionalProperties === false || additionalProperties?.type === 'never')
               ? schema.attr('strict').call()
               : schema
           },

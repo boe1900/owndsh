@@ -6,6 +6,7 @@
  */
 package org.dromara.enterprise.quota.application;
 
+import org.dromara.enterprise.audit.AuditAction;
 import org.dromara.enterprise.audit.AuditMetadata;
 import org.dromara.enterprise.quota.domain.QuotaStatus;
 import org.dromara.enterprise.quota.domain.QuotaSubjectType;
@@ -20,5 +21,10 @@ public record QuotaPolicyChangeMetadata(
         if (previousRevision < -1 || currentRevision < 0 || currentRevision != previousRevision + 1) {
             throw new IllegalArgumentException("quota revision 变化非法");
         }
+    }
+
+    @Override
+    public AuditAction action() {
+        return AuditAction.QUOTA_CHANGED;
     }
 }

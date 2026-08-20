@@ -6,6 +6,7 @@
  */
 package org.dromara.enterprise.model.application;
 
+import org.dromara.enterprise.audit.AuditAction;
 import org.dromara.enterprise.audit.AuditMetadata;
 
 import java.util.Objects;
@@ -22,4 +23,9 @@ public record ManagedModelChangeMetadata(
     }
 
     public enum Operation { CREATE, UPDATE, ENABLE, DISABLE, DELETE }
+
+    @Override
+    public AuditAction action() {
+        return AuditAction.MODEL_CHANGED;
+    }
 }

@@ -67,6 +67,9 @@ enterprise:
     max-batch-bytes: ${ENT_SESSION_BATCH_MAX_BYTES:4194304}
     retention-days: ${ENT_SESSION_RETENTION_DAYS:90}
     retention-batch-size: ${ENT_SESSION_RETENTION_BATCH_SIZE:100}
+  audit:
+    retention-days: ${ENT_AUDIT_RETENTION_DAYS:365}
+    retention-batch-size: ${ENT_AUDIT_RETENTION_BATCH_SIZE:500}
 
 # Spring配置
 spring:
