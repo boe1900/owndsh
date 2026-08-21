@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 PlatformAuthorizationService、固定 enterprise 配置、可信 metadata 与 HTTPS 密码/首次改密表单。
- * [OUTPUT]: 提供 authorize/sources/password/OIDC start+callback/token/logout，并把浏览器密码失败与首次改密重定向回原事务。
- * [POS]: auth/web 的最小平台登录门面，只翻译协议并把当前/新密码生命周期限制在单次请求内。
+ * [INPUT]: 依赖 PlatformAuthorizationService、固定 enterprise 配置、可信 metadata 与 HTTPS 两阶段密码表单。
+ * [OUTPUT]: 提供 authorize/sources/password challenge/OIDC/token/logout，并为页面返回 REDIRECT 或 CHANGE_PASSWORD 步骤。
+ * [POS]: auth/web 的最小平台登录门面，初始密码与新密码分别限制在各自单次请求内且永不共同重放。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.auth.web;
@@ -81,52 +81,61 @@ public final class PlatformAuthController {
     }
 
     @PostMapping("/password")
-    public ResponseEntity<Void> password(
+    public ResponseEntity<?> password(
         @RequestParam String transactionId,
         @RequestParam String sourceId,
         @RequestParam String csrfToken,
-        @RequestParam String username,
-        @RequestParam String password,
+        @RequestParam(required = false) String username,
+        @RequestParam(required = false) String password,
         @RequestParam(required = false) String newPassword,
+        @RequestParam(required = false) String passwordChangeChallenge,
         @RequestParam(required = false) String captchaId,
         @RequestParam(required = false) String captchaCode,
         HttpServletRequest request
     ) {
         requireHttps(request);
         EnterpriseRequestMetadata metadata = EnterpriseRequestMetadata.from(request);
-        char[] passwordChars = password.toCharArray();
-        char[] newPasswordChars = newPassword == null || newPassword.isEmpty() ? null : newPassword.toCharArray();
+        long parsedSourceId = positiveId(sourceId);
         try {
-            long parsedSourceId = positiveId(sourceId);
-            try {
-                URI callback = authorization.password(
-                    tenantId,
-                    transactionId,
-                    parsedSourceId,
-                    csrfToken,
-                    username,
-                    passwordChars,
-                    newPasswordChars,
-                    captchaId,
-                    captchaCode,
-                    loginContext(metadata)
-                );
-                return ResponseEntity.status(HttpStatus.SEE_OTHER).location(callback).build();
-            } catch (PasswordChangeRequiredException exception) {
-                String changeState = exception.rejected() ? "rejected" : "required";
-                return ResponseEntity.status(HttpStatus.SEE_OTHER)
-                    .location(loginRetry(transactionId, parsedSourceId, changeState, false))
-                    .build();
-            } catch (AuthFlowException exception) {
-                if (!"ENT_AUTH_REQUIRED".equals(exception.code()) || !acceptsHtml(request)) throw exception;
-                String changeState = newPasswordChars == null ? null : "required";
-                return ResponseEntity.status(HttpStatus.SEE_OTHER)
-                    .location(loginRetry(transactionId, parsedSourceId, changeState, true))
-                    .build();
+            URI callback;
+            if (passwordChangeChallenge == null || passwordChangeChallenge.isBlank()) {
+                char[] passwordChars = required(password).toCharArray();
+                try {
+                    callback = authorization.password(
+                        tenantId, transactionId, parsedSourceId, csrfToken, required(username), passwordChars,
+                        captchaId, captchaCode, loginContext(metadata)
+                    );
+                } finally {
+                    Arrays.fill(passwordChars, '\0');
+                }
+            } else {
+                char[] newPasswordChars = required(newPassword).toCharArray();
+                try {
+                    callback = authorization.changeInitialPassword(
+                        tenantId, transactionId, parsedSourceId, csrfToken, passwordChangeChallenge,
+                        newPasswordChars, loginContext(metadata)
+                    );
+                } finally {
+                    Arrays.fill(newPasswordChars, '\0');
+                }
             }
-        } finally {
-            Arrays.fill(passwordChars, '\0');
-            if (newPasswordChars != null) Arrays.fill(newPasswordChars, '\0');
+            if (acceptsJson(request)) {
+                return ResponseEntity.ok(new EnterpriseResponse<>(
+                    PasswordStepView.redirect(callback), metadata.requestId()
+                ));
+            }
+            return ResponseEntity.status(HttpStatus.SEE_OTHER).location(callback).build();
+        } catch (PasswordChangeRequiredException exception) {
+            if (!acceptsJson(request)) return ResponseEntity.badRequest().build();
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(new EnterpriseResponse<>(
+                PasswordStepView.changePassword(exception.challengeToken(), exception.rejected()),
+                metadata.requestId()
+            ));
+        } catch (AuthFlowException exception) {
+            if (!"ENT_AUTH_REQUIRED".equals(exception.code()) || !acceptsHtml(request)) throw exception;
+            return ResponseEntity.status(HttpStatus.SEE_OTHER)
+                .location(loginRetry(transactionId, parsedSourceId))
+                .build();
         }
     }
 
@@ -241,19 +250,42 @@ public final class PlatformAuthController {
         }
     }
 
-    private static URI loginRetry(
-        String transactionId,
-        long sourceId,
-        String passwordChangeState,
-        boolean loginError
-    ) {
-        String location = "/enterprise/auth/login.html?transaction_id=" + transactionId
-            + "&source_id=" + sourceId;
-        if (passwordChangeState != null) location += "&password_change=" + passwordChangeState;
-        if (loginError) location += "&login_error=1";
-        return URI.create(location);
+    private static boolean acceptsJson(HttpServletRequest request) {
+        String accept = request.getHeader(HttpHeaders.ACCEPT);
+        if (accept == null) return false;
+        try {
+            return MediaType.parseMediaTypes(accept).stream()
+                .anyMatch(mediaType -> MediaType.APPLICATION_JSON.isCompatibleWith(mediaType));
+        } catch (IllegalArgumentException exception) {
+            return false;
+        }
+    }
+
+    private static String required(String value) {
+        if (value == null || value.isBlank()) throw new AuthFlowException("ENT_INVALID_REQUEST");
+        return value;
+    }
+
+    private static URI loginRetry(String transactionId, long sourceId) {
+        return URI.create("/enterprise/auth/login.html?transaction_id=" + transactionId
+            + "&source_id=" + sourceId + "&login_error=1");
     }
 
     public record LogoutView(boolean loggedOut) {
+    }
+
+    public record PasswordStepView(
+        String next,
+        String redirectUri,
+        String passwordChangeChallenge,
+        boolean rejected
+    ) {
+        private static PasswordStepView redirect(URI redirectUri) {
+            return new PasswordStepView("REDIRECT", redirectUri.toString(), null, false);
+        }
+
+        private static PasswordStepView changePassword(String challenge, boolean rejected) {
+            return new PasswordStepView("CHANGE_PASSWORD", null, challenge, rejected);
+        }
     }
 }

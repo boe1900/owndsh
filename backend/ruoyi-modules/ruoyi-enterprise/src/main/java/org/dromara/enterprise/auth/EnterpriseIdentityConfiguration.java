@@ -243,6 +243,7 @@ public class EnterpriseIdentityConfiguration {
             authStates,
             authStates,
             authStates,
+            authStates,
             sourceStore,
             adapterRegistry,
             oidcAdapter,

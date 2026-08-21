@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 RedissonClient、StringCodec、Jackson JsonMapper 与固定登录/授权码 TTL。
- * [OUTPUT]: 对外提供 LoginTransactionStore、AuthorizationCodeStore、OidcLoginStateStore 的真实 Redis 实现。
+ * [OUTPUT]: 对外提供登录事务、改密 challenge、授权码与 OIDC state 的真实 Redis 实现。
  * [POS]: auth/persistence 的短期状态 adapter，使用 SET NX + TTL 和 GETDEL 保证随机键唯一与原子一次性消费。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -8,6 +8,7 @@ package org.dromara.enterprise.auth.persistence;
 
 import org.dromara.enterprise.auth.domain.LoginTransaction;
 import org.dromara.enterprise.auth.domain.OidcLoginState;
+import org.dromara.enterprise.auth.domain.PasswordChangeChallenge;
 import org.dromara.enterprise.auth.domain.PlatformAuthorizationCode;
 import org.redisson.api.RBucket;
 import org.redisson.api.RedissonClient;
@@ -22,9 +23,10 @@ import java.util.Optional;
  * Redis 认证短期状态存储。
  */
 public final class RedisAuthStateStore
-    implements LoginTransactionStore, AuthorizationCodeStore, OidcLoginStateStore {
+    implements LoginTransactionStore, PasswordChangeChallengeStore, AuthorizationCodeStore, OidcLoginStateStore {
 
     private static final String TRANSACTION_PREFIX = "enterprise:auth:transaction:";
+    private static final String PASSWORD_CHANGE_PREFIX = "enterprise:auth:password-change:";
     private static final String CODE_PREFIX = "enterprise:auth:code:";
     private static final String OIDC_PREFIX = "enterprise:auth:oidc:";
 
@@ -63,6 +65,16 @@ public final class RedisAuthStateStore
     @Override
     public void deleteTransaction(String transactionId) {
         bucket(TRANSACTION_PREFIX + requireKey(transactionId)).delete();
+    }
+
+    @Override
+    public boolean createChallenge(String token, PasswordChangeChallenge challenge) {
+        return create(PASSWORD_CHANGE_PREFIX + requireKey(token), challenge, transactionTtl);
+    }
+
+    @Override
+    public Optional<PasswordChangeChallenge> consumeChallenge(String token) {
+        return read(PASSWORD_CHANGE_PREFIX + requireKey(token), PasswordChangeChallenge.class, true);
     }
 
     @Override

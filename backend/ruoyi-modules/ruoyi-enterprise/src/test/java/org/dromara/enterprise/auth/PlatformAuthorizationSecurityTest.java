@@ -8,14 +8,17 @@ package org.dromara.enterprise.auth;
 
 import org.dromara.enterprise.audit.AuditSink;
 import org.dromara.enterprise.auth.adapter.IdentityAdapterRegistry;
+import org.dromara.enterprise.auth.adapter.LocalPasswordChangeRequiredException;
 import org.dromara.enterprise.auth.adapter.OidcIdentityAdapter;
 import org.dromara.enterprise.auth.application.AuthFlowException;
 import org.dromara.enterprise.auth.application.CaptchaVerifier;
 import org.dromara.enterprise.auth.application.ExternalIdentityService;
 import org.dromara.enterprise.auth.application.IdentityLoginContext;
+import org.dromara.enterprise.auth.application.IdentityLinkResult;
 import org.dromara.enterprise.auth.application.IssuedPlatformSession;
 import org.dromara.enterprise.auth.application.PlatformAuthorizationService;
 import org.dromara.enterprise.auth.application.PlatformSessionGateway;
+import org.dromara.enterprise.auth.application.PasswordChangeRequiredException;
 import org.dromara.enterprise.auth.domain.Pkce;
 import org.dromara.enterprise.auth.domain.IdentityPrincipal;
 import org.dromara.enterprise.auth.domain.IdentitySource;
@@ -49,6 +52,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -101,6 +105,7 @@ class PlatformAuthorizationSecurityTest {
         identities = mock(ExternalIdentityService.class);
         service = new PlatformAuthorizationService(
             loginTransactions,
+            store,
             store,
             store,
             identitySources,
@@ -320,6 +325,52 @@ class PlatformAuthorizationSecurityTest {
 
         verify(captchaVerifier).verify("alice", "captcha-id", "wrong");
         verifyNoInteractions(adapters, identities);
+    }
+
+    @Test
+    void completesPasswordChangeWithOneChallengeAndWithoutReplayingInitialCredentials() {
+        LoginTransaction transaction = loginTransaction("tx_password_change_000000000000000000");
+        IdentitySource source = mock(IdentitySource.class);
+        when(source.id()).thenReturn(1L);
+        when(source.type()).thenReturn(IdentitySourceType.LOCAL);
+        when(source.status()).thenReturn(IdentitySourceStatus.ACTIVE);
+        IdentityPrincipal principal = new IdentityPrincipal(
+            "1", IdentitySourceType.LOCAL, "74001", "alice", "Alice", null, java.util.List.of()
+        );
+        IdentityLoginContext context = new IdentityLoginContext(
+            "000000", "req_01ARZ3NDEKTSV4RRFFQ69G5FAV", "127.0.0.1", new byte[32]
+        );
+        when(loginTransactions.find(transaction.id())).thenReturn(Optional.of(transaction));
+        when(loginTransactions.consumeTransaction(transaction.id())).thenReturn(Optional.of(transaction));
+        when(identitySources.find("000000", 1L)).thenReturn(Optional.of(source));
+        when(adapters.authenticate(eq(source), any()))
+            .thenThrow(new LocalPasswordChangeRequiredException(principal));
+        when(adapters.changeInitialLocalPassword(eq(source), eq(74001L), eq("alice"), any(char[].class)))
+            .thenReturn(principal);
+        when(identities.resolveOrProvision(context, principal))
+            .thenReturn(new IdentityLinkResult(74001L, false, false, null));
+
+        PasswordChangeRequiredException required = catchThrowableOfType(
+            () -> service.password(
+                "000000", transaction.id(), 1L, transaction.csrfToken(), "alice",
+                "initial-password".toCharArray(), "captcha-id", "1234", context
+            ),
+            PasswordChangeRequiredException.class
+        );
+
+        assertThat(required.challengeToken()).matches("^pwc_[A-Za-z0-9_-]{43}$");
+        assertThat(service.changeInitialPassword(
+            "000000", transaction.id(), 1L, transaction.csrfToken(), required.challengeToken(),
+            "Replacement!Password42".toCharArray(), context
+        ).toString()).startsWith(REDIRECT.toString());
+        assertCode(
+            () -> service.changeInitialPassword(
+                "000000", transaction.id(), 1L, transaction.csrfToken(), required.challengeToken(),
+                "Another!Password43".toCharArray(), context
+            ),
+            "ENT_AUTH_SESSION_EXPIRED"
+        );
+        verify(captchaVerifier).verify("alice", "captcha-id", "1234");
     }
 
     private void assertBurned(

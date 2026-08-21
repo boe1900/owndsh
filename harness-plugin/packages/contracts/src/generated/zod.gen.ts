@@ -483,6 +483,26 @@ export const zAuthLogoutResponse = z.object({
 
 export const zLogoutResponse = zAuthLogoutResponse;
 
+export const zAuthPasswordChangeChallenge = z.string().length(47).regex(/^pwc_[A-Za-z0-9_-]{43}$/);
+
+export const zPasswordChangeChallenge = zAuthPasswordChangeChallenge;
+
+export const zAuthPasswordStepData = z.object({
+    next: z.enum(['REDIRECT', 'CHANGE_PASSWORD']),
+    redirectUri: z.url().max(2048).nullish(),
+    passwordChangeChallenge: zAuthPasswordChangeChallenge.nullish(),
+    rejected: z.boolean()
+}).strict();
+
+export const zPasswordStepData = zAuthPasswordStepData;
+
+export const zAuthPasswordStepResponse = z.object({
+    data: zAuthPasswordStepData,
+    requestId: zRequestId
+}).strict();
+
+export const zPasswordStepResponse = zAuthPasswordStepResponse;
+
 export const zAuthPkceCodeChallenge = z.string().length(43).regex(/^[A-Za-z0-9_-]{43}$/);
 
 export const zPkceCodeChallenge = zAuthPkceCodeChallenge;
@@ -730,13 +750,29 @@ export const zIdentityIdentitySourceId = z.string().regex(/^[1-9][0-9]{0,18}$/);
 
 export const zIdentitySourceId = zIdentityIdentitySourceId;
 
-export const zAuthPasswordLoginRequest = z.object({
+export const zAuthInitialPasswordChangeRequest = z.object({
+    transactionId: zAuthAuthTransactionId,
+    sourceId: zIdentityIdentitySourceId,
+    csrfToken: z.string().min(32).max(64).regex(/^[A-Za-z0-9_-]+$/),
+    passwordChangeChallenge: zAuthPasswordChangeChallenge
+}).strict();
+
+export const zInitialPasswordChangeRequest = zAuthInitialPasswordChangeRequest;
+
+export const zAuthPasswordCredentialRequest = z.object({
     transactionId: zAuthAuthTransactionId,
     sourceId: zIdentityIdentitySourceId,
     csrfToken: z.string().min(32).max(64).regex(/^[A-Za-z0-9_-]+$/),
     username: z.string().min(1).max(100),
     captchaId: z.string().min(1).max(128).optional()
 }).strict();
+
+export const zPasswordCredentialRequest = zAuthPasswordCredentialRequest;
+
+export const zAuthPasswordLoginRequest = z.union([
+    zAuthPasswordCredentialRequest,
+    zAuthInitialPasswordChangeRequest
+]);
 
 export const zPasswordLoginRequest = zAuthPasswordLoginRequest;
 
@@ -2018,6 +2054,8 @@ export const zPkceCodeVerifierWritable = zAuthPkceCodeVerifier;
 
 export const zInstallationIdWritable = zAuthInstallationId;
 
+export const zPasswordChangeChallengeWritable = zAuthPasswordChangeChallenge;
+
 export const zDeviceStatusWritable = zDeviceDeviceStatus;
 
 export const zModelProviderIdWritable = zModelModelProviderId;
@@ -2078,16 +2116,32 @@ export const zJsonSchemaObjectWritable = zGatewayJsonSchemaObject;
 
 export const zEmptyAuditMetadataWritable = z.record(z.string(), z.never());
 
-export const zAuthPasswordLoginRequestWritable = z.object({
+export const zAuthInitialPasswordChangeRequestWritable = z.object({
+    transactionId: zAuthAuthTransactionId,
+    sourceId: zIdentityIdentitySourceId,
+    csrfToken: z.string().min(32).max(64).regex(/^[A-Za-z0-9_-]+$/),
+    passwordChangeChallenge: zAuthPasswordChangeChallenge,
+    newPassword: z.string().min(14).max(128)
+}).strict();
+
+export const zInitialPasswordChangeRequestWritable = zAuthInitialPasswordChangeRequestWritable;
+
+export const zAuthPasswordCredentialRequestWritable = z.object({
     transactionId: zAuthAuthTransactionId,
     sourceId: zIdentityIdentitySourceId,
     csrfToken: z.string().min(32).max(64).regex(/^[A-Za-z0-9_-]+$/),
     username: z.string().min(1).max(100),
     password: z.string().min(1).max(256),
-    newPassword: z.string().min(14).max(128).optional(),
     captchaId: z.string().min(1).max(128).optional(),
     captchaCode: z.string().min(1).max(16).optional()
 }).strict();
+
+export const zPasswordCredentialRequestWritable = zAuthPasswordCredentialRequestWritable;
+
+export const zAuthPasswordLoginRequestWritable = z.union([
+    zAuthPasswordCredentialRequestWritable,
+    zAuthInitialPasswordChangeRequestWritable
+]);
 
 export const zPasswordLoginRequestWritable = zAuthPasswordLoginRequestWritable;
 
@@ -2249,6 +2303,11 @@ export const zListPublicIdentitySourcesQuery = z.object({
 export const zListPublicIdentitySourcesResponse = zAuthAuthSourcesResponse;
 
 export const zCompletePasswordLoginBody = zAuthPasswordLoginRequestWritable;
+
+/**
+ * Page client must navigate to the exact callback after authentication completes.
+ */
+export const zCompletePasswordLoginResponse = zAuthPasswordStepResponse;
 
 export const zStartOidcLoginPath = z.object({
     sourceId: zIdentityIdentitySourceId

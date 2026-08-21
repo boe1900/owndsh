@@ -626,6 +626,11 @@ components:
     AuthSourcesData: {$ref: './components/auth.yaml#/AuthSourcesData'}
     AuthSourcesResponse: {$ref: './components/auth.yaml#/AuthSourcesResponse'}
     PasswordLoginRequest: {$ref: './components/auth.yaml#/PasswordLoginRequest'}
+    PasswordCredentialRequest: {$ref: './components/auth.yaml#/PasswordCredentialRequest'}
+    PasswordChangeChallenge: {$ref: './components/auth.yaml#/PasswordChangeChallenge'}
+    InitialPasswordChangeRequest: {$ref: './components/auth.yaml#/InitialPasswordChangeRequest'}
+    PasswordStepData: {$ref: './components/auth.yaml#/PasswordStepData'}
+    PasswordStepResponse: {$ref: './components/auth.yaml#/PasswordStepResponse'}
     TokenRequest: {$ref: './components/auth.yaml#/TokenRequest'}
     TokenData: {$ref: './components/auth.yaml#/TokenData'}
     TokenResponse: {$ref: './components/auth.yaml#/TokenResponse'}

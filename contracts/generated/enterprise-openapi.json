@@ -624,79 +624,184 @@
     "/enterprise/auth/v1/password": {
       "post": {
         "operationId": "completePasswordLogin",
-        "summary": "Authenticate LOCAL or LDAP over HTTPS; bootstrap LOCAL accounts change the initial password in the same transaction.",
+        "summary": "Authenticate over HTTPS or complete a one-time LOCAL password-change challenge in the same transaction.",
         "security": [],
         "requestBody": {
           "required": true,
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "transactionId",
-                  "sourceId",
-                  "csrfToken",
-                  "username",
-                  "password"
-                ],
-                "properties": {
-                  "transactionId": {
-                    "type": "string",
-                    "minLength": 32,
-                    "maxLength": 64,
-                    "pattern": "^[A-Za-z0-9_-]+$"
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "transactionId",
+                      "sourceId",
+                      "csrfToken",
+                      "username",
+                      "password"
+                    ],
+                    "properties": {
+                      "transactionId": {
+                        "type": "string",
+                        "minLength": 32,
+                        "maxLength": 64,
+                        "pattern": "^[A-Za-z0-9_-]+$"
+                      },
+                      "sourceId": {
+                        "type": "string",
+                        "pattern": "^[1-9][0-9]{0,18}$",
+                        "description": "Identity source snowflake ID serialized as a string."
+                      },
+                      "csrfToken": {
+                        "type": "string",
+                        "minLength": 32,
+                        "maxLength": 64,
+                        "pattern": "^[A-Za-z0-9_-]+$"
+                      },
+                      "username": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "password": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256,
+                        "writeOnly": true
+                      },
+                      "captchaId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128,
+                        "description": "Required for LOCAL only when the existing RuoYi captcha switch is enabled."
+                      },
+                      "captchaCode": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 16,
+                        "writeOnly": true,
+                        "description": "Required for LOCAL only when the existing RuoYi captcha switch is enabled."
+                      }
+                    }
                   },
-                  "sourceId": {
-                    "type": "string",
-                    "pattern": "^[1-9][0-9]{0,18}$",
-                    "description": "Identity source snowflake ID serialized as a string."
-                  },
-                  "csrfToken": {
-                    "type": "string",
-                    "minLength": 32,
-                    "maxLength": 64,
-                    "pattern": "^[A-Za-z0-9_-]+$"
-                  },
-                  "username": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 100
-                  },
-                  "password": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 256,
-                    "writeOnly": true
-                  },
-                  "newPassword": {
-                    "type": "string",
-                    "minLength": 14,
-                    "maxLength": 128,
-                    "writeOnly": true,
-                    "description": "Required only after a LOCAL bootstrap account is redirected to the first-login password change form."
-                  },
-                  "captchaId": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 128,
-                    "description": "Required for LOCAL only when the existing RuoYi captcha switch is enabled."
-                  },
-                  "captchaCode": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 16,
-                    "writeOnly": true,
-                    "description": "Required for LOCAL only when the existing RuoYi captcha switch is enabled."
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "transactionId",
+                      "sourceId",
+                      "csrfToken",
+                      "passwordChangeChallenge",
+                      "newPassword"
+                    ],
+                    "properties": {
+                      "transactionId": {
+                        "type": "string",
+                        "minLength": 32,
+                        "maxLength": 64,
+                        "pattern": "^[A-Za-z0-9_-]+$"
+                      },
+                      "sourceId": {
+                        "type": "string",
+                        "pattern": "^[1-9][0-9]{0,18}$",
+                        "description": "Identity source snowflake ID serialized as a string."
+                      },
+                      "csrfToken": {
+                        "type": "string",
+                        "minLength": 32,
+                        "maxLength": 64,
+                        "pattern": "^[A-Za-z0-9_-]+$"
+                      },
+                      "passwordChangeChallenge": {
+                        "type": "string",
+                        "minLength": 47,
+                        "maxLength": 47,
+                        "pattern": "^pwc_[A-Za-z0-9_-]{43}$"
+                      },
+                      "newPassword": {
+                        "type": "string",
+                        "minLength": 14,
+                        "maxLength": 128,
+                        "writeOnly": true
+                      }
+                    }
                   }
-                }
+                ]
               }
             }
           }
         },
         "responses": {
+          "200": {
+            "description": "Page client must navigate to the exact callback after authentication completes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "next",
+                        "rejected"
+                      ],
+                      "properties": {
+                        "next": {
+                          "type": "string",
+                          "enum": [
+                            "REDIRECT",
+                            "CHANGE_PASSWORD"
+                          ]
+                        },
+                        "redirectUri": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "uri",
+                          "maxLength": 2048
+                        },
+                        "passwordChangeChallenge": {
+                          "oneOf": [
+                            {
+                              "type": "string",
+                              "minLength": 47,
+                              "maxLength": 47,
+                              "pattern": "^pwc_[A-Za-z0-9_-]{43}$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "rejected": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "requestId": {
+                      "type": "string",
+                      "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                      "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                      "examples": [
+                        "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
           "303": {
-            "description": "Redirect to the exact client callback, or return an HTML form client to the same password transaction after a credential failure or required initial password change.",
+            "description": "Non-JSON form fallback redirects successful authentication to the exact callback; credential failures return to the same login transaction. Initial-password challenge continuation requires the JSON page client.",
             "headers": {
               "Location": {
                 "required": true,
@@ -1117,6 +1222,72 @@
                           ]
                         }
                       }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Initial credentials succeeded; continue with the returned short-lived one-time password-change challenge.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "next",
+                        "rejected"
+                      ],
+                      "properties": {
+                        "next": {
+                          "type": "string",
+                          "enum": [
+                            "REDIRECT",
+                            "CHANGE_PASSWORD"
+                          ]
+                        },
+                        "redirectUri": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "uri",
+                          "maxLength": 2048
+                        },
+                        "passwordChangeChallenge": {
+                          "oneOf": [
+                            {
+                              "type": "string",
+                              "minLength": 47,
+                              "maxLength": 47,
+                              "pattern": "^pwc_[A-Za-z0-9_-]{43}$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "rejected": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "requestId": {
+                      "type": "string",
+                      "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                      "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                      "examples": [
+                        "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                      ]
                     }
                   }
                 }
@@ -68966,6 +69137,106 @@
         }
       },
       "PasswordLoginRequest": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "transactionId",
+              "sourceId",
+              "csrfToken",
+              "username",
+              "password"
+            ],
+            "properties": {
+              "transactionId": {
+                "type": "string",
+                "minLength": 32,
+                "maxLength": 64,
+                "pattern": "^[A-Za-z0-9_-]+$"
+              },
+              "sourceId": {
+                "type": "string",
+                "pattern": "^[1-9][0-9]{0,18}$",
+                "description": "Identity source snowflake ID serialized as a string."
+              },
+              "csrfToken": {
+                "type": "string",
+                "minLength": 32,
+                "maxLength": 64,
+                "pattern": "^[A-Za-z0-9_-]+$"
+              },
+              "username": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "password": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "writeOnly": true
+              },
+              "captchaId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "description": "Required for LOCAL only when the existing RuoYi captcha switch is enabled."
+              },
+              "captchaCode": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16,
+                "writeOnly": true,
+                "description": "Required for LOCAL only when the existing RuoYi captcha switch is enabled."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "transactionId",
+              "sourceId",
+              "csrfToken",
+              "passwordChangeChallenge",
+              "newPassword"
+            ],
+            "properties": {
+              "transactionId": {
+                "type": "string",
+                "minLength": 32,
+                "maxLength": 64,
+                "pattern": "^[A-Za-z0-9_-]+$"
+              },
+              "sourceId": {
+                "type": "string",
+                "pattern": "^[1-9][0-9]{0,18}$",
+                "description": "Identity source snowflake ID serialized as a string."
+              },
+              "csrfToken": {
+                "type": "string",
+                "minLength": 32,
+                "maxLength": 64,
+                "pattern": "^[A-Za-z0-9_-]+$"
+              },
+              "passwordChangeChallenge": {
+                "type": "string",
+                "minLength": 47,
+                "maxLength": 47,
+                "pattern": "^pwc_[A-Za-z0-9_-]{43}$"
+              },
+              "newPassword": {
+                "type": "string",
+                "minLength": 14,
+                "maxLength": 128,
+                "writeOnly": true
+              }
+            }
+          }
+        ]
+      },
+      "PasswordCredentialRequest": {
         "type": "object",
         "additionalProperties": false,
         "required": [
@@ -69004,13 +69275,6 @@
             "maxLength": 256,
             "writeOnly": true
           },
-          "newPassword": {
-            "type": "string",
-            "minLength": 14,
-            "maxLength": 128,
-            "writeOnly": true,
-            "description": "Required only after a LOCAL bootstrap account is redirected to the first-login password change form."
-          },
           "captchaId": {
             "type": "string",
             "minLength": 1,
@@ -69023,6 +69287,154 @@
             "maxLength": 16,
             "writeOnly": true,
             "description": "Required for LOCAL only when the existing RuoYi captcha switch is enabled."
+          }
+        }
+      },
+      "PasswordChangeChallenge": {
+        "type": "string",
+        "minLength": 47,
+        "maxLength": 47,
+        "pattern": "^pwc_[A-Za-z0-9_-]{43}$"
+      },
+      "InitialPasswordChangeRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "transactionId",
+          "sourceId",
+          "csrfToken",
+          "passwordChangeChallenge",
+          "newPassword"
+        ],
+        "properties": {
+          "transactionId": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9_-]+$"
+          },
+          "sourceId": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]{0,18}$",
+            "description": "Identity source snowflake ID serialized as a string."
+          },
+          "csrfToken": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9_-]+$"
+          },
+          "passwordChangeChallenge": {
+            "type": "string",
+            "minLength": 47,
+            "maxLength": 47,
+            "pattern": "^pwc_[A-Za-z0-9_-]{43}$"
+          },
+          "newPassword": {
+            "type": "string",
+            "minLength": 14,
+            "maxLength": 128,
+            "writeOnly": true
+          }
+        }
+      },
+      "PasswordStepData": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "next",
+          "rejected"
+        ],
+        "properties": {
+          "next": {
+            "type": "string",
+            "enum": [
+              "REDIRECT",
+              "CHANGE_PASSWORD"
+            ]
+          },
+          "redirectUri": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "maxLength": 2048
+          },
+          "passwordChangeChallenge": {
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 47,
+                "maxLength": 47,
+                "pattern": "^pwc_[A-Za-z0-9_-]{43}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rejected": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PasswordStepResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "requestId"
+        ],
+        "properties": {
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "next",
+              "rejected"
+            ],
+            "properties": {
+              "next": {
+                "type": "string",
+                "enum": [
+                  "REDIRECT",
+                  "CHANGE_PASSWORD"
+                ]
+              },
+              "redirectUri": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uri",
+                "maxLength": 2048
+              },
+              "passwordChangeChallenge": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "minLength": 47,
+                    "maxLength": 47,
+                    "pattern": "^pwc_[A-Za-z0-9_-]{43}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "rejected": {
+                "type": "boolean"
+              }
+            }
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated req_ prefix followed by one canonical ULID.",
+            "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+            "examples": [
+              "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+            ]
           }
         }
       },

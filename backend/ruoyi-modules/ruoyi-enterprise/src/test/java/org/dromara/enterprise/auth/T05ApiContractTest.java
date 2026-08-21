@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 T05 auth/device Controllers、真实设备上下文解析器、MockMvc、认证 cursor、统一异常/filter 与派生 JSON Schema。
- * [OUTPUT]: 验证七个认证、HTML 密码失败留页、两个 Runtime 设备、三个管理设备 operation，以及撤销 Token 的 HTTP 翻译和权限入口。
+ * [OUTPUT]: 验证七个认证、HTML 密码失败、JSON 两阶段改密、设备 operation、撤销翻译和权限入口。
  * [POS]: T05 Server/OpenAPI 同步门禁，Application Service 使用 mock 以隔离协议与 redirect 行为。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -55,7 +55,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -108,8 +107,11 @@ class T05ApiContractTest {
             List.of(new PublicIdentitySource(1900100000000000001L, "Local", IdentitySourceType.LOCAL))
         ));
         when(authorization.password(
-            anyString(), anyString(), anyLong(), anyString(), anyString(), any(char[].class), nullable(char[].class),
+            anyString(), anyString(), anyLong(), anyString(), anyString(), any(char[].class),
             anyString(), anyString(), any()
+        )).thenReturn(URI.create("http://127.0.0.1:18080/callback?code=code&state=client-state-0001"));
+        when(authorization.changeInitialPassword(
+            anyString(), anyString(), anyLong(), anyString(), anyString(), any(char[].class), any()
         )).thenReturn(URI.create("http://127.0.0.1:18080/callback?code=code&state=client-state-0001"));
         when(authorization.startOidc(anyString(), anyString(), anyLong()))
             .thenReturn(URI.create("https://idp.example/authorize"));
@@ -126,34 +128,62 @@ class T05ApiContractTest {
     }
 
     @Test
-    void redirectsRejectedInitialPasswordChangeBackToTheSameTransaction() throws Exception {
+    void completesInitialPasswordChangeWithoutRepeatingCredentials() throws Exception {
         when(authorization.password(
-            anyString(), anyString(), anyLong(), anyString(), anyString(), any(char[].class), any(char[].class),
+            anyString(), anyString(), anyLong(), anyString(), anyString(), any(char[].class),
             anyString(), anyString(), any()
-        )).thenThrow(new PasswordChangeRequiredException(true));
+        )).thenThrow(new PasswordChangeRequiredException(
+            "pwc_abcdefghijklmnopqrstuvwxyzABCDEFGH123456789", false
+        ));
 
         mvc.perform(post("/enterprise/auth/v1/password")
                 .secure(true)
+                .accept(MediaType.TEXT_HTML)
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .param("transactionId", TRANSACTION)
                 .param("sourceId", "1900100000000000001")
                 .param("csrfToken", "csrf_01J5T05PKCEDEVICELOGIN00000")
                 .param("username", "platform.admin")
                 .param("password", "not-logged")
-                .param("newPassword", "weak-password")
                 .param("captchaId", "captcha-uuid")
                 .param("captchaCode", "12"))
-            .andExpect(status().isSeeOther())
-            .andExpect(redirectedUrl(
-                "/enterprise/auth/login.html?transaction_id=" + TRANSACTION
-                    + "&source_id=1900100000000000001&password_change=rejected"
-            ));
+            .andExpect(status().isBadRequest());
+
+        mvc.perform(post("/enterprise/auth/v1/password")
+                .secure(true)
+                .accept(MediaType.APPLICATION_JSON)
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .param("transactionId", TRANSACTION)
+                .param("sourceId", "1900100000000000001")
+                .param("csrfToken", "csrf_01J5T05PKCEDEVICELOGIN00000")
+                .param("username", "platform.admin")
+                .param("password", "not-logged")
+                .param("captchaId", "captcha-uuid")
+                .param("captchaCode", "12"))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.data.next").value("CHANGE_PASSWORD"))
+            .andExpect(jsonPath("$.data.passwordChangeChallenge")
+                .value("pwc_abcdefghijklmnopqrstuvwxyzABCDEFGH123456789"));
+
+        mvc.perform(post("/enterprise/auth/v1/password")
+                .secure(true)
+                .accept(MediaType.APPLICATION_JSON)
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .param("transactionId", TRANSACTION)
+                .param("sourceId", "1900100000000000001")
+                .param("csrfToken", "csrf_01J5T05PKCEDEVICELOGIN00000")
+                .param("passwordChangeChallenge", "pwc_abcdefghijklmnopqrstuvwxyzABCDEFGH123456789")
+                .param("newPassword", "Replacement!Password42"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.next").value("REDIRECT"))
+            .andExpect(jsonPath("$.data.redirectUri")
+                .value("http://127.0.0.1:18080/callback?code=code&state=client-state-0001"));
     }
 
     @Test
     void keepsHtmlPasswordFailureOnTheLoginPageAndPreservesJsonErrors() throws Exception {
         when(authorization.password(
-            anyString(), anyString(), anyLong(), anyString(), anyString(), any(char[].class), nullable(char[].class),
+            anyString(), anyString(), anyLong(), anyString(), anyString(), any(char[].class),
             anyString(), anyString(), any()
         )).thenThrow(new AuthFlowException("ENT_AUTH_REQUIRED"));
 

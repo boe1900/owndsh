@@ -1,6 +1,6 @@
 # [INPUT]: 依赖根协议的 RequestId 与统一 envelope 约定，以及详细设计第 6 节固定 public client/PKCE 边界
-# [OUTPUT]: 提供登录事务、公开身份源、LOCAL 首次改密/条件验证码、授权码 Token 和注销 schema
-# [POS]: contracts/components 的认证协议分片，首次改密复用同一 HTTPS 事务而不增加密码重置旁路
+# [OUTPUT]: 提供登录事务、公开身份源、LOCAL 两阶段改密 challenge、授权码 Token 和注销 schema
+# [POS]: contracts/components 的认证协议分片，首次改密不重放账号/初始密码/验证码且不增加密码重置旁路
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 PlatformClient:
@@ -82,6 +82,11 @@ AuthSourcesResponse:
       $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
 
 PasswordLoginRequest:
+  oneOf:
+    - $ref: '#/PasswordCredentialRequest'
+    - $ref: '#/InitialPasswordChangeRequest'
+
+PasswordCredentialRequest:
   type: object
   additionalProperties: false
   required: [transactionId, sourceId, csrfToken, username, password]
@@ -104,12 +109,6 @@ PasswordLoginRequest:
       minLength: 1
       maxLength: 256
       writeOnly: true
-    newPassword:
-      type: string
-      minLength: 14
-      maxLength: 128
-      writeOnly: true
-      description: Required only after a LOCAL bootstrap account is redirected to the first-login password change form.
     captchaId:
       type: string
       minLength: 1
@@ -121,6 +120,63 @@ PasswordLoginRequest:
       maxLength: 16
       writeOnly: true
       description: Required for LOCAL only when the existing RuoYi captcha switch is enabled.
+
+PasswordChangeChallenge:
+  type: string
+  minLength: 47
+  maxLength: 47
+  pattern: '^pwc_[A-Za-z0-9_-]{43}$'
+
+InitialPasswordChangeRequest:
+  type: object
+  additionalProperties: false
+  required: [transactionId, sourceId, csrfToken, passwordChangeChallenge, newPassword]
+  properties:
+    transactionId:
+      $ref: '#/AuthTransactionId'
+    sourceId:
+      $ref: './identity.yaml#/IdentitySourceId'
+    csrfToken:
+      type: string
+      minLength: 32
+      maxLength: 64
+      pattern: '^[A-Za-z0-9_-]+$'
+    passwordChangeChallenge:
+      $ref: '#/PasswordChangeChallenge'
+    newPassword:
+      type: string
+      minLength: 14
+      maxLength: 128
+      writeOnly: true
+
+PasswordStepData:
+  type: object
+  additionalProperties: false
+  required: [next, rejected]
+  properties:
+    next:
+      type: string
+      enum: [REDIRECT, CHANGE_PASSWORD]
+    redirectUri:
+      type: [string, 'null']
+      format: uri
+      maxLength: 2048
+    passwordChangeChallenge:
+      oneOf:
+        - $ref: '#/PasswordChangeChallenge'
+        - type: 'null'
+    rejected:
+      type: boolean
+
+PasswordStepResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data:
+      $ref: '#/PasswordStepData'
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
 
 TokenRequest:
   type: object

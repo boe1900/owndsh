@@ -1,5 +1,5 @@
 # [INPUT]: 依赖根协议的参数、响应与 auth schema，依赖 T05 公开认证 Controller 的实际 redirect/status 行为
-# [OUTPUT]: 提供 authorize/sources/password/OIDC/token/logout 七个 OpenAPI Path Item，区分浏览器留页重试与 JSON 错误
+# [OUTPUT]: 提供 authorize/sources/两阶段 password/OIDC/token/logout 七个 Path Item，区分页面步骤与 JSON 错误
 # [POS]: contracts/paths 的固定 public client 登录协议分片，使根 OpenAPI 保持导航职责
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -47,7 +47,7 @@ Sources:
 Password:
   post:
     operationId: completePasswordLogin
-    summary: Authenticate LOCAL or LDAP over HTTPS; bootstrap LOCAL accounts change the initial password in the same transaction.
+    summary: Authenticate over HTTPS or complete a one-time LOCAL password-change challenge in the same transaction.
     security: []
     requestBody:
       required: true
@@ -56,8 +56,14 @@ Password:
           schema:
             $ref: '../enterprise-openapi.yaml#/components/schemas/PasswordLoginRequest'
     responses:
+      '200':
+        description: Page client must navigate to the exact callback after authentication completes.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/PasswordStepResponse'
       '303':
-        description: Redirect to the exact client callback, or return an HTML form client to the same password transaction after a credential failure or required initial password change.
+        description: Non-JSON form fallback redirects successful authentication to the exact callback; credential failures return to the same login transaction. Initial-password challenge continuation requires the JSON page client.
         headers:
           Location:
             required: true
@@ -68,6 +74,12 @@ Password:
         $ref: '../enterprise-openapi.yaml#/components/responses/Error400'
       '401':
         $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+      '409':
+        description: Initial credentials succeeded; continue with the returned short-lived one-time password-change challenge.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/PasswordStepResponse'
 
 OidcStart:
   get:

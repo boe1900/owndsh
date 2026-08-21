@@ -10,6 +10,7 @@ import cn.hutool.crypto.digest.BCrypt;
 import org.dromara.enterprise.auth.adapter.IdentityAuthenticationException;
 import org.dromara.enterprise.auth.adapter.JdbcLocalAccountStore;
 import org.dromara.enterprise.auth.adapter.LocalIdentityAdapter;
+import org.dromara.enterprise.auth.adapter.LocalPasswordChangeRejectedException;
 import org.dromara.enterprise.auth.adapter.LocalPasswordChangeRequiredException;
 import org.dromara.enterprise.auth.domain.IdentitySource;
 import org.dromara.enterprise.auth.domain.IdentitySourceStatus;
@@ -107,26 +108,20 @@ class DeploymentBootstrapServiceTest {
         try (PasswordCredentials credentials = new PasswordCredentials(USERNAME, INITIAL_PASSWORD.toCharArray())) {
             assertThatThrownBy(() -> adapter.authenticate(localSource(), credentials))
                 .isInstanceOfSatisfying(LocalPasswordChangeRequiredException.class,
-                    exception -> assertThat(exception.rejected()).isFalse());
+                    exception -> assertThat(exception.principal().username()).isEqualTo(USERNAME));
         }
-        try (PasswordCredentials credentials = new PasswordCredentials(
-            USERNAME, INITIAL_PASSWORD.toCharArray(), "weak-password".toCharArray()
-        )) {
-            assertThatThrownBy(() -> adapter.authenticate(localSource(), credentials))
-                .isInstanceOfSatisfying(LocalPasswordChangeRequiredException.class,
-                    exception -> assertThat(exception.rejected()).isTrue());
-        }
+        assertThatThrownBy(() -> adapter.changeInitialPassword(
+            localSource(), 195_210_000_000_000_001L, USERNAME, "weak-password".toCharArray()
+        )).isInstanceOf(LocalPasswordChangeRejectedException.class);
         assertThat(database.jdbc().queryForObject(
             "select password_change_required from sys_user where user_name = ?", Boolean.class, USERNAME
         )).isTrue();
         assertThat(BCrypt.checkpw(INITIAL_PASSWORD, database.jdbc().queryForObject(
             "select password from sys_user where user_name = ?", String.class, USERNAME
         ))).isTrue();
-        try (PasswordCredentials credentials = new PasswordCredentials(
-            USERNAME, INITIAL_PASSWORD.toCharArray(), NEW_PASSWORD.toCharArray()
-        )) {
-            assertThat(adapter.authenticate(localSource(), credentials).username()).isEqualTo(USERNAME);
-        }
+        assertThat(adapter.changeInitialPassword(
+            localSource(), 195_210_000_000_000_001L, USERNAME, NEW_PASSWORD.toCharArray()
+        ).username()).isEqualTo(USERNAME);
 
         assertThat(database.jdbc().queryForObject(
             "select password_change_required from sys_user where user_name = ?", Boolean.class, USERNAME

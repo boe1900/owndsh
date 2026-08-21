@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 Redis 三类短期状态、身份源/adapter/验证码/绑定服务、Sa-Token gateway、审计、配置 URI 与 CSPRNG。
- * [OUTPUT]: 提供 authorize/sources/password/OIDC start+callback/token/logout/cancel 的完整 T05 编排。
- * [POS]: auth application 的状态机，平台 code 原子先消费再校验，任何失败都不能恢复或重放。
+ * [INPUT]: 依赖 Redis 登录/challenge/OIDC/code 短期状态、身份源/adapter/验证码/绑定服务、会话、审计与 CSPRNG。
+ * [OUTPUT]: 提供 authorize/sources/password 两阶段改密/OIDC/token/logout/cancel 的完整 T05 编排。
+ * [POS]: auth application 的状态机，初始凭据仅验证一次，challenge/code 原子消费且失败不能重放。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.auth.application;
@@ -14,6 +14,7 @@ import org.dromara.enterprise.audit.AuditSink;
 import org.dromara.enterprise.auth.adapter.IdentityAdapterRegistry;
 import org.dromara.enterprise.auth.adapter.IdentityAuthenticationException;
 import org.dromara.enterprise.auth.adapter.LocalPasswordChangeRequiredException;
+import org.dromara.enterprise.auth.adapter.LocalPasswordChangeRejectedException;
 import org.dromara.enterprise.auth.adapter.OidcIdentityAdapter;
 import org.dromara.enterprise.auth.domain.IdentityCredential;
 import org.dromara.enterprise.auth.domain.IdentityPrincipal;
@@ -24,6 +25,7 @@ import org.dromara.enterprise.auth.domain.LoginTransaction;
 import org.dromara.enterprise.auth.domain.OidcCodeCredentials;
 import org.dromara.enterprise.auth.domain.OidcLoginState;
 import org.dromara.enterprise.auth.domain.PasswordCredentials;
+import org.dromara.enterprise.auth.domain.PasswordChangeChallenge;
 import org.dromara.enterprise.auth.domain.Pkce;
 import org.dromara.enterprise.auth.domain.PlatformAuthorizationCode;
 import org.dromara.enterprise.auth.domain.PlatformClient;
@@ -31,6 +33,7 @@ import org.dromara.enterprise.auth.persistence.AuthorizationCodeStore;
 import org.dromara.enterprise.auth.persistence.IdentitySourceStore;
 import org.dromara.enterprise.auth.persistence.LoginTransactionStore;
 import org.dromara.enterprise.auth.persistence.OidcLoginStateStore;
+import org.dromara.enterprise.auth.persistence.PasswordChangeChallengeStore;
 import org.springframework.transaction.support.TransactionOperations;
 
 import java.net.URI;
@@ -52,6 +55,7 @@ public final class PlatformAuthorizationService {
     private static final int MAX_RANDOM_COLLISIONS = 4;
 
     private final LoginTransactionStore transactions;
+    private final PasswordChangeChallengeStore passwordChanges;
     private final AuthorizationCodeStore codes;
     private final OidcLoginStateStore oidcStates;
     private final IdentitySourceStore sources;
@@ -70,6 +74,7 @@ public final class PlatformAuthorizationService {
 
     public PlatformAuthorizationService(
         LoginTransactionStore transactions,
+        PasswordChangeChallengeStore passwordChanges,
         AuthorizationCodeStore codes,
         OidcLoginStateStore oidcStates,
         IdentitySourceStore sources,
@@ -85,7 +90,8 @@ public final class PlatformAuthorizationService {
         URI adminRedirectUri
     ) {
         this(
-            transactions, codes, oidcStates, sources, adapters, oidcAdapter, captchaVerifier, identities, sessions,
+            transactions, passwordChanges, codes, oidcStates, sources, adapters, oidcAdapter, captchaVerifier,
+            identities, sessions,
             databaseTransactions, auditSink, ids, publicBaseUrl, adminRedirectUri,
             new SecureRandom(), Clock.systemUTC()
         );
@@ -93,6 +99,7 @@ public final class PlatformAuthorizationService {
 
     PlatformAuthorizationService(
         LoginTransactionStore transactions,
+        PasswordChangeChallengeStore passwordChanges,
         AuthorizationCodeStore codes,
         OidcLoginStateStore oidcStates,
         IdentitySourceStore sources,
@@ -110,6 +117,7 @@ public final class PlatformAuthorizationService {
         Clock clock
     ) {
         this.transactions = Objects.requireNonNull(transactions, "transactions");
+        this.passwordChanges = Objects.requireNonNull(passwordChanges, "passwordChanges");
         this.codes = Objects.requireNonNull(codes, "codes");
         this.oidcStates = Objects.requireNonNull(oidcStates, "oidcStates");
         this.sources = Objects.requireNonNull(sources, "sources");
@@ -185,24 +193,6 @@ public final class PlatformAuthorizationService {
         String captchaCode,
         IdentityLoginContext context
     ) {
-        return password(
-            tenantId, transactionId, sourceId, csrfToken, username, password, null,
-            captchaId, captchaCode, context
-        );
-    }
-
-    public URI password(
-        String tenantId,
-        String transactionId,
-        long sourceId,
-        String csrfToken,
-        String username,
-        char[] password,
-        char[] newPassword,
-        String captchaId,
-        String captchaCode,
-        IdentityLoginContext context
-    ) {
         LoginTransaction transaction = requireTransaction(transactionId);
         requireCsrf(transaction, csrfToken);
         IdentitySource source = requireSource(tenantId, sourceId);
@@ -212,10 +202,49 @@ public final class PlatformAuthorizationService {
             auditFailure(transaction, source.type(), context);
             throw new AuthFlowException("ENT_AUTH_REQUIRED");
         }
-        try (PasswordCredentials credential = new PasswordCredentials(username, password, newPassword)) {
+        try (PasswordCredentials credential = new PasswordCredentials(username, password)) {
             return authenticateAndComplete(transaction, source, credential, context);
         } catch (LocalPasswordChangeRequiredException exception) {
-            throw new PasswordChangeRequiredException(exception.rejected());
+            throw new PasswordChangeRequiredException(
+                createPasswordChangeChallenge(tenantId, transaction, source, exception.principal()),
+                false
+            );
+        } catch (IdentityAuthenticationException exception) {
+            auditFailure(transaction, source.type(), context);
+            throw new AuthFlowException("ENT_AUTH_REQUIRED");
+        }
+    }
+
+    public URI changeInitialPassword(
+        String tenantId,
+        String transactionId,
+        long sourceId,
+        String csrfToken,
+        String challengeToken,
+        char[] newPassword,
+        IdentityLoginContext context
+    ) {
+        LoginTransaction transaction = requireTransaction(transactionId);
+        requireCsrf(transaction, csrfToken);
+        IdentitySource source = requireSource(tenantId, sourceId);
+        if (source.type() != IdentitySourceType.LOCAL) throw new AuthFlowException("ENT_INVALID_REQUEST");
+        PasswordChangeChallenge challenge = passwordChanges.consumeChallenge(challengeToken)
+            .orElseThrow(() -> new AuthFlowException("ENT_AUTH_SESSION_EXPIRED"));
+        if (!challenge.transactionId().equals(transaction.id())
+            || !challenge.tenantId().equals(tenantId)
+            || challenge.sourceId() != source.id()) {
+            throw new AuthFlowException("ENT_AUTH_SESSION_EXPIRED");
+        }
+        try {
+            IdentityPrincipal principal = adapters.changeInitialLocalPassword(
+                source, challenge.userId(), challenge.username(), newPassword
+            );
+            return completeAuthenticated(transaction, source, principal, context);
+        } catch (LocalPasswordChangeRejectedException exception) {
+            throw new PasswordChangeRequiredException(
+                createPasswordChangeChallenge(tenantId, transaction, source, challenge.userId(), challenge.username()),
+                true
+            );
         } catch (IdentityAuthenticationException exception) {
             auditFailure(transaction, source.type(), context);
             throw new AuthFlowException("ENT_AUTH_REQUIRED");
@@ -319,6 +348,15 @@ public final class PlatformAuthorizationService {
         IdentityLoginContext context
     ) {
         IdentityPrincipal principal = adapters.authenticate(source, credential);
+        return completeAuthenticated(transaction, source, principal, context);
+    }
+
+    private URI completeAuthenticated(
+        LoginTransaction transaction,
+        IdentitySource source,
+        IdentityPrincipal principal,
+        IdentityLoginContext context
+    ) {
         LoginTransaction consumed = transactions.consumeTransaction(transaction.id())
             .orElseThrow(() -> new AuthFlowException("ENT_AUTH_SESSION_EXPIRED"));
         if (!consumed.equals(transaction)) throw new AuthFlowException("ENT_AUTH_SESSION_EXPIRED");
@@ -326,6 +364,38 @@ public final class PlatformAuthorizationService {
         PlatformAuthorizationCode authorizationCode = createAuthorizationCode(consumed, linked.userId());
         auditSuccess(consumed, source.type(), linked.userId(), context);
         return clientCallback(consumed, authorizationCode.code());
+    }
+
+    private String createPasswordChangeChallenge(
+        String tenantId,
+        LoginTransaction transaction,
+        IdentitySource source,
+        IdentityPrincipal principal
+    ) {
+        long userId;
+        try {
+            userId = Long.parseLong(principal.externalSubject());
+        } catch (NumberFormatException exception) {
+            throw new IllegalStateException("LOCAL principal subject 必须是 userId", exception);
+        }
+        return createPasswordChangeChallenge(tenantId, transaction, source, userId, principal.username());
+    }
+
+    private String createPasswordChangeChallenge(
+        String tenantId,
+        LoginTransaction transaction,
+        IdentitySource source,
+        long userId,
+        String username
+    ) {
+        PasswordChangeChallenge challenge = new PasswordChangeChallenge(
+            transaction.id(), tenantId, source.id(), userId, username, Instant.now(clock)
+        );
+        for (int attempt = 0; attempt < MAX_RANDOM_COLLISIONS; attempt++) {
+            String token = "pwc_" + randomToken(32);
+            if (passwordChanges.createChallenge(token, challenge)) return token;
+        }
+        throw new IllegalStateException("无法创建唯一改密 challenge");
     }
 
     private PlatformAuthorizationCode createAuthorizationCode(LoginTransaction transaction, long userId) {

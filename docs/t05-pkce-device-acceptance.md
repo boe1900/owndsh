@@ -22,8 +22,8 @@ terminal，不相信 `X-Device-Id`；撤销只注销目标 installation 的 Harn
 `enterprise-admin` 只允许部署配置中的精确 HTTPS redirect 且禁止 installation 参数。PKCE 固定
 S256，verifier 只接受 43 至 128 个 ASCII 字符。
 
-Redis 中登录事务 TTL 为 5 分钟、授权码 TTL 为 60 秒，登录事务、OIDC state/nonce 和授权码使用
-独立 namespace。授权码先通过 `GETDEL` 原子消费，再检查 client、redirect、installation 和
+Redis 中登录事务与 LOCAL 首次改密 challenge TTL 为 5 分钟、授权码 TTL 为 60 秒，登录事务、
+改密 challenge、OIDC state/nonce 和授权码使用独立 namespace。授权码先通过 `GETDEL` 原子消费，再检查 client、redirect、installation 和
 verifier；任何不匹配、取消、过期或重放都不能恢复 code。并发交换同一 code 时仅一个请求能够创建
 Sa-Token 会话。已经被消费或取消的登录事务不会产生用户绑定副作用。
 
@@ -38,6 +38,11 @@ Sa-Token 会话。已经被消费或取消的登录事务不会产生用户绑�
 登录页 LOCAL 分支调用现有 `/auth/code`，验证码可刷新、必填且具备可访问名称；LDAP 分支隐藏并
 取消必填。返回身份源会清空账号、密码与验证码，防止凭据跨身份源残留。页面只在当前内存保存
 transaction、CSRF 和 captcha ID，不接触平台 Token。
+
+2026-08-21 在 T22 人工登录中修订初始化管理员流程：第一次请求只验证账号、初始密码和验证码，
+成功后返回 5 分钟 Redis 一次性 challenge；页面立即清空并禁用这些旧凭据，第二次请求只提交
+challenge 和新密码。challenge 以 `GETDEL` 消费，弱密码轮换 token，成功后继续原 PKCE 事务；
+不新增通用密码重置端点，也不把 challenge 放进 URL 或非 JSON 表单回退。
 
 真实 T05 静态资源通过同源无密钥 fixture server 录制，流程依次展示身份源列表、LOCAL 表单、
 返回选择页和凭据已清空的 LDAP 表单：
@@ -59,7 +64,8 @@ Session backlog 与最后同步时间白名单。管理员读写分别要求 `en
 ## 协议与文档同构
 
 唯一 OpenAPI 3.1 真源新增七个认证 operation、五个设备 operation、严格 DTO 和四个成功 fixture。
-LOCAL `PasswordLoginRequest` 的 `captchaId`/`captchaCode` 是按身份源类型解释的条件字段。错误码集合
+LOCAL `PasswordLoginRequest` 是初始凭据与 challenge 改密的互斥联合；`captchaId`/`captchaCode`
+只属于初始 LOCAL 凭据分支。错误码集合
 由 35 个增至 36 个，新增 `ENT_DEVICE_ALREADY_BOUND -> 409`，详细设计第 17 节、生成元数据、
 TypeScript/Zod 与 Java JSON Schema 保持一致。
 

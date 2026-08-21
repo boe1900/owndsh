@@ -367,6 +367,8 @@ sequenceDiagram
 
 登录事务在 Redis 保存 5 分钟，授权码保存 60 秒且只能消费一次。授权码记录绑定 client、redirect URI、challenge、用户和 installation ID；任何字段不一致都原子消费失败。OIDC state/nonce 与平台授权码分开保存。
 
+LOCAL 初始化管理员先以账号、初始密码和验证码完成一次认证；若仍带 `password_change_required`，密码端点返回 `409 CHANGE_PASSWORD` 和 Redis 中 5 分钟的一次性 challenge。页面收到后立即清空并禁用账号、初始密码和验证码，第二步只提交原事务/身份源/CSRF、challenge 与新密码。challenge 绑定 tenant、事务、身份源和已认证 userId，并以 `GETDEL` 原子消费；弱密码轮换新 challenge，成功或重放后旧 token 均失效。普通非 JSON 表单不承载 challenge，改密分支 fail-closed，避免 token 进入 URL、历史或 Referer。
+
 `POST /token` 校验成功后调用 Sa-Token 创建不共享会话。`dsh-desktop` 使用 `deviceType=harness`、`deviceId=installationId`；`enterprise-admin` 使用 `deviceType=admin-web` 和登录事务生成的随机 session device ID，不创建 `ent_device`。两类会话绝对有效期均为 12 小时，权限按当前用户解析。MVP 不签发 refresh token；过期或客户端内存丢失后重新走浏览器登录，企业 IdP 的现有 SSO 会话可减少重复输入。
 
 平台 Token 只保存在 Harness Host 内存，不写 `settings.yaml`、`.credentials.yaml`、Session、日志或 Client 浏览器。Client 只能通过 Host 注册的同源本地 API 查询脱敏状态和触发动作，永远拿不到 Token 字符串；本地 API 不能返回、转发或序列化平台 Token。
@@ -379,13 +381,13 @@ sequenceDiagram
 |---|---|---|---|
 | `GET` | `/enterprise/auth/v1/authorize` | 无 | 校验 client/redirect/PKCE 及对应 client 参数，创建登录事务并跳转登录页 |
 | `GET` | `/enterprise/auth/v1/sources?transaction_id=...` | 无 | 返回该事务可用身份源的公开名称和类型 |
-| `POST` | `/enterprise/auth/v1/password` | 无 | 对 LOCAL 或 LDAP 事务提交用户名和密码 |
+| `POST` | `/enterprise/auth/v1/password` | 无 | 第一步提交 LOCAL/LDAP 凭据；LOCAL 首次改密第二步只提交一次性 challenge 与新密码 |
 | `GET` | `/enterprise/auth/v1/oidc/{sourceId}/start` | 无 | 创建 OIDC state/nonce 并跳转企业 IdP |
 | `GET` | `/enterprise/auth/v1/oidc/{sourceId}/callback` | 无 | 校验回调并完成平台登录事务 |
 | `POST` | `/enterprise/auth/v1/token` | 无 | 校验授权码和 verifier，签发平台 Sa-Token |
 | `POST` | `/enterprise/auth/v1/logout` | 平台 Token | 注销当前 Sa-Token |
 
-密码端点只接受 HTTPS、同一登录事务和一次性 CSRF 值，响应与用户名是否存在无关。密码及外部 Token 不进入审计 metadata、异常对象或应用日志。
+密码端点只接受 HTTPS、同一登录事务和一次性 CSRF 值，响应与用户名是否存在无关。页面客户端以 JSON `CHANGE_PASSWORD`/`REDIRECT` 步骤推进首次改密或导航回调；普通凭据失败仍可由 HTML 303 返回原事务，但首次改密不回退到重复提交账号和初始密码。密码、challenge 及外部 Token 不进入审计 metadata、异常对象或应用日志。
 
 ### 6.5 设备
 
@@ -1013,7 +1015,7 @@ Client 包通过 `settings.section` 注册一个 `enterprise` 设置页，通过
 - Session 正文解密只发生在 export/content API 的授权方法中，返回后不缓存到管理端浏览器持久存储。
 - 管理员权限、资源 owner、设备状态、模型 grant 和插件 assignment 每次由服务端读取当前事实；bootstrap 缓存不能授权。
 - 数据库、Redis、artifact 目录和 master/signing key 必须进入备份与恢复演练；key 文件不进入普通数据库备份。
-- migration 不创建已知密码的默认管理员。空库首次启动要求 `ENT_BOOTSTRAP_ADMIN_USERNAME` 和 `ENT_BOOTSTRAP_ADMIN_PASSWORD_FILE`，事务创建一个本地 `enterprise_admin` 后写初始化完成标记；后续启动忽略这两个值，首次登录强制改密。
+- migration 不创建已知密码的默认管理员。空库首次启动要求 `ENT_BOOTSTRAP_ADMIN_USERNAME` 和 `ENT_BOOTSTRAP_ADMIN_PASSWORD_FILE`，事务创建一个本地 `enterprise_admin` 后写初始化完成标记；后续启动忽略这两个值。首次登录验证初始凭据后只签发 5 分钟一次性 Redis challenge，页面清空旧凭据，第二步以 challenge 条件改密并继续原 PKCE 事务，不提供通用密码重置旁路。
 
 T20 验收应用边界的 CORS、限流、请求体、超时、drain、日志、不可达与数据恢复，但不提前创建 T21 的部署树。生产 TLS/可信 forwarding header 清洗、初始化管理员、正式备份入口和健康检查由 T21 在 Compose/Nginx/安装交付中实现；T20 只交付不依赖该部署树的可重复演练。
 
@@ -1212,7 +1214,7 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 | T19 | `completed` | 2026-08-20 已交付 30-action 显式 metadata 白名单、tenant 隔离审计查询、365 天有界 retention、用户治理事务接缝、heartbeat 防洪和管理员/审计员只读页面；真实 PostgreSQL/Server/Playwright 与敏感模式扫描证据见 [`t19-audit-closure-acceptance.md`](t19-audit-closure-acceptance.md)。 |
 | T20 | `completed` | 2026-08-20 已交付默认同源 CORS、通用 JSON/Session/form/multipart 有界请求、无默认 JWT secret、30 秒 graceful drain、未知故障日志隔离、CI 秘密扫描与 PostgreSQL/Redis/artifact/key 恢复演练，见 [`t20-security-fault-acceptance.md`](t20-security-fault-acceptance.md)。 |
 | T21 | `completed` | 2026-08-20 已交付锁定 Linux amd64 release、只发布 Gateway HTTPS 的 Compose/Nginx、一次性初始化管理员、secret/health、数据与 key 分离备份恢复、升级和仅应用回滚；全新安装、恢复与 `0.1.0 -> 0.1.1 -> 应用回滚` 证据见 [`t21-deployment-delivery-acceptance.md`](t21-deployment-delivery-acceptance.md)。 |
-| T22 | `in_progress` | 2026-08-21 退役三设备/Playwright/候选 fixture 自动总编排，改为单后端、单 Harness 的无时限人工验收；已修复浏览器认证错误跳出登录页、Alpine/musl AWT 验证码触发 JVM 崩溃及验证码生成/校验 Redis codec 不一致，逐功能清单见 [`t22-manual-acceptance.md`](t22-manual-acceptance.md)。按非生产 MVP 范围不执行镜像漏洞扫描。 |
+| T22 | `in_progress` | 2026-08-21 退役三设备/Playwright/候选 fixture 自动总编排，改为单后端、单 Harness 的无时限人工验收；已修复浏览器认证错误跳出登录页、Alpine/musl AWT 验证码触发 JVM 崩溃、验证码 Redis codec 不一致，并把初始化管理员改为不重放旧凭据的两阶段一次性 challenge；逐功能清单见 [`t22-manual-acceptance.md`](t22-manual-acceptance.md)。按非生产 MVP 范围不执行镜像漏洞扫描。 |
 | T23 | `pending` | T23 试点是唯一下一项，但尚未部署 20 用户环境、收集第 21.2 节指标或引入真实用户数据。 |
 
 ## 23. Definition of Done

@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 LocalAccountStore 原子改密、RuoYi LoginFailurePolicy、共享 LOCAL 密码策略与 BCrypt。
- * [OUTPUT]: 对外提供 LOCAL 认证、首次强制改密、稳定 userId subject 和不枚举账号的 principal。
- * [POS]: IdentityAdapter 的本地实现，旧密码校验成功后才允许一次条件改密，不承担平台会话签发。
+ * [OUTPUT]: 对外提供 LOCAL 认证、challenge 后首次改密、稳定 userId subject 和不枚举账号的 principal。
+ * [POS]: IdentityAdapter 的本地实现，认证与受限改密分步执行，不承担 challenge 存储或平台会话签发。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.auth.adapter;
@@ -66,39 +66,51 @@ public final class LocalIdentityAdapter implements IdentityAdapter {
         if (!matched[0]) {
             throw new IdentityAuthenticationException();
         }
-        enforceInitialPasswordChange(authenticated, passwordCredentials);
-        return new IdentityPrincipal(
-            Long.toString(source.id()),
-            type(),
-            Long.toString(authenticated.userId()),
-            authenticated.username(),
-            authenticated.displayName(),
-            authenticated.email(),
-            List.of()
-        );
+        IdentityPrincipal principal = principal(source, authenticated);
+        if (authenticated.passwordChangeRequired()) {
+            throw new LocalPasswordChangeRequiredException(principal);
+        }
+        return principal;
     }
 
-    private void enforceInitialPasswordChange(LocalAccount account, PasswordCredentials credentials) {
-        if (!account.passwordChangeRequired()) return;
-        char[] newPassword = credentials.newPassword();
-        if (newPassword == null) throw new LocalPasswordChangeRequiredException(false);
+    public IdentityPrincipal changeInitialPassword(
+        IdentitySource source,
+        long userId,
+        String username,
+        char[] newPassword
+    ) {
+        requireSource(source);
+        LocalAccount account = accounts.findByUsername(username)
+            .filter(candidate -> candidate.userId() == userId
+                && candidate.enabled()
+                && candidate.passwordChangeRequired())
+            .orElseThrow(IdentityAuthenticationException::new);
         try {
-            try {
-                LocalPasswordPolicy.validate(account.username(), newPassword);
-            } catch (IllegalArgumentException exception) {
-                throw new LocalPasswordChangeRequiredException(true);
-            }
+            LocalPasswordPolicy.validate(account.username(), newPassword);
             String newPasswordText = new String(newPassword);
             if (BCrypt.checkpw(newPasswordText, account.passwordHash())) {
-                throw new LocalPasswordChangeRequiredException(true);
+                throw new LocalPasswordChangeRejectedException();
             }
             String newHash = BCrypt.hashpw(newPasswordText);
             if (!accounts.changePasswordIfRequired(account.userId(), account.passwordHash(), newHash)) {
                 throw new IdentityAuthenticationException();
             }
-        } finally {
-            Arrays.fill(newPassword, '\0');
+            return principal(source, account);
+        } catch (IllegalArgumentException exception) {
+            throw new LocalPasswordChangeRejectedException();
         }
+    }
+
+    private static IdentityPrincipal principal(IdentitySource source, LocalAccount account) {
+        return new IdentityPrincipal(
+            Long.toString(source.id()),
+            IdentitySourceType.LOCAL,
+            Long.toString(account.userId()),
+            account.username(),
+            account.displayName(),
+            account.email(),
+            List.of()
+        );
     }
 
     @Override

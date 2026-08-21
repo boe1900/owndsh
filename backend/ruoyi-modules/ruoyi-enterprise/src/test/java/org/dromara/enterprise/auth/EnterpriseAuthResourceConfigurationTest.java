@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 EnterpriseAuthResourceConfiguration、Spring MVC 测试上下文与模块内真实静态资源
- * [OUTPUT]: 验证公开登录三项资源、密码失败留页与首次改密控制逻辑从 classpath 映射且类型正确
+ * [OUTPUT]: 验证公开登录三项资源、页面内两阶段改密与凭据清理逻辑从 classpath 映射且类型正确
  * [POS]: auth 的浏览器入口回归门禁，防止授权跳转落入 RuoYi 404 envelope
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -48,7 +48,8 @@ class EnterpriseAuthResourceConfigurationTest {
         mvc.perform(get("/enterprise/auth/login.js"))
             .andExpect(status().isOk())
             .andExpect(content().contentTypeCompatibleWith("text/javascript"))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("passwordChangeRequested")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("passwordChangeChallenge")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("new FormData(passwordForm)")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("loginFailed")));
         mvc.perform(get("/enterprise/auth/CLAUDE.md"))
             .andExpect(status().isNotFound());

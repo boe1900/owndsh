@@ -14,7 +14,8 @@ JdbcIdentitySourceStore.java: 把非秘密配置写入 JSONB、秘密写入 byte
 JdbcPlatformUserStore.java: 只创建/同步允许字段且从不写角色的 RuoYi sys_user adapter。
 LoginTransactionStore.java: 5 分钟登录事务 create/find/原子消费/删除端口。
 OidcLoginStateStore.java: OIDC state 与平台授权码分区的一次性状态端口。
+PasswordChangeChallengeStore.java: LOCAL 首次改密 challenge 的唯一创建与 GETDEL 原子消费端口。
 PlatformUserStore.java: 外部身份绑定所需的平台用户最小端口。
-RedisAuthStateStore.java: Redisson StringCodec/Jackson adapter，使用 set-if-absent 与 Redis GETDEL 保证 TTL 和唯一消费。
+RedisAuthStateStore.java: Redisson StringCodec/Jackson adapter，为登录、改密、OIDC 与 code 分区并以 SET NX/GETDEL 保证 TTL 和唯一消费。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

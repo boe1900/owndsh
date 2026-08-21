@@ -17,7 +17,7 @@ GroupMappingView.java: 外部组映射公开管理字段投影。
 IdentityAdminRequestContextResolver.java: Controller 到可信管理请求上下文的 DIP 端口。
 IdentitySourceView.java: 隔离 encryptedSecret/异常正文，只公开 secretConfigured 与最近脱敏测试结果的身份源响应投影。
 IdentitySourceWriteRequest.java: 一次性 char[] secret、显式清零与脱敏字符串输出的写 DTO。
-PlatformAuthController.java: authorize/sources/password/OIDC/token/logout 门面，HTTPS 当前/新密码表单以 303 完成回调，并按 HTML 内容协商把认证失败或首次改密返回同一事务。
+PlatformAuthController.java: authorize/sources/password/OIDC/token/logout 门面；普通成功保留 303，页面 JSON 以 CHANGE_PASSWORD challenge 或精确回调驱动两阶段流程，非 JSON 改密 fail-closed。
 RuoYiIdentityAdminRequestContextResolver.java: 从固定部署 tenant、RuoYi 会话与 Servlet 元数据构造管理请求上下文。
 TokenExchangeRequest.java: authorization_code grant 的 client/redirect/verifier/installation JSON 输入边界。
 

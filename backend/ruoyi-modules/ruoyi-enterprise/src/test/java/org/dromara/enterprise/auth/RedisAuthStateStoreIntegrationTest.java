@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 RedisTestServer、RedisAuthStateStore、Jackson 与并发 executor。
- * [OUTPUT]: 验证事务 5 分钟/code 60 秒 TTL、原子单消费、重放、取消、过期与 OIDC key 分区。
+ * [OUTPUT]: 验证事务/challenge 5 分钟、code 60 秒 TTL、原子单消费、重放、取消、过期与 key 分区。
  * [POS]: T05 PKCE 状态持久化退出门禁，使用真实 Redis GETDEL 而非 ambient fake。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -8,6 +8,7 @@ package org.dromara.enterprise.auth;
 
 import org.dromara.enterprise.auth.domain.LoginTransaction;
 import org.dromara.enterprise.auth.domain.OidcLoginState;
+import org.dromara.enterprise.auth.domain.PasswordChangeChallenge;
 import org.dromara.enterprise.auth.domain.PlatformAuthorizationCode;
 import org.dromara.enterprise.auth.domain.PlatformClient;
 import org.dromara.enterprise.auth.persistence.RedisAuthStateStore;
@@ -43,9 +44,13 @@ class RedisAuthStateStoreIntegrationTest {
     void storesFiveMinuteTransactionsAndSixtySecondCodesInSeparateNamespaces() {
         RedisAuthStateStore store = store(Duration.ofMinutes(5), Duration.ofSeconds(60));
         LoginTransaction transaction = transaction("tx_ttl_00000000000000000000000000");
+        PasswordChangeChallenge passwordChange = passwordChange(transaction.id());
         PlatformAuthorizationCode code = code("abcdefghijklmnopqrstuvwxyzABCDEFGH123456789");
 
         assertThat(store.createTransaction(transaction)).isTrue();
+        assertThat(store.createChallenge(
+            "pwc_abcdefghijklmnopqrstuvwxyzABCDEFGH123456789", passwordChange
+        )).isTrue();
         assertThat(store.createCode(code)).isTrue();
         assertThat(store.createOidcState(oidc("oidc_state_0000000000000000000000000000"))).isTrue();
 
@@ -53,6 +58,12 @@ class RedisAuthStateStoreIntegrationTest {
             .isBetween(295_000L, 300_000L);
         assertThat(REDIS.getBucket("enterprise:auth:code:" + code.code()).remainTimeToLive())
             .isBetween(55_000L, 60_000L);
+        assertThat(REDIS.getBucket(
+            "enterprise:auth:password-change:pwc_abcdefghijklmnopqrstuvwxyzABCDEFGH123456789"
+        ).remainTimeToLive()).isBetween(295_000L, 300_000L);
+        assertThat(store.consumeChallenge("pwc_abcdefghijklmnopqrstuvwxyzABCDEFGH123456789"))
+            .contains(passwordChange);
+        assertThat(store.consumeChallenge("pwc_abcdefghijklmnopqrstuvwxyzABCDEFGH123456789")).isEmpty();
         assertThat(store.find(transaction.id())).contains(transaction);
         assertThat(store.consumeOidcState("oidc_state_0000000000000000000000000000")).isPresent();
         assertThat(store.find(transaction.id())).contains(transaction);
@@ -128,6 +139,17 @@ class RedisAuthStateStoreIntegrationTest {
             1761100000000000003L,
             installation,
             installation.toString(),
+            Instant.parse("2026-08-18T00:00:00Z")
+        );
+    }
+
+    private static PasswordChangeChallenge passwordChange(String transactionId) {
+        return new PasswordChangeChallenge(
+            transactionId,
+            "000000",
+            1900100000000000001L,
+            1761100000000000003L,
+            "platform.admin",
             Instant.parse("2026-08-18T00:00:00Z")
         );
     }

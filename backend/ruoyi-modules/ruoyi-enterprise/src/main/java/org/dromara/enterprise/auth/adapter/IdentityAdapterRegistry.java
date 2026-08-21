@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 Spring 装配的 OIDC/LDAP/LOCAL IdentityAdapter 集合。
- * [OUTPUT]: 对外提供按 IdentitySource.type 唯一路由的 authenticate/testConnection。
- * [POS]: auth application 与具体 adapter 之间的路由边界，启动时拒绝重复或缺失类型。
+ * [OUTPUT]: 对外提供按 IdentitySource.type 唯一路由的 authenticate/testConnection 与受限 LOCAL 首次改密。
+ * [POS]: auth application 与具体 adapter 之间的路由边界，启动时拒绝重复或缺失类型并封装 LOCAL 实现。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.auth.adapter;
@@ -45,6 +45,18 @@ public final class IdentityAdapterRegistry {
 
     public IdentitySourceConnection testConnection(IdentitySource source) {
         return adapter(source).testConnection(source);
+    }
+
+    public IdentityPrincipal changeInitialLocalPassword(
+        IdentitySource source,
+        long userId,
+        String username,
+        char[] newPassword
+    ) {
+        if (!(adapter(source) instanceof LocalIdentityAdapter local)) {
+            throw new IdentityAuthenticationException();
+        }
+        return local.changeInitialPassword(source, userId, username, newPassword);
     }
 
     private IdentityAdapter adapter(IdentitySource source) {

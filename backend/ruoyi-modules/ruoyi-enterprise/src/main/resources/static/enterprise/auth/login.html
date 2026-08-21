@@ -1,7 +1,7 @@
 <!--
-  [INPUT]: 依赖同源 login.css/login.js、enterprise 认证 API、首次改密重定向与 RuoYi 验证码端点。
-  [OUTPUT]: 提供身份源选择、LOCAL 首次改密/验证码、LDAP 密码提交与 OIDC 跳转页面骨架。
-  [POS]: 公开认证页面，不加载管理端应用，当前密码和新密码只存在于原生 HTTPS 表单生命周期。
+  [INPUT]: 依赖同源 login.css/login.js、enterprise 两阶段认证 API、一次性改密 challenge 与 RuoYi 验证码端点。
+  [OUTPUT]: 提供身份源选择、凭据认证、仅新密码 challenge、LDAP 密码提交与 OIDC 跳转页面骨架。
+  [POS]: 公开认证页面，不加载管理端应用，初始密码与新密码不会出现在同一次请求。
   [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
 <!doctype html>
@@ -31,16 +31,19 @@
         <input id="transaction-id" name="transactionId" type="hidden">
         <input id="source-id" name="sourceId" type="hidden">
         <input id="csrf-token" name="csrfToken" type="hidden">
+        <input id="password-change-challenge" name="passwordChangeChallenge" type="hidden" disabled>
         <button id="back-button" class="back-button" type="button" aria-label="返回身份源">←</button>
         <p id="selected-source" class="selected-source"></p>
-        <label>
-          <span>账号</span>
-          <input id="username" name="username" autocomplete="username" maxlength="100" required>
-        </label>
-        <label>
-          <span>密码</span>
-          <input id="password" name="password" type="password" autocomplete="current-password" maxlength="256" required>
-        </label>
+        <fieldset id="credential-fields" class="credential-fields">
+          <label>
+            <span>账号</span>
+            <input id="username" name="username" autocomplete="username" maxlength="100" required>
+          </label>
+          <label>
+            <span>密码</span>
+            <input id="password" name="password" type="password" autocomplete="current-password" maxlength="256" required>
+          </label>
+        </fieldset>
         <div id="password-change-fields" class="password-change-fields" hidden>
           <p>初始密码仅可使用一次。新密码需至少 14 位，并包含大小写字母、数字和符号。</p>
           <label>
@@ -62,7 +65,7 @@
             <img id="captcha-image" alt="验证码">
           </button>
         </div>
-        <button class="primary-button" type="submit">登录</button>
+        <button id="submit-button" class="primary-button" type="submit">登录</button>
       </form>
 
       <p id="status" class="status" role="status"></p>

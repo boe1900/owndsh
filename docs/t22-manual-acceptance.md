@@ -28,7 +28,7 @@ EAP_LOCAL_RELEASE_TARBALL=/absolute/path/enterprise-agent-platform-0.1.0-linux-a
 ## 验收顺序
 
 - [ ] 启动：管理端健康，Harness 页面可打开，只有一个本地 Harness 实例。
-- [ ] 登录：点击“登录企业账号”后系统浏览器自动打开；错误账号、密码或验证码应留在登录页提示并刷新验证码；使用 LOCAL 账号完成首次改密后 Harness 回到 `READY`。
+- [ ] 登录：点击“登录企业账号”后系统浏览器自动打开；错误账号、密码或验证码应留在登录页提示并刷新验证码；LOCAL 初始凭据通过后页面清空账号/初始密码/验证码，只输入两次新密码即可继续，Harness 最终回到 `READY`。
 - [ ] 身份与设备：管理端能看到当前用户和 ACTIVE 设备；身份源配置、测试和组映射符合预期。
 - [ ] 模型与配额：手工配置 provider、模型、授权和配额；Harness 能发现并调用已授权模型，未授权与超额提示准确。
 - [ ] 插件：手工上传实际待验证插件，完成发布、分配、安装、重启确认和回滚，员工页状态与真实 Loader 一致。
@@ -42,6 +42,7 @@ EAP_LOCAL_RELEASE_TARBALL=/absolute/path/enterprise-agent-platform-0.1.0-linux-a
 - 2026-08-21：错误验证码已改为留在登录页提示并刷新验证码；JSON 客户端仍返回稳定的 `401 ENT_AUTH_REQUIRED`。
 - 2026-08-21：人工重试验证码暴露出 Alpine/musl Temurin 的图片生成在 `libawt.so` 触发 `SIGILL`，Gateway 随后返回 502。仅增加可写 Fontconfig 缓存后第 6 次请求仍崩溃；同版 Java 21.0.8 切换到官方 Jammy/glibc JRE 后连续 100 次验证码请求全部返回 200，Server 无重启且无原生错误。Compose 同时将缓存指向已有 `/tmp` tmpfs；保留验证码，不改变认证协议。
 - 2026-08-21：人工登录继续暴露验证码生成端使用 Redisson 默认 JSON codec、校验端误用 `StringCodec`，导致 Redis 中的 JSON 字符串引号被当作答案正文，任何可见答案都会失败；校验端现与生成端共用默认 codec，保留原子 GETDEL。
+- 2026-08-21：初始化管理员首次改密改为标准两阶段流程。旧凭据只认证一次，Server 返回 5 分钟 Redis 一次性 challenge；页面清空旧字段，第二步只提交 challenge 与新密码。弱密码轮换 challenge，成功/重放原子失效，不新增密码重置旁路；最终体验仍由人工确认。
 
 ## 品味自检
 

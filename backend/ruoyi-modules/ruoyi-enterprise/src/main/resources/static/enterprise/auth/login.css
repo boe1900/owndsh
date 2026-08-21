@@ -1,6 +1,6 @@
 /*
- * [INPUT]: 依赖 login.html 的 auth-shell/brand/panel/source/form/首次改密/captcha 结构。
- * [OUTPUT]: 提供响应式、可聚焦且稳定尺寸的公开认证、首次改密与验证码视觉层。
+ * [INPUT]: 依赖 login.html 的 auth-shell/brand/panel/source/两阶段 form/captcha 结构。
+ * [OUTPUT]: 提供响应式、可聚焦且稳定尺寸的凭据认证、challenge 改密与验证码视觉层。
  * [POS]: T05 登录页面的唯一样式表，保持企业操作界面安静、清晰和可扫描。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -120,6 +120,17 @@ input:focus-visible {
 }
 
 .password-form[hidden] { display: none; }
+
+.credential-fields {
+  display: grid;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  gap: 16px;
+}
+
+.credential-fields[hidden] { display: none; }
 
 .password-change-fields {
   display: grid;

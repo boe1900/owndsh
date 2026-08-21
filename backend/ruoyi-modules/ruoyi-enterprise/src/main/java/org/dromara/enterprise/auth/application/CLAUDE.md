@@ -21,8 +21,8 @@ IdentityResourceNotFoundException.java: tenant 限定身份资源不存在边界
 IdentitySourceService.java: 身份源 keyset 查询、秘密加密、资源 CAS、连接检查、bootstrap revision 与审计事务。
 IdentitySourceSpec.java: 不含 client secret/manager password 的身份源写规格。
 IssuedPlatformSession.java: Sa-Token adapter 返回的 opaque Token 与绝对有效秒数。
-PasswordChangeRequiredException.java: 保持登录事务有效并要求浏览器重新展示 LOCAL 首次改密表单的控制信号。
-PlatformAuthorizationService.java: authorize/password/OIDC/token/logout 状态机；LOCAL 先消费验证码并完成必要改密，凭据成功后才消费事务并产生绑定和 60 秒 code。
+PasswordChangeRequiredException.java: 携带轮换的一次性 challenge，要求页面进入无初始凭据的 LOCAL 改密步骤。
+PlatformAuthorizationService.java: authorize/password/OIDC/token/logout 状态机；LOCAL 初始凭据认证后签发 5 分钟一次性改密 challenge，改密成功才消费事务并产生绑定和 60 秒 code。
 PlatformSession.java: 从服务端 Token/terminal 读取的可信 user/client/device 请求事实。
 PlatformSessionGateway.java: 12 小时非共享 Sa-Token 签发、当前会话与保留撤销原因的单 installation 撤销端口。
 PlatformSessionRevokedException.java: adapter 已确认 Token 因设备撤销失效的无敏感字段信号，由设备 Web 边界决定协议映射。

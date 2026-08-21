@@ -91,6 +91,16 @@ export type AuthSourcesResponse = AuthAuthSourcesResponse;
 
 export type PasswordLoginRequest = AuthPasswordLoginRequest;
 
+export type PasswordCredentialRequest = AuthPasswordCredentialRequest;
+
+export type PasswordChangeChallenge = AuthPasswordChangeChallenge;
+
+export type InitialPasswordChangeRequest = AuthInitialPasswordChangeRequest;
+
+export type PasswordStepData = AuthPasswordStepData;
+
+export type PasswordStepResponse = AuthPasswordStepResponse;
+
 export type TokenRequest = AuthTokenRequest;
 
 export type TokenData = AuthTokenData;
@@ -622,6 +632,13 @@ export type AuthAuthTransactionId = string;
 
 export type AuthAuthorizationCode = string;
 
+export type AuthInitialPasswordChangeRequest = {
+    transactionId: AuthAuthTransactionId;
+    sourceId: IdentityIdentitySourceId;
+    csrfToken: string;
+    passwordChangeChallenge: AuthPasswordChangeChallenge;
+};
+
 export type AuthInstallationId = string;
 
 export type AuthLogoutData = {
@@ -633,7 +650,9 @@ export type AuthLogoutResponse = {
     requestId: RequestId;
 };
 
-export type AuthPasswordLoginRequest = {
+export type AuthPasswordChangeChallenge = string;
+
+export type AuthPasswordCredentialRequest = {
     transactionId: AuthAuthTransactionId;
     sourceId: IdentityIdentitySourceId;
     csrfToken: string;
@@ -642,6 +661,20 @@ export type AuthPasswordLoginRequest = {
      * Required for LOCAL only when the existing RuoYi captcha switch is enabled.
      */
     captchaId?: string;
+};
+
+export type AuthPasswordLoginRequest = AuthPasswordCredentialRequest | AuthInitialPasswordChangeRequest;
+
+export type AuthPasswordStepData = {
+    next: 'REDIRECT' | 'CHANGE_PASSWORD';
+    redirectUri?: string | null;
+    passwordChangeChallenge?: AuthPasswordChangeChallenge | null;
+    rejected: boolean;
+};
+
+export type AuthPasswordStepResponse = {
+    data: AuthPasswordStepData;
+    requestId: RequestId;
 };
 
 export type AuthPkceCodeChallenge = string;
@@ -1815,6 +1848,12 @@ export type InstallationIdWritable = AuthInstallationId;
 
 export type PasswordLoginRequestWritable = AuthPasswordLoginRequestWritable;
 
+export type PasswordCredentialRequestWritable = AuthPasswordCredentialRequestWritable;
+
+export type PasswordChangeChallengeWritable = AuthPasswordChangeChallenge;
+
+export type InitialPasswordChangeRequestWritable = AuthInitialPasswordChangeRequestWritable;
+
 export type DeviceStatusWritable = DeviceDeviceStatus;
 
 export type ModelProviderIdWritable = ModelModelProviderId;
@@ -1885,16 +1924,20 @@ export type EmptyAuditMetadataWritable = {
     [key: string]: never;
 };
 
-export type AuthPasswordLoginRequestWritable = {
+export type AuthInitialPasswordChangeRequestWritable = {
+    transactionId: AuthAuthTransactionId;
+    sourceId: IdentityIdentitySourceId;
+    csrfToken: string;
+    passwordChangeChallenge: AuthPasswordChangeChallenge;
+    newPassword: string;
+};
+
+export type AuthPasswordCredentialRequestWritable = {
     transactionId: AuthAuthTransactionId;
     sourceId: IdentityIdentitySourceId;
     csrfToken: string;
     username: string;
     password: string;
-    /**
-     * Required only after a LOCAL bootstrap account is redirected to the first-login password change form.
-     */
-    newPassword?: string;
     /**
      * Required for LOCAL only when the existing RuoYi captcha switch is enabled.
      */
@@ -1904,6 +1947,8 @@ export type AuthPasswordLoginRequestWritable = {
      */
     captchaCode?: string;
 };
+
+export type AuthPasswordLoginRequestWritable = AuthPasswordCredentialRequestWritable | AuthInitialPasswordChangeRequestWritable;
 
 export type GatewayGatewayModelWritable = ModelAlias | 'enterprise/default';
 
@@ -2095,9 +2140,22 @@ export type CompletePasswordLoginErrors = {
      * Authentication failed.
      */
     401: EnterpriseErrorResponse;
+    /**
+     * Initial credentials succeeded; continue with the returned short-lived one-time password-change challenge.
+     */
+    409: AuthPasswordStepResponse;
 };
 
 export type CompletePasswordLoginError = CompletePasswordLoginErrors[keyof CompletePasswordLoginErrors];
+
+export type CompletePasswordLoginResponses = {
+    /**
+     * Page client must navigate to the exact callback after authentication completes.
+     */
+    200: AuthPasswordStepResponse;
+};
+
+export type CompletePasswordLoginResponse = CompletePasswordLoginResponses[keyof CompletePasswordLoginResponses];
 
 export type StartOidcLoginData = {
     body?: never;
