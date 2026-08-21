@@ -6,7 +6,7 @@ Enterprise Agent Platform 是基于 DeepSeek Harness 构建的企业 Agent 管�
 
 ## 当前阶段
 
-T00 至 T22 已完成：仓库包含锁定产品源码、Harness 官方插件 workspace、Java/TypeScript 同源 OpenAPI 3.1 协议、PostgreSQL/Redis 企业模块、桌面管理控制台、插件分发闭环、Session 端到端复制、审计闭环、安全/故障基线和 Linux `amd64` 单机交付。T22 已用正式 release、假 OIDC/LDAP/DeepSeek upstream、双版本插件和三台锁定 rc.7 Harness 自动完成详细设计 14 步，日志秘密扫描、无密钥媒体和独立桌面复核均通过；按非生产 MVP 范围不执行镜像漏洞扫描。T23 试点是唯一下一项，但尚未开始。实际证据见 [`docs/t22-end-to-end-candidate-acceptance.md`](docs/t22-end-to-end-candidate-acceptance.md)。
+T00 至 T21 已完成：仓库包含锁定产品源码、Harness 官方插件 workspace、Java/TypeScript 同源 OpenAPI 3.1 协议、PostgreSQL/Redis 企业模块、桌面管理控制台、插件分发闭环、Session 端到端复制、审计闭环、安全/故障基线和 Linux `amd64` 单机交付。T22 正在使用单后端、单 Harness 本地环境逐功能人工验收；跨模块自动总编排已退役，T23 在人工确认完成前不启动。当前清单见 [`docs/t22-manual-acceptance.md`](docs/t22-manual-acceptance.md)。
 
 ## 文档
 
@@ -33,7 +33,7 @@ T00 至 T22 已完成：仓库包含锁定产品源码、Harness 官方插件 wo
 - [T19 审计闭环验收记录](docs/t19-audit-closure-acceptance.md)：30-action metadata 白名单、requestId 关联、只读权限、retention、用户治理和 heartbeat 防洪证据。
 - [T20 安全与故障验收记录](docs/t20-security-fault-acceptance.md)：有界请求、同源 CORS、graceful drain、日志扫描、服务/磁盘故障与四类数据恢复证据。
 - [T21 部署交付验收记录](docs/t21-deployment-delivery-acceptance.md)：Linux amd64 release、TLS Compose、一次性管理员、secret、健康检查、备份恢复、升级与仅应用回滚证据。
-- [T22 端到端功能候选版验收记录](docs/t22-end-to-end-candidate-acceptance.md)：正式 release 14 步、三设备 rc.7 Harness、日志秘密扫描、候选媒体与桌面人工复核证据。
+- [T22 人工功能验收](docs/t22-manual-acceptance.md)：单后端/单 Harness 启动方式、自动总编排退役决策与逐功能确认清单。
 
 实现者先阅读 MVP 详细设计的第 1 至 21 节，再严格按照第 22 节任务依赖推进。发现设计矛盾时先修订设计并记录决定，不在代码中引入未经确认的替代方案。
 
@@ -90,6 +90,14 @@ node scripts/upstream-baseline.mjs import
 本项目不自动跟随官方 `master`。升级时先修改版本锁中的 commit，在干净的 Harness checkout 中检出新 commit，再运行企业登录、模型网关、插件安装、Session 同步和 UI 组合测试；全部通过后，版本锁变更与必要的企业插件适配在同一个 PR 提交。
 
 日常开发不得修改同级 `deepseek-harness/`。确需验证官方尚未提供的扩展点时只能使用临时分支，最终结果必须形成官方可合并的通用 PR；产品任务等待包含该扩展点的新锁定 commit，不在本仓库长期维护 Harness patch。
+
+## 本地人工验收
+
+```sh
+./scripts/local-demo.sh
+```
+
+该入口启动一套正式 release 后端和一个企业插件 Harness，不运行 Playwright、外部 fixture、多设备控制面或自动业务操作，也没有人工等待超时。终端会输出管理端、Harness 和 LOCAL 首次登录凭据；保持进程运行即可逐功能检查，按 `Ctrl+C` 清理本次隔离环境。
 
 ## 安全
 

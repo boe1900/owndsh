@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 deploy Compose/Nginx/脚本、application-deploy.yml、Docker Compose v2 与临时假 secret。
- * [OUTPUT]: 验证四服务拓扑、唯一 443 发布、锁定及本地缓存镜像边界、可移植 SHA-256、bootstrap overlay、完整 deploy profile、API/SPA 路由边界和运维脚本边界。
- * [POS]: T21/T22 部署静态门禁，先于昂贵镜像构建发现配置漂移且不接触生产 secret。
+ * [OUTPUT]: 验证四服务拓扑、唯一 443 发布、锁定及本地缓存镜像边界、可移植 SHA-256、bootstrap overlay、完整 deploy profile、API/SPA 路由边界、运维脚本与本地体验边界。
+ * [POS]: T21 部署与本地人工验收静态门禁，先于昂贵镜像构建发现配置漂移且不接触生产 secret。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -261,10 +261,11 @@ test('Docker build contexts lock every build and runtime base by digest', () => 
   assert.match(read('.dockerignore'), /deploy\/secrets/)
 })
 
-test('T22 candidate verifies trust roots by stable aliases instead of localized keytool text', () => {
-  const candidate = read('scripts/t22-candidate.sh')
-  assert.match(candidate, /for trust_alias in candidate-idp-ca candidate-ldap-ca/)
-  assert.match(candidate, /-list -storetype JKS -alias "\$trust_alias"/)
-  assert.doesNotMatch(candidate, /-storetype PKCS12/)
-  assert.doesNotMatch(candidate, /2 entries/)
+test('local demo starts one real Harness without candidate automation', () => {
+  const localDemo = read('scripts/local-demo.sh')
+  assert.match(localDemo, /plugin --profile web add --ignore-scripts/)
+  assert.match(localDemo, /dsh --profile web --port "\$harness_port"/)
+  assert.match(localDemo, /NODE_EXTRA_CA_CERTS=/)
+  assert.match(localDemo, /COMPOSE_PROGRESS=quiet/)
+  assert.doesNotMatch(localDemo, /playwright|candidate-harness|manual_acceptance|accept:t22/)
 })

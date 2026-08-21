@@ -1,7 +1,0 @@
-# [INPUT]: 依赖 DeepSeek Harness 官方 bundle patch Loader。
-# [OUTPUT]: 插入候选受管工具 1.0.0 的唯一 Cordis row。
-# [POS]: T22 旧版本回滚制品的声明入口，与 v2 使用同一 row id 保持替换语义。
-# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
-- insert:
-    - id: enterprise-candidate-tools
-      name: '@enterprise-agent/candidate-tools'

@@ -1099,9 +1099,9 @@ OpenAPI contract test 对每个 operation 至少执行一个成功和一个失�
 
 `harness-plugin` 每个任务运行受影响包 Vitest、产品 workspace typecheck、build、pack、无 ambient shim 的真实 package consumer，以及安装到锁定 Harness checkout 的真实组合 smoke，并检查该 checkout 的跟踪文件保持干净。产品仓库的文档、lint 和差异检查按本仓库脚本执行；只有独立的上游 Harness PR 才按 `dsh-pre-push-checks` 运行上游门禁。
 
-平台仓库每个任务运行受影响模块 `./mvnw test`、管理端 `pnpm lint` 和相关测试；T22 功能候选运行完整 backend test、`pnpm build`、Playwright、Compose smoke、OpenAPI drift、release 制品完整性和日志敏感信息扫描。
+平台仓库每个任务只运行受影响模块的 `./mvnw test`、管理端 `pnpm lint`、协议漂移检查或真实 package consumer。T22 不再把这些检查串成跨模块总门禁；正式 release 由单后端、单 Harness 本地环境逐功能人工验证，发现问题后回到所属模块补最小回归。
 
-当前 MVP 用于验证第 21.1 节的产品功能，不作为生产上线候选。按范围决策，T22 不下载漏洞库、不执行镜像漏洞扫描，也不因扫描结果引入依赖或基础镜像升级；生产上线前的供应链与漏洞治理应作为独立安全阶段重新定义和验收。
+当前 MVP 用于人工验证第 21.1 节的产品功能，不作为生产上线候选。按范围决策，T22 不下载漏洞库、不执行镜像漏洞扫描，也不因扫描结果引入依赖或基础镜像升级；生产上线前的供应链与漏洞治理应作为独立安全阶段重新定义和验收。
 
 ## 21. 端到端验收
 
@@ -1174,14 +1174,14 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 | T19 审计闭环 | T05,T10,T13,T16 | 补齐所有 action、管理查询页、metadata 白名单和 retention | 第 13 节 action 覆盖测试；requestId 演示可关联；敏感模式扫描为零 |
 | T20 安全与故障 | T11,T12,T15,T18,T19 | 限流、请求体限制、超时、关闭 drain、日志扫描、备份恢复、服务不可达和磁盘故障 | 第 18.3 节应用安全负例、kill/restart、数据库/Redis/制品/key 恢复演练通过；TLS/proxy/bootstrap admin 依赖于 T21 |
 | T21 部署交付 | T20 | Compose、Nginx TLS、初始化管理员、secret 生成、健康检查、备份/升级/回滚脚本和文档 | 全新 Linux amd64 主机按文档安装成功；回滚保留数据库和 key |
-| T22 端到端功能候选版 | T21 | 固化假 IdP/LDAP/上游/测试插件，自动化第 21.1 节，录制产品 GIF | 14 步、完整功能 release checks 和简单人工页面验收全部通过；非生产 MVP 不执行镜像漏洞扫描 |
+| T22 人工功能验收 | T21 | 提供单后端、单 Harness 的本地启动入口，按第 21.1 节逐功能人工验证和优化；不维护跨模块自动总编排、假 opener、候选 fixture 或自动媒体 | 用户逐项确认 14 步真实体验；问题修复回到所属模块并运行最小相关测试；非生产 MVP 不执行镜像漏洞扫描 |
 | T23 试点 | T22 | 部署 20 用户环境、收集第 21.2 节指标，只修阻断和高频问题 | 两周数据形成明确继续/调整结论；未把远期功能塞入候选版 |
 
 ### 22.3 每个任务的提交要求
 
 - 产品 PR 不得包含 Harness 源码变更。确需上游扩展点时单独向官方仓库提交 PR，并按上游要求提供 Agent Note、文档和测试；产品任务等待包含该扩展点的新锁定 commit。
 - 新 package 同时提供 README、公开 JSDoc、invariant、单元测试和真实组合证据。
-- 新用户可见行为同时更新无密钥 snapshot；GUI 变更附真实流程 GIF。
+- 新用户可见行为由人工环境直接检查；只有需要长期保留的视觉回归才更新无密钥 snapshot，不强制为每次 GUI 变更录制 GIF。
 - Server 的 Controller、DTO、OpenAPI、权限码、migration 和审计 action 必须在同一任务提交，不能留下未保护端点。
 - 管理端页面和对应 Server API 同一纵向任务验收，不能先堆空页面或 mock-only 页面。
 - 任何暂缓项只记录在本文第 2.3 节或产品 backlog，不以未实现按钮、空接口或 TODO 占位进入发行代码。
@@ -1212,7 +1212,7 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 | T19 | `completed` | 2026-08-20 已交付 30-action 显式 metadata 白名单、tenant 隔离审计查询、365 天有界 retention、用户治理事务接缝、heartbeat 防洪和管理员/审计员只读页面；真实 PostgreSQL/Server/Playwright 与敏感模式扫描证据见 [`t19-audit-closure-acceptance.md`](t19-audit-closure-acceptance.md)。 |
 | T20 | `completed` | 2026-08-20 已交付默认同源 CORS、通用 JSON/Session/form/multipart 有界请求、无默认 JWT secret、30 秒 graceful drain、未知故障日志隔离、CI 秘密扫描与 PostgreSQL/Redis/artifact/key 恢复演练，见 [`t20-security-fault-acceptance.md`](t20-security-fault-acceptance.md)。 |
 | T21 | `completed` | 2026-08-20 已交付锁定 Linux amd64 release、只发布 Gateway HTTPS 的 Compose/Nginx、一次性初始化管理员、secret/health、数据与 key 分离备份恢复、升级和仅应用回滚；全新安装、恢复与 `0.1.0 -> 0.1.1 -> 应用回滚` 证据见 [`t21-deployment-delivery-acceptance.md`](t21-deployment-delivery-acceptance.md)。 |
-| T22 | `completed` | 2026-08-21 已用正式 Linux amd64 release、假 OIDC/LDAP/DeepSeek、双版本插件和三台锁定 rc.7 Harness 自动完成第 21.1 节 14 步；日志秘密扫描、无密钥媒体与独立桌面复核证据见 [`t22-end-to-end-candidate-acceptance.md`](t22-end-to-end-candidate-acceptance.md)。按非生产 MVP 范围未执行镜像漏洞扫描。 |
+| T22 | `in_progress` | 2026-08-21 退役三设备/Playwright/候选 fixture 自动总编排，改为单后端、单 Harness 的无时限人工验收；逐功能清单见 [`t22-manual-acceptance.md`](t22-manual-acceptance.md)。按非生产 MVP 范围不执行镜像漏洞扫描。 |
 | T23 | `pending` | T23 试点是唯一下一项，但尚未部署 20 用户环境、收集第 21.2 节指标或引入真实用户数据。 |
 
 ## 23. Definition of Done

@@ -19,14 +19,3 @@ test('LOCAL login targets exact credential labels', () => {
   assert.match(source, /getByLabel\('密码', \{ exact: true \}\)/);
   assert.doesNotMatch(source, /getByLabel\('密码'\)\.fill/);
 });
-
-test('manual candidate acceptance keeps CI bounded and allows a local override', () => {
-  const candidate = readFileSync(resolve(root, '../candidate-release.spec.ts'), 'utf8');
-  const script = readFileSync(resolve(root, '../../../scripts/t22-candidate.sh'), 'utf8');
-  assert.match(candidate, /ENT_T22_MANUAL_ACCEPTANCE_TIMEOUT_MS \?\? '600000'/);
-  assert.match(candidate, /timeoutMs < 60_000 \|\| timeoutMs > 24 \* 60 \* 60_000/);
-  assert.match(candidate, /test\.setTimeout\(12 \* 60_000 \+ MANUAL_ACCEPTANCE_TIMEOUT_MS\)/);
-  assert.match(candidate, /manual candidate acceptance was not released', MANUAL_ACCEPTANCE_TIMEOUT_MS/);
-  assert.match(script, /EAP_T22_MANUAL_ACCEPTANCE_TIMEOUT_MS:-600000/);
-  assert.match(script, /ENT_T22_MANUAL_ACCEPTANCE_TIMEOUT_MS="\$manual_acceptance_timeout_ms"/);
-});
