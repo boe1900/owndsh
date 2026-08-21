@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 EnterprisePlatformService、Cordis Context、真实 Node HTTP 假平台/本地 route carrier 与临时 DSH_HOME
- * [OUTPUT]: 验证 PKCE→Token→enroll→bootstrap、Cordis 代理调用、错误关联、内存秘密、刷新退避与停稳
+ * [OUTPUT]: 验证 PKCE→Token→enroll→bootstrap、Cordis 代理调用、错误关联、内存秘密、刷新期间连续请求、退避与停稳
  * [POS]: platform-client T06 核心生命周期测试，跨越真实 socket 而不伪造 Token 存储边界
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -458,6 +458,8 @@ describe('EnterprisePlatformService', () => {
     const secondRetry = (calls[2]?.at ?? 0) - (calls[1]?.at ?? 0)
     expect(firstRetry).toBeGreaterThanOrEqual(7)
     expect(secondRetry).toBeGreaterThan(firstRetry)
+    await expect(env.service.request('/enterprise/api/v1/probe').then(response => response.json()))
+      .resolves.toEqual({ data: { authorized: true } })
 
     env.setBootstrap('ok', 2)
     await vi.waitFor(() => {

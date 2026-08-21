@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖真实企业 PKCE/LOCAL HTTP 端点、Playwright Page/APIRequestContext 与 Web Crypto 原语
+ * [INPUT]: 依赖真实企业 PKCE/LOCAL HTTP 端点、精确账号/密码可访问标签、Playwright Page/APIRequestContext 与 Web Crypto 原语
  * [OUTPUT]: 提供管理/桌面平台登录、统一 bearer、RuoYi/企业响应解包和固定 dev-api 路径
  * [POS]: e2e/support 的认证协议夹具，供各纵向场景复用真实会话而不复制 Token 交换细节
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -52,8 +52,8 @@ export async function platformLogin(
   await page.waitForURL(/\/enterprise\/auth\/login\.html/);
   await expect(page.getByRole('heading', { name: '登录企业工作区' })).toBeVisible();
   await page.getByRole('button').filter({ hasText: 'Local' }).click();
-  await page.getByLabel('账号').fill(username);
-  await page.getByLabel('密码').fill(password);
+  await page.getByLabel('账号', { exact: true }).fill(username);
+  await page.getByLabel('密码', { exact: true }).fill(password);
   await page.getByRole('button', { name: '登录', exact: true }).click();
   await page.waitForURL(/\/index$/, { timeout: 30_000 });
   const token = await page.evaluate(() => sessionStorage.getItem('Admin-Token'));

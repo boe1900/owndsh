@@ -28,7 +28,7 @@ require_file "$EAP_STATE_DIR/runtime.env"
 release_root=$(release_root_for_script)
 verify_release "$release_root"
 require_command docker
-require_command sha256sum
+require_sha256
 acquire_operation_lock
 
 new_release=$(env_value EAP_RELEASE_VERSION "$release_root/manifest.env")

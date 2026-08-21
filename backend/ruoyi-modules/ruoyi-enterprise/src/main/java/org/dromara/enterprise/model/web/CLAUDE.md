@@ -16,7 +16,7 @@ ModelGrantBatchRequest.java: 最多 200 条授权的原子批量请求边界。
 ModelGrantView.java: subject/model 展示名与 revision 的管理投影。
 AdminModelGrantController.java: 授权 list/create/update/delete/batch 与 ent:grant 权限入口。
 DeletedModelResourceView.java: 模型/授权删除成功的统一 id/deleted 投影。
-BootstrapView.java: T06 严格客户端消费的完整脱敏 bootstrap 外壳及模型/配额/插件切片。
+BootstrapView.java: T06 严格客户端消费的完整脱敏 bootstrap 外壳，汇总模型/配额/插件切片并启用已交付的 Session 同步策略。
 BootstrapController.java: 只接受 ACTIVE dsh-desktop 设备的 runtime bootstrap 入口。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

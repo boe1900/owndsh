@@ -1,0 +1,55 @@
+# [INPUT]: 依赖 T22 编排器提供的端口、受控测试凭据、临时候选 CA/证书目录与本目录只读 fixture。
+# [OUTPUT]: 提供锁定 digest 的 HTTPS Node OIDC/DeepSeek 服务和具备 StartTLS 的 OpenLDAP 双用户目录。
+# [POS]: T22 外部系统唯一容器拓扑，与生产 release Compose 使用不同 project/volume 且不得携带真实企业数据。
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+name: ${EAP_T22_FIXTURE_PROJECT:-enterprise-agent-t22-fixtures}
+
+services:
+  candidate-services:
+    image: docker.io/library/node:24.14.1-alpine3.23@sha256:8510330d3eb72c804231a834b1a8ebb55cb3796c3e4431297a24d246b8add4d5
+    command: ["node", "/fixtures/candidate-services.mjs"]
+    environment:
+      ENT_CANDIDATE_PORT: "19091"
+      ENT_CANDIDATE_ORIGIN: ${EAP_T22_IDP_ORIGIN:?EAP_T22_IDP_ORIGIN must be set}
+      ENT_CANDIDATE_OIDC_CLIENT_ID: ${EAP_T22_OIDC_CLIENT_ID:?EAP_T22_OIDC_CLIENT_ID must be set}
+      ENT_CANDIDATE_OIDC_CLIENT_SECRET: ${EAP_T22_OIDC_CLIENT_SECRET:?EAP_T22_OIDC_CLIENT_SECRET must be set}
+      ENT_CANDIDATE_UPSTREAM_KEY: ${EAP_T22_UPSTREAM_KEY:?EAP_T22_UPSTREAM_KEY must be set}
+      ENT_CANDIDATE_TLS_CERT: /run/acceptance/idp.crt
+      ENT_CANDIDATE_TLS_KEY: /run/acceptance/idp.key
+    ports:
+      - "127.0.0.1:${EAP_T22_FIXTURE_PORT:-19091}:19091"
+    volumes:
+      - ./candidate-services.mjs:/fixtures/candidate-services.mjs:ro
+      - ${EAP_T22_IDP_TLS_DIR:?EAP_T22_IDP_TLS_DIR must be set}:/run/acceptance:ro
+    healthcheck:
+      test: ["CMD", "wget", "--no-check-certificate", "-q", "-O", "/dev/null", "https://127.0.0.1:19091/healthz"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    security_opt: [no-new-privileges:true]
+
+  ldap:
+    image: docker.io/osixia/openldap:1.5.0@sha256:18742e9c449c9c1afe129d3f2f3ee15fb34cc43e5f940a20f3399728f41d7c28
+    hostname: ldap.candidate.test
+    environment:
+      LDAP_ORGANISATION: Candidate Enterprise
+      LDAP_DOMAIN: candidate.test
+      LDAP_ADMIN_PASSWORD: ${EAP_T22_LDAP_ADMIN_PASSWORD:?EAP_T22_LDAP_ADMIN_PASSWORD must be set}
+      LDAP_TLS: "true"
+      LDAP_TLS_CRT_FILENAME: ldap.crt
+      LDAP_TLS_KEY_FILENAME: ldap.key
+      LDAP_TLS_CA_CRT_FILENAME: ca.crt
+      LDAP_TLS_VERIFY_CLIENT: never
+    ports:
+      - "127.0.0.1:${EAP_T22_LDAP_PORT:-1389}:389"
+    volumes:
+      - ./ldap/bootstrap.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/50-candidate.ldif:ro
+      - ${EAP_T22_LDAP_TLS_DIR:?EAP_T22_LDAP_TLS_DIR must be set}:/container/service/slapd/assets/certs:ro
+    command: ["--copy-service", "--loglevel", "warning"]
+    healthcheck:
+      test: ["CMD-SHELL", "ldapsearch -x -H ldap://127.0.0.1:389 -D 'cn=admin,dc=candidate,dc=test' -w \"$$LDAP_ADMIN_PASSWORD\" -b 'dc=candidate,dc=test' -s base dn >/dev/null"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+    security_opt: [no-new-privileges:true]

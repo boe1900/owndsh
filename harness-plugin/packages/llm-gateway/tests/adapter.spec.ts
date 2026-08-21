@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖官方 dsh-llm 消息/adapter 契约、Enterprise adapter 与可控内存平台 port
- * [OUTPUT]: 验证动态目录/default、请求 header/body、reasoning/tool/usage、错误矩阵及两类取消停稳
+ * [OUTPUT]: 验证动态目录/default、SSE/JSON 请求协商、header/body、reasoning/tool/usage、错误矩阵及两类取消停稳
  * [POS]: llm-gateway T11 核心单测，使用真实官方类型而不以 ambient shim 模拟 Harness
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -178,6 +178,7 @@ describe('EnterpriseGatewayAdapter', () => {
     expect(request?.input).toBe(ENTERPRISE_GATEWAY_PATH)
     const headers = new Headers(request?.init.headers)
     expect(headers.get('authorization')).toBeNull()
+    expect(headers.get('accept')).toBe('text/event-stream, application/json')
     expect(headers.get('user-agent')).toContain('deepseek-harness/0.1.0-rc.7')
     expect(headers.get('idempotency-key')).toBe('123e4567-e89b-42d3-a456-426614174000')
     expect(headers.get('x-harness-version')).toBe('0.1.0-rc.7')

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Spring JdbcOperations、V1 grant/model/provider 与 RuoYi sys_user/sys_dept。
- * [OUTPUT]: 对外提供授权 CRUD、subject 校验及三层 ACTIVE 有效候选 SQL。
+ * [OUTPUT]: 对外提供授权 CRUD、subject 校验及对无部门用户安全的三层 ACTIVE 有效候选 SQL。
  * [POS]: model/persistence 的授权 PostgreSQL adapter，企业事实按 tenant 约束，RuoYi 主体使用固定部署的全局主键。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -65,7 +65,8 @@ public final class JdbcModelGrantStore implements ModelGrantStore {
         join ent_model_provider p on p.id = m.provider_id and p.tenant_id = m.tenant_id
         where g.tenant_id = ? and g.status = 'ACTIVE' and m.status = 'ACTIVE' and p.status = 'ACTIVE'
           and ((g.subject_type = 'USER' and g.subject_id = ?)
-            or (g.subject_type = 'DEPT' and ? is not null and g.subject_id = ?))
+            or (g.subject_type = 'DEPT' and cast(? as bigint) is not null
+              and g.subject_id = cast(? as bigint)))
         order by m.sort_order, m.id, g.subject_type desc
         """;
 

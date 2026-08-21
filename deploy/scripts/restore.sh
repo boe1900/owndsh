@@ -29,15 +29,15 @@ require_file "$EAP_STATE_DIR/runtime.env"
 require_file "$data_backup/SHA256SUMS"
 require_file "$key_backup/SHA256SUMS"
 require_command docker
-require_command sha256sum
+require_sha256
 require_command tar
 (
   cd "$data_backup"
-  sha256sum -c SHA256SUMS >/dev/null
+  sha256sum_compat -c SHA256SUMS >/dev/null
 ) || fail "数据备份校验失败"
 (
   cd "$key_backup"
-  sha256sum -c SHA256SUMS >/dev/null
+  sha256sum_compat -c SHA256SUMS >/dev/null
 ) || fail "key 备份校验失败"
 acquire_operation_lock
 

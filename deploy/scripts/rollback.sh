@@ -20,7 +20,7 @@ require_safe_path "$EAP_STATE_DIR"
 require_file "$EAP_STATE_DIR/runtime.env"
 require_file "$EAP_STATE_DIR/rollback.env"
 require_command docker
-require_command sha256sum
+require_sha256
 acquire_operation_lock
 
 old_server=$(env_value EAP_SERVER_IMAGE "$EAP_STATE_DIR/rollback.env")

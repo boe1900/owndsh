@@ -14,7 +14,8 @@ Harness Host 的企业平台控制面。`EnterprisePlatformService` 通过 Cordi
 | `dispose()` | 取消登录/刷新/请求，关闭 SSE 和本地路由，等待工作停稳。 |
 
 `baseUrl` 必须是不含 user-info、path、query 或 fragment 的 HTTPS origin。默认
-bootstrap 刷新周期 60 秒、请求超时 30 秒、dispose 超时 3 秒。
+bootstrap 刷新周期 60 秒、请求超时 30 秒、dispose 超时 3 秒。刷新与退避期间继续使用
+内存 Token 和最后一份已校验 bootstrap 服务认证请求；只有明确认证过期或设备撤销才清空会话。
 
 Service 在 `$DSH_HOME/enterprise/device.json` 只持久化 installation UUID v4、显示名和
 创建时间。平台 Token 只位于 Host 内存，不写入设置、凭据、Session、日志或

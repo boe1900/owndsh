@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Cordis Service/WebServer、T02 contracts、PKCE/installation/browser 原语、插件/Session 反转端口与 Node fetch
- * [OUTPUT]: 对外提供 ctx.enterprisePlatform、七方法、平台/插件/Session 本地 API 与可关联稳定错误
+ * [OUTPUT]: 对外提供 ctx.enterprisePlatform、七方法、刷新期间连续可用的平台/插件/Session 本地 API 与可关联稳定错误
  * [POS]: platform-client 的 Host 业务核心，以 Cordis shadow-compatible 私有状态承载 Token、登录与刷新生命周期
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -318,7 +318,9 @@ export class EnterprisePlatformService extends Service {
     if (url.origin !== this.config.baseUrl.origin || url.username !== '' || url.password !== '') {
       throw new EnterprisePlatformError('ENT_INVALID_REQUEST', 'authenticated requests must stay on the platform origin')
     }
-    if (!TRANSITIONAL_REQUEST_PATHS.has(url.pathname) && this.currentStatus.state !== 'READY') {
+    if (!TRANSITIONAL_REQUEST_PATHS.has(url.pathname)
+      && this.currentStatus.state !== 'READY'
+      && this.currentStatus.state !== 'REFRESHING') {
       throw new EnterprisePlatformError('ENT_AUTH_REQUIRED', 'enterprise platform is not ready')
     }
     if (this.tokenExpiresAt !== 0 && this.now().getTime() >= this.tokenExpiresAt) {

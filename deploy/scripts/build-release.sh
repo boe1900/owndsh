@@ -1,5 +1,5 @@
 #!/bin/sh
-# [INPUT]: 依赖产品源码、RuoYi PostgreSQL 基线、锁定 digest 的 Linux amd64 Docker base、registry 前缀、pnpm workspace 与许可证。
+# [INPUT]: 依赖产品源码、RuoYi PostgreSQL 基线、锁定 digest 的 Linux amd64 Docker base、可选受验本地镜像缓存、pnpm workspace 与许可证。
 # [OUTPUT]: 生成含两张应用镜像、version 0 数据库基线、企业 bundle、Compose、脚本、文档和 SHA-256 清单的发布 tarball。
 # [POS]: T21 源码到离线交付包的唯一构建入口，不写入安装状态或生产 secret。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -33,10 +33,18 @@ esac
 require_command docker
 require_command node
 require_command pnpm
-require_command sha256sum
+require_sha256
 require_command tar
 architecture=$(docker version --format '{{.Server.Os}}/{{.Server.Arch}}')
 [ "$architecture" = linux/amd64 ] || fail "发布构建要求 linux/amd64 Docker，当前为 $architecture"
+
+local_image_by_digest() {
+  expected_digest=$1
+  image_ref=$(docker image ls --digests --format '{{.Repository}}@{{.Digest}}' \
+    | awk -v digest="$expected_digest" '$0 ~ "@" digest "$" { print; exit }')
+  [ -n "$image_ref" ] || fail "本地缺少锁定基础镜像: $expected_digest"
+  printf '%s\n' "$image_ref"
+}
 
 source_root=$(CDPATH= cd -- "$script_directory/../.." && pwd)
 output=$(mkdir -p "$output" && CDPATH= cd -- "$output" && pwd)
@@ -47,10 +55,23 @@ staging=$(mktemp -d "${TMPDIR:-/tmp}/eap-release.XXXXXX")
 trap 'rm -rf "$staging"' EXIT HUP INT TERM
 package_root="$staging/$package_name"
 
-docker build --platform linux/amd64 --build-arg EAP_BASE_IMAGE_REGISTRY="$base_image_registry" \
-  -f "$source_root/deploy/compose/Dockerfile.server" -t "$server_image" "$source_root"
-docker build --platform linux/amd64 --build-arg EAP_BASE_IMAGE_REGISTRY="$base_image_registry" \
-  -f "$source_root/deploy/compose/Dockerfile.gateway" -t "$gateway_image" "$source_root"
+if [ "${EAP_USE_LOCAL_BASE_IMAGES:-0}" = 1 ]; then
+  maven_image=$(local_image_by_digest sha256:922927df2c662cdd47ddb116443d6bec4696cfae3de1a0ddac8fcc7b87ce61ae)
+  jre_image=$(local_image_by_digest sha256:990397e0495ac088ab6ee3d949a2e97b715a134d8b96c561c5d130b3786a489d)
+  node_image=$(local_image_by_digest sha256:51dbfc749ec3018c7d4bf8b9ee65299ff9a908e38918ce163b0acfcd5dd931d9)
+  nginx_image=$(local_image_by_digest sha256:30f1c0d78e0ad60901648be663a710bdadf19e4c10ac6782c235200619158284)
+  DOCKER_BUILDKIT=0 docker build --platform linux/amd64 \
+    --build-arg EAP_MAVEN_IMAGE="$maven_image" --build-arg EAP_JRE_IMAGE="$jre_image" \
+    -f "$source_root/deploy/compose/Dockerfile.server" -t "$server_image" "$source_root"
+  DOCKER_BUILDKIT=0 docker build --platform linux/amd64 \
+    --build-arg EAP_NODE_IMAGE="$node_image" --build-arg EAP_NGINX_IMAGE="$nginx_image" \
+    -f "$source_root/deploy/compose/Dockerfile.gateway" -t "$gateway_image" "$source_root"
+else
+  docker build --platform linux/amd64 --build-arg EAP_BASE_IMAGE_REGISTRY="$base_image_registry" \
+    -f "$source_root/deploy/compose/Dockerfile.server" -t "$server_image" "$source_root"
+  docker build --platform linux/amd64 --build-arg EAP_BASE_IMAGE_REGISTRY="$base_image_registry" \
+    -f "$source_root/deploy/compose/Dockerfile.gateway" -t "$gateway_image" "$source_root"
+fi
 
 (cd "$source_root/harness-plugin" && pnpm run build && pnpm run pack:bundle)
 bundle="$source_root/artifacts/enterprise-agent-dsh-bundle-0.1.0.tgz"
@@ -79,7 +100,8 @@ EOF
 
 (
   cd "$package_root"
-  find . -type f ! -name SHA256SUMS -print | LC_ALL=C sort | xargs sha256sum > SHA256SUMS
+  find . -type f ! -name SHA256SUMS -print | LC_ALL=C sort \
+    | while IFS= read -r file; do sha256sum_compat "$file"; done > SHA256SUMS
 )
 tar -C "$staging" -czf "$output/$package_name.tgz" "$package_name"
 printf '%s\n' "发布包已生成: $output/$package_name.tgz"

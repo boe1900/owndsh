@@ -1,5 +1,5 @@
 #!/bin/sh
-# [INPUT]: 依赖已校验 release、全新绝对状态目录、端口一致的生产 HTTPS 输入与一次性管理员密码文件。
+# [INPUT]: 依赖已校验 release、全新绝对状态目录、隔离 Compose project、端口一致的生产 HTTPS 输入与一次性管理员密码文件。
 # [OUTPUT]: 生成安装 secret，加载镜像，事务初始化管理员，移除 bootstrap 副本并输出员工 profile 材料。
 # [POS]: T21 全新安装事务；已有 runtime.env 时 fail-closed，绝不覆盖既有数据库或 key。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -58,12 +58,15 @@ base_image_registry=${EAP_BASE_IMAGE_REGISTRY:-docker.io/library}
 case "$base_image_registry" in
   *[!A-Za-z0-9./:_-]*|'') fail "EAP_BASE_IMAGE_REGISTRY 格式不安全" ;;
 esac
+compose_project_name=${EAP_COMPOSE_PROJECT_NAME:-enterprise-agent-platform}
+printf '%s' "$compose_project_name" | grep -Eq '^[a-z0-9][a-z0-9_-]{0,62}$' \
+  || fail "EAP_COMPOSE_PROJECT_NAME 格式不安全"
 require_file "$bootstrap_password_file"
 require_file "$tls_cert"
 require_file "$tls_key"
 require_command docker
 require_command openssl
-require_command sha256sum
+require_sha256
 require_command curl
 release_root=$(release_root_for_script)
 verify_release "$release_root"
@@ -92,8 +95,8 @@ cp "$tls_key" "$EAP_STATE_DIR/tls/tls.key"
 cp "$bootstrap_password_file" "$EAP_STATE_DIR/secrets/bootstrap_admin_password"
 chmod 600 "$EAP_STATE_DIR"/secrets/* "$EAP_STATE_DIR"/tls/*
 
-cert_hash=$(openssl x509 -in "$EAP_STATE_DIR/tls/tls.crt" -pubkey -noout | openssl pkey -pubin -outform DER | sha256sum | awk '{print $1}')
-key_hash=$(openssl pkey -in "$EAP_STATE_DIR/tls/tls.key" -pubout -outform DER | sha256sum | awk '{print $1}')
+cert_hash=$(openssl x509 -in "$EAP_STATE_DIR/tls/tls.crt" -pubkey -noout | openssl pkey -pubin -outform DER | sha256sum_compat | awk '{print $1}')
+key_hash=$(openssl pkey -in "$EAP_STATE_DIR/tls/tls.key" -pubout -outform DER | sha256sum_compat | awk '{print $1}')
 [ "$cert_hash" = "$key_hash" ] || fail "TLS 证书与私钥不匹配"
 
 cat > "$EAP_STATE_DIR/runtime.env" <<EOF
@@ -102,7 +105,7 @@ EAP_RELEASE_VERSION=$release
 EAP_SERVER_IMAGE=$server_image
 EAP_GATEWAY_IMAGE=$gateway_image
 EAP_BASE_IMAGE_REGISTRY=$base_image_registry
-EAP_COMPOSE_PROJECT_NAME=enterprise-agent-platform
+EAP_COMPOSE_PROJECT_NAME=$compose_project_name
 EAP_HTTPS_BIND=0.0.0.0
 EAP_HTTPS_PORT=$https_port
 ENT_PUBLIC_BASE_URL=$public_base_url

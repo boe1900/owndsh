@@ -31,7 +31,7 @@ data_output=$(mkdir -p "$data_output" && CDPATH= cd -- "$data_output" && pwd)
 key_output=$(mkdir -p "$key_output" && CDPATH= cd -- "$key_output" && pwd)
 [ "$data_output" != "$key_output" ] || fail "普通数据与 key 备份目录必须分离"
 require_command docker
-require_command sha256sum
+require_sha256
 require_command tar
 if [ "${EAP_OPERATION_LOCK_HELD:-0}" != 1 ]; then
   acquire_operation_lock
@@ -62,14 +62,14 @@ EAP_RELEASE_VERSION=$(env_value EAP_RELEASE_VERSION "$(runtime_file)")
 EOF
 (
   cd "$data_backup"
-  sha256sum postgres.dump redis.rdb artifacts.tar.gz runtime.env backup.env > SHA256SUMS
+  sha256sum_compat postgres.dump redis.rdb artifacts.tar.gz runtime.env backup.env > SHA256SUMS
 )
 
 tar -C "$EAP_STATE_DIR/secrets" -czf "$key_backup/enterprise-keys.tar.gz" \
   enterprise_master_key plugin_signing_private_key plugin_signing_public_key
 (
   cd "$key_backup"
-  sha256sum enterprise-keys.tar.gz > SHA256SUMS
+  sha256sum_compat enterprise-keys.tar.gz > SHA256SUMS
 )
 chmod 600 "$data_backup"/* "$key_backup"/*
 printf '%s\n' "数据备份: $data_backup"

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖官方 LlmAdapter/attribution API、EnterprisePlatformService 内存认证请求与 OpenAI 映射模块
- * [OUTPUT]: 对外提供动态目录、default sentinel、单次尝试和可取消直连中心 HTTPS 的 EnterpriseGatewayAdapter
+ * [OUTPUT]: 对外提供动态目录、default sentinel、SSE/JSON 双媒体协商、单次尝试和可取消直连中心 HTTPS 的 EnterpriseGatewayAdapter
  * [POS]: llm-gateway 的 Harness provider 边界，不读取个人设置、上游 URL 或上游 credential
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -163,7 +163,7 @@ export class EnterpriseGatewayAdapter extends LlmAdapter {
         method: 'POST',
         headers: {
           ...attributionHeaders(),
-          accept: 'text/event-stream',
+          accept: 'text/event-stream, application/json',
           'content-type': 'application/json',
           'idempotency-key': this.#createIdempotencyKey(),
           'x-harness-version': this.#harnessVersion,

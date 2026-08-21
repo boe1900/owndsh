@@ -1,12 +1,13 @@
 /**
  * [INPUT]: 依赖 deploy Compose/Nginx/脚本、application-deploy.yml、Docker Compose v2 与临时假 secret。
- * [OUTPUT]: 验证四服务拓扑、唯一 443 发布、锁定 digest、bootstrap overlay、完整 deploy profile、可信代理头和运维脚本边界。
- * [POS]: T21 部署静态门禁，先于昂贵镜像构建发现配置漂移且不接触生产 secret。
+ * [OUTPUT]: 验证四服务拓扑、唯一 443 发布、锁定及本地缓存镜像边界、可移植 SHA-256、bootstrap overlay、完整 deploy profile、API/SPA 路由边界和运维脚本边界。
+ * [POS]: T21/T22 部署静态门禁，先于昂贵镜像构建发现配置漂移且不接触生产 secret。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import assert from 'node:assert/strict'
 import { execFileSync, spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -70,6 +71,7 @@ test('compose publishes only Gateway TLS and pins all third-party images', () =>
   assert.match(config.services.redis.image, /redis:7\.4\.5-alpine3\.21@sha256:[a-f0-9]{64}$/)
   assert.equal(config.services.server.platform, 'linux/amd64')
   assert.equal(config.services.gateway.platform, 'linux/amd64')
+  assert.equal(config.services.server.environment.ENT_ALLOW_INSECURE_OIDC, 'false')
 })
 
 test('compose registry mirror cannot change pinned runtime image content', () => {
@@ -91,9 +93,27 @@ test('gateway overwrites forwarding headers and keeps model SSE unbuffered', () 
   assert.match(nginx, /proxy_set_header Forwarded "";/)
   assert.match(nginx, /proxy_set_header X-Forwarded-For \$remote_addr;/)
   assert.match(nginx, /proxy_set_header X-Forwarded-Proto https;/)
+  assert.match(nginx, /map \$http_host \$external_https_port \{[\s\S]*?default 443;[\s\S]*?\}/)
+  assert.match(nginx, /proxy_set_header X-Forwarded-Port \$external_https_port;/)
+  assert.doesNotMatch(nginx, /proxy_set_header X-Forwarded-Port 443;/)
   assert.doesNotMatch(nginx, /\$proxy_add_x_forwarded_for/)
   assert.match(nginx, /enterprise\/gateway\/v1\/chat\/completions[\s\S]*?proxy_buffering off;/)
   assert.match(nginx, /ssl_protocols TLSv1\.2 TLSv1\.3;/)
+  assert.match(nginx, /add_header Referrer-Policy strict-origin always;/)
+  assert.doesNotMatch(nginx, /add_header Referrer-Policy no-referrer/)
+  const adminCallback = nginx.indexOf('location = /enterprise/auth/callback {')
+  assert.ok(adminCallback >= 0)
+  assert.match(
+    nginx.slice(adminCallback),
+    /root \/usr\/share\/nginx\/html;[\s\S]*?try_files \/index\.html =404;/
+  )
+  for (const namespace of ['admin/v1/', 'api/v1/', 'auth/']) {
+    assert.match(
+      nginx,
+      new RegExp(`location /enterprise/${namespace.replaceAll('/', '\\/')} \\{[\\s\\S]*?proxy_pass http://enterprise_server;`)
+    )
+  }
+  assert.doesNotMatch(nginx, /location \/enterprise\/ \{[\s\S]*?proxy_pass http:\/\/enterprise_server;/)
   for (const [directive, directory] of [
     ['client_body_temp_path', 'client_temp'],
     ['proxy_temp_path', 'proxy_temp'],
@@ -142,7 +162,30 @@ test('operations scripts parse and rollback cannot remove or restore data', () =
   const release = read('deploy/scripts/build-release.sh')
   assert.match(release, /bundle="\$source_root\/artifacts\/enterprise-agent-dsh-bundle-0\.1\.0\.tgz"/)
   assert.match(release, /backend\/script\/sql\/postgres\/postgres_ry_vue\.sql/)
+  assert.match(release, /EAP_USE_LOCAL_BASE_IMAGES/)
+  assert.match(release, /docker image ls --digests/)
+  assert.match(release, /DOCKER_BUILDKIT=0 docker build/)
   assert.doesNotMatch(release, /harness-plugin\/artifacts/)
+  for (const script of scripts.filter(file => file !== 'common.sh')) {
+    assert.doesNotMatch(read(`deploy/scripts/${script}`), /\bsha256sum\b/)
+  }
+})
+
+test('portable SHA-256 helper emits and verifies standard manifests', () => {
+  const state = mkdtempSync(join(tmpdir(), 'eap-sha256-'))
+  const payload = join(state, 'payload.txt')
+  const common = join(DEPLOY_ROOT, 'scripts', 'common.sh')
+  writeFileSync(payload, 'portable-release-checksum\n')
+  const expected = createHash('sha256').update(readFileSync(payload)).digest('hex')
+  const output = execFileSync('sh', [
+    '-c', '. "$1"; require_sha256; sha256sum_compat "$2"', 'sh', common, payload,
+  ], { encoding: 'utf8' })
+  assert.equal(output.trim().split(/\s+/)[0], expected)
+
+  writeFileSync(join(state, 'SHA256SUMS'), `${expected}  payload.txt\n`)
+  execFileSync('sh', [
+    '-c', '. "$1"; sha256sum_compat -c SHA256SUMS >/dev/null', 'sh', common,
+  ], { cwd: state })
 })
 
 test('installer rejects runtime.env injection and invalid published ports before mutation', () => {
@@ -184,17 +227,31 @@ test('installer rejects runtime.env injection and invalid published ports before
   ], { encoding: 'utf8' })
   assert.notEqual(mismatchedPort.status, 0)
   assert.match(mismatchedPort.stderr, /端口必须与 HTTPS 发布端口一致/)
+
+  const invalidProject = spawnSync('sh', [
+    install,
+    '--public-base-url', 'https://platform.example.test',
+    '--admin-redirect-uri', 'https://platform.example.test/enterprise/auth/callback',
+    ...sharedArgs,
+  ], { encoding: 'utf8', env: { ...process.env, EAP_COMPOSE_PROJECT_NAME: 'unsafe project' } })
+  assert.notEqual(invalidProject.status, 0)
+  assert.match(invalidProject.stderr, /EAP_COMPOSE_PROJECT_NAME 格式不安全/)
 })
 
 test('Docker build contexts lock every build and runtime base by digest', () => {
   for (const file of ['deploy/compose/Dockerfile.server', 'deploy/compose/Dockerfile.gateway']) {
     const dockerfile = read(file)
     assert.match(dockerfile, /ARG EAP_BASE_IMAGE_REGISTRY=docker\.io\/library/)
+    const imageArgs = dockerfile.split('\n').filter(line => /^ARG EAP_(?:MAVEN|JRE|NODE|NGINX)_IMAGE=/.test(line))
+    assert.equal(imageArgs.length, 2)
+    for (const line of imageArgs) {
+      assert.match(line, /=\$\{EAP_BASE_IMAGE_REGISTRY\}\//)
+      assert.match(line, /@sha256:[a-f0-9]{64}$/)
+    }
     const from = dockerfile.split('\n').filter(line => line.startsWith('FROM '))
     assert.ok(from.length >= 2)
     for (const line of from) {
-      assert.match(line, /^FROM \$\{EAP_BASE_IMAGE_REGISTRY\}\//)
-      assert.match(line, /@sha256:[a-f0-9]{64}(?:\s+AS\s+\w+)?$/i)
+      assert.match(line, /^FROM \$\{EAP_(?:MAVEN|JRE|NODE|NGINX)_IMAGE\}(?:\s+AS\s+\w+)?$/)
     }
   }
   assert.match(
@@ -202,4 +259,12 @@ test('Docker build contexts lock every build and runtime base by digest', () => 
     /COPY contracts\/generated\/enterprise-openapi\.json \/workspace\/contracts\/generated\/enterprise-openapi\.json/
   )
   assert.match(read('.dockerignore'), /deploy\/secrets/)
+})
+
+test('T22 candidate verifies trust roots by stable aliases instead of localized keytool text', () => {
+  const candidate = read('scripts/t22-candidate.sh')
+  assert.match(candidate, /for trust_alias in candidate-idp-ca candidate-ldap-ca/)
+  assert.match(candidate, /-list -storetype JKS -alias "\$trust_alias"/)
+  assert.doesNotMatch(candidate, /-storetype PKCS12/)
+  assert.doesNotMatch(candidate, /2 entries/)
 })

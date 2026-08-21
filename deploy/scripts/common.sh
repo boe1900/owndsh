@@ -1,6 +1,6 @@
 #!/bin/sh
-# [INPUT]: 依赖 POSIX shell、Docker Compose v2、runtime.env、release manifest 与安装状态目录。
-# [OUTPUT]: 为 T21 运维脚本提供单行输入约束、无 eval 环境读取、校验、锁、Compose 和健康等待函数。
+# [INPUT]: 依赖 POSIX shell、GNU sha256sum 或 macOS shasum、Docker Compose v2、runtime.env、release manifest 与安装状态目录。
+# [OUTPUT]: 为 T21/T22 运维脚本提供可移植 SHA-256、单行输入约束、无 eval 环境读取、校验、锁、Compose 和健康等待函数。
 # [POS]: deploy/scripts 的共享机制层；业务脚本决定事务顺序，本文件不读取或打印 secret 内容。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -13,6 +13,27 @@ fail() {
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || fail "缺少命令: $1"
+}
+
+sha256_command() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    printf '%s\n' sha256sum
+  elif command -v shasum >/dev/null 2>&1; then
+    printf '%s\n' shasum
+  else
+    fail "缺少 SHA-256 工具: sha256sum 或 shasum"
+  fi
+}
+
+require_sha256() {
+  sha256_command >/dev/null
+}
+
+sha256sum_compat() {
+  case "$(sha256_command)" in
+    sha256sum) sha256sum "$@" ;;
+    shasum) LC_ALL=C LANG=C shasum -a 256 "$@" ;;
+  esac
 }
 
 require_file() {
@@ -63,9 +84,10 @@ verify_release() {
   release_root=$1
   require_file "$release_root/manifest.env"
   require_file "$release_root/SHA256SUMS"
+  require_sha256
   (
     cd "$release_root"
-    sha256sum -c SHA256SUMS >/dev/null
+    sha256sum_compat -c SHA256SUMS >/dev/null
   ) || fail "release 校验和不匹配"
 }
 
@@ -127,6 +149,6 @@ volume_for() {
 key_fingerprint() {
   (
     cd "$EAP_STATE_DIR/secrets"
-    sha256sum enterprise_master_key plugin_signing_private_key plugin_signing_public_key
-  ) | sha256sum | awk '{print $1}'
+    sha256sum_compat enterprise_master_key plugin_signing_private_key plugin_signing_public_key
+  ) | sha256sum_compat | awk '{print $1}'
 }

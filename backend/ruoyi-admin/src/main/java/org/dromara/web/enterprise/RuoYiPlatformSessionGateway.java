@@ -1,11 +1,14 @@
 /**
- * [INPUT]: 依赖 PlatformSessionGateway、RuoYi user/RBAC 服务、LoginHelper 与 Sa-Token terminal API。
- * [OUTPUT]: 对外提供 12 小时非共享平台会话签发、可信当前会话读取和单 installation Token 撤销。
- * [POS]: ruoyi-admin composition adapter，使 ruoyi-enterprise 不反向依赖 SysLoginService/ISysUserService。
+ * [INPUT]: 依赖 PlatformSessionGateway、RuoYi user/RBAC 服务、LoginHelper 与 Sa-Token terminal/Token Session API。
+ * [OUTPUT]: 对外提供 12 小时非共享平台会话签发、可信当前会话读取和保留撤销原因的单 installation Token kickout。
+ * [POS]: ruoyi-admin composition adapter，使 ruoyi-enterprise 不反向依赖 SysLoginService/ISysUserService，并区分设备撤销与普通会话失效。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.web.enterprise;
 
+import cn.dev33.satoken.exception.NotLoginException;
+import cn.dev33.satoken.session.SaSession;
+import cn.dev33.satoken.stp.StpLogic;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.dev33.satoken.stp.parameter.SaLoginParameter;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +18,7 @@ import org.dromara.enterprise.auth.application.AuthFlowException;
 import org.dromara.enterprise.auth.application.IssuedPlatformSession;
 import org.dromara.enterprise.auth.application.PlatformSession;
 import org.dromara.enterprise.auth.application.PlatformSessionGateway;
+import org.dromara.enterprise.auth.application.PlatformSessionRevokedException;
 import org.dromara.enterprise.auth.domain.PlatformClient;
 import org.dromara.system.api.model.LoginUser;
 import org.dromara.system.domain.vo.SysUserVo;
@@ -29,6 +33,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public final class RuoYiPlatformSessionGateway implements PlatformSessionGateway {
     private static final long SESSION_SECONDS = 12 * 60 * 60;
+    static final String DEVICE_REVOKED_MARKER = "enterprise.device-revoked";
 
     private final ISysUserService userService;
     private final SysLoginService loginService;
@@ -53,7 +58,16 @@ public final class RuoYiPlatformSessionGateway implements PlatformSessionGateway
 
     @Override
     public PlatformSession current() {
-        StpUtil.checkLogin();
+        StpLogic logic = StpUtil.getStpLogic();
+        String tokenValue = StpUtil.getTokenValue();
+        try {
+            StpUtil.checkLogin();
+        } catch (NotLoginException exception) {
+            if (isRevokedDeviceToken(logic, tokenValue, exception)) {
+                throw new PlatformSessionRevokedException();
+            }
+            throw exception;
+        }
         Long userId = LoginHelper.getUserId();
         Object clientId = StpUtil.getExtra(LoginHelper.CLIENT_KEY);
         if (userId == null || clientId == null) throw new AuthFlowException("ENT_AUTH_REQUIRED");
@@ -80,12 +94,35 @@ public final class RuoYiPlatformSessionGateway implements PlatformSessionGateway
     public void revokeHarnessDevice(long userId, String installationId) {
         SysUserVo user = loadEnabledUser(userId);
         String loginId = user.getUserType() + ":" + userId;
-        StpUtil.getStpLogic().getTerminalListByLoginId(loginId).stream()
+        StpLogic logic = StpUtil.getStpLogic();
+        logic.getTerminalListByLoginId(loginId).stream()
             .filter(terminal -> "harness".equals(terminal.getDeviceType()))
             .filter(terminal -> installationId.equals(terminal.getDeviceId()))
             .map(terminal -> terminal.getTokenValue())
             .toList()
-            .forEach(token -> StpUtil.getStpLogic().logoutByTokenValue(token));
+            .forEach(token -> revokeDeviceToken(logic, token));
+    }
+
+    static boolean isRevokedDeviceToken(
+        StpLogic logic,
+        String tokenValue,
+        NotLoginException exception
+    ) {
+        if (!NotLoginException.KICK_OUT.equals(exception.getType())
+            || tokenValue == null
+            || tokenValue.isBlank()) {
+            return false;
+        }
+        SaSession tokenSession = logic.getTokenSessionByToken(tokenValue, false);
+        return tokenSession != null && Boolean.TRUE.equals(tokenSession.get(DEVICE_REVOKED_MARKER));
+    }
+
+    private static void revokeDeviceToken(StpLogic logic, String tokenValue) {
+        logic.getTokenSessionByToken(tokenValue, true).set(DEVICE_REVOKED_MARKER, true);
+        logic.kickoutByTokenValue(
+            tokenValue,
+            logic.createSaLogoutParameter().setIsKeepTokenSession(true)
+        );
     }
 
     private SysUserVo loadEnabledUser(long userId) {

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖真实 PostgreSQL 17、V1-V12 migrations、显式活动用户 fixture、模型 JDBC adapters、事务、AES-GCM 与设备服务。
- * [OUTPUT]: 验证不借用默认账号的 CRUD/CAS/回滚、幂等删除、密文保持、授权并集、默认优先级、停用和 ACTIVE bootstrap。
+ * [OUTPUT]: 验证不借用默认账号的 CRUD/CAS/回滚、幂等删除、密文保持、授权并集、无部门解析、默认优先级、停用和 ACTIVE bootstrap。
  * [POS]: T08 主要数据库验收，跨越 service/store/revision/audit 边界但不进入 T09/T10。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -154,6 +154,7 @@ class ModelManagementIntegrationTest {
             .containsExactly("deepseek-reasoner", "deepseek-chat");
         assertThat(effective).filteredOn(EffectiveModelResolver.EffectiveModel::isDefault)
             .singleElement().extracting(EffectiveModelResolver.EffectiveModel::alias).isEqualTo("deepseek-chat");
+        assertThat(resolver.resolve(TENANT, USER_ID + 1, null)).isEmpty();
 
         long beforeDefaultConflict = revisions.current(TENANT);
         assertThatThrownBy(() -> grants.update(

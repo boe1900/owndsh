@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 ModelGatewayController、统一异常边界、真实 parser、可信设备 context 与派生 JSON Schema。
- * [OUTPUT]: 验证 gateway SSE operation、UUID/体积/严格请求和全部首字节前稳定错误映射。
+ * [OUTPUT]: 验证 gateway SSE operation、SSE/JSON 内容协商、UUID/体积/严格请求和全部首字节前稳定错误映射。
  * [POS]: T10 Server/OpenAPI 同步门禁，生命周期服务使用 mock 以隔离 HTTP commit 边界。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -16,6 +16,7 @@ import org.dromara.enterprise.common.api.EnterpriseExceptionHandler;
 import org.dromara.enterprise.common.api.EnterpriseRequestIdFilter;
 import org.dromara.enterprise.device.application.DeviceCallContext;
 import org.dromara.enterprise.device.web.DeviceRequestContextResolver;
+import org.dromara.enterprise.quota.application.QuotaExceededException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -26,6 +27,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -38,6 +40,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
@@ -130,6 +133,27 @@ class T10GatewayApiContractTest {
             when(gateway.open(any(), any(), any())).thenThrow(new GatewayException(entry.getKey()));
             assertError(IDEMPOTENCY, validRequest(), entry.getValue(), entry.getKey().code());
         }
+    }
+
+    @Test
+    void negotiatesJsonQuotaFailureBeforeSseCommit() throws Exception {
+        when(gateway.open(any(), any(), any())).thenThrow(new QuotaExceededException(
+            QuotaExceededException.Kind.DAILY,
+            1_900_900_000_000_000_001L,
+            Instant.parse("2026-08-22T16:00:00Z")
+        ));
+        var response = mvc.perform(post("/enterprise/gateway/v1/chat/completions")
+                .header("Idempotency-Key", IDEMPOTENCY)
+                .accept(MediaType.TEXT_EVENT_STREAM, MediaType.APPLICATION_JSON)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(validRequest()))
+            .andExpect(status().isTooManyRequests())
+            .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+            .andExpect(jsonPath("$.error.code").value("ENT_QUOTA_DAILY_EXCEEDED"))
+            .andExpect(jsonPath("$.error.retryable").value(false))
+            .andExpect(jsonPath("$.error.requestId").isNotEmpty())
+            .andReturn().getResponse();
+        assertSchema(response.getContentAsString(), "EnterpriseErrorResponse");
     }
 
     private void assertError(String idempotency, String body, int status, String code) throws Exception {

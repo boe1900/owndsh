@@ -37,7 +37,7 @@
       "assignments": []
     },
     "sessionPolicy": {
-      "enabled": false,
+      "enabled": true,
       "retentionDays": 90,
       "maxBatchBytes": 1048576
     }

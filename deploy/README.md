@@ -19,9 +19,16 @@ EAP_BASE_IMAGE_REGISTRY=mirror.gcr.io/library \
   ./deploy/scripts/build-release.sh --version 0.1.0 --output /srv/releases
 ```
 
+若构建机已缓存这四个精确 digest，但 registry 暂时不可访问，可显式使用受验本地缓存。脚本按锁定 SHA-256 反查 `RepoDigest`，任一镜像缺失或不匹配都会拒绝构建，不接受仅有可变 tag 的镜像：
+
+```sh
+EAP_USE_LOCAL_BASE_IMAGES=1 \
+  ./deploy/scripts/build-release.sh --version 0.1.0 --output /srv/releases
+```
+
 ## 安装输入
 
-目标机需要 Docker Engine + Compose v2、OpenSSL、curl、tar、gzip 和 `sha256sum`。准备：
+目标机需要 Docker Engine + Compose v2、OpenSSL、curl、tar、gzip，以及 GNU `sha256sum` 或 macOS 自带的 `shasum`。准备：
 
 - 唯一、无路径的 ASCII `https://` 外部 authority，以及精确位于其下的 `/enterprise/auth/callback` 管理回调。
 - 与域名匹配的完整 TLS certificate chain 和未加密私钥。

@@ -27,7 +27,7 @@ fixtures/model-list-success.json: T08 受管模型 cursor 列表成功样例。
 fixtures/model-grant-success.json: T08 单条 USER 模型授权成功样例。
 fixtures/model-grant-list-success.json: T08 模型授权 cursor 列表成功样例。
 fixtures/model-grant-batch-success.json: T08 原子批量授权成功样例。
-fixtures/bootstrap-models-success.json: T08 ACTIVE 设备完整 bootstrap 外壳与有效模型目录样例。
+fixtures/bootstrap-models-success.json: T22 ACTIVE 设备完整 bootstrap 外壳、有效模型目录与已启用 Session 同步策略样例。
 fixtures/quota-policy-success.json: T09 部门 quota policy 详情与 nullable limits 成功样例。
 fixtures/quota-policy-list-success.json: T09 quota policy 空 cursor page 成功样例。
 fixtures/quota-window-list-success.json: T09 当前自然日窗口计数与 reset time 成功样例。

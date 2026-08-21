@@ -34,5 +34,11 @@ t19-01-request-id-correlation.png: T19 管理员按模型 requestId 查询 accep
 t19-02-metadata-whitelist.png: T19 显式 metadata 抽屉仅展示模型调用计数与关联 ID。
 t19-03-auditor-read-only.png: T19 审计员只读查询相同 requestId 且无治理写入口。
 t19-audit-closure.gif: T19 requestId 关联、metadata 白名单与审计员只读权限的真实管理端流程。
+t22-01-candidate-governance.png: T22 正式候选管理端 OIDC READY、配置脱敏与隔离 TLS 端点。
+t22-02-harness-model-ready.png: T22 锁定 rc.7 Harness 企业账号、设备、平台和 bundle 连接事实。
+t22-03-plugin-rollback-active.png: T22 真实双版本受管插件回滚后的本地版本、assignment 与 Loader 状态。
+t22-04-session-restored.png: T22 第二台 Harness 恢复新 Session ID、确认游标和远端副本列表。
+t22-05-audit-tombstone.png: T22 审计闭环完成后管理端 Session tombstone 页面。
+t22-end-to-end-candidate.gif: T22 身份、模型、插件、Session 恢复与 tombstone 的正式 release 关键流程。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

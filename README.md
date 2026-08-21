@@ -6,7 +6,7 @@ Enterprise Agent Platform 是基于 DeepSeek Harness 构建的企业 Agent 管�
 
 ## 当前阶段
 
-T00 至 T21 已完成：仓库包含锁定产品源码、Harness 官方插件 workspace、Java/TypeScript 同源 OpenAPI 3.1 协议、PostgreSQL/Redis 企业模块、桌面管理控制台、插件分发闭环、Session 端到端复制、审计闭环、安全/故障基线和 Linux `amd64` 单机交付。T21 已交付只发布 Gateway HTTPS 的锁定 Compose、可信代理头、一次性初始化管理员、secret 生成、健康检查、数据/key 分离备份、恢复、升级和仅应用回滚，并完成全新安装与数据/key 保持演练；下一项只能从 T22 开始。实际证据见 [`docs/t21-deployment-delivery-acceptance.md`](docs/t21-deployment-delivery-acceptance.md)。
+T00 至 T22 已完成：仓库包含锁定产品源码、Harness 官方插件 workspace、Java/TypeScript 同源 OpenAPI 3.1 协议、PostgreSQL/Redis 企业模块、桌面管理控制台、插件分发闭环、Session 端到端复制、审计闭环、安全/故障基线和 Linux `amd64` 单机交付。T22 已用正式 release、假 OIDC/LDAP/DeepSeek upstream、双版本插件和三台锁定 rc.7 Harness 自动完成详细设计 14 步，日志秘密扫描、无密钥媒体和独立桌面复核均通过；按非生产 MVP 范围不执行镜像漏洞扫描。T23 试点是唯一下一项，但尚未开始。实际证据见 [`docs/t22-end-to-end-candidate-acceptance.md`](docs/t22-end-to-end-candidate-acceptance.md)。
 
 ## 文档
 
@@ -33,6 +33,7 @@ T00 至 T21 已完成：仓库包含锁定产品源码、Harness 官方插件 wo
 - [T19 审计闭环验收记录](docs/t19-audit-closure-acceptance.md)：30-action metadata 白名单、requestId 关联、只读权限、retention、用户治理和 heartbeat 防洪证据。
 - [T20 安全与故障验收记录](docs/t20-security-fault-acceptance.md)：有界请求、同源 CORS、graceful drain、日志扫描、服务/磁盘故障与四类数据恢复证据。
 - [T21 部署交付验收记录](docs/t21-deployment-delivery-acceptance.md)：Linux amd64 release、TLS Compose、一次性管理员、secret、健康检查、备份恢复、升级与仅应用回滚证据。
+- [T22 端到端功能候选版验收记录](docs/t22-end-to-end-candidate-acceptance.md)：正式 release 14 步、三设备 rc.7 Harness、日志秘密扫描、候选媒体与桌面人工复核证据。
 
 实现者先阅读 MVP 详细设计的第 1 至 21 节，再严格按照第 22 节任务依赖推进。发现设计矛盾时先修订设计并记录决定，不在代码中引入未经确认的替代方案。
 

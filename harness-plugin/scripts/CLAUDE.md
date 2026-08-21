@@ -15,5 +15,6 @@ t15-browser-harness.mjs: T15 真实浏览器组合载体，以签名测试 bundl
 t17-harness-session-smoke.mjs: T17 锁定 rc.7 组合门禁，以 gated 假平台和真实 JSONL backend 验证非阻塞 append、确认游标、远端列表与新 ID 恢复。
 t17-session-sync-consumer.mjs: T17 树外 consumer，安装产品 tgz 与 npm 官方 rc.7 包并运行真实 SessionStore/JSONL persistence 同步恢复链路。
 t18-browser-harness.mjs: T18 真实浏览器组合载体，以跨设备远端副本驱动恢复/上传/删除，重启同一临时 profile 验证 DELETED 游标阻止重传并守护锁定 Harness 清洁度。
+t22-candidate-harness.mjs: T22 候选版桌面组合载体，以三个隔离 DSH_HOME 驱动真实 OIDC、ctx.llm、官方 finish failure 归一、CLI 插件重启/回滚、Session 双设备恢复和撤销矩阵，并在收口时证明锁定 Harness 清洁。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

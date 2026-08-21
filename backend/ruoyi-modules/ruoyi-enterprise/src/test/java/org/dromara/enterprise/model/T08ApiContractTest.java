@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 T08 四个 Controller、MockMvc、认证 cursor、requestId filter 与派生 JSON Schemas。
- * [OUTPUT]: 验证 provider/model/grant/bootstrap 全部 operation 的成功/失败协议、权限码与 secret 隔离。
+ * [OUTPUT]: 验证 provider/model/grant/bootstrap 全部 operation 的成功/失败协议、Session 策略启用、权限码与 secret 隔离。
  * [POS]: T08 Server/OpenAPI 同步门禁，application services 使用 mock 以隔离 HTTP 翻译。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -220,6 +220,7 @@ class T08ApiContractTest {
         assertSchema(body, "BootstrapResponse");
         assertThat(body)
             .contains("deepseek-chat")
+            .contains("\"sessionPolicy\":{\"enabled\":true")
             .doesNotContain("api.deepseek")
             .doesNotContain("upstreamModel")
             .doesNotContain(SECRET);

@@ -8,7 +8,8 @@ URL、上游 API Key 或平台 Token。
 `EnterprisePlatformService.bootstrap()`；`enterprise/default` 在调用时解析为当前用户的
 有效默认模型，但仍以 sentinel 发给中心网关，由服务端逐请求重新裁决授权。模型目录事实变化时，
 `registerEnterpriseGateway()` 对现有 registration 原子执行 `replace(['enterprise'])`，复用
-官方 `llm/adapters-updated` 通知选择器。
+官方 `llm/adapters-updated` 通知选择器。Harness Runtime 在进入 adapter stream 前执行模型解析，
+服务端仍对每个请求执行独立二次授权。
 
 模型调用固定发送到中心 `/enterprise/gateway/v1/chat/completions`。Harness attribution、
 幂等键和版本 header 由 adapter 生成，平台 `Authorization` 只由

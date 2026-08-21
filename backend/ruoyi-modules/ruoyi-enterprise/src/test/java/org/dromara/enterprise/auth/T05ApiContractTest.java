@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 T05 auth/device Controllers、MockMvc、认证 cursor、统一异常/filter 与派生 JSON Schema。
- * [OUTPUT]: 验证七个认证、两个 Runtime 设备、三个管理设备 operation 的 HTTP 翻译和权限入口。
+ * [INPUT]: 依赖 T05 auth/device Controllers、真实设备上下文解析器、MockMvc、认证 cursor、统一异常/filter 与派生 JSON Schema。
+ * [OUTPUT]: 验证七个认证、两个 Runtime 设备、三个管理设备 operation，以及撤销 Token 的 HTTP 翻译和权限入口。
  * [POS]: T05 Server/OpenAPI 同步门禁，Application Service 使用 mock 以隔离协议与 redirect 行为。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -13,6 +13,8 @@ import com.networknt.schema.SchemaRegistry;
 import com.networknt.schema.SpecificationVersion;
 import org.dromara.enterprise.auth.application.AuthSources;
 import org.dromara.enterprise.auth.application.PlatformAuthorizationService;
+import org.dromara.enterprise.auth.application.PlatformSessionGateway;
+import org.dromara.enterprise.auth.application.PlatformSessionRevokedException;
 import org.dromara.enterprise.auth.application.PasswordChangeRequiredException;
 import org.dromara.enterprise.auth.application.PublicIdentitySource;
 import org.dromara.enterprise.auth.application.TokenExchangeResult;
@@ -29,6 +31,7 @@ import org.dromara.enterprise.device.domain.EnterpriseDevice;
 import org.dromara.enterprise.device.web.AdminDeviceController;
 import org.dromara.enterprise.device.web.DeviceRequestContextResolver;
 import org.dromara.enterprise.device.web.RuntimeDeviceController;
+import org.dromara.enterprise.device.web.RuoYiDeviceRequestContextResolver;
 import org.dromara.enterprise.auth.application.PlatformSession;
 import org.dromara.enterprise.auth.domain.PlatformClient;
 import org.junit.jupiter.api.BeforeEach;
@@ -269,6 +272,37 @@ class T05ApiContractTest {
             "get", "ent:device:read",
             "revoke", "ent:device:revoke"
         ));
+    }
+
+    @Test
+    void mapsExplicitlyRevokedPlatformTokenToDeviceRevokedHttpError() throws Exception {
+        PlatformSessionGateway sessions = mock(PlatformSessionGateway.class);
+        when(sessions.current()).thenThrow(new PlatformSessionRevokedException());
+        EnterpriseIdentityProperties properties = new EnterpriseIdentityProperties();
+        properties.setTenantId("000000");
+        MockMvc revokedMvc = standaloneSetup(new RuntimeDeviceController(
+            devices,
+            new RuoYiDeviceRequestContextResolver(properties, sessions)
+        )).setControllerAdvice(new EnterpriseExceptionHandler())
+            .addFilters(new EnterpriseRequestIdFilter())
+            .build();
+
+        revokedMvc.perform(post("/enterprise/api/v1/devices/enroll")
+                .header("Authorization", "Bearer revoked-device-token")
+                .header("X-Device-Id", "123e4567-e89b-42d3-a456-426614174099")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "installationId":"%s",
+                      "name":"Alice MacBook",
+                      "platform":"darwin-arm64",
+                      "harnessVersion":"0.2.9",
+                      "enterpriseBundleVersion":"0.1.0"
+                    }
+                    """.formatted(INSTALLATION)))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.error.code").value("ENT_DEVICE_REVOKED"))
+            .andExpect(jsonPath("$.error.retryable").value(false));
     }
 
     private static void assertPermissions(Class<?> controller, Map<String, String> expected) {
