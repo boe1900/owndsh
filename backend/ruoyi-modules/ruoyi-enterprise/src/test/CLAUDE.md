@@ -10,11 +10,11 @@ java/org/dromara/enterprise/auth/OidcIdentityAdapterTest.java: 使用 WireMock�
 java/org/dromara/enterprise/auth/LdapIdentityAdapterTest.java: 使用 StartTLS OpenLDAP 验证 manager search、用户 bind、LDAPS/StartTLS 互斥、RFC 4515 转义和 entryUUID 稳定 subject。
 java/org/dromara/enterprise/auth/IdentityPersistenceIntegrationTest.java: 以真实 PostgreSQL 验证身份秘密隔离、keyset、资源 CAS、revision/审计回滚、活动用户名冲突下的稳定 subject、显式绑定冲突和多部门映射冲突。
 java/org/dromara/enterprise/auth/IdentityAdminApiTest.java: 以 MockMvc 和 OpenAPI 派生 schema 验证 T04 十个管理 operation、认证 cursor、requestId、权限码、revision 错误与秘密输出隔离。
-java/org/dromara/enterprise/auth/EnterpriseAuthResourceConfigurationTest.java: 以真实 Spring MVC 资源链验证 login.html/css/js 与首次改密字段/控制逻辑可达且模块文档不公开。
+java/org/dromara/enterprise/auth/EnterpriseAuthResourceConfigurationTest.java: 以真实 Spring MVC 资源链验证 login.html/css/js、密码失败留页与首次改密控制逻辑可达且模块文档不公开。
 java/org/dromara/enterprise/auth/EnterpriseIdentityConfigurationTest.java: 验证 Java 公网 HTTPS authority 接受默认/合法显式端口并拒绝端口越界、路径、查询和 user-info。
 java/org/dromara/enterprise/auth/PlatformAuthorizationSecurityTest.java: 使用真实 Redis 验证 S256/redirect/client 参数、code 原子消费、并发交换、取消和失效事务零用户副作用。
 java/org/dromara/enterprise/auth/RedisAuthStateStoreIntegrationTest.java: 使用 Redis 8 验证 5 分钟事务、60 秒 code、GETDEL 唯一消费、过期/取消与 OIDC key 分区。
-java/org/dromara/enterprise/auth/T05ApiContractTest.java: 以 MockMvc 和派生 JSON Schema 验证七个认证、五个设备 operation、权限注解及显式撤销 Token 的 403 协议翻译。
+java/org/dromara/enterprise/auth/T05ApiContractTest.java: 以 MockMvc 和派生 JSON Schema 验证七个认证、HTML 密码失败留页、JSON 错误兼容、五个设备 operation、权限注解及显式撤销 Token 的 403 协议翻译。
 java/org/dromara/enterprise/device/DeviceContextIsolationTest.java: 证明伪造 X-Device-Id 不会覆盖 Sa-Token terminal 的 installation 授权事实。
 java/org/dromara/enterprise/device/DeviceLifecycleIntegrationTest.java: 以真实 PostgreSQL 验证多设备 owner、heartbeat 审计限频/状态切换、CAS、审计同事务与单设备撤销隔离。
 java/org/dromara/enterprise/model/ProviderProbeTest.java: 使用 WireMock 验证 `/models` Bearer 探测、状态分类、正文隔离与 no-redirect。

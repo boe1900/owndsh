@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 transaction/source/password_change 查询、enterprise 认证 API、RuoYi 验证码与 login DOM。
- * [OUTPUT]: 提供身份源加载、LOCAL 首次改密/验证码、凭据清理、CSRF 表单校验和 OIDC 导航。
+ * [INPUT]: 依赖 transaction/source/password_change/login_error 查询、enterprise 认证 API、RuoYi 验证码与 login DOM。
+ * [OUTPUT]: 提供身份源加载、密码失败留页提示、LOCAL 首次改密/验证码、凭据清理、CSRF 表单校验和 OIDC 导航。
  * [POS]: 公开认证页面控制器，敏感状态仅驻留当前页面内存且永不读取平台 Token。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -10,6 +10,7 @@ const transactionId = params.get('transaction_id')
 const requestedSourceId = params.get('source_id')
 const passwordChangeState = params.get('password_change')
 const passwordChangeRequested = passwordChangeState === 'required' || passwordChangeState === 'rejected'
+const loginFailed = params.get('login_error') === '1'
 const sourceList = document.querySelector('#source-list')
 const passwordForm = document.querySelector('#password-form')
 const selectedSource = document.querySelector('#selected-source')
@@ -117,6 +118,7 @@ async function chooseSource(source, requirePasswordChange = false) {
     hidePasswordChange()
     hideCaptcha()
   }
+  if (loginFailed) status.textContent = '账号、密码或验证码不正确，请重试。'
   username.focus()
 }
 
@@ -146,11 +148,13 @@ async function loadSources() {
       button.append(name, type)
       button.addEventListener('click', () => void chooseSource(source))
       sourceList.append(button)
-      if (passwordChangeRequested && String(source.id) === requestedSourceId && source.type === 'LOCAL') {
+      const retryPassword = loginFailed && source.type !== 'OIDC'
+      const retryPasswordChange = passwordChangeRequested && source.type === 'LOCAL'
+      if ((retryPassword || retryPasswordChange) && String(source.id) === requestedSourceId) {
         requestedSource = source
       }
     }
-    if (requestedSource) await chooseSource(requestedSource, true)
+    if (requestedSource) await chooseSource(requestedSource, passwordChangeRequested)
   } catch {
     fail()
   }

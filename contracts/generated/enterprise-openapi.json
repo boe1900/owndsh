@@ -696,7 +696,7 @@
         },
         "responses": {
           "303": {
-            "description": "Redirect to the exact client callback, or back to the same LOCAL transaction when initial password change is required.",
+            "description": "Redirect to the exact client callback, or return an HTML form client to the same password transaction after a credential failure or required initial password change.",
             "headers": {
               "Location": {
                 "required": true,

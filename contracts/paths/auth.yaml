@@ -1,5 +1,5 @@
 # [INPUT]: 依赖根协议的参数、响应与 auth schema，依赖 T05 公开认证 Controller 的实际 redirect/status 行为
-# [OUTPUT]: 提供 authorize/sources/password/OIDC/token/logout 七个 OpenAPI Path Item
+# [OUTPUT]: 提供 authorize/sources/password/OIDC/token/logout 七个 OpenAPI Path Item，区分浏览器留页重试与 JSON 错误
 # [POS]: contracts/paths 的固定 public client 登录协议分片，使根 OpenAPI 保持导航职责
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -57,7 +57,7 @@ Password:
             $ref: '../enterprise-openapi.yaml#/components/schemas/PasswordLoginRequest'
     responses:
       '303':
-        description: Redirect to the exact client callback, or back to the same LOCAL transaction when initial password change is required.
+        description: Redirect to the exact client callback, or return an HTML form client to the same password transaction after a credential failure or required initial password change.
         headers:
           Location:
             required: true

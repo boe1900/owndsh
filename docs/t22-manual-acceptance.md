@@ -28,7 +28,7 @@ EAP_LOCAL_RELEASE_TARBALL=/absolute/path/enterprise-agent-platform-0.1.0-linux-a
 ## 验收顺序
 
 - [ ] 启动：管理端健康，Harness 页面可打开，只有一个本地 Harness 实例。
-- [ ] 登录：点击“登录企业账号”后系统浏览器自动打开；使用 LOCAL 账号完成首次改密，Harness 回到 `READY`。
+- [ ] 登录：点击“登录企业账号”后系统浏览器自动打开；错误账号、密码或验证码应留在登录页提示并刷新验证码；使用 LOCAL 账号完成首次改密后 Harness 回到 `READY`。
 - [ ] 身份与设备：管理端能看到当前用户和 ACTIVE 设备；身份源配置、测试和组映射符合预期。
 - [ ] 模型与配额：手工配置 provider、模型、授权和配额；Harness 能发现并调用已授权模型，未授权与超额提示准确。
 - [ ] 插件：手工上传实际待验证插件，完成发布、分配、安装、重启确认和回滚，员工页状态与真实 Loader 一致。

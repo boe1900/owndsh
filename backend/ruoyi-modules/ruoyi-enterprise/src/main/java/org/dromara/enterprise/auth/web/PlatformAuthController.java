@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 PlatformAuthorizationService、固定 enterprise 配置、可信 metadata 与 HTTPS 密码/首次改密表单。
- * [OUTPUT]: 提供 authorize/sources/password/OIDC start+callback/token/logout，并把首次改密重定向回原事务。
+ * [OUTPUT]: 提供 authorize/sources/password/OIDC start+callback/token/logout，并把浏览器密码失败与首次改密重定向回原事务。
  * [POS]: auth/web 的最小平台登录门面，只翻译协议并把当前/新密码生命周期限制在单次请求内。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -16,7 +16,9 @@ import org.dromara.enterprise.auth.application.TokenExchangeResult;
 import org.dromara.enterprise.auth.domain.PlatformClient;
 import org.dromara.enterprise.common.api.EnterpriseRequestMetadata;
 import org.dromara.enterprise.common.api.EnterpriseResponse;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -112,12 +114,15 @@ public final class PlatformAuthController {
                 return ResponseEntity.status(HttpStatus.SEE_OTHER).location(callback).build();
             } catch (PasswordChangeRequiredException exception) {
                 String changeState = exception.rejected() ? "rejected" : "required";
-                URI retry = URI.create(
-                    "/enterprise/auth/login.html?transaction_id=" + transactionId
-                        + "&source_id=" + parsedSourceId
-                        + "&password_change=" + changeState
-                );
-                return ResponseEntity.status(HttpStatus.SEE_OTHER).location(retry).build();
+                return ResponseEntity.status(HttpStatus.SEE_OTHER)
+                    .location(loginRetry(transactionId, parsedSourceId, changeState, false))
+                    .build();
+            } catch (AuthFlowException exception) {
+                if (!"ENT_AUTH_REQUIRED".equals(exception.code()) || !acceptsHtml(request)) throw exception;
+                String changeState = newPasswordChars == null ? null : "required";
+                return ResponseEntity.status(HttpStatus.SEE_OTHER)
+                    .location(loginRetry(transactionId, parsedSourceId, changeState, true))
+                    .build();
             }
         } finally {
             Arrays.fill(passwordChars, '\0');
@@ -222,6 +227,31 @@ public final class PlatformAuthController {
 
     private static void requireHttps(HttpServletRequest request) {
         if (!request.isSecure()) throw new AuthFlowException("ENT_INVALID_REQUEST");
+    }
+
+    private static boolean acceptsHtml(HttpServletRequest request) {
+        String accept = request.getHeader(HttpHeaders.ACCEPT);
+        if (accept == null) return false;
+        try {
+            return MediaType.parseMediaTypes(accept).stream()
+                .anyMatch(mediaType -> !mediaType.isWildcardType()
+                    && MediaType.TEXT_HTML.isCompatibleWith(mediaType));
+        } catch (IllegalArgumentException exception) {
+            return false;
+        }
+    }
+
+    private static URI loginRetry(
+        String transactionId,
+        long sourceId,
+        String passwordChangeState,
+        boolean loginError
+    ) {
+        String location = "/enterprise/auth/login.html?transaction_id=" + transactionId
+            + "&source_id=" + sourceId;
+        if (passwordChangeState != null) location += "&password_change=" + passwordChangeState;
+        if (loginError) location += "&login_error=1";
+        return URI.create(location);
     }
 
     public record LogoutView(boolean loggedOut) {
