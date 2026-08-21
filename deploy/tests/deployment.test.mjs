@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 deploy Compose/Nginx/脚本、application-deploy.yml、Docker Compose v2 与临时假 secret。
- * [OUTPUT]: 验证四服务拓扑、唯一 443 发布、锁定及本地缓存镜像边界、可移植 SHA-256、bootstrap overlay、完整 deploy profile、API/SPA 路由边界、运维脚本与本地体验边界。
+ * [OUTPUT]: 验证四服务拓扑、唯一 443 发布、Server Fontconfig 临时缓存、锁定及本地缓存镜像边界、可移植 SHA-256、bootstrap overlay、完整 deploy profile、API/SPA 路由边界、运维脚本与本地体验边界。
  * [POS]: T21 部署与本地人工验收静态门禁，先于昂贵镜像构建发现配置漂移且不接触生产 secret。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -72,6 +72,10 @@ test('compose publishes only Gateway TLS and pins all third-party images', () =>
   assert.equal(config.services.server.platform, 'linux/amd64')
   assert.equal(config.services.gateway.platform, 'linux/amd64')
   assert.equal(config.services.server.environment.ENT_ALLOW_INSECURE_OIDC, 'false')
+  assert.equal(config.services.server.environment.XDG_CACHE_HOME, '/tmp')
+  assert.ok(config.services.server.tmpfs.some(mount =>
+    typeof mount === 'string' ? mount.split(':')[0] === '/tmp' : mount.target === '/tmp'
+  ))
 })
 
 test('compose registry mirror cannot change pinned runtime image content', () => {
@@ -254,6 +258,10 @@ test('Docker build contexts lock every build and runtime base by digest', () => 
       assert.match(line, /^FROM \$\{EAP_(?:MAVEN|JRE|NODE|NGINX)_IMAGE\}(?:\s+AS\s+\w+)?$/)
     }
   }
+  assert.match(
+    read('deploy/compose/Dockerfile.server'),
+    /eclipse-temurin:21\.0\.8_9-jre-jammy@sha256:[a-f0-9]{64}/
+  )
   assert.match(
     read('deploy/compose/Dockerfile.gateway'),
     /COPY contracts\/generated\/enterprise-openapi\.json \/workspace\/contracts\/generated\/enterprise-openapi\.json/

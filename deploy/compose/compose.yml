@@ -1,5 +1,5 @@
-# [INPUT]: 依赖 release manifest/runtime.env、上游 PostgreSQL 基线、安装 secret、四个持久卷与锁定 Linux amd64 镜像。
-# [OUTPUT]: 提供首次装载 RuoYi 基线、只发布 443 的 Gateway、单 Server、PostgreSQL 17.6 和 Redis 7.4.5 拓扑。
+# [INPUT]: 依赖 release manifest/runtime.env、上游 PostgreSQL 基线、安装 secret、四个持久卷、可写临时目录与锁定 Linux amd64 镜像。
+# [OUTPUT]: 提供首次装载 RuoYi 基线、只发布 443 的 Gateway、具备 Fontconfig 临时缓存的单 Server、PostgreSQL 17.6 和 Redis 7.4.5 拓扑。
 # [POS]: T21 部署唯一运行时事实源；空数据库先由官方 initdb 装载 version 0，已有卷不重放，Flyway 接管后续版本。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -81,6 +81,7 @@ services:
       ENT_MASTER_KEY_FILE: /run/secrets/enterprise_master_key
       ENT_PLUGIN_SIGNING_PRIVATE_KEY_FILE: /run/secrets/plugin_signing_private_key
       ENT_ARTIFACT_ROOT: /var/lib/enterprise/artifacts
+      XDG_CACHE_HOME: /tmp
       JAVA_TOOL_OPTIONS: ${EAP_JAVA_TOOL_OPTIONS:--XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError}
       TZ: ${ENT_DEPLOYMENT_TIME_ZONE:-Asia/Shanghai}
     secrets:

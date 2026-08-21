@@ -57,7 +57,7 @@ package_root="$staging/$package_name"
 
 if [ "${EAP_USE_LOCAL_BASE_IMAGES:-0}" = 1 ]; then
   maven_image=$(local_image_by_digest sha256:922927df2c662cdd47ddb116443d6bec4696cfae3de1a0ddac8fcc7b87ce61ae)
-  jre_image=$(local_image_by_digest sha256:990397e0495ac088ab6ee3d949a2e97b715a134d8b96c561c5d130b3786a489d)
+  jre_image=$(local_image_by_digest sha256:cddd554e8d69b48b46e8b0c9d1ce72ae5fe8d84819dcdb7131328531e9cc100b)
   node_image=$(local_image_by_digest sha256:51dbfc749ec3018c7d4bf8b9ee65299ff9a908e38918ce163b0acfcd5dd931d9)
   nginx_image=$(local_image_by_digest sha256:30f1c0d78e0ad60901648be663a710bdadf19e4c10ac6782c235200619158284)
   DOCKER_BUILDKIT=0 docker build --platform linux/amd64 \
