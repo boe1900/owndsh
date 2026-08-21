@@ -41,6 +41,7 @@ EAP_LOCAL_RELEASE_TARBALL=/absolute/path/enterprise-agent-platform-0.1.0-linux-a
 
 - 2026-08-21：错误验证码已改为留在登录页提示并刷新验证码；JSON 客户端仍返回稳定的 `401 ENT_AUTH_REQUIRED`。
 - 2026-08-21：人工重试验证码暴露出 Alpine/musl Temurin 的图片生成在 `libawt.so` 触发 `SIGILL`，Gateway 随后返回 502。仅增加可写 Fontconfig 缓存后第 6 次请求仍崩溃；同版 Java 21.0.8 切换到官方 Jammy/glibc JRE 后连续 100 次验证码请求全部返回 200，Server 无重启且无原生错误。Compose 同时将缓存指向已有 `/tmp` tmpfs；保留验证码，不改变认证协议。
+- 2026-08-21：人工登录继续暴露验证码生成端使用 Redisson 默认 JSON codec、校验端误用 `StringCodec`，导致 Redis 中的 JSON 字符串引号被当作答案正文，任何可见答案都会失败；校验端现与生成端共用默认 codec，保留原子 GETDEL。
 
 ## 品味自检
 

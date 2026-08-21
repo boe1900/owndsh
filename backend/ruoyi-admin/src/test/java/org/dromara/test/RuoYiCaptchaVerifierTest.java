@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 RuoYiCaptchaVerifier、mock Redisson bucket/CaptchaProperties/SysLoginService 与全局 captcha key。
- * [OUTPUT]: 验证验证码开关、GETDEL 一次性消费、大小写匹配和统一失败登录记录。
+ * [OUTPUT]: 验证验证码开关、生成端默认 codec 的 GETDEL 一次性消费、大小写匹配和统一失败登录记录。
  * [POS]: ruoyi-admin 的 LOCAL 验证码 composition adapter 门禁，证明 T05 复用真实 RuoYi key 语义。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -17,7 +17,6 @@ import org.redisson.api.RBucket;
 import org.redisson.api.RedissonClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -38,7 +37,7 @@ class RuoYiCaptchaVerifierTest {
         assertThat(new RuoYiCaptchaVerifier(properties, redis, loginService)
             .verify("alice", null, null)).isTrue();
 
-        verify(redis, never()).getBucket(anyString(), any());
+        verify(redis, never()).getBucket(anyString());
     }
 
     @Test
@@ -49,7 +48,7 @@ class RuoYiCaptchaVerifierTest {
         SysLoginService loginService = mock(SysLoginService.class);
         @SuppressWarnings("unchecked")
         RBucket<String> bucket = mock(RBucket.class);
-        when(redis.<String>getBucket(eq(GlobalConstants.CAPTCHA_CODE_KEY + "captcha-id"), any()))
+        when(redis.<String>getBucket(eq(GlobalConstants.CAPTCHA_CODE_KEY + "captcha-id")))
             .thenReturn(bucket);
         when(bucket.getAndDelete()).thenReturn("Ab12").thenReturn((String) null);
         RuoYiCaptchaVerifier verifier = new RuoYiCaptchaVerifier(properties, redis, loginService);
