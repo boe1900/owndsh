@@ -106,6 +106,15 @@ EAP_USE_LOCAL_BASE_IMAGES=1 ./scripts/t22-release-checks.sh
 
 管理端身份源、Session tombstone 与 Harness 关键状态另由同一真实流程的五张 PNG 逐张视觉复核；页面无空白、遮挡和敏感值。
 
+本地人工复核默认保留 10 分钟，避免 CI 异常后永久遗留容器；可通过 `EAP_T22_MANUAL_ACCEPTANCE_TIMEOUT_MS` 设置 1 分钟至 24 小时的有界窗口。Playwright 总超时会同步扩展，例如设置 4 小时：
+
+```sh
+EAP_T22_MANUAL_ACCEPTANCE=1 \
+EAP_T22_MANUAL_ACCEPTANCE_TIMEOUT_MS=14400000 \
+EAP_T22_RELEASE_TARBALL=/path/to/enterprise-agent-platform-0.1.0-t22-linux-amd64.tgz \
+  ./scripts/t22-candidate.sh
+```
+
 ## 媒体证据
 
 - [`assets/t22-01-candidate-governance.png`](assets/t22-01-candidate-governance.png)：管理端 OIDC `READY` 与密钥脱敏。

@@ -1,5 +1,5 @@
 #!/bin/sh
-# [INPUT]: 依赖 Linux amd64 Docker、OpenSSL/Java/Node/pnpm、锁定 fixture/release/Harness、审计员 migration seed 与全新临时状态目录。
+# [INPUT]: 依赖 Linux amd64 Docker、OpenSSL/Java/Node/pnpm、锁定 fixture/release/Harness、审计员 migration seed、全新临时状态目录与可选有界人工验收时长。
 # [OUTPUT]: 构建并安装候选 release，预置最小 auditor 后以隔离 Compose project 自动执行 14 步 Playwright/Harness 验收、失败取证、可选人工暂停并生成无密钥 GIF。
 # [POS]: T22 候选版唯一动态入口；只清理自身 project/volume/临时目录，绝不修改同级 Harness 或复用生产状态。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -228,6 +228,7 @@ control_url=$(node -e 'const value=JSON.parse(process.argv[1]);process.stdout.wr
 postgres_container=$(release_compose ps -q postgres)
 second_workspace=$(mktemp -d "$temporary_root/second-workspace.XXXXXX")
 manual_acceptance_signal=
+manual_acceptance_timeout_ms=${EAP_T22_MANUAL_ACCEPTANCE_TIMEOUT_MS:-600000}
 if [ "${EAP_T22_MANUAL_ACCEPTANCE:-0}" = 1 ]; then
   manual_acceptance_signal="$temporary_root/manual-acceptance-complete"
 fi
@@ -248,6 +249,7 @@ ENT_T22_PLUGIN_V2="$plugin_v2" \
 ENT_T22_POSTGRES_CONTAINER="$postgres_container" \
 ENT_T22_SECOND_WORKSPACE="$second_workspace" \
 ENT_T22_MANUAL_ACCEPTANCE_SIGNAL="$manual_acceptance_signal" \
+ENT_T22_MANUAL_ACCEPTANCE_TIMEOUT_MS="$manual_acceptance_timeout_ms" \
   corepack pnpm@10.34.5 --dir "$project_root/admin-web" exec playwright test \
     e2e/candidate-release.spec.ts --reporter=list > "$logs_directory/playwright.log" 2>&1
 

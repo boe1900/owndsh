@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 T22 正式 release、锁定 HTTPS OIDC/DeepSeek/LDAP fixture 及独立 loopback 控制探针、预置审计员、三设备 Harness 控制面与双版本插件 tgz。
+ * [INPUT]: 依赖 T22 正式 release、锁定 HTTPS OIDC/DeepSeek/LDAP fixture 及独立 loopback 控制探针、预置审计员、三设备 Harness 控制面、双版本插件 tgz 与有界人工验收窗口。
  * [OUTPUT]: 自动化详细设计 21.1 的 14 步候选验收，以 seed 前缀容纳官方 Session 基础设施事件并输出真实页面证据。
  * [POS]: e2e 的 T22 唯一候选版主场景；产品事实只经公开 API/页面建立，数据库访问严格只读验证密文与删除结果。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -48,6 +48,20 @@ const SOURCE_NAME = 'Candidate OIDC';
 const MODEL_ALIAS = 'deepseek-chat';
 const PACKAGE_NAME = '@enterprise-agent/candidate-tools';
 const ASSET_DIR = resolve(process.cwd(), '../docs/assets');
+const MANUAL_ACCEPTANCE_SIGNAL = process.env.ENT_T22_MANUAL_ACCEPTANCE_SIGNAL;
+
+function manualAcceptanceTimeoutMs(): number {
+  if (!MANUAL_ACCEPTANCE_SIGNAL) return 0;
+  const raw = process.env.ENT_T22_MANUAL_ACCEPTANCE_TIMEOUT_MS ?? '600000';
+  if (!/^\d+$/.test(raw)) throw new Error('ENT_T22_MANUAL_ACCEPTANCE_TIMEOUT_MS must be an integer');
+  const timeoutMs = Number(raw);
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 60_000 || timeoutMs > 24 * 60 * 60_000) {
+    throw new Error('ENT_T22_MANUAL_ACCEPTANCE_TIMEOUT_MS must be between 60000 and 86400000');
+  }
+  return timeoutMs;
+}
+
+const MANUAL_ACCEPTANCE_TIMEOUT_MS = manualAcceptanceTimeoutMs();
 
 interface Revisioned {
   id: string;
@@ -199,7 +213,7 @@ async function listAudit(
 }
 
 test('T22 真实候选版自动完成详细设计 21.1 的十四步', async ({ browser, page, request }) => {
-  test.setTimeout(12 * 60_000);
+  test.setTimeout(12 * 60_000 + MANUAL_ACCEPTANCE_TIMEOUT_MS);
   const adminToken = await bootstrapAdminLogin(
     page, ADMIN_USERNAME, ADMIN_INITIAL_PASSWORD, ADMIN_PASSWORD
   );
@@ -559,9 +573,8 @@ test('T22 真实候选版自动完成详细设计 21.1 的十四步', async ({ b
   expect(fixtureCounts.modelCalls).toBeGreaterThanOrEqual(2);
   const finalControl = (await control(request, CONTROL_URL)) as HarnessControl;
   expect(finalControl.harnessCommit).toBe(LOCKED_HARNESS_COMMIT);
-  const manualSignal = process.env.ENT_T22_MANUAL_ACCEPTANCE_SIGNAL;
-  if (manualSignal) {
-    await writeFile(`${manualSignal}.ready`, JSON.stringify({
+  if (MANUAL_ACCEPTANCE_SIGNAL) {
+    await writeFile(`${MANUAL_ACCEPTANCE_SIGNAL}.ready`, JSON.stringify({
       baseUrl: process.env.ENT_E2E_BASE_URL,
       controlUrl: CONTROL_URL,
       harnessUrls: Object.fromEntries(
@@ -570,13 +583,13 @@ test('T22 真实候选版自动完成详细设计 21.1 的十四步', async ({ b
     }), { mode: 0o600 });
     await waitFor(async () => {
       try {
-        await readFile(manualSignal);
+        await readFile(MANUAL_ACCEPTANCE_SIGNAL);
         return true;
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
         throw error;
       }
-    }, 'manual candidate acceptance was not released', 10 * 60_000);
+    }, 'manual candidate acceptance was not released', MANUAL_ACCEPTANCE_TIMEOUT_MS);
   }
   await control(request, CONTROL_URL, '/complete', 'POST');
   await harnessPage.close();
