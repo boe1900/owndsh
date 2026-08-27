@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 JdbcTemplate、事务、SecretCipher、设备服务、revision/audit 基础设施与 enterprise ID supplier。
+ * [INPUT]: 依赖 JdbcTemplate、Jackson、事务、SecretCipher、设备服务、revision/audit 基础设施与 enterprise ID supplier。
  * [OUTPUT]: 对外装配 T08 provider/model/grant、无重定向 probe、有效模型解析与 bootstrap Beans。
  * [POS]: model 纵向模块的 Spring composition root，领域/application 不使用静态容器查找。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -33,6 +33,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.util.function.LongSupplier;
 
@@ -44,13 +45,13 @@ public class EnterpriseModelConfiguration {
     }
 
     @Bean
-    ManagedModelStore enterpriseManagedModelStore(JdbcTemplate jdbcTemplate) {
-        return new JdbcManagedModelStore(jdbcTemplate);
+    ManagedModelStore enterpriseManagedModelStore(JdbcTemplate jdbcTemplate, JsonMapper jsonMapper) {
+        return new JdbcManagedModelStore(jdbcTemplate, jsonMapper);
     }
 
     @Bean
-    ModelGrantStore enterpriseModelGrantStore(JdbcTemplate jdbcTemplate) {
-        return new JdbcModelGrantStore(jdbcTemplate);
+    ModelGrantStore enterpriseModelGrantStore(JdbcTemplate jdbcTemplate, JsonMapper jsonMapper) {
+        return new JdbcModelGrantStore(jdbcTemplate, jsonMapper);
     }
 
     @Bean

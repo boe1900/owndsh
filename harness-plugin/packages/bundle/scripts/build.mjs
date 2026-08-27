@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 esbuild、TypeScript CLI、bundle Host、Harness Cordis/LLM/Session/Persistence/Schemastery peers 与 UI Client
+ * [INPUT]: 依赖 esbuild、TypeScript CLI、bundle Host、Harness Cordis/LLM/pi-ai/Session/Persistence/Schemastery peers 与 UI Client
  * [OUTPUT]: 生成内联产品包且保留全部官方运行时单例的 Host ESM、lazy-CJS Client、声明与 sourcemap
  * [POS]: bundle 的发布构建器，消化产品 workspace 依赖并保持 Harness 核心类由目标 profile 提供
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -30,6 +30,7 @@ await build({
   external: [
     '@deepseek-ai/cordis',
     '@deepseek-ai/dsh-llm',
+    '@deepseek-ai/dsh-llm-pi-ai',
     '@deepseek-ai/dsh-session',
     '@deepseek-ai/dsh-session-persistence',
     '@deepseek-ai/schemastery',

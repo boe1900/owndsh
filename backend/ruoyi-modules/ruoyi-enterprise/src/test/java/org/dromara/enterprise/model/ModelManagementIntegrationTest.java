@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖真实 PostgreSQL 17、V1-V12 migrations、显式活动用户 fixture、模型 JDBC adapters、事务、AES-GCM 与设备服务。
- * [OUTPUT]: 验证不借用默认账号的 CRUD/CAS/回滚、幂等删除、密文保持、授权并集、无部门解析、默认优先级、停用和 ACTIVE bootstrap。
+ * [INPUT]: 依赖真实 PostgreSQL 17、V1-V15 migrations、显式活动用户 fixture、模型 JDBC adapters、事务、AES-GCM 与设备服务。
+ * [OUTPUT]: 验证 CRUD/CAS/回滚、密文保持、协议/reasoning 配置往返、授权并集、默认优先级、停用和 ACTIVE bootstrap。
  * [POS]: T08 主要数据库验收，跨越 service/store/revision/audit 边界但不进入 T09/T10。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -30,7 +30,10 @@ import org.dromara.enterprise.model.domain.GrantSubjectType;
 import org.dromara.enterprise.model.domain.ManagedModel;
 import org.dromara.enterprise.model.domain.ModelGrant;
 import org.dromara.enterprise.model.domain.ModelProvider;
+import org.dromara.enterprise.model.domain.ModelReasoningCompat;
+import org.dromara.enterprise.model.domain.ModelReasoningEfforts;
 import org.dromara.enterprise.model.domain.ModelStatus;
+import org.dromara.enterprise.model.domain.ProviderApiProtocol;
 import org.dromara.enterprise.model.domain.ProviderType;
 import org.dromara.enterprise.model.persistence.JdbcBootstrapUserStore;
 import org.dromara.enterprise.model.persistence.JdbcManagedModelStore;
@@ -56,6 +59,7 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongSupplier;
@@ -84,13 +88,38 @@ class ModelManagementIntegrationTest {
     }
 
     @Test
+    void validatesHarnessProviderIdentifiersAtTheWriteBoundary() {
+        assertThat(ProviderApiProtocol.values())
+            .extracting(ProviderApiProtocol::value)
+            .containsExactly("openai-completions", "openai-responses", "anthropic-messages");
+        assertThat(ProviderApiProtocol.fromValue("openai-responses"))
+            .isEqualTo(ProviderApiProtocol.OPENAI_RESPONSES);
+        assertThat(ProviderApiProtocol.fromValue("anthropic-messages"))
+            .isEqualTo(ProviderApiProtocol.ANTHROPIC_MESSAGES);
+        assertThatThrownBy(() -> ProviderApiProtocol.fromValue("unknown"))
+            .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new ProviderSpec(
+            "1invalid", "Custom", ProviderType.CUSTOM, ProviderApiProtocol.OPENAI_COMPLETIONS,
+            URI.create("https://provider.example/v1"), 5_000, 30_000
+        )).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new ProviderSpec(
+            "custom-route", "DeepSeek", ProviderType.DEEPSEEK_OFFICIAL,
+            ProviderApiProtocol.OPENAI_COMPLETIONS, URI.create("https://api.deepseek.com"), 5_000, 30_000
+        )).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new ProviderSpec(
+            "deepseek-official", "DeepSeek", ProviderType.DEEPSEEK_OFFICIAL,
+            ProviderApiProtocol.OPENAI_RESPONSES, URI.create("https://api.deepseek.com"), 5_000, 30_000
+        )).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("openai-completions");
+    }
+
+    @Test
     void enforcesEncryptedCrudResolutionDefaultsDisableAndBootstrapInPostgres() {
         var jdbc = database.jdbc();
         var transaction = new TransactionTemplate(new DataSourceTransactionManager(database.dataSource()));
         JsonMapper json = JsonMapper.builder().build();
         ProviderStore providerStore = new JdbcProviderStore(jdbc);
-        ManagedModelStore modelStore = new JdbcManagedModelStore(jdbc);
-        ModelGrantStore grantStore = new JdbcModelGrantStore(jdbc);
+        ManagedModelStore modelStore = new JdbcManagedModelStore(jdbc, json);
+        ModelGrantStore grantStore = new JdbcModelGrantStore(jdbc, json);
         var revisions = new JdbcBootstrapRevisionStore(jdbc);
         var audit = new JdbcAuditSink(jdbc, json);
         AtomicLong sequence = new AtomicLong(1_900_800_000_000_000_000L);
@@ -136,9 +165,9 @@ class ModelManagementIntegrationTest {
             "select credential_ciphertext from ent_model_provider where id = ?", byte[].class, provider.id()
         )).containsExactly(ciphertext);
 
-        ManagedModel chat = models.create(context, modelSpec(provider.id(), "deepseek-chat", 20, false));
-        ManagedModel reasoner = models.create(context, modelSpec(provider.id(), "deepseek-reasoner", 10, true));
-        ManagedModel batchModel = models.create(context, modelSpec(provider.id(), "deepseek-batch", 30, false));
+        ManagedModel chat = models.create(context, modelSpec(provider.id(), "deepseek-chat", 20));
+        ManagedModel reasoner = models.create(context, modelSpec(provider.id(), "deepseek-reasoner", 10));
+        ManagedModel batchModel = models.create(context, modelSpec(provider.id(), "deepseek-batch", 30));
         ModelGrant departmentDefault = grants.create(context, new ModelGrantSpec(
             reasoner.id(), GrantSubjectType.DEPT, user.departmentId(), true, ModelStatus.ACTIVE
         ));
@@ -154,6 +183,9 @@ class ModelManagementIntegrationTest {
             .containsExactly("deepseek-reasoner", "deepseek-chat");
         assertThat(effective).filteredOn(EffectiveModelResolver.EffectiveModel::isDefault)
             .singleElement().extracting(EffectiveModelResolver.EffectiveModel::alias).isEqualTo("deepseek-chat");
+        assertThat(effective).filteredOn(value -> value.alias().equals("deepseek-reasoner"))
+            .singleElement().satisfies(value -> assertThat(value.reasoningEfforts().values())
+                .containsEntry("off", null).containsEntry("high", "high").containsEntry("max", "max"));
         assertThat(resolver.resolve(TENANT, USER_ID + 1, null)).isEmpty();
 
         long beforeDefaultConflict = revisions.current(TENANT);
@@ -204,7 +236,9 @@ class ModelManagementIntegrationTest {
         assertThat(snapshot.user().departmentId()).isEqualTo(user.departmentId());
         assertThat(snapshot.models()).singleElement().satisfies(value -> {
             assertThat(value.alias()).isEqualTo("deepseek-reasoner");
+            assertThat(value.apiProtocol()).isEqualTo(ProviderApiProtocol.OPENAI_COMPLETIONS);
             assertThat(value.isDefault()).isTrue();
+            assertThat(value.reasoningEfforts().supports("max")).isTrue();
         });
         assertThat(snapshot.revision()).isEqualTo(revisions.current(TENANT));
 
@@ -275,14 +309,23 @@ class ModelManagementIntegrationTest {
 
     private static ProviderSpec providerSpec() {
         return new ProviderSpec(
-            "T08 DeepSeek", ProviderType.DEEPSEEK_OPENAI, URI.create("https://api.deepseek.com/v1"),
+            "deepseek-official", "T08 DeepSeek", ProviderType.DEEPSEEK_OFFICIAL,
+            ProviderApiProtocol.OPENAI_COMPLETIONS, URI.create("https://api.deepseek.com"),
             5_000, 30_000
         );
     }
 
-    private static ManagedModelSpec modelSpec(long providerId, String alias, int sortOrder, boolean reasoning) {
+    private static ManagedModelSpec modelSpec(long providerId, String alias, int sortOrder) {
+        if (!"deepseek-reasoner".equals(alias)) {
+            return new ManagedModelSpec(providerId, alias, alias, alias, 65_536, 8_192, null, null, sortOrder);
+        }
+        LinkedHashMap<String, String> efforts = new LinkedHashMap<>();
+        efforts.put("off", null);
+        efforts.put("high", "high");
+        efforts.put("max", "max");
         return new ManagedModelSpec(
-            providerId, alias, alias, alias, 65_536, 8_192, reasoning, sortOrder
+            providerId, alias, alias, alias, 65_536, 8_192,
+            new ModelReasoningEfforts(efforts), new ModelReasoningCompat("deepseek", true), sortOrder
         );
     }
 

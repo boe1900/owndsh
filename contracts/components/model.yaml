@@ -1,6 +1,6 @@
 # [INPUT]: 依赖根协议的品牌 ID、revision、cursor、requestId 与设备 installation ID
-# [OUTPUT]: 提供 T08 provider/model/grant 管理协议、探测结果与完整 bootstrap 脱敏快照 schemas
-# [POS]: OpenAPI 逻辑真源的受管模型分片，写入凭据只存在于 writeOnly 请求且 runtime 只看到有效模型目录
+# [OUTPUT]: 提供 provider/model/grant 管理、pi-ai 协议/推理 profile、探测结果与完整 bootstrap 脱敏快照 schemas
+# [POS]: OpenAPI 逻辑真源的受管模型分片，runtime 只看到有效模型目录及模型声明的推理档位映射
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 ModelProviderId:
@@ -11,21 +11,64 @@ ModelGrantId:
   pattern: '^[1-9][0-9]{0,18}$'
 ProviderType:
   type: string
-  enum: [DEEPSEEK_OPENAI]
+  enum: [DEEPSEEK_OFFICIAL, CUSTOM]
+ProviderKey:
+  type: string
+  minLength: 1
+  maxLength: 120
+  pattern: '^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$'
+ProviderApiProtocol:
+  type: string
+  enum: [openai-completions, openai-responses, anthropic-messages]
 ModelStatus:
   type: string
   enum: [ACTIVE, DISABLED]
 GrantSubjectType:
   type: string
   enum: [USER, DEPT]
+ReasoningEffortLevel:
+  type: string
+  enum: [off, minimal, low, medium, high, xhigh, max]
+ModelReasoningEffortsMap:
+  type: object
+  additionalProperties: false
+  minProperties: 1
+  properties:
+    off:
+      oneOf:
+        - {type: string, minLength: 1, maxLength: 255}
+        - {type: 'null'}
+    minimal: {type: string, minLength: 1, maxLength: 255}
+    low: {type: string, minLength: 1, maxLength: 255}
+    medium: {type: string, minLength: 1, maxLength: 255}
+    high: {type: string, minLength: 1, maxLength: 255}
+    xhigh: {type: string, minLength: 1, maxLength: 255}
+    max: {type: string, minLength: 1, maxLength: 255}
+ModelReasoningEfforts:
+  oneOf:
+    - type: boolean
+      const: false
+    - $ref: '#/ModelReasoningEffortsMap'
+ModelThinkingFormat:
+  type: string
+  enum: [openai, deepseek, openrouter, together, zai, qwen, string-thinking, ant-ling]
+ModelReasoningCompat:
+  type: object
+  additionalProperties: false
+  minProperties: 1
+  properties:
+    thinkingFormat: {$ref: '#/ModelThinkingFormat'}
+    supportsReasoningEffort: {type: boolean}
 
 ProviderCreateRequest:
   type: object
   additionalProperties: false
-  required: [name, providerType, baseUrl, credential, connectTimeoutMs, readTimeoutMs]
+  required: [providerKey, name, providerType, apiProtocol, baseUrl, credential, connectTimeoutMs, readTimeoutMs]
   properties:
+    providerKey: {$ref: '#/ProviderKey'}
     name: {$ref: '#/ProviderName'}
     providerType: {$ref: '#/ProviderType'}
+    apiProtocol: {$ref: '#/ProviderApiProtocol'}
     baseUrl: {$ref: '#/ProviderBaseUrl'}
     credential:
       type: string
@@ -37,10 +80,12 @@ ProviderCreateRequest:
 ProviderUpdateRequest:
   type: object
   additionalProperties: false
-  required: [name, providerType, baseUrl, replaceSecret, connectTimeoutMs, readTimeoutMs]
+  required: [providerKey, name, providerType, apiProtocol, baseUrl, replaceSecret, connectTimeoutMs, readTimeoutMs]
   properties:
+    providerKey: {$ref: '#/ProviderKey'}
     name: {$ref: '#/ProviderName'}
     providerType: {$ref: '#/ProviderType'}
+    apiProtocol: {$ref: '#/ProviderApiProtocol'}
     baseUrl: {$ref: '#/ProviderBaseUrl'}
     replaceSecret:
       type: boolean
@@ -82,8 +127,10 @@ Provider:
   additionalProperties: false
   required:
     - id
+    - providerKey
     - name
     - providerType
+    - apiProtocol
     - baseUrl
     - credentialConfigured
     - status
@@ -92,8 +139,10 @@ Provider:
     - revision
   properties:
     id: {$ref: '#/ModelProviderId'}
+    providerKey: {$ref: '#/ProviderKey'}
     name: {$ref: '#/ProviderName'}
     providerType: {$ref: '#/ProviderType'}
+    apiProtocol: {$ref: '#/ProviderApiProtocol'}
     baseUrl: {$ref: '#/ProviderBaseUrl'}
     credentialConfigured:
       type: boolean
@@ -131,11 +180,32 @@ ProviderListResponse:
       $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
 ProviderProbeCategory:
   type: string
-  enum: [SUCCESS, AUTHENTICATION_FAILED, UPSTREAM_REJECTED, UNAVAILABLE, TIMEOUT]
+  enum: [SUCCESS, AUTHENTICATION_FAILED, UPSTREAM_REJECTED, INVALID_RESPONSE, UNAVAILABLE, TIMEOUT]
+ProviderDiscoveredModel:
+  type: object
+  additionalProperties: false
+  required: [id]
+  properties:
+    id:
+      type: string
+      minLength: 1
+      maxLength: 255
+    name:
+      type: string
+      minLength: 1
+      maxLength: 255
+    contextWindow:
+      type: integer
+      minimum: 1
+      maximum: 2147483647
+    maxTokens:
+      type: integer
+      minimum: 1
+      maximum: 2147483647
 ProviderProbeResult:
   type: object
   additionalProperties: false
-  required: [success, latencyMs, upstreamStatus]
+  required: [success, latencyMs, upstreamStatus, models]
   properties:
     success:
       type: boolean
@@ -144,6 +214,9 @@ ProviderProbeResult:
       minimum: 0
       maximum: 9007199254740991
     upstreamStatus: {$ref: '#/ProviderProbeCategory'}
+    models:
+      type: array
+      items: {$ref: '#/ProviderDiscoveredModel'}
 ProviderProbeResponse:
   type: object
   additionalProperties: false
@@ -159,30 +232,26 @@ ManagedModelWriteRequest:
   required:
     - providerId
     - alias
-    - displayName
-    - upstreamModel
-    - contextWindow
-    - maxOutputTokens
-    - reasoning
+    - modelId
     - sortOrder
   properties:
     providerId: {$ref: '#/ModelProviderId'}
     alias: {$ref: '#/ModelAlias'}
-    displayName: {$ref: '#/ModelDisplayName'}
-    upstreamModel:
+    modelId:
       type: string
       minLength: 1
       maxLength: 255
+    name: {$ref: '#/ModelName'}
     contextWindow:
       type: integer
       minimum: 1
       maximum: 2147483647
-    maxOutputTokens:
+    maxTokens:
       type: integer
       minimum: 1
       maximum: 2147483647
-    reasoning:
-      type: boolean
+    reasoningEfforts: {$ref: '#/ModelReasoningEfforts'}
+    compat: {$ref: '#/ModelReasoningCompat'}
     sortOrder:
       type: integer
       minimum: 0
@@ -192,7 +261,7 @@ ModelAlias:
   minLength: 1
   maxLength: 120
   pattern: '^[A-Za-z0-9][A-Za-z0-9._-]*$'
-ModelDisplayName:
+ModelName:
   type: string
   minLength: 1
   maxLength: 120
@@ -204,11 +273,7 @@ ManagedModel:
     - providerId
     - providerName
     - alias
-    - displayName
-    - upstreamModel
-    - contextWindow
-    - maxOutputTokens
-    - reasoning
+    - modelId
     - sortOrder
     - status
     - revision
@@ -218,19 +283,19 @@ ManagedModel:
     providerId: {$ref: '#/ModelProviderId'}
     providerName: {$ref: '#/ProviderName'}
     alias: {$ref: '#/ModelAlias'}
-    displayName: {$ref: '#/ModelDisplayName'}
-    upstreamModel:
+    modelId:
       type: string
       minLength: 1
       maxLength: 255
+    name: {$ref: '#/ModelName'}
     contextWindow:
       type: integer
       minimum: 1
-    maxOutputTokens:
+    maxTokens:
       type: integer
       minimum: 1
-    reasoning:
-      type: boolean
+    reasoningEfforts: {$ref: '#/ModelReasoningEfforts'}
+    compat: {$ref: '#/ModelReasoningCompat'}
     sortOrder:
       type: integer
       minimum: 0
@@ -363,18 +428,19 @@ ModelGrantBatchResponse:
 BootstrapModel:
   type: object
   additionalProperties: false
-  required: [alias, displayName, contextWindow, maxOutputTokens, reasoning, isDefault]
+  required: [alias, apiProtocol, isDefault]
   properties:
     alias: {$ref: '#/ModelAlias'}
-    displayName: {$ref: '#/ModelDisplayName'}
+    name: {$ref: '#/ModelName'}
+    apiProtocol: {$ref: '#/ProviderApiProtocol'}
     contextWindow:
       type: integer
       minimum: 1
-    maxOutputTokens:
+    maxTokens:
       type: integer
       minimum: 1
-    reasoning:
-      type: boolean
+    reasoningEfforts: {$ref: '#/ModelReasoningEfforts'}
+    compat: {$ref: '#/ModelReasoningCompat'}
     isDefault:
       type: boolean
 BootstrapSnapshot:

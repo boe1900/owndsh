@@ -1,11 +1,12 @@
 /**
- * [INPUT]: 投影 BootstrapService 的用户、ACTIVE 设备、revision、有效模型/配额与 T13 插件分配。
+ * [INPUT]: 投影 BootstrapService 的用户、ACTIVE 设备、revision、含协议/推理 profile 的有效模型/配额与插件分配。
  * [OUTPUT]: 对外提供 T06 严格客户端所需的完整脱敏 bootstrap 外壳，并启用已交付的 Session 同步策略。
  * [POS]: model/web 的 runtime 配置输出边界；插件复用下载授权事实，Session 策略接通 T16-T18 能力。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.model.web;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import org.dromara.enterprise.model.application.BootstrapService;
 
 import java.util.List;
@@ -31,8 +32,9 @@ public record BootstrapView(
                 Long.toString(snapshot.device().id()), snapshot.device().installationId().toString(), "ACTIVE"
             ),
             snapshot.models().stream().map(value -> new Model(
-                value.alias(), value.displayName(), value.contextWindow(), value.maxOutputTokens(),
-                value.reasoning(), value.isDefault()
+                value.alias(), value.name(), value.apiProtocol().value(), value.contextWindow(), value.maxTokens(),
+                value.reasoningEfforts() == null ? null : value.reasoningEfforts().jsonValue(),
+                value.reasoningCompat() == null ? null : value.reasoningCompat().jsonValue(), value.isDefault()
             )).toList(),
             snapshot.quotas().stream().map(value -> new Quota(
                 Long.toString(value.id()), value.subjectType().name(), value.dailyTokenLimit(),
@@ -59,12 +61,15 @@ public record BootstrapView(
     public record Device(String id, String installationId, String status) {
     }
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Model(
         String alias,
-        String displayName,
-        int contextWindow,
-        int maxOutputTokens,
-        boolean reasoning,
+        String name,
+        String apiProtocol,
+        Integer contextWindow,
+        Integer maxTokens,
+        Object reasoningEfforts,
+        Object compat,
         boolean isDefault
     ) {
     }

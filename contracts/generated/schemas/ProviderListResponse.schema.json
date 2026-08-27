@@ -24,8 +24,10 @@
             "additionalProperties": false,
             "required": [
               "id",
+              "providerKey",
               "name",
               "providerType",
+              "apiProtocol",
               "baseUrl",
               "credentialConfigured",
               "status",
@@ -38,6 +40,12 @@
                 "type": "string",
                 "pattern": "^[1-9][0-9]{0,18}$"
               },
+              "providerKey": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120,
+                "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+              },
               "name": {
                 "type": "string",
                 "minLength": 1,
@@ -46,7 +54,16 @@
               "providerType": {
                 "type": "string",
                 "enum": [
-                  "DEEPSEEK_OPENAI"
+                  "DEEPSEEK_OFFICIAL",
+                  "CUSTOM"
+                ]
+              },
+              "apiProtocol": {
+                "type": "string",
+                "enum": [
+                  "openai-completions",
+                  "openai-responses",
+                  "anthropic-messages"
                 ]
               },
               "baseUrl": {

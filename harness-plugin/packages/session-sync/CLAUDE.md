@@ -5,7 +5,7 @@
 成员清单
 
 README.md: Session 客户端边界说明，定义本地优先复制、无正文游标、终态/退避、完整验证后恢复与 tombstone 删除。
-package.json: 私有 workspace package 清单，精确声明官方 rc.7 Session/Persistence/Cordis peers 与产品协议依赖。
+package.json: 私有 workspace package 清单，精确声明官方 rc.2 Session/Persistence/Cordis peers 与产品协议依赖。
 tsconfig.json: Node TypeScript 构建边界，从 `src/` 生成 ESM 与声明。
 src/errors.ts: 将平台、网络和协议失败归一为稳定 retryable/terminal SessionSyncError。
 src/index.ts: 汇总 Service、协议、cursor store、恢复事务与公开类型的 package facade。

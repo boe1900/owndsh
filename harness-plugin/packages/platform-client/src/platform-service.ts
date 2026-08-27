@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Cordis Service/WebServer、T02 contracts、PKCE/installation/browser 原语、插件/Session 反转端口与 Node fetch
- * [OUTPUT]: 对外提供 ctx.enterprisePlatform、七方法、刷新期间连续可用的平台/插件/Session 本地 API 与可关联稳定错误
+ * [OUTPUT]: 对外提供 ctx.enterprisePlatform、七方法、控制面限时/SSE 无总时限请求、隔离发布的平台状态、脱敏 schema 诊断与稳定错误
  * [POS]: platform-client 的 Host 业务核心，以 Cordis shadow-compatible 私有状态承载 Token、登录与刷新生命周期
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -179,6 +179,7 @@ export class EnterprisePlatformService extends Service {
   private readonly refreshRetryInitialMs: number
   private readonly refreshRetryMaxMs: number
   private readonly disposeLocalApi: () => void
+  private readonly logger: Context['logger']
 
   private currentStatus: EnterprisePlatformStatus
   private token: string | undefined
@@ -203,6 +204,7 @@ export class EnterprisePlatformService extends Service {
     this.config = resolvedConfig
     this.fetch = internals.fetch ?? globalThis.fetch
     this.openBrowser = internals.openBrowser ?? openSystemBrowser
+    this.logger = ctx.logger
     this.now = internals.now ?? (() => new Date())
     this.createFlowId = internals.createFlowId ?? randomUUID
     this.createState = internals.createState ?? (() => randomBytes(32).toString('base64url'))
@@ -467,6 +469,10 @@ export class EnterprisePlatformService extends Service {
     }
     const parsed = zBootstrapResponse.safeParse(value)
     if (!parsed.success) {
+      this.logger.warn(
+        'enterprise platform: invalid bootstrap schema %o',
+        parsed.error.issues.map(issue => ({ code: issue.code, path: issue.path })),
+      )
       throw new EnterprisePlatformError('ENT_PLATFORM_UNAVAILABLE', 'platform returned an invalid bootstrap', true)
     }
     const installation = await this.installation
@@ -519,16 +525,19 @@ export class EnterprisePlatformService extends Service {
     this.activeRequests.add(controller)
     const signals = [controller.signal, this.lifetime.signal]
     if (init.signal !== null && init.signal !== undefined) signals.push(init.signal)
-    const timeout = setTimeout(() => controller.abort(new DOMException('platform request timed out', 'TimeoutError')),
-      this.config.requestTimeoutMs)
-    timeout.unref()
+    const isEventStream = new Headers(init.headers).get('accept')?.toLowerCase().includes('text/event-stream') === true
+    const timeout = isEventStream ? undefined : setTimeout(
+      () => controller.abort(new DOMException('platform request timed out', 'TimeoutError')),
+      this.config.requestTimeoutMs,
+    )
+    timeout?.unref()
     try {
       return await this.fetch(input, { ...init, signal: AbortSignal.any(signals) })
     } catch (error) {
       if (init.signal?.aborted === true || this.lifetime.signal.aborted || isAbort(error)) throw error
       throw new EnterprisePlatformError('ENT_PLATFORM_UNAVAILABLE', 'enterprise platform is unavailable', true)
     } finally {
-      clearTimeout(timeout)
+      if (timeout !== undefined) clearTimeout(timeout)
       this.activeRequests.delete(controller)
     }
   }
@@ -627,7 +636,13 @@ export class EnterprisePlatformService extends Service {
       }),
     }
     const published = this.status()
-    for (const listener of this.listeners) listener(published)
+    for (const listener of this.listeners) {
+      try {
+        listener(published)
+      } catch {
+        this.logger.warn('enterprise platform: status subscriber failed')
+      }
+    }
   }
 
   private assertOpen(): void {

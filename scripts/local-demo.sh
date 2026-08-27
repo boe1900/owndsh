@@ -1,6 +1,6 @@
 #!/bin/sh
 # [INPUT]: 依赖 Linux amd64 Docker、OpenSSL、Node/pnpm、锁定 release 与同级干净 Harness；可选复用 EAP_LOCAL_RELEASE_TARBALL。
-# [OUTPUT]: 在全新临时状态中启动正式后端、安装企业 bundle 并启动一个使用真实系统浏览器的 Harness，持续到 Ctrl+C。
+# [OUTPUT]: 在全新临时状态中启动正式后端、签发一年期本机证书、安装企业 bundle 并启动真实浏览器 Harness，持续到 Ctrl+C。
 # [POS]: 人工功能验收的唯一启动入口，不运行 Playwright、候选 fixture、多设备控制面、截图或自动业务操作。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -65,7 +65,7 @@ for port in "$https_port" "$harness_port"; do
 done
 platform_origin="https://127.0.0.1:$https_port"
 
-openssl req -x509 -newkey rsa:2048 -nodes -days 2 -sha256 \
+openssl req -x509 -newkey rsa:2048 -nodes -days 365 -sha256 \
   -subj '/CN=Enterprise Local Demo CA' \
   -keyout "$temporary_root/certificates/ca.key" \
   -out "$temporary_root/certificates/ca.crt" >/dev/null 2>&1
@@ -74,7 +74,7 @@ openssl req -newkey rsa:2048 -nodes -sha256 -subj '/CN=127.0.0.1' \
   -out "$temporary_root/certificates/tls.csr" >/dev/null 2>&1
 printf '%s\n' 'subjectAltName=IP:127.0.0.1,DNS:localhost' 'extendedKeyUsage=serverAuth' \
   > "$temporary_root/certificates/tls.ext"
-openssl x509 -req -days 2 -sha256 -in "$temporary_root/certificates/tls.csr" \
+openssl x509 -req -days 365 -sha256 -in "$temporary_root/certificates/tls.csr" \
   -CA "$temporary_root/certificates/ca.crt" -CAkey "$temporary_root/certificates/ca.key" -CAcreateserial \
   -extfile "$temporary_root/certificates/tls.ext" -out "$temporary_root/certificates/tls.crt" >/dev/null 2>&1
 chmod 600 "$temporary_root/certificates"/*.key

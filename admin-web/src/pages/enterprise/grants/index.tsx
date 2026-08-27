@@ -70,7 +70,7 @@ function GrantFields({ models }: { models: ManagedModel[] }) {
   return (
     <>
       <Form.Item name="modelId" label="模型" rules={[{ required: true }]}>
-        <Select options={models.map(model => ({ value: model.id, label: `${model.displayName} (${model.alias})` }))} />
+        <Select options={models.map(model => ({ value: model.id, label: `${model.name ?? model.modelId} (${model.alias})` }))} />
       </Form.Item>
       <Form.Item name="subjectType" label="对象类型" rules={[{ required: true }]}>
         <Select
@@ -511,7 +511,7 @@ export default function GrantsPage() {
                       showSearch
                       optionFilterProp="label"
                       placeholder="模型"
-                      options={models.items.map(model => ({ value: model.id, label: model.displayName }))}
+                      options={models.items.map(model => ({ value: model.id, label: model.name ?? model.modelId }))}
                     />
                   </Form.Item>
                   <Form.Item name="requestId">

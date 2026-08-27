@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 platform-client bootstrap/request、rc.7 subprocess/pluginInventory、制品校验与原子状态文件
+ * [INPUT]: 依赖 platform-client bootstrap/request、rc.2 subprocess/pluginInventory、可选 Desktop command port、制品校验与原子状态文件
  * [OUTPUT]: 对外提供 EnterprisePluginDistributionService、核心保护集合、串行调和与库存状态
  * [POS]: plugin-distribution 的 Cordis shadow-compatible 生命周期所有者，把中心期望收敛为 Loader 可证事实
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -9,7 +9,12 @@ import { randomUUID } from 'node:crypto'
 import { Service } from '@deepseek-ai/cordis'
 import { zPluginInventoryResponse, type ManagedPluginState } from '@enterprise-agent/dsh-contracts'
 import { resolveEnterpriseDshHome, type BootstrapSnapshot } from '@enterprise-agent/dsh-platform-client'
-import { installManagedPlugin, removeManagedPlugin, type DshPluginCommandOptions } from './cli.js'
+import {
+  installManagedPlugin,
+  removeManagedPlugin,
+  type DshPluginCommandOptions,
+  type DshPluginCommandPort,
+} from './cli.js'
 import { distributionError, PluginDistributionError } from './errors.js'
 import { ManagedPluginStore } from './state-store.js'
 import type {
@@ -47,6 +52,7 @@ export interface PluginDistributionInternals {
   readonly now?: () => Date
   readonly runMarker?: string
   readonly store?: ManagedPluginStore
+  readonly commandPort?: DshPluginCommandPort
 }
 
 function resolveConfig(config: PluginDistributionConfig): ResolvedConfig {
@@ -93,6 +99,7 @@ export class EnterprisePluginDistributionService extends Service {
   private readonly runMarker: string
   private readonly operatingSystem: NodeJS.Platform
   private readonly now: () => Date
+  private readonly commandPort: DshPluginCommandPort | undefined
   private readonly abort = new AbortController()
   private readonly records = new Map<string, ManagedPluginRecord>()
   private readonly unsubscribe: () => void
@@ -118,6 +125,7 @@ export class EnterprisePluginDistributionService extends Service {
     this.runMarker = internals.runMarker ?? randomUUID()
     this.operatingSystem = internals.operatingSystem ?? process.platform
     this.now = internals.now ?? (() => new Date())
+    this.commandPort = internals.commandPort
     this.startup = this.loadState().catch((error: unknown) => {
       this.fatalErrorCode = distributionError(
         error, 'ENT_PLUGIN_STATE_INVALID', 'managed plugin state could not be loaded',
@@ -322,6 +330,7 @@ export class EnterprisePluginDistributionService extends Service {
   private commandOptions(): DshPluginCommandOptions {
     return {
       subprocess: this.pluginContext.subprocess,
+      ...(this.commandPort === undefined ? {} : { commandPort: this.commandPort }),
       dshCommand: this.config.dshCommand,
       profile: this.config.profile,
       dshHome: this.config.dshHome,

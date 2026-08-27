@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖当前企业 bundle tgz、同级锁定 Harness、Corepack pnpm 与可控回环 Session 假平台
- * [OUTPUT]: 启动可收口的真实 rc.7 Web profile，验证跨设备恢复、删除、DELETED 游标和重启不重传
+ * [OUTPUT]: 启动可收口的真实 rc.2 Web profile，验证跨设备恢复、删除、DELETED 游标和重启不重传
  * [POS]: T18 员工 Session 页面浏览器组合载体，只写临时 DSH_HOME 并守护上游 checkout 清洁度
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */

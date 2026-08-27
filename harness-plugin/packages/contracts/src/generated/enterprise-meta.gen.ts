@@ -44,4 +44,4 @@ export const enterpriseErrorStatuses = {
   "ENT_UPSTREAM_TIMEOUT": 504
 } as const
 
-export const enterpriseProtocolSha256 = '9998e5e489bf4396c9245a3e28be65645b1e484818151bcfe1959e0c949ae133'
+export const enterpriseProtocolSha256 = 'f6a8e5ec8d81ed823e97221a0d90b82157eaf1a42007d38bf1f4b53add0c99b2'

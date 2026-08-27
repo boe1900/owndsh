@@ -18,6 +18,8 @@ const MAX_LOCAL_BODY_BYTES = 256 * 1024
 
 /** Harness `ctx.webServer` Service 公开的 route 结构。 */
 export interface WebServerRoutePort {
+  readonly host: '127.0.0.1' | '0.0.0.0'
+  readonly port: number
   register(route: {
     readonly kind: 'exact' | 'prefix'
     readonly path: string

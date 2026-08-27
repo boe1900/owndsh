@@ -322,7 +322,10 @@
                       },
                       "providerType": {
                         "type": "string",
-                        "const": "DEEPSEEK_OPENAI"
+                        "enum": [
+                          "DEEPSEEK_OFFICIAL",
+                          "CUSTOM"
+                        ]
                       },
                       "protectedValueChanged": {
                         "type": "boolean"
@@ -342,7 +345,6 @@
                     "additionalProperties": false,
                     "required": [
                       "operation",
-                      "reasoning",
                       "resourceRevision",
                       "bootstrapRevision"
                     ],
@@ -356,9 +358,6 @@
                           "DISABLE",
                           "DELETE"
                         ]
-                      },
-                      "reasoning": {
-                        "type": "boolean"
                       },
                       "resourceRevision": {
                         "type": "integer",

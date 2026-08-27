@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖真实 PostgreSQL 17/Flyway V1-V12、三个显式活动用户 fixture、CAS 文件、Ed25519、设备与插件 JDBC/application 服务。
+ * [INPUT]: 依赖真实 PostgreSQL 17/Flyway V1-V13、三个显式活动用户 fixture、CAS 文件、Ed25519、设备与插件 JDBC/application 服务。
  * [OUTPUT]: 验证不借用默认账号的并发幂等上传、catalog assignment 读回、状态/CAS、下载授权、库存、审计和文件补偿。
  * [POS]: T13 服务端纵向验收，跨越 artifact、domain、persistence 与 application 的真实事务边界。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

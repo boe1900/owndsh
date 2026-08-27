@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖真实 PostgreSQL 17/V1-V12、显式活动用户 fixture、quota JDBC 状态机、JdbcAuditSink、事务与 fake DeepSeek SSE。
- * [OUTPUT]: 验证不借用默认账号的 accepted/SENT、settled/finished 原子提交及 finished 审计失败时 ledger/状态共同回滚。
+ * [INPUT]: 依赖真实 PostgreSQL 17/V1-V13、显式活动用户 fixture、quota JDBC 状态机、JdbcAuditSink、事务与 fake DeepSeek SSE。
+ * [OUTPUT]: 验证不借用默认账号的 2xx 后 accepted/SENT、建连失败 RELEASED、settled/finished 原子提交及审计失败回滚。
  * [POS]: T10 数据库事务验收，Redis lease 原子/TTL 继续由 T09 真实 Redis 专项测试证明。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -22,6 +22,7 @@ import org.dromara.enterprise.model.application.BootstrapUser;
 import org.dromara.enterprise.model.domain.ManagedModel;
 import org.dromara.enterprise.model.domain.ModelProvider;
 import org.dromara.enterprise.model.domain.ModelStatus;
+import org.dromara.enterprise.model.domain.ProviderApiProtocol;
 import org.dromara.enterprise.model.domain.ProviderType;
 import org.dromara.enterprise.quota.application.EffectiveQuotaResolver;
 import org.dromara.enterprise.quota.application.QuotaRateLimiter;
@@ -109,10 +110,11 @@ class ModelGatewayTransactionIntegrationTest {
             ),
             new ManagedModel(
                 MODEL_ID, TENANT, PROVIDER_ID, "T10 Provider", "t10-model", "T10 Model", "deepseek-chat",
-                65536, 8192, false, 0, ModelStatus.ACTIVE, 0
+                65536, 8192, null, null, 0, ModelStatus.ACTIVE, 0
             ),
             new ModelProvider(
-                PROVIDER_ID, TENANT, "T10 Provider", ProviderType.DEEPSEEK_OPENAI,
+                PROVIDER_ID, TENANT, "t10-provider", "T10 Provider", ProviderType.CUSTOM,
+                ProviderApiProtocol.OPENAI_COMPLETIONS,
                 URI.create("https://provider.invalid/v1"), encrypted, ModelStatus.ACTIVE, 1000, 1000, 0
             )
         );
@@ -124,7 +126,10 @@ class ModelGatewayTransactionIntegrationTest {
         ModelGatewayService service = service(jdbcAudit);
         ByteArrayOutputStream output = new ByteArrayOutputStream();
 
-        service.open(context(requestId), request(), UUID.fromString("123e4567-e89b-42d3-a456-426614174021"))
+        service.open(
+                context(requestId), request(), ProviderApiProtocol.OPENAI_COMPLETIONS, Map.of(),
+                UUID.fromString("123e4567-e89b-42d3-a456-426614174021")
+            )
             .writeTo(output);
 
         assertThat(output.toString(StandardCharsets.UTF_8)).contains("[DONE]");
@@ -133,7 +138,7 @@ class ModelGatewayTransactionIntegrationTest {
         )).isEqualTo("SETTLED");
         assertThat(database.jdbc().queryForObject(
             "select total_tokens from ent_usage_ledger where request_id = ?", Long.class, requestId
-        )).isEqualTo(17L);
+        )).isEqualTo(15L);
         assertThat(database.jdbc().queryForList(
             "select action from ent_audit_event where request_id = ? order by occurred_at, id", String.class, requestId
         )).containsExactly("MODEL_REQUEST_ACCEPTED", "MODEL_REQUEST_FINISHED");
@@ -149,7 +154,10 @@ class ModelGatewayTransactionIntegrationTest {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
 
         service(failingFinished)
-            .open(context(requestId), request(), UUID.fromString("123e4567-e89b-42d3-a456-426614174022"))
+            .open(
+                context(requestId), request(), ProviderApiProtocol.OPENAI_COMPLETIONS, Map.of(),
+                UUID.fromString("123e4567-e89b-42d3-a456-426614174022")
+            )
             .writeTo(output);
 
         assertThat(output.toString(StandardCharsets.UTF_8))
@@ -165,11 +173,48 @@ class ModelGatewayTransactionIntegrationTest {
         )).containsExactly("MODEL_REQUEST_ACCEPTED");
     }
 
+    @Test
+    void releasesWithoutLedgerWhenUpstreamRejectsBeforeSse() throws Exception {
+        String requestId = "req_01ARZ3NDEKTSV4RRFFQ69G5FAX";
+        DeepSeekUpstreamClient rejected = (baseUrl, protocol, credential, headers, requestBody,
+                                           connectTimeoutMs, readTimeoutMs) -> {
+            throw new GatewayException(
+                GatewayException.Kind.UPSTREAM_INVALID_RESPONSE,
+                GatewayException.Detail.HTTP_STATUS,
+                400,
+                null
+            );
+        };
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+        service(jdbcAudit, rejected)
+            .open(
+                context(requestId), request(), ProviderApiProtocol.OPENAI_COMPLETIONS, Map.of(),
+                UUID.fromString("123e4567-e89b-42d3-a456-426614174023")
+            )
+            .writeTo(output);
+
+        assertThat(output.toString(StandardCharsets.UTF_8)).contains("ENT_UPSTREAM_INVALID_RESPONSE");
+        assertThat(database.jdbc().queryForObject(
+            "select state from ent_usage_reservation where request_id = ?", String.class, requestId
+        )).isEqualTo("RELEASED");
+        assertThat(database.jdbc().queryForObject(
+            "select count(*) from ent_usage_ledger where request_id = ?", Long.class, requestId
+        )).isZero();
+        assertThat(database.jdbc().queryForList(
+            "select action from ent_audit_event where request_id = ?", String.class, requestId
+        )).isEmpty();
+    }
+
     private static ModelGatewayService service(AuditSink audit) {
+        return service(audit, new SuccessfulUpstream());
+    }
+
+    private static ModelGatewayService service(AuditSink audit, DeepSeekUpstreamClient upstream) {
         GatewayRouteResolver routes = mock(GatewayRouteResolver.class);
         when(routes.resolve(any(), anyString())).thenReturn(route);
         return new ModelGatewayService(
-            transactions, routes, quotas, new SuccessfulUpstream(), cipher, audit,
+            transactions, routes, quotas, upstream, cipher, audit,
             IDS::incrementAndGet, JSON
         );
     }
@@ -178,7 +223,7 @@ class ModelGatewayTransactionIntegrationTest {
         return new GatewayChatRequestParser(JSON).parse("""
             {"model":"t10-model","messages":[{"role":"user","content":"transaction prompt"}],
              "max_tokens":64,"stream":true}
-            """.getBytes(StandardCharsets.UTF_8));
+            """.getBytes(StandardCharsets.UTF_8), ProviderApiProtocol.OPENAI_COMPLETIONS);
     }
 
     private static DeviceCallContext context(String requestId) {
@@ -191,17 +236,18 @@ class ModelGatewayTransactionIntegrationTest {
     private static void insertFacts() {
         database.jdbc().update("""
             insert into ent_model_provider (
-                id, tenant_id, name, provider_type, base_url, status,
+                id, tenant_id, provider_key, name, provider_type, api_protocol, base_url, status,
                 connect_timeout_ms, read_timeout_ms, revision
-            ) values (?, ?, 'T10 Provider', 'DEEPSEEK_OPENAI', 'https://provider.invalid/v1',
+            ) values (?, ?, 't10-provider', 'T10 Provider', 'CUSTOM', 'openai-completions',
+                'https://provider.invalid/v1',
                 'ACTIVE', 1000, 1000, 0)
             """, PROVIDER_ID, TENANT);
         database.jdbc().update("""
             insert into ent_managed_model (
                 id, tenant_id, provider_id, alias, display_name, upstream_model,
-                context_window, max_output_tokens, reasoning, sort_order, status, revision
+                context_window, max_output_tokens, sort_order, status, revision
             ) values (?, ?, ?, 't10-model', 'T10 Model', 'deepseek-chat', 65536, 8192,
-                false, 0, 'ACTIVE', 0)
+                0, 'ACTIVE', 0)
             """, MODEL_ID, TENANT, PROVIDER_ID);
         database.jdbc().update("""
             insert into ent_device (
@@ -213,7 +259,9 @@ class ModelGatewayTransactionIntegrationTest {
     private static final class SuccessfulUpstream implements DeepSeekUpstreamClient {
         @Override
         public UpstreamExchange open(
-            URI baseUrl, char[] credential, byte[] requestBody, int connectTimeoutMs, int readTimeoutMs
+            URI baseUrl, ProviderApiProtocol protocol, char[] credential, Map<String, String> headers,
+            byte[] requestBody,
+            int connectTimeoutMs, int readTimeoutMs
         ) {
             List<SseEvent> events = List.of(
                 event("{\"choices\":[{\"delta\":{\"content\":\"ok\"}}]}"),

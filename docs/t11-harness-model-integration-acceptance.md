@@ -1,115 +1,84 @@
 # T11 Harness 模型链路验收记录
 
-状态：`completed`
-
-验收日期：2026-08-19（Asia/Shanghai）
+状态：`completed`，2026-08-25 按官方协议实现重构
 
 ## 结论
 
-T11 已完成，且没有进入 T12。企业 bundle 在未修改的 DeepSeek Harness
-`dsh-v0.1.0-rc.7` 真实 `web` profile 中通过官方 `ctx.llm` 注册唯一 provider
-`enterprise`。员工完成企业 PKCE 后，本机不配置任何上游 API Key，即可取得动态模型目录、解析
-`enterprise/default` 并完成 reasoning、text、tool call、usage 与 finish 的中心模型流。
+企业 bundle 不再实现 `EnterpriseGatewayAdapter`。它直接挂载 DeepSeek Harness rc.7 官方
+`@deepseek-ai/dsh-llm-pi-ai`，因此模型目录、消息、tools、reasoning、Responses replay、SSE、取消、
+错误和三协议兼容语义都由 Harness 官方层负责。
 
-失败链路同样经过真实 `LlmRuntime`：模型未分配、日配额超限和设备撤销分别成为 code 为
-`ENT_MODEL_NOT_ASSIGNED`、`ENT_QUOTA_DAILY_EXCEEDED` 和 `ENT_DEVICE_REVOKED` 的终端 error
-finish。模型请求不绕浏览器本地 API，平台 Token 只由 Host 内存 Service 注入中心 HTTPS 请求。
+企业插件只保留两座桥：bootstrap 到官方 `PiAiProviderProfile` 的纯配置投影，以及 loopback-only
+认证代理。员工登录后无需在本机配置上游 API Key；平台 Token 仍只存在于
+`EnterprisePlatformService` 内存中。
 
 ## 核心实现
 
-- `EnterpriseGatewayAdapter extends LlmAdapter` 从当前 bootstrap 生成目录；精确 alias 与
-  `enterprise/default` 都通过 `resolveModel()` 返回上下文、最大输出、文本能力和 reasoning effort。
-- `registerEnterpriseGateway()` 使用官方 `registerAdapter(['enterprise'], adapter)`；bootstrap 模型
-  事实变化时对同一 handle 原子执行 `replace(['enterprise'])`，复用 `llm/adapters-updated`，不创建
-  产品私有目录事件。
-- adapter 通过 `EnterprisePlatformService.request()` 直连
-  `/enterprise/gateway/v1/chat/completions`。它自己只生成 attribution、幂等键和版本 header，平台
-  Service 是唯一读取内存 Token 并注入 `Authorization` 的代码路径。
-- Harness message 映射遵循 rc.7 官方 DeepSeek adapter 的文本、tool result 与 thinking passback
-  规则；中心 SSE 被分层处理为 framing、wire 词汇和 StreamChunk 翻译。
-- provider retry policy 固定为单次尝试。调用方 abort 或提前停止迭代都会中止 fetch、取消 reader
-  并等待停稳；HTTP/流内错误不透传中心或上游原始 message。
-- bundle profile 把 `agent-default-model` 覆盖为 provider `enterprise`、model
-  `enterprise/default`；同时停用 `llm-deepseek`、`llm-pi-ai` 和个人
-  Models 设置页，不把个人 Key 作为企业调用回退。
+- `profiles.ts` 按 `openai-completions`、`openai-responses`、`anthropic-messages` 建立三个官方
+  provider route，按官方 SDK 约定处理 OpenAI `/v1` 与 Anthropic 自动追加 `/v1/messages` 的 base URL，
+  并为当前有效默认模型建立 `enterprise/default` sentinel。
+- 模型 `contextWindow`、`maxTokens`、`reasoningEfforts` 和 `compat` 原样投影到官方 profile；企业代码
+  不解释 effort，也不做 OpenAI/Anthropic 私有映射。
+- `registration.ts` 直接以 Cordis fiber 挂载官方插件；bootstrap 指纹变化时调用官方 update，目录
+  topology 仍由 `ctx.llm` 管理。
+- `proxy.ts` 只允许 loopback，请求正文与 SSE 字节透明 relay；本机伪 Authorization 不会发往平台，
+  平台 Bearer Token 由 `EnterprisePlatformService.request()` 注入。
+- proxy 强制中心请求同时接受 `text/event-stream` 与 `application/json`，既避免模型流触发平台客户端
+  30 秒普通请求总超时，也允许配额、授权等建连前错误保持稳定 JSON。
+- 企业 profile 不覆盖 provider `retryPolicy`；Harness 官方 `dsh-llm-retry` 执行有界默认策略，SDK、
+  认证代理和企业网关不叠加重试。每次重试仍作为独立平台请求分别执行授权、配额与审计。
 
-## rc.7 依赖解析
+## 协议所有权
 
-bundle 与 llm-gateway 的 `@deepseek-ai/dsh-llm` peer 均精确固定为 `0.1.0-rc.7`，不使用会自动
-接受后续 rc 的范围。真实 profile 的 pnpm 配置为 `autoInstallPeers: false`：它不会在插件目录再装一份
-LLM runtime，而由 rc.7 官方新增的 app dependency fallback 从 Harness 安装闭包解析 Service
-Definition。组合验收实际加载 bundle 并调用 `ctx.llm`，证明这条官方树外插件解析路径成立。
+`dsh-llm-pi-ai` 是唯一模型协议实现。企业层只负责认证代理、授权、配额、审计、受管模型 ID 覆盖和
+上游密钥注入。后续新增模型、reasoning 档位、消息类型或 replay 能力时，应升级/配置官方包，不得
+在产品仓库恢复 adapter、serialize、translate、transport 或 wire 模块。
 
-## Server 与协议
-
-T11 在既有严格 chat request 增加 `thinking.type=enabled|disabled` 与
-`reasoning_effort=high|max`。Server 拒绝未知组合，并在 route 解析后再次核对受管模型的
-`reasoning` 能力；不支持的模型在配额预留、上游建连和审计前失败。协议继续禁止 provider、base URL、
-上游模型和 credential 字段。
-
-本任务生成后的完整逻辑协议 SHA-256 为：
-
-```text
-9ab358ded0311768e00783b3b0f769effb2a3ebe058eb81fe8915622a6518af5
-```
+`skipLibCheck` 只在直接链接官方包的 `llm-gateway` 和 bundle declaration build 中启用，用于隔离
+上游 `@anthropic-ai/sdk` 无法解析相对 `undici-types` 的声明缺陷；产品代码仍使用 workspace 严格配置。
 
 ## 自动验收
 
-插件 workspace 完整门禁：
-
 ```sh
-corepack pnpm@11.7.0 run check
+corepack pnpm@11.7.0 --dir harness-plugin run typecheck
+corepack pnpm@11.7.0 --dir harness-plugin --filter @enterprise-agent/dsh-llm-gateway test
 ```
 
-结果：6 个产品 package 的 typecheck/build 全部通过；contracts 6 项、session-sync 3 项、UI 7 项、
-platform-client 18 项、llm-gateway 14 项、bundle 3 项和 workspace 4 项不变量全部通过。
+最小回归覆盖三协议 profile、default/reasoningEfforts、透明 relay、平台 SSE 标记和本机认证隔离。
 
-Server 定向 reasoning/request 门禁：
-
-```sh
-JAVA_HOME=/usr/local/opt/openjdk@21 \
-PATH=/usr/local/opt/openjdk@21/bin:$PATH \
-./mvnw -B -ntp -pl ruoyi-modules/ruoyi-enterprise -am \
-  -Dmaven.test.skip=false -DskipTests=false \
-  -Dtest=GatewayChatRequestParserTest,ModelGatewayServiceTest \
-  -Dsurefire.failIfNoSpecifiedTests=false test
-```
-
-结果：8 项全部通过，包括合法/非法 thinking 组合和非 reasoning 模型在 quota 前拒绝。
-
-## 真实 bundle 与 Harness
+真实 bundle 组合验收：
 
 ```sh
-corepack pnpm@11.7.0 run pack:bundle
-corepack pnpm@11.7.0 run accept:t11-model -- \
+corepack pnpm@11.7.0 --dir harness-plugin run pack:bundle
+corepack pnpm@11.7.0 --dir harness-plugin run accept:t11-model -- \
   --tgz ../artifacts/enterprise-agent-dsh-bundle-0.1.0.tgz
 ```
 
-`scripts/t11-harness-model-smoke.mjs` 执行以下不可替代的组合事实：
+`scripts/t11-harness-model-smoke.mjs` 使用未修改的锁定 Harness `web` profile，验证：
 
-1. 先校验同级 Harness 精确 commit 和 clean worktree，再把真实 tgz 安装到临时 `web` profile。
-2. 通过临时系统 opener 完成真实 platform-client PKCE、Token、enroll 和 bootstrap 状态机。
-3. 临时验收插件只使用 profile 内的 `ctx.llm.listProviders()`、`listModels()`、
-   `resolveModelInfo()` 和 `stream()`；它不进入发行 tarball。
-4. 目录从 `managed-reasoner` 热更新为两个模型，且 topology 计数证明官方 registration replace 已发布。
-5. 成功流包含 reasoning、text、tool call、分离 cache/reasoning usage 和 tool-calls finish。
-6. 三个失败 code、HTTP status 和同一 requestId 经过跨 package rc.7 error normalization 后保持稳定。
-7. 每个中心请求都含平台 Bearer Token、幂等键、Harness attribution 与两个版本 header；body 不含
-   provider、base URL、上游模型 route 或 credential。
+1. 真实 PKCE、Token、enroll、bootstrap 后动态出现四个企业 route 和 default sentinel。
+2. 官方 `ctx.llm.stream()` 分别完成 Completions、Responses 与 Anthropic Messages 原生流。
+3. `xhigh` 由官方层写为 Responses `reasoning: { effort: 'xhigh', summary: 'auto' }`。
+4. bootstrap 模型变化通过官方 profile update 刷新目录。
+5. 所有中心请求使用内存平台 Token、UUID 幂等键和版本 header，且 `Accept` 同时声明 SSE/JSON。
+6. 真实 Agent 请求首次收到 503 后产生一个 `llm/retry`，继承官方 `normal/maxRetries=2` 并在第二次
+   请求成功；平台观察到主 Agent 的两次独立请求。
+7. 临时 `DSH_HOME` 不包含平台 Token 或任何上游 API Key；锁定 Harness 工作区保持 clean。
 
-现有无 ambient shim package consumer 和 T01 Harness 本地 API/Client/Session seed smoke 继续作为
-最终门禁运行；T11 没有恢复 Typert Remote、ambient shim 或 Harness 源码路径。
+## 2026-08-26 真实部署回归
 
-## 安全与边界门禁
+- 保留原 PostgreSQL/Redis 与 7 个 ACTIVE 模型，仅原地替换 Server 后，Gateway、Server、PostgreSQL、
+  Redis 均为 healthy，`/healthz` 返回 200。
+- 已登录的 Harness 显示“企业 · 已连接”，以 `gpt-5.6-sol`、`Xhigh` 发送唯一探针，4 秒完成、
+  首 token 4.8 秒，精确返回 `E2E_XHIGH_DEPLOY_OK_0826`，客户端无 warning/error。
+- 同一请求的 ledger 为 `SETTLED`，input/output/total 为 `10524/15/10539`；
+  `MODEL_REQUEST_ACCEPTED` 与 `MODEL_REQUEST_FINISHED` 均为 `SUCCESS`，请求后无失败审计。
+- Harness contracts/platform-client/llm-gateway/bundle 共 36 项通过，后端网关与事务定向回归 23 项通过；
+  真实锁定 Harness smoke 覆盖三协议、Xhigh、授权/配额/设备拒绝和 Token 不落盘。
+- 长会话耗尽日配额后曾暴露代理只接受 SSE、Server 无法返回 JSON 429 的媒体协商偏差；代理现同时
+  接受 SSE/JSON，定向插件 24 项、Server 契约 4 项和锁定 Harness 三协议/错误矩阵均通过。
 
-验收进程从 Harness 子进程环境移除所有匹配 API key/access token/client secret 的变量。完成四次模型
-请求后，脚本扫描临时 `DSH_HOME` 的非依赖文件：平台 Token、`DEEPSEEK_API_KEY`、
-`OPENAI_API_KEY` 和 `ANTHROPIC_API_KEY` 均不存在。installation 文件仍只含非秘密设备事实。
+## 安全边界
 
-组合验收退出前关闭 Harness 与假平台、删除临时 profile，并再次断言同级 `deepseek-harness` 位于
-`99f6f02fecdb7dff40c3fbc9470f5907c29f74ca` 且工作区为空。本任务没有修改任何上游文件。
-
-## 任务边界
-
-T12 可以在独立后续任务交付管理控制台。T11 没有提前实现管理页面、插件分发、Session 同步、部署或
-移动端；详细设计中的 T12-T23 仍为 `pending`。
+平台和上游 credential 均不写入 Harness settings、环境或磁盘。认证代理只转发明确的协议 header，
+不接受外部网络调用；请求正文、reasoning、tool 和原始 provider 错误不进入企业日志或本地状态。

@@ -1,6 +1,6 @@
 # @enterprise-agent/dsh-session-sync
 
-Harness Host 的本地优先 Session 复制边界。`EnterpriseSessionSyncService` 依赖官方 rc.7
+Harness Host 的本地优先 Session 复制边界。`EnterpriseSessionSyncService` 依赖官方 rc.2
 `sessions`、`sessionPersistence` 和产品 `enterprisePlatform` Service，并注册
 `ctx.enterpriseSessionSync`。`session/event` 回调只标记 dirty；默认防抖 2 秒后，每个 Session
 由唯一 worker 执行 `flush -> readFrom(lastAckSeq + 1) -> batch upload -> cursor commit`，因此本地

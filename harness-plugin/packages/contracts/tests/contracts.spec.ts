@@ -17,7 +17,7 @@ import {
   parseManagedModelId,
   parsePluginVersionId,
   parseRemoteSessionId,
-  zChatCompletionRequest,
+  zNativeGatewayRequest,
   zMyQuotaUsageResponse,
   zPluginAssignmentBatchRequest,
   zPluginCompatibility,
@@ -183,27 +183,16 @@ describe('generated enterprise contracts', () => {
     expect(zQuotaWindowListResponse.safeParse(windows).success).toBe(false)
   })
 
-  it('exports the strict T10 gateway request schema through the package facade', async () => {
+  it('exports the protocol-native gateway governance schema through the package facade', async () => {
     const valid = JSON.parse(await readFile(
       resolve(CONTRACT_ROOT, 'fixtures', 'gateway-request-success.json'),
       'utf8',
     )) as unknown
-    const forged = JSON.parse(await readFile(
-      resolve(CONTRACT_ROOT, 'fixtures', 'gateway-request-route-forgery.json'),
-      'utf8',
-    )) as unknown
-    expect(zChatCompletionRequest.safeParse(valid).success).toBe(true)
-    expect(zChatCompletionRequest.safeParse(forged).success).toBe(false)
-    expect(zChatCompletionRequest.safeParse({
-      model: 'deepseek-chat',
-      messages: [{ role: 'user', content: [{ type: 'image_url', image_url: { url: 'x' } }] }],
-      stream: true,
-    }).success).toBe(false)
-    expect(zChatCompletionRequest.safeParse({
-      model: 'deepseek-chat',
-      messages: [{ role: 'user', content: 'hello', reasoning_content: 'forged' }],
-      stream: true,
-    }).success).toBe(false)
+    expect(zNativeGatewayRequest.safeParse(valid).success).toBe(true)
+    expect(zNativeGatewayRequest.safeParse({ model: 'managed', stream: false }).success).toBe(false)
+    expect(zNativeGatewayRequest.safeParse({
+      model: 'managed', stream: true, messages: [{ role: 'user', content: [{ type: 'image_url' }] }],
+    }).success).toBe(true)
   })
 
   it('exports strict T13 plugin schemas through the package facade', async () => {

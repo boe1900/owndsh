@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖当前 bundle tgz、同级锁定 Harness、Corepack pnpm 与可控回环企业平台
- * [OUTPUT]: 验证真实 web profile 的 ctx.llm 动态目录、default、模型流、稳定失败及无本地上游 Key
+ * [OUTPUT]: 验证真实 web profile 由官方 dsh-llm-pi-ai 提供三协议目录、default、reasoning、模型流、瞬时失败恢复及无本地上游 Key
  * [POS]: harness-plugin 的 T11 核心组合验收器，只写临时 profile/probe 并守护上游工作区清洁度
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -140,13 +140,42 @@ function enterpriseError(response, status, code) {
   })
 }
 
-function model(alias, displayName, isDefault) {
+function sse(response, type, payload) {
+  response.write(`event: ${type}\ndata: ${JSON.stringify(payload)}\n\n`)
+}
+
+function responsesObject(modelId, text) {
+  const message = {
+    id: 'msg-managed',
+    type: 'message',
+    status: 'completed',
+    role: 'assistant',
+    content: [{ type: 'output_text', annotations: [], logprobs: [], text }],
+  }
+  return {
+    id: 'resp-managed', object: 'response', created_at: 1, status: 'completed',
+    error: null, incomplete_details: null, instructions: null, max_output_tokens: null,
+    model: modelId, output: [message], parallel_tool_calls: true, previous_response_id: null,
+    reasoning: { effort: null, summary: null }, store: false,
+    text: { format: { type: 'text' } }, tool_choice: 'auto', tools: [],
+    usage: {
+      input_tokens: 12,
+      input_tokens_details: { cached_tokens: 3 },
+      output_tokens: 7,
+      output_tokens_details: { reasoning_tokens: 2 },
+      total_tokens: 19,
+    },
+  }
+}
+
+function model(alias, name, apiProtocol, isDefault, reasoningEfforts) {
   return {
     alias,
-    displayName,
+    name,
+    apiProtocol,
     contextWindow: 65_536,
-    maxOutputTokens: 8_192,
-    reasoning: true,
+    maxTokens: 8_192,
+    ...(reasoningEfforts === undefined ? {} : { reasoningEfforts }),
     isDefault,
   }
 }
@@ -176,8 +205,13 @@ async function readTextFiles(root) {
   return result
 }
 
-const initialModel = model('managed-reasoner', 'Managed Reasoner', true)
-let models = [initialModel]
+const initialModel = model(
+  'managed-responses', 'Managed Responses', 'openai-responses', true,
+  { low: 'low', medium: 'medium', high: 'high', xhigh: 'xhigh' },
+)
+const completionModel = model('managed-completions', 'Managed Completions', 'openai-completions', false)
+const anthropicModel = model('managed-anthropic', 'Managed Anthropic', 'anthropic-messages', false)
+let models = [completionModel, initialModel, anthropicModel]
 let bootstrapRevision = 1
 let installationId = '00000000-0000-4000-8000-000000000000'
 let gatewayMode = 'success'
@@ -256,9 +290,18 @@ const platformServer = createServer(async (request, response) => {
     })
     return
   }
-  if (url.pathname === '/enterprise/gateway/v1/chat/completions' && request.method === 'POST') {
+  const gatewayProtocol = {
+    '/enterprise/gateway/v1/chat/completions': 'openai-completions',
+    '/enterprise/gateway/v1/responses': 'openai-responses',
+    '/enterprise/gateway/v1/messages': 'anthropic-messages',
+  }[url.pathname]
+  if (gatewayProtocol !== undefined && request.method === 'POST') {
     const body = await readJson(request)
-    gatewayRequests.push({ headers: { ...request.headers }, body })
+    gatewayRequests.push({ headers: { ...request.headers }, body, gatewayProtocol })
+    if (gatewayMode === 'transient-once') {
+      gatewayMode = 'success'
+      return enterpriseError(response, 503, 'ENT_UPSTREAM_UNAVAILABLE')
+    }
     if (gatewayMode === 'model-not-assigned') return enterpriseError(response, 403, 'ENT_MODEL_NOT_ASSIGNED')
     if (gatewayMode === 'quota') return enterpriseError(response, 429, 'ENT_QUOTA_DAILY_EXCEEDED')
     if (gatewayMode === 'revoked') return enterpriseError(response, 403, 'ENT_DEVICE_REVOKED')
@@ -267,26 +310,60 @@ const platformServer = createServer(async (request, response) => {
       'content-type': 'text/event-stream; charset=utf-8',
       'x-request-id': REQUEST_ID,
     })
-    for (const frame of [
-      { choices: [{ delta: { reasoning_content: 'managed thought' } }] },
-      { choices: [{ delta: { content: 'managed answer' } }] },
-      {
-        choices: [{
-          delta: { tool_calls: [{ index: 0, id: 'call-managed', function: { name: 'lookup', arguments: '{}' } }] },
-          finish_reason: 'tool_calls',
-        }],
-      },
-      {
-        choices: [],
-        usage: {
-          prompt_tokens: 12,
-          completion_tokens: 7,
-          prompt_tokens_details: { cached_tokens: 3 },
-          completion_tokens_details: { reasoning_tokens: 2 },
+    if (gatewayProtocol === 'openai-completions') {
+      for (const frame of [
+        { id: 'chat-managed', choices: [{ index: 0, delta: { content: 'managed completions' } }] },
+        { id: 'chat-managed', choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] },
+        {
+          id: 'chat-managed', choices: [],
+          usage: { prompt_tokens: 12, completion_tokens: 7, prompt_tokens_details: { cached_tokens: 3 } },
         },
+      ]) response.write(`data: ${JSON.stringify(frame)}\n\n`)
+      response.end('data: [DONE]\n\n')
+      return
+    }
+    if (gatewayProtocol === 'openai-responses') {
+      const completed = responsesObject(String(body.model), 'managed responses')
+      const message = completed.output[0]
+      sse(response, 'response.created', {
+        type: 'response.created', response: { ...completed, status: 'in_progress', output: [] },
+      })
+      sse(response, 'response.output_item.added', {
+        type: 'response.output_item.added', output_index: 0,
+        item: { ...message, status: 'in_progress', content: [] },
+      })
+      sse(response, 'response.output_text.delta', {
+        type: 'response.output_text.delta', output_index: 0, content_index: 0,
+        item_id: message.id, delta: 'managed responses', logprobs: [],
+      })
+      sse(response, 'response.output_item.done', {
+        type: 'response.output_item.done', output_index: 0, item: message,
+      })
+      sse(response, 'response.completed', { type: 'response.completed', response: completed })
+      response.end()
+      return
+    }
+    sse(response, 'message_start', {
+      type: 'message_start',
+      message: {
+        id: 'msg-managed', type: 'message', role: 'assistant', model: body.model,
+        content: [], stop_reason: null, stop_sequence: null,
+        usage: { input_tokens: 12, output_tokens: 0, cache_read_input_tokens: 3 },
       },
-    ]) response.write(`data: ${JSON.stringify(frame)}\n\n`)
-    response.end('data: [DONE]\n\n')
+    })
+    sse(response, 'content_block_start', {
+      type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' },
+    })
+    sse(response, 'content_block_delta', {
+      type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'managed anthropic' },
+    })
+    sse(response, 'content_block_stop', { type: 'content_block_stop', index: 0 })
+    sse(response, 'message_delta', {
+      type: 'message_delta', delta: { stop_reason: 'end_turn', stop_sequence: null },
+      usage: { output_tokens: 7 },
+    })
+    sse(response, 'message_stop', { type: 'message_stop' })
+    response.end()
     return
   }
   response.writeHead(404).end()
@@ -299,7 +376,7 @@ function write(response, status, value) {
 }
 
 export const name = 'enterprise-t11-acceptance-probe'
-export const inject = ['webServer', 'llm']
+export const inject = ['webServer', 'llm', 'agents']
 
 export function apply(ctx) {
   let topologyUpdates = 0
@@ -310,7 +387,7 @@ export function apply(ctx) {
     handler: async (request, response) => {
       if (request.method !== 'GET') return write(response, 405, { error: 'method' })
       try {
-        write(response, 200, { data: await action() })
+        write(response, 200, { data: await action(request) })
       } catch (error) {
         write(response, 500, { error: String(error) })
       }
@@ -318,26 +395,65 @@ export function apply(ctx) {
   })
   ctx.effect(() => {
     const disposers = [
-      register('/enterprise/t11/catalog', async () => ({
-        providers: ctx.llm.listProviders(),
-        models: await ctx.llm.listModels('enterprise'),
-        resolved: await ctx.llm.resolveModelInfo('enterprise', 'enterprise/default'),
-        topologyUpdates,
-      })),
-      register('/enterprise/t11/stream', async () => {
+      register('/enterprise/t11/catalog', async () => {
+        const providers = ctx.llm.listProviders().filter(value => value.id.startsWith('enterprise'))
+        const models = Object.fromEntries(await Promise.all(
+          providers.map(async value => [value.id, await ctx.llm.listModels(value.id)]),
+        ))
+        return {
+          providers,
+          models,
+          resolved: await ctx.llm.resolveModelInfo('enterprise', 'enterprise/default'),
+          topologyUpdates,
+        }
+      }),
+      register('/enterprise/t11/stream', async (request) => {
+        const url = new URL(request.url, 'http://enterprise.local')
+        const provider = url.searchParams.get('provider') ?? 'enterprise'
+        const model = url.searchParams.get('model') ?? 'enterprise/default'
+        const reasoningEffort = url.searchParams.get('reasoningEffort')
         const chunks = []
         for await (const chunk of ctx.llm.stream({
-          provider: 'enterprise',
-          model: 'enterprise/default',
-          reasoningEffort: 'max',
+          provider,
+          model,
+          ...(reasoningEffort === null ? {} : { reasoningEffort }),
           messages: [{
             role: 'user',
             source: { kind: 'user' },
             content: [{ type: 'text', text: 'T11 managed model request' }],
           }],
-          tools: [{ name: 'lookup', description: 'lookup managed data', parameters: { type: 'object' } }],
         })) chunks.push(chunk)
         return { chunks }
+      }),
+      register('/enterprise/t11/retry', async () => {
+        const handle = await ctx.agents.create({
+          sessionId: 'enterprise-t11-retry-' + crypto.randomUUID(),
+          meta: { cwd: process.cwd() },
+          agentOptions: { provider: 'enterprise', model: 'enterprise/default' },
+        })
+        try {
+          const agent = handle.agent
+          agent.followup({
+            id: crypto.randomUUID(),
+            role: 'user',
+            source: { kind: 'user' },
+            content: [{ type: 'text', text: 'T11 retry recovery request' }],
+          })
+          await agent.whenIdle()
+          const retries = agent.session.events
+            .filter(event => event.type === 'llm/retry')
+            .map(event => event.data)
+          const assistantText = agent.session.events
+            .filter(event => event.type === 'assistant/message')
+            .flatMap(event => event.data.message.content)
+            .filter(block => block.type === 'text')
+            .map(block => block.text)
+            .join('')
+          const turnEnd = agent.session.events.findLast(event => event.type === 'turn/end')?.data
+          return { retries, assistantText, turnEnd }
+        } finally {
+          await handle.dispose()
+        }
       }),
     ]
     return () => { for (const dispose of disposers.reverse()) dispose() }
@@ -400,8 +516,8 @@ try {
     assert.match(dump.stdout, new RegExp(`id: ${id}[\\s\\S]{0,160}disabled: true`))
   }
   const profileLock = await readFile(resolve(profileDir, 'pnpm-lock.yaml'), 'utf8')
-  assert.match(profileLock, /'@deepseek-ai\/dsh-llm': 0\.1\.0-rc\.7/)
-  assert.doesNotMatch(profileLock, /'@deepseek-ai\/dsh-llm': 0\.1\.0-rc\.(?!7\b)\d+/)
+  assert.match(profileLock, /'@deepseek-ai\/dsh-llm': 0\.1\.1-rc\.2/)
+  assert.doesNotMatch(profileLock, /'@deepseek-ai\/dsh-llm': 0\.1\.1-rc\.(?!2\b)\d+/)
 
   harness = spawn('corepack', [
     'pnpm@11.7.0', '--dir', harnessRoot, 'dsh', '--profile', 'web', '--port', '0',
@@ -432,45 +548,91 @@ try {
     const response = await fetch(`${harnessUrl}/enterprise/t11/catalog`)
     if (!response.ok) return undefined
     const body = await response.json()
-    return body.data.models?.length === 1 ? body.data : undefined
-  }, 'ctx.llm catalog did not expose the enterprise model')
-  assert.deepEqual(catalog.providers, [{ id: 'enterprise', name: '企业模型' }])
-  assert.deepEqual(catalog.models, [{
-    provider: 'enterprise', id: initialModel.alias, name: initialModel.displayName, inputModalities: ['text'],
-  }])
+    return body.data.models?.enterprise?.length === 1 ? body.data : undefined
+  }, 'ctx.llm catalog did not expose the official enterprise routes')
+  assert.deepEqual(catalog.providers.map(value => value.id).sort(), [
+    'enterprise',
+    'enterprise-anthropic-messages',
+    'enterprise-openai-completions',
+    'enterprise-openai-responses',
+  ])
+  assert.deepEqual(catalog.models['enterprise-openai-completions'].map(value => value.id), [completionModel.alias])
+  assert.deepEqual(catalog.models['enterprise-openai-responses'].map(value => value.id), [initialModel.alias])
+  assert.deepEqual(catalog.models['enterprise-anthropic-messages'].map(value => value.id), [anthropicModel.alias])
+  assert.deepEqual(catalog.models.enterprise.map(value => value.id), ['enterprise/default'])
   assert.deepEqual(catalog.resolved, {
     provider: 'enterprise',
     id: 'enterprise/default',
-    name: `${initialModel.displayName}（企业默认）`,
+    name: `${initialModel.name}（企业默认）`,
     inputModalities: ['text'],
     context: { contextWindow: initialModel.contextWindow },
-    defaultMaxTokens: initialModel.maxOutputTokens,
+    defaultMaxTokens: initialModel.maxTokens,
     reasoning: {
-      efforts: [{ id: 'off', name: '关闭' }, { id: 'high', name: '高' }, { id: 'max', name: '最高' }],
-      defaultEffort: 'high',
+      efforts: [
+        { id: 'low', name: 'Low' },
+        { id: 'medium', name: 'Medium' },
+        { id: 'high', name: 'High' },
+        { id: 'xhigh', name: 'Xhigh' },
+      ],
     },
   })
 
   const topologyBefore = catalog.topologyUpdates
-  models = [initialModel, model('managed-chat-next', 'Managed Chat Next', false)]
+  const nextModel = model('managed-completions-next', 'Managed Completions Next', 'openai-completions', false)
+  models = [completionModel, nextModel, initialModel, anthropicModel]
   bootstrapRevision += 1
   const refreshedCatalog = await waitFor(async () => {
     const response = await fetch(`${harnessUrl}/enterprise/t11/catalog`)
     if (!response.ok) return undefined
     const body = await response.json()
-    return body.data.models?.length === 2 && body.data.topologyUpdates > topologyBefore ? body.data : undefined
-  }, 'ctx.llm catalog did not refresh through registration.replace')
-  assert.deepEqual(refreshedCatalog.models.map(value => value.id), ['managed-reasoner', 'managed-chat-next'])
+    return body.data.models?.['enterprise-openai-completions']?.length === 2
+      && body.data.topologyUpdates > topologyBefore ? body.data : undefined
+  }, 'ctx.llm catalog did not refresh through official profile update')
+  assert.deepEqual(
+    refreshedCatalog.models['enterprise-openai-completions'].map(value => value.id),
+    [completionModel.alias, nextModel.alias],
+  )
 
-  const success = await (await fetch(`${harnessUrl}/enterprise/t11/stream`)).json()
-  const chunks = success.data.chunks
-  assert.ok(chunks.some(chunk => chunk.type === 'reasoning-delta' && chunk.text === 'managed thought'))
-  assert.ok(chunks.some(chunk => chunk.type === 'text-delta' && chunk.text === 'managed answer'))
-  assert.ok(chunks.some(chunk => chunk.type === 'block-end' && chunk.block?.type === 'tool-call'
-    && chunk.block.name === 'lookup' && chunk.block.arguments === '{}'))
-  assert.ok(chunks.some(chunk => chunk.type === 'usage' && chunk.usage.inputTokens === 9
-    && chunk.usage.outputTokens === 7 && chunk.usage.cacheReadTokens === 3 && chunk.usage.reasoningTokens === 2))
-  assert.deepEqual(chunks.at(-1), { type: 'finish', reason: { kind: 'tool-calls' } })
+  for (const [provider, modelId, text, reasoningEffort] of [
+    ['enterprise-openai-completions', completionModel.alias, 'managed completions'],
+    ['enterprise', 'enterprise/default', 'managed responses', 'xhigh'],
+    ['enterprise-anthropic-messages', anthropicModel.alias, 'managed anthropic'],
+  ]) {
+    const query = new URLSearchParams({ provider, model: modelId })
+    if (reasoningEffort !== undefined) query.set('reasoningEffort', reasoningEffort)
+    const success = await (await fetch(`${harnessUrl}/enterprise/t11/stream?${query}`)).json()
+    const chunks = success.data.chunks
+    const diagnostic = `${provider}: ${JSON.stringify(chunks)}`
+    assert.ok(chunks.some(chunk => chunk.type === 'text-delta' && chunk.text === text), diagnostic)
+    assert.ok(chunks.some(chunk => chunk.type === 'usage'), diagnostic)
+    assert.equal(chunks.at(-1).type, 'finish')
+    assert.equal(chunks.at(-1).reason.kind, 'stop')
+  }
+
+  const retryRequestOffset = gatewayRequests.length
+  gatewayMode = 'transient-once'
+  const recoveredResponse = await fetch(`${harnessUrl}/enterprise/t11/retry`)
+  const recovered = await recoveredResponse.json()
+  assert.equal(recoveredResponse.status, 200, JSON.stringify(recovered))
+  const retryRequests = gatewayRequests.slice(retryRequestOffset)
+    .filter(request => request.body.max_output_tokens === 8_192)
+  assert.equal(retryRequests.length, 2, JSON.stringify(recovered))
+  assert.equal(new Set(retryRequests.map(request => request.headers['idempotency-key'])).size, 2)
+  assert.equal(recovered.data.assistantText, 'managed responses')
+  assert.equal(recovered.data.retries.length, 1)
+  assert.deepEqual({
+    provider: recovered.data.retries[0].provider,
+    mode: recovered.data.retries[0].mode,
+    retry: recovered.data.retries[0].retry,
+    maxRetries: recovered.data.retries[0].maxRetries,
+    code: recovered.data.retries[0].failure.code,
+  }, {
+    provider: 'enterprise',
+    mode: 'normal',
+    retry: 1,
+    maxRetries: 5,
+    code: 'SERVER',
+  })
 
   for (const [mode, code, status] of [
     ['model-not-assigned', 'ENT_MODEL_NOT_ASSIGNED', 403],
@@ -478,39 +640,39 @@ try {
     ['revoked', 'ENT_DEVICE_REVOKED', 403],
   ]) {
     gatewayMode = mode
-    const failure = await (await fetch(`${harnessUrl}/enterprise/t11/stream`)).json()
-    assert.deepEqual(failure.data.chunks.at(-1), {
-      type: 'finish',
-      reason: {
-        kind: 'error',
-        failure: {
-          message: 'enterprise platform rejected the model request',
-          code,
-          status,
-          requestId: REQUEST_ID,
-        },
-      },
-    })
+    const failure = await (await fetch(
+      `${harnessUrl}/enterprise/t11/stream?provider=enterprise&model=enterprise%2Fdefault&reasoningEffort=xhigh`,
+    )).json()
+    assert.equal(failure.data.chunks.at(-1).type, 'finish')
+    assert.equal(failure.data.chunks.at(-1).reason.kind, 'error')
+    assert.match(failure.data.chunks.at(-1).reason.failure.message, new RegExp(String(status)))
+    assert.equal(typeof failure.data.chunks.at(-1).reason.failure.code, 'string')
   }
   const revokedStatus = await (await fetch(`${harnessUrl}/enterprise/api/v1/local/status`)).json()
   assert.equal(revokedStatus.data.state, 'DEVICE_REVOKED')
 
-  assert.equal(gatewayRequests.length, 4)
   for (const gatewayRequest of gatewayRequests) {
     assert.equal(gatewayRequest.headers.authorization, `Bearer ${PLATFORM_TOKEN}`)
-    assert.equal(gatewayRequest.headers['x-harness-version'], '0.1.0-rc.7')
+    assert.equal(gatewayRequest.headers.accept, 'text/event-stream, application/json')
+    assert.equal(gatewayRequest.headers['x-harness-version'], '0.1.1-rc.2')
     assert.equal(gatewayRequest.headers['x-enterprise-bundle-version'], '0.1.0')
     assert.match(gatewayRequest.headers['idempotency-key'], /^[0-9a-f-]{36}$/i)
-    assert.match(gatewayRequest.headers['user-agent'], /deepseek-harness\/0\.1\.0-rc\.7/)
     assert.equal(gatewayRequest.headers['x-api-key'], undefined)
-    assert.deepEqual(gatewayRequest.body.thinking, { type: 'enabled' })
-    assert.equal(gatewayRequest.body.reasoning_effort, 'max')
-    assert.equal(gatewayRequest.body.max_tokens, 8_192)
-    assert.equal(gatewayRequest.body.model, 'enterprise/default')
+    assert.equal(gatewayRequest.body.thinking, undefined)
+    assert.equal(gatewayRequest.body.reasoning_effort, undefined)
+    assert.equal(gatewayRequest.body.stream, true)
     for (const forbidden of ['apiKey', 'api_key', 'baseUrl', 'base_url', 'credential', 'provider']) {
       assert.equal(Object.hasOwn(gatewayRequest.body, forbidden), false)
     }
   }
+  const responseRequest = gatewayRequests.find(request => request.gatewayProtocol === 'openai-responses')
+  assert.equal(responseRequest.body.model, 'enterprise/default')
+  assert.equal(responseRequest.body.max_output_tokens, 8_192)
+  assert.deepEqual(responseRequest.body.reasoning, { effort: 'xhigh', summary: 'auto' })
+  assert.equal(
+    gatewayRequests.find(request => request.gatewayProtocol === 'anthropic-messages').body.max_tokens,
+    8_192,
+  )
 
   const localText = (await readTextFiles(temporaryDshHome)).join('\n')
   assert.doesNotMatch(localText, new RegExp(PLATFORM_TOKEN))
@@ -524,13 +686,14 @@ try {
   })).stdout, '', 'Harness checkout became dirty during T11 acceptance')
 
   process.stdout.write(`${JSON.stringify({
-    dynamicCatalog: refreshedCatalog.models.map(value => value.id),
+    dynamicCatalog: refreshedCatalog.models['enterprise-openai-completions'].map(value => value.id),
     errorMatrix: ['ENT_MODEL_NOT_ASSIGNED', 'ENT_QUOTA_DAILY_EXCEEDED', 'ENT_DEVICE_REVOKED'],
     harnessCommit: harnessHead,
-    modelFlow: ['reasoning', 'text', 'tool-call', 'usage', 'finish'],
+    modelFlow: ['openai-completions', 'openai-responses+xhigh', 'anthropic-messages'],
+    retryRecovery: '503 -> Harness llm/retry -> success',
     platformAuthorization: 'memory-token-observed-at-center-only',
     profile: 'web',
-    profileLlmPeer: '0.1.0-rc.7',
+    profileLlmPeer: '0.1.1-rc.2',
     removedCredentialVariables,
     temporaryDshHome: keep ? temporaryDshHome : undefined,
   }, null, 2)}\n`)

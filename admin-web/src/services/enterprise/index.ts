@@ -55,7 +55,9 @@ import * as disableQuotaPolicy from "./disableQuotaPolicy";
 import * as getQuotaPolicyWindows from "./getQuotaPolicyWindows";
 import * as getMyQuotaUsage from "./getMyQuotaUsage";
 import * as listUsageLedger from "./listUsageLedger";
-import * as streamEnterpriseChatCompletion from "./streamEnterpriseChatCompletion";
+import * as streamEnterpriseChatCompletions from "./streamEnterpriseChatCompletions";
+import * as streamEnterpriseResponses from "./streamEnterpriseResponses";
+import * as streamEnterpriseAnthropicMessages from "./streamEnterpriseAnthropicMessages";
 import * as listPluginPackages from "./listPluginPackages";
 import * as uploadPluginVersion from "./uploadPluginVersion";
 import * as publishPluginVersion from "./publishPluginVersion";
@@ -128,7 +130,9 @@ export default {
   getQuotaPolicyWindows,
   getMyQuotaUsage,
   listUsageLedger,
-  streamEnterpriseChatCompletion,
+  streamEnterpriseChatCompletions,
+  streamEnterpriseResponses,
+  streamEnterpriseAnthropicMessages,
   listPluginPackages,
   uploadPluginVersion,
   publishPluginVersion,

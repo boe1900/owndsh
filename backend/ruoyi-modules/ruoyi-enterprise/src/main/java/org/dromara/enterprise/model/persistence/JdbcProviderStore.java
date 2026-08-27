@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 Spring JdbcOperations 与 V1 ent_model_provider schema。
+ * [INPUT]: 依赖 Spring JdbcOperations 与 V13 ent_model_provider schema。
  * [OUTPUT]: 对外提供 provider keyset SQL、bytea 密文映射及 revision/status CAS。
  * [POS]: model/persistence 的 provider PostgreSQL adapter，credential 不进入文本或 JSON 列。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -9,6 +9,7 @@ package org.dromara.enterprise.model.persistence;
 import org.dromara.enterprise.crypto.EncryptedSecret;
 import org.dromara.enterprise.model.domain.ModelProvider;
 import org.dromara.enterprise.model.domain.ModelStatus;
+import org.dromara.enterprise.model.domain.ProviderApiProtocol;
 import org.dromara.enterprise.model.domain.ProviderType;
 import org.springframework.jdbc.core.JdbcOperations;
 
@@ -21,7 +22,7 @@ import java.util.Optional;
 
 public final class JdbcProviderStore implements ProviderStore {
     private static final String COLUMNS = """
-        id, tenant_id, name, provider_type, base_url, credential_ciphertext,
+        id, tenant_id, provider_key, name, provider_type, api_protocol, base_url, credential_ciphertext,
         credential_nonce, key_version, status, connect_timeout_ms, read_timeout_ms, revision
         """;
     private static final String LIST_SQL = "select " + COLUMNS + """
@@ -32,12 +33,12 @@ public final class JdbcProviderStore implements ProviderStore {
         """;
     private static final String INSERT_SQL = """
         insert into ent_model_provider(
-            id, tenant_id, name, provider_type, base_url, credential_ciphertext,
+            id, tenant_id, provider_key, name, provider_type, api_protocol, base_url, credential_ciphertext,
             credential_nonce, key_version, status, connect_timeout_ms, read_timeout_ms, revision
-        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
     private static final String UPDATE_SQL = """
-        update ent_model_provider set name = ?, provider_type = ?, base_url = ?,
+        update ent_model_provider set provider_key = ?, name = ?, provider_type = ?, api_protocol = ?, base_url = ?,
             credential_ciphertext = ?, credential_nonce = ?, key_version = ?,
             connect_timeout_ms = ?, read_timeout_ms = ?, revision = revision + 1
         where tenant_id = ? and id = ? and revision = ?
@@ -69,8 +70,9 @@ public final class JdbcProviderStore implements ProviderStore {
         EncryptedSecret secret = provider.encryptedCredential();
         jdbc.update(
             INSERT_SQL,
-            provider.id(), provider.tenantId(), provider.name(), provider.providerType().name(),
-            provider.baseUrl().toString(), secret.ciphertext(), secret.nonce(), secret.keyVersion(),
+            provider.id(), provider.tenantId(), provider.providerKey(), provider.name(), provider.providerType().name(),
+            provider.apiProtocol().value(), provider.baseUrl().toString(),
+            secret.ciphertext(), secret.nonce(), secret.keyVersion(),
             provider.status().name(), provider.connectTimeoutMs(), provider.readTimeoutMs(), provider.revision()
         );
     }
@@ -80,7 +82,8 @@ public final class JdbcProviderStore implements ProviderStore {
         EncryptedSecret secret = provider.encryptedCredential();
         return jdbc.update(
             UPDATE_SQL,
-            provider.name(), provider.providerType().name(), provider.baseUrl().toString(),
+            provider.providerKey(), provider.name(), provider.providerType().name(), provider.apiProtocol().value(),
+            provider.baseUrl().toString(),
             secret.ciphertext(), secret.nonce(), secret.keyVersion(), provider.connectTimeoutMs(),
             provider.readTimeoutMs(), provider.tenantId(), provider.id(), expectedRevision
         ) == 1;
@@ -95,8 +98,10 @@ public final class JdbcProviderStore implements ProviderStore {
         return new ModelProvider(
             resultSet.getLong("id"),
             resultSet.getString("tenant_id"),
+            resultSet.getString("provider_key"),
             resultSet.getString("name"),
             ProviderType.valueOf(resultSet.getString("provider_type")),
+            ProviderApiProtocol.fromValue(resultSet.getString("api_protocol")),
             URI.create(resultSet.getString("base_url")),
             new EncryptedSecret(
                 resultSet.getBytes("credential_ciphertext"),

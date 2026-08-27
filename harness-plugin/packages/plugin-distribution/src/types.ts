@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 platform-client bootstrap、contracts 受管状态与 rc.7 subprocess/inventory 公共类型
+ * [INPUT]: 依赖 platform-client bootstrap、contracts 受管状态与 rc.2 subprocess/inventory 公共类型
  * [OUTPUT]: 对外提供分发 Config、状态快照及 enterprisePlatform/subprocess/pluginInventory 窄 port
  * [POS]: plugin-distribution 的依赖倒置层，使业务状态机只依赖官方能力契约而不耦合实现
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -24,7 +24,7 @@ export interface EnterprisePlatformPort {
   request(input: string | URL, init?: RequestInit): Promise<Response>
 }
 
-/** rc.7 Host plugin inventory 的同进程只读投影。 */
+/** rc.2 Host plugin inventory 的同进程只读投影。 */
 export interface PluginInventoryPort {
   list(): PluginInventorySnapshot
 }

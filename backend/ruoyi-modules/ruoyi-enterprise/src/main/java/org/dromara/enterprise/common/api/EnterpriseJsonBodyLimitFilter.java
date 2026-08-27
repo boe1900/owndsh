@@ -33,7 +33,11 @@ import java.util.Set;
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 20)
 public final class EnterpriseJsonBodyLimitFilter extends OncePerRequestFilter {
-    private static final String GATEWAY_PATH = "/enterprise/gateway/v1/chat/completions";
+    private static final Set<String> GATEWAY_PATHS = Set.of(
+        "/enterprise/gateway/v1/chat/completions",
+        "/enterprise/gateway/v1/responses",
+        "/enterprise/gateway/v1/messages"
+    );
     private static final Set<String> BODY_METHODS = Set.of("POST", "PUT", "PATCH");
 
     private final JsonMapper json;
@@ -47,7 +51,7 @@ public final class EnterpriseJsonBodyLimitFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         if (!request.getRequestURI().startsWith("/enterprise/")) return true;
-        if (GATEWAY_PATH.equals(request.getRequestURI())) return true;
+        if (GATEWAY_PATHS.contains(request.getRequestURI())) return true;
         if (!BODY_METHODS.contains(request.getMethod().toUpperCase(Locale.ROOT))) return true;
         return !isJson(request.getContentType());
     }

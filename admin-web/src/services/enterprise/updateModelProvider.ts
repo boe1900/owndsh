@@ -7,8 +7,13 @@ export async function updateModelProvider(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
   params: API.updateModelProviderParams,
   body: {
+    providerKey: string;
     name: string;
-    providerType: "DEEPSEEK_OPENAI";
+    providerType: "DEEPSEEK_OFFICIAL" | "CUSTOM";
+    apiProtocol:
+      | "openai-completions"
+      | "openai-responses"
+      | "anthropic-messages";
     baseUrl: string;
     replaceSecret: boolean;
     credential?: string;
@@ -21,8 +26,13 @@ export async function updateModelProvider(
   return request<{
     data: {
       id: string;
+      providerKey: string;
       name: string;
-      providerType: "DEEPSEEK_OPENAI";
+      providerType: "DEEPSEEK_OFFICIAL" | "CUSTOM";
+      apiProtocol:
+        | "openai-completions"
+        | "openai-responses"
+        | "anthropic-messages";
       baseUrl: string;
       credentialConfigured: boolean;
       status: "ACTIVE" | "DISABLED";

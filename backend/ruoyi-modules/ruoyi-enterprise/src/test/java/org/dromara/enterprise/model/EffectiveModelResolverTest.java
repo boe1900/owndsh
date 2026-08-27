@@ -9,6 +9,7 @@ package org.dromara.enterprise.model;
 import org.dromara.enterprise.model.application.EffectiveModelResolver;
 import org.dromara.enterprise.model.domain.GrantSubjectType;
 import org.dromara.enterprise.model.domain.GrantedModel;
+import org.dromara.enterprise.model.domain.ProviderApiProtocol;
 import org.dromara.enterprise.model.persistence.ModelGrantStore;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -54,6 +55,9 @@ class EffectiveModelResolverTest {
         GrantSubjectType subjectType,
         boolean isDefault
     ) {
-        return new GrantedModel(id, alias, alias, 65_536, 8_192, false, sortOrder, subjectType, isDefault);
+        return new GrantedModel(
+            id, alias, alias, 65_536, 8_192, ProviderApiProtocol.OPENAI_COMPLETIONS,
+            null, null, sortOrder, subjectType, isDefault
+        );
     }
 }

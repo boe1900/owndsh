@@ -68,7 +68,9 @@ enterprise/replacePluginInventory.ts: 生成的当前设备插件 inventory 原�
 enterprise/retirePluginVersion.ts: 生成的插件版本退休 CAS operation 客户端。
 enterprise/revokeDevice.ts: 生成的设备撤销 operation 客户端。
 enterprise/startOidcLogin.ts: 生成的 OIDC 登录启动 operation 客户端。
-enterprise/streamEnterpriseChatCompletion.ts: 生成的企业模型流 operation 客户端；管理端不直接消费此能力。
+enterprise/streamEnterpriseAnthropicMessages.ts: 生成的 Anthropic Messages 企业模型流 operation 客户端；管理端不直接消费此能力。
+enterprise/streamEnterpriseChatCompletions.ts: 生成的 OpenAI Chat Completions 企业模型流 operation 客户端；管理端不直接消费此能力。
+enterprise/streamEnterpriseResponses.ts: 生成的 OpenAI Responses 企业模型流 operation 客户端；管理端不直接消费此能力。
 enterprise/testIdentitySource.ts: 生成的身份源连接测试 operation 客户端。
 enterprise/testModelProvider.ts: 生成的模型 Provider 连接测试 operation 客户端。
 enterprise/typings.d.ts: 生成 operation 共用的严格 API DTO 命名空间。

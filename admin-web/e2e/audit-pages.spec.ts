@@ -100,8 +100,10 @@ test('T19 审计页按模型 requestId 关联双记录并执行角色隔离', as
     await request.post(api('/enterprise/admin/v1/providers'), {
       headers: bearer(adminToken, { 'Idempotency-Key': randomUUID() }),
       data: {
+        providerKey: `t19-provider-${suffix}`,
         name: providerName,
-        providerType: 'DEEPSEEK_OPENAI',
+        providerType: 'CUSTOM',
+        apiProtocol: 'openai-completions',
         baseUrl: `${MOCK_ORIGIN}/v1`,
         credential: PROVIDER_CREDENTIAL,
         connectTimeoutMs: 5000,
@@ -115,11 +117,10 @@ test('T19 审计页按模型 requestId 关联双记录并执行角色隔离', as
       data: {
         providerId: provider.data.id,
         alias: modelAlias,
-        displayName: `T19 Audit Model ${suffix}`,
-        upstreamModel: 'deepseek-chat',
+        name: `T19 Audit Model ${suffix}`,
+        modelId: 'deepseek-chat',
         contextWindow: 64000,
-        maxOutputTokens: 8192,
-        reasoning: false,
+        maxTokens: 8192,
         sortOrder: 19
       }
     })

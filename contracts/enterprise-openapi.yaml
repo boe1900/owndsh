@@ -96,6 +96,10 @@ paths:
     $ref: './paths/quota.yaml#/AdminUsage'
   /enterprise/gateway/v1/chat/completions:
     $ref: './paths/gateway.yaml#/ChatCompletions'
+  /enterprise/gateway/v1/responses:
+    $ref: './paths/gateway.yaml#/Responses'
+  /enterprise/gateway/v1/messages:
+    $ref: './paths/gateway.yaml#/AnthropicMessages'
   /enterprise/admin/v1/plugins:
     $ref: './paths/plugin.yaml#/PluginCollection'
   /enterprise/admin/v1/plugins/versions:
@@ -279,11 +283,8 @@ x-enterprise-fixtures:
     schema: UsageLedgerListResponse
     valid: true
   - file: fixtures/gateway-request-success.json
-    schema: ChatCompletionRequest
+    schema: NativeGatewayRequest
     valid: true
-  - file: fixtures/gateway-request-route-forgery.json
-    schema: ChatCompletionRequest
-    valid: false
   - file: fixtures/plugin-version-success.json
     schema: PluginVersionResponse
     valid: true
@@ -646,6 +647,8 @@ components:
     ModelProviderId: {$ref: './components/model.yaml#/ModelProviderId'}
     ModelGrantId: {$ref: './components/model.yaml#/ModelGrantId'}
     ProviderType: {$ref: './components/model.yaml#/ProviderType'}
+    ProviderKey: {$ref: './components/model.yaml#/ProviderKey'}
+    ProviderApiProtocol: {$ref: './components/model.yaml#/ProviderApiProtocol'}
     ModelStatus: {$ref: './components/model.yaml#/ModelStatus'}
     GrantSubjectType: {$ref: './components/model.yaml#/GrantSubjectType'}
     ProviderCreateRequest: {$ref: './components/model.yaml#/ProviderCreateRequest'}
@@ -656,6 +659,7 @@ components:
     ProviderPageData: {$ref: './components/model.yaml#/ProviderPageData'}
     ProviderListResponse: {$ref: './components/model.yaml#/ProviderListResponse'}
     ProviderProbeCategory: {$ref: './components/model.yaml#/ProviderProbeCategory'}
+    ProviderDiscoveredModel: {$ref: './components/model.yaml#/ProviderDiscoveredModel'}
     ProviderProbeResult: {$ref: './components/model.yaml#/ProviderProbeResult'}
     ProviderProbeResponse: {$ref: './components/model.yaml#/ProviderProbeResponse'}
     ManagedModelWriteRequest: {$ref: './components/model.yaml#/ManagedModelWriteRequest'}
@@ -745,18 +749,7 @@ components:
     UsageLedgerPageData: {$ref: './components/quota.yaml#/UsageLedgerPageData'}
     UsageLedgerListResponse: {$ref: './components/quota.yaml#/UsageLedgerListResponse'}
     GatewayModel: {$ref: './components/gateway.yaml#/GatewayModel'}
-    ChatRole: {$ref: './components/gateway.yaml#/ChatRole'}
-    ChatFunctionCall: {$ref: './components/gateway.yaml#/ChatFunctionCall'}
-    ChatToolCall: {$ref: './components/gateway.yaml#/ChatToolCall'}
-    ChatMessage: {$ref: './components/gateway.yaml#/ChatMessage'}
-    JsonSchemaObject: {$ref: './components/gateway.yaml#/JsonSchemaObject'}
-    ChatFunctionDefinition: {$ref: './components/gateway.yaml#/ChatFunctionDefinition'}
-    ChatTool: {$ref: './components/gateway.yaml#/ChatTool'}
-    NamedToolChoice: {$ref: './components/gateway.yaml#/NamedToolChoice'}
-    ChatStreamOptions: {$ref: './components/gateway.yaml#/ChatStreamOptions'}
-    ChatCompletionRequest: {$ref: './components/gateway.yaml#/ChatCompletionRequest'}
-    ChatUsage: {$ref: './components/gateway.yaml#/ChatUsage'}
-    OpenAiChatCompletionChunk: {$ref: './components/gateway.yaml#/OpenAiChatCompletionChunk'}
+    NativeGatewayRequest: {$ref: './components/gateway.yaml#/NativeGatewayRequest'}
     EnterpriseUserId:
       type: string
       pattern: '^[1-9][0-9]{0,18}$'

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 ModelGrantStore 返回的三层 ACTIVE 授权候选。
- * [OUTPUT]: 对外提供用户与当前部门并集、去重、USER 默认优先和 sort fallback 后的有效模型目录。
+ * [OUTPUT]: 对外提供用户与当前部门并集、去重、USER 默认优先并携带推理事实的有效模型目录。
  * [POS]: model/application 的纯授权裁决器，bootstrap 与 T10 网关应共享这一真源。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -8,6 +8,9 @@ package org.dromara.enterprise.model.application;
 
 import org.dromara.enterprise.model.domain.GrantSubjectType;
 import org.dromara.enterprise.model.domain.GrantedModel;
+import org.dromara.enterprise.model.domain.ModelReasoningCompat;
+import org.dromara.enterprise.model.domain.ModelReasoningEfforts;
+import org.dromara.enterprise.model.domain.ProviderApiProtocol;
 import org.dromara.enterprise.model.persistence.ModelGrantStore;
 
 import java.util.Comparator;
@@ -51,8 +54,8 @@ public final class EffectiveModelResolver {
         Long selectedDefaultId = defaultId;
         return distinct.values().stream()
             .map(value -> new EffectiveModel(
-                value.modelId(), value.alias(), value.displayName(), value.contextWindow(),
-                value.maxOutputTokens(), value.reasoning(), value.sortOrder(),
+                value.modelId(), value.alias(), value.name(), value.contextWindow(), value.maxTokens(), value.sortOrder(),
+                value.apiProtocol(), value.reasoningEfforts(), value.reasoningCompat(),
                 Objects.equals(value.modelId(), selectedDefaultId)
             ))
             .toList();
@@ -61,11 +64,13 @@ public final class EffectiveModelResolver {
     public record EffectiveModel(
         long id,
         String alias,
-        String displayName,
-        int contextWindow,
-        int maxOutputTokens,
-        boolean reasoning,
+        String name,
+        Integer contextWindow,
+        Integer maxTokens,
         int sortOrder,
+        ProviderApiProtocol apiProtocol,
+        ModelReasoningEfforts reasoningEfforts,
+        ModelReasoningCompat reasoningCompat,
         boolean isDefault
     ) {
     }

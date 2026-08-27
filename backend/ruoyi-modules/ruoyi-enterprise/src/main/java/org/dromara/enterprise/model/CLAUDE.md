@@ -9,6 +9,6 @@ domain/: provider/model/grant 领域聚合、封闭状态枚举和有效授权�
 application/: 密钥生命周期、CAS/审计事务、默认模型解析与 bootstrap 模型切片；局部地图见 application/CLAUDE.md。
 persistence/: V1 模型表和 RuoYi 用户/部门事实的 JDBC adapters；局部地图见 persistence/CLAUDE.md。
 web/: 管理 API 与 runtime bootstrap 的严格请求/脱敏响应边界；局部地图见 web/CLAUDE.md。
-gateway/: 请求级授权/reasoning 复核、DeepSeek upstream、OpenAI SSE、配额生命周期与双审计纵向边界；局部地图见 gateway/CLAUDE.md。
+gateway/: 请求级授权与最小治理校验、Harness 三协议透明 upstream、原生 SSE、配额生命周期与双审计纵向边界；局部地图见 gateway/CLAUDE.md。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖已构建 contracts/platform-client/session-sync tgz、npm 官方 rc.7 Session 包与全新临时 consumer
+ * [INPUT]: 依赖已构建 contracts/platform-client/session-sync tgz、npm 官方 rc.2 Session 包与全新临时 consumer
  * [OUTPUT]: 提供无 ambient shim 的真实 SessionStore+JSONL persistence 同步、原子 cursor 与新 ID seed 恢复验收
  * [POS]: harness-plugin T17 树外 package consumer，证明发布产物不借用 workspace 或同级 Harness 源码
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -162,10 +162,10 @@ try {
     type: 'module',
     dependencies: {
       '@deepseek-ai/cordis': '4.0.1',
-      '@deepseek-ai/dsh-invariants': '0.1.0-rc.7',
-      '@deepseek-ai/dsh-session': '0.1.0-rc.7',
-      '@deepseek-ai/dsh-session-persistence': '0.1.0-rc.7',
-      '@deepseek-ai/dsh-session-persistence-jsonl': '0.1.0-rc.7',
+      '@deepseek-ai/dsh-invariants': '0.1.1-rc.2',
+      '@deepseek-ai/dsh-session': '0.1.1-rc.2',
+      '@deepseek-ai/dsh-session-persistence': '0.1.1-rc.2',
+      '@deepseek-ai/dsh-session-persistence-jsonl': '0.1.1-rc.2',
       '@enterprise-agent/dsh-contracts': `file:${contractsTgz}`,
       '@enterprise-agent/dsh-platform-client': `file:${platformTgz}`,
       '@enterprise-agent/dsh-session-sync': `file:${sessionSyncTgz}`,
@@ -195,8 +195,8 @@ try {
   const manifest = JSON.parse(await readFile(resolve(installedRoot, 'package.json'), 'utf8'))
   assert.equal(manifest.dependencies['@enterprise-agent/dsh-contracts'], '0.1.0')
   assert.equal(manifest.dependencies['@enterprise-agent/dsh-platform-client'], '0.1.0')
-  assert.equal(manifest.peerDependencies['@deepseek-ai/dsh-session'], '0.1.0-rc.7')
-  assert.equal(manifest.peerDependencies['@deepseek-ai/dsh-session-persistence'], '0.1.0-rc.7')
+  assert.equal(manifest.peerDependencies['@deepseek-ai/dsh-session'], '0.1.1-rc.2')
+  assert.equal(manifest.peerDependencies['@deepseek-ai/dsh-session-persistence'], '0.1.1-rc.2')
   const built = [
     await readFile(resolve(installedRoot, 'lib', 'index.js'), 'utf8'),
     await readFile(resolve(installedRoot, 'lib', 'service.js'), 'utf8'),
@@ -208,7 +208,7 @@ try {
   process.stdout.write(`${JSON.stringify({
     ambientShim: 'absent',
     cursorFile: 'atomic-non-content',
-    officialPersistence: 'jsonl-rc.7',
+    officialPersistence: 'jsonl-rc.2',
     packageConsumer: 'passed',
     restoredSeed: 'durable-new-id',
     syncPipeline: 'flush-readFrom-ack',

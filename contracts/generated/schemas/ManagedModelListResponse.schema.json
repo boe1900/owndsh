@@ -27,11 +27,7 @@
               "providerId",
               "providerName",
               "alias",
-              "displayName",
-              "upstreamModel",
-              "contextWindow",
-              "maxOutputTokens",
-              "reasoning",
+              "modelId",
               "sortOrder",
               "status",
               "revision"
@@ -57,26 +53,103 @@
                 "maxLength": 120,
                 "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
               },
-              "displayName": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 120
-              },
-              "upstreamModel": {
+              "modelId": {
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 255
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
               },
               "contextWindow": {
                 "type": "integer",
                 "minimum": 1
               },
-              "maxOutputTokens": {
+              "maxTokens": {
                 "type": "integer",
                 "minimum": 1
               },
-              "reasoning": {
-                "type": "boolean"
+              "reasoningEfforts": {
+                "oneOf": [
+                  {
+                    "type": "boolean",
+                    "const": false
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "minProperties": 1,
+                    "properties": {
+                      "off": {
+                        "oneOf": [
+                          {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 255
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "minimal": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255
+                      },
+                      "low": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255
+                      },
+                      "medium": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255
+                      },
+                      "high": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255
+                      },
+                      "xhigh": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255
+                      },
+                      "max": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255
+                      }
+                    }
+                  }
+                ]
+              },
+              "compat": {
+                "type": "object",
+                "additionalProperties": false,
+                "minProperties": 1,
+                "properties": {
+                  "thinkingFormat": {
+                    "type": "string",
+                    "enum": [
+                      "openai",
+                      "deepseek",
+                      "openrouter",
+                      "together",
+                      "zai",
+                      "qwen",
+                      "string-thinking",
+                      "ant-ling"
+                    ]
+                  },
+                  "supportsReasoningEffort": {
+                    "type": "boolean"
+                  }
+                }
               },
               "sortOrder": {
                 "type": "integer",

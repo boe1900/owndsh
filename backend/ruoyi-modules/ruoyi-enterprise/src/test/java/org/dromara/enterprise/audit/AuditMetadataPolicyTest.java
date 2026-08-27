@@ -93,9 +93,9 @@ class AuditMetadataPolicyTest {
             new DeviceHeartbeatMetadata(1, 0, true),
             new EmptyAuditMetadata(),
             new ProviderChangeMetadata(
-                ProviderChangeMetadata.Operation.CREATE, ProviderType.DEEPSEEK_OPENAI, true, 0, 1
+                ProviderChangeMetadata.Operation.CREATE, ProviderType.DEEPSEEK_OFFICIAL, true, 0, 1
             ),
-            new ManagedModelChangeMetadata(ManagedModelChangeMetadata.Operation.CREATE, true, 0, 1),
+            new ManagedModelChangeMetadata(ManagedModelChangeMetadata.Operation.CREATE, 0, 1),
             new ModelGrantChangeMetadata(
                 ModelGrantChangeMetadata.Operation.CREATE, GrantSubjectType.USER, true,
                 ModelStatus.ACTIVE, 0, 1

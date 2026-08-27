@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖真实 PostgreSQL RuoYi+V1-V12、DeploymentBootstrapService、JdbcLocalAccountStore 与 BCrypt。
+ * [INPUT]: 依赖真实 PostgreSQL RuoYi+V1-V13、DeploymentBootstrapService、JdbcLocalAccountStore 与 BCrypt。
  * [OUTPUT]: 验证缺配置失败、原子回滚、唯一管理员/角色/marker、重启忽略输入及首次强制改密。
  * [POS]: T21 初始化管理员的数据库验收门禁，证明部署脚本之外仍有并发安全和恢复语义。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

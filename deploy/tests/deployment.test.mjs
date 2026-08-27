@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 deploy Compose/Nginx/脚本、application-deploy.yml、Docker Compose v2 与临时假 secret。
- * [OUTPUT]: 验证四服务拓扑、唯一 443 发布、Server Fontconfig 临时缓存、锁定及本地缓存镜像边界、可移植 SHA-256、bootstrap overlay、完整 deploy profile、API/SPA 路由边界、运维脚本与本地体验边界。
+ * [OUTPUT]: 验证四服务拓扑、唯一 443 发布、生产/本机 HSTS 边界、镜像锁定、bootstrap overlay、deploy profile、API/SPA 路由、运维脚本与本地体验边界。
  * [POS]: T21 部署与本地人工验收静态门禁，先于昂贵镜像构建发现配置漂移且不接触生产 secret。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -101,8 +101,13 @@ test('gateway overwrites forwarding headers and keeps model SSE unbuffered', () 
   assert.match(nginx, /proxy_set_header X-Forwarded-Port \$external_https_port;/)
   assert.doesNotMatch(nginx, /proxy_set_header X-Forwarded-Port 443;/)
   assert.doesNotMatch(nginx, /\$proxy_add_x_forwarded_for/)
-  assert.match(nginx, /enterprise\/gateway\/v1\/chat\/completions[\s\S]*?proxy_buffering off;/)
+  assert.match(nginx, /location ~ \^\/prod-api\/enterprise\/gateway\/v1\/\(\?:chat\/completions\|responses\|messages\)\$/)
+  assert.match(nginx, /location ~ \^\/enterprise\/gateway\/v1\/\(\?:chat\/completions\|responses\|messages\)\$/)
+  assert.match(nginx, /enterprise\/gateway\/v1\/[\s\S]*?proxy_buffering off;/)
   assert.match(nginx, /ssl_protocols TLSv1\.2 TLSv1\.3;/)
+  assert.match(nginx, /map \$host \$strict_transport_security \{[\s\S]*?127\.0\.0\.1 "max-age=0";[\s\S]*?localhost "max-age=0";[\s\S]*?default "max-age=31536000";/)
+  assert.match(nginx, /add_header Strict-Transport-Security \$strict_transport_security always;/)
+  assert.doesNotMatch(nginx, /add_header Strict-Transport-Security "max-age=31536000" always;/)
   assert.match(nginx, /add_header Referrer-Policy strict-origin always;/)
   assert.doesNotMatch(nginx, /add_header Referrer-Policy no-referrer/)
   const adminCallback = nginx.indexOf('location = /enterprise/auth/callback {')
@@ -274,6 +279,8 @@ test('local demo starts one real Harness without candidate automation', () => {
   assert.match(localDemo, /plugin --profile web add --ignore-scripts/)
   assert.match(localDemo, /dsh --profile web --port "\$harness_port"/)
   assert.match(localDemo, /NODE_EXTRA_CA_CERTS=/)
+  assert.equal(localDemo.match(/-days 365/g)?.length, 2)
+  assert.doesNotMatch(localDemo, /-days 2(?:\s|$)/)
   assert.match(localDemo, /COMPOSE_PROGRESS=quiet/)
   assert.doesNotMatch(localDemo, /playwright|candidate-harness|manual_acceptance|accept:t22/)
 })

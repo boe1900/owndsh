@@ -1,25 +1,35 @@
 # @enterprise-agent/dsh-llm-gateway
 
-DeepSeek Harness rc.7 的企业受管模型 adapter。该包只使用官方 `LlmAdapter`、
-`LlmRuntime.registerAdapter()` 和 registration `replace()`，不读取个人模型设置、上游
-URL、上游 API Key 或平台 Token。
+DeepSeek Harness rc.2 官方 `@deepseek-ai/dsh-llm-pi-ai` 的企业配置桥。本包不实现
+`LlmAdapter`，也不解析或转换 message、tool、reasoning、replay 与 SSE。
 
-`EnterpriseGatewayAdapter` 注册唯一 provider `enterprise`。模型目录来自
-`EnterprisePlatformService.bootstrap()`；`enterprise/default` 在调用时解析为当前用户的
-有效默认模型，但仍以 sentinel 发给中心网关，由服务端逐请求重新裁决授权。模型目录事实变化时，
-`registerEnterpriseGateway()` 对现有 registration 原子执行 `replace(['enterprise'])`，复用
-官方 `llm/adapters-updated` 通知选择器。Harness Runtime 在进入 adapter stream 前执行模型解析，
-服务端仍对每个请求执行独立二次授权。
+## 职责
 
-模型调用固定发送到中心 `/enterprise/gateway/v1/chat/completions`。Harness attribution、
-幂等键和版本 header 由 adapter 生成，平台 `Authorization` 只由
-`EnterprisePlatformService.request()` 在 Host 内存中注入。请求支持纯文本消息、reasoning、
-function tools、sampling、stop 和 usage；响应转换为官方 reasoning/text/tool/usage/finish chunk。
+- `profiles.ts` 把 `EnterprisePlatformService.bootstrap()` 中的受管模型投影为官方
+  `PiAiProviderProfile`。三个 route 分别使用 `openai-completions`、`openai-responses` 和
+  `anthropic-messages`；profile 按官方 SDK 约定分别处理 OpenAI `/v1` base URL 与 Anthropic
+  自动追加的 `/v1/messages`，`enterprise/default` 始终指向当前有效默认模型。
+- `registration.ts` 直接挂载官方 `dsh-llm-pi-ai` Cordis 插件。bootstrap 变化时更新官方
+  profiles；目录、reasoning effort 校验、消息转换、回放、取消、重试和流终态全部由官方插件负责。
+- `proxy.ts` 提供 Host 私有 loopback 认证代理。它每次启动绑定随机端口并生成随机
+  bearer；官方 adapter 向其发送原生协议请求，代理移除本机认证、注入幂等/版本 header，
+  再通过 `EnterprisePlatformService.request()` 使用内存平台 Token。
 
-网关调用使用单次尝试策略，避免对计费状态未知的流自动重放。HTTP 与流内错误只保留稳定 code、
-status 和 requestId，不透传中心或上游原始 message。调用方取消和提前停止消费都会 abort fetch、
-取消 reader 并等待停稳。
+该代理不挂载 Harness/Desktop 的浏览器 WebServer，因此 Electron renderer 访问门禁不会误拦 Host
+内部模型请求，普通本机进程也无法借用已登录会话。认证代理把中心调用显式标记为
+`Accept: text/event-stream, application/json`：平台客户端据此取消
+模型流总时限，同时 Server 仍可在 SSE 提交前返回配额、授权等 JSON 错误。请求和响应字节保持透明。
 
-运行时 peer 精确固定为 `@deepseek-ai/dsh-llm@0.1.0-rc.7`。发布 bundle 会内联本包的产品代码，
-但保留官方 LLM Service Definition 为 peer，由 rc.7 profile 的 app dependency fallback 解析，
-不打包第二份 Harness runtime。
+## 边界
+
+企业端只提供认证、授权、配额、审计、受管模型 ID 覆盖和上游密钥注入。新增模型协议能力必须先
+升级或配置官方 `dsh-llm-pi-ai`；不得在本包增加 serialize/translate/transport/wire 层，也不得引入
+Spring AI 等第二套协议抽象。
+
+企业 profile 不覆盖 provider `retryPolicy`，由 Harness 官方 `dsh-llm-retry` 恢复层执行有界默认策略；
+SDK、认证代理和企业网关均不叠加重试。每次重试仍是独立的平台请求，分别接受授权、配额和审计。
+上游 API Key 不进入 Harness 环境、settings 或磁盘；平台 Token 仍只有
+`EnterprisePlatformService.request()` 能读取。
+
+运行时 peer 精确固定为 `@deepseek-ai/dsh-llm-pi-ai@0.1.1-rc.2`。本包与 bundle 的
+`skipLibCheck` 只隔离链接上游 `@anthropic-ai/sdk` 的损坏声明文件，自有 TypeScript 仍在严格模式下检查。

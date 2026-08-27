@@ -91,17 +91,16 @@ ProviderChangeAuditMetadata:
   required: [operation, providerType, protectedValueChanged, resourceRevision, bootstrapRevision]
   properties:
     operation: {type: string, enum: [CREATE, UPDATE, ENABLE, DISABLE]}
-    providerType: {type: string, const: DEEPSEEK_OPENAI}
+    providerType: {$ref: './model.yaml#/ProviderType'}
     protectedValueChanged: {type: boolean}
     resourceRevision: {type: integer, minimum: 0}
     bootstrapRevision: {type: integer, minimum: 0}
 ModelChangeAuditMetadata:
   type: object
   additionalProperties: false
-  required: [operation, reasoning, resourceRevision, bootstrapRevision]
+  required: [operation, resourceRevision, bootstrapRevision]
   properties:
     operation: {type: string, enum: [CREATE, UPDATE, ENABLE, DISABLE, DELETE]}
-    reasoning: {type: boolean}
     resourceRevision: {type: integer, minimum: 0}
     bootstrapRevision: {type: integer, minimum: 0}
 ModelGrantChangeAuditMetadata:

@@ -18,6 +18,7 @@ import org.dromara.enterprise.model.application.EffectiveModelResolver;
 import org.dromara.enterprise.model.domain.ManagedModel;
 import org.dromara.enterprise.model.domain.ModelProvider;
 import org.dromara.enterprise.model.domain.ModelStatus;
+import org.dromara.enterprise.model.domain.ProviderApiProtocol;
 import org.dromara.enterprise.model.domain.ProviderType;
 import org.dromara.enterprise.model.persistence.BootstrapUserStore;
 import org.dromara.enterprise.model.persistence.ManagedModelStore;
@@ -64,17 +65,21 @@ class GatewayRouteResolverTest {
         );
         model = new ManagedModel(
             501, "000000", 301, "DeepSeek", "deepseek-chat", "DeepSeek Chat", "deepseek-v3",
-            8192, 2048, true, 0, ModelStatus.ACTIVE, 0
+            8192, 2048, null, null, 0, ModelStatus.ACTIVE, 0
         );
         provider = new ModelProvider(
-            301, "000000", "DeepSeek", ProviderType.DEEPSEEK_OPENAI, URI.create("https://api.invalid/v1"),
+            301, "000000", "test-provider", "DeepSeek", ProviderType.CUSTOM,
+            ProviderApiProtocol.OPENAI_COMPLETIONS, URI.create("https://api.invalid/v1"),
             new org.dromara.enterprise.crypto.EncryptedSecret(new byte[16], new byte[12], 1),
             ModelStatus.ACTIVE, 1000, 1000, 0
         );
         when(devices.requireActive(context)).thenReturn(device);
         when(users.findActive("000000", 101)).thenReturn(Optional.of(new BootstrapUser(101, "alice", "Alice", 201L)));
         when(effective.resolve("000000", 101, 201L)).thenReturn(List.of(
-            new EffectiveModelResolver.EffectiveModel(501, "deepseek-chat", "DeepSeek Chat", 8192, 2048, true, 0, true)
+            new EffectiveModelResolver.EffectiveModel(
+                501, "deepseek-chat", "DeepSeek Chat", 8192, 2048, 0,
+                ProviderApiProtocol.OPENAI_COMPLETIONS, null, null, true
+            )
         ));
         when(models.find("000000", 501)).thenReturn(Optional.of(model));
         when(providers.find("000000", 301)).thenReturn(Optional.of(provider));
@@ -97,8 +102,9 @@ class GatewayRouteResolverTest {
 
         when(users.findActive("000000", 101)).thenReturn(Optional.of(new BootstrapUser(101, "alice", "Alice", 201L)));
         when(providers.find("000000", 301)).thenReturn(Optional.of(new ModelProvider(
-            provider.id(), provider.tenantId(), provider.name(), provider.providerType(), provider.baseUrl(),
-            provider.encryptedCredential(), ModelStatus.DISABLED, provider.connectTimeoutMs(), provider.readTimeoutMs(), 1
+            provider.id(), provider.tenantId(), provider.providerKey(), provider.name(), provider.providerType(),
+            provider.apiProtocol(), provider.baseUrl(), provider.encryptedCredential(), ModelStatus.DISABLED,
+            provider.connectTimeoutMs(), provider.readTimeoutMs(), 1
         )));
         assertThatThrownBy(() -> resolver.resolve(context, "deepseek-chat"))
             .isInstanceOfSatisfying(GatewayException.class,

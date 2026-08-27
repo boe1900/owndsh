@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:enterprise-agent:contracts:NativeGatewayRequest",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "model",
+    "stream"
+  ],
+  "properties": {
+    "model": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+        },
+        {
+          "type": "string",
+          "const": "enterprise/default"
+        }
+      ]
+    },
+    "stream": {
+      "type": "boolean",
+      "const": true
+    },
+    "max_tokens": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "max_output_tokens": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    }
+  }
+}

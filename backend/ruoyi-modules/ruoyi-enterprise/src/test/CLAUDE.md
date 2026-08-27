@@ -17,15 +17,15 @@ java/org/dromara/enterprise/auth/RedisAuthStateStoreIntegrationTest.java: 使用
 java/org/dromara/enterprise/auth/T05ApiContractTest.java: 以 MockMvc 和派生 JSON Schema 验证七个认证、JSON 两阶段改密、HTML fail-closed、设备 operation、权限与撤销翻译。
 java/org/dromara/enterprise/device/DeviceContextIsolationTest.java: 证明伪造 X-Device-Id 不会覆盖 Sa-Token terminal 的 installation 授权事实。
 java/org/dromara/enterprise/device/DeviceLifecycleIntegrationTest.java: 以真实 PostgreSQL 验证多设备 owner、heartbeat 审计限频/状态切换、CAS、审计同事务与单设备撤销隔离。
-java/org/dromara/enterprise/model/ProviderProbeTest.java: 使用 WireMock 验证 `/models` Bearer 探测、状态分类、正文隔离与 no-redirect。
+java/org/dromara/enterprise/model/ProviderProbeTest.java: 使用 WireMock 验证 `/models` Bearer 探测、模型 ID 提取、正文隔离、状态分类与 no-redirect。
 java/org/dromara/enterprise/model/EffectiveModelResolverTest.java: 纯单元验证 USER 默认缺失时的 DEPT 默认选择与空候选边界。
 java/org/dromara/enterprise/model/T08ApiContractTest.java: 以 MockMvc/JSON Schema 验证模型管理及 bootstrap 全 operation 的成功/失败协议、Session 策略启用、权限码与密钥不回显。
-java/org/dromara/enterprise/model/ModelManagementIntegrationTest.java: 以显式活动用户和真实 PostgreSQL 验证密文/CAS/回滚、幂等删除、授权并集、默认优先级、停用与 ACTIVE bootstrap，不借用上游默认账号。
-java/org/dromara/enterprise/model/gateway/GatewayChatRequestParserTest.java: 验证严格 OpenAI 顶层字段、thinking/effort、文本/tool 消息、stream 与受管 route 强制替换。
+java/org/dromara/enterprise/model/ModelManagementIntegrationTest.java: 以显式活动用户和真实 PostgreSQL 验证 Harness route ID、三协议投影、官方保留路由、reasoning 三态、密文/CAS/回滚、授权并集、停用与 ACTIVE bootstrap。
+java/org/dromara/enterprise/model/gateway/GatewayChatRequestParserTest.java: 验证三协议最小治理字段、原生正文透明保留与受管 route 强制替换。
 java/org/dromara/enterprise/model/gateway/GatewayRouteResolverTest.java: 验证 alias/default、ACTIVE 设备/用户与当前 model/provider/grant 的每请求裁决。
-java/org/dromara/enterprise/model/gateway/DeepSeekUpstreamClientTest.java: 使用 WireMock 验证 DeepSeek SSE、Bearer、reasoning/tool/usage、状态分类、timeout 与 no-redirect。
-java/org/dromara/enterprise/model/gateway/ModelGatewayServiceTest.java: 验证 reasoning 能力前置复核、reserve/SENT、settle/CHARGED_MAX、取消与双审计关联。
-java/org/dromara/enterprise/model/gateway/ModelGatewayTransactionIntegrationTest.java: 以显式活动用户和真实 PostgreSQL 验证 SENT/accepted 与 ledger/finished 原子提交及审计失败共同回滚。
+java/org/dromara/enterprise/model/gateway/DeepSeekUpstreamClientTest.java: 使用 WireMock 验证三协议 endpoint/auth、SSE、单次请求、状态/脱敏阶段分类、timeout 与 no-redirect。
+java/org/dromara/enterprise/model/gateway/ModelGatewayServiceTest.java: 验证三协议原生终态/usage、2xx 后 SENT、建连失败释放、流内 settle/CHARGED_MAX、取消与双审计关联。
+java/org/dromara/enterprise/model/gateway/ModelGatewayTransactionIntegrationTest.java: 以显式活动用户和真实 PostgreSQL 验证 2xx 后 SENT/accepted、建连失败 RELEASED 零账本及 ledger/finished 原子提交与审计失败回滚。
 java/org/dromara/enterprise/model/gateway/T10GatewayApiContractTest.java: 以 MockMvc/JSON Schema 验证 gateway SSE/JSON 内容协商、严格输入、体积和全部首字节前错误映射。
 java/org/dromara/enterprise/quota/QuotaWindowCalculatorTest.java: 验证冻结部署时区自然日/月边界和 UTF-8 字节除三向上估算。
 java/org/dromara/enterprise/quota/application/QuotaOrderingTest.java: 验证有效策略和预留/结算窗口共享 policy/type 固定锁序，阻止历史 window ID 造成反向加锁。
@@ -42,7 +42,7 @@ java/org/dromara/enterprise/audit/: T19 30-action metadata 白名单、requestId
 java/org/dromara/enterprise/common/api/: T20 有界 JSON 请求、稳定 413/503 与故障日志秘密隔离门禁；局部地图见 common/api/CLAUDE.md。
 java/org/dromara/enterprise/test/OpenLdapTestServer.java: 共享 OpenLDAP Testcontainer 与测试专用 TLS trust，集中管理 LDAP 集成环境。
 java/org/dromara/enterprise/test/RedisTestServer.java: 共享 Redis 8 Testcontainer，并为每项认证测试清理隔离 keyspace。
-java/org/dromara/enterprise/database/EnterpriseMigrationTest.java: 从真实 RuoYi PostgreSQL 基线验证 V1-V12 逐版本升级、已知凭据清理、部署状态与 Boot 4 自动迁移装配。
+java/org/dromara/enterprise/database/EnterpriseMigrationTest.java: 从真实 RuoYi PostgreSQL 基线验证 V1-V15 逐版本升级、旧 provider 保守迁移、Harness reasoning 模型字段校正、部署状态与 Boot 4 自动迁移装配。
 java/org/dromara/enterprise/deployment/DeploymentBootstrapServiceTest.java: 以真实 PostgreSQL 验证缺配置失败、事务回滚、幂等管理员/角色/marker，以及分步认证和 JDBC 条件首次改密。
 java/org/dromara/enterprise/database/RbacSeedTest.java: 验证五个 built-in 角色、14 个冻结权限码、最小权限集合与数据库不可变 trigger。
 java/org/dromara/enterprise/revision/RevisionAuditIntegrationTest.java: 验证 BOOTSTRAP CAS、稳定冲突码、显式 metadata、只追加审计及同事务回滚。

@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖真实 parser/crypto、fake DeepSeek exchange 与 mock quota/route ports。
- * [OUTPUT]: 验证 reasoning 能力复核、reserve/SENT、usage settle、无 usage/断流/取消/首帧失败与双审计关联。
- * [POS]: T10 网关生命周期单测，独立证明首字节前后终态和敏感数据隔离。
+ * [OUTPUT]: 验证三协议原生终态/usage、2xx 后 SENT、建连失败释放、流内异常计费与双审计关联。
+ * [POS]: 模型网关治理生命周期单测，证明透明 relay 不依赖统一 DONE 终止并保持敏感数据隔离。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.model.gateway;
@@ -21,6 +21,7 @@ import org.dromara.enterprise.model.application.BootstrapUser;
 import org.dromara.enterprise.model.domain.ManagedModel;
 import org.dromara.enterprise.model.domain.ModelProvider;
 import org.dromara.enterprise.model.domain.ModelStatus;
+import org.dromara.enterprise.model.domain.ProviderApiProtocol;
 import org.dromara.enterprise.model.domain.ProviderType;
 import org.dromara.enterprise.quota.application.QuotaRateLimiter;
 import org.dromara.enterprise.quota.application.QuotaReservationService;
@@ -43,6 +44,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -78,7 +80,7 @@ class ModelGatewayServiceTest {
         route = route();
         reserved = active(ReservationState.RESERVED);
         sent = active(ReservationState.SENT);
-        when(routes.resolve(any(), anyString())).thenReturn(route);
+        when(routes.resolve(any(), anyString())).thenAnswer(invocation -> route);
         when(quotas.reserve(any())).thenReturn(reserved);
         when(quotas.markSent(reserved)).thenReturn(sent);
         when(quotas.settle(any(), any(), any())).thenAnswer(invocation -> {
@@ -99,7 +101,8 @@ class ModelGatewayServiceTest {
         ModelGatewayService service = service(upstream);
 
         ByteArrayOutputStream output = new ByteArrayOutputStream();
-        service.open(context(), request(), IDEMPOTENCY).writeTo(output);
+        service.open(context(), request(), ProviderApiProtocol.OPENAI_COMPLETIONS, Map.of(), IDEMPOTENCY)
+            .writeTo(output);
 
         assertThat(output.toString(StandardCharsets.UTF_8))
             .contains("reasoning_content").contains("tool_calls").contains("[DONE]")
@@ -109,7 +112,7 @@ class ModelGatewayServiceTest {
             .contains("\"include_usage\":true")
             .doesNotContain("enterprise/default");
         assertThat(upstream.credential).isEqualTo(SECRET.toCharArray());
-        verify(quotas).settle(sent, new UsageTokens(10, 5, 2), "upstream-1");
+        verify(quotas).settle(sent, new UsageTokens(8, 5, 2), "upstream-1");
         verify(quotas, never()).chargeMax(any());
         assertThat(audits).extracting(AuditEvent::action).containsExactly(
             AuditAction.MODEL_REQUEST_ACCEPTED, AuditAction.MODEL_REQUEST_FINISHED
@@ -119,42 +122,64 @@ class ModelGatewayServiceTest {
     }
 
     @Test
-    void rejectsReasoningBeforeQuotaReservationWhenTheManagedModelDoesNotSupportIt() {
-        ManagedModel current = route.model();
-        ManagedModel nonReasoning = new ManagedModel(
-            current.id(), current.tenantId(), current.providerId(), current.providerName(), current.alias(),
-            current.displayName(), current.upstreamModel(), current.contextWindow(), current.maxOutputTokens(),
-            false, current.sortOrder(), current.status(), current.revision()
-        );
-        when(routes.resolve(any(), anyString())).thenReturn(new GatewayRouteResolver.GatewayRoute(
-            route.user(), route.device(), nonReasoning, route.provider()
-        ));
-        GatewayChatRequest request = new GatewayChatRequestParser(json).parse("""
-            {"model":"enterprise/default","messages":[{"role":"user","content":"private prompt"}],
-             "thinking":{"type":"enabled"},"reasoning_effort":"high","stream":true}
-            """.getBytes(StandardCharsets.UTF_8));
-
-        assertThatThrownBy(() -> service(new FakeUpstream(List.of(), null, -1)).open(
-            context(), request, IDEMPOTENCY
-        )).isInstanceOf(IllegalArgumentException.class)
-            .hasMessage("该受管模型不支持 reasoning");
-        verify(quotas, never()).reserve(any());
-        assertThat(audits).isEmpty();
-    }
-
-    @Test
     void chargesMaxForMissingUsageAndStillEndsWithDone() throws Exception {
         FakeUpstream upstream = new FakeUpstream(List.of(
             event("{\"choices\":[{\"delta\":{\"content\":\"hello\"}}]}"), event("[DONE]")
         ), null, -1);
         ByteArrayOutputStream output = new ByteArrayOutputStream();
 
-        service(upstream).open(context(), request(), IDEMPOTENCY).writeTo(output);
+        service(upstream).open(context(), request(), ProviderApiProtocol.OPENAI_COMPLETIONS, Map.of(), IDEMPOTENCY)
+            .writeTo(output);
 
         verify(quotas).chargeMax(sent);
         verify(quotas, never()).settle(any(), any(), any());
         assertThat(output.toString(StandardCharsets.UTF_8)).contains("hello").contains("[DONE]");
         assertThat(finishedMetadata().failure()).isEqualTo(GatewayFinishedMetadata.Failure.USAGE_MISSING);
+    }
+
+    @Test
+    void settlesResponsesUsageAtNativeTerminalWithoutDone() throws Exception {
+        route = route(ProviderApiProtocol.OPENAI_RESPONSES);
+        FakeUpstream upstream = new FakeUpstream(List.of(
+            event("{\"type\":\"response.created\",\"response\":{\"id\":\"resp-1\"}}"),
+            event("{\"type\":\"response.completed\",\"response\":{\"id\":\"resp-1\",\"usage\":{"
+                + "\"input_tokens\":10,\"output_tokens\":5,\"input_tokens_details\":{\"cached_tokens\":2}}}}")
+        ), null, -1);
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+        service(upstream).open(
+            context(), request(ProviderApiProtocol.OPENAI_RESPONSES), ProviderApiProtocol.OPENAI_RESPONSES,
+            Map.of(), IDEMPOTENCY
+        ).writeTo(output);
+
+        verify(quotas).settle(sent, new UsageTokens(8, 5, 2), "upstream-1");
+        assertThat(output.toString(StandardCharsets.UTF_8))
+            .contains("response.completed")
+            .doesNotContain("[DONE]")
+            .doesNotContain("enterprise_gateway_error");
+    }
+
+    @Test
+    void accumulatesAnthropicUsageAtMessageStopWithoutDone() throws Exception {
+        route = route(ProviderApiProtocol.ANTHROPIC_MESSAGES);
+        FakeUpstream upstream = new FakeUpstream(List.of(
+            event("{\"type\":\"message_start\",\"message\":{\"usage\":{"
+                + "\"input_tokens\":10,\"cache_read_input_tokens\":2}}}"),
+            event("{\"type\":\"message_delta\",\"usage\":{\"output_tokens\":5}}"),
+            event("{\"type\":\"message_stop\"}")
+        ), null, -1);
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+        service(upstream).open(
+            context(), request(ProviderApiProtocol.ANTHROPIC_MESSAGES), ProviderApiProtocol.ANTHROPIC_MESSAGES,
+            Map.of(), IDEMPOTENCY
+        ).writeTo(output);
+
+        verify(quotas).settle(sent, new UsageTokens(10, 5, 2), "upstream-1");
+        assertThat(output.toString(StandardCharsets.UTF_8))
+            .contains("message_stop")
+            .doesNotContain("[DONE]")
+            .doesNotContain("enterprise_gateway_error");
     }
 
     @Test
@@ -165,7 +190,8 @@ class ModelGatewayServiceTest {
         );
         ByteArrayOutputStream output = new ByteArrayOutputStream();
 
-        service(upstream).open(context(), request(), IDEMPOTENCY).writeTo(output);
+        service(upstream).open(context(), request(), ProviderApiProtocol.OPENAI_COMPLETIONS, Map.of(), IDEMPOTENCY)
+            .writeTo(output);
 
         verify(quotas).chargeMax(sent);
         assertThat(output.toString(StandardCharsets.UTF_8))
@@ -176,7 +202,7 @@ class ModelGatewayServiceTest {
     }
 
     @Test
-    void chargesMaxWhenClientCancelsAndDoesNotTurnErrorIntoAssistantText() {
+    void chargesMaxWhenClientCancelsAfterUpstreamAccepts() {
         FakeUpstream upstream = new FakeUpstream(List.of(
             event("{\"choices\":[{\"delta\":{\"content\":\"partial\"}}]}"), event("[DONE]")
         ), null, -1);
@@ -185,27 +211,49 @@ class ModelGatewayServiceTest {
             public void write(int value) throws IOException {
                 throw new IOException("client cancelled");
             }
+
+            @Override
+            public void write(byte[] bytes, int offset, int length) throws IOException {
+                String chunk = new String(bytes, offset, length, StandardCharsets.UTF_8);
+                if (!": enterprise-gateway\n\n".equals(chunk)) throw new IOException("client cancelled");
+            }
         };
 
-        assertThatThrownBy(() -> service(upstream).open(context(), request(), IDEMPOTENCY).writeTo(cancelled))
+        assertThatThrownBy(() -> service(upstream)
+            .open(context(), request(), ProviderApiProtocol.OPENAI_COMPLETIONS, Map.of(), IDEMPOTENCY)
+            .writeTo(cancelled))
             .isInstanceOf(IOException.class);
         verify(quotas).chargeMax(sent);
         assertThat(finishedMetadata().failure()).isEqualTo(GatewayFinishedMetadata.Failure.CLIENT_CANCELLED);
     }
 
     @Test
-    void chargesMaxButReturnsJsonClassifiedFailureWhenFirstEventCannotBeRead() {
+    void releasesReservationWhenUpstreamFailsBeforeSse() throws Exception {
         FakeUpstream upstream = new FakeUpstream(
-            List.of(), new GatewayException(GatewayException.Kind.UPSTREAM_AUTH_FAILED), 0
+            List.of(), null, -1
+        );
+        upstream.openFailure = new GatewayException(GatewayException.Kind.UPSTREAM_AUTH_FAILED);
+        ModelGatewayService.GatewayStream stream = service(upstream).open(
+            context(), request(), ProviderApiProtocol.OPENAI_COMPLETIONS, Map.of(), IDEMPOTENCY
         );
 
-        assertThatThrownBy(() -> service(upstream).open(context(), request(), IDEMPOTENCY))
-            .isInstanceOfSatisfying(GatewayException.class,
-                error -> assertThat(error.kind()).isEqualTo(GatewayException.Kind.UPSTREAM_AUTH_FAILED));
-        verify(quotas).chargeMax(sent);
-        assertThat(audits).extracting(AuditEvent::action).containsExactly(
-            AuditAction.MODEL_REQUEST_ACCEPTED, AuditAction.MODEL_REQUEST_FINISHED
-        );
+        assertThat(upstream.openCalls).isZero();
+        assertThat(upstream.nextCalls).isZero();
+        verify(quotas, never()).chargeMax(any());
+
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        upstream.outputAtOpen = output;
+        stream.writeTo(output);
+
+        assertThat(upstream.outputSnapshotAtOpen).isEqualTo(": enterprise-gateway\n\n");
+        assertThat(output.toString(StandardCharsets.UTF_8))
+            .startsWith(": enterprise-gateway\n\n")
+            .contains("\"code\":\"ENT_UPSTREAM_AUTH_FAILED\"")
+            .doesNotContain(SECRET);
+        verify(quotas).release(reserved);
+        verify(quotas, never()).chargeMax(any());
+        verify(quotas, never()).settle(any(), any(), any());
+        assertThat(audits).isEmpty();
     }
 
     private ModelGatewayService service(FakeUpstream upstream) {
@@ -216,10 +264,14 @@ class ModelGatewayServiceTest {
     }
 
     private GatewayChatRequest request() {
+        return request(ProviderApiProtocol.OPENAI_COMPLETIONS);
+    }
+
+    private GatewayChatRequest request(ProviderApiProtocol protocol) {
         return new GatewayChatRequestParser(json).parse("""
             {"model":"enterprise/default","messages":[{"role":"user","content":"private prompt"}],
              "max_tokens":512,"stream":true}
-            """.getBytes(StandardCharsets.UTF_8));
+            """.getBytes(StandardCharsets.UTF_8), protocol);
     }
 
     private DeviceCallContext context() {
@@ -231,6 +283,10 @@ class ModelGatewayServiceTest {
     }
 
     private GatewayRouteResolver.GatewayRoute route() {
+        return route(ProviderApiProtocol.OPENAI_COMPLETIONS);
+    }
+
+    private GatewayRouteResolver.GatewayRoute route(ProviderApiProtocol protocol) {
         EncryptedSecret encrypted = cipher.encrypt(
             SecretPurpose.PROVIDER_SECRET,
             new SecretAad(TENANT, "ent_model_provider", "301", "credential_ciphertext", 1),
@@ -244,10 +300,11 @@ class ModelGatewayServiceTest {
         );
         ManagedModel model = new ManagedModel(
             501, TENANT, 301, "DeepSeek", "deepseek-chat", "DeepSeek Chat", "deepseek-v3",
-            4096, 1024, true, 0, ModelStatus.ACTIVE, 0
+            4096, 1024, null, null, 0, ModelStatus.ACTIVE, 0
         );
         ModelProvider provider = new ModelProvider(
-            301, TENANT, "DeepSeek", ProviderType.DEEPSEEK_OPENAI, URI.create("https://provider.invalid/v1"),
+            301, TENANT, "test-provider", "DeepSeek", ProviderType.CUSTOM,
+            protocol, URI.create("https://provider.invalid/v1"),
             encrypted, ModelStatus.ACTIVE, 1000, 1000, 0
         );
         return new GatewayRouteResolver.GatewayRoute(user, device, model, provider);
@@ -289,6 +346,11 @@ class ModelGatewayServiceTest {
         private final int failureIndex;
         private byte[] requestBody;
         private char[] credential;
+        private ByteArrayOutputStream outputAtOpen;
+        private String outputSnapshotAtOpen;
+        private RuntimeException openFailure;
+        private int openCalls;
+        private int nextCalls;
 
         private FakeUpstream(List<SseEvent> events, RuntimeException failure, int failureIndex) {
             this.events = List.copyOf(events);
@@ -298,8 +360,13 @@ class ModelGatewayServiceTest {
 
         @Override
         public UpstreamExchange open(
-            URI baseUrl, char[] credential, byte[] requestBody, int connectTimeoutMs, int readTimeoutMs
+            URI baseUrl, ProviderApiProtocol protocol, char[] credential, Map<String, String> headers,
+            byte[] requestBody,
+            int connectTimeoutMs, int readTimeoutMs
         ) {
+            openCalls++;
+            outputSnapshotAtOpen = outputAtOpen == null ? null : outputAtOpen.toString(StandardCharsets.UTF_8);
+            if (openFailure != null) throw openFailure;
             this.requestBody = requestBody.clone();
             this.credential = credential.clone();
             return new UpstreamExchange() {
@@ -307,6 +374,7 @@ class ModelGatewayServiceTest {
 
                 @Override
                 public SseEvent next() {
+                    nextCalls++;
                     if (failure != null && index == failureIndex) throw failure;
                     return events.get(index++);
                 }

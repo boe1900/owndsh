@@ -1,5 +1,5 @@
 # [INPUT]: 依赖部署环境提供的 enterprise 公网 URI、管理回调、master key、冻结配额时区与 Redis/PostgreSQL 配置
-# [OUTPUT]: 提供 RuoYi 应用、公开认证白名单和 enterprise 强类型配置的统一启动真源
+# [OUTPUT]: 提供 RuoYi 应用、公开认证白名单、无总时长 SSE 与 enterprise 强类型配置的统一启动真源
 # [POS]: ruoyi-admin 的默认应用装配；生产秘密只接受环境变量/文件路径，不写入仓库
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -107,6 +107,9 @@ spring:
       # 预留 multipart 边界和 compatibility 字段开销。
       max-request-size: 52MB
   mvc:
+    async:
+      # 模型流由 provider 逐事件超时与 Nginx 空闲超时约束，禁止 MVC 按总时长截断活跃 SSE。
+      request-timeout: -1
     # 设置静态资源路径 防止所有请求都去查静态资源
     static-path-pattern: /static/**
     format:

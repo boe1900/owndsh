@@ -16,10 +16,36 @@ export async function getEnterpriseBootstrap(options?: { [key: string]: any }) {
       device: { id: string; installationId: string; status: string };
       models: {
         alias: string;
-        displayName: string;
-        contextWindow: number;
-        maxOutputTokens: number;
-        reasoning: boolean;
+        name?: string;
+        apiProtocol:
+          | "openai-completions"
+          | "openai-responses"
+          | "anthropic-messages";
+        contextWindow?: number;
+        maxTokens?: number;
+        reasoningEfforts?:
+          | boolean
+          | {
+              off?: string | null;
+              minimal?: string;
+              low?: string;
+              medium?: string;
+              high?: string;
+              xhigh?: string;
+              max?: string;
+            };
+        compat?: {
+          thinkingFormat?:
+            | "openai"
+            | "deepseek"
+            | "openrouter"
+            | "together"
+            | "zai"
+            | "qwen"
+            | "string-thinking"
+            | "ant-ling";
+          supportsReasoningEffort?: boolean;
+        };
         isDefault: boolean;
       }[];
       quotas: {

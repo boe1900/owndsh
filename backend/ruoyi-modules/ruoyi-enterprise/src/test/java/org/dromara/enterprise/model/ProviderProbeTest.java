@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 WireMock、JdkProviderProbe 与本机真实 HTTP socket。
- * [OUTPUT]: 验证 `/models`、Authorization、状态分类、timeout 结果边界与禁止 redirect follow。
- * [POS]: T08 provider test API 的上游协议单测，任何响应正文或 credential 都没有结果字段。
+ * [OUTPUT]: 验证 `/models`、Authorization、Harness 模型字段提取、状态分类与禁止 redirect follow。
+ * [POS]: T08 provider test API 的上游协议单测，只有脱敏 id/name/容量能越过响应边界。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.model;
@@ -47,7 +47,12 @@ class ProviderProbeTest {
     void probesModelsWithBearerCredentialAndReturnsOnlySanitizedSuccessFacts() {
         server.stubFor(get(urlEqualTo("/v1/models"))
             .withHeader("Authorization", equalTo("Bearer " + SECRET))
-            .willReturn(aResponse().withStatus(200).withBody("{\"sensitive\":\"upstream-body\"}")));
+            .willReturn(aResponse().withStatus(200).withBody("""
+                {"data":[
+                  {"id":"gpt-5.4","display_name":"GPT-5.4","context_length":262144,"max_tokens":32768},
+                  {"id":""},{"name":"missing-id"}
+                ],"sensitive":"upstream-body"}
+                """)));
 
         ProviderProbe.ProviderProbeResult result = probe.probe(
             URI.create(server.baseUrl() + "/v1"), SECRET.toCharArray(), 2_000, 2_000
@@ -56,6 +61,13 @@ class ProviderProbeTest {
         assertThat(result.success()).isTrue();
         assertThat(result.latencyMs()).isNotNegative();
         assertThat(result.upstreamStatus()).isEqualTo(ProviderProbe.ProviderProbeCategory.SUCCESS);
+        assertThat(result.models()).extracting(ProviderProbe.ProviderDiscoveredModel::id)
+            .containsExactly("gpt-5.4");
+        assertThat(result.models()).singleElement().satisfies(model -> {
+            assertThat(model.name()).isEqualTo("GPT-5.4");
+            assertThat(model.contextWindow()).isEqualTo(262_144);
+            assertThat(model.maxTokens()).isEqualTo(32_768);
+        });
         assertThat(result.toString()).doesNotContain(SECRET).doesNotContain("upstream-body");
         server.verify(getRequestedFor(urlEqualTo("/v1/models")));
     }

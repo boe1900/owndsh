@@ -12,6 +12,8 @@ import {
   normalizeRepositoryUrl,
   resolveRefCommit,
   validateCommit,
+  validateDesktopHarnessAlignment,
+  validateDesktopLock,
   validateHarnessLock,
   validateProductLock,
 } from './upstream-baseline.mjs'
@@ -84,6 +86,28 @@ test('validateHarnessLock requires both release version and exact commit', () =>
         commit: COMMIT,
       }),
     /missing version/,
+  )
+})
+
+test('Desktop lock owns the exact Harness baseline', () => {
+  const harness = {
+    repository: 'https://example.com/harness.git',
+    version: '0.1.1-rc.2',
+    commit: COMMIT,
+    derivedFrom: 'dsh-desktop.lock.json#harness',
+  }
+  const desktop = validateDesktopLock({
+    repository: 'https://example.com/desktop.git',
+    version: '2.0.3',
+    commit: COMMIT,
+    license: 'MIT',
+    harness: { repository: harness.repository, version: harness.version, commit: harness.commit },
+  })
+
+  assert.doesNotThrow(() => validateDesktopHarnessAlignment(desktop, harness))
+  assert.throws(
+    () => validateDesktopHarnessAlignment(desktop, { ...harness, version: 'different' }),
+    /Harness version differs/,
   )
 })
 

@@ -131,6 +131,10 @@ export type ModelGrantId = ModelModelGrantId;
 
 export type ProviderType = ModelProviderType;
 
+export type ProviderKey = ModelProviderKey;
+
+export type ProviderApiProtocol = ModelProviderApiProtocol;
+
 export type ModelStatus = ModelModelStatus;
 
 export type GrantSubjectType = ModelGrantSubjectType;
@@ -150,6 +154,8 @@ export type ProviderPageData = ModelProviderPageData;
 export type ProviderListResponse = ModelProviderListResponse;
 
 export type ProviderProbeCategory = ModelProviderProbeCategory;
+
+export type ProviderDiscoveredModel = ModelProviderDiscoveredModel;
 
 export type ProviderProbeResult = ModelProviderProbeResult;
 
@@ -329,29 +335,7 @@ export type UsageLedgerListResponse = QuotaUsageLedgerListResponse;
 
 export type GatewayModel = GatewayGatewayModel;
 
-export type ChatRole = GatewayChatRole;
-
-export type ChatFunctionCall = GatewayChatFunctionCall;
-
-export type ChatToolCall = GatewayChatToolCall;
-
-export type ChatMessage = GatewayChatMessage;
-
-export type JsonSchemaObject = GatewayJsonSchemaObject;
-
-export type ChatFunctionDefinition = GatewayChatFunctionDefinition;
-
-export type ChatTool = GatewayChatTool;
-
-export type NamedToolChoice = GatewayNamedToolChoice;
-
-export type ChatStreamOptions = GatewayChatStreamOptions;
-
-export type ChatCompletionRequest = GatewayChatCompletionRequest;
-
-export type ChatUsage = GatewayChatUsage;
-
-export type OpenAiChatCompletionChunk = GatewayOpenAiChatCompletionChunk;
+export type NativeGatewayRequest = GatewayNativeGatewayRequest;
 
 /**
  * Enterprise user snowflake ID serialized as a string.
@@ -534,7 +518,6 @@ export type IdentityLinkAuditMetadata = {
 
 export type ModelChangeAuditMetadata = {
     operation: 'CREATE' | 'UPDATE' | 'ENABLE' | 'DISABLE' | 'DELETE';
-    reasoning: boolean;
     resourceRevision: number;
     bootstrapRevision: number;
 };
@@ -558,7 +541,7 @@ export type PluginAuditMetadata = {
 
 export type ProviderChangeAuditMetadata = {
     operation: 'CREATE' | 'UPDATE' | 'ENABLE' | 'DISABLE';
-    providerType: 'DEEPSEEK_OPENAI';
+    providerType: ModelProviderType;
     protectedValueChanged: boolean;
     resourceRevision: number;
     bootstrapRevision: number;
@@ -764,100 +747,13 @@ export type DeviceDeviceResponse = {
 
 export type DeviceDeviceStatus = 'ACTIVE' | 'REVOKED';
 
-export type GatewayChatCompletionRequest = {
-    model: GatewayGatewayModel;
-    messages: Array<GatewayChatMessage>;
-    tools?: Array<GatewayChatTool>;
-    tool_choice?: 'none' | 'auto' | 'required' | GatewayNamedToolChoice;
-    temperature?: number;
-    top_p?: number;
-    max_tokens?: number;
-    stop?: string | Array<string> | null;
-    stream: true;
-    stream_options?: GatewayChatStreamOptions;
-    thinking?: ChatThinking;
-    reasoning_effort?: 'high' | 'max';
-};
-
-export type GatewayChatFunctionCall = {
-    name: string;
-    arguments: string;
-};
-
-export type GatewayChatFunctionDefinition = {
-    name: string;
-    description?: string;
-    parameters?: GatewayJsonSchemaObject;
-};
-
-export type GatewayChatMessage = {
-    role: 'system' | 'user';
-    content: string;
-    name?: string;
-} | {
-    role: 'assistant';
-    content?: string | null;
-    name?: string;
-    tool_calls?: Array<GatewayChatToolCall>;
-    reasoning_content?: string;
-    prefix?: boolean;
-} | {
-    role: 'tool';
-    content: string;
-    name?: string;
-    tool_call_id: string;
-};
-
-export type GatewayChatRole = 'system' | 'user' | 'assistant' | 'tool';
-
-export type GatewayChatStreamOptions = {
-    include_usage?: boolean;
-};
-
-export type ChatThinking = {
-    type: 'enabled' | 'disabled';
-};
-
-export type GatewayChatTool = {
-    type: 'function';
-    function: GatewayChatFunctionDefinition;
-};
-
-export type GatewayChatToolCall = {
-    id: string;
-    type: 'function';
-    function: GatewayChatFunctionCall;
-};
-
-export type GatewayChatUsage = {
-    prompt_tokens?: number;
-    completion_tokens?: number;
-    total_tokens?: number;
-    [key: string]: unknown;
-};
-
 export type GatewayGatewayModel = ModelAlias | 'enterprise/default';
 
-export type GatewayJsonSchemaObject = {
-    [key: string]: unknown;
-};
-
-export type GatewayNamedToolChoice = {
-    type: 'function';
-    function: {
-        name: string;
-    };
-};
-
-export type GatewayOpenAiChatCompletionChunk = {
-    id?: string;
-    object?: string;
-    created?: number;
-    model?: string;
-    choices: Array<{
-        [key: string]: unknown;
-    }>;
-    usage?: GatewayChatUsage | null;
+export type GatewayNativeGatewayRequest = {
+    model: GatewayGatewayModel;
+    stream: true;
+    max_tokens?: number;
+    max_output_tokens?: number;
     [key: string]: unknown;
 };
 
@@ -1027,10 +923,12 @@ export type BootstrapDevice = {
 
 export type ModelBootstrapModel = {
     alias: ModelAlias;
-    displayName: ModelDisplayName;
-    contextWindow: number;
-    maxOutputTokens: number;
-    reasoning: boolean;
+    name?: ModelName;
+    apiProtocol: ModelProviderApiProtocol;
+    contextWindow?: number;
+    maxTokens?: number;
+    reasoningEfforts?: ModelReasoningEfforts;
+    compat?: ModelReasoningCompat;
     isDefault: boolean;
 };
 
@@ -1069,11 +967,12 @@ export type ModelManagedModel = {
     providerId: ModelModelProviderId;
     providerName: ProviderName;
     alias: ModelAlias;
-    displayName: ModelDisplayName;
-    upstreamModel: string;
-    contextWindow: number;
-    maxOutputTokens: number;
-    reasoning: boolean;
+    modelId: string;
+    name?: ModelName;
+    contextWindow?: number;
+    maxTokens?: number;
+    reasoningEfforts?: ModelReasoningEfforts;
+    compat?: ModelReasoningCompat;
     sortOrder: number;
     status: ModelModelStatus;
     revision: Revision;
@@ -1097,17 +996,16 @@ export type ModelManagedModelResponse = {
 export type ModelManagedModelWriteRequest = {
     providerId: ModelModelProviderId;
     alias: ModelAlias;
-    displayName: ModelDisplayName;
-    upstreamModel: string;
-    contextWindow: number;
-    maxOutputTokens: number;
-    reasoning: boolean;
+    modelId: string;
+    name?: ModelName;
+    contextWindow?: number;
+    maxTokens?: number;
+    reasoningEfforts?: ModelReasoningEfforts;
+    compat?: ModelReasoningCompat;
     sortOrder: number;
 };
 
 export type ModelAlias = string;
-
-export type ModelDisplayName = string;
 
 export type ModelModelGrant = {
     id: ModelModelGrantId;
@@ -1155,14 +1053,37 @@ export type ModelModelGrantWriteRequest = {
     status: ModelModelStatus;
 };
 
+export type ModelName = string;
+
 export type ModelModelProviderId = string;
+
+export type ModelReasoningCompat = {
+    thinkingFormat?: ModelThinkingFormat;
+    supportsReasoningEffort?: boolean;
+};
+
+export type ModelReasoningEfforts = false | ModelReasoningEffortsMap;
+
+export type ModelReasoningEffortsMap = {
+    off?: string | null;
+    minimal?: string;
+    low?: string;
+    medium?: string;
+    high?: string;
+    xhigh?: string;
+    max?: string;
+};
 
 export type ModelModelStatus = 'ACTIVE' | 'DISABLED';
 
+export type ModelThinkingFormat = 'openai' | 'deepseek' | 'openrouter' | 'together' | 'zai' | 'qwen' | 'string-thinking' | 'ant-ling';
+
 export type ModelProvider = {
     id: ModelModelProviderId;
+    providerKey: ModelProviderKey;
     name: ProviderName;
     providerType: ModelProviderType;
+    apiProtocol: ModelProviderApiProtocol;
     baseUrl: ProviderBaseUrl;
     credentialConfigured: boolean;
     status: ModelModelStatus;
@@ -1171,15 +1092,28 @@ export type ModelProvider = {
     revision: Revision;
 };
 
+export type ModelProviderApiProtocol = 'openai-completions' | 'openai-responses' | 'anthropic-messages';
+
 export type ProviderBaseUrl = string;
 
 export type ModelProviderCreateRequest = {
+    providerKey: ModelProviderKey;
     name: ProviderName;
     providerType: ModelProviderType;
+    apiProtocol: ModelProviderApiProtocol;
     baseUrl: ProviderBaseUrl;
     connectTimeoutMs: ProviderTimeoutMs;
     readTimeoutMs: ProviderTimeoutMs;
 };
+
+export type ModelProviderDiscoveredModel = {
+    id: string;
+    name?: string;
+    contextWindow?: number;
+    maxTokens?: number;
+};
+
+export type ModelProviderKey = string;
 
 export type ModelProviderListResponse = {
     data: ModelProviderPageData;
@@ -1193,7 +1127,7 @@ export type ModelProviderPageData = {
     page: CursorPage;
 };
 
-export type ModelProviderProbeCategory = 'SUCCESS' | 'AUTHENTICATION_FAILED' | 'UPSTREAM_REJECTED' | 'UNAVAILABLE' | 'TIMEOUT';
+export type ModelProviderProbeCategory = 'SUCCESS' | 'AUTHENTICATION_FAILED' | 'UPSTREAM_REJECTED' | 'INVALID_RESPONSE' | 'UNAVAILABLE' | 'TIMEOUT';
 
 export type ModelProviderProbeRequest = {
     baseUrl: ProviderBaseUrl;
@@ -1210,6 +1144,7 @@ export type ModelProviderProbeResult = {
     success: boolean;
     latencyMs: number;
     upstreamStatus: ModelProviderProbeCategory;
+    models: Array<ModelProviderDiscoveredModel>;
 };
 
 export type ModelProviderResponse = {
@@ -1219,11 +1154,13 @@ export type ModelProviderResponse = {
 
 export type ProviderTimeoutMs = number;
 
-export type ModelProviderType = 'DEEPSEEK_OPENAI';
+export type ModelProviderType = 'DEEPSEEK_OFFICIAL' | 'CUSTOM';
 
 export type ModelProviderUpdateRequest = {
+    providerKey: ModelProviderKey;
     name: ProviderName;
     providerType: ModelProviderType;
+    apiProtocol: ModelProviderApiProtocol;
     baseUrl: ProviderBaseUrl;
     replaceSecret: boolean;
     connectTimeoutMs: ProviderTimeoutMs;
@@ -1728,7 +1665,16 @@ export type List = unknown;
 
 export type Revoke = unknown;
 
+export type AnthropicMessages = unknown;
+
 export type ChatCompletions = unknown;
+
+/**
+ * Upstream protocol-native server-sent events.
+ */
+export type NativeSseResponse = unknown;
+
+export type Responses = unknown;
 
 export type _1Enterprise1Admin1V11GroupMappings = unknown;
 
@@ -1862,6 +1808,10 @@ export type ModelGrantIdWritable = ModelModelGrantId;
 
 export type ProviderTypeWritable = ModelProviderType;
 
+export type ProviderKeyWritable = ModelProviderKey;
+
+export type ProviderApiProtocolWritable = ModelProviderApiProtocol;
+
 export type ModelStatusWritable = ModelModelStatus;
 
 export type GrantSubjectTypeWritable = ModelGrantSubjectType;
@@ -1916,10 +1866,6 @@ export type UsageResultWritable = QuotaUsageResult;
 
 export type GatewayModelWritable = GatewayGatewayModelWritable;
 
-export type ChatRoleWritable = GatewayChatRole;
-
-export type JsonSchemaObjectWritable = GatewayJsonSchemaObject;
-
 export type EmptyAuditMetadataWritable = {
     [key: string]: never;
 };
@@ -1973,8 +1919,10 @@ export type IdentityIdentitySourceUpdateRequestWritable = {
 };
 
 export type ModelProviderCreateRequestWritable = {
+    providerKey: ModelProviderKey;
     name: ProviderName;
     providerType: ModelProviderType;
+    apiProtocol: ModelProviderApiProtocol;
     baseUrl: ProviderBaseUrl;
     credential: string;
     connectTimeoutMs: ProviderTimeoutMs;
@@ -1989,8 +1937,10 @@ export type ModelProviderProbeRequestWritable = {
 };
 
 export type ModelProviderUpdateRequestWritable = {
+    providerKey: ModelProviderKey;
     name: ProviderName;
     providerType: ModelProviderType;
+    apiProtocol: ModelProviderApiProtocol;
     baseUrl: ProviderBaseUrl;
     replaceSecret: boolean;
     credential?: string;
@@ -1999,6 +1949,11 @@ export type ModelProviderUpdateRequestWritable = {
 };
 
 export type PasswordWritable = unknown;
+
+/**
+ * Upstream protocol-native server-sent events.
+ */
+export type NativeSseResponseWritable = unknown;
 
 export type _1Enterprise1Admin1V11IdentitySourcesWritable = unknown;
 
@@ -4149,8 +4104,8 @@ export type ListUsageLedgerResponses = {
 
 export type ListUsageLedgerResponse = ListUsageLedgerResponses[keyof ListUsageLedgerResponses];
 
-export type StreamEnterpriseChatCompletionData = {
-    body: GatewayChatCompletionRequest;
+export type StreamEnterpriseChatCompletionsData = {
+    body: GatewayNativeGatewayRequest;
     headers: {
         /**
          * Caller-generated UUID v4 reused only for one logical write.
@@ -4162,7 +4117,7 @@ export type StreamEnterpriseChatCompletionData = {
     url: '/enterprise/gateway/v1/chat/completions';
 };
 
-export type StreamEnterpriseChatCompletionErrors = {
+export type StreamEnterpriseChatCompletionsErrors = {
     /**
      * Invalid request.
      */
@@ -4201,16 +4156,142 @@ export type StreamEnterpriseChatCompletionErrors = {
     504: EnterpriseErrorResponse;
 };
 
-export type StreamEnterpriseChatCompletionError = StreamEnterpriseChatCompletionErrors[keyof StreamEnterpriseChatCompletionErrors];
+export type StreamEnterpriseChatCompletionsError = StreamEnterpriseChatCompletionsErrors[keyof StreamEnterpriseChatCompletionsErrors];
 
-export type StreamEnterpriseChatCompletionResponses = {
+export type StreamEnterpriseChatCompletionsResponses = {
     /**
-     * OpenAI-compatible chat completion events ending with a usage chunk and data [DONE].
+     * Upstream protocol-native server-sent events.
      */
     200: string;
 };
 
-export type StreamEnterpriseChatCompletionResponse = StreamEnterpriseChatCompletionResponses[keyof StreamEnterpriseChatCompletionResponses];
+export type StreamEnterpriseChatCompletionsResponse = StreamEnterpriseChatCompletionsResponses[keyof StreamEnterpriseChatCompletionsResponses];
+
+export type StreamEnterpriseResponsesData = {
+    body: GatewayNativeGatewayRequest;
+    headers: {
+        /**
+         * Caller-generated UUID v4 reused only for one logical write.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/enterprise/gateway/v1/responses';
+};
+
+export type StreamEnterpriseResponsesErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+    /**
+     * Request or archive is too large.
+     */
+    413: EnterpriseErrorResponse;
+    /**
+     * Quota exceeded.
+     */
+    429: EnterpriseErrorResponse;
+    /**
+     * Upstream rejected or returned an invalid response.
+     */
+    502: EnterpriseErrorResponse;
+    /**
+     * Platform or upstream is unavailable.
+     */
+    503: EnterpriseErrorResponse;
+    /**
+     * Upstream timed out.
+     */
+    504: EnterpriseErrorResponse;
+};
+
+export type StreamEnterpriseResponsesError = StreamEnterpriseResponsesErrors[keyof StreamEnterpriseResponsesErrors];
+
+export type StreamEnterpriseResponsesResponses = {
+    /**
+     * Upstream protocol-native server-sent events.
+     */
+    200: string;
+};
+
+export type StreamEnterpriseResponsesResponse = StreamEnterpriseResponsesResponses[keyof StreamEnterpriseResponsesResponses];
+
+export type StreamEnterpriseAnthropicMessagesData = {
+    body: GatewayNativeGatewayRequest;
+    headers: {
+        /**
+         * Caller-generated UUID v4 reused only for one logical write.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/enterprise/gateway/v1/messages';
+};
+
+export type StreamEnterpriseAnthropicMessagesErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+    /**
+     * Request or archive is too large.
+     */
+    413: EnterpriseErrorResponse;
+    /**
+     * Quota exceeded.
+     */
+    429: EnterpriseErrorResponse;
+    /**
+     * Upstream rejected or returned an invalid response.
+     */
+    502: EnterpriseErrorResponse;
+    /**
+     * Platform or upstream is unavailable.
+     */
+    503: EnterpriseErrorResponse;
+    /**
+     * Upstream timed out.
+     */
+    504: EnterpriseErrorResponse;
+};
+
+export type StreamEnterpriseAnthropicMessagesError = StreamEnterpriseAnthropicMessagesErrors[keyof StreamEnterpriseAnthropicMessagesErrors];
+
+export type StreamEnterpriseAnthropicMessagesResponses = {
+    /**
+     * Upstream protocol-native server-sent events.
+     */
+    200: string;
+};
+
+export type StreamEnterpriseAnthropicMessagesResponse = StreamEnterpriseAnthropicMessagesResponses[keyof StreamEnterpriseAnthropicMessagesResponses];
 
 export type ListPluginPackagesData = {
     body?: never;

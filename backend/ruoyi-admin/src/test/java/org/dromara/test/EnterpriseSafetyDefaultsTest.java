@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 ruoyi-admin 经 Maven 过滤后的 application.yml 与 Spring YAML loader。
- * [OUTPUT]: 验证 graceful drain、请求上限、同源 CORS、Session 1 MiB 与无默认 JWT secret。
+ * [OUTPUT]: 验证 graceful drain、无总时长 SSE、请求上限、同源 CORS、Session 1 MiB 与无默认 JWT secret。
  * [POS]: ruoyi-admin 的 T20 部署默认值回归，防止配置退化绕过业务层边界。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -25,6 +25,7 @@ class EnterpriseSafetyDefaultsTest {
     void freezesBoundedTransportAndGracefulShutdownDefaults() {
         assertThat(property("server.shutdown")).isEqualTo("graceful");
         assertThat(property("spring.lifecycle.timeout-per-shutdown-phase")).isEqualTo("30s");
+        assertThat(property("spring.mvc.async.request-timeout")).isEqualTo(-1);
         assertThat(property("server.jetty.max-http-form-post-size")).isEqualTo("1MB");
         assertThat(property("spring.servlet.multipart.max-file-size")).isEqualTo("50MB");
         assertThat(property("spring.servlet.multipart.max-request-size")).isEqualTo("52MB");

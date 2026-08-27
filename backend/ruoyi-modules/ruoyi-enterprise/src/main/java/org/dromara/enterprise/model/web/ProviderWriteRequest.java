@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 接收 provider 创建/更新的非秘密字段、replaceSecret 与一次性 char[] credential。
+ * [INPUT]: 接收 Harness providerKey、来源类型、API 协议、显示名称、endpoint、replaceSecret 与一次性 char[] credential。
  * [OUTPUT]: 对外提供 ProviderSpec、创建/更新 ProviderSecretInput、显式清零和脱敏 toString。
  * [POS]: model/web 的 provider 写边界，credential 不转换为领域配置或日志友好字符串。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -8,14 +8,17 @@ package org.dromara.enterprise.model.web;
 
 import org.dromara.enterprise.model.application.ProviderSecretInput;
 import org.dromara.enterprise.model.application.ProviderSpec;
+import org.dromara.enterprise.model.domain.ProviderApiProtocol;
 import org.dromara.enterprise.model.domain.ProviderType;
 
 import java.net.URI;
 import java.util.Arrays;
 
 public record ProviderWriteRequest(
+    String providerKey,
     String name,
     ProviderType providerType,
+    String apiProtocol,
     URI baseUrl,
     Boolean replaceSecret,
     char[] credential,
@@ -32,7 +35,10 @@ public record ProviderWriteRequest(
     }
 
     public ProviderSpec spec() {
-        return new ProviderSpec(name, providerType, baseUrl, connectTimeoutMs, readTimeoutMs);
+        return new ProviderSpec(
+            providerKey, name, providerType, ProviderApiProtocol.fromValue(apiProtocol),
+            baseUrl, connectTimeoutMs, readTimeoutMs
+        );
     }
 
     public ProviderSecretInput createCredential() {

@@ -45,6 +45,9 @@ importers:
       '@deepseek-ai/dsh-llm':
         specifier: link:../../../../deepseek-harness/packages/llm/llm
         version: link:../../../../deepseek-harness/packages/llm/llm
+      '@deepseek-ai/dsh-llm-pi-ai':
+        specifier: link:../../../../deepseek-harness/packages/llm/llm-pi-ai
+        version: link:../../../../deepseek-harness/packages/llm/llm-pi-ai
       '@deepseek-ai/dsh-session':
         specifier: link:../../../../deepseek-harness/packages/core/session
         version: link:../../../../deepseek-harness/packages/core/session
@@ -88,16 +91,16 @@ importers:
 
   packages/llm-gateway:
     dependencies:
-      '@enterprise-agent/dsh-contracts':
-        specifier: workspace:*
-        version: link:../contracts
+      '@deepseek-ai/cordis':
+        specifier: 4.0.1
+        version: 4.0.1
       '@enterprise-agent/dsh-platform-client':
         specifier: workspace:*
         version: link:../platform-client
     devDependencies:
-      '@deepseek-ai/dsh-llm':
-        specifier: link:../../../../deepseek-harness/packages/llm/llm
-        version: link:../../../../deepseek-harness/packages/llm/llm
+      '@deepseek-ai/dsh-llm-pi-ai':
+        specifier: link:../../../../deepseek-harness/packages/llm/llm-pi-ai
+        version: link:../../../../deepseek-harness/packages/llm/llm-pi-ai
 
   packages/platform-client:
     dependencies:

@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖真实 PostgreSQL 17、V1-V12、显式活动用户 fixture、quota JDBC adapters、事务、审计与并发连接。
+ * [INPUT]: 依赖真实 PostgreSQL 17、V1-V13、显式活动用户 fixture、quota JDBC adapters、事务、审计与并发连接。
  * [OUTPUT]: 验证不借用默认账号的策略/CAS/bootstrap、50 并发防超卖、全部状态、幂等、结算、恢复和带语义投影的用量查询。
  * [POS]: T09 主要数据库验收；Redis 原子/TTL 由独立真实 Redis 测试覆盖，T10 网关不在此实现。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -337,9 +337,10 @@ class QuotaManagementIntegrationTest {
     private static void insertModelAndDevice() {
         database.jdbc().update("""
             insert into ent_model_provider (
-                id, tenant_id, name, provider_type, base_url, status,
+                id, tenant_id, provider_key, name, provider_type, api_protocol, base_url, status,
                 connect_timeout_ms, read_timeout_ms, revision
-            ) values (?, ?, 'T09 Provider', 'DEEPSEEK_OPENAI', 'https://api.deepseek.com/v1',
+            ) values (?, ?, 't09-provider', 'T09 Provider', 'CUSTOM', 'openai-completions',
+                'https://api.deepseek.com/v1',
                 'ACTIVE', 5000, 30000, 0)
             """, PROVIDER_ID, TENANT);
         database.jdbc().update("""

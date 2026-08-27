@@ -63,14 +63,16 @@ class EnterpriseJsonBodyLimitFilterTest {
     @Test
     void leavesGatewayStreamingLimitToItsDedicatedController() throws Exception {
         EnterpriseJsonBodyLimitFilter filter = filter(2);
-        MockHttpServletRequest request = jsonRequest(
-            "/enterprise/gateway/v1/chat/completions", "larger-than-generic-limit"
-        );
-        AtomicReference<Boolean> invoked = new AtomicReference<>(false);
-
-        filter.doFilter(request, new MockHttpServletResponse(), (bounded, response) -> invoked.set(true));
-
-        assertThat(invoked).hasValue(true);
+        for (String path : new String[] {
+            "/enterprise/gateway/v1/chat/completions",
+            "/enterprise/gateway/v1/responses",
+            "/enterprise/gateway/v1/messages"
+        }) {
+            MockHttpServletRequest request = jsonRequest(path, "larger-than-generic-limit");
+            AtomicReference<Boolean> invoked = new AtomicReference<>(false);
+            filter.doFilter(request, new MockHttpServletResponse(), (bounded, response) -> invoked.set(true));
+            assertThat(invoked).as(path).hasValue(true);
+        }
     }
 
     private static EnterpriseJsonBodyLimitFilter filter(int maximum) {

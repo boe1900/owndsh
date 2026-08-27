@@ -15,10 +15,10 @@
     "models": [
       {
         "alias": "deepseek-chat",
-        "displayName": "DeepSeek Chat",
+        "name": "DeepSeek Chat",
+        "apiProtocol": "openai-completions",
         "contextWindow": 65536,
-        "maxOutputTokens": 8192,
-        "reasoning": false,
+        "maxTokens": 8192,
         "isDefault": true
       }
     ],

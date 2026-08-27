@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖真实 PostgreSQL V1-V12、身份 JDBC stores、三个身份 Application Service、AES-GCM 与只追加审计。
+ * [INPUT]: 依赖真实 PostgreSQL V1-V13、身份 JDBC stores、三个身份 Application Service、AES-GCM 与只追加审计。
  * [OUTPUT]: 验证秘密隔离、资源 CAS、显式活动用户名冲突下的稳定 subject/摘要、绑定冲突和部门映射冲突语义。
  * [POS]: T04 身份持久化事务退出门禁，以数据库最终事实证明领域规则而非用 mock 代替原子性。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

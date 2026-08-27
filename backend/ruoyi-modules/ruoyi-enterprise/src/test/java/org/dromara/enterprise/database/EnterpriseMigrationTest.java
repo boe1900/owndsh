@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 PostgresTestDatabase 装载真实 RuoYi 基线与 V1-V12 classpath migration。
- * [OUTPUT]: 验证空 schema、逐版本升级、运行增量及 V12 部署状态/默认账号安全退役。
+ * [INPUT]: 依赖 PostgresTestDatabase 装载真实 RuoYi 基线与 V1-V15 classpath migration。
+ * [OUTPUT]: 验证空 schema、逐版本升级、provider 配置及 Harness reasoning 模型字段迁移。
  * [POS]: database 的持续 migration 门禁，防止后续任务只验证最终 schema 而遗漏中间版本不可升级。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -27,7 +27,7 @@ class EnterpriseMigrationTest {
 
         Flyway flyway = PostgresTestDatabase.migrate(database, null);
 
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("12");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("15");
         Integer tableCount = database.jdbc().queryForObject("""
             select count(*) from information_schema.tables
             where table_schema = 'public' and table_name like 'ent_%'
@@ -159,8 +159,8 @@ class EnterpriseMigrationTest {
              where table_name='ent_device' and column_name='last_heartbeat_audit_at'
             """, Integer.class)).isOne();
 
-        Flyway latest = PostgresTestDatabase.migrate(database, "12");
-        assertThat(latest.info().current().getVersion().getVersion()).isEqualTo("12");
+        Flyway versionTwelve = PostgresTestDatabase.migrate(database, "12");
+        assertThat(versionTwelve.info().current().getVersion().getVersion()).isEqualTo("12");
         assertThat(database.jdbc().queryForObject("""
             select count(*) from information_schema.columns
              where table_name='sys_user' and column_name='password_change_required'
@@ -179,6 +179,104 @@ class EnterpriseMigrationTest {
             Integer.class,
             userId
         )).isOne();
+
+        database.jdbc().update("""
+            insert into ent_model_provider(
+                id,tenant_id,name,provider_type,base_url,status,
+                connect_timeout_ms,read_timeout_ms,revision
+            ) values (1913000000000000501,'000000','Legacy Provider','DEEPSEEK_OPENAI',
+                'https://legacy.example/v1','ACTIVE',5000,30000,0)
+            """);
+        Flyway versionThirteen = PostgresTestDatabase.migrate(database, "13");
+        assertThat(versionThirteen.info().current().getVersion().getVersion()).isEqualTo("13");
+        assertThat(database.jdbc().queryForMap("""
+            select provider_key,provider_type,api_protocol,base_url
+            from ent_model_provider where id=1913000000000000501
+            """))
+            .containsEntry("provider_key", "provider-1913000000000000501")
+            .containsEntry("provider_type", "CUSTOM")
+            .containsEntry("api_protocol", "openai-completions")
+            .containsEntry("base_url", "https://legacy.example/v1");
+        assertThatThrownBy(() -> database.jdbc().update("""
+            insert into ent_model_provider(
+                id,tenant_id,provider_key,name,provider_type,api_protocol,base_url,status,
+                connect_timeout_ms,read_timeout_ms,revision
+            ) values (1913000000000000502,'000000','wrong-official','Invalid Official',
+                'DEEPSEEK_OFFICIAL','openai-completions','https://api.deepseek.com','ACTIVE',5000,30000,0)
+            """)).isInstanceOf(RuntimeException.class);
+
+        database.jdbc().update("""
+            insert into ent_managed_model(
+                id,tenant_id,provider_id,alias,display_name,upstream_model,context_window,
+                max_output_tokens,reasoning,sort_order,status,revision
+            ) values (1913000000000000601,'000000',1913000000000000501,'legacy-model','Legacy Model',
+                'legacy-model',65536,8192,true,10,'ACTIVE',0)
+            """);
+        database.jdbc().update("""
+            insert into ent_audit_event(
+                id,tenant_id,occurred_at,actor_type,actor_id,action,resource_type,resource_id,
+                result,request_id,metadata_json
+            ) values (1913000000000000701,'000000',now(),'USER',?,
+                'MODEL_CHANGED','MANAGED_MODEL','1913000000000000601','SUCCESS','req_migration_model',
+                '{"operation":"CREATE","reasoning":true,"resourceRevision":0,"bootstrapRevision":0}')
+            """, userId);
+        Flyway versionFourteen = PostgresTestDatabase.migrate(database, "14");
+        assertThat(versionFourteen.info().current().getVersion().getVersion()).isEqualTo("14");
+        assertThat(database.jdbc().queryForObject("""
+            select count(*) from information_schema.columns
+            where table_name='ent_managed_model' and column_name='reasoning'
+            """, Integer.class)).isZero();
+        assertThat(database.jdbc().queryForObject("""
+            select metadata_json ? 'reasoning' from ent_audit_event where id=1913000000000000701
+            """, Boolean.class)).isTrue();
+        database.jdbc().update("""
+            insert into ent_managed_model(
+                id,tenant_id,provider_id,alias,upstream_model,sort_order,status,revision
+            ) values (1913000000000000602,'000000',1913000000000000501,'harness-defaults',
+                'harness-defaults',20,'ACTIVE',0)
+            """);
+        assertThat(database.jdbc().queryForMap("""
+            select display_name,context_window,max_output_tokens
+            from ent_managed_model where id=1913000000000000602
+            """)).containsValues(null, null, null);
+        database.jdbc().update("""
+            insert into ent_model_provider(
+                id,tenant_id,provider_key,name,provider_type,api_protocol,base_url,status,
+                connect_timeout_ms,read_timeout_ms,revision
+            ) values
+                (1913000000000000503,'000000','responses-gateway','Responses Gateway',
+                 'CUSTOM','openai-responses','https://responses.example/v1','ACTIVE',5000,30000,0),
+                (1913000000000000504,'000000','anthropic-gateway','Anthropic Gateway',
+                 'CUSTOM','anthropic-messages','https://anthropic.example/v1','ACTIVE',5000,30000,0)
+            """);
+        assertThat(database.jdbc().queryForList("""
+            select api_protocol from ent_model_provider
+            where id in (1913000000000000503,1913000000000000504) order by id
+            """, String.class)).containsExactly("openai-responses", "anthropic-messages");
+        assertThatThrownBy(() -> database.jdbc().update("""
+            insert into ent_model_provider(
+                id,tenant_id,provider_key,name,provider_type,api_protocol,base_url,status,
+                connect_timeout_ms,read_timeout_ms,revision
+            ) values (1913000000000000505,'000000','deepseek-official','Invalid Official Protocol',
+                'DEEPSEEK_OFFICIAL','openai-responses','https://api.deepseek.com','ACTIVE',5000,30000,0)
+            """)).isInstanceOf(RuntimeException.class);
+        Flyway latest = PostgresTestDatabase.migrate(database, "15");
+        assertThat(latest.info().current().getVersion().getVersion()).isEqualTo("15");
+        database.jdbc().update("""
+            update ent_managed_model
+            set reasoning_efforts='{"off":null,"high":"high","max":"max"}'::jsonb,
+                reasoning_compat='{"thinkingFormat":"deepseek","supportsReasoningEffort":true}'::jsonb
+            where id=1913000000000000602
+            """);
+        assertThat(database.jdbc().queryForMap("""
+            select reasoning_efforts->>'high' as high,
+                   reasoning_compat->>'thinkingFormat' as format
+            from ent_managed_model where id=1913000000000000602
+            """)).containsEntry("high", "high").containsEntry("format", "deepseek");
+        assertThatThrownBy(() -> database.jdbc().update("""
+            update ent_managed_model set reasoning_efforts='{}'::jsonb
+            where id=1913000000000000602
+            """)).isInstanceOf(RuntimeException.class);
     }
 
     @Test
@@ -195,7 +293,7 @@ class EnterpriseMigrationTest {
             .run(context -> {
                 assertThat(context).hasSingleBean(Flyway.class);
                 assertThat(context.getBean(Flyway.class).info().current().getVersion().getVersion())
-                    .isEqualTo("12");
+                    .isEqualTo("15");
             });
     }
 }

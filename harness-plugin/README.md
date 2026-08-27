@@ -11,14 +11,14 @@ release's public plugin surface and does not generate or mount a custom Typert
 Remote. T07 adds the desktop employee account experience through the official
 `settings.section`, `sidebar.footer.action`, and `settings.onboarding` slots;
 all three surfaces share one browser store over the T06 local control plane.
-T11 promotes the SSE probe into `EnterpriseGatewayAdapter`, using the official
-rc.7 `ctx.llm` registration, dynamic bootstrap catalog, default sentinel,
-single-attempt policy, cancellation, and direct Host-to-center model stream.
-T14 adds `ctx.enterprisePluginDistribution` through the official rc.7
-`ctx.subprocess` and `ctx.pluginInventory` services. It downloads and verifies
-center-managed tgz artifacts, invokes the official CLI with fixed argv, keeps
+T11 directly mounts the official rc.2 `@deepseek-ai/dsh-llm-pi-ai` adapter with
+enterprise-managed profiles and an ephemeral Host-only loopback authentication proxy. The enterprise
+plugin stores no upstream API key and implements no model wire protocol.
+T14 adds `ctx.enterprisePluginDistribution` through the official rc.2
+`ctx.subprocess`/`ctx.pluginInventory` services and Desktop's public plugin command service. It downloads and verifies
+center-managed tgz artifacts, invokes the environment-native official command with fixed argv, keeps
 atomic local state, and waits for a new process to confirm the Loader row.
-T17 adds `ctx.enterpriseSessionSync` through official rc.7 `sessions` and
+T17 adds `ctx.enterpriseSessionSync` through official rc.2 `sessions` and
 `sessionPersistence`: local append remains network-independent, acknowledged
 cursors are atomic and content-free, and a fully verified remote log is
 restored under a new durable Session ID.
@@ -54,7 +54,7 @@ temporary real Harness profile for desktop snapshot/GIF acceptance; stop it
 with SIGINT so it can verify upstream cleanliness and remove its temporary
 `DSH_HOME`.
 `pnpm run accept:t11-model` is fully automatic: it installs the tgz into a
-temporary rc.7 `web` profile, logs in through PKCE, drives the real `ctx.llm`
+temporary rc.2 `web` profile, logs in through PKCE, drives the real `ctx.llm`
 runtime, verifies dynamic models and stable failures, scans local files for the
 platform Token/provider keys, and confirms the sibling checkout remains clean.
 `pnpm run smoke:plugin-distribution` installs the three release tarballs into a
@@ -63,7 +63,7 @@ accept:t14-dsh-plugin` uses a temporary `DSH_HOME` and paths containing spaces
 to prove exact add, downgrade rollback, profile reconciliation, and remove
 against the locked unmodified CLI.
 `pnpm run smoke:session-sync` installs the published product tarballs and npm
-rc.7 Session peers into a fresh consumer without ambient declarations, then
+rc.2 Session peers into a fresh consumer without ambient declarations, then
 executes a real JSONL persistence sync/restore chain. `pnpm run
 accept:t17-session` installs the enterprise bundle into a temporary locked
 Harness `web` profile and proves append network isolation, real

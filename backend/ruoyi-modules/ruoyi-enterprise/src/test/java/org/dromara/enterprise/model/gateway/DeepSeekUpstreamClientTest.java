@@ -1,16 +1,20 @@
 /**
- * [INPUT]: 依赖 WireMock、JdkDeepSeekUpstreamClient 与真实本机 HTTP socket。
- * [OUTPUT]: 验证固定 POST/Bearer、reasoning/tool/usage SSE、401/429/5xx、无效响应、timeout 与 no-redirect。
- * [POS]: T10 DeepSeek-compatible 网络 adapter 测试，错误正文和 secret 不进入异常结果。
+ * [INPUT]: 依赖 WireMock、ProviderApiProtocol、JdkDeepSeekUpstreamClient 与真实本机 HTTP socket。
+ * [OUTPUT]: 验证三协议 endpoint/auth、SSE、单次请求、状态映射、白名单错误诊断、timeout 与 no-redirect。
+ * [POS]: model/gateway 网络 adapter 测试，协议差异止于 HTTP 边界且 secret 不进入异常结果。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.model.gateway;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.core.read.ListAppender;
 import com.github.tomakehurst.wiremock.WireMockServer;
+import org.dromara.enterprise.model.domain.ProviderApiProtocol;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -19,6 +23,7 @@ import java.util.Map;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.containing;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.exactly;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
@@ -63,7 +68,8 @@ class DeepSeekUpstreamClientTest {
                 .withHeader("X-Request-Id", "upstream-1").withBody(response)));
 
         try (DeepSeekUpstreamClient.UpstreamExchange exchange = client.open(
-            URI.create(server.baseUrl() + "/v1"), SECRET.toCharArray(),
+            URI.create(server.baseUrl() + "/v1"), ProviderApiProtocol.OPENAI_COMPLETIONS, SECRET.toCharArray(),
+            Map.of(),
             "{\"model\":\"deepseek-v3\"}".getBytes(StandardCharsets.UTF_8), 2_000, 2_000
         )) {
             assertThat(exchange.upstreamRequestId()).isEqualTo("upstream-1");
@@ -76,8 +82,35 @@ class DeepSeekUpstreamClientTest {
     }
 
     @Test
+    void selectsHarnessEndpointsAndAuthenticationForResponsesAndAnthropic() {
+        server.stubFor(post(urlEqualTo("/v1/responses"))
+            .withHeader("Authorization", equalTo("Bearer " + SECRET))
+            .willReturn(aResponse().withStatus(200).withHeader("Content-Type", "text/event-stream")
+                .withBody("data: [DONE]\n\n")));
+        try (var exchange = client.open(
+            URI.create(server.baseUrl() + "/v1"), ProviderApiProtocol.OPENAI_RESPONSES,
+            SECRET.toCharArray(), Map.of(), "{}".getBytes(StandardCharsets.UTF_8), 2_000, 2_000
+        )) {
+            assertThat(exchange.next().done()).isTrue();
+        }
+
+        server.stubFor(post(urlEqualTo("/v1/messages"))
+            .withHeader("x-api-key", equalTo(SECRET))
+            .withHeader("anthropic-version", equalTo("2023-06-01"))
+            .willReturn(aResponse().withStatus(200).withHeader("Content-Type", "text/event-stream")
+                .withBody("data: [DONE]\n\n")));
+        try (var exchange = client.open(
+            URI.create(server.baseUrl() + "/v1"), ProviderApiProtocol.ANTHROPIC_MESSAGES,
+            SECRET.toCharArray(), Map.of(), "{}".getBytes(StandardCharsets.UTF_8), 2_000, 2_000
+        )) {
+            assertThat(exchange.next().done()).isTrue();
+        }
+    }
+
+    @Test
     void maps401429And5xxWithoutReturningSecretOrUpstreamBody() {
         Map<Integer, GatewayException.Kind> expected = Map.of(
+            400, GatewayException.Kind.UPSTREAM_INVALID_RESPONSE,
             401, GatewayException.Kind.UPSTREAM_AUTH_FAILED,
             429, GatewayException.Kind.UPSTREAM_UNAVAILABLE,
             500, GatewayException.Kind.UPSTREAM_UNAVAILABLE
@@ -87,25 +120,77 @@ class DeepSeekUpstreamClientTest {
             server.stubFor(post(urlEqualTo("/v1/chat/completions")).willReturn(aResponse()
                 .withStatus(entry.getKey()).withBody("upstream-sensitive-error")));
             assertThatThrownBy(() -> client.open(
-                URI.create(server.baseUrl() + "/v1"), SECRET.toCharArray(), "{}".getBytes(StandardCharsets.UTF_8),
+                URI.create(server.baseUrl() + "/v1"), ProviderApiProtocol.OPENAI_COMPLETIONS,
+                SECRET.toCharArray(), Map.of(), "{}".getBytes(StandardCharsets.UTF_8),
                 2_000, 2_000
             )).isInstanceOfSatisfying(GatewayException.class, error -> {
                 assertThat(error.kind()).isEqualTo(entry.getValue());
+                assertThat(error.detail()).isEqualTo(GatewayException.Detail.HTTP_STATUS);
+                assertThat(error.upstreamStatus()).isEqualTo(entry.getKey());
                 assertThat(error.toString()).doesNotContain(SECRET).doesNotContain("upstream-sensitive-error");
             });
         }
     }
 
     @Test
+    void logsOnlySafeStructuredFieldsFromRejectedResponse() {
+        String upstreamSecret = "upstream-message-must-not-leak";
+        server.stubFor(post(urlEqualTo("/v1/chat/completions")).willReturn(aResponse()
+            .withStatus(400)
+            .withHeader("X-Request-Id", "upstream-safe-1")
+            .withBody("""
+                {"error":{"code":"invalid_request_error","type":"invalid_request_error",
+                "param":"input[12].call_id","message":"upstream-message-must-not-leak"}}
+                """)));
+        Logger logger = (Logger) LoggerFactory.getLogger(JdkDeepSeekUpstreamClient.class);
+        ListAppender<ch.qos.logback.classic.spi.ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            assertThatThrownBy(() -> open(2_000)).isInstanceOf(GatewayException.class);
+
+            String logs = appender.list.stream()
+                .map(ch.qos.logback.classic.spi.ILoggingEvent::getFormattedMessage)
+                .reduce("", (left, right) -> left + "\n" + right);
+            assertThat(logs)
+                .contains(
+                    "upstreamRequestId=upstream-safe-1",
+                    "errorCode=invalid_request_error",
+                    "errorType=invalid_request_error",
+                    "errorParam=input[12].call_id"
+                )
+                .doesNotContain(upstreamSecret, SECRET);
+            assertThat(appender.list).allSatisfy(event -> assertThat(event.getThrowableProxy()).isNull());
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+    }
+
+    @Test
+    void doesNotRetryProviderSpecificInputRejection() {
+        server.stubFor(post(urlEqualTo("/v1/chat/completions")).willReturn(aResponse().withStatus(400).withBody(
+            "{\"error\":{\"type\":\"invalid_request_error\",\"param\":\"input\"}}"
+        )));
+
+        assertKind(GatewayException.Kind.UPSTREAM_INVALID_RESPONSE, 2_000);
+        server.verify(exactly(1), postRequestedFor(urlEqualTo("/v1/chat/completions")));
+    }
+
+    @Test
     void rejectsWrongContentTypeRedirectMalformedEofAndReadTimeout() {
         server.stubFor(post(urlEqualTo("/v1/chat/completions"))
             .willReturn(aResponse().withStatus(200).withHeader("Content-Type", "application/json").withBody("{}")));
-        assertKind(GatewayException.Kind.UPSTREAM_INVALID_RESPONSE, 500);
+        assertFailure(
+            GatewayException.Kind.UPSTREAM_INVALID_RESPONSE,
+            GatewayException.Detail.NON_SSE_CONTENT_TYPE,
+            2_000
+        );
 
         server.resetAll();
         server.stubFor(post(urlEqualTo("/v1/chat/completions"))
             .willReturn(aResponse().withStatus(302).withHeader("Location", server.baseUrl() + "/redirected")));
-        assertKind(GatewayException.Kind.UPSTREAM_INVALID_RESPONSE, 500);
+        assertKind(GatewayException.Kind.UPSTREAM_INVALID_RESPONSE, 2_000);
 
         server.resetAll();
         server.stubFor(post(urlEqualTo("/v1/chat/completions"))
@@ -113,7 +198,10 @@ class DeepSeekUpstreamClientTest {
                 .withBody("data: {\"choices\":[]}")));
         try (var exchange = open(500)) {
             assertThatThrownBy(exchange::next).isInstanceOfSatisfying(GatewayException.class,
-                error -> assertThat(error.kind()).isEqualTo(GatewayException.Kind.UPSTREAM_INVALID_RESPONSE));
+                error -> {
+                    assertThat(error.kind()).isEqualTo(GatewayException.Kind.UPSTREAM_INVALID_RESPONSE);
+                    assertThat(error.detail()).isEqualTo(GatewayException.Detail.PREMATURE_EOF);
+                });
         }
 
         server.resetAll();
@@ -143,7 +231,8 @@ class DeepSeekUpstreamClientTest {
 
     private DeepSeekUpstreamClient.UpstreamExchange open(int timeoutMs) {
         return client.open(
-            URI.create(server.baseUrl() + "/v1"), SECRET.toCharArray(), "{}".getBytes(StandardCharsets.UTF_8),
+            URI.create(server.baseUrl() + "/v1"), ProviderApiProtocol.OPENAI_COMPLETIONS,
+            SECRET.toCharArray(), Map.of(), "{}".getBytes(StandardCharsets.UTF_8),
             500, timeoutMs
         );
     }
@@ -151,5 +240,12 @@ class DeepSeekUpstreamClientTest {
     private void assertKind(GatewayException.Kind kind, int timeoutMs) {
         assertThatThrownBy(() -> open(timeoutMs)).isInstanceOfSatisfying(GatewayException.class,
             error -> assertThat(error.kind()).isEqualTo(kind));
+    }
+
+    private void assertFailure(GatewayException.Kind kind, GatewayException.Detail detail, int timeoutMs) {
+        assertThatThrownBy(() -> open(timeoutMs)).isInstanceOfSatisfying(GatewayException.class, error -> {
+            assertThat(error.kind()).isEqualTo(kind);
+            assertThat(error.detail()).isEqualTo(detail);
+        });
     }
 }

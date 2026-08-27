@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 接收模型操作、非敏感能力与资源/bootstrap revisions。
+ * [INPUT]: 接收模型操作与资源/bootstrap revisions。
  * [OUTPUT]: 对外提供 MODEL_CHANGED action 的固定审计 metadata。
  * [POS]: model/application 的模型审计白名单，不记录 alias、显示名或 upstream model。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -13,7 +13,6 @@ import java.util.Objects;
 
 public record ManagedModelChangeMetadata(
     Operation operation,
-    boolean reasoning,
     long resourceRevision,
     long bootstrapRevision
 ) implements AuditMetadata {

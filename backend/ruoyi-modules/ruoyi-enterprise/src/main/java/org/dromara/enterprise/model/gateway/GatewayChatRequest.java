@@ -1,11 +1,13 @@
 /**
- * [INPUT]: 依赖严格解析后的 alias、请求 JSON、可见字节数、reasoning 开关与可选 max_tokens。
- * [OUTPUT]: 对外提供防御性复制的请求事实、reasoning 能力意图及只替换受管 upstream model/usage 的发送体。
- * [POS]: model/gateway 的短生命周期 prompt 容器，不能进入日志、异常、审计或持久化。
+ * [INPUT]: 依赖官方 Harness adapter 生成的原生三协议 JSON、受管 alias、可见字节估算与可选输出上限。
+ * [OUTPUT]: 对外提供防御性复制的请求事实，以及仅覆盖模型/治理字段的原生上游请求体。
+ * [POS]: model/gateway 的短生命周期 wire 容器，不解释消息、工具、推理或 replay 语义。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.model.gateway;
 
+import org.dromara.enterprise.model.domain.ProviderApiProtocol;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
 import java.util.Objects;
@@ -21,7 +23,9 @@ public final class GatewayChatRequest {
         this.maxTokens = maxTokens;
         this.visibleUtf8Bytes = visibleUtf8Bytes;
         this.body = Objects.requireNonNull(body, "body").deepCopy();
-        if (visibleUtf8Bytes < 0) throw new IllegalArgumentException("visibleUtf8Bytes 不能为负数");
+        if (maxTokens != null && maxTokens <= 0 || visibleUtf8Bytes < 0) {
+            throw new IllegalArgumentException("模型请求容量非法");
+        }
     }
 
     public String modelAlias() {
@@ -36,15 +40,18 @@ public final class GatewayChatRequest {
         return visibleUtf8Bytes;
     }
 
-    public boolean reasoningEnabled() {
-        return body.path("thinking").path("type").asString("").equals("enabled");
-    }
-
-    ObjectNode upstreamBody(String upstreamModel) {
+    ObjectNode upstreamBody(String modelId, ProviderApiProtocol protocol) {
         ObjectNode result = body.deepCopy();
-        result.put("model", requireText(upstreamModel, "upstreamModel"));
+        result.put("model", requireText(modelId, "modelId"));
         result.put("stream", true);
-        result.putObject("stream_options").put("include_usage", true);
+        if (protocol == ProviderApiProtocol.OPENAI_COMPLETIONS) {
+            JsonNode existing = result.get("stream_options");
+            ObjectNode streamOptions = existing != null && existing.isObject()
+                ? existing.asObject() : result.putObject("stream_options");
+            streamOptions.put("include_usage", true);
+        } else if (protocol == ProviderApiProtocol.OPENAI_RESPONSES) {
+            result.put("store", false);
+        }
         return result;
     }
 

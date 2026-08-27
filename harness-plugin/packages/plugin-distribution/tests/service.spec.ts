@@ -18,13 +18,14 @@ import {
   EnterprisePluginDistributionService,
   ManagedPluginStore,
   signatureManifest,
+  type DshPluginCommandPort,
   type EnterprisePlatformPort,
   type PluginDistributionContext,
   type PluginInventoryPort,
   type RuntimePluginAssignment,
 } from '../src/index.js'
 
-const HARNESS_COMMIT = '99f6f02fecdb7dff40c3fbc9470f5907c29f74ca'
+const HARNESS_COMMIT = 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e'
 const REQUEST_ID = `req_${'1'.repeat(26)}`
 const cleanups: (() => Promise<void>)[] = []
 
@@ -145,6 +146,7 @@ async function environment(options: {
   readonly inventory?: PluginInventoryPort
   readonly dshHome?: string
   readonly runMarker?: string
+  readonly commandPort?: DshPluginCommandPort
 }): Promise<{
   readonly context: PluginDistributionContext
   readonly home: string
@@ -165,7 +167,10 @@ async function environment(options: {
     profile: 'enterprise',
     dshCommand: 'dsh',
     dshHome: home,
-  }, { runMarker: options.runMarker ?? 'test-run' })
+  }, {
+    ...(options.commandPort === undefined ? {} : { commandPort: options.commandPort }),
+    runMarker: options.runMarker ?? 'test-run',
+  })
   let closed = false
   const close = async (): Promise<void> => {
     if (closed) return
@@ -183,6 +188,22 @@ async function environment(options: {
 const testKey = generateKeyPairSync('ed25519')
 
 describe('EnterprisePluginDistributionService', () => {
+  it('uses Desktop plugin argv without resolving an ambient dsh executable', async () => {
+    const content = Buffer.from('managed Desktop bundle')
+    const desired = assignment(testKey, content)
+    const platform = new FakePlatform(bootstrap(1, [desired]), new Map([[desired.downloadUrl!, content]]))
+    const run = vi.fn(async () => undefined)
+    const env = await environment({ platform, commandPort: { run } })
+
+    await env.service.settled()
+
+    expect(run).toHaveBeenCalledWith([
+      'add', '--ignore-scripts', '--save-exact',
+      join(env.home, 'enterprise', 'artifacts', `${desired.sha256}.tgz`),
+    ], env.home, expect.any(AbortSignal))
+    expect(env.subprocess.specs).toHaveLength(0)
+  })
+
   it('installs with exact shell-free argv, persists restart-required, then confirms active only in a new process', async () => {
     const content = Buffer.from('managed bundle v1')
     const desired = assignment(testKey, content)

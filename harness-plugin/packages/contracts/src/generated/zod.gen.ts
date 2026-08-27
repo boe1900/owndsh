@@ -288,7 +288,6 @@ export const zModelChangeAuditMetadata = z.object({
         'DISABLE',
         'DELETE'
     ]),
-    reasoning: z.boolean(),
     resourceRevision: z.int().gte(0),
     bootstrapRevision: z.int().gte(0)
 }).strict();
@@ -319,19 +318,6 @@ export const zPluginAuditMetadata = z.object({
     bootstrapRevision: z.int().gte(0),
     itemCount: z.int().gte(0).lte(500),
     required: z.boolean()
-}).strict();
-
-export const zProviderChangeAuditMetadata = z.object({
-    operation: z.enum([
-        'CREATE',
-        'UPDATE',
-        'ENABLE',
-        'DISABLE'
-    ]),
-    providerType: z.literal('DEEPSEEK_OPENAI'),
-    protectedValueChanged: z.boolean(),
-    resourceRevision: z.int().gte(0),
-    bootstrapRevision: z.int().gte(0)
 }).strict();
 
 export const zQuotaChangeAuditMetadata = z.object({
@@ -399,64 +385,6 @@ export const zUserStatusChangedAuditMetadata = z.object({
     previousStatus: z.string().min(1).max(16),
     currentStatus: z.string().min(1).max(16)
 }).strict();
-
-export const zAuditAuditMetadata = z.union([
-    zEmptyAuditMetadata,
-    zAuthAuditMetadata,
-    zIdentityChangeAuditMetadata,
-    zIdentityLinkAuditMetadata,
-    zDeviceEnrollmentAuditMetadata,
-    zDeviceHeartbeatAuditMetadata,
-    zProviderChangeAuditMetadata,
-    zModelChangeAuditMetadata,
-    zModelGrantChangeAuditMetadata,
-    zGatewayAcceptedAuditMetadata,
-    zGatewayFinishedAuditMetadata,
-    zQuotaChangeAuditMetadata,
-    zQuotaRejectionAuditMetadata,
-    zReservationRecoveredAuditMetadata,
-    zPluginAuditMetadata,
-    zSessionRangeAuditMetadata,
-    zSessionRestoredAuditMetadata,
-    zSessionDeletedAuditMetadata,
-    zSessionExpiredAuditMetadata,
-    zRoleAssignedAuditMetadata,
-    zUserStatusChangedAuditMetadata,
-    zRevisionChangedAuditMetadata
-]);
-
-export const zAuditMetadata = zAuditAuditMetadata;
-
-export const zAuditAuditEvent = z.object({
-    id: zAuditAuditEventId,
-    occurredAt: z.iso.datetime({ offset: true }),
-    actorType: zAuditAuditActorType,
-    actorId: zEnterpriseUserId.nullable(),
-    deviceId: zEnterpriseDeviceId.nullable(),
-    action: zAuditAuditAction,
-    resourceType: zAuditAuditTypeName,
-    resourceId: z.string().min(1).max(255),
-    result: zAuditAuditResult,
-    reasonCode: zAuditAuditTypeName.nullable(),
-    requestId: zRequestId,
-    metadata: zAuditAuditMetadata
-}).strict();
-
-export const zAuditEvent = zAuditAuditEvent;
-
-export const zAuditAuditEventPageData = z.object({
-    items: z.array(zAuditAuditEvent).max(200),
-    page: zCursorPage
-}).strict();
-
-export const zAuditEventPageData = zAuditAuditEventPageData;
-
-export const zAuditAuditEventListResponse = z.object({
-    data: zAuditAuditEventPageData,
-    requestId: zRequestId
-}).strict();
-
-export const zAuditEventListResponse = zAuditAuditEventListResponse;
 
 export const zAuthAuthTransactionId = z.string().min(32).max(64).regex(/^[A-Za-z0-9_-]+$/);
 
@@ -609,111 +537,6 @@ export const zDeviceDeviceResponse = z.object({
 }).strict();
 
 export const zDeviceResponse = zDeviceDeviceResponse;
-
-export const zGatewayChatFunctionCall = z.object({
-    name: z.string().min(1).max(128),
-    arguments: z.string().min(1).max(1048576)
-}).strict();
-
-export const zChatFunctionCall = zGatewayChatFunctionCall;
-
-export const zGatewayChatRole = z.enum([
-    'system',
-    'user',
-    'assistant',
-    'tool'
-]);
-
-export const zChatRole = zGatewayChatRole;
-
-export const zGatewayChatStreamOptions = z.object({
-    include_usage: z.boolean().optional()
-}).strict();
-
-export const zChatStreamOptions = zGatewayChatStreamOptions;
-
-export const zChatThinking = z.object({
-    type: z.enum(['enabled', 'disabled'])
-}).strict();
-
-export const zGatewayChatToolCall = z.object({
-    id: z.string().min(1).max(255),
-    type: z.literal('function'),
-    function: zGatewayChatFunctionCall
-}).strict();
-
-export const zChatToolCall = zGatewayChatToolCall;
-
-export const zGatewayChatMessage = z.union([
-    z.object({
-        role: z.enum(['system', 'user']),
-        content: z.string(),
-        name: z.string().min(1).max(255).optional()
-    }).strict(),
-    z.object({
-        role: z.literal('assistant'),
-        content: z.string().nullish(),
-        name: z.string().min(1).max(255).optional(),
-        tool_calls: z.array(zGatewayChatToolCall).min(1).optional(),
-        reasoning_content: z.string().optional(),
-        prefix: z.boolean().optional()
-    }).strict(),
-    z.object({
-        role: z.literal('tool'),
-        content: z.string(),
-        name: z.string().min(1).max(255).optional(),
-        tool_call_id: z.string().min(1).max(255)
-    }).strict()
-]);
-
-export const zChatMessage = zGatewayChatMessage;
-
-export const zGatewayChatUsage = z.object({
-    prompt_tokens: z.int().gte(0).optional(),
-    completion_tokens: z.int().gte(0).optional(),
-    total_tokens: z.int().gte(0).optional()
-});
-
-export const zChatUsage = zGatewayChatUsage;
-
-export const zGatewayJsonSchemaObject = z.record(z.string(), z.unknown());
-
-export const zJsonSchemaObject = zGatewayJsonSchemaObject;
-
-export const zGatewayChatFunctionDefinition = z.object({
-    name: z.string().min(1).max(128),
-    description: z.string().min(1).max(4096).optional(),
-    parameters: zGatewayJsonSchemaObject.optional()
-}).strict();
-
-export const zChatFunctionDefinition = zGatewayChatFunctionDefinition;
-
-export const zGatewayChatTool = z.object({
-    type: z.literal('function'),
-    function: zGatewayChatFunctionDefinition
-}).strict();
-
-export const zChatTool = zGatewayChatTool;
-
-export const zGatewayNamedToolChoice = z.object({
-    type: z.literal('function'),
-    function: z.object({
-        name: z.string().min(1).max(128)
-    }).strict()
-}).strict();
-
-export const zNamedToolChoice = zGatewayNamedToolChoice;
-
-export const zGatewayOpenAiChatCompletionChunk = z.object({
-    id: z.string().optional(),
-    object: z.string().optional(),
-    created: z.int().optional(),
-    model: z.string().optional(),
-    choices: z.array(z.record(z.string(), z.unknown())),
-    usage: zGatewayChatUsage.nullish()
-});
-
-export const zOpenAiChatCompletionChunk = zGatewayOpenAiChatCompletionChunk;
 
 export const zIdentityDeletedResource = z.object({
     id: z.string().regex(/^[1-9][0-9]{0,18}$/),
@@ -1008,64 +831,39 @@ export const zGatewayGatewayModel = z.union([
 
 export const zGatewayModel = zGatewayGatewayModel;
 
-export const zGatewayChatCompletionRequest = z.object({
+export const zGatewayNativeGatewayRequest = z.object({
     model: zGatewayGatewayModel,
-    messages: z.array(zGatewayChatMessage).min(1),
-    tools: z.array(zGatewayChatTool).optional(),
-    tool_choice: z.union([
-        z.literal('none'),
-        z.literal('auto'),
-        z.literal('required'),
-        zGatewayNamedToolChoice
-    ]).optional(),
-    temperature: z.number().gte(0).lte(2).optional(),
-    top_p: z.number().gte(0).lte(1).optional(),
-    max_tokens: z.int().gte(1).lte(2147483647).optional(),
-    stop: z.union([
-        z.string().min(1).max(4096),
-        z.array(z.string().min(1).max(4096)).min(1).max(4)
-    ]).nullish(),
     stream: z.literal(true),
-    stream_options: zGatewayChatStreamOptions.optional(),
-    thinking: zChatThinking.optional(),
-    reasoning_effort: z.enum(['high', 'max']).optional()
-}).strict();
+    max_tokens: z.int().gte(1).lte(2147483647).optional(),
+    max_output_tokens: z.int().gte(1).lte(2147483647).optional()
+});
 
-export const zChatCompletionRequest = zGatewayChatCompletionRequest;
-
-export const zModelDisplayName = z.string().min(1).max(120);
-
-export const zModelBootstrapModel = z.object({
-    alias: zModelAlias,
-    displayName: zModelDisplayName,
-    contextWindow: z.int().gte(1),
-    maxOutputTokens: z.int().gte(1),
-    reasoning: z.boolean(),
-    isDefault: z.boolean()
-}).strict();
-
-export const zBootstrapModel = zModelBootstrapModel;
+export const zNativeGatewayRequest = zGatewayNativeGatewayRequest;
 
 export const zModelModelGrantId = z.string().regex(/^[1-9][0-9]{0,18}$/);
 
 export const zModelGrantId = zModelModelGrantId;
 
+export const zModelName = z.string().min(1).max(120);
+
 export const zModelModelProviderId = z.string().regex(/^[1-9][0-9]{0,18}$/);
 
 export const zModelProviderId = zModelModelProviderId;
 
-export const zModelManagedModelWriteRequest = z.object({
-    providerId: zModelModelProviderId,
-    alias: zModelAlias,
-    displayName: zModelDisplayName,
-    upstreamModel: z.string().min(1).max(255),
-    contextWindow: z.int().gte(1).lte(2147483647),
-    maxOutputTokens: z.int().gte(1).lte(2147483647),
-    reasoning: z.boolean(),
-    sortOrder: z.int().gte(0).lte(2147483647)
+export const zModelReasoningEffortsMap = z.object({
+    off: z.string().min(1).max(255).nullish(),
+    minimal: z.string().min(1).max(255).optional(),
+    low: z.string().min(1).max(255).optional(),
+    medium: z.string().min(1).max(255).optional(),
+    high: z.string().min(1).max(255).optional(),
+    xhigh: z.string().min(1).max(255).optional(),
+    max: z.string().min(1).max(255).optional()
 }).strict();
 
-export const zManagedModelWriteRequest = zModelManagedModelWriteRequest;
+export const zModelReasoningEfforts = z.union([
+    z.literal(false),
+    zModelReasoningEffortsMap
+]);
 
 export const zModelModelStatus = z.enum(['ACTIVE', 'DISABLED']);
 
@@ -1129,7 +927,71 @@ export const zModelModelGrantBatchRequest = z.object({
 
 export const zModelGrantBatchRequest = zModelModelGrantBatchRequest;
 
+export const zModelThinkingFormat = z.enum([
+    'openai',
+    'deepseek',
+    'openrouter',
+    'together',
+    'zai',
+    'qwen',
+    'string-thinking',
+    'ant-ling'
+]);
+
+export const zModelReasoningCompat = z.object({
+    thinkingFormat: zModelThinkingFormat.optional(),
+    supportsReasoningEffort: z.boolean().optional()
+}).strict();
+
+export const zModelManagedModelWriteRequest = z.object({
+    providerId: zModelModelProviderId,
+    alias: zModelAlias,
+    modelId: z.string().min(1).max(255),
+    name: zModelName.optional(),
+    contextWindow: z.int().gte(1).lte(2147483647).optional(),
+    maxTokens: z.int().gte(1).lte(2147483647).optional(),
+    reasoningEfforts: zModelReasoningEfforts.optional(),
+    compat: zModelReasoningCompat.optional(),
+    sortOrder: z.int().gte(0).lte(2147483647)
+}).strict();
+
+export const zManagedModelWriteRequest = zModelManagedModelWriteRequest;
+
+export const zModelProviderApiProtocol = z.enum([
+    'openai-completions',
+    'openai-responses',
+    'anthropic-messages'
+]);
+
+export const zProviderApiProtocol = zModelProviderApiProtocol;
+
+export const zModelBootstrapModel = z.object({
+    alias: zModelAlias,
+    name: zModelName.optional(),
+    apiProtocol: zModelProviderApiProtocol,
+    contextWindow: z.int().gte(1).optional(),
+    maxTokens: z.int().gte(1).optional(),
+    reasoningEfforts: zModelReasoningEfforts.optional(),
+    compat: zModelReasoningCompat.optional(),
+    isDefault: z.boolean()
+}).strict();
+
+export const zBootstrapModel = zModelBootstrapModel;
+
 export const zProviderBaseUrl = z.url().min(1).max(500);
+
+export const zModelProviderDiscoveredModel = z.object({
+    id: z.string().min(1).max(255),
+    name: z.string().min(1).max(255).optional(),
+    contextWindow: z.int().gte(1).lte(2147483647).optional(),
+    maxTokens: z.int().gte(1).lte(2147483647).optional()
+}).strict();
+
+export const zProviderDiscoveredModel = zModelProviderDiscoveredModel;
+
+export const zModelProviderKey = z.string().min(1).max(120).regex(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/);
+
+export const zProviderKey = zModelProviderKey;
 
 export const zProviderName = z.string().min(1).max(120);
 
@@ -1138,11 +1000,12 @@ export const zModelManagedModel = z.object({
     providerId: zModelModelProviderId,
     providerName: zProviderName,
     alias: zModelAlias,
-    displayName: zModelDisplayName,
-    upstreamModel: z.string().min(1).max(255),
-    contextWindow: z.int().gte(1),
-    maxOutputTokens: z.int().gte(1),
-    reasoning: z.boolean(),
+    modelId: z.string().min(1).max(255),
+    name: zModelName.optional(),
+    contextWindow: z.int().gte(1).optional(),
+    maxTokens: z.int().gte(1).optional(),
+    reasoningEfforts: zModelReasoningEfforts.optional(),
+    compat: zModelReasoningCompat.optional(),
     sortOrder: z.int().gte(0),
     status: zModelModelStatus,
     revision: zRevision
@@ -1175,6 +1038,7 @@ export const zModelProviderProbeCategory = z.enum([
     'SUCCESS',
     'AUTHENTICATION_FAILED',
     'UPSTREAM_REJECTED',
+    'INVALID_RESPONSE',
     'UNAVAILABLE',
     'TIMEOUT'
 ]);
@@ -1184,7 +1048,8 @@ export const zProviderProbeCategory = zModelProviderProbeCategory;
 export const zModelProviderProbeResult = z.object({
     success: z.boolean(),
     latencyMs: z.int().gte(0).lte(9007199254740991),
-    upstreamStatus: zModelProviderProbeCategory
+    upstreamStatus: zModelProviderProbeCategory,
+    models: z.array(zModelProviderDiscoveredModel)
 }).strict();
 
 export const zProviderProbeResult = zModelProviderProbeResult;
@@ -1206,14 +1071,87 @@ export const zModelProviderProbeRequest = z.object({
 
 export const zProviderProbeRequest = zModelProviderProbeRequest;
 
-export const zModelProviderType = z.enum(['DEEPSEEK_OPENAI']);
+export const zModelProviderType = z.enum(['DEEPSEEK_OFFICIAL', 'CUSTOM']);
 
 export const zProviderType = zModelProviderType;
 
+export const zProviderChangeAuditMetadata = z.object({
+    operation: z.enum([
+        'CREATE',
+        'UPDATE',
+        'ENABLE',
+        'DISABLE'
+    ]),
+    providerType: zModelProviderType,
+    protectedValueChanged: z.boolean(),
+    resourceRevision: z.int().gte(0),
+    bootstrapRevision: z.int().gte(0)
+}).strict();
+
+export const zAuditAuditMetadata = z.union([
+    zEmptyAuditMetadata,
+    zAuthAuditMetadata,
+    zIdentityChangeAuditMetadata,
+    zIdentityLinkAuditMetadata,
+    zDeviceEnrollmentAuditMetadata,
+    zDeviceHeartbeatAuditMetadata,
+    zProviderChangeAuditMetadata,
+    zModelChangeAuditMetadata,
+    zModelGrantChangeAuditMetadata,
+    zGatewayAcceptedAuditMetadata,
+    zGatewayFinishedAuditMetadata,
+    zQuotaChangeAuditMetadata,
+    zQuotaRejectionAuditMetadata,
+    zReservationRecoveredAuditMetadata,
+    zPluginAuditMetadata,
+    zSessionRangeAuditMetadata,
+    zSessionRestoredAuditMetadata,
+    zSessionDeletedAuditMetadata,
+    zSessionExpiredAuditMetadata,
+    zRoleAssignedAuditMetadata,
+    zUserStatusChangedAuditMetadata,
+    zRevisionChangedAuditMetadata
+]);
+
+export const zAuditMetadata = zAuditAuditMetadata;
+
+export const zAuditAuditEvent = z.object({
+    id: zAuditAuditEventId,
+    occurredAt: z.iso.datetime({ offset: true }),
+    actorType: zAuditAuditActorType,
+    actorId: zEnterpriseUserId.nullable(),
+    deviceId: zEnterpriseDeviceId.nullable(),
+    action: zAuditAuditAction,
+    resourceType: zAuditAuditTypeName,
+    resourceId: z.string().min(1).max(255),
+    result: zAuditAuditResult,
+    reasonCode: zAuditAuditTypeName.nullable(),
+    requestId: zRequestId,
+    metadata: zAuditAuditMetadata
+}).strict();
+
+export const zAuditEvent = zAuditAuditEvent;
+
+export const zAuditAuditEventPageData = z.object({
+    items: z.array(zAuditAuditEvent).max(200),
+    page: zCursorPage
+}).strict();
+
+export const zAuditEventPageData = zAuditAuditEventPageData;
+
+export const zAuditAuditEventListResponse = z.object({
+    data: zAuditAuditEventPageData,
+    requestId: zRequestId
+}).strict();
+
+export const zAuditEventListResponse = zAuditAuditEventListResponse;
+
 export const zModelProvider = z.object({
     id: zModelModelProviderId,
+    providerKey: zModelProviderKey,
     name: zProviderName,
     providerType: zModelProviderType,
+    apiProtocol: zModelProviderApiProtocol,
     baseUrl: zProviderBaseUrl,
     credentialConfigured: z.boolean(),
     status: zModelModelStatus,
@@ -1225,8 +1163,10 @@ export const zModelProvider = z.object({
 export const zProvider = zModelProvider;
 
 export const zModelProviderCreateRequest = z.object({
+    providerKey: zModelProviderKey,
     name: zProviderName,
     providerType: zModelProviderType,
+    apiProtocol: zModelProviderApiProtocol,
     baseUrl: zProviderBaseUrl,
     connectTimeoutMs: zProviderTimeoutMs,
     readTimeoutMs: zProviderTimeoutMs
@@ -1256,8 +1196,10 @@ export const zModelProviderResponse = z.object({
 export const zProviderResponse = zModelProviderResponse;
 
 export const zModelProviderUpdateRequest = z.object({
+    providerKey: zModelProviderKey,
     name: zProviderName,
     providerType: zModelProviderType,
+    apiProtocol: zModelProviderApiProtocol,
     baseUrl: zProviderBaseUrl,
     replaceSecret: z.boolean(),
     connectTimeoutMs: zProviderTimeoutMs,
@@ -1940,7 +1882,16 @@ export const zList = z.unknown();
 
 export const zRevoke = z.unknown();
 
+export const zAnthropicMessages = z.unknown();
+
 export const zChatCompletions = z.unknown();
+
+/**
+ * Upstream protocol-native server-sent events.
+ */
+export const zNativeSseResponse = z.unknown();
+
+export const zResponses = z.unknown();
 
 export const z1Enterprise1Admin1V11GroupMappings = z.unknown();
 
@@ -2064,6 +2015,10 @@ export const zModelGrantIdWritable = zModelModelGrantId;
 
 export const zProviderTypeWritable = zModelProviderType;
 
+export const zProviderKeyWritable = zModelProviderKey;
+
+export const zProviderApiProtocolWritable = zModelProviderApiProtocol;
+
 export const zModelStatusWritable = zModelModelStatus;
 
 export const zGrantSubjectTypeWritable = zModelGrantSubjectType;
@@ -2109,10 +2064,6 @@ export const zQuotaStatusWritable = zQuotaQuotaStatus;
 export const zQuotaWindowTypeWritable = zQuotaQuotaWindowType;
 
 export const zUsageResultWritable = zQuotaUsageResult;
-
-export const zChatRoleWritable = zGatewayChatRole;
-
-export const zJsonSchemaObjectWritable = zGatewayJsonSchemaObject;
 
 export const zEmptyAuditMetadataWritable = z.record(z.string(), z.never());
 
@@ -2177,8 +2128,10 @@ export const zIdentityIdentitySourceUpdateRequestWritable = z.object({
 export const zIdentitySourceUpdateRequestWritable = zIdentityIdentitySourceUpdateRequestWritable;
 
 export const zModelProviderCreateRequestWritable = z.object({
+    providerKey: zModelProviderKey,
     name: zProviderName,
     providerType: zModelProviderType,
+    apiProtocol: zModelProviderApiProtocol,
     baseUrl: zProviderBaseUrl,
     credential: z.string().min(1).max(4096),
     connectTimeoutMs: zProviderTimeoutMs,
@@ -2197,8 +2150,10 @@ export const zModelProviderProbeRequestWritable = z.object({
 export const zProviderProbeRequestWritable = zModelProviderProbeRequestWritable;
 
 export const zModelProviderUpdateRequestWritable = z.object({
+    providerKey: zModelProviderKey,
     name: zProviderName,
     providerType: zModelProviderType,
+    apiProtocol: zModelProviderApiProtocol,
     baseUrl: zProviderBaseUrl,
     replaceSecret: z.boolean(),
     credential: z.string().min(1).max(4096).optional(),
@@ -2209,6 +2164,11 @@ export const zModelProviderUpdateRequestWritable = z.object({
 export const zProviderUpdateRequestWritable = zModelProviderUpdateRequestWritable;
 
 export const zPasswordWritable = z.unknown();
+
+/**
+ * Upstream protocol-native server-sent events.
+ */
+export const zNativeSseResponseWritable = z.unknown();
 
 export const z1Enterprise1Admin1V11IdentitySourcesWritable = z.unknown();
 
@@ -2853,16 +2813,38 @@ export const zListUsageLedgerQuery = z.object({
  */
 export const zListUsageLedgerResponse = zQuotaUsageLedgerListResponse;
 
-export const zStreamEnterpriseChatCompletionBody = zGatewayChatCompletionRequest;
+export const zStreamEnterpriseChatCompletionsBody = zGatewayNativeGatewayRequest;
 
-export const zStreamEnterpriseChatCompletionHeaders = z.object({
+export const zStreamEnterpriseChatCompletionsHeaders = z.object({
     'Idempotency-Key': z.uuid().length(36).regex(/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/)
 });
 
 /**
- * OpenAI-compatible chat completion events ending with a usage chunk and data [DONE].
+ * Upstream protocol-native server-sent events.
  */
-export const zStreamEnterpriseChatCompletionResponse = z.string();
+export const zStreamEnterpriseChatCompletionsResponse = z.string();
+
+export const zStreamEnterpriseResponsesBody = zGatewayNativeGatewayRequest;
+
+export const zStreamEnterpriseResponsesHeaders = z.object({
+    'Idempotency-Key': z.uuid().length(36).regex(/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/)
+});
+
+/**
+ * Upstream protocol-native server-sent events.
+ */
+export const zStreamEnterpriseResponsesResponse = z.string();
+
+export const zStreamEnterpriseAnthropicMessagesBody = zGatewayNativeGatewayRequest;
+
+export const zStreamEnterpriseAnthropicMessagesHeaders = z.object({
+    'Idempotency-Key': z.uuid().length(36).regex(/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/)
+});
+
+/**
+ * Upstream protocol-native server-sent events.
+ */
+export const zStreamEnterpriseAnthropicMessagesResponse = z.string();
 
 export const zListPluginPackagesQuery = z.object({
     cursor: zCursor.optional(),

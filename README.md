@@ -2,7 +2,7 @@
 
 Enterprise Agent Platform 是基于 DeepSeek Harness 构建的企业 Agent 管理平台。员工在本机运行 Harness，中心平台负责企业身份、受管模型、配额、插件分发、会话副本和审计，不远程执行员工工具，也不挂载员工工作区。
 
-本仓库只保存企业产品自行开发的后台、管理端、Harness 企业插件、部署配置和文档，不复制或 fork DeepSeek Harness 源码。DeepSeek Harness 是独立上游依赖，仓库地址和精确 commit 记录在 [`upstream/deepseek-harness.lock.json`](upstream/deepseek-harness.lock.json)。
+本仓库只保存企业产品自行开发的后台、管理端、Harness 企业插件、部署配置和文档，不复制或 fork DSH Desktop/DeepSeek Harness 源码。DSH Desktop 是发行基线，Harness 版本从其 gitlink 派生；精确 commit 分别记录在 [`upstream/dsh-desktop.lock.json`](upstream/dsh-desktop.lock.json) 和 [`upstream/deepseek-harness.lock.json`](upstream/deepseek-harness.lock.json)。
 
 ## 当前阶段
 
@@ -12,6 +12,7 @@ T00 至 T21 已完成：仓库包含锁定产品源码、Harness 官方插件 wo
 
 - [企业 Agent 工作平台预研](docs/enterprise-agent-work-platform.md)：产品形态、可行性、边界和长期方向。
 - [企业 Agent 治理平台 MVP 可执行详细设计](docs/enterprise-agent-governance-mvp-design.md)：冻结的技术决策、模块、接口、数据表、状态机、测试、T00-T23 实施顺序和验收标准。
+- [Desktop 2.0.3 / Harness rc.2 基线迁移](docs/desktop-2.0.3-harness-rc2-migration.md)：Desktop 派生版本锁、插件影响、重试变化与 Web/Desktop 门禁证据。
 - [T01 技术刺探验收记录](docs/t01-technical-spike-acceptance.md)：官方插件路线修正、正式模块、自动测试、真实 package consumer、Harness Web 与浏览器验收证据。
 - [T02 协议骨架验收记录](docs/t02-contract-foundation-acceptance.md)：OpenAPI 真源、双语言生成与 fixture、稳定错误码和真实 tarball consumer 证据。
 - [T03 Server 模块与数据库验收记录](docs/t03-server-database-acceptance.md)：PostgreSQL V1-V5、固定 RBAC、AES-GCM、revision CAS 与审计事务证据。
@@ -50,23 +51,32 @@ enterprise-agent-platform/
   upstream/                    # 第三方仓库地址、版本和许可证记录，不存第三方源码
 ```
 
-Harness 企业插件位于本仓库的 `harness-plugin/`，构建为预编译 `.tgz` bundle，通过 `dsh plugin --profile enterprise add <bundle.tgz>` 安装和验证。插件只能依赖 Harness 已公开的插件扩展点；发现缺少扩展点时优先向官方提交通用修改，不把修改后的第三方源码复制进本仓库。
+Harness 企业插件位于本仓库的 `harness-plugin/`，构建为预编译 `.tgz` bundle。普通 Web 通过 `dsh plugin --profile web add <bundle.tgz>` 安装；Desktop 通过其公开 profile/plugin command 服务管理当前 profile。插件只能依赖公开扩展点，不把修改后的第三方源码复制进本仓库。
 
 ## 上游关系
 
+DSH Desktop 官方仓库：<https://github.com/anywhere-labs/dsh-desktop>
+
 DeepSeek Harness 官方仓库：<https://github.com/deepseek-ai/deepseek-harness>
 
-当前锁定官方标签 `dsh-v0.1.0-rc.7`，完整 commit 以 [`upstream/deepseek-harness.lock.json`](upstream/deepseek-harness.lock.json) 为唯一机器真源。
+当前发行基线为 DSH Desktop `2.0.3`；其固定 Harness `0.1.1-rc.2`。Desktop 锁是主真源，Harness 锁必须与其 gitlink 完全一致。
 
 开发工作区把官方 Harness clone 为本仓库的同级目录，不放入本仓库：
 
 ```text
 agent-platform-workspace/
+  dsh-desktop/                  # 官方 Desktop 发行 commit 与 Harness submodule
   deepseek-harness/             # 官方仓库的锁定 commit
   enterprise-agent-platform/    # 本仓库
 ```
 
-首次准备环境时运行对应平台脚本。脚本读取版本锁，在本仓库同级目录 clone Harness，并检出精确 commit；已有 checkout 只在来源正确且工作区干净时切换版本。Windows 使用 PowerShell 7：
+首次准备 Desktop 发行基线运行：
+
+```sh
+node scripts/bootstrap-desktop.mjs
+```
+
+仅开发普通 Web Host 时可使用原 Harness bootstrap。脚本只在来源正确且工作区干净时切换版本。Windows 使用 PowerShell 7：
 
 ```powershell
 pwsh -File scripts/bootstrap-harness.ps1
@@ -87,7 +97,7 @@ node scripts/upstream-baseline.mjs import
 
 `import` 只允许目标目录不存在时执行，绝不覆盖已进入产品开发的 `backend/` 或 `admin-web/`。日常校验使用 `node scripts/upstream-baseline.mjs verify`；T00 的实际环境、命令和退出证据记录在 [`docs/t00-baseline-acceptance.md`](docs/t00-baseline-acceptance.md)。
 
-本项目不自动跟随官方 `master`。升级时先修改版本锁中的 commit，在干净的 Harness checkout 中检出新 commit，再运行企业登录、模型网关、插件安装、Session 同步和 UI 组合测试；全部通过后，版本锁变更与必要的企业插件适配在同一个 PR 提交。
+本项目不自动跟随上游默认分支。升级时先选择 Desktop 发行 commit，再从其 gitlink 派生 Harness 锁；随后运行企业登录、模型网关、插件安装、Session 同步和 Web/Desktop 组合测试。全部通过后，版本锁变更与必要适配在同一个 PR 提交。
 
 日常开发不得修改同级 `deepseek-harness/`。确需验证官方尚未提供的扩展点时只能使用临时分支，最终结果必须形成官方可合并的通用 PR；产品任务等待包含该扩展点的新锁定 commit，不在本仓库长期维护 Harness patch。
 

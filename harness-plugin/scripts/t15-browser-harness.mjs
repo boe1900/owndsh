@@ -21,7 +21,7 @@ const DEFAULT_HARNESS_ROOT = resolve(PROJECT_ROOT, '..', 'deepseek-harness')
 const args = process.argv.slice(2)
 const REQUEST_ID = `req_${'1'.repeat(26)}`
 const PACKAGE_NAME = '@example/t15-managed-tools'
-const HARNESS_COMMIT = '99f6f02fecdb7dff40c3fbc9470f5907c29f74ca'
+const HARNESS_COMMIT = 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e'
 
 function option(name, fallback) {
   const index = args.indexOf(name)

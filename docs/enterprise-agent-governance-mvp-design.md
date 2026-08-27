@@ -23,7 +23,8 @@
 
 | 代码库 | 冻结基线 | 用途 |
 |---|---|---|
-| DeepSeek Harness | 标签 `dsh-v0.1.0-rc.7`，提交 `99f6f02fecdb7dff40c3fbc9470f5907c29f74ca`，根版本 `0.1.0-rc.7` | 员工本地 Runtime、Host 插件、Client 插件和企业 bundle |
+| [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop) | 版本 `2.0.3`，提交 `1eb398d78108de1303ce29b1aeaf70aaf96acee4` | 员工主客户端、Electron 生命周期、profile 与插件管理 |
+| DeepSeek Harness | Desktop gitlink 派生版本 `0.1.1-rc.2`，提交 `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e` | 员工本地 Runtime、Host/Client 插件和普通 Web 兼容面 |
 | [RuoYi-Vue-Plus](https://gitee.com/dromara/RuoYi-Vue-Plus) | 标签 `v6.0.0`，提交 `7180b529776834fee912113b23f0bd7a387a8222` | 企业服务端底座 |
 | [plus-ui React](https://gitee.com/JavaLionLi/plus-ui/tree/6.X-React/) | 分支 `6.X-React`，提交 `29fc02f0a6d5a2462872487524a11c64e956534b` | 管理端前端底座 |
 | Java 及服务端框架 | Java 21、Spring Boot 4.1.0、Sa-Token 1.45.0、MyBatis-Plus 3.5.17 | 服务端运行时 |
@@ -31,7 +32,7 @@
 | Harness 工具链 | 仓库锁定的 Node、pnpm、TypeScript、React、Cordis、Typert 和 Vitest | 不单独升级 |
 | 数据组件 | PostgreSQL 17.x、Redis 7.4.x、Nginx 1.28.x | Compose 在 T21 固定可获得的 patch 版本与镜像 digest |
 
-产品仓库使用 `upstream/deepseek-harness.lock.json` 锁定 Harness 仓库、版本和完整 commit。正式编码只 fetch 并检出该 commit，不自动拉取最新 `master`；升级必须显式修改版本锁并重新运行第 22 节 T00。若公开接口发生变化，只调整企业插件和本文对应章节，不把旧接口兼容层带入 MVP。
+产品仓库以 `upstream/dsh-desktop.lock.json` 锁定发行版本，并要求 `upstream/deepseek-harness.lock.json` 与其 Harness gitlink 完全一致。正式编码只检出机器锁 commit，不自动拉取上游默认分支；升级必须先选 Desktop 发行，再运行基线、插件和 Web/Desktop 组合门禁。若公开接口发生变化，只调整企业插件，不把旧接口兼容层带入 MVP。
 
 RuoYi-Vue-Plus 和 plus-ui 的 MIT 许可证文件必须保留在产品源码与交付物中。锁定的 plus-ui `6.X-React` 快照未包含 `LICENSE`，但上游仓库元数据声明 MIT；T00 将历史提交 `c85f0a199507c0464c0d53036956aaba0789e971` 的许可证 blob `32b3071127d6804695f8672fdd25ee3c8ef10595` 固化为 `upstream/plus-ui.LICENSE`，导入时补入 `admin-web/LICENSE`。服务端使用正式标签而不是开发分支，管理端使用已核对的 React 分支提交。
 
@@ -39,8 +40,8 @@ RuoYi-Vue-Plus 和 plus-ui 的 MIT 许可证文件必须保留在产品源码与
 
 | 主题 | 决策 |
 |---|---|
-| 产品形态 | 员工在自己的电脑运行 Harness；中心平台只管理身份、模型、配额、插件、会话副本和审计，不执行员工工具，也不挂载员工工作区 |
-| 交付物 | 一个企业后台安装包和一个 Harness 企业插件包；后台安装包包含 Spring Boot 服务、React 管理端静态资源、PostgreSQL/Redis 配置和 Docker Compose |
+| 产品形态 | 员工运行锁定 DSH Desktop；普通 Harness Web 保留兼容。中心平台只管理身份、模型、配额、插件、会话副本和审计，不执行员工工具，也不挂载员工工作区 |
+| 交付物 | 一个企业后台安装包、一个基于锁定 DSH Desktop 的桌面客户端和一个 Web/Desktop 共用企业插件包；后台包含 Spring Boot、React 管理端及 PostgreSQL/Redis Compose |
 | Harness 源码 | 官方仓库按完整 commit 锁定并作为同级只读开发依赖；产品仓库只保存企业插件，不 vendor、不 fork、不提交 Harness 源码 |
 | 部署范围 | MVP 每套部署只服务一个企业，单个 Server 实例，Linux `amd64`，不交付 Kubernetes、Helm、多活或微服务 |
 | 身份 | 企业 OIDC、LDAP/AD、本地账号分别由身份适配器认证，统一产生 `IdentityPrincipal`，再由平台签发 Sa-Token |
@@ -48,7 +49,7 @@ RuoYi-Vue-Plus 和 plus-ui 的 MIT 许可证文件必须保留在产品源码与
 | Harness 登录 | Authorization Code + PKCE，使用系统浏览器和本机回环地址；不实现 RFC 8628 Device Flow，不使用 Sa-Token OAuth2 模块模拟 PKCE |
 | 平台会话 | 业务 API、模型网关、管理端和 Harness 只接受平台 Sa-Token；不引入 Spring Security OAuth2 Resource Server |
 | RBAC | 复用 RuoYi 的用户、部门、角色、菜单和 Sa-Token 权限解析，迁移固定企业角色及权限码 |
-| 模型 | 网关对 Harness 提供 OpenAI-compatible SSE；MVP 只实现 DeepSeek-compatible 上游 |
+| 模型 | Harness 官方 `dsh-llm-pi-ai` 负责三协议语义；企业网关只做治理和透明 upstream |
 | 密钥 | 上游模型密钥只在服务端加密保存和解密使用，不进入员工设备、浏览器、Session Event 或日志 |
 | 配额 | 支持默认、部门和用户三个作用域的日/月 Token、RPM 和并发限制；请求前预留，请求后结算 |
 | 插件 | 只分发预构建 `.tgz` bundle，平台验包并签名，客户端校验后用 `dsh plugin` 安装，重启后生效 |
@@ -75,7 +76,7 @@ RuoYi-Vue-Plus 和 plus-ui 的 MIT 许可证文件必须保留在产品源码与
 - 固定 RBAC、用户和部门复用、身份源管理及外部身份映射。
 - DeepSeek-compatible provider、受管模型、用户/部门授权、默认模型和停用控制。
 - 日/月 Token、RPM 和并发配额，流式调用预留、结算和用量查询。
-- OpenAI-compatible 流式模型网关及 Harness `LlmAdapter`。
+- 三协议透明流式模型网关及 Harness 官方 `dsh-llm-pi-ai` 企业 profile。
 - 预构建 bundle 上传、校验、签名、分配、下载、安装、重启激活、清单和回滚。
 - 本地 Session Event 增量同步、远端个人会话列表、内容查看、删除、保留和恢复副本。
 - 登录、设备、模型、用量、插件、会话和管理变更审计。
@@ -117,12 +118,14 @@ RuoYi-Vue-Plus 和 plus-ui 的 MIT 许可证文件必须保留在产品源码与
 
 T07 开始前已核对官方 `dsh-v0.1.0-rc.7`：插件自有设置页仍通过 `settings.section` 注册，契约与当时的 rc.5 基线一致。2026-08-19 因 rc.5 已无法从 npm 完整重现依赖闭包，T00 将整套 Harness 基线升级到官方 rc.7 tag 及其完整 commit，不允许 Host 与 bundle 混用 rc 版本。`settings.onboarding` 的 owner 公开 `openSection(id)`，但 `sidebar.footer.action` 的 owner 只公开 `wide`，没有任意打开 settings section 的公共 API；sidebar 企业项只展示/刷新状态，企业页由官方 Settings 导航打开，onboarding 才使用 `openSection('enterprise')`。禁止用 DOM 查询或私有 React 状态绕过该边界。Harness 是本产品的桌面员工工作台，T07 只按 1280x720 桌面视口验收；移动端属于第 2.3 节明确不做范围，不为官方尚未定义的移动 Settings 契约增加补偿 UI。
 
+2026-08-27 起发行基线改为 DSH Desktop 2.0.3 及其 Harness 0.1.1-rc.2 gitlink。企业 bundle 在 Desktop 中读取公开 `desktopProfiles.current`，并通过 `desktopPnpm.runPlugin()` 管理当前 profile；普通 Web 继续走官方 `dsh plugin` CLI。Electron renderer 仍是 Web Client，因此企业 bundle 的 `dsh.client.platform` 保持 `web`。迁移影响与验证证据见 [`desktop-2.0.3-harness-rc2-migration.md`](desktop-2.0.3-harness-rc2-migration.md)。
+
 ### 3.2 必须新增的能力
 
 | 能力 | 新增所有者 |
 |---|---|
 | 平台登录、Sa-Token 内存会话、设备注册、bootstrap 和统一 HTTP client | `@enterprise-agent/dsh-platform-client` |
-| 企业模型目录、OpenAI SSE 转换和 `LlmAdapter` | `@enterprise-agent/dsh-llm-gateway` |
+| 企业模型 profile、本机认证代理和官方模型插件挂载 | `@enterprise-agent/dsh-llm-gateway` + `@deepseek-ai/dsh-llm-pi-ai` |
 | Session Event 队列、游标、上传、远端列表和恢复副本 | `@enterprise-agent/dsh-session-sync` |
 | 受管插件期望状态、制品验证、CLI 安装和清单上报 | `@enterprise-agent/dsh-plugin-distribution` |
 | Host/Client DTO、错误码和生成客户端 | `@enterprise-agent/dsh-contracts` |
@@ -245,7 +248,7 @@ org.dromara.enterprise
     web/             DeviceController、AdminDeviceController
   model/
     application/     ProviderService、ManagedModelService、ModelGrantService
-    gateway/         ModelGatewayController、DeepSeekUpstreamClient、OpenAiSseWriter
+    gateway/         ModelGatewayController、DeepSeekUpstreamClient、三协议透明 SSE relay
     persistence/     ProviderMapper、ModelMapper、ModelGrantMapper
     web/             AdminModelController、BootstrapController
   quota/
@@ -298,7 +301,7 @@ admin-web/src/
 
 ### 5.4 HTTP 协议真源
 
-`contracts/enterprise-openapi.yaml` 是管理端和 Harness 中心 HTTP 的唯一手写协议真源。成功响应统一为 `{"data":...,"requestId":"req_..."}`，失败响应统一使用第 17 节结构；模型网关保持 OpenAI-compatible 请求、SSE 和错误字段，不套通用响应。
+`contracts/enterprise-openapi.yaml` 是管理端和 Harness 中心 HTTP 的唯一手写协议真源。成功响应统一为 `{"data":...,"requestId":"req_..."}`，失败响应统一使用第 17 节结构；模型网关保持三种上游协议的原生请求、SSE 和错误字段，不套通用响应。
 
 协议文件先于 Controller 编写。管理端使用现有 `@umijs/max-plugin-openapi` 生成 API 类型；Harness 使用 `@hey-api/openapi-ts` 的 TypeScript、Fetch client 和 Zod 插件生成类型、请求函数与运行时 schema。Server DTO 使用 Jakarta Bean Validation，MockMvc contract test 对照同一 OpenAPI。生成目录不得手工编辑，所有生成器版本进入 lockfile；CI 比较生成结果，发现未提交漂移即失败。
 
@@ -509,38 +512,36 @@ SIGNED_OUT -> AUTHORIZING -> ENROLLING -> BOOTSTRAPPING -> READY
 
 ### 9.1 模型对象
 
-`ent_model_provider` 表示一个上游端点及密钥，MVP 的 `provider_type` 固定支持 `DEEPSEEK_OPENAI`。`ent_managed_model` 表示员工可选择的模型别名，包含 `alias`、上游模型名、上下文、最大输出和启用状态。`alias` 在固定 tenant 内唯一，员工请求只携带 alias。
+`ent_model_provider` 表示一个上游端点及密钥，`provider_type` 区分 `DEEPSEEK_OFFICIAL` 与 `CUSTOM`，稳定 `provider_key` 和 `api_protocol` 对齐 DeepSeek Harness 路由配置；自定义提供商可选择 `openai-completions`、`openai-responses`、`anthropic-messages`，DeepSeek 官方路由固定为 `openai-completions`。`ent_managed_model` 表示员工可选择的模型别名，包含 `alias`、上游模型名、上下文、最大输出和启用状态。`alias` 在固定 tenant 内唯一，员工请求只携带 alias。
 
 `ent_model_grant` 把模型分给 `USER` 或 `DEPT`。有效授权是用户授权与当前部门授权的并集；模型和 provider 都必须为 `ACTIVE`。同一优先级最多一个 `is_default=true`，用户默认优先于部门默认；没有显式默认时按管理端排序最小的有效模型作为默认。无有效模型时 bootstrap 返回空数组，Host 显示“未分配企业模型”并拒绝调用。
 
 客户端提交 alias 不能选择 provider、`base_url`、上游模型或 credential。网关按当前用户重新解析授权和 route，忽略任何伪造的路由 header。
 
-### 9.2 Harness `LlmAdapter`
+### 9.2 Harness 官方模型协议层
 
-`@enterprise-agent/dsh-llm-gateway` 创建 `EnterpriseGatewayAdapter extends LlmAdapter` 并调用 `ctx.llm.registerAdapter(['enterprise'], adapter)`。
+`@enterprise-agent/dsh-llm-gateway` 不实现 `LlmAdapter`。它把 bootstrap 模型目录投影为官方 `PiAiProviderProfile`，并在隔离的 settings scope 中直接挂载 `@deepseek-ai/dsh-llm-pi-ai`。
 
-- `providerInfo('enterprise')` 返回 `{ id: 'enterprise', name: '企业模型' }`。
-- `listModels('enterprise')` 从 `EnterprisePlatformService` 当前 bootstrap 生成 `LlmModelInfo[]`。
-- `resolveModel` 返回上下文、最大输出和 reasoning 元数据；未知 alias 抛 `LlmError`，code 为 `ENT_MODEL_NOT_ASSIGNED`。
-- `stream` 把 Harness `GenerateOptions` 映射为 OpenAI chat completions，请求 `/enterprise/gateway/v1/chat/completions`，解析 SSE 为 Harness `StreamChunk`，转发 cancellation。
-- 所有 provider 请求添加 Harness `attributionHeaders()`，并额外发送 `Authorization`、`Idempotency-Key`、`X-Harness-Version` 和 `X-Enterprise-Bundle-Version`。
-- adapter 的 retry policy 设为单次尝试；网络结果不明时不自动重放可能已经计费的流式调用，用户可显式重试。
+- 按 `openai-completions`、`openai-responses`、`anthropic-messages` 建立独立 provider route；模型选择、消息、tools、reasoning、Responses replay、SSE、取消和错误语义全部由官方插件负责。
+- `contextWindow`、`maxTokens`、`reasoningEfforts` 和 `compat` 只做 profile 字段投影，企业代码不解释档位或重写协议正文。
+- loopback-only 本机代理只把内存平台 Token 注入中心请求，并强制 `Accept: text/event-stream, application/json`；模型长流不设总时限，建连前错误仍保持 JSON，请求和响应字节保持透明。
+- 所有中心请求携带 UUID v4 `Idempotency-Key`、`X-Harness-Version` 和 `X-Enterprise-Bundle-Version`；服务端不增加 provider 特定重试，协议与重试语义由锁定 Harness 持有。
 
-bootstrap 模型目录变化后，插件对现有 registration handle 调用 `replace(['enterprise'])`，借助现有 `llm/adapters-updated` 事件刷新选择器，不增加新的模型目录事件。
+bootstrap 模型目录变化后，插件按 profile 指纹调用官方 Cordis fiber `update`，目录 topology 和 `llm/adapters-updated` 仍由 `ctx.llm` 管理，不增加新的模型目录事件。
 
-企业 bundle 把 `agent-default-model` 配置为 provider `enterprise`、model `enterprise/default`。网关把 `enterprise/default` 解析为当前用户的有效默认模型；该 sentinel 不作为普通管理 alias 创建。bundle 禁用 `llm-deepseek`、`llm-pi-ai` 和个人模型设置页，但不声称能阻止用户运行其他 profile。
+企业 bundle 把 `agent-default-model` 配置为 provider `enterprise`、model `enterprise/default`。平台仍按当前用户重新解析该 sentinel；它不作为普通管理 alias 创建。bundle 禁用 base profile 的个人 provider 和个人模型设置页，由企业 row 挂载隔离的官方插件实例，但不声称能阻止用户运行其他 profile。
 
 ### 9.3 网关协议
 
-`POST /enterprise/gateway/v1/chat/completions` 接受 `stream=true` 的 OpenAI-compatible 请求。`model` 只能是有效 alias 或 `enterprise/default`；MVP 拒绝 `stream=false`、未知顶层字段、超过配置体积的请求和上游不支持的多模态内容。
+Server 分别提供 `POST /enterprise/gateway/v1/chat/completions`、`POST /enterprise/gateway/v1/responses` 和 `POST /enterprise/gateway/v1/messages`。`model` 只能是有效 alias 或 `enterprise/default`；网关只校验 `stream=true`、协议输出上限和请求体大小，其他官方协议字段及多模态内容保持透明。
 
 网关执行顺序固定为：
 
 1. 校验 Sa-Token、设备状态、请求体、idempotency key 和模型授权。
 2. 解析所有适用配额，原子完成 Token 预留、RPM 获取和并发 lease。
-3. 写 `MODEL_REQUEST_ACCEPTED` 审计并把 reservation 标记为 `SENT`。
-4. 解密 provider 密钥，构造固定 base URL 和上游模型请求。
-5. 原样消费上游 SSE，过滤上游内部 header，把兼容 chunk 写给客户端。
+3. 解密 provider 密钥，构造固定 base URL 并建立上游 SSE；非 2xx 或建连失败时保持 `RESERVED` 并释放。
+4. 上游确认 2xx SSE 后，同事务写 `MODEL_REQUEST_ACCEPTED` 审计并把 reservation 标记为 `SENT`。
+5. 原样消费上游 SSE，过滤上游内部 header，把协议原生 event 写给客户端。
 6. 收到 usage 后结算实际 Token；未收到 usage 的不确定请求按全部预留量结算。
 7. 释放并发 lease，写 usage ledger 和 `MODEL_REQUEST_FINISHED` 审计。
 
@@ -587,7 +588,7 @@ RESERVED -> SENT -> SETTLED
 RELEASED   CHARGED_MAX
 ```
 
-- 未向上游发送即失败：`RESERVED -> RELEASED`，减少 reserved，不增加 used。
+- 上游确认 2xx SSE 前失败：`RESERVED -> RELEASED`，减少 reserved，不增加 used，也不生成 ledger。
 - 上游返回 usage：`SENT -> SETTLED`，减少 estimated reservation，增加 actual usage。
 - 已发送但断流、超时、客户端取消或 usage 缺失：`SENT -> CHARGED_MAX`，把全部 estimated 计入 used。
 - 同一 reservation 只能结算一次，`ent_usage_ledger.reservation_id` 唯一。
@@ -778,8 +779,8 @@ MVP 必须产生以下 action：
 | `ent_external_group_mapping` | `id,tenant_id,source_id,external_group,dept_id,revision` | 唯一 `(source_id,external_group)` |
 | `ent_platform_revision` | `tenant_id,scope,revision,updated_at` | 主键 `(tenant_id,scope)`；MVP 固定一行 `scope=BOOTSTRAP`，管理写事务原子加一 |
 | `ent_device` | `id,tenant_id,user_id,installation_id,name,platform,harness_version,bundle_version,status,last_seen_at,last_heartbeat_audit_at,revoked_at,revision` | 唯一 `(tenant_id,installation_id)`；索引 `(user_id,status)` 和 `last_seen_at`；`last_heartbeat_audit_at` 只用于行锁内 heartbeat 审计限频 |
-| `ent_model_provider` | `id,tenant_id,name,provider_type,base_url,credential_ciphertext,credential_nonce,key_version,status,connect_timeout_ms,read_timeout_ms,revision` | 唯一 `(tenant_id,name)`；type 检查 `DEEPSEEK_OPENAI`；密钥字段同时空或同时非空 |
-| `ent_managed_model` | `id,tenant_id,provider_id,alias,display_name,upstream_model,context_window,max_output_tokens,reasoning,sort_order,status,revision` | 唯一 `(tenant_id,alias)`；正数检查；索引 `(provider_id,status)` |
+| `ent_model_provider` | `id,tenant_id,provider_key,name,provider_type,api_protocol,base_url,credential_ciphertext,credential_nonce,key_version,status,connect_timeout_ms,read_timeout_ms,revision` | 唯一 `(tenant_id,name)` 与 `(tenant_id,provider_key)`；type 检查 `DEEPSEEK_OFFICIAL/CUSTOM`；自定义路由协议检查三种 Harness wire protocol，官方路由固定 `openai-completions`；密钥字段同时空或同时非空 |
+| `ent_managed_model` | `id,tenant_id,provider_id,alias,display_name,upstream_model,context_window,max_output_tokens,sort_order,status,revision` | 唯一 `(tenant_id,alias)`；`display_name/context_window/max_output_tokens` 可空并按 Harness 缺省解析，容量有值时为正数；索引 `(provider_id,status)` |
 | `ent_model_grant` | `id,tenant_id,model_id,subject_type,subject_id,is_default,status,revision` | 唯一 `(model_id,subject_type,subject_id)`；type 检查 `USER/DEPT`；部分唯一索引限制同一 subject 一个有效默认 |
 | `ent_quota_policy` | `id,tenant_id,name,subject_type,subject_id,daily_token_limit,monthly_token_limit,rpm,concurrency,status,revision` | type 检查 `DEFAULT/DEPT/USER`；DEFAULT 的 subject 为空，其他非空；至少一个 limit 非空且为正 |
 | `ent_quota_window` | `id,tenant_id,policy_id,window_type,window_start,used_tokens,reserved_tokens,revision` | 唯一 `(policy_id,window_type,window_start)`；type 检查 `DAY/MONTH`；计数非负 |
@@ -865,15 +866,15 @@ header/title/event；`GET /enterprise/admin/v1/sessions/{replicaId}/content` 独
 `ent:session:content:read` 并写 `SESSION_CONTENT_READ`；删除使用 `ent:session:delete`。员工 runtime 路径
 仍以本人 `sessionId` 定位，owner 和 source device 只取自服务端 Token terminal 与设备表。
 
-provider `test` 使用尚未保存的 base URL 和可选新密钥执行一次 `/models` 或最小 chat 探测，结果只返回成功、延迟、上游状态类别和 requestId；不回显响应正文。
+provider `test` 使用尚未保存的 base URL 和可选新密钥执行一次 `/models` 探测，OpenAI Completions/Responses 可从限量响应中返回 `data[].id` 候选供管理员选择，Anthropic Messages 继续手填；结果不回显其他响应正文。
 
 管理路由统一使用：`GET <prefix>` 列表、`POST <prefix>` 创建、`GET <prefix>/{id}` 详情、`PUT <prefix>/{id}` 更新、`DELETE <prefix>/{id}` 删除；非 CRUD 动作为 `POST <prefix>/{id}/actions/{test|enable|disable|revoke|publish|retire}`。授权和分配的批量写入分别使用 `POST /model-grants/batch` 与 `POST /plugins/{packageId}/assignments/batch`，不得自行新增另一套动词路径。
 
 ### 15.3 模型网关
 
-`POST /enterprise/gateway/v1/chat/completions` 只接受已注册 ACTIVE 设备的 `dsh-desktop` Token，并使用 `Authorization: Bearer <platform-token>`、`Idempotency-Key` 和 `Content-Type: application/json`。成功响应为 `text/event-stream`；网关生成 `X-Request-Id`，每个 data chunk 遵循 OpenAI chat completion chunk，最后发送 usage chunk 和 `data: [DONE]`。
+三个模型网关路径只接受已注册 ACTIVE 设备的 `dsh-desktop` Token，并使用 `Authorization: Bearer <platform-token>`、`Idempotency-Key` 和 `Content-Type: application/json`。成功响应为 `text/event-stream`；网关生成 `X-Request-Id`，透明转发协议原生 event。Completions 以 `[DONE]`、Responses 以 `response.completed`/`response.incomplete`、Anthropic 以 `message_stop` 作为正常终态。
 
-若在任何 SSE 字节写出前失败，返回普通 JSON 错误和相应 HTTP 状态。已经开始 SSE 后失败，发送一个 OpenAI error data frame 后关闭；Harness adapter 将其转换为终端 `finish.kind='error'`，不得把错误文本作为 assistant 正文。
+若在任何 SSE 字节写出前失败，返回普通 JSON 错误和相应 HTTP 状态。已经开始 SSE 后失败，发送对应协议的原生 error event 后关闭；Harness 官方 adapter 负责转换为终端错误，不得把错误文本作为 assistant 正文。
 
 ## 16. Harness 插件详细设计
 
@@ -909,7 +910,7 @@ T01 必须在产品仓库的独立 `harness-plugin` workspace 构建预编译 bu
 
 ### 16.3 `@enterprise-agent/dsh-llm-gateway`
 
-该包只依赖 `ctx.llm` 和 `ctx.enterprisePlatform`，不读取 Token 存储、不实现登录、不持久化用量。adapter 在未 ready、设备撤销或模型未授权时抛稳定 `LlmError`；取消必须 abort fetch 并等待 reader 停止。
+该包依赖官方 `dsh-llm-pi-ai`、`ctx.enterprisePlatform` 和 Harness WebServer。它只生成官方 provider profile，并注册 loopback-only 认证代理；不读取 Token 存储、不实现登录、不持久化用量，也不解析或改写消息、tools、reasoning、replay、SSE 与错误。取消通过原生 fetch signal 贯穿代理和中心流。
 
 ### 16.4 `@enterprise-agent/dsh-session-sync`
 
@@ -925,7 +926,7 @@ T01 必须在产品仓库的独立 `harness-plugin` workspace 构建预编译 bu
 
 Client 包通过 `settings.section` 注册一个 `enterprise` 设置页，通过 `sidebar.footer.action` 注册连接状态图标，并在 signed out 时通过 `settings.onboarding` 注册登录步骤。组件数据全部来自对插件自有同源本地 API 的脱敏调用，不把 Host `ctx` 传入 React。
 
-`harness-plugin/packages/bundle/cordis.patch.yml` 在 `web-app` 层之后插入 platform client、LLM adapter、session sync、plugin distribution 和 UI Client row；覆盖默认模型，禁用个人 provider 与个人模型设置页。所有 base URL、刷新间隔、同步批量、超时、profile、CLI 命令和信任公钥都有 Schemastery Config，不能藏在常量中。
+`harness-plugin/packages/bundle/cordis.patch.yml` 在 `web-app` 层之后插入 platform client、官方 LLM profile bridge、session sync、plugin distribution 和 UI Client row；覆盖默认模型，禁用 base profile 的个人 provider 与个人模型设置页。所有 base URL、刷新间隔、同步批量、超时、profile、CLI 命令和信任公钥都有 Schemastery Config，不能藏在常量中。
 
 ## 17. 错误与并发约定
 
@@ -1164,8 +1165,8 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 | T07 员工登录 UI | T06 | 创建 dsh-ui 账号 tab、sidebar 状态、onboarding、同源本地 API client 和 bundle 最小 rows | 浏览器 snapshot 与 GIF 展示登录、取消、ready、过期和撤销；无 Token 暴露 |
 | T08 模型管理 | T03 | 实现 provider/model/grant/默认解析、密钥写入与测试 API、bootstrap 模型部分 | CRUD/revision、授权并集、默认优先级、停用和密钥不回显测试通过 |
 | T09 配额 | T08 | 实现 quota policy/window、PostgreSQL reservation、Redis RPM/concurrency、settlement/recovery 和 usage API | 50 并发、所有状态转换、日/月边界、idempotency 和故障恢复通过 |
-| T10 模型网关 | T08,T09 | 实现 DeepSeek upstream client、OpenAI SSE、授权、预留/结算、错误映射和审计 | 假上游完整矩阵通过；日志无 secret/prompt；首字节前后错误正确 |
-| T11 Harness 模型链路 | T06,T10 | 实现 EnterpriseGatewayAdapter、动态目录、default sentinel、取消和 bundle 的 provider 覆盖；模型流直连中心 HTTPS，不绕浏览器本地 API | 企业 profile 无本地上游 Key 完成真实组合对话；未授权/超额/撤销均失败；核心假设验收 |
+| T10 模型网关 | T08,T09 | 实现三协议透明 upstream、授权、预留/结算、协议终态观察、错误映射和审计 | 假上游完整矩阵通过；日志无 secret/prompt；三协议首字节前后错误正确 |
+| T11 Harness 模型链路 | T06,T10 | 直接挂载官方 `dsh-llm-pi-ai`，实现动态 profile、default sentinel、本机认证代理和 bundle provider 覆盖；不自研模型 adapter | 企业 profile 无本地上游 Key 完成三协议组合对话；reasoning 映射、取消、未授权/超额/撤销均通过；核心假设验收 |
 | T12 管理控制台 | T04,T05,T08,T09,T10 | 实现管理端 PKCE 登录、权限路由、身份源、组映射、用户扩展、设备、provider、模型、授权、配额和用量页面及菜单权限 | Playwright 完成管理员登录、身份源配置、设备撤销和模型创建到员工生效；revision 冲突可恢复；无密钥回显 |
 | T13 插件服务端 | T03,T11 | 实现 tgz 流式检查、artifact store、Ed25519、version 状态、assignment 和下载授权 | 所有恶意归档、签名、重复上传、优先级和越权下载测试通过 |
 | T14 插件客户端 | T06,T13 | 实现下载、双重校验、`ctx.subprocess` argv、状态文件、重启 active、清单和回滚 | 假平台与真实 `dsh plugin` smoke 通过；失败不激活；核心 bundle 自更新被拒绝 |
@@ -1202,8 +1203,8 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 | T07 | `completed` | 2026-08-18 已通过官方三个 UI slot 实现共享账号状态、同源严格浏览器 client 和十态桌面 UI；登录、取消、READY、过期、撤销的真实 Harness 快照/GIF 与无 Token 证据见 [`t07-employee-login-ui-acceptance.md`](t07-employee-login-ui-acceptance.md)。 |
 | T08 | `completed` | 2026-08-18 已实现 provider/model/grant 管理、provider-secret AES-GCM、无重定向脱敏探测、USER+DEPT 默认解析、幂等删除与 ACTIVE 设备 bootstrap 模型目录；协议、PostgreSQL 和秘密隔离证据见 [`t08-model-management-acceptance.md`](t08-model-management-acceptance.md)。 |
 | T09 | `completed` | 2026-08-18 已实现 DEFAULT+DEPT+USER 叠加策略、冻结部署时区、PostgreSQL 防超卖 reservation、Redis RPM/并发 lease、结算/恢复和 prompt-free 用量 API；协议与并发证据见 [`t09-quota-management-acceptance.md`](t09-quota-management-acceptance.md)。 |
-| T10 | `completed` | 2026-08-18 已实现请求级 ACTIVE 授权、DeepSeek-compatible upstream、OpenAI SSE、配额预留/续租/结算、首字节前后错误和 accepted/finished 原子审计；完整证据见 [`t10-model-gateway-acceptance.md`](t10-model-gateway-acceptance.md)。 |
-| T11 | `completed` | 2026-08-19 已基于官方 rc.7 实现 EnterpriseGatewayAdapter、动态目录/default、中心直连、单次尝试、取消与 profile provider 覆盖；真实 `ctx.llm` 的无本地上游 Key 组合证据见 [`t11-harness-model-integration-acceptance.md`](t11-harness-model-integration-acceptance.md)。 |
+| T10 | `completed` | 2026-08-25 已实现请求级 ACTIVE 授权、三协议透明 upstream、配额预留/续租/结算、协议原生终态观察和 accepted/finished 原子审计；完整证据见 [`t10-model-gateway-acceptance.md`](t10-model-gateway-acceptance.md)。 |
+| T11 | `completed` | 2026-08-25 已直接挂载官方 rc.7 `dsh-llm-pi-ai`，实现动态三协议 profile/default、本机认证代理、零自动重试、取消与 bundle provider 覆盖；真实 `ctx.llm` 的无本地上游 Key 组合证据见 [`t11-harness-model-integration-acceptance.md`](t11-harness-model-integration-acceptance.md)。 |
 | T12 | `completed` | 2026-08-19 已交付 enterprise-admin PKCE、动态权限路由和身份/设备/模型/授权/配额/用量管理纵向页面；真实 Server Playwright、CAS 恢复与密钥隔离证据见 [`t12-admin-console-acceptance.md`](t12-admin-console-acceptance.md)。 |
 | T13 | `completed` | 2026-08-19 已实现 tgz 流式校验、RFC 8785 JCS/Ed25519、带 hash 互斥的 CAS、版本状态/CAS、USER>DEPT>ALL 分配、逐请求下载授权、Range、库存替换与 bootstrap 插件投影，见 [`t13-plugin-server-acceptance.md`](t13-plugin-server-acceptance.md)。 |
 | T14 | `completed` | 2026-08-19 已实现客户端下载、大小/SHA-256/Ed25519/compatibility 校验、固定 `ctx.subprocess` argv、原子状态文件、跨进程 Loader active 确认、ABSENT、库存与回滚；树外 package consumer 和锁定 rc.7 真实 CLI 证据见 [`t14-plugin-client-acceptance.md`](t14-plugin-client-acceptance.md)。 |

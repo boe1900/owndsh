@@ -18,6 +18,8 @@ class SecurityConfigEnterpriseRouteTest {
         assertThat(SecurityConfig.requiresGlobalLoginCheck("/enterprise/api/v1/bootstrap")).isFalse();
         assertThat(SecurityConfig.requiresGlobalLoginCheck("/enterprise/admin/v1/devices")).isFalse();
         assertThat(SecurityConfig.requiresGlobalLoginCheck("/enterprise/gateway/v1/chat/completions")).isFalse();
+        assertThat(SecurityConfig.requiresGlobalLoginCheck("/enterprise/gateway/v1/responses")).isFalse();
+        assertThat(SecurityConfig.requiresGlobalLoginCheck("/enterprise/gateway/v1/messages")).isFalse();
 
         assertThat(SecurityConfig.requiresGlobalLoginCheck("/system/user/list")).isTrue();
         assertThat(SecurityConfig.requiresGlobalLoginCheck("/auth/logout")).isTrue();

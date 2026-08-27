@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 T08 四个 Controller、MockMvc、认证 cursor、requestId filter 与派生 JSON Schemas。
- * [OUTPUT]: 验证 provider/model/grant/bootstrap 全部 operation 的成功/失败协议、Session 策略启用、权限码与 secret 隔离。
+ * [OUTPUT]: 验证 providerKey/type/apiProtocol、model/grant/bootstrap 全部 operation、权限码与 secret 隔离。
  * [POS]: T08 Server/OpenAPI 同步门禁，application services 使用 mock 以隔离 HTTP 翻译。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -40,6 +40,7 @@ import org.dromara.enterprise.model.domain.ManagedModel;
 import org.dromara.enterprise.model.domain.ModelGrant;
 import org.dromara.enterprise.model.domain.ModelProvider;
 import org.dromara.enterprise.model.domain.ModelStatus;
+import org.dromara.enterprise.model.domain.ProviderApiProtocol;
 import org.dromara.enterprise.model.domain.ProviderType;
 import org.dromara.enterprise.model.web.AdminManagedModelController;
 import org.dromara.enterprise.model.web.AdminModelGrantController;
@@ -288,7 +289,8 @@ class T08ApiContractTest {
     @Test
     void clearsCredentialRequestAndRedactsStringRepresentation() {
         ProviderWriteRequest request = new ProviderWriteRequest(
-            "DeepSeek", ProviderType.DEEPSEEK_OPENAI, URI.create("https://api.deepseek.com/v1"),
+            "deepseek-official", "DeepSeek", ProviderType.DEEPSEEK_OFFICIAL,
+            "openai-completions", URI.create("https://api.deepseek.com"),
             true, SECRET.toCharArray(), 5000, 30000
         );
         assertThat(request.toString())
@@ -342,8 +344,9 @@ class T08ApiContractTest {
 
     private static ModelProvider provider() {
         return new ModelProvider(
-            Long.parseLong(PROVIDER_ID), "000000", "DeepSeek Production", ProviderType.DEEPSEEK_OPENAI,
-            URI.create("https://api.deepseek.com/v1"), new EncryptedSecret(new byte[16], new byte[12], 1),
+            Long.parseLong(PROVIDER_ID), "000000", "deepseek-official", "DeepSeek",
+            ProviderType.DEEPSEEK_OFFICIAL, ProviderApiProtocol.OPENAI_COMPLETIONS,
+            URI.create("https://api.deepseek.com"), new EncryptedSecret(new byte[16], new byte[12], 1),
             ModelStatus.ACTIVE, 5000, 30000, 0
         );
     }
@@ -351,7 +354,7 @@ class T08ApiContractTest {
     private static ManagedModel model() {
         return new ManagedModel(
             Long.parseLong(MODEL_ID), "000000", Long.parseLong(PROVIDER_ID), "DeepSeek Production",
-            "deepseek-chat", "DeepSeek Chat", "deepseek-chat", 65536, 8192, false, 10,
+            "deepseek-chat", "DeepSeek Chat", "deepseek-chat", 65536, 8192, null, null, 10,
             ModelStatus.ACTIVE, 0
         );
     }
@@ -373,7 +376,8 @@ class T08ApiContractTest {
             9, new BootstrapUser(Long.parseLong(USER_ID), "alice", "Alice", Long.parseLong(DEPARTMENT_ID)),
             device,
             List.of(new EffectiveModelResolver.EffectiveModel(
-                Long.parseLong(MODEL_ID), "deepseek-chat", "DeepSeek Chat", 65536, 8192, false, 10, true
+                Long.parseLong(MODEL_ID), "deepseek-chat", "DeepSeek Chat", 65536, 8192, 10,
+                ProviderApiProtocol.OPENAI_COMPLETIONS, null, null, true
             )),
             List.of(),
             new EffectivePluginResolver.ResolvedAssignments(9, List.of())
@@ -391,9 +395,11 @@ class T08ApiContractTest {
     private static String providerRequest(boolean update, boolean includeSecret) {
         return """
             {
-              "name":"DeepSeek Production",
-              "providerType":"DEEPSEEK_OPENAI",
-              "baseUrl":"https://api.deepseek.com/v1",
+              "providerKey":"deepseek-official",
+              "name":"DeepSeek",
+              "providerType":"DEEPSEEK_OFFICIAL",
+              "apiProtocol":"openai-completions",
+              "baseUrl":"https://api.deepseek.com",
               %s
               %s
               "connectTimeoutMs":5000,
@@ -407,9 +413,8 @@ class T08ApiContractTest {
 
     private static String modelRequest() {
         return """
-            {"providerId":"%s","alias":"deepseek-chat","displayName":"DeepSeek Chat",
-             "upstreamModel":"deepseek-chat","contextWindow":65536,"maxOutputTokens":8192,
-             "reasoning":false,"sortOrder":10}
+            {"providerId":"%s","alias":"deepseek-chat","modelId":"deepseek-chat","name":"DeepSeek Chat",
+             "contextWindow":65536,"maxTokens":8192,"sortOrder":10}
             """.formatted(PROVIDER_ID);
     }
 

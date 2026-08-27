@@ -16,5 +16,8 @@ V9__enterprise_session_format.sql: 前向修正官方 rc.7 Session format v0 约
 V10__enterprise_audit_query.sql: 为 tenant 隔离的 audit cursor 查询与有界 retention 清理补齐复合索引。
 V11__enterprise_heartbeat_audit_throttle.sql: 持久化设备最近 heartbeat 审计时间，供数据库行锁内原子执行一小时成功审计限频。
 V12__enterprise_deployment_bootstrap.sql: 建立无 secret 部署标记与 LOCAL 首次改密字段；按精确已知 hash 退役基线账号且保留历史外键，清除已知 client secret。
+V13__enterprise_provider_configuration.sql: 增加 Harness providerKey 与 API 协议，将旧兼容网关保守迁为 CUSTOM，并约束 DeepSeek 官方保留路由。
+V14__enterprise_harness_model_profile.sql: 将模型配置校正为 Harness 可选 name/contextWindow/maxTokens 并删除伪造 reasoning 能力列，保留 append-only 历史审计。
+V15__enterprise_model_reasoning_profile.sql: 增加 pi-ai reasoningEfforts false/object 三态与 completions compat JSONB 模型事实，数据库只约束顶层形状并由领域层校验具体档位。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

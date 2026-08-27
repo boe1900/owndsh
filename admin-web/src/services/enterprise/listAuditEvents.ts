@@ -87,14 +87,13 @@ export async function listAuditEvents(
             }
           | {
               operation: "CREATE" | "UPDATE" | "ENABLE" | "DISABLE";
-              providerType: string;
+              providerType: "DEEPSEEK_OFFICIAL" | "CUSTOM";
               protectedValueChanged: boolean;
               resourceRevision: number;
               bootstrapRevision: number;
             }
           | {
               operation: "CREATE" | "UPDATE" | "ENABLE" | "DISABLE" | "DELETE";
-              reasoning: boolean;
               resourceRevision: number;
               bootstrapRevision: number;
             }

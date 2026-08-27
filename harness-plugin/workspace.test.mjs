@@ -1,11 +1,12 @@
 /**
- * [INPUT]: 依赖当前 workspace package.json、pnpm-workspace.yaml、Harness 版本锁与同级只读 checkout 清单
- * [OUTPUT]: 提供插件 workspace 工具链、正式包集合和源码边界的自动验收测试
- * [POS]: harness-plugin 的根级不变量测试，防止产品插件耦合 Harness 源码或漂移构建工具链
+ * [INPUT]: 依赖当前 workspace package.json、pnpm-workspace.yaml、Desktop/Harness 版本锁与同级只读 checkout 清单
+ * [OUTPUT]: 提供 Desktop 派生工具链、正式包集合和源码边界的自动验收测试
+ * [POS]: harness-plugin 的根级不变量测试，防止产品插件耦合 Harness 源码或偏离 Desktop 发行基线
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import { readdir, readFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import test from 'node:test'
@@ -14,22 +15,46 @@ import { fileURLToPath } from 'node:url'
 const WORKSPACE_ROOT = dirname(fileURLToPath(import.meta.url))
 const PROJECT_ROOT = resolve(WORKSPACE_ROOT, '..')
 const HARNESS_ROOT = resolve(PROJECT_ROOT, '..', 'deepseek-harness')
+const DESKTOP_ROOT = resolve(PROJECT_ROOT, '..', 'dsh-desktop')
 
 async function readJson(path) {
   return JSON.parse(await readFile(path, 'utf8'))
 }
 
-test('workspace uses the locked Harness Node and pnpm toolchain', async () => {
-  const [workspace, harness, harnessLock] = await Promise.all([
+test('workspace uses the Desktop-owned Harness baseline and toolchain', async () => {
+  const [workspace, harness, desktop, harnessLock, desktopLock] = await Promise.all([
     readJson(resolve(WORKSPACE_ROOT, 'package.json')),
     readJson(resolve(HARNESS_ROOT, 'package.json')),
+    readJson(resolve(DESKTOP_ROOT, 'package.json')),
     readJson(resolve(PROJECT_ROOT, 'upstream', 'deepseek-harness.lock.json')),
+    readJson(resolve(PROJECT_ROOT, 'upstream', 'dsh-desktop.lock.json')),
   ])
 
   assert.equal(workspace.private, true)
   assert.equal(workspace.packageManager, harness.packageManager)
   assert.deepEqual(workspace.engines, harness.engines)
+  assert.deepEqual(workspace.engines, desktop.engines)
+  assert.equal(desktop.version, desktopLock.version)
   assert.equal(harness.version, harnessLock.version)
+  assert.deepEqual(desktopLock.harness, {
+    repository: harnessLock.repository,
+    version: harnessLock.version,
+    commit: harnessLock.commit,
+  })
+  assert.equal(
+    execFileSync('git', ['-C', DESKTOP_ROOT, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+    desktopLock.commit,
+  )
+  assert.equal(
+    execFileSync('git', ['-C', HARNESS_ROOT, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+    harnessLock.commit,
+  )
+  assert.equal(
+    execFileSync('git', ['-C', resolve(DESKTOP_ROOT, 'deepseek-harness'), 'rev-parse', 'HEAD'], {
+      encoding: 'utf8',
+    }).trim(),
+    harnessLock.commit,
+  )
 })
 
 test('workspace only discovers product packages below packages', async () => {

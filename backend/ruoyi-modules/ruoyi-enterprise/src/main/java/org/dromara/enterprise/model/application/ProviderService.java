@@ -94,7 +94,8 @@ public final class ProviderService {
         Objects.requireNonNull(credential, "credential");
         long providerId = positiveId();
         ModelProvider provider = new ModelProvider(
-            providerId, context.tenantId(), spec.name(), spec.providerType(), spec.baseUrl(),
+            providerId, context.tenantId(), spec.providerKey(), spec.name(), spec.providerType(),
+            spec.apiProtocol(), spec.baseUrl(),
             encrypt(context.tenantId(), providerId, credential), ModelStatus.ACTIVE,
             spec.connectTimeoutMs(), spec.readTimeoutMs(), 0
         );
@@ -123,6 +124,8 @@ public final class ProviderService {
         ModelProvider current = get(context.tenantId(), providerId);
         requireRevision(current, expectedRevision);
         if (current.providerType() != spec.providerType()) throw new IllegalArgumentException("providerType 不可修改");
+        if (!current.providerKey().equals(spec.providerKey())) throw new IllegalArgumentException("providerKey 不可修改");
+        if (current.apiProtocol() != spec.apiProtocol()) throw new IllegalArgumentException("apiProtocol 不可修改");
         if (replaceSecret != (replacement != null)) {
             throw new IllegalArgumentException("replaceSecret 与 credential 必须一致");
         }
@@ -130,7 +133,8 @@ public final class ProviderService {
             ? encrypt(context.tenantId(), providerId, replacement)
             : current.encryptedCredential();
         ModelProvider updated = new ModelProvider(
-            current.id(), current.tenantId(), spec.name(), current.providerType(), spec.baseUrl(), encrypted,
+            current.id(), current.tenantId(), current.providerKey(), spec.name(), current.providerType(),
+            current.apiProtocol(), spec.baseUrl(), encrypted,
             current.status(), spec.connectTimeoutMs(), spec.readTimeoutMs(), expectedRevision + 1
         );
         try {
@@ -155,8 +159,9 @@ public final class ProviderService {
         ModelProvider current = get(context.tenantId(), providerId);
         requireRevision(current, expectedRevision);
         ModelProvider updated = new ModelProvider(
-            current.id(), current.tenantId(), current.name(), current.providerType(), current.baseUrl(),
-            current.encryptedCredential(), status, current.connectTimeoutMs(), current.readTimeoutMs(),
+            current.id(), current.tenantId(), current.providerKey(), current.name(), current.providerType(),
+            current.apiProtocol(), current.baseUrl(), current.encryptedCredential(), status,
+            current.connectTimeoutMs(), current.readTimeoutMs(),
             expectedRevision + 1
         );
         return requireResult(transactions.execute(transactionStatus -> {

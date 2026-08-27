@@ -6,6 +6,7 @@
 
 enterprise-agent-work-platform.md: 产品预研，定义企业工作平台形态、能力边界、演进阶段与商业方向。
 enterprise-agent-governance-mvp-design.md: MVP 实施真源，定义冻结决策、模块、API、数据表、测试、T00-T23 顺序和验收标准。
+desktop-2.0.3-harness-rc2-migration.md: 当前 Desktop 发行基线迁移证据，记录 Desktop→Harness 派生锁、上游变化、企业适配、行为风险与 Web/Desktop 门禁结果。
 t00-baseline-acceptance.md: T00 独立验收证据，记录初始导入与 rc.7 重新基线的环境、命令、真实 consumer 和退出结论。
 t01-technical-spike-acceptance.md: T01 独立验收证据，保留 Typert 路线误判分析并记录官方插件路线、正式模块、测试与真实 Harness Web 结果。
 t02-contract-foundation-acceptance.md: T02 独立验收证据，记录 OpenAPI 真源、跨语言生成、严格 fixture、真实包消费和版本锁结论。
@@ -16,8 +17,8 @@ t06-harness-platform-client-acceptance.md: T06 独立验收证据，记录 platf
 t07-employee-login-ui-acceptance.md: T07 独立验收证据，记录官方三 slot 路线、共享账号状态、十态文案、无 Token 浏览器边界和真实桌面流程。
 t08-model-management-acceptance.md: T08 独立验收证据，记录模型治理 API、provider 密钥隔离、默认授权解析、PostgreSQL 事务与 bootstrap 模型目录。
 t09-quota-management-acceptance.md: T09 独立验收证据，记录叠加配额、冻结时区、并发预留、Redis lease、结算恢复、用量协议与锁序审阅。
-t10-model-gateway-acceptance.md: T10 独立验收证据，记录请求级授权、DeepSeek SSE、配额终态、首字节错误、审计原子性与敏感信息隔离。
-t11-harness-model-integration-acceptance.md: T11 独立验收证据，记录 rc.7 官方 adapter、动态目录/default、真实 ctx.llm 流、稳定错误与无本地上游 Key。
+t10-model-gateway-acceptance.md: T10 独立验收证据，记录请求级授权、三协议透明 SSE、精确伪拒绝重试、2xx 后 SENT、配额终态、审计原子性与敏感信息隔离。
+t11-harness-model-integration-acceptance.md: T11 独立验收证据，记录 rc.7 官方 dsh-llm-pi-ai、动态三协议 profile/default、本机认证代理、真实 ctx.llm 流与 Agent 瞬时失败恢复。
 t12-admin-console-acceptance.md: T12 独立验收证据，记录管理 PKCE、治理纵向页面、真实 Server E2E、CAS 恢复、密钥隔离和跨端门禁。
 t13-plugin-server-acceptance.md: T13 独立验收证据，记录流式验包、JCS/Ed25519、CAS、状态/分配、下载授权、库存、协议与真实 PostgreSQL 事务结果。
 t14-plugin-client-acceptance.md: T14 独立验收证据，记录下载验签、官方 CLI argv、原子状态、重启确认、回滚、树外 consumer 与真实 rc.7 CLI 结果。

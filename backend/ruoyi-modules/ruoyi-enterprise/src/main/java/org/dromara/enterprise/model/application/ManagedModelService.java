@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖事务、ManagedModelStore、ProviderStore、bootstrap revision、AuditSink 与 ID generator。
- * [OUTPUT]: 对外提供模型 list/get/create/update/delete/enable/disable 与 revision CAS。
+ * [OUTPUT]: 对外提供含 reasoningEfforts/compat 的模型 list/get/create/update/delete/enable/disable 与 revision CAS。
  * [POS]: model/application 的受管模型用例编排，排序作为模型字段更新且每次写入原子刷新 bootstrap。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -14,6 +14,7 @@ import org.dromara.enterprise.audit.AuditSink;
 import org.dromara.enterprise.model.domain.ManagedModel;
 import org.dromara.enterprise.model.domain.ModelProvider;
 import org.dromara.enterprise.model.domain.ModelStatus;
+import org.dromara.enterprise.model.domain.ProviderApiProtocol;
 import org.dromara.enterprise.model.persistence.ManagedModelStore;
 import org.dromara.enterprise.model.persistence.ProviderStore;
 import org.dromara.enterprise.revision.BootstrapRevisionStore;
@@ -124,8 +125,8 @@ public final class ManagedModelService {
         requireRevision(current, expectedRevision);
         ManagedModel updated = new ManagedModel(
             current.id(), current.tenantId(), current.providerId(), current.providerName(), current.alias(),
-            current.displayName(), current.upstreamModel(), current.contextWindow(), current.maxOutputTokens(),
-            current.reasoning(), current.sortOrder(), status, expectedRevision + 1
+            current.name(), current.modelId(), current.contextWindow(), current.maxTokens(), current.reasoningEfforts(),
+            current.reasoningCompat(), current.sortOrder(), status, expectedRevision + 1
         );
         return requireResult(transactions.execute(transactionStatus -> {
             if (!models.updateStatus(context.tenantId(), modelId, status, expectedRevision)) {
@@ -175,9 +176,13 @@ public final class ManagedModelService {
         ModelStatus status,
         long revision
     ) {
+        if (spec.reasoningCompat() != null && provider.apiProtocol() != ProviderApiProtocol.OPENAI_COMPLETIONS) {
+            throw new IllegalArgumentException("compat 仅适用于 openai-completions");
+        }
         return new ManagedModel(
-            id, tenantId, provider.id(), provider.name(), spec.alias(), spec.displayName(), spec.upstreamModel(),
-            spec.contextWindow(), spec.maxOutputTokens(), spec.reasoning(), spec.sortOrder(), status, revision
+            id, tenantId, provider.id(), provider.name(), spec.alias(), spec.name(), spec.modelId(),
+            spec.contextWindow(), spec.maxTokens(), spec.reasoningEfforts(), spec.reasoningCompat(), spec.sortOrder(),
+            status, revision
         );
     }
 
@@ -191,7 +196,7 @@ public final class ManagedModelService {
             positiveId(), context.tenantId(), Instant.now(clock), AuditActorType.USER, context.actorId(), null,
             AuditAction.MODEL_CHANGED, "MANAGED_MODEL", Long.toString(model.id()), AuditResult.SUCCESS,
             null, context.requestId(), context.sourceIp(), context.userAgentHash(),
-            new ManagedModelChangeMetadata(operation, model.reasoning(), model.revision(), bootstrapRevision)
+            new ManagedModelChangeMetadata(operation, model.revision(), bootstrapRevision)
         ));
     }
 

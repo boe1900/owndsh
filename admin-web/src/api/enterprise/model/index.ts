@@ -26,7 +26,7 @@ export type ModelProvider = Awaited<ReturnType<typeof getModelProvider>>['data']
 export type ModelProviderInput = Parameters<typeof generatedCreateProvider>[0];
 export type ModelProviderUpdateInput = Parameters<typeof generatedUpdateProvider>[1];
 export type ModelProviderTestInput = Parameters<typeof generatedTestProvider>[1];
-export type ManagedModel = Awaited<ReturnType<typeof getManagedModel>>['data'];
+export type ManagedModel = Awaited<ReturnType<typeof listManagedModels>>['data']['items'][number];
 export type ManagedModelInput = Parameters<typeof generatedCreateModel>[0];
 
 export function createModelProvider(body: ModelProviderInput) {

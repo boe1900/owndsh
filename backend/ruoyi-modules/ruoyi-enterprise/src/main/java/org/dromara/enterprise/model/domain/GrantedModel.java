@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 ACTIVE provider/model/grant join 的模型能力、排序和授权来源。
+ * [INPUT]: 依赖 ACTIVE provider/model/grant join 的 Harness 模型字段、API 协议、推理事实、排序和授权来源。
  * [OUTPUT]: 对外提供 EffectiveModelResolver 的候选记录。
- * [POS]: model/domain 的解析中间事实，使默认裁决与 JDBC 行映射解耦且不携带 provider 路由/密钥。
+ * [POS]: model/domain 的解析中间事实，使默认裁决与 JDBC 行映射解耦且不携带 endpoint、上游模型或密钥。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.model.domain;
@@ -11,20 +11,24 @@ import java.util.Objects;
 public record GrantedModel(
     long modelId,
     String alias,
-    String displayName,
-    int contextWindow,
-    int maxOutputTokens,
-    boolean reasoning,
+    String name,
+    Integer contextWindow,
+    Integer maxTokens,
+    ProviderApiProtocol apiProtocol,
+    ModelReasoningEfforts reasoningEfforts,
+    ModelReasoningCompat reasoningCompat,
     int sortOrder,
     GrantSubjectType subjectType,
     boolean isDefault
 ) {
     public GrantedModel {
-        if (modelId <= 0 || contextWindow <= 0 || maxOutputTokens <= 0 || sortOrder < 0) {
+        if (modelId <= 0 || contextWindow != null && contextWindow <= 0 || maxTokens != null && maxTokens <= 0
+            || sortOrder < 0) {
             throw new IllegalArgumentException("有效模型候选数值非法");
         }
         alias = requireText(alias, "alias");
-        displayName = requireText(displayName, "displayName");
+        if (name != null) name = requireText(name, "name");
+        Objects.requireNonNull(apiProtocol, "apiProtocol");
         Objects.requireNonNull(subjectType, "subjectType");
     }
 

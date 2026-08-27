@@ -1,11 +1,12 @@
 /**
- * [INPUT]: 依赖 route/parser 后请求、quota 状态机、DeepSeek SSE、SecretCipher、事务、audit 与 Jackson。
- * [OUTPUT]: 对外提供首 event 预取后的 OpenAI SSE relay，含续租、usage settle、CHARGED_MAX 和双审计。
- * [POS]: model/gateway 的生命周期核心；网络期间不持有数据库事务，prompt 与 credential 只存在于局部变量。
+ * [INPUT]: 依赖请求级 route、原生协议请求、quota 状态机、透明上游 SSE、SecretCipher、事务与 audit。
+ * [OUTPUT]: 对外提供三协议透明 relay、脱敏失败日志、2xx SSE 后 SENT/accepted、建连失败零计费释放与可靠终态结算。
+ * [POS]: model/gateway 的治理核心；只解析 usage/终态，不转换消息、工具、推理、回放或流事件。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.model.gateway;
 
+import lombok.extern.slf4j.Slf4j;
 import org.dromara.enterprise.audit.AuditAction;
 import org.dromara.enterprise.audit.AuditActorType;
 import org.dromara.enterprise.audit.AuditEvent;
@@ -15,12 +16,14 @@ import org.dromara.enterprise.crypto.SecretAad;
 import org.dromara.enterprise.crypto.SecretCipher;
 import org.dromara.enterprise.crypto.SecretPurpose;
 import org.dromara.enterprise.device.application.DeviceCallContext;
+import org.dromara.enterprise.model.domain.ProviderApiProtocol;
 import org.dromara.enterprise.model.gateway.DeepSeekUpstreamClient.SseEvent;
 import org.dromara.enterprise.model.gateway.DeepSeekUpstreamClient.UpstreamExchange;
 import org.dromara.enterprise.quota.application.QuotaReservationCommand;
 import org.dromara.enterprise.quota.application.QuotaReservationService;
 import org.dromara.enterprise.quota.application.QuotaTokenEstimator;
 import org.dromara.enterprise.quota.application.UsageTokens;
+import org.dromara.enterprise.quota.domain.ReservationState;
 import org.dromara.enterprise.quota.domain.UsageLedger;
 import org.springframework.transaction.support.TransactionOperations;
 import tools.jackson.databind.JsonNode;
@@ -37,6 +40,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.Executors;
@@ -47,6 +51,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongSupplier;
 
+@Slf4j
 public final class ModelGatewayService {
     private static final Duration LEASE_RENEW_INTERVAL = Duration.ofSeconds(30);
     private static final String PROVIDER_TABLE = "ent_model_provider";
@@ -97,47 +102,38 @@ public final class ModelGatewayService {
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
-    public GatewayStream open(DeviceCallContext context, GatewayChatRequest request, UUID idempotencyKey) {
+    public GatewayStream open(
+        DeviceCallContext context,
+        GatewayChatRequest request,
+        ProviderApiProtocol protocol,
+        Map<String, String> headers,
+        UUID idempotencyKey
+    ) {
         GatewayRouteResolver.GatewayRoute route = routes.resolve(context, request.modelAlias());
-        if (request.reasoningEnabled() && !route.model().reasoning()) {
-            throw new IllegalArgumentException("该受管模型不支持 reasoning");
-        }
+        if (route.provider().apiProtocol() != protocol) throw new IllegalArgumentException("模型 API 协议不匹配");
         long estimated = QuotaTokenEstimator.estimate(
-            request.visibleUtf8Bytes(), request.maxTokens(), route.model().maxOutputTokens()
+            request.visibleUtf8Bytes(), request.maxTokens(), route.model().resolvedMaxTokens()
         );
-        if (estimated > route.model().contextWindow()) {
+        if (estimated > route.model().resolvedContextWindow()) {
             throw new IllegalArgumentException("请求超过模型 context window");
         }
+        Map<String, String> upstreamHeaders = Map.copyOf(headers);
+        ObjectNode upstreamBody = request.upstreamBody(route.model().modelId(), protocol);
         QuotaReservationService.ActiveReservation active = quotas.reserve(new QuotaReservationCommand(
             context.tenantId(), route.user().id(), route.user().departmentId(), route.device().id(),
             route.model().id(), idempotencyKey, context.requestId(), estimated,
             context.sourceIp(), context.userAgentHash()
         ));
         Instant startedAt = Instant.now(clock);
-        try {
-            active = markAccepted(context, route, active, estimated, startedAt);
-        } catch (RuntimeException exception) {
-            quotas.release(active);
-            throw exception;
-        }
-
-        UpstreamExchange exchange = null;
-        try {
-            byte[] body = json.writeValueAsBytes(request.upstreamBody(route.model().upstreamModel()));
-            exchange = openUpstream(context.tenantId(), route, body);
-            SseEvent first = exchange.next();
-            inspect(first);
-            return new GatewayStream(context, route, active, exchange, first, startedAt);
-        } catch (RuntimeException exception) {
-            if (exchange != null) exchange.close();
-            finishChargedMax(context, route, active, startedAt, failure(exception));
-            throw sanitize(exception);
-        }
+        return new GatewayStream(
+            context, route, active, protocol, upstreamHeaders, upstreamBody, startedAt
+        );
     }
 
     private UpstreamExchange openUpstream(
         String tenantId,
         GatewayRouteResolver.GatewayRoute route,
+        Map<String, String> headers,
         byte[] requestBody
     ) {
         byte[] plaintext = null;
@@ -153,7 +149,7 @@ public final class ModelGatewayService {
             );
             credential = decodeUtf8(plaintext);
             return upstream.open(
-                route.provider().baseUrl(), credential, requestBody,
+                route.provider().baseUrl(), route.provider().apiProtocol(), credential, headers, requestBody,
                 route.provider().connectTimeoutMs(), route.provider().readTimeoutMs()
             );
         } finally {
@@ -244,43 +240,26 @@ public final class ModelGatewayService {
         ));
     }
 
-    private Inspection inspect(SseEvent event) {
-        if (event.done()) return new Inspection(true, null);
-        try {
-            JsonNode root = json.readTree(event.data());
-            if (root == null || !root.isObject() || root.has("error")) {
-                throw new GatewayException(GatewayException.Kind.UPSTREAM_INVALID_RESPONSE);
-            }
-            JsonNode choices = root.get("choices");
-            JsonNode usage = root.get("usage");
-            if ((choices == null || !choices.isArray()) && (usage == null || !usage.isObject())) {
-                throw new GatewayException(GatewayException.Kind.UPSTREAM_INVALID_RESPONSE);
-            }
-            return new Inspection(false, usage == null || usage.isNull() ? null : parseUsage(usage));
-        } catch (GatewayException exception) {
-            throw exception;
-        } catch (RuntimeException exception) {
-            throw new GatewayException(GatewayException.Kind.UPSTREAM_INVALID_RESPONSE, exception);
-        }
-    }
-
-    private static UsageTokens parseUsage(JsonNode usage) {
-        if (!usage.isObject()) throw new GatewayException(GatewayException.Kind.UPSTREAM_INVALID_RESPONSE);
+    private static UsageTokens parseOpenAiUsage(JsonNode usage) {
+        if (!usage.isObject()) throw invalidUpstream();
         long input = firstUsage(usage, "input_tokens", "prompt_tokens");
         long output = firstUsage(usage, "output_tokens", "completion_tokens");
         long cache = sumUsage(
             usage, "cache_read_tokens", "cache_write_tokens", "cache_read_input_tokens",
             "cache_creation_input_tokens", "prompt_cache_hit_tokens"
         );
-        JsonNode details = usage.get("prompt_tokens_details");
+        JsonNode details = usage.get("input_tokens_details");
         if (details != null && details.isObject()) cache = Math.addExact(cache, optionalUsage(details, "cached_tokens"));
-        return new UsageTokens(input, output, cache);
+        details = usage.get("prompt_tokens_details");
+        if (details != null && details.isObject()) cache = Math.addExact(cache, optionalUsage(details, "cached_tokens"));
+        if (cache > input) throw invalidUpstream();
+        return new UsageTokens(input - cache, output, cache);
     }
 
     private static long firstUsage(JsonNode usage, String primary, String fallback) {
         if (usage.has(primary)) return requiredUsage(usage, primary);
         if (usage.has(fallback)) return requiredUsage(usage, fallback);
-        throw new GatewayException(GatewayException.Kind.UPSTREAM_INVALID_RESPONSE);
+        throw invalidUpstream();
     }
 
     private static long sumUsage(JsonNode usage, String... fields) {
@@ -296,7 +275,7 @@ public final class ModelGatewayService {
     private static long requiredUsage(JsonNode usage, String field) {
         JsonNode value = usage.get(field);
         if (value == null || !value.isIntegralNumber() || !value.canConvertToLong() || value.longValue() < 0) {
-            throw new GatewayException(GatewayException.Kind.UPSTREAM_INVALID_RESPONSE);
+            throw invalidUpstream();
         }
         return value.longValue();
     }
@@ -339,33 +318,135 @@ public final class ModelGatewayService {
         };
     }
 
-    private record Inspection(boolean done, UsageTokens usage) {
+    private static GatewayException invalidUpstream() {
+        return invalidUpstream(GatewayException.Detail.INVALID_EVENT);
+    }
+
+    private static GatewayException invalidUpstream(GatewayException.Detail detail) {
+        return new GatewayException(GatewayException.Kind.UPSTREAM_INVALID_RESPONSE, detail);
+    }
+
+    private record Inspection(boolean terminal, UsageTokens usage) {
+    }
+
+    private final class UsageInspector {
+        private final ProviderApiProtocol protocol;
+        private UsageTokens latest;
+        private long anthropicInput;
+        private long anthropicOutput;
+        private long anthropicCache;
+        private boolean sawAnthropicInput;
+        private boolean sawAnthropicOutput;
+
+        private UsageInspector(ProviderApiProtocol protocol) {
+            this.protocol = protocol;
+        }
+
+        private Inspection inspect(SseEvent event) {
+            if (event.done()) {
+                if (protocol != ProviderApiProtocol.OPENAI_COMPLETIONS) throw invalidUpstream();
+                return new Inspection(true, latest);
+            }
+            ObjectNode root;
+            try {
+                JsonNode parsed = json.readTree(event.data());
+                if (parsed == null || !parsed.isObject()) throw invalidUpstream();
+                root = parsed.asObject();
+            } catch (GatewayException exception) {
+                throw exception;
+            } catch (RuntimeException exception) {
+                throw new GatewayException(GatewayException.Kind.UPSTREAM_INVALID_RESPONSE, exception);
+            }
+            if (root.has("error")) throw invalidUpstream(GatewayException.Detail.UPSTREAM_ERROR_EVENT);
+            return switch (protocol) {
+                case OPENAI_COMPLETIONS -> inspectCompletions(root);
+                case OPENAI_RESPONSES -> inspectResponses(root);
+                case ANTHROPIC_MESSAGES -> inspectAnthropic(root);
+            };
+        }
+
+        private Inspection inspectCompletions(ObjectNode root) {
+            JsonNode usage = root.get("usage");
+            if (usage != null && !usage.isNull()) latest = parseOpenAiUsage(usage);
+            if ((!root.path("choices").isArray()) && usage == null) throw invalidUpstream();
+            return new Inspection(false, latest);
+        }
+
+        private Inspection inspectResponses(ObjectNode root) {
+            String type = requiredType(root);
+            if ("error".equals(type) || "response.failed".equals(type)) {
+                throw invalidUpstream(GatewayException.Detail.UPSTREAM_ERROR_EVENT);
+            }
+            if (!"response.completed".equals(type) && !"response.incomplete".equals(type)) {
+                return new Inspection(false, latest);
+            }
+            JsonNode usage = root.path("response").get("usage");
+            if (usage != null && !usage.isNull()) latest = parseOpenAiUsage(usage);
+            return new Inspection(true, latest);
+        }
+
+        private Inspection inspectAnthropic(ObjectNode root) {
+            String type = requiredType(root);
+            if ("error".equals(type)) throw invalidUpstream(GatewayException.Detail.UPSTREAM_ERROR_EVENT);
+            if ("message_start".equals(type)) updateAnthropic(root.path("message").get("usage"));
+            if ("message_delta".equals(type)) updateAnthropic(root.get("usage"));
+            if (!"message_stop".equals(type)) return new Inspection(false, latest);
+            if (sawAnthropicInput && sawAnthropicOutput) {
+                latest = new UsageTokens(anthropicInput, anthropicOutput, anthropicCache);
+            }
+            return new Inspection(true, latest);
+        }
+
+        private void updateAnthropic(JsonNode usage) {
+            if (usage == null || !usage.isObject()) return;
+            if (usage.has("input_tokens")) {
+                anthropicInput = requiredUsage(usage, "input_tokens");
+                sawAnthropicInput = true;
+            }
+            if (usage.has("output_tokens")) {
+                anthropicOutput = requiredUsage(usage, "output_tokens");
+                sawAnthropicOutput = true;
+            }
+            if (usage.has("cache_read_input_tokens") || usage.has("cache_creation_input_tokens")) {
+                anthropicCache = sumUsage(usage, "cache_read_input_tokens", "cache_creation_input_tokens");
+            }
+        }
+
+        private String requiredType(ObjectNode root) {
+            JsonNode type = root.get("type");
+            if (type == null || !type.isString() || type.stringValue().isBlank()) throw invalidUpstream();
+            return type.stringValue();
+        }
     }
 
     public final class GatewayStream {
         private final DeviceCallContext context;
         private final GatewayRouteResolver.GatewayRoute route;
         private final AtomicReference<QuotaReservationService.ActiveReservation> active;
-        private final UpstreamExchange exchange;
-        private final SseEvent first;
+        private final ProviderApiProtocol protocol;
+        private final Map<String, String> headers;
+        private final ObjectNode requestBody;
         private final Instant startedAt;
         private final AtomicBoolean finished = new AtomicBoolean();
         private final AtomicReference<RuntimeException> heartbeatFailure = new AtomicReference<>();
         private final Object lifecycle = new Object();
+        private volatile UpstreamExchange exchange;
 
         private GatewayStream(
             DeviceCallContext context,
             GatewayRouteResolver.GatewayRoute route,
             QuotaReservationService.ActiveReservation active,
-            UpstreamExchange exchange,
-            SseEvent first,
+            ProviderApiProtocol protocol,
+            Map<String, String> headers,
+            ObjectNode requestBody,
             Instant startedAt
         ) {
             this.context = context;
             this.route = route;
             this.active = new AtomicReference<>(active);
-            this.exchange = exchange;
-            this.first = first;
+            this.protocol = protocol;
+            this.headers = headers;
+            this.requestBody = requestBody;
             this.startedAt = startedAt;
         }
 
@@ -373,28 +454,41 @@ public final class ModelGatewayService {
             ScheduledExecutorService heartbeat = Executors.newSingleThreadScheduledExecutor(
                 Thread.ofVirtual().name("enterprise-gateway-lease-", 0).factory()
             );
-            ScheduledFuture<?> renewal = heartbeat.scheduleAtFixedRate(
-                this::renew, LEASE_RENEW_INTERVAL.toSeconds(), LEASE_RENEW_INTERVAL.toSeconds(), TimeUnit.SECONDS
-            );
+            ScheduledFuture<?> renewal = null;
+            UsageInspector inspector = new UsageInspector(protocol);
             UsageTokens usage = null;
-            try (exchange) {
-                SseEvent event = first;
-                while (true) {
-                    RuntimeException renewalError = heartbeatFailure.get();
-                    if (renewalError != null) throw renewalError;
-                    Inspection inspection = inspect(event);
-                    if (inspection.usage() != null) usage = inspection.usage();
-                    if (inspection.done()) {
-                        finish(usage, usage == null
-                            ? GatewayFinishedMetadata.Failure.USAGE_MISSING
-                            : GatewayFinishedMetadata.Failure.NONE);
+            try {
+                output.write(": enterprise-gateway\n\n".getBytes(StandardCharsets.UTF_8));
+                output.flush();
+                byte[] body = json.writeValueAsBytes(requestBody);
+                UpstreamExchange current = openUpstream(context.tenantId(), route, headers, body);
+                exchange = current;
+                try (current) {
+                    QuotaReservationService.ActiveReservation reserved = active.get();
+                    active.set(markAccepted(
+                        context, route, reserved, reserved.reservation().estimatedTokens(), startedAt
+                    ));
+                    renewal = heartbeat.scheduleAtFixedRate(
+                        this::renew, LEASE_RENEW_INTERVAL.toSeconds(), LEASE_RENEW_INTERVAL.toSeconds(),
+                        TimeUnit.SECONDS
+                    );
+                    while (true) {
+                        RuntimeException renewalError = heartbeatFailure.get();
+                        if (renewalError != null) throw renewalError;
+                        SseEvent event = current.next();
+                        Inspection inspection = inspector.inspect(event);
+                        if (inspection.usage() != null) usage = inspection.usage();
+                        if (inspection.terminal()) {
+                            finish(usage, usage == null
+                                ? GatewayFinishedMetadata.Failure.USAGE_MISSING
+                                : GatewayFinishedMetadata.Failure.NONE);
+                            output.write(event.wireBytes());
+                            output.flush();
+                            return;
+                        }
                         output.write(event.wireBytes());
                         output.flush();
-                        return;
                     }
-                    output.write(event.wireBytes());
-                    output.flush();
-                    event = exchange.next();
                 }
             } catch (IOException clientCancelled) {
                 try {
@@ -405,6 +499,7 @@ public final class ModelGatewayService {
                 throw clientCancelled;
             } catch (RuntimeException exception) {
                 RuntimeException terminal = heartbeatFailure.get() == null ? exception : heartbeatFailure.get();
+                logFailure(terminal);
                 RuntimeException clientError = sanitize(terminal);
                 try {
                     finish(null, failure(terminal));
@@ -413,9 +508,28 @@ public final class ModelGatewayService {
                 }
                 writeError(output, clientError);
             } finally {
-                renewal.cancel(true);
+                if (renewal != null) renewal.cancel(true);
                 heartbeat.shutdownNow();
             }
+        }
+
+        private void logFailure(RuntimeException exception) {
+            if (exception instanceof GatewayException gateway) {
+                String upstreamRequestId = gateway.upstreamRequestId();
+                UpstreamExchange current = exchange;
+                if (upstreamRequestId == null && current != null) upstreamRequestId = current.upstreamRequestId();
+                log.warn(
+                    "企业模型请求失败 requestId={} modelId={} providerId={} protocol={} kind={} detail={} upstreamStatus={} upstreamRequestId={}",
+                    context.requestId(), route.model().id(), route.provider().id(), protocol,
+                    gateway.kind(), gateway.detail(), gateway.upstreamStatus(), upstreamRequestId
+                );
+                return;
+            }
+            log.error(
+                "企业模型请求失败 requestId={} modelId={} providerId={} protocol={} type={}",
+                context.requestId(), route.model().id(), route.provider().id(), protocol,
+                exception.getClass().getSimpleName()
+            );
         }
 
         private void renew() {
@@ -426,17 +540,21 @@ public final class ModelGatewayService {
                 }
             } catch (RuntimeException exception) {
                 heartbeatFailure.compareAndSet(null, exception);
-                exchange.close();
+                UpstreamExchange current = exchange;
+                if (current != null) current.close();
             }
         }
 
         private void finish(UsageTokens usage, GatewayFinishedMetadata.Failure failure) {
             if (!finished.compareAndSet(false, true)) return;
             synchronized (lifecycle) {
-                if (usage != null && failure == GatewayFinishedMetadata.Failure.NONE) {
-                    finishSettled(context, route, active.get(), usage, exchange.upstreamRequestId(), startedAt);
+                QuotaReservationService.ActiveReservation current = active.get();
+                if (current.reservation().state() == ReservationState.RESERVED) {
+                    quotas.release(current);
+                } else if (usage != null && failure == GatewayFinishedMetadata.Failure.NONE) {
+                    finishSettled(context, route, current, usage, exchange.upstreamRequestId(), startedAt);
                 } else {
-                    finishChargedMax(context, route, active.get(), startedAt, failure);
+                    finishChargedMax(context, route, current, startedAt, failure);
                 }
             }
         }
@@ -444,14 +562,25 @@ public final class ModelGatewayService {
         private void writeError(OutputStream output, RuntimeException exception) {
             try {
                 GatewayException gateway = exception instanceof GatewayException value
-                    ? value
-                    : new GatewayException(GatewayException.Kind.PLATFORM_UNAVAILABLE);
+                    ? value : new GatewayException(GatewayException.Kind.PLATFORM_UNAVAILABLE);
+                String message = gateway.code() + ": enterprise model stream failed";
                 ObjectNode root = json.createObjectNode();
-                root.putObject("error")
-                    .put("code", gateway.code())
-                    .put("message", "企业模型流中断")
-                    .put("type", "enterprise_gateway_error")
-                    .put("request_id", context.requestId());
+                String event = "";
+                if (protocol == ProviderApiProtocol.ANTHROPIC_MESSAGES) {
+                    root.put("type", "error");
+                    root.putObject("error").put("type", "api_error").put("message", message);
+                    event = "event: error\n";
+                } else if (protocol == ProviderApiProtocol.OPENAI_RESPONSES) {
+                    root.put("type", "error").put("code", gateway.code()).put("message", message).putNull("param");
+                    event = "event: error\n";
+                } else {
+                    root.putObject("error")
+                        .put("code", gateway.code())
+                        .put("message", message)
+                        .put("type", "enterprise_gateway_error")
+                        .put("request_id", context.requestId());
+                }
+                output.write(event.getBytes(StandardCharsets.UTF_8));
                 output.write("data: ".getBytes(StandardCharsets.UTF_8));
                 output.write(json.writeValueAsBytes(root));
                 output.write("\n\n".getBytes(StandardCharsets.UTF_8));

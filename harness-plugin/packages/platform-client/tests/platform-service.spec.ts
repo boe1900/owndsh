@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 EnterprisePlatformService、Cordis Context、真实 Node HTTP 假平台/本地 route carrier 与临时 DSH_HOME
- * [OUTPUT]: 验证 PKCE→Token→enroll→bootstrap、Cordis 代理调用、错误关联、内存秘密、刷新期间连续请求、退避与停稳
+ * [OUTPUT]: 验证 PKCE→Token→enroll→bootstrap、状态订阅隔离、控制面限时/SSE 无总时限、取消、刷新退避与停稳
  * [POS]: platform-client T06 核心生命周期测试，跨越真实 socket 而不伪造 Token 存储边界
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -20,7 +20,7 @@ import {
 } from '../src/index.js'
 
 type Route = Parameters<WebServerRoutePort['register']>[0]
-type BootstrapMode = 'ok' | 'unavailable' | 'revoked'
+type BootstrapMode = 'ok' | 'invalid' | 'unavailable' | 'revoked'
 const REQUEST_ID = `req_${'0'.repeat(26)}`
 
 interface Environment {
@@ -73,6 +73,7 @@ describe('EnterprisePlatformService', () => {
 
   async function environment(options: {
     readonly bootstrapIntervalMs?: number
+    readonly requestTimeoutMs?: number
     readonly refreshRetryInitialMs?: number
     readonly refreshRetryMaxMs?: number
     readonly now?: () => Date
@@ -136,6 +137,10 @@ describe('EnterprisePlatformService', () => {
         return
       }
       if (path === '/enterprise/api/v1/bootstrap' && request.method === 'GET') {
+        if (bootstrapMode === 'invalid') {
+          json(response, 200, { data: { revision: 'secret-payload' }, requestId: REQUEST_ID })
+          return
+        }
         if (bootstrapMode === 'unavailable') {
           json(response, 503, {
             error: {
@@ -164,8 +169,8 @@ describe('EnterprisePlatformService', () => {
             user: { id: '10031', username: 'zhangsan', displayName: 'Zhang San', departmentId: '210' },
             device: { id: '90018', installationId, status: 'ACTIVE' },
             models: [{
-              alias: 'deepseek-chat', displayName: 'DeepSeek Chat', contextWindow: 65536,
-              maxOutputTokens: 8192, reasoning: false, isDefault: true,
+              alias: 'deepseek-chat', name: 'DeepSeek Chat', apiProtocol: 'openai-completions', contextWindow: 65536,
+              maxTokens: 8192, isDefault: true,
             }],
             quotas: [{
               policyId: '73001', scope: 'USER', dailyTokenLimit: 1_000_000,
@@ -215,6 +220,13 @@ describe('EnterprisePlatformService', () => {
         request.once('close', () => { response.destroy() })
         return
       }
+      if (path === '/enterprise/api/v1/delayed-sse') {
+        setTimeout(() => {
+          response.writeHead(200, { 'content-type': 'text/event-stream' })
+          response.end('data: [DONE]\n\n')
+        }, 600).unref()
+        return
+      }
       response.writeHead(404).end()
     })
     const platformUrl = await listen(platformServer)
@@ -245,7 +257,7 @@ describe('EnterprisePlatformService', () => {
         harnessVersion: '0.1.0-rc.7',
         bundleVersion: '0.1.0',
         bootstrapIntervalMs: options.bootstrapIntervalMs ?? 60_000,
-        requestTimeoutMs: 1_000,
+        requestTimeoutMs: options.requestTimeoutMs ?? 1_000,
         disposeTimeoutMs: 1_000,
         callbackTimeoutMs: 1_000,
         dshHome: home,
@@ -367,6 +379,39 @@ describe('EnterprisePlatformService', () => {
       .toBe('Bearer platform-token-never-local')
   })
 
+  it('keeps authentication ready when one status subscriber throws', async () => {
+    const env = await environment()
+    const warnings: unknown[] = []
+    env.context.logger.warn = ((message: unknown) => { warnings.push(message) }) as typeof env.context.logger.warn
+    const states: EnterprisePlatformStatus['state'][] = []
+    env.service.subscribe(() => { throw new Error('subscriber failed') })
+    env.service.subscribe(status => { states.push(status.state) })
+
+    await login(env)
+
+    expect(env.service.status().state).toBe('READY')
+    expect(states).toContain('READY')
+    expect(warnings).toContain('enterprise platform: status subscriber failed')
+  })
+
+  it('logs only paths and codes when bootstrap schema validation fails', async () => {
+    const env = await environment()
+    const warnings: unknown[][] = []
+    env.context.logger.warn = ((...args: unknown[]) => { warnings.push(args) }) as typeof env.context.logger.warn
+    env.setBootstrap('invalid')
+
+    await env.service.startLogin()
+    await vi.waitFor(() => expect(env.service.status()).toMatchObject({
+      state: 'FAILED', errorCode: 'ENT_PLATFORM_UNAVAILABLE',
+    }))
+
+    expect(warnings).toContainEqual([
+      'enterprise platform: invalid bootstrap schema %o',
+      expect.arrayContaining([expect.objectContaining({ code: expect.any(String), path: ['data', 'revision'] })]),
+    ])
+    expect(JSON.stringify(warnings)).not.toContain('secret-payload')
+  })
+
   it('starts signed out after restart and expires an elapsed in-memory session', async () => {
     let now = Date.parse('2026-08-18T00:00:00.000Z')
     const env = await environment({ now: () => new Date(now) })
@@ -442,6 +487,29 @@ describe('EnterprisePlatformService', () => {
     await env.service.dispose()
     await expect(pending).rejects.toBeInstanceOf(DOMException)
     expect((await fetch(`${env.localUrl}/enterprise/api/v1/local/status`)).status).toBe(404)
+  })
+
+  it('times out control requests but leaves SSE to caller cancellation', async () => {
+    const env = await environment({ requestTimeoutMs: 500 })
+    await login(env)
+    await expect(env.service.request('/enterprise/api/v1/slow')).rejects.toMatchObject({
+      code: 'ENT_PLATFORM_UNAVAILABLE',
+    })
+    const stream = await env.service.request('/enterprise/api/v1/delayed-sse', {
+      headers: { accept: 'text/event-stream, application/json' },
+    })
+    await expect(stream.text()).resolves.toBe('data: [DONE]\n\n')
+
+    const abort = new AbortController()
+    const pending = env.service.request('/enterprise/api/v1/slow', {
+      headers: { accept: 'text/event-stream' },
+      signal: abort.signal,
+    })
+    await vi.waitFor(() => {
+      expect(env.platformRequests.filter(request => request.path.endsWith('/slow'))).toHaveLength(2)
+    })
+    abort.abort()
+    await expect(pending).rejects.toBeInstanceOf(DOMException)
   })
 
   it('refreshes revisions with exponential retry, recovers, and terminally handles revocation', async () => {

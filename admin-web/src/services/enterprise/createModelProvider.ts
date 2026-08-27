@@ -5,8 +5,13 @@ import request from "@/api/enterprise/generated-request";
 /** 此处后端没有提供注释 POST /enterprise/admin/v1/providers */
 export async function createModelProvider(
   body: {
+    providerKey: string;
     name: string;
-    providerType: "DEEPSEEK_OPENAI";
+    providerType: "DEEPSEEK_OFFICIAL" | "CUSTOM";
+    apiProtocol:
+      | "openai-completions"
+      | "openai-responses"
+      | "anthropic-messages";
     baseUrl: string;
     credential: string;
     connectTimeoutMs: number;
@@ -17,8 +22,13 @@ export async function createModelProvider(
   return request<{
     data: {
       id: string;
+      providerKey: string;
       name: string;
-      providerType: "DEEPSEEK_OPENAI";
+      providerType: "DEEPSEEK_OFFICIAL" | "CUSTOM";
+      apiProtocol:
+        | "openai-completions"
+        | "openai-responses"
+        | "anthropic-messages";
       baseUrl: string;
       credentialConfigured: boolean;
       status: "ACTIVE" | "DISABLED";

@@ -21,7 +21,7 @@ fixtures/identity-source-test-success.json: T04 身份源连接检查的脱敏 R
 fixtures/provider-success.json: T08 provider 脱敏详情成功样例，只暴露 credentialConfigured。
 fixtures/provider-secret-leak.json: provider 响应夹带 credential 的严格 schema 负例。
 fixtures/provider-list-success.json: T08 provider cursor 列表成功样例。
-fixtures/provider-probe-success.json: T08 provider test 脱敏成功/延迟/状态类别样例。
+fixtures/provider-probe-success.json: T08 provider test 脱敏成功/延迟/状态类别与模型候选样例。
 fixtures/model-success.json: T08 受管模型详情成功样例。
 fixtures/model-list-success.json: T08 受管模型 cursor 列表成功样例。
 fixtures/model-grant-success.json: T08 单条 USER 模型授权成功样例。
@@ -33,8 +33,7 @@ fixtures/quota-policy-list-success.json: T09 quota policy 空 cursor page 成功
 fixtures/quota-window-list-success.json: T09 当前自然日窗口计数与 reset time 成功样例。
 fixtures/quota-usage-me-success.json: T09 员工 DEFAULT 生效策略的日/月、RPM 与并发实时计数样例。
 fixtures/usage-ledger-list-success.json: T09 管理端 prompt-free ledger、cursor 与聚合成功样例。
-fixtures/gateway-request-success.json: T10/T11 default sentinel、纯文本 messages、function tool、usage stream 开关与 reasoning 参数成功请求样例。
-fixtures/gateway-request-route-forgery.json: T10 请求级 base URL 路由伪造严格拒绝负例。
+fixtures/gateway-request-success.json: T10/T11 default sentinel 与官方 adapter 原生字段透明传输成功请求样例。
 fixtures/plugin-version-success.json: T13 VALIDATED 插件版本、签名和 compatibility 成功响应样例。
 fixtures/plugin-assignments-success.json: T13 USER/DEPT/ALL 裁决后的 runtime 插件分配成功响应样例。
 fixtures/plugin-inventory-success.json: T13 ACTIVE 设备原子替换本地插件库存的成功响应样例。

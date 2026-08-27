@@ -6,10 +6,10 @@ ships one Cordis Host plugin, one `dsh.client` lazy-CJS browser bundle, and the
 
 The profile layer sets provider `enterprise` and model `enterprise/default` on
 `agent-default-model`, disables the built-in DeepSeek and pi-ai provider rows,
-and disables the personal Models settings page. The Host plugin registers the
-enterprise adapter through official rc.7 `ctx.llm`, and the distribution
-Service through official `ctx.subprocess` plus `ctx.pluginInventory`. Exact
-rc.7 peers resolve from the Harness app dependency fallback instead of
+and disables the personal Models settings page. The Host plugin configures the
+official rc.2 `dsh-llm-pi-ai` adapter through `ctx.llm`, and mounts distribution
+through ordinary `ctx.subprocess`/`ctx.pluginInventory` or Desktop's public
+`desktopProfiles`/`desktopPnpm` services. Exact rc.2 peers resolve from the Host dependency fallback instead of
 installing second Service Definitions into the profile. It also injects the
 official `sessions` and `sessionPersistence` Services and mounts
 `EnterpriseSessionSyncService`; the build keeps those official runtime
@@ -19,7 +19,7 @@ The tarball is self-contained at runtime: workspace packages are build inputs,
 not installed dependencies. Install it with:
 
 ```sh
-dsh plugin --profile web add ./enterprise-agent-dsh-bundle-0.1.0.tgz
+dsh plugin --profile <profile> add ./enterprise-agent-dsh-bundle-0.1.0.tgz
 ```
 
 The profile overlay must set `config.baseUrl` to the enterprise platform HTTPS
@@ -32,8 +32,9 @@ defaults unless the installation layer overrides them. Session replication adds
 `sessionRetryMaxMs=60000`, and `sessionMaxBatchEvents=200`; the authenticated
 bootstrap remains the source of the byte limit and enablement policy. The Host half publishes `ctx.enterprisePlatform`
 and mounts only same-origin `/enterprise/api/v1/local/*` JSON/SSE routes. Model
-streams do not traverse that browser control plane: the Host adapter calls the
-enterprise HTTPS center directly through the in-memory authenticated Service.
+streams do not traverse that browser control plane: the official adapter uses a
+random-port, random-bearer Host-only loopback proxy, which calls the enterprise
+HTTPS center through the in-memory authenticated Service.
 The Client half adds only the official settings shell to its T07 module graph,
 then contributes Enterprise settings, footer status, and onboarding slots.
 `enableTechnicalProbe` may allow an HTTP loopback fake platform for acceptance;

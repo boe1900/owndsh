@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 Cordis/Schemastery、官方 LLM/Session/Persistence/subprocess/inventory 与企业业务模块
- * [OUTPUT]: 对外提供 bundle Host apply、完整官方 Service inject 和带同步参数/固定信任根的 Config schema
- * [POS]: bundle 的唯一 Host Loader 入口，组合平台认证、Session 复制、企业 provider 与受管插件调和
+ * [INPUT]: 依赖 Cordis/Schemastery、官方 rc.2 LLM/Session/Persistence/subprocess/inventory、可选 Desktop services 与企业业务模块
+ * [OUTPUT]: 对外提供 Web/Desktop 共用 bundle apply、官方 pi-ai profile 桥、完整 Service inject 和 Config schema
+ * [POS]: bundle 的唯一 Host Loader 入口，组合平台认证、Session 复制、官方企业模型与环境原生插件调和
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -13,6 +13,7 @@ import z from '@deepseek-ai/schemastery'
 import { registerEnterpriseGateway } from '@enterprise-agent/dsh-llm-gateway'
 import {
   EnterprisePluginDistributionService,
+  type DshPluginCommandPort,
   type PluginDistributionContext,
 } from '@enterprise-agent/dsh-plugin-distribution'
 import {
@@ -30,8 +31,8 @@ import {
 export const name = 'enterprise-agent-platform'
 export const inject = ['webServer', 'sessions', 'sessionPersistence', 'llm', 'subprocess', 'pluginInventory']
 
-const HARNESS_VERSION = '0.1.0-rc.7'
-const HARNESS_COMMIT = '99f6f02fecdb7dff40c3fbc9470f5907c29f74ca'
+const HARNESS_VERSION = '0.1.1-rc.2'
+const HARNESS_COMMIT = 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e'
 const BUNDLE_VERSION = '0.1.0'
 
 export interface Config {
@@ -58,7 +59,7 @@ export const Config: z<Config> = z.object({
   bootstrapIntervalMs: z.number().step(1).min(1).default(60_000),
   requestTimeoutMs: z.number().step(1).min(1).default(30_000),
   disposeTimeoutMs: z.number().step(1).min(1).default(3_000),
-  profile: z.string().default('enterprise'),
+  profile: z.string().default('web'),
   dshCommand: z.string().default('dsh'),
   sessionDebounceMs: z.number().step(1).min(1).default(2_000),
   sessionRetryInitialMs: z.number().step(1).min(1).default(1_000),
@@ -76,7 +77,37 @@ interface EnterpriseHostContext extends Context {
   readonly pluginInventory: PluginDistributionContext['pluginInventory']
 }
 
-/** 在 Harness 官方 Service 上挂载平台控制面并注册单一 enterprise provider。 */
+interface DesktopProfilesPort {
+  readonly current: { readonly name: string }
+}
+
+interface DesktopPnpmPort {
+  runPlugin(argv: readonly string[], invokingDir: string, signal?: AbortSignal): {
+    readonly stdout: NodeJS.ReadableStream
+    readonly stderr: NodeJS.ReadableStream
+    readonly done: Promise<{ readonly exitCode: number | null; readonly signal: NodeJS.Signals | null }>
+  }
+}
+
+interface DesktopHostContext extends Context {
+  readonly desktopPnpm: DesktopPnpmPort
+}
+
+function desktopPluginCommandPort(desktopPnpm: DesktopPnpmPort): DshPluginCommandPort {
+  return {
+    async run(argv, invokingDir, signal): Promise<void> {
+      const operation = desktopPnpm.runPlugin(argv, invokingDir, signal)
+      operation.stdout.resume()
+      operation.stderr.resume()
+      const outcome = await operation.done
+      if (outcome.exitCode !== 0 || outcome.signal !== null) {
+        throw new Error(`Desktop plugin command failed: exit=${String(outcome.exitCode)} signal=${String(outcome.signal)}`)
+      }
+    },
+  }
+}
+
+/** 在 Harness 官方 Service 上挂载平台控制面并配置官方 dsh-llm-pi-ai。 */
 export function apply(ctx: EnterpriseHostContext, config: Config): void {
   let pluginDistribution: EnterprisePluginDistributionService | undefined
   let sessionSync: EnterpriseSessionSyncService | undefined
@@ -111,18 +142,36 @@ export function apply(ctx: EnterpriseHostContext, config: Config): void {
     disposeTimeoutMs: config.disposeTimeoutMs,
     maxBatchEvents: config.sessionMaxBatchEvents,
   })
-  const registration = registerEnterpriseGateway(ctx.llm, {
+  ctx.effect(() => registerEnterpriseGateway(ctx, {
     platform,
     harnessVersion: HARNESS_VERSION,
     bundleVersion: BUNDLE_VERSION,
-  })
-  ctx.effect(() => registration, 'enterpriseGateway.registration')
-  pluginDistribution = new EnterprisePluginDistributionService(ctx as PluginDistributionContext, {
-    trustedPluginPublicKey: config.trustedPluginPublicKey,
-    harnessCommit: HARNESS_COMMIT,
-    bundleVersion: BUNDLE_VERSION,
-    profile: config.profile,
-    dshCommand: config.dshCommand,
-    subprocessGraceMs: config.disposeTimeoutMs,
-  })
+  }), 'enterpriseGateway.registration')
+  const mountPluginDistribution = (
+    distributionContext: PluginDistributionContext,
+    profile: string,
+    commandPort?: DshPluginCommandPort,
+  ): void => {
+    pluginDistribution = new EnterprisePluginDistributionService(distributionContext, {
+      trustedPluginPublicKey: config.trustedPluginPublicKey,
+      harnessCommit: HARNESS_COMMIT,
+      bundleVersion: BUNDLE_VERSION,
+      profile,
+      dshCommand: config.dshCommand,
+      subprocessGraceMs: config.disposeTimeoutMs,
+    }, commandPort === undefined ? {} : { commandPort })
+  }
+  const desktopProfiles = ctx.get('desktopProfiles') as DesktopProfilesPort | undefined
+  if (desktopProfiles === undefined) {
+    mountPluginDistribution(ctx as PluginDistributionContext, config.profile)
+  } else {
+    ctx.inject(['desktopPnpm'], desktopContext => {
+      const desktopHost = desktopContext as DesktopHostContext
+      mountPluginDistribution(
+        desktopHost as unknown as PluginDistributionContext,
+        desktopProfiles.current.name,
+        desktopPluginCommandPort(desktopHost.desktopPnpm),
+      )
+    })
+  }
 }

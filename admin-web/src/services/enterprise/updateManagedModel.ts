@@ -9,11 +9,33 @@ export async function updateManagedModel(
   body: {
     providerId: string;
     alias: string;
-    displayName: string;
-    upstreamModel: string;
-    contextWindow: number;
-    maxOutputTokens: number;
-    reasoning: boolean;
+    modelId: string;
+    name?: string;
+    contextWindow?: number;
+    maxTokens?: number;
+    reasoningEfforts?:
+      | boolean
+      | {
+          off?: string | null;
+          minimal?: string;
+          low?: string;
+          medium?: string;
+          high?: string;
+          xhigh?: string;
+          max?: string;
+        };
+    compat?: {
+      thinkingFormat?:
+        | "openai"
+        | "deepseek"
+        | "openrouter"
+        | "together"
+        | "zai"
+        | "qwen"
+        | "string-thinking"
+        | "ant-ling";
+      supportsReasoningEffort?: boolean;
+    };
     sortOrder: number;
   },
   options?: { [key: string]: any }
@@ -25,11 +47,33 @@ export async function updateManagedModel(
       providerId: string;
       providerName: string;
       alias: string;
-      displayName: string;
-      upstreamModel: string;
+      modelId: string;
+      name: string;
       contextWindow: number;
-      maxOutputTokens: number;
-      reasoning: boolean;
+      maxTokens: number;
+      reasoningEfforts:
+        | boolean
+        | {
+            off?: string | null;
+            minimal?: string;
+            low?: string;
+            medium?: string;
+            high?: string;
+            xhigh?: string;
+            max?: string;
+          };
+      compat: {
+        thinkingFormat?:
+          | "openai"
+          | "deepseek"
+          | "openrouter"
+          | "together"
+          | "zai"
+          | "qwen"
+          | "string-thinking"
+          | "ant-ling";
+        supportsReasoningEffort?: boolean;
+      };
       sortOrder: number;
       status: "ACTIVE" | "DISABLED";
       revision: number;

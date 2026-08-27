@@ -6,7 +6,7 @@ bootstrap revision CAS 和只追加审计事务基础设施；T04 在同一模�
 Authorization Code + PKCE、Sa-Token 终端隔离、公开登录页与设备生命周期；T08 增加
 provider/model/grant 管理、provider 密钥保护、有效默认解析和 runtime bootstrap 模型目录；T09
 增加 Flyway `V6`、叠加配额、PostgreSQL reservation、Redis lease、结算恢复和用量 API；T10
-增加请求级授权、DeepSeek-compatible upstream、OpenAI SSE、计费终态和模型调用审计；T13 增加
+增加请求级授权、三协议透明 upstream、原生 SSE、计费终态和模型调用审计；T13 增加
 Flyway `V8`、不落地解压的 tgz 验包、RFC 8785 JCS/Ed25519、CAS 制品、插件状态/分配、下载授权与库存；T16
 增加 Flyway `V9`、官方 Session format v0 精确 JSONL/hash、AES-GCM 远端副本、读取权限、tombstone 与 retention。T19 补齐显式审计白名单与查询/retention；T20 在模块前置增加 2 MiB 普通 JSON 上限、稳定 413 和未知故障秘密隔离。
 
@@ -47,8 +47,8 @@ master key 的独立 `API_CURSOR` 用途进行 AES-GCM 认证，并绑定 tenant
 
 - provider 创建时 credential 必填，只以 `PROVIDER_SECRET` 用途的 AES-256-GCM 密文保存；读取接口
   仅返回 `credentialConfigured`。更新必须显式给出 `replaceSecret`，未替换时保持原密文。
-- provider test 使用草稿 base URL、timeout 和可选新 credential 请求 `/models`，不跟随重定向、
-  不读取正文，只返回成功、延迟和稳定上游状态类别。
+- provider test 使用草稿 base URL、timeout 和可选新 credential 请求 `/models`，不跟随重定向；
+  响应正文以 4 MiB 为上限且只投影 OpenAI `data[].id`，连同成功、延迟和稳定状态类别返回。
 - 模型、provider、grant 都为 `ACTIVE` 才能进入员工目录。USER 与当前 DEPT 授权取并集，默认优先级
   为 USER、DEPT、`sortOrder` fallback，客户端看不到 provider route 或上游模型名。
 - RuoYi `sys_user/sys_dept` 使用固定部署的全局主键；tenant 约束施加在 `ent_model_*` 企业事实链上。
@@ -79,14 +79,18 @@ master key 的独立 `API_CURSOR` 用途进行 AES-GCM 认证，并绑定 tenant
 
 ## 模型网关边界
 
-- `/enterprise/gateway/v1/chat/completions` 只接受 UUID v4 幂等键、`stream=true`、受管 alias 或
-  `enterprise/default`。未知顶层字段、多模态 content 和 provider/base URL 等 route 伪造直接拒绝。
+- `/enterprise/gateway/v1/chat/completions`、`/responses`、`/messages` 分别承接 Harness 官方
+  Completions、Responses 与 Anthropic Messages 请求，只统一要求 UUID v4 幂等键、`stream=true` 和
+  受管 alias/`enterprise/default`；其余原生协议字段透明保留并交给官方客户端与上游定义。
 - 每个请求重新验证 ACTIVE `dsh-desktop` 设备、当前 ACTIVE 用户、grant、model 和 provider；客户端
-  bootstrap 快照不是授权事实，上游模型名和 base URL 只来自服务端配置。
+  bootstrap 快照不是授权事实，上游模型名、base URL、协议和 credential 只来自服务端配置。
 - 网络期间不持有数据库事务。SENT 与 accepted 审计在同一短事务，SETTLED/CHARGED_MAX 与 finished
   审计在另一短事务；流期间每 30 秒续租，断流、超时、取消或缺失 usage 按预留上限计费。
-- JDK HttpClient 固定请求 provider 的 `/chat/completions` 且禁止重定向。首 event 预取使建连、状态、
-  content-type 和首帧错误保持普通 JSON；写出后失败只发送脱敏 OpenAI error data frame。
+- JDK HttpClient 按 provider 协议固定请求 `/chat/completions`、`/responses` 或 `/messages`，选择 Bearer
+  或 `x-api-key` 认证并禁止重定向。Server 只观察各协议 usage 和原生终态用于可信结算，不改写消息、
+  tools、reasoning、replay 或 SSE；Responses/Anthropic 不要求虚构 `[DONE]`。
+- Harness 的消息、tool、reasoning effort、Responses replay、取消和错误语义由官方
+  `@deepseek-ai/dsh-llm-pi-ai` 负责，企业后端不得复制同一协议层。
 - provider credential 仅在建连局部解密并清零临时 byte/char 容器；请求正文、原始上游错误、URL、
   Authorization、reasoning 和 tool 内容都不能进入异常、日志、审计或 ledger。
 

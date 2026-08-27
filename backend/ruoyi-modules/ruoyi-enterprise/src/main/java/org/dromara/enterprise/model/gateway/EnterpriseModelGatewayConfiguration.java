@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖模型/设备/配额/crypto/audit ports、Jackson、事务管理器与 enterprise ID supplier。
- * [OUTPUT]: 对外装配严格 parser、请求级 route、DeepSeek client、gateway service 与配置 Beans。
+ * [OUTPUT]: 对外装配严格 parser、请求级 route、三协议 upstream client、gateway service 与配置 Beans。
  * [POS]: model/gateway 的 Spring composition root，保持网络 adapter 与生命周期核心可独立测试替换。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */

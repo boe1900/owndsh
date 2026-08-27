@@ -206,14 +206,13 @@ declare namespace API {
         }
       | {
           operation: "CREATE" | "UPDATE" | "ENABLE" | "DISABLE";
-          providerType: string;
+          providerType: "DEEPSEEK_OFFICIAL" | "CUSTOM";
           protectedValueChanged: boolean;
           resourceRevision: number;
           bootstrapRevision: number;
         }
       | {
           operation: "CREATE" | "UPDATE" | "ENABLE" | "DISABLE" | "DELETE";
-          reasoning: boolean;
           resourceRevision: number;
           bootstrapRevision: number;
         }
@@ -360,14 +359,13 @@ declare namespace API {
             }
           | {
               operation: "CREATE" | "UPDATE" | "ENABLE" | "DISABLE";
-              providerType: string;
+              providerType: "DEEPSEEK_OFFICIAL" | "CUSTOM";
               protectedValueChanged: boolean;
               resourceRevision: number;
               bootstrapRevision: number;
             }
           | {
               operation: "CREATE" | "UPDATE" | "ENABLE" | "DISABLE" | "DELETE";
-              reasoning: boolean;
               resourceRevision: number;
               bootstrapRevision: number;
             }
@@ -519,14 +517,13 @@ declare namespace API {
           }
         | {
             operation: "CREATE" | "UPDATE" | "ENABLE" | "DISABLE";
-            providerType: string;
+            providerType: "DEEPSEEK_OFFICIAL" | "CUSTOM";
             protectedValueChanged: boolean;
             resourceRevision: number;
             bootstrapRevision: number;
           }
         | {
             operation: "CREATE" | "UPDATE" | "ENABLE" | "DISABLE" | "DELETE";
-            reasoning: boolean;
             resourceRevision: number;
             bootstrapRevision: number;
           }
@@ -634,10 +631,36 @@ declare namespace API {
 
   type BootstrapModel = {
     alias: string;
-    displayName: string;
-    contextWindow: number;
-    maxOutputTokens: number;
-    reasoning: boolean;
+    name?: string;
+    apiProtocol:
+      | "openai-completions"
+      | "openai-responses"
+      | "anthropic-messages";
+    contextWindow?: number;
+    maxTokens?: number;
+    reasoningEfforts?:
+      | boolean
+      | {
+          off?: string | null;
+          minimal?: string;
+          low?: string;
+          medium?: string;
+          high?: string;
+          xhigh?: string;
+          max?: string;
+        };
+    compat?: {
+      thinkingFormat?:
+        | "openai"
+        | "deepseek"
+        | "openrouter"
+        | "together"
+        | "zai"
+        | "qwen"
+        | "string-thinking"
+        | "ant-ling";
+      supportsReasoningEffort?: boolean;
+    };
     isDefault: boolean;
   };
 
@@ -662,10 +685,36 @@ declare namespace API {
       device: { id: string; installationId: string; status: string };
       models: {
         alias: string;
-        displayName: string;
-        contextWindow: number;
-        maxOutputTokens: number;
-        reasoning: boolean;
+        name?: string;
+        apiProtocol:
+          | "openai-completions"
+          | "openai-responses"
+          | "anthropic-messages";
+        contextWindow?: number;
+        maxTokens?: number;
+        reasoningEfforts?:
+          | boolean
+          | {
+              off?: string | null;
+              minimal?: string;
+              low?: string;
+              medium?: string;
+              high?: string;
+              xhigh?: string;
+              max?: string;
+            };
+        compat?: {
+          thinkingFormat?:
+            | "openai"
+            | "deepseek"
+            | "openrouter"
+            | "together"
+            | "zai"
+            | "qwen"
+            | "string-thinking"
+            | "ant-ling";
+          supportsReasoningEffort?: boolean;
+        };
         isDefault: boolean;
       }[];
       quotas: {
@@ -717,10 +766,36 @@ declare namespace API {
     device: { id: string; installationId: string; status: string };
     models: {
       alias: string;
-      displayName: string;
-      contextWindow: number;
-      maxOutputTokens: number;
-      reasoning: boolean;
+      name?: string;
+      apiProtocol:
+        | "openai-completions"
+        | "openai-responses"
+        | "anthropic-messages";
+      contextWindow?: number;
+      maxTokens?: number;
+      reasoningEfforts?:
+        | boolean
+        | {
+            off?: string | null;
+            minimal?: string;
+            low?: string;
+            medium?: string;
+            high?: string;
+            xhigh?: string;
+            max?: string;
+          };
+      compat?: {
+        thinkingFormat?:
+          | "openai"
+          | "deepseek"
+          | "openrouter"
+          | "together"
+          | "zai"
+          | "qwen"
+          | "string-thinking"
+          | "ant-ling";
+        supportsReasoningEffort?: boolean;
+      };
       isDefault: boolean;
     }[];
     quotas: {
@@ -755,87 +830,6 @@ declare namespace API {
       retentionDays: number;
       maxBatchBytes: number;
     };
-  };
-
-  type ChatCompletionRequest = {
-    model: string | string;
-    messages: (
-      | { role: "system" | "user"; content: string; name?: string }
-      | {
-          role: string;
-          content?: string | null;
-          name?: string;
-          tool_calls?: {
-            id: string;
-            type: string;
-            function: { name: string; arguments: string };
-          }[];
-          reasoning_content?: string;
-          prefix?: boolean;
-        }
-      | { role: string; content: string; name?: string; tool_call_id: string }
-    )[];
-    tools?: {
-      type: string;
-      function: {
-        name: string;
-        description?: string;
-        parameters?: Record<string, any>;
-      };
-    }[];
-    tool_choice?:
-      | "none"
-      | "auto"
-      | "required"
-      | { type: string; function: { name: string } };
-    temperature?: number;
-    top_p?: number;
-    max_tokens?: number;
-    stop?: string | string[] | null;
-    stream: boolean;
-    stream_options?: { include_usage?: boolean };
-    thinking?: { type: "enabled" | "disabled" };
-    reasoning_effort?: "high" | "max";
-  };
-
-  type ChatFunctionCall = {
-    name: string;
-    arguments: string;
-  };
-
-  type ChatFunctionDefinition = {
-    name: string;
-    description?: string;
-    parameters?: Record<string, any>;
-  };
-
-  type ChatMessage = Record<string, any>;
-
-  type ChatRole = "system" | "user" | "assistant" | "tool";
-
-  type ChatStreamOptions = {
-    include_usage?: boolean;
-  };
-
-  type ChatTool = {
-    type: string;
-    function: {
-      name: string;
-      description?: string;
-      parameters?: Record<string, any>;
-    };
-  };
-
-  type ChatToolCall = {
-    id: string;
-    type: string;
-    function: { name: string; arguments: string };
-  };
-
-  type ChatUsage = {
-    prompt_tokens?: number;
-    completion_tokens?: number;
-    total_tokens?: number;
   };
 
   type completeOidcLoginParams = {
@@ -1566,9 +1560,16 @@ declare namespace API {
     secret?: string;
   };
 
-  type InstallationId = string;
+  type InitialPasswordChangeRequest = {
+    transactionId: string;
+    /** Identity source snowflake ID serialized as a string. */
+    sourceId: string;
+    csrfToken: string;
+    passwordChangeChallenge: string;
+    newPassword: string;
+  };
 
-  type JsonSchemaObject = true;
+  type InstallationId = string;
 
   type LdapSettings = {
     url: string;
@@ -1740,11 +1741,33 @@ declare namespace API {
     providerId: string;
     providerName: string;
     alias: string;
-    displayName: string;
-    upstreamModel: string;
-    contextWindow: number;
-    maxOutputTokens: number;
-    reasoning: boolean;
+    modelId: string;
+    name?: string;
+    contextWindow?: number;
+    maxTokens?: number;
+    reasoningEfforts?:
+      | boolean
+      | {
+          off?: string | null;
+          minimal?: string;
+          low?: string;
+          medium?: string;
+          high?: string;
+          xhigh?: string;
+          max?: string;
+        };
+    compat?: {
+      thinkingFormat?:
+        | "openai"
+        | "deepseek"
+        | "openrouter"
+        | "together"
+        | "zai"
+        | "qwen"
+        | "string-thinking"
+        | "ant-ling";
+      supportsReasoningEffort?: boolean;
+    };
     sortOrder: number;
     status: "ACTIVE" | "DISABLED";
     /** Monotonic compare-and-swap revision safe in JavaScript. */
@@ -1760,11 +1783,33 @@ declare namespace API {
         providerId: string;
         providerName: string;
         alias: string;
-        displayName: string;
-        upstreamModel: string;
-        contextWindow: number;
-        maxOutputTokens: number;
-        reasoning: boolean;
+        modelId: string;
+        name?: string;
+        contextWindow?: number;
+        maxTokens?: number;
+        reasoningEfforts?:
+          | boolean
+          | {
+              off?: string | null;
+              minimal?: string;
+              low?: string;
+              medium?: string;
+              high?: string;
+              xhigh?: string;
+              max?: string;
+            };
+        compat?: {
+          thinkingFormat?:
+            | "openai"
+            | "deepseek"
+            | "openrouter"
+            | "together"
+            | "zai"
+            | "qwen"
+            | "string-thinking"
+            | "ant-ling";
+          supportsReasoningEffort?: boolean;
+        };
         sortOrder: number;
         status: "ACTIVE" | "DISABLED";
         revision: number;
@@ -1781,11 +1826,33 @@ declare namespace API {
       providerId: string;
       providerName: string;
       alias: string;
-      displayName: string;
-      upstreamModel: string;
-      contextWindow: number;
-      maxOutputTokens: number;
-      reasoning: boolean;
+      modelId: string;
+      name?: string;
+      contextWindow?: number;
+      maxTokens?: number;
+      reasoningEfforts?:
+        | boolean
+        | {
+            off?: string | null;
+            minimal?: string;
+            low?: string;
+            medium?: string;
+            high?: string;
+            xhigh?: string;
+            max?: string;
+          };
+      compat?: {
+        thinkingFormat?:
+          | "openai"
+          | "deepseek"
+          | "openrouter"
+          | "together"
+          | "zai"
+          | "qwen"
+          | "string-thinking"
+          | "ant-ling";
+        supportsReasoningEffort?: boolean;
+      };
       sortOrder: number;
       status: "ACTIVE" | "DISABLED";
       revision: number;
@@ -1799,11 +1866,33 @@ declare namespace API {
       providerId: string;
       providerName: string;
       alias: string;
-      displayName: string;
-      upstreamModel: string;
-      contextWindow: number;
-      maxOutputTokens: number;
-      reasoning: boolean;
+      modelId: string;
+      name?: string;
+      contextWindow?: number;
+      maxTokens?: number;
+      reasoningEfforts?:
+        | boolean
+        | {
+            off?: string | null;
+            minimal?: string;
+            low?: string;
+            medium?: string;
+            high?: string;
+            xhigh?: string;
+            max?: string;
+          };
+      compat?: {
+        thinkingFormat?:
+          | "openai"
+          | "deepseek"
+          | "openrouter"
+          | "together"
+          | "zai"
+          | "qwen"
+          | "string-thinking"
+          | "ant-ling";
+        supportsReasoningEffort?: boolean;
+      };
       sortOrder: number;
       status: "ACTIVE" | "DISABLED";
       revision: number;
@@ -1815,11 +1904,33 @@ declare namespace API {
   type ManagedModelWriteRequest = {
     providerId: string;
     alias: string;
-    displayName: string;
-    upstreamModel: string;
-    contextWindow: number;
-    maxOutputTokens: number;
-    reasoning: boolean;
+    modelId: string;
+    name?: string;
+    contextWindow?: number;
+    maxTokens?: number;
+    reasoningEfforts?:
+      | boolean
+      | {
+          off?: string | null;
+          minimal?: string;
+          low?: string;
+          medium?: string;
+          high?: string;
+          xhigh?: string;
+          max?: string;
+        };
+    compat?: {
+      thinkingFormat?:
+        | "openai"
+        | "deepseek"
+        | "openrouter"
+        | "together"
+        | "zai"
+        | "qwen"
+        | "string-thinking"
+        | "ant-ling";
+      supportsReasoningEffort?: boolean;
+    };
     sortOrder: number;
   };
 
@@ -1953,9 +2064,11 @@ declare namespace API {
     requestId: string;
   };
 
-  type NamedToolChoice = {
-    type: string;
-    function: { name: string };
+  type NativeGatewayRequest = {
+    model: string | string;
+    stream: boolean;
+    max_tokens?: number;
+    max_output_tokens?: number;
   };
 
   type OidcClaimMapping = {
@@ -1973,19 +2086,6 @@ declare namespace API {
       email?: string;
       groups?: string;
     };
-  };
-
-  type OpenAiChatCompletionChunk = {
-    id?: string;
-    object?: string;
-    created?: number;
-    model?: string;
-    choices: Record<string, any>[];
-    usage?: {
-      prompt_tokens?: number;
-      completion_tokens?: number;
-      total_tokens?: number;
-    } | null;
   };
 
   type OwnedSession = {
@@ -2040,19 +2140,39 @@ declare namespace API {
 
   type PageLimit = integer;
 
-  type PasswordLoginRequest = {
+  type PasswordChangeChallenge = string;
+
+  type PasswordCredentialRequest = {
     transactionId: string;
     /** Identity source snowflake ID serialized as a string. */
     sourceId: string;
     csrfToken: string;
     username: string;
     password: string;
-    /** Required only after a LOCAL bootstrap account is redirected to the first-login password change form. */
-    newPassword?: string;
     /** Required for LOCAL only when the existing RuoYi captcha switch is enabled. */
     captchaId?: string;
     /** Required for LOCAL only when the existing RuoYi captcha switch is enabled. */
     captchaCode?: string;
+  };
+
+  type PasswordLoginRequest = Record<string, any>;
+
+  type PasswordStepData = {
+    next: "REDIRECT" | "CHANGE_PASSWORD";
+    redirectUri?: any;
+    passwordChangeChallenge?: string | null;
+    rejected: boolean;
+  };
+
+  type PasswordStepResponse = {
+    data: {
+      next: "REDIRECT" | "CHANGE_PASSWORD";
+      redirectUri?: any;
+      passwordChangeChallenge?: string | null;
+      rejected: boolean;
+    };
+    /** Server-generated req_ prefix followed by one canonical ULID. */
+    requestId: string;
   };
 
   type PkceCodeChallenge = string;
@@ -2317,8 +2437,13 @@ declare namespace API {
 
   type Provider = {
     id: string;
+    providerKey: string;
     name: string;
-    providerType: "DEEPSEEK_OPENAI";
+    providerType: "DEEPSEEK_OFFICIAL" | "CUSTOM";
+    apiProtocol:
+      | "openai-completions"
+      | "openai-responses"
+      | "anthropic-messages";
     baseUrl: string;
     credentialConfigured: boolean;
     status: "ACTIVE" | "DISABLED";
@@ -2328,21 +2453,45 @@ declare namespace API {
     revision: number;
   };
 
+  type ProviderApiProtocol =
+    | "openai-completions"
+    | "openai-responses"
+    | "anthropic-messages";
+
   type ProviderCreateRequest = {
+    providerKey: string;
     name: string;
-    providerType: "DEEPSEEK_OPENAI";
+    providerType: "DEEPSEEK_OFFICIAL" | "CUSTOM";
+    apiProtocol:
+      | "openai-completions"
+      | "openai-responses"
+      | "anthropic-messages";
     baseUrl: string;
     credential: string;
     connectTimeoutMs: number;
     readTimeoutMs: number;
   };
 
+  type ProviderDiscoveredModel = {
+    id: string;
+    name?: string;
+    contextWindow?: number;
+    maxTokens?: number;
+  };
+
+  type ProviderKey = string;
+
   type ProviderListResponse = {
     data: {
       items: {
         id: string;
+        providerKey: string;
         name: string;
-        providerType: "DEEPSEEK_OPENAI";
+        providerType: "DEEPSEEK_OFFICIAL" | "CUSTOM";
+        apiProtocol:
+          | "openai-completions"
+          | "openai-responses"
+          | "anthropic-messages";
         baseUrl: string;
         credentialConfigured: boolean;
         status: "ACTIVE" | "DISABLED";
@@ -2359,8 +2508,13 @@ declare namespace API {
   type ProviderPageData = {
     items: {
       id: string;
+      providerKey: string;
       name: string;
-      providerType: "DEEPSEEK_OPENAI";
+      providerType: "DEEPSEEK_OFFICIAL" | "CUSTOM";
+      apiProtocol:
+        | "openai-completions"
+        | "openai-responses"
+        | "anthropic-messages";
       baseUrl: string;
       credentialConfigured: boolean;
       status: "ACTIVE" | "DISABLED";
@@ -2375,6 +2529,7 @@ declare namespace API {
     | "SUCCESS"
     | "AUTHENTICATION_FAILED"
     | "UPSTREAM_REJECTED"
+    | "INVALID_RESPONSE"
     | "UNAVAILABLE"
     | "TIMEOUT";
 
@@ -2393,8 +2548,15 @@ declare namespace API {
         | "SUCCESS"
         | "AUTHENTICATION_FAILED"
         | "UPSTREAM_REJECTED"
+        | "INVALID_RESPONSE"
         | "UNAVAILABLE"
         | "TIMEOUT";
+      models: {
+        id: string;
+        name?: string;
+        contextWindow?: number;
+        maxTokens?: number;
+      }[];
     };
     /** Server-generated req_ prefix followed by one canonical ULID. */
     requestId: string;
@@ -2407,15 +2569,27 @@ declare namespace API {
       | "SUCCESS"
       | "AUTHENTICATION_FAILED"
       | "UPSTREAM_REJECTED"
+      | "INVALID_RESPONSE"
       | "UNAVAILABLE"
       | "TIMEOUT";
+    models: {
+      id: string;
+      name?: string;
+      contextWindow?: number;
+      maxTokens?: number;
+    }[];
   };
 
   type ProviderResponse = {
     data: {
       id: string;
+      providerKey: string;
       name: string;
-      providerType: "DEEPSEEK_OPENAI";
+      providerType: "DEEPSEEK_OFFICIAL" | "CUSTOM";
+      apiProtocol:
+        | "openai-completions"
+        | "openai-responses"
+        | "anthropic-messages";
       baseUrl: string;
       credentialConfigured: boolean;
       status: "ACTIVE" | "DISABLED";
@@ -2427,11 +2601,16 @@ declare namespace API {
     requestId: string;
   };
 
-  type ProviderType = "DEEPSEEK_OPENAI";
+  type ProviderType = "DEEPSEEK_OFFICIAL" | "CUSTOM";
 
   type ProviderUpdateRequest = {
+    providerKey: string;
     name: string;
-    providerType: "DEEPSEEK_OPENAI";
+    providerType: "DEEPSEEK_OFFICIAL" | "CUSTOM";
+    apiProtocol:
+      | "openai-completions"
+      | "openai-responses"
+      | "anthropic-messages";
     baseUrl: string;
     replaceSecret: boolean;
     credential?: string;

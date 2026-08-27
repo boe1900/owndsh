@@ -1,13 +1,10 @@
 /**
- * [INPUT]: 汇总 Enterprise adapter、注册生命周期、OpenAI 请求、SSE 传输与 StreamChunk 翻译模块
- * [OUTPUT]: 对外提供 T11 Harness 模型链路的稳定 package API
- * [POS]: llm-gateway 的 facade，隐藏 wire 文件布局并保持官方 LlmAdapter 作为唯一 Harness 边界
+ * [INPUT]: 汇总企业 bootstrap 到官方 profile、Host 私有 loopback 认证代理与官方插件生命周期模块
+ * [OUTPUT]: 对外提供不含自研协议语义的企业 LLM 集成 API
+ * [POS]: llm-gateway 的 facade，DeepSeek Harness 官方 dsh-llm-pi-ai 是唯一模型协议实现
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
-export * from './adapter.js'
+export * from './profiles.js'
+export * from './proxy.js'
 export * from './registration.js'
-export * from './serialize.js'
-export * from './translate.js'
-export * from './transport.js'
-export type * from './wire.js'

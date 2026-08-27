@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 zod 与 T13 插件协议对详细设计第 8 节 bootstrap 脱敏快照做严格边界校验
- * [OUTPUT]: 对外提供含完整插件签名/compatibility/ABSENT 的 BootstrapSnapshot、平台状态与运行时 schema
+ * [OUTPUT]: 对外提供含模型 API 协议/推理 profile、完整插件签名/compatibility/ABSENT 的 BootstrapSnapshot、平台状态与运行时 schema
  * [POS]: platform-client 的无秘密数据契约，隔离中心 HTTP 输入与 Host 内部状态
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -37,6 +37,21 @@ const pluginCompatibility = z.object({
 const installationId = z.uuid().regex(
   /^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/,
 )
+const reasoningEfforts = z.object({
+  off: z.string().min(1).max(255).nullable().optional(),
+  minimal: z.string().min(1).max(255).optional(),
+  low: z.string().min(1).max(255).optional(),
+  medium: z.string().min(1).max(255).optional(),
+  high: z.string().min(1).max(255).optional(),
+  xhigh: z.string().min(1).max(255).optional(),
+  max: z.string().min(1).max(255).optional(),
+}).strict()
+const reasoningCompat = z.object({
+  thinkingFormat: z.enum([
+    'openai', 'qwen', 'qwen-chat-template', 'deepseek', 'zai', 'minimax', 'kimi', 'longcat',
+  ]).optional(),
+  supportsReasoningEffort: z.boolean().optional(),
+}).strict()
 
 /** 严格脱敏 bootstrap 响应主体；凭据和 Session 正文没有 schema 席位。 */
 export const zBootstrapSnapshot = z.object({
@@ -54,10 +69,12 @@ export const zBootstrapSnapshot = z.object({
   }).strict(),
   models: z.array(z.object({
     alias: z.string().min(1).max(120),
-    displayName: z.string().min(1).max(120),
-    contextWindow: z.number().int().positive().safe(),
-    maxOutputTokens: z.number().int().positive().safe(),
-    reasoning: z.boolean(),
+    name: z.string().min(1).max(120).optional(),
+    apiProtocol: z.enum(['openai-completions', 'openai-responses', 'anthropic-messages']),
+    contextWindow: z.number().int().positive().safe().optional(),
+    maxTokens: z.number().int().positive().safe().optional(),
+    reasoningEfforts: z.union([z.literal(false), reasoningEfforts]).optional(),
+    compat: reasoningCompat.optional(),
     isDefault: z.boolean(),
   }).strict()),
   quotas: z.array(z.object({

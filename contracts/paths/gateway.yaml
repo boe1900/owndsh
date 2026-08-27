@@ -1,27 +1,20 @@
-# [INPUT]: 依赖 gateway.yaml 严格请求、根协议 Idempotency-Key/requestId 与统一错误响应
-# [OUTPUT]: 提供 T10 OpenAI-compatible 流式 chat completion Path Item
-# [POS]: contracts/paths 的模型网关纵向分片，成功仅为 SSE 且首字节前失败保持 Enterprise JSON
+# [INPUT]: 依赖 gateway.yaml 原生请求、根协议 Idempotency-Key/requestId 与统一错误响应
+# [OUTPUT]: 提供 Harness 官方 adapter 使用的 Completions、Responses 与 Anthropic Messages 三个 SSE 入口
+# [POS]: contracts/paths 的透明模型网关分片，成功保留上游原生 SSE，首字节前失败保持 Enterprise JSON
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 ChatCompletions:
   post:
-    operationId: streamEnterpriseChatCompletion
+    operationId: streamEnterpriseChatCompletions
     parameters:
       - $ref: '../enterprise-openapi.yaml#/components/parameters/IdempotencyKey'
     requestBody:
       required: true
       content:
         application/json:
-          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ChatCompletionRequest'}
+          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/NativeGatewayRequest'}
     responses:
-      '200':
-        description: OpenAI-compatible chat completion events ending with a usage chunk and data [DONE].
-        headers:
-          X-Request-Id:
-            $ref: '../enterprise-openapi.yaml#/components/headers/XRequestId'
-        content:
-          text/event-stream:
-            schema: {type: string}
+      '200': {$ref: '#/NativeSseResponse'}
       '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
       '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
       '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
@@ -31,3 +24,56 @@ ChatCompletions:
       '502': {$ref: '../enterprise-openapi.yaml#/components/responses/Error502'}
       '503': {$ref: '../enterprise-openapi.yaml#/components/responses/Error503'}
       '504': {$ref: '../enterprise-openapi.yaml#/components/responses/Error504'}
+
+Responses:
+  post:
+    operationId: streamEnterpriseResponses
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/NativeGatewayRequest'}
+    responses:
+      '200': {$ref: '#/NativeSseResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+      '413': {$ref: '../enterprise-openapi.yaml#/components/responses/Error413'}
+      '429': {$ref: '../enterprise-openapi.yaml#/components/responses/Error429'}
+      '502': {$ref: '../enterprise-openapi.yaml#/components/responses/Error502'}
+      '503': {$ref: '../enterprise-openapi.yaml#/components/responses/Error503'}
+      '504': {$ref: '../enterprise-openapi.yaml#/components/responses/Error504'}
+
+AnthropicMessages:
+  post:
+    operationId: streamEnterpriseAnthropicMessages
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/NativeGatewayRequest'}
+    responses:
+      '200': {$ref: '#/NativeSseResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+      '413': {$ref: '../enterprise-openapi.yaml#/components/responses/Error413'}
+      '429': {$ref: '../enterprise-openapi.yaml#/components/responses/Error429'}
+      '502': {$ref: '../enterprise-openapi.yaml#/components/responses/Error502'}
+      '503': {$ref: '../enterprise-openapi.yaml#/components/responses/Error503'}
+      '504': {$ref: '../enterprise-openapi.yaml#/components/responses/Error504'}
+
+NativeSseResponse:
+  description: Upstream protocol-native server-sent events.
+  headers:
+    X-Request-Id:
+      $ref: '../enterprise-openapi.yaml#/components/headers/XRequestId'
+  content:
+    text/event-stream:
+      schema: {type: string}

@@ -12,8 +12,13 @@ export async function listModelProviders(
     data: {
       items: {
         id: string;
+        providerKey: string;
         name: string;
-        providerType: "DEEPSEEK_OPENAI";
+        providerType: "DEEPSEEK_OFFICIAL" | "CUSTOM";
+        apiProtocol:
+          | "openai-completions"
+          | "openai-responses"
+          | "anthropic-messages";
         baseUrl: string;
         credentialConfigured: boolean;
         status: "ACTIVE" | "DISABLED";

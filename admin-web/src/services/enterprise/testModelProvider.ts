@@ -23,8 +23,15 @@ export async function testModelProvider(
         | "SUCCESS"
         | "AUTHENTICATION_FAILED"
         | "UPSTREAM_REJECTED"
+        | "INVALID_RESPONSE"
         | "UNAVAILABLE"
         | "TIMEOUT";
+      models: {
+        id: string;
+        name?: string;
+        contextWindow?: number;
+        maxTokens?: number;
+      }[];
     };
     requestId: string;
   }>(`/enterprise/admin/v1/providers/${param0}/actions/test`, {

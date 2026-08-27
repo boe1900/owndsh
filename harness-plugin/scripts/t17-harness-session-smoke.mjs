@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖当前 bundle tgz、同级锁定 Harness、Corepack pnpm、临时 profile/probe 与可控回环 Session 平台
  * [OUTPUT]: 验证真实 web profile 的非阻塞 append、flush/readFrom、确认游标、远端列表和新 ID seed 恢复
- * [POS]: harness-plugin T17 锁定 rc.7 组合门禁，只写临时 DSH_HOME 并守护上游 checkout 清洁度
+ * [POS]: harness-plugin T17 锁定 rc.2 组合门禁，只写临时 DSH_HOME 并守护上游 checkout 清洁度
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 

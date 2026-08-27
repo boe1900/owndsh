@@ -1,6 +1,6 @@
-# [INPUT]: 依赖根协议的受管模型 alias，并遵循 OpenAI chat completion 文本/tool 请求形状
-# [OUTPUT]: 提供严格流式 chat request、reasoning 开关、纯文本 message、function tool 与 usage/chunk schemas
-# [POS]: OpenAPI 逻辑真源的模型网关分片，刻意不给 provider、base URL、上游模型或 credential 留字段
+# [INPUT]: 依赖根协议的受管模型 alias，只约束企业治理必须读取的公共字段
+# [OUTPUT]: 提供三种官方 Harness wire API 共用的透明流式请求 schema
+# [POS]: OpenAPI 逻辑真源的模型网关分片；消息、工具、推理与回放字段由 dsh-llm-pi-ai 和上游协议定义
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 GatewayModel:
@@ -8,151 +8,13 @@ GatewayModel:
     - $ref: './model.yaml#/ModelAlias'
     - type: string
       const: enterprise/default
-ChatRole:
-  type: string
-  enum: [system, user, assistant, tool]
-ChatFunctionCall:
-  type: object
-  additionalProperties: false
-  required: [name, arguments]
-  properties:
-    name: {type: string, minLength: 1, maxLength: 128}
-    arguments: {type: string, minLength: 1, maxLength: 1048576}
-ChatToolCall:
-  type: object
-  additionalProperties: false
-  required: [id, type, function]
-  properties:
-    id: {type: string, minLength: 1, maxLength: 255}
-    type: {type: string, const: function}
-    function: {$ref: '#/ChatFunctionCall'}
-ChatMessage:
-  oneOf:
-    - type: object
-      additionalProperties: false
-      required: [role, content]
-      properties:
-        role: {type: string, enum: [system, user]}
-        content: {type: string}
-        name: {type: string, minLength: 1, maxLength: 255}
-    - type: object
-      additionalProperties: false
-      required: [role]
-      properties:
-        role: {type: string, const: assistant}
-        content:
-          oneOf:
-            - type: string
-            - type: 'null'
-        name: {type: string, minLength: 1, maxLength: 255}
-        tool_calls:
-          type: array
-          minItems: 1
-          items: {$ref: '#/ChatToolCall'}
-        reasoning_content: {type: string}
-        prefix: {type: boolean}
-    - type: object
-      additionalProperties: false
-      required: [role, content, tool_call_id]
-      properties:
-        role: {type: string, const: tool}
-        content: {type: string}
-        name: {type: string, minLength: 1, maxLength: 255}
-        tool_call_id: {type: string, minLength: 1, maxLength: 255}
-JsonSchemaObject:
+
+NativeGatewayRequest:
   type: object
   additionalProperties: true
-ChatFunctionDefinition:
-  type: object
-  additionalProperties: false
-  required: [name]
-  properties:
-    name: {type: string, minLength: 1, maxLength: 128}
-    description: {type: string, minLength: 1, maxLength: 4096}
-    parameters: {$ref: '#/JsonSchemaObject'}
-ChatTool:
-  type: object
-  additionalProperties: false
-  required: [type, function]
-  properties:
-    type: {type: string, const: function}
-    function: {$ref: '#/ChatFunctionDefinition'}
-NamedToolChoice:
-  type: object
-  additionalProperties: false
-  required: [type, function]
-  properties:
-    type: {type: string, const: function}
-    function:
-      type: object
-      additionalProperties: false
-      required: [name]
-      properties:
-        name: {type: string, minLength: 1, maxLength: 128}
-ChatStreamOptions:
-  type: object
-  additionalProperties: false
-  properties:
-    include_usage: {type: boolean}
-ChatThinking:
-  type: object
-  additionalProperties: false
-  required: [type]
-  properties:
-    type: {type: string, enum: [enabled, disabled]}
-ChatCompletionRequest:
-  type: object
-  additionalProperties: false
-  required: [model, messages, stream]
+  required: [model, stream]
   properties:
     model: {$ref: '#/GatewayModel'}
-    messages:
-      type: array
-      minItems: 1
-      items: {$ref: '#/ChatMessage'}
-    tools:
-      type: array
-      items: {$ref: '#/ChatTool'}
-    tool_choice:
-      oneOf:
-        - type: string
-          enum: [none, auto, required]
-        - $ref: '#/NamedToolChoice'
-    temperature: {type: number, minimum: 0, maximum: 2}
-    top_p: {type: number, minimum: 0, maximum: 1}
-    max_tokens: {type: integer, minimum: 1, maximum: 2147483647}
-    stop:
-      oneOf:
-        - {type: string, minLength: 1, maxLength: 4096}
-        - type: array
-          minItems: 1
-          maxItems: 4
-          items: {type: string, minLength: 1, maxLength: 4096}
-        - type: 'null'
     stream: {type: boolean, const: true}
-    stream_options: {$ref: '#/ChatStreamOptions'}
-    thinking: {$ref: '#/ChatThinking'}
-    reasoning_effort: {type: string, enum: [high, max]}
-ChatUsage:
-  type: object
-  additionalProperties: true
-  properties:
-    prompt_tokens: {type: integer, minimum: 0}
-    completion_tokens: {type: integer, minimum: 0}
-    total_tokens: {type: integer, minimum: 0}
-OpenAiChatCompletionChunk:
-  type: object
-  additionalProperties: true
-  required: [choices]
-  properties:
-    id: {type: string}
-    object: {type: string}
-    created: {type: integer}
-    model: {type: string}
-    choices:
-      type: array
-      items: {type: object, additionalProperties: true}
-    usage:
-      oneOf:
-        - $ref: '#/ChatUsage'
-        - type: 'null'
+    max_tokens: {type: integer, minimum: 1, maximum: 2147483647}
+    max_output_tokens: {type: integer, minimum: 1, maximum: 2147483647}

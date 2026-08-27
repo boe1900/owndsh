@@ -41,9 +41,9 @@ provider credential 创建时必填，更新时必须显式提交 `replaceSecret
 `credentialConfigured`。
 
 provider test 接受尚未保存的 base URL、timeout 和可选新 credential；没有新 credential 时才解密
-已保存值。JDK HttpClient 固定请求 `/models`、禁止所有重定向并丢弃正文，返回值只有 `success`、
-`latencyMs` 和稳定 `upstreamStatus` 类别。审计 metadata、异常响应和测试日志均不包含 provider
-名称、URL、上游模型或密钥。
+已保存值。JDK HttpClient 固定请求 `/models`、禁止所有重定向，并以 4 MiB 上限只投影 OpenAI
+`data[].id`；返回值包含 `success`、`latencyMs`、稳定 `upstreamStatus` 与脱敏模型候选。审计
+metadata、异常响应和测试日志均不包含 provider 名称、URL、其他上游正文或密钥。
 
 ## 协议验收
 

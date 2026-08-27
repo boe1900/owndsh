@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Spring JdbcOperations、V1 grant/model/provider 与 RuoYi sys_user/sys_dept。
- * [OUTPUT]: 对外提供授权 CRUD、subject 校验及对无部门用户安全的三层 ACTIVE 有效候选 SQL。
+ * [OUTPUT]: 对外提供授权 CRUD、subject 校验及携带 API 协议/推理事实的三层 ACTIVE 有效候选 SQL。
  * [POS]: model/persistence 的授权 PostgreSQL adapter，企业事实按 tenant 约束，RuoYi 主体使用固定部署的全局主键。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -9,8 +9,12 @@ package org.dromara.enterprise.model.persistence;
 import org.dromara.enterprise.model.domain.GrantSubjectType;
 import org.dromara.enterprise.model.domain.GrantedModel;
 import org.dromara.enterprise.model.domain.ModelGrant;
+import org.dromara.enterprise.model.domain.ModelReasoningCompat;
+import org.dromara.enterprise.model.domain.ModelReasoningEfforts;
 import org.dromara.enterprise.model.domain.ModelStatus;
+import org.dromara.enterprise.model.domain.ProviderApiProtocol;
 import org.springframework.jdbc.core.JdbcOperations;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -59,7 +63,8 @@ public final class JdbcModelGrantStore implements ModelGrantStore {
         """;
     private static final String EFFECTIVE_SQL = """
         select m.id as model_id, m.alias, m.display_name, m.context_window,
-               m.max_output_tokens, m.reasoning, m.sort_order, g.subject_type, g.is_default
+               m.max_output_tokens, p.api_protocol, m.reasoning_efforts, m.reasoning_compat,
+               m.sort_order, g.subject_type, g.is_default
         from ent_model_grant g
         join ent_managed_model m on m.id = g.model_id and m.tenant_id = g.tenant_id
         join ent_model_provider p on p.id = m.provider_id and p.tenant_id = m.tenant_id
@@ -71,9 +76,11 @@ public final class JdbcModelGrantStore implements ModelGrantStore {
         """;
 
     private final JdbcOperations jdbc;
+    private final JsonMapper json;
 
-    public JdbcModelGrantStore(JdbcOperations jdbc) {
+    public JdbcModelGrantStore(JdbcOperations jdbc, JsonMapper json) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
+        this.json = Objects.requireNonNull(json, "json");
     }
 
     @Override
@@ -136,13 +143,28 @@ public final class JdbcModelGrantStore implements ModelGrantStore {
             EFFECTIVE_SQL,
             (resultSet, rowNumber) -> new GrantedModel(
                 resultSet.getLong("model_id"), resultSet.getString("alias"),
-                resultSet.getString("display_name"), resultSet.getInt("context_window"),
-                resultSet.getInt("max_output_tokens"), resultSet.getBoolean("reasoning"),
+                resultSet.getString("display_name"), nullableInt(resultSet, "context_window"),
+                nullableInt(resultSet, "max_output_tokens"),
+                ProviderApiProtocol.fromValue(resultSet.getString("api_protocol")),
+                efforts(resultSet.getString("reasoning_efforts")), compat(resultSet.getString("reasoning_compat")),
                 resultSet.getInt("sort_order"), GrantSubjectType.valueOf(resultSet.getString("subject_type")),
                 resultSet.getBoolean("is_default")
             ),
             tenantId, userId, departmentId, departmentId
         );
+    }
+
+    private static Integer nullableInt(ResultSet resultSet, String column) throws SQLException {
+        int value = resultSet.getInt(column);
+        return resultSet.wasNull() ? null : value;
+    }
+
+    private ModelReasoningEfforts efforts(String value) {
+        return value == null ? null : ModelReasoningEfforts.fromJson(json.readTree(value));
+    }
+
+    private ModelReasoningCompat compat(String value) {
+        return value == null ? null : ModelReasoningCompat.fromJson(json.readTree(value));
     }
 
     private ModelGrant mapGrant(ResultSet resultSet, int rowNumber) throws SQLException {
