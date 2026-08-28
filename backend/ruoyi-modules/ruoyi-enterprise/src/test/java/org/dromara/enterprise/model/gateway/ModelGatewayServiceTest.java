@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖真实 parser/crypto、fake DeepSeek exchange 与 mock quota/route ports。
- * [OUTPUT]: 验证三协议原生终态/usage、2xx 后 SENT、建连失败释放、流内异常计费与双审计关联。
+ * [OUTPUT]: 验证估算只用于配额预留，以及三协议终态/usage、2xx 后 SENT、建连失败释放、流内异常计费与双审计关联。
  * [POS]: 模型网关治理生命周期单测，证明透明 relay 不依赖统一 DONE 终止并保持敏感数据隔离。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -119,6 +119,17 @@ class ModelGatewayServiceTest {
         );
         assertThat(audits).extracting(AuditEvent::requestId).containsOnly(REQUEST_ID);
         assertThat(audits.toString()).doesNotContain(SECRET).doesNotContain("reasoning_content");
+    }
+
+    @Test
+    void reservesQuotaWhenEstimateExceedsAdvertisedContextWindow() {
+        route = route(ProviderApiProtocol.OPENAI_COMPLETIONS, 128);
+
+        service(new FakeUpstream(List.of(), null, -1)).open(
+            context(), request(), ProviderApiProtocol.OPENAI_COMPLETIONS, Map.of(), IDEMPOTENCY
+        );
+
+        verify(quotas).reserve(any());
     }
 
     @Test
@@ -287,6 +298,10 @@ class ModelGatewayServiceTest {
     }
 
     private GatewayRouteResolver.GatewayRoute route(ProviderApiProtocol protocol) {
+        return route(protocol, 4096);
+    }
+
+    private GatewayRouteResolver.GatewayRoute route(ProviderApiProtocol protocol, int contextWindow) {
         EncryptedSecret encrypted = cipher.encrypt(
             SecretPurpose.PROVIDER_SECRET,
             new SecretAad(TENANT, "ent_model_provider", "301", "credential_ciphertext", 1),
@@ -300,7 +315,7 @@ class ModelGatewayServiceTest {
         );
         ManagedModel model = new ManagedModel(
             501, TENANT, 301, "DeepSeek", "deepseek-chat", "DeepSeek Chat", "deepseek-v3",
-            4096, 1024, null, null, 0, ModelStatus.ACTIVE, 0
+            contextWindow, 1024, null, null, 0, ModelStatus.ACTIVE, 0
         );
         ModelProvider provider = new ModelProvider(
             301, TENANT, "test-provider", "DeepSeek", ProviderType.CUSTOM,

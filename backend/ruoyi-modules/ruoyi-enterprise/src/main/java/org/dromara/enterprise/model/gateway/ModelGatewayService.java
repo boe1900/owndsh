@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖请求级 route、原生协议请求、quota 状态机、透明上游 SSE、SecretCipher、事务与 audit。
- * [OUTPUT]: 对外提供三协议透明 relay、脱敏失败日志、2xx SSE 后 SENT/accepted、建连失败零计费释放与可靠终态结算。
+ * [OUTPUT]: 对外提供三协议透明 relay、仅用于配额预留的保守估算、脱敏失败日志、2xx SSE 后 SENT/accepted 与可靠终态结算。
  * [POS]: model/gateway 的治理核心；只解析 usage/终态，不转换消息、工具、推理、回放或流事件。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -114,9 +114,6 @@ public final class ModelGatewayService {
         long estimated = QuotaTokenEstimator.estimate(
             request.visibleUtf8Bytes(), request.maxTokens(), route.model().resolvedMaxTokens()
         );
-        if (estimated > route.model().resolvedContextWindow()) {
-            throw new IllegalArgumentException("请求超过模型 context window");
-        }
         Map<String, String> upstreamHeaders = Map.copyOf(headers);
         ObjectNode upstreamBody = request.upstreamBody(route.model().modelId(), protocol);
         QuotaReservationService.ActiveReservation active = quotas.reserve(new QuotaReservationCommand(

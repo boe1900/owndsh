@@ -13,7 +13,7 @@ DeepSeekUpstreamClient.java: 三种 Harness wire API 的 SSE 建连端口与脱�
 JdkDeepSeekUpstreamClient.java: JDK HttpClient 无重定向实现，按协议选择 endpoint/auth、限制建连/event 读取，非 2xx 仅记录限量白名单 code/type/param，重试策略由 Harness 持有。
 GatewayAcceptedMetadata.java: MODEL_REQUEST_ACCEPTED 审计的 model/reservation/estimate 白名单。
 GatewayFinishedMetadata.java: MODEL_REQUEST_FINISHED 审计的终态、usage、耗时与稳定失败码白名单。
-ModelGatewayService.java: 编排三协议透明 relay、usage/终态观察、脱敏故障日志与续租；上游确认 2xx SSE 后才提交 SENT/accepted，建连失败释放，流内失败保留 CHARGED_MAX。
+ModelGatewayService.java: 编排三协议透明 relay、配额预留估算、usage/终态观察、脱敏故障日志与续租；保守估算不裁决模型上下文，上游确认 2xx SSE 后才提交 SENT/accepted，建连失败释放，流内失败保留 CHARGED_MAX。
 ModelGatewayController.java: 三个 Harness 原生 wire 路径的限量读取、协议选择、UUID v4 幂等键与建连前 JSON/建连后 SSE 错误边界。
 EnterpriseModelGatewayConfiguration.java: 网关 composition root，连接模型、设备、配额、crypto、audit 与事务端口。
 

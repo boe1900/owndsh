@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 聚合 provider 归属、企业 alias、Harness 模型字段、推理能力/兼容配置、排序、状态与 revision。
- * [OUTPUT]: 对外提供受管模型聚合，以及与 Harness 一致的名称、容量、推理和默认容量解析。
+ * [OUTPUT]: 对外提供受管模型聚合，以及与 Harness 一致的名称、容量、推理和默认输出上限解析。
  * [POS]: model/domain 的员工模型目录事实，runtime 只暴露受管 alias 而不暴露上游路由。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -24,7 +24,6 @@ public record ManagedModel(
     ModelStatus status,
     long revision
 ) {
-    public static final int DEFAULT_CONTEXT_WINDOW = 262_144;
     public static final int DEFAULT_MAX_TOKENS = 32_768;
 
     public ManagedModel {
@@ -43,10 +42,6 @@ public record ManagedModel(
 
     public String resolvedName() {
         return name == null ? modelId : name;
-    }
-
-    public int resolvedContextWindow() {
-        return contextWindow == null ? DEFAULT_CONTEXT_WINDOW : contextWindow;
     }
 
     public int resolvedMaxTokens() {
