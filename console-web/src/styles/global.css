@@ -1,12 +1,13 @@
 /**
- * [INPUT]: 依赖 Beautiful UI foundation token、Tailwind preflight 与本地 Inter Variable 字体。
- * [OUTPUT]: 提供产品控制台根尺寸和设计约束要求的零字距/reduced-motion 覆盖。
- * [POS]: styles 的产品覆盖层，只声明参考 foundation 不拥有的宿主约束。
+ * [INPUT]: 依赖上游完整 beautiful-ui.css、Tailwind preflight 与本地 Inter/JetBrains Mono 字体变量。
+ * [OUTPUT]: 提供 Vite 根尺寸、examples 页面滚动和产品要求的零字距覆盖。
+ * [POS]: styles 的宿主覆盖层，不复制或改写上游 token、primitive 样式与动效。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 :root {
   --font-inter: "Inter Variable";
+  --font-mono-face: "JetBrains Mono Variable";
   font-synthesis: none;
 }
 
@@ -21,7 +22,7 @@ body,
 
 body {
   margin: 0;
-  overflow: hidden;
+  overflow-x: hidden;
 }
 
 body,

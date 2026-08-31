@@ -178,9 +178,14 @@ Vite SPA 可以保持单镜像、同源 TLS、现有 PKCE 回调和私有部署�
 - 设计核实时 HEAD：`3ea4c18114de3d4bc9b63b8e3ea6f533b1a562bd`
 - 许可证：MIT，Copyright (c) 2026 Shane Levine。
 
-Beautiful UI registry 使用 `npx shadcn add https://www.beautifului.dev/r/{name}.json` 分发源码。实施时允许用
-registry 拉取一次，但提交前必须审阅源码、移动到 `console-web/src/ui/beautiful/`、删除演示数据和 Next.js
-路径假设，并在第三方声明中保留许可证。后续构建不访问该 registry。
+实施以 GitHub 仓库的锁定 commit 为唯一源码基线，不按截图重写，也不拼装 registry 子集。上游
+`components/atoms`、`components/primitives`、`components/site`、组件注册表和完整 Harness 迁移到
+`console-web/src/components`、`src/lib` 与 `/examples`；产品页与示例必须复用同一份组件源码。构建时不访问
+上游仓库或 registry。
+
+允许且必须记录的迁移差异只有：Next.js 运行时改为 Vite/TanStack、收费 Central Icons 改为 Lucide、移除
+PostHog 外发。DialKit 只在 `/examples/harness` 的开发态运行，不进入企业产品页。其余差异必须先更新
+`upstream/beautiful-ui.lock.json` 与本文，再进入实现。
 
 Harness 上游依赖的 `@central-icons-react/round-outlined-radius-2-stroke-2` 使用 Iconists 商业许可证，不属于
 Beautiful UI 的 MIT 授权范围，禁止复制或安装。产品图标统一替换为 ISC 许可证的 `lucide-react`。
@@ -190,7 +195,7 @@ Beautiful UI 的 MIT 授权范围，禁止复制或安装。产品图标统一�
 | Registry | 产品用途 | 决策 |
 |---|---|---|
 | `foundation` | 颜色、表面、边框、阴影、圆角、动画 | 采用并裁剪全局副作用 |
-| Harness shell + `sidebar-nav` | 产品侧栏、紧凑顶部区和中央内容画布 | 采用结构与比例，删除聊天 tabs、Prompt 和演示数据 |
+| Harness shell + `sidebar-nav` | 产品侧栏、工作区下拉、tab 和中央内容画布 | 完整实现保留在 `/examples/harness`；产品壳复用组件并只注入企业导航数据 |
 | `glide-menu` | 侧栏/菜单交互基础 | 随依赖审阅后采用 |
 | `search` | 页面和资源搜索 | 采用，接静态路由与 Query 数据 |
 | `records-table` | 模型、成员、插件等数据表视觉 | 采用视觉，行为改由 TanStack Table 驱动 |
@@ -200,8 +205,8 @@ Beautiful UI 的 MIT 授权范围，禁止复制或安装。产品图标统一�
 | `task-rows` | 插件发布、设备同步等任务状态 | 有真实任务页面时采用 |
 
 Chat、Prompt Bar、Thinking、Streaming Text、Tool Chips、Flowchart、Fine-tune Card、Insight Cards、Code Block
-和 Selection Actions 不进入第二阶段管理控制台。它们属于 Harness/Agent 交互或尚无产品用例，不能因为组件
-存在就引入。
+和 Selection Actions 保留在 `/examples` 与 `/examples/harness` 作为随时可运行的上游参考，但不进入第二阶段
+企业产品路由或产品 bundle 的首屏执行路径。
 
 ### 5.3 视觉规则
 
@@ -753,7 +758,7 @@ Playwright 必须通过真实 PostgreSQL、Redis、Java Server 和 HTTPS 同源�
 |---|---|---|---|---|
 | P2-00 范围冻结 | `completed` | 无 | 固定本文、现有 operation 复用表、退役页面和角色矩阵 | 文档评审通过；不写 UI |
 | P2-01 新项目骨架 | `completed` | P2-00 | 创建 `console-web`、稳定版本 lock、Vite/TanStack/OpenAPI 生成 | typecheck/test/build；无旧前端依赖 |
-| P2-02 设计系统与外壳 | `completed` | P2-01 | 从锁定 Beautiful UI Harness commit 直接导入 shell/foundation/sidebar/theme，删除聊天演示并以 Lucide 替换收费图标 | 产品壳桌面/移动/键盘/主题验收通过；无收费图标依赖 |
+| P2-02 设计系统与外壳 | `completed` | P2-01 | 从锁定 Beautiful UI commit 完整迁移组件与 Harness 到 Vite/TanStack，产品复用同源 SidebarNav，并以 Lucide 替换收费图标 | `/examples`、完整 Harness、产品壳桌面/移动/键盘/主题验收通过；无收费图标和遥测依赖 |
 | P2-03 登录与静态路由 | `pending` | P2-01,P2-02 | bootstrap、PKCE、固定角色 route guards 和左侧导航 | 五角色矩阵和 direct URL E2E 通过；无 `/getRouters` |
 | P2-04 模型与访问策略 | `pending` | P2-03 | Provider、模型、ALL_MEMBERS/MEMBER 授权、组织/成员限额与速率页，删除 DEPT 授权/配额语义 | 无限/硬限额/速率及 Harness 生效 E2E 通过；协议、Schema、运行时均无 DEPT 授权分支 |
 | P2-05 插件 | `pending` | P2-03 | 插件版本、发布、分配和设备状态 | 发布到 Desktop 安装/回滚 E2E 通过 |
@@ -762,7 +767,7 @@ Playwright 必须通过真实 PostgreSQL、Redis、Java Server 和 HTTPS 同源�
 | P2-08 切换 | `pending` | P2-04..P2-07 | 网关静态资源切换、升级/回滚演练、旧页面调用观测 | 全链路人工验收通过；不换数据卷 |
 | P2-09 旧前端退役 | `pending` | P2-08 稳定一个版本 | 删除旧构建链和确认无调用的页面/依赖 | 独立 PR、删除清单和回滚窗口关闭 |
 
-P2-02 验收证据（2026-08-31）：源码锁定 Beautiful UI commit `3ea4c18114de3d4bc9b63b8e3ea6f533b1a562bd`；`pnpm check` 通过；1280×720 下侧栏、内容窗口和顶部区分别为 `224×700`、`1046×700`、`1044×44`，与参考站一致；390×844 下桌面侧栏隐藏、内容窗口为 `370×824`，移动抽屉为 `244×844`。六条路由、52/224px 侧栏折叠、深浅主题、抽屉导航和浏览器错误日志均通过验收。
+P2-02 验收证据（2026-08-31）：锁定 Beautiful UI commit `3ea4c18114de3d4bc9b63b8e3ea6f533b1a562bd`，Vite `8.2.2`、TanStack Router `1.170.32`、Router Plugin `1.168.35` 与 Query `5.102.8` 均为当日 npm 最新稳定版；`pnpm check` 通过。`/examples` 运行 20 个同源组件 demo 并可查看真实源码，`/examples/harness` 的工作区菜单、建议场景和 60 行 Records Table 真实交互通过。1280×720 下产品侧栏可在 224/52px 间折叠且无横向溢出；390×844 下主画布为 390×844、桌面侧栏隐藏，224×824 抽屉可导航并自动关闭。正式 `62209` 冷启动后三个入口均无浏览器错误；依赖图不存在 Central Icons 或 PostHog。
 
 ## 15. 完成定义
 

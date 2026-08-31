@@ -9,148 +9,255 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as AccessRouteImport } from './routes/access'
-import { Route as ActivityRouteImport } from './routes/activity'
-import { Route as MembersRouteImport } from './routes/members'
-import { Route as PluginsRouteImport } from './routes/plugins'
-import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ConsoleRouteImport } from './routes/_console'
+import { Route as ExamplesRouteImport } from './routes/examples'
+import { Route as ConsoleIndexRouteImport } from './routes/_console.index'
+import { Route as ConsoleAccessRouteImport } from './routes/_console.access'
+import { Route as ConsoleActivityRouteImport } from './routes/_console.activity'
+import { Route as ConsoleMembersRouteImport } from './routes/_console.members'
+import { Route as ConsolePluginsRouteImport } from './routes/_console.plugins'
+import { Route as ConsoleSettingsRouteImport } from './routes/_console.settings'
+import { Route as ExamplesIndexRouteImport } from './routes/examples.index'
+import { Route as ExamplesHarnessRouteImport } from './routes/examples.harness'
 
-const IndexRoute = IndexRouteImport.update({
+const ConsoleRoute = ConsoleRouteImport.update({
+  id: '/_console',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExamplesRoute = ExamplesRouteImport.update({
+  id: '/examples',
+  path: '/examples',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConsoleIndexRoute = ConsoleIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => ConsoleRoute,
 } as any)
-const AccessRoute = AccessRouteImport.update({
+const ConsoleAccessRoute = ConsoleAccessRouteImport.update({
   id: '/access',
   path: '/access',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => ConsoleRoute,
 } as any)
-const ActivityRoute = ActivityRouteImport.update({
+const ConsoleActivityRoute = ConsoleActivityRouteImport.update({
   id: '/activity',
   path: '/activity',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => ConsoleRoute,
 } as any)
-const MembersRoute = MembersRouteImport.update({
+const ConsoleMembersRoute = ConsoleMembersRouteImport.update({
   id: '/members',
   path: '/members',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => ConsoleRoute,
 } as any)
-const PluginsRoute = PluginsRouteImport.update({
+const ConsolePluginsRoute = ConsolePluginsRouteImport.update({
   id: '/plugins',
   path: '/plugins',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => ConsoleRoute,
 } as any)
-const SettingsRoute = SettingsRouteImport.update({
+const ConsoleSettingsRoute = ConsoleSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => ConsoleRoute,
+} as any)
+const ExamplesIndexRoute = ExamplesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ExamplesRoute,
+} as any)
+const ExamplesHarnessRoute = ExamplesHarnessRouteImport.update({
+  id: '/harness',
+  path: '/harness',
+  getParentRoute: () => ExamplesRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/access': typeof AccessRoute
-  '/activity': typeof ActivityRoute
-  '/members': typeof MembersRoute
-  '/plugins': typeof PluginsRoute
-  '/settings': typeof SettingsRoute
+  '/': typeof ConsoleIndexRoute
+  '/examples': typeof ExamplesRouteWithChildren
+  '/access': typeof ConsoleAccessRoute
+  '/activity': typeof ConsoleActivityRoute
+  '/members': typeof ConsoleMembersRoute
+  '/plugins': typeof ConsolePluginsRoute
+  '/settings': typeof ConsoleSettingsRoute
+  '/examples/harness': typeof ExamplesHarnessRoute
+  '/examples/': typeof ExamplesIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/access': typeof AccessRoute
-  '/activity': typeof ActivityRoute
-  '/members': typeof MembersRoute
-  '/plugins': typeof PluginsRoute
-  '/settings': typeof SettingsRoute
+  '/access': typeof ConsoleAccessRoute
+  '/activity': typeof ConsoleActivityRoute
+  '/members': typeof ConsoleMembersRoute
+  '/plugins': typeof ConsolePluginsRoute
+  '/settings': typeof ConsoleSettingsRoute
+  '/examples/harness': typeof ExamplesHarnessRoute
+  '/': typeof ConsoleIndexRoute
+  '/examples': typeof ExamplesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/access': typeof AccessRoute
-  '/activity': typeof ActivityRoute
-  '/members': typeof MembersRoute
-  '/plugins': typeof PluginsRoute
-  '/settings': typeof SettingsRoute
+  '/_console': typeof ConsoleRouteWithChildren
+  '/examples': typeof ExamplesRouteWithChildren
+  '/_console/access': typeof ConsoleAccessRoute
+  '/_console/activity': typeof ConsoleActivityRoute
+  '/_console/members': typeof ConsoleMembersRoute
+  '/_console/plugins': typeof ConsolePluginsRoute
+  '/_console/settings': typeof ConsoleSettingsRoute
+  '/examples/harness': typeof ExamplesHarnessRoute
+  '/_console/': typeof ConsoleIndexRoute
+  '/examples/': typeof ExamplesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/access' | '/activity' | '/members' | '/plugins' | '/settings'
-  fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/access' | '/activity' | '/members' | '/plugins' | '/settings'
-  id:
-    | '__root__'
     | '/'
+    | '/examples'
     | '/access'
     | '/activity'
     | '/members'
     | '/plugins'
     | '/settings'
+    | '/examples/harness'
+    | '/examples/'
+  fileRoutesByTo: FileRoutesByTo
+  to:
+    | '/access'
+    | '/activity'
+    | '/members'
+    | '/plugins'
+    | '/settings'
+    | '/examples/harness'
+    | '/'
+    | '/examples'
+  id:
+    | '__root__'
+    | '/_console'
+    | '/examples'
+    | '/_console/access'
+    | '/_console/activity'
+    | '/_console/members'
+    | '/_console/plugins'
+    | '/_console/settings'
+    | '/examples/harness'
+    | '/_console/'
+    | '/examples/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  AccessRoute: typeof AccessRoute
-  ActivityRoute: typeof ActivityRoute
-  MembersRoute: typeof MembersRoute
-  PluginsRoute: typeof PluginsRoute
-  SettingsRoute: typeof SettingsRoute
+  ConsoleRoute: typeof ConsoleRouteWithChildren
+  ExamplesRoute: typeof ExamplesRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/_console': {
+      id: '/_console'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof ConsoleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/examples': {
+      id: '/examples'
+      path: '/examples'
+      fullPath: '/examples'
+      preLoaderRoute: typeof ExamplesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_console/': {
+      id: '/_console/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof ConsoleIndexRouteImport
+      parentRoute: typeof ConsoleRoute
     }
-    '/access': {
-      id: '/access'
+    '/_console/access': {
+      id: '/_console/access'
       path: '/access'
       fullPath: '/access'
-      preLoaderRoute: typeof AccessRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof ConsoleAccessRouteImport
+      parentRoute: typeof ConsoleRoute
     }
-    '/activity': {
-      id: '/activity'
+    '/_console/activity': {
+      id: '/_console/activity'
       path: '/activity'
       fullPath: '/activity'
-      preLoaderRoute: typeof ActivityRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof ConsoleActivityRouteImport
+      parentRoute: typeof ConsoleRoute
     }
-    '/members': {
-      id: '/members'
+    '/_console/members': {
+      id: '/_console/members'
       path: '/members'
       fullPath: '/members'
-      preLoaderRoute: typeof MembersRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof ConsoleMembersRouteImport
+      parentRoute: typeof ConsoleRoute
     }
-    '/plugins': {
-      id: '/plugins'
+    '/_console/plugins': {
+      id: '/_console/plugins'
       path: '/plugins'
       fullPath: '/plugins'
-      preLoaderRoute: typeof PluginsRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof ConsolePluginsRouteImport
+      parentRoute: typeof ConsoleRoute
     }
-    '/settings': {
-      id: '/settings'
+    '/_console/settings': {
+      id: '/_console/settings'
       path: '/settings'
       fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof ConsoleSettingsRouteImport
+      parentRoute: typeof ConsoleRoute
+    }
+    '/examples/': {
+      id: '/examples/'
+      path: '/'
+      fullPath: '/examples/'
+      preLoaderRoute: typeof ExamplesIndexRouteImport
+      parentRoute: typeof ExamplesRoute
+    }
+    '/examples/harness': {
+      id: '/examples/harness'
+      path: '/harness'
+      fullPath: '/examples/harness'
+      preLoaderRoute: typeof ExamplesHarnessRouteImport
+      parentRoute: typeof ExamplesRoute
     }
   }
 }
 
+interface ConsoleRouteChildren {
+  ConsoleAccessRoute: typeof ConsoleAccessRoute
+  ConsoleActivityRoute: typeof ConsoleActivityRoute
+  ConsoleMembersRoute: typeof ConsoleMembersRoute
+  ConsolePluginsRoute: typeof ConsolePluginsRoute
+  ConsoleSettingsRoute: typeof ConsoleSettingsRoute
+  ConsoleIndexRoute: typeof ConsoleIndexRoute
+}
+
+const ConsoleRouteChildren: ConsoleRouteChildren = {
+  ConsoleAccessRoute: ConsoleAccessRoute,
+  ConsoleActivityRoute: ConsoleActivityRoute,
+  ConsoleMembersRoute: ConsoleMembersRoute,
+  ConsolePluginsRoute: ConsolePluginsRoute,
+  ConsoleSettingsRoute: ConsoleSettingsRoute,
+  ConsoleIndexRoute: ConsoleIndexRoute,
+}
+
+const ConsoleRouteWithChildren =
+  ConsoleRoute._addFileChildren(ConsoleRouteChildren)
+
+interface ExamplesRouteChildren {
+  ExamplesHarnessRoute: typeof ExamplesHarnessRoute
+  ExamplesIndexRoute: typeof ExamplesIndexRoute
+}
+
+const ExamplesRouteChildren: ExamplesRouteChildren = {
+  ExamplesHarnessRoute: ExamplesHarnessRoute,
+  ExamplesIndexRoute: ExamplesIndexRoute,
+}
+
+const ExamplesRouteWithChildren = ExamplesRoute._addFileChildren(
+  ExamplesRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  AccessRoute: AccessRoute,
-  ActivityRoute: ActivityRoute,
-  MembersRoute: MembersRoute,
-  PluginsRoute: PluginsRoute,
-  SettingsRoute: SettingsRoute,
+  ConsoleRoute: ConsoleRouteWithChildren,
+  ExamplesRoute: ExamplesRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

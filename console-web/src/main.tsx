@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 React DOM、TanStack Query、应用 Router、Inter 字体与 Beautiful UI 样式/主题同步器。
- * [OUTPUT]: 将新产品控制台挂载到 index.html 的 root 节点。
- * [POS]: console-web 的浏览器启动入口，只装配全局 provider，不承载页面业务。
+ * [INPUT]: 依赖 React DOM、TanStack Query/Router、Inter/JetBrains Mono 与上游 Beautiful UI 全量样式/主题同步器。
+ * [OUTPUT]: 将产品控制台和 examples 路由挂载到 index.html。
+ * [POS]: console-web 的 Vite 浏览器入口，只装配全局 provider 和主题运行时，不承载页面业务。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -10,9 +10,10 @@ import { RouterProvider } from '@tanstack/react-router';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import '@fontsource-variable/inter';
+import '@fontsource-variable/jetbrains-mono';
 import { router } from './app/router';
-import { ThemeSync } from './ui/beautiful/theme-sync';
-import './ui/beautiful/foundation.css';
+import { ThemeSync } from './components/site/ThemeSync';
+import './styles/beautiful-ui.css';
 import './styles/global.css';
 
 const queryClient = new QueryClient();
