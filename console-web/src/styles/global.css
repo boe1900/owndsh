@@ -1,105 +1,48 @@
 /**
- * [INPUT]: 依赖浏览器原生 CSS、系统字体和 color-scheme。
- * [OUTPUT]: 提供 P2-01 首屏的最小稳定尺寸、颜色与焦点基础。
- * [POS]: styles 的临时基础层；P2-02 将用审阅后的 Beautiful UI foundation 替换视觉 token。
+ * [INPUT]: 依赖 Beautiful UI foundation token、Tailwind preflight 与本地 Inter Variable 字体。
+ * [OUTPUT]: 提供产品控制台根尺寸和设计约束要求的零字距/reduced-motion 覆盖。
+ * [POS]: styles 的产品覆盖层，只声明参考 foundation 不拥有的宿主约束。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 :root {
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #f3f4f6;
-  background: #151617;
+  --font-inter: "Inter Variable";
   font-synthesis: none;
-  letter-spacing: 0;
 }
 
-* {
-  box-sizing: border-box;
+html,
+body,
+#root {
+  width: 100%;
+  min-width: 320px;
+  height: 100%;
+  min-height: 100%;
 }
 
 body {
-  min-width: 320px;
-  min-height: 100vh;
   margin: 0;
+  overflow: hidden;
 }
 
+body,
 button,
 input,
 select,
-textarea {
-  font: inherit;
-}
-
-:focus-visible {
-  outline: 2px solid #a7c7ff;
-  outline-offset: 2px;
-}
-
-.page-shell {
-  width: min(960px, calc(100% - 48px));
-  margin: 0 auto;
-  padding: 64px 0;
-}
-
-.page-header {
-  padding-bottom: 20px;
-  border-bottom: 1px solid #303234;
-}
-
-.page-kicker {
-  margin: 0 0 8px;
-  color: #91969d;
-  font-size: 13px;
-}
-
+textarea,
 h1,
 h2,
+h3,
 p {
   letter-spacing: 0;
 }
 
-h1 {
-  margin: 0;
-  font-size: 28px;
-  font-weight: 560;
-}
-
-.empty-state {
-  padding: 72px 0;
-  text-align: center;
-}
-
-.empty-state h2 {
-  margin: 0 0 8px;
-  font-size: 16px;
-  font-weight: 540;
-}
-
-.empty-state p {
-  margin: 0;
-  color: #91969d;
-  font-size: 14px;
-}
-
-@media (max-width: 640px) {
-  .page-shell {
-    width: min(100% - 32px, 960px);
-    padding-top: 40px;
-  }
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #202124;
-    background: #f7f7f6;
-  }
-
-  .page-header {
-    border-color: #dedfdd;
-  }
-
-  .page-kicker,
-  .empty-state p {
-    color: #686c70;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

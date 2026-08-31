@@ -27,6 +27,6 @@ T00 建立上游源码与插件工作区，T01 验证官方插件扩展面，T02
 
 T18 在 T16/T17 Session 纵向边界上交付管理 metadata/正文/删除页和桌面同步/恢复/删除 tab，并以耐久 `DELETED` 游标阻止 Harness 重启后自动重传。T19 建立 30-action 显式 metadata 白名单、tenant 隔离审计查询、365 天有界 retention、用户治理事务接缝和 heartbeat 防洪。T20 建立默认同源 CORS、无已知 JWT secret、分层请求体上限、graceful drain、未知故障日志隔离、CI 秘密扫描和 PostgreSQL/Redis/artifact/key 恢复演练。T21 建立锁定 Linux amd64 release、TLS Compose、一次性管理员、secret、健康检查、备份恢复、升级与仅应用回滚。T22 退役跨模块自动总编排，改由单后端、单 Harness 的无时限本地环境逐功能人工验收；T23 在 T22 人工确认完成前不启动。
 
-第二阶段 P2-00/P2-01 已完成设计冻结与独立 `console-web` 骨架；下一任务 P2-02 建立 Beautiful UI 风格设计系统和产品外壳，旧 `admin-web` 只保留为切换前运行面。
+第二阶段 P2-00 至 P2-02 已完成设计冻结、独立 `console-web` 骨架及 Beautiful UI Harness 原版产品壳裁剪；下一任务 P2-03 接入登录、固定角色守卫与静态路由权限，旧 `admin-web` 只保留为切换前运行面。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

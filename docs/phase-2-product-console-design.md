@@ -753,7 +753,7 @@ Playwright 必须通过真实 PostgreSQL、Redis、Java Server 和 HTTPS 同源�
 |---|---|---|---|---|
 | P2-00 范围冻结 | `completed` | 无 | 固定本文、现有 operation 复用表、退役页面和角色矩阵 | 文档评审通过；不写 UI |
 | P2-01 新项目骨架 | `completed` | P2-00 | 创建 `console-web`、稳定版本 lock、Vite/TanStack/OpenAPI 生成 | typecheck/test/build；无旧前端依赖 |
-| P2-02 设计系统与外壳 | `in_progress` | P2-01 | 按 Harness 建立 shell，裁剪 foundation/sidebar/search/loading，以 Lucide 替换收费图标 | 登录与业务页桌面/移动/键盘/主题截图通过；无收费图标依赖 |
+| P2-02 设计系统与外壳 | `completed` | P2-01 | 从锁定 Beautiful UI Harness commit 直接导入 shell/foundation/sidebar/theme，删除聊天演示并以 Lucide 替换收费图标 | 产品壳桌面/移动/键盘/主题验收通过；无收费图标依赖 |
 | P2-03 登录与静态路由 | `pending` | P2-01,P2-02 | bootstrap、PKCE、固定角色 route guards 和左侧导航 | 五角色矩阵和 direct URL E2E 通过；无 `/getRouters` |
 | P2-04 模型与访问策略 | `pending` | P2-03 | Provider、模型、ALL_MEMBERS/MEMBER 授权、组织/成员限额与速率页，删除 DEPT 授权/配额语义 | 无限/硬限额/速率及 Harness 生效 E2E 通过；协议、Schema、运行时均无 DEPT 授权分支 |
 | P2-05 插件 | `pending` | P2-03 | 插件版本、发布、分配和设备状态 | 发布到 Desktop 安装/回滚 E2E 通过 |
@@ -761,6 +761,8 @@ Playwright 必须通过真实 PostgreSQL、Redis、Java Server 和 HTTPS 同源�
 | P2-07 活动与设置 | `pending` | P2-03 | 用量、审计、Session、身份源和健康状态 | auditor 只读、身份源 secret 隔离通过 |
 | P2-08 切换 | `pending` | P2-04..P2-07 | 网关静态资源切换、升级/回滚演练、旧页面调用观测 | 全链路人工验收通过；不换数据卷 |
 | P2-09 旧前端退役 | `pending` | P2-08 稳定一个版本 | 删除旧构建链和确认无调用的页面/依赖 | 独立 PR、删除清单和回滚窗口关闭 |
+
+P2-02 验收证据（2026-08-31）：源码锁定 Beautiful UI commit `3ea4c18114de3d4bc9b63b8e3ea6f533b1a562bd`；`pnpm check` 通过；1280×720 下侧栏、内容窗口和顶部区分别为 `224×700`、`1046×700`、`1044×44`，与参考站一致；390×844 下桌面侧栏隐藏、内容窗口为 `370×824`，移动抽屉为 `244×844`。六条路由、52/224px 侧栏折叠、深浅主题、抽屉导航和浏览器错误日志均通过验收。
 
 ## 15. 完成定义
 

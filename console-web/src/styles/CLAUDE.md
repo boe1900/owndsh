@@ -4,6 +4,6 @@
 
 成员清单
 
-global.css: P2-01 可运行首屏的最小布局、主题与可访问焦点基础，P2-02 由 Beautiful UI foundation 接管视觉 token。
+global.css: Beautiful UI foundation 之上的最小宿主覆盖，只固定根尺寸、零字距与 reduced-motion，不重定义设计 token。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

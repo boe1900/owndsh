@@ -1,21 +1,33 @@
 /**
- * [INPUT]: 依赖 Testing Library、Vitest 与根路径模型页面。
- * [OUTPUT]: 验证 P2-01 首屏可渲染且暴露唯一模型标题。
- * [POS]: routes 的最小 smoke 门禁；文件名前缀让 TanStack 路由生成器忽略测试源码。
+ * [INPUT]: 依赖 Testing Library、Vitest、内存 history 与完整产品 routeTree。
+ * [OUTPUT]: 验证 P2-02 产品壳、导航和业务路由可真实渲染与切换。
+ * [POS]: routes 的最小集成门禁；文件名前缀让 TanStack 路由生成器忽略测试源码。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { createMemoryHistory, createRouter, RouterProvider } from '@tanstack/react-router';
 import { afterEach, describe, expect, it } from 'vitest';
-import { ModelsIndexPage } from './-models-index-page';
+import { routeTree } from '../routeTree.gen';
+
+window.scrollTo = () => undefined;
 
 afterEach(cleanup);
 
-describe('models index', () => {
-  it('renders the model empty state', () => {
-    render(<ModelsIndexPage />);
+describe('product console', () => {
+  it('renders the shell and navigates between product sections', async () => {
+    const router = createRouter({
+      history: createMemoryHistory({ initialEntries: ['/'] }),
+      routeTree
+    });
 
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('模型');
-    expect(screen.getByRole('heading', { name: '暂无模型' })).toBeTruthy();
+    render(<RouterProvider router={router} />);
+
+    expect((await screen.findAllByRole('complementary', { name: '产品导航' })).length).toBeGreaterThan(0);
+    expect(await screen.findByRole('heading', { name: '模型' })).toBeTruthy();
+
+    fireEvent.click((await screen.findAllByRole('link', { name: '成员' }))[0]!);
+
+    expect(await screen.findByRole('heading', { name: '成员' })).toBeTruthy();
   });
 });
