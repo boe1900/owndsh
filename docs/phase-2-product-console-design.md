@@ -7,7 +7,7 @@
 
 # 第二阶段：产品控制台与成员身份收敛详细设计
 
-状态：`design-approved-implementation-pending`
+状态：`implementation-in-progress-p2-02`
 
 设计日期：2026-08-31（Asia/Shanghai）
 
@@ -124,7 +124,7 @@ console-web/
 | UI runtime | `react` / `react-dom` | `19.2.8` |
 | 构建 | `vite` | `8.2.2` |
 | React 编译插件 | `@vitejs/plugin-react` | `6.1.1` |
-| 类型系统 | `typescript` | `7.0.2` |
+| 类型系统 | `typescript` | `6.0.3` |
 | 路由 | `@tanstack/react-router` | `1.170.32` |
 | 路由生成 | `@tanstack/router-plugin` | `1.168.35` |
 | 服务端状态 | `@tanstack/react-query` | `5.102.8` |
@@ -140,6 +140,14 @@ console-web/
 运行时使用 Node 24 LTS；最低边界不得低于 Vite/TanStack 要求的 Node `20.19`。实施任务创建 lockfile 前再次
 读取 npm `latest`，若版本变化，只升级同一稳定 major/minor 的兼容组合并在验收记录中固定最终版本。禁止用
 `latest` 范围写入 `package.json`。
+
+P2-01 实测 `@hey-api/openapi-ts 0.99.0` 在 TypeScript 7.0.2 下因编译器 API 不兼容而无法启动，控制台因此固定
+仓库已验证的 TypeScript 6.0.3；只有 Hey API 正式兼容且生成、类型检查与构建同时通过后才升级 TypeScript 7。
+生成客户端沿用协议包的 optional 语义，不启用 `exactOptionalPropertyTypes`；`skipLibCheck` 只隔离当前 TanStack
+Router 1.171.27 发布包中 `__beforeLoadContext` 的无效声明，不跳过控制台或 Hey API 生成源码检查。
+
+P2-01 于 2026-08-31 验收完成：`pnpm check` 的 OpenAPI 生成、typecheck、production build 和 Vitest 全部通过；
+生成器直接读取分片 YAML 真源；`1280×800` 与 `390×844` 浏览器检查无横向滚动、文字溢出或控制台错误。
 
 ### 4.3 为什么不用 TanStack Start
 
@@ -741,18 +749,18 @@ Playwright 必须通过真实 PostgreSQL、Redis、Java Server 和 HTTPS 同源�
 
 任务状态沿用 `pending`、`in_progress`、`completed`，同一时间最多一个主线任务为 `in_progress`。
 
-| ID | 依赖 | 内容 | 退出条件 |
-|---|---|---|---|
-| P2-00 范围冻结 | 无 | 固定本文、现有 operation 复用表、退役页面和角色矩阵 | 文档评审通过；不写 UI |
-| P2-01 新项目骨架 | P2-00 | 创建 `console-web`、稳定版本 lock、Vite/TanStack/OpenAPI 生成 | typecheck/test/build；无旧前端依赖 |
-| P2-02 设计系统与外壳 | P2-01 | 按 Harness 建立 shell，裁剪 foundation/sidebar/search/loading，以 Lucide 替换收费图标 | 登录与业务页桌面/移动/键盘/主题截图通过；无收费图标依赖 |
-| P2-03 登录与静态路由 | P2-01,P2-02 | bootstrap、PKCE、固定角色 route guards 和左侧导航 | 五角色矩阵和 direct URL E2E 通过；无 `/getRouters` |
-| P2-04 模型与访问策略 | P2-03 | Provider、模型、ALL_MEMBERS/MEMBER 授权、组织/成员限额与速率页，删除 DEPT 授权/配额语义 | 无限/硬限额/速率及 Harness 生效 E2E 通过；协议、Schema、运行时均无 DEPT 授权分支 |
-| P2-05 插件 | P2-03 | 插件版本、发布、分配和设备状态 | 发布到 Desktop 安装/回滚 E2E 通过 |
-| P2-06 成员与身份 | P2-03 | product member DTO、身份摘要、固定角色、link transaction、停用 | 同名隔离、多身份绑定和撤销 E2E 通过 |
-| P2-07 活动与设置 | P2-03 | 用量、审计、Session、身份源和健康状态 | auditor 只读、身份源 secret 隔离通过 |
-| P2-08 切换 | P2-04..P2-07 | 网关静态资源切换、升级/回滚演练、旧页面调用观测 | 全链路人工验收通过；不换数据卷 |
-| P2-09 旧前端退役 | P2-08 稳定一个版本 | 删除旧构建链和确认无调用的页面/依赖 | 独立 PR、删除清单和回滚窗口关闭 |
+| ID | 状态 | 依赖 | 内容 | 退出条件 |
+|---|---|---|---|---|
+| P2-00 范围冻结 | `completed` | 无 | 固定本文、现有 operation 复用表、退役页面和角色矩阵 | 文档评审通过；不写 UI |
+| P2-01 新项目骨架 | `completed` | P2-00 | 创建 `console-web`、稳定版本 lock、Vite/TanStack/OpenAPI 生成 | typecheck/test/build；无旧前端依赖 |
+| P2-02 设计系统与外壳 | `in_progress` | P2-01 | 按 Harness 建立 shell，裁剪 foundation/sidebar/search/loading，以 Lucide 替换收费图标 | 登录与业务页桌面/移动/键盘/主题截图通过；无收费图标依赖 |
+| P2-03 登录与静态路由 | `pending` | P2-01,P2-02 | bootstrap、PKCE、固定角色 route guards 和左侧导航 | 五角色矩阵和 direct URL E2E 通过；无 `/getRouters` |
+| P2-04 模型与访问策略 | `pending` | P2-03 | Provider、模型、ALL_MEMBERS/MEMBER 授权、组织/成员限额与速率页，删除 DEPT 授权/配额语义 | 无限/硬限额/速率及 Harness 生效 E2E 通过；协议、Schema、运行时均无 DEPT 授权分支 |
+| P2-05 插件 | `pending` | P2-03 | 插件版本、发布、分配和设备状态 | 发布到 Desktop 安装/回滚 E2E 通过 |
+| P2-06 成员与身份 | `pending` | P2-03 | product member DTO、身份摘要、固定角色、link transaction、停用 | 同名隔离、多身份绑定和撤销 E2E 通过 |
+| P2-07 活动与设置 | `pending` | P2-03 | 用量、审计、Session、身份源和健康状态 | auditor 只读、身份源 secret 隔离通过 |
+| P2-08 切换 | `pending` | P2-04..P2-07 | 网关静态资源切换、升级/回滚演练、旧页面调用观测 | 全链路人工验收通过；不换数据卷 |
+| P2-09 旧前端退役 | `pending` | P2-08 稳定一个版本 | 删除旧构建链和确认无调用的页面/依赖 | 独立 PR、删除清单和回滚窗口关闭 |
 
 ## 15. 完成定义
 

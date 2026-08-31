@@ -6,7 +6,7 @@ Enterprise Agent Platform 是基于 DeepSeek Harness 构建的企业 Agent 管�
 
 ## 当前阶段
 
-T00 至 T21 已完成：仓库包含锁定产品源码、Harness 官方插件 workspace、Java/TypeScript 同源 OpenAPI 3.1 协议、PostgreSQL/Redis 企业模块、桌面管理控制台、插件分发闭环、Session 端到端复制、审计闭环、安全/故障基线和 Linux `amd64` 单机交付。T22 正在使用单后端、单 Harness 本地环境逐功能人工验收；跨模块自动总编排已退役，T23 在人工确认完成前不启动。当前清单见 [`docs/t22-manual-acceptance.md`](docs/t22-manual-acceptance.md)。
+T00 至 T21 已完成：仓库包含锁定产品源码、Harness 官方插件 workspace、Java/TypeScript 同源 OpenAPI 3.1 协议、PostgreSQL/Redis 企业模块、桌面管理控制台、插件分发闭环、Session 端到端复制、审计闭环、安全/故障基线和 Linux `amd64` 单机交付。T22 正在使用单后端、单 Harness 本地环境逐功能人工验收；第二阶段 P2-01 已完成独立 Vite/TanStack 产品控制台骨架，下一任务为 P2-02 产品外壳。当前清单见 [`docs/t22-manual-acceptance.md`](docs/t22-manual-acceptance.md)，第二阶段见 [`docs/phase-2-product-console-design.md`](docs/phase-2-product-console-design.md)。
 
 ## 文档
 
@@ -45,6 +45,7 @@ T00 至 T21 已完成：仓库包含锁定产品源码、Harness 官方插件 wo
 enterprise-agent-platform/
   backend/                     # RuoYi-Vue-Plus 后台与 ruoyi-enterprise 模块
   admin-web/                   # plus-ui 6.X-React 管理端
+  console-web/                 # 第二阶段独立 Vite/TanStack 产品控制台
   harness-plugin/              # 独立构建的 Harness 企业插件与 bundle
   contracts/                   # OpenAPI 协议真源
   deploy/                      # Compose、Nginx、安装和运维脚本

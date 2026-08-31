@@ -5,6 +5,7 @@ Java 21 + Spring Boot 4.1 + Sa-Token + PostgreSQL + React 19 + TypeScript + Deep
 <directory>
 admin-web/ - plus-ui React 管理端锁定源码，承载 enterprise-admin PKCE、动态权限路由与企业治理页面
 backend/ - RuoYi-Vue-Plus 后端锁定源码，T03 起承载 ruoyi-enterprise 模块
+console-web/ - 第二阶段独立 Vite/TanStack 产品控制台，使用静态路由与 OpenAPI Fetch client，不依赖旧 Umi 管理端
 contracts/ - OpenAPI 3.1 协议真源、跨语言 schema 和 fixture 验收
 deploy/ - Linux amd64 单机 release、TLS Compose、一次性初始化与备份/恢复/升级/回滚交付
 docs/ - 产品预研、MVP 实施规格与逐任务验收证据
@@ -25,5 +26,7 @@ T00 建立上游源码与插件工作区，T01 验证官方插件扩展面，T02
 模型协议法则：`@deepseek-ai/dsh-llm-pi-ai` 是客户端唯一协议实现，拥有消息、tools、reasoning、replay、SSE、通用重试与 provider 兼容语义；企业层只负责认证代理、授权、配额、审计、受管模型 ID 覆盖和上游密钥注入，不增加 provider 特定重试。后续模型能力优先升级锁定 Harness/官方依赖，禁止在企业代码中复制协议 adapter 或引入第二套 AI 抽象。
 
 T18 在 T16/T17 Session 纵向边界上交付管理 metadata/正文/删除页和桌面同步/恢复/删除 tab，并以耐久 `DELETED` 游标阻止 Harness 重启后自动重传。T19 建立 30-action 显式 metadata 白名单、tenant 隔离审计查询、365 天有界 retention、用户治理事务接缝和 heartbeat 防洪。T20 建立默认同源 CORS、无已知 JWT secret、分层请求体上限、graceful drain、未知故障日志隔离、CI 秘密扫描和 PostgreSQL/Redis/artifact/key 恢复演练。T21 建立锁定 Linux amd64 release、TLS Compose、一次性管理员、secret、健康检查、备份恢复、升级与仅应用回滚。T22 退役跨模块自动总编排，改由单后端、单 Harness 的无时限本地环境逐功能人工验收；T23 在 T22 人工确认完成前不启动。
+
+第二阶段 P2-00/P2-01 已完成设计冻结与独立 `console-web` 骨架；下一任务 P2-02 建立 Beautiful UI 风格设计系统和产品外壳，旧 `admin-web` 只保留为切换前运行面。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
