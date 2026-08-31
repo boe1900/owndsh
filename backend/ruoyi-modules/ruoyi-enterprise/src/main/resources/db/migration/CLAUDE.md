@@ -19,5 +19,7 @@ V12__enterprise_deployment_bootstrap.sql: 建立无 secret 部署标记与 LOCAL
 V13__enterprise_provider_configuration.sql: 增加 Harness providerKey 与 API 协议，将旧兼容网关保守迁为 CUSTOM，并约束 DeepSeek 官方保留路由。
 V14__enterprise_harness_model_profile.sql: 将模型配置校正为 Harness 可选 name/contextWindow/maxTokens 并删除伪造 reasoning 能力列，保留 append-only 历史审计。
 V15__enterprise_model_reasoning_profile.sql: 增加 pi-ai reasoningEfforts false/object 三态与 completions compat JSONB 模型事实，数据库只约束顶层形状并由领域层校验具体档位。
+V16__product_navigation.sql: 将 RuoYi 与企业菜单收敛为 Agent 管控、系统设置和运行状态三组产品导航，并停用已裁模块及上游宣传入口。
+V17__enterprise_admin_system_access.sql: 将系统设置与运行状态的有效菜单授予 enterprise_admin，并在版本化变更后恢复内置角色权限不可变保护。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

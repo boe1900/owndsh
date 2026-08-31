@@ -17,12 +17,6 @@
 
     <dependencies>
 
-        <!-- Mysql驱动包 -->
-        <dependency>
-            <groupId>com.mysql</groupId>
-            <artifactId>mysql-connector-j</artifactId>
-        </dependency>
-
 <!--        &lt;!&ndash; mp支持的数据库均支持 只需要增加对应的jdbc依赖即可 &ndash;&gt;-->
 <!--        &lt;!&ndash; Oracle &ndash;&gt;-->
 <!--        <dependency>-->
@@ -62,12 +56,6 @@
             <artifactId>ruoyi-common-mail</artifactId>
         </dependency>
 
-        <!-- mcp模块 -->
-        <dependency>
-            <groupId>org.dromara</groupId>
-            <artifactId>ruoyi-common-mcp</artifactId>
-        </dependency>
-
         <!-- api模块 -->
         <dependency>
             <groupId>org.dromara</groupId>
@@ -80,40 +68,10 @@
             <artifactId>ruoyi-system</artifactId>
         </dependency>
 
-        <!-- 调度任务模块 -->
-        <dependency>
-            <groupId>org.dromara</groupId>
-            <artifactId>ruoyi-job</artifactId>
-        </dependency>
-
-        <!-- AI业务模块 -->
-        <dependency>
-            <groupId>org.dromara</groupId>
-            <artifactId>ruoyi-ai</artifactId>
-        </dependency>
-
         <!-- 企业治理业务模块 -->
         <dependency>
             <groupId>org.dromara</groupId>
             <artifactId>ruoyi-enterprise</artifactId>
-        </dependency>
-
-        <!--  demo模块  -->
-        <dependency>
-            <groupId>org.dromara</groupId>
-            <artifactId>ruoyi-demo</artifactId>
-        </dependency>
-
-        <!--  工作流模块  -->
-        <dependency>
-            <groupId>org.dromara</groupId>
-            <artifactId>ruoyi-workflow</artifactId>
-        </dependency>
-
-        <!-- Spring Boot Admin 客户端 -->
-        <dependency>
-            <groupId>de.codecentric</groupId>
-            <artifactId>spring-boot-admin-starter-client</artifactId>
         </dependency>
 
         <!-- 单元测试 -->
@@ -144,24 +102,6 @@
 
     </dependencies>
 
-
-    <profiles>
-        <!-- 仅在激活 'gen' profile 时，才引入代码生成模块 -->
-        <profile>
-            <id>gen</id>
-            <dependencies>
-                <!-- 代码生成-->
-                <dependency>
-                    <groupId>org.dromara</groupId>
-                    <artifactId>ruoyi-gen</artifactId>
-                </dependency>
-            </dependencies>
-            <activation>
-                <!-- 默认激活 -->
-                <activeByDefault>true</activeByDefault>
-            </activation>
-        </profile>
-    </profiles>
 
     <build>
         <finalName>${project.artifactId}</finalName>

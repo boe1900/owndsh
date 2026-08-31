@@ -57,6 +57,7 @@ import { hasPermi } from '@/utils/permission';
 import { recoverRevisionConflict } from '../shared/revision';
 import { useCursorData } from '../shared/useCursorData';
 import { validatedFormValues } from '../shared/validateForm';
+import { formatTokenCapacity, parseTokenCapacity, validateTokenCapacity } from './tokenCapacity';
 
 interface ProviderFormValues {
   providerType: ModelProviderInput['providerType'];
@@ -74,7 +75,9 @@ type ReasoningLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 
 type ReasoningMap = Exclude<ManagedModelInput['reasoningEfforts'], boolean | undefined>;
 type ThinkingFormat = NonNullable<ManagedModelInput['compat']>['thinkingFormat'];
 
-interface ModelFormValues extends Omit<ManagedModelInput, 'reasoningEfforts' | 'compat'> {
+interface ModelFormValues extends Omit<ManagedModelInput, 'reasoningEfforts' | 'compat' | 'contextWindow' | 'maxTokens'> {
+  contextWindow?: string;
+  maxTokens?: string;
   reasoningMode: 'omitted' | 'disabled' | 'explicit';
   reasoningLevels?: ReasoningLevel[];
   reasoningWireValues?: Partial<Record<ReasoningLevel, string>>;
@@ -127,8 +130,8 @@ function modelValues(model?: ManagedModel): ModelFormValues {
         alias: model.alias,
         modelId: model.modelId,
         name: model.name,
-        contextWindow: model.contextWindow,
-        maxTokens: model.maxTokens,
+        contextWindow: formatTokenCapacity(model.contextWindow),
+        maxTokens: formatTokenCapacity(model.maxTokens),
         reasoningMode: model.reasoningEfforts === undefined
           ? 'omitted'
           : model.reasoningEfforts === false ? 'disabled' : 'explicit',
@@ -178,8 +181,8 @@ function modelInput(values: ModelFormValues, protocol?: ModelProvider['apiProtoc
     alias: values.alias.trim(),
     modelId: values.modelId.trim(),
     name: values.name?.trim() || undefined,
-    contextWindow: values.contextWindow,
-    maxTokens: values.maxTokens,
+    contextWindow: parseTokenCapacity(values.contextWindow),
+    maxTokens: parseTokenCapacity(values.maxTokens),
     reasoningEfforts,
     compat,
     sortOrder: values.sortOrder
@@ -475,8 +478,8 @@ export default function ModelsPage() {
     { title: '模型 ID', dataIndex: 'modelId' },
     { title: '名称', dataIndex: 'name', render: (value, row) => value ?? row.modelId },
     { title: 'Provider', dataIndex: 'providerName' },
-    { title: 'contextWindow', dataIndex: 'contextWindow', width: 140, render: value => value ?? '默认 262144' },
-    { title: 'maxTokens', dataIndex: 'maxTokens', width: 130, render: value => value ?? '默认 32768' },
+    { title: '上下文窗口', dataIndex: 'contextWindow', width: 140, render: value => formatTokenCapacity(value) || '默认 256K' },
+    { title: '最大输出 Token', dataIndex: 'maxTokens', width: 150, render: value => formatTokenCapacity(value) || '默认 32K' },
     {
       title: 'reasoningEfforts',
       dataIndex: 'reasoningEfforts',
@@ -679,8 +682,8 @@ export default function ModelsPage() {
                         modelId,
                         ...modelEditor ? {} : { alias: modelId },
                         name: model?.name,
-                        contextWindow: model?.contextWindow,
-                        maxTokens: model?.maxTokens
+                        contextWindow: formatTokenCapacity(model?.contextWindow),
+                        maxTokens: formatTokenCapacity(model?.maxTokens)
                       });
                     }}
                   />
@@ -713,11 +716,11 @@ export default function ModelsPage() {
                 label: '容量',
                 children: (
                   <>
-                    <Form.Item name="contextWindow" label="contextWindow（可选）">
-                      <InputNumber min={1} precision={0} placeholder="262144" className="enterprise-number-input" />
+                    <Form.Item name="contextWindow" label="上下文窗口（Token，可选）" rules={[{ validator: validateTokenCapacity }]}>
+                      <Input placeholder="256K" />
                     </Form.Item>
-                    <Form.Item name="maxTokens" label="maxTokens（可选）">
-                      <InputNumber min={1} precision={0} placeholder="32768" className="enterprise-number-input" />
+                    <Form.Item name="maxTokens" label="最大输出 Token（可选）" rules={[{ validator: validateTokenCapacity }]}>
+                      <Input placeholder="32K" />
                     </Form.Item>
                   </>
                 )

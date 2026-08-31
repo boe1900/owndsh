@@ -12,6 +12,7 @@ T00 至 T21 已完成：仓库包含锁定产品源码、Harness 官方插件 wo
 
 - [企业 Agent 工作平台预研](docs/enterprise-agent-work-platform.md)：产品形态、可行性、边界和长期方向。
 - [企业 Agent 治理平台 MVP 可执行详细设计](docs/enterprise-agent-governance-mvp-design.md)：冻结的技术决策、模块、接口、数据表、状态机、测试、T00-T23 实施顺序和验收标准。
+- [第二阶段产品控制台与成员身份收敛详细设计](docs/phase-2-product-console-design.md)：冻结 TanStack/Beautiful UI 新前端、产品功能裁剪、静态角色路由、多身份成员及授权/限额模型。
 - [Desktop 2.0.3 / Harness rc.2 基线迁移](docs/desktop-2.0.3-harness-rc2-migration.md)：Desktop 派生版本锁、插件影响、重试变化与 Web/Desktop 门禁证据。
 - [T01 技术刺探验收记录](docs/t01-technical-spike-acceptance.md)：官方插件路线修正、正式模块、自动测试、真实 package consumer、Harness Web 与浏览器验收证据。
 - [T02 协议骨架验收记录](docs/t02-contract-foundation-acceptance.md)：OpenAPI 真源、双语言生成与 fixture、稳定错误码和真实 tarball consumer 证据。

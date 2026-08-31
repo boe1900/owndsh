@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 PostgresTestDatabase 装载真实 RuoYi 基线与 V1-V15 classpath migration。
- * [OUTPUT]: 验证空 schema、逐版本升级、provider 配置及 Harness reasoning 模型字段迁移。
+ * [INPUT]: 依赖 PostgresTestDatabase 装载真实 RuoYi 基线与 V1-V17 classpath migration。
+ * [OUTPUT]: 验证空 schema、逐版本升级、产品导航与管理员系统权限、provider 配置及 Harness reasoning 模型字段迁移。
  * [POS]: database 的持续 migration 门禁，防止后续任务只验证最终 schema 而遗漏中间版本不可升级。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -27,7 +27,7 @@ class EnterpriseMigrationTest {
 
         Flyway flyway = PostgresTestDatabase.migrate(database, null);
 
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("15");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("17");
         Integer tableCount = database.jdbc().queryForObject("""
             select count(*) from information_schema.tables
             where table_schema = 'public' and table_name like 'ent_%'
@@ -49,6 +49,40 @@ class EnterpriseMigrationTest {
             "select count(*) from sys_client where client_secret in ('pc123','app123')",
             Integer.class
         )).isZero();
+        assertThat(database.jdbc().queryForList("""
+            select menu_name from sys_menu
+            where parent_id=0 and visible='0' and status='0'
+            order by order_num, menu_id
+            """, String.class)).containsExactly("Agent 管控", "系统设置", "运行状态");
+        assertThat(database.jdbc().queryForList("""
+            select menu_name from sys_menu
+            where parent_id=1900400000000000000 and menu_type='C' and visible='0' and status='0'
+            order by order_num, menu_id
+            """, String.class)).containsExactly(
+                "模型与路由", "授权与配额", "身份接入", "客户端设备", "插件分发", "会话数据", "企业审计"
+            );
+        assertThat(database.jdbc().queryForObject("""
+            select count(*) from sys_menu
+            where menu_id in (
+                1761400000000000003, 1761400000000000004, 1761400000000000005,
+                1761400000000000006, 1761400000000000117, 1761400000000000120,
+                1761400000000000121
+            ) and visible='1' and status='1'
+            """, Integer.class)).isEqualTo(7);
+        assertThat(database.jdbc().queryForObject("""
+            with recursive expected_menu(menu_id) as (
+                select menu_id from sys_menu
+                where menu_id in (1761400000000000001, 1761400000000000002) and status='0'
+                union
+                select child.menu_id from sys_menu child
+                join expected_menu parent on child.parent_id=parent.menu_id
+                where child.status='0'
+            )
+            select count(*) from expected_menu expected
+            left join sys_role_menu granted
+              on granted.role_id=1900300000000000001 and granted.menu_id=expected.menu_id
+            where granted.menu_id is null
+            """, Integer.class)).isZero();
     }
 
     @Test
@@ -260,8 +294,8 @@ class EnterpriseMigrationTest {
             ) values (1913000000000000505,'000000','deepseek-official','Invalid Official Protocol',
                 'DEEPSEEK_OFFICIAL','openai-responses','https://api.deepseek.com','ACTIVE',5000,30000,0)
             """)).isInstanceOf(RuntimeException.class);
-        Flyway latest = PostgresTestDatabase.migrate(database, "15");
-        assertThat(latest.info().current().getVersion().getVersion()).isEqualTo("15");
+        Flyway versionFifteen = PostgresTestDatabase.migrate(database, "15");
+        assertThat(versionFifteen.info().current().getVersion().getVersion()).isEqualTo("15");
         database.jdbc().update("""
             update ent_managed_model
             set reasoning_efforts='{"off":null,"high":"high","max":"max"}'::jsonb,
@@ -277,6 +311,19 @@ class EnterpriseMigrationTest {
             update ent_managed_model set reasoning_efforts='{}'::jsonb
             where id=1913000000000000602
             """)).isInstanceOf(RuntimeException.class);
+        Flyway versionSixteen = PostgresTestDatabase.migrate(database, "16");
+        assertThat(versionSixteen.info().current().getVersion().getVersion()).isEqualTo("16");
+        assertThat(database.jdbc().queryForObject(
+            "select menu_name from sys_menu where menu_id=1900400000000000000",
+            String.class
+        )).isEqualTo("Agent 管控");
+        Flyway latest = PostgresTestDatabase.migrate(database, "17");
+        assertThat(latest.info().current().getVersion().getVersion()).isEqualTo("17");
+        assertThat(database.jdbc().queryForObject("""
+            select count(*) from sys_role_menu
+            where role_id=1900300000000000001
+              and menu_id in (1761400000000000001,1761400000000000002)
+            """, Integer.class)).isEqualTo(2);
     }
 
     @Test
@@ -293,7 +340,7 @@ class EnterpriseMigrationTest {
             .run(context -> {
                 assertThat(context).hasSingleBean(Flyway.class);
                 assertThat(context.getBean(Flyway.class).info().current().getVersion().getVersion())
-                    .isEqualTo("15");
+                    .isEqualTo("17");
             });
     }
 }
