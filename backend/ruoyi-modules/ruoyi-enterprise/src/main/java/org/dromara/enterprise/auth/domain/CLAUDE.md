@@ -9,11 +9,12 @@ ExternalIdentity.java: source/issuer/stable subject 到平台用户的唯一绑�
 ExternalIdentitySummary.java: tenant/user 限定的身份源名称、类型、稳定 subject 与最后登录脱敏管理投影。
 IdentityCredential.java: PasswordCredentials 与 OidcCodeCredentials 的封闭凭据类型根。
 IdentityPrincipal.java: 三种 adapter 的统一稳定 subject、白名单 profile 与外部组输出。
-IdentitySource.java: 强制 OIDC/LDAP/LOCAL 配置互斥、秘密独立持有并携带最近脱敏连接测试事实的聚合根。
+IdentityProvisioningMode.java: JIT/LINK_ONLY 封闭集合，只裁决未知外部身份的成员生命周期。
+IdentitySource.java: 强制 OIDC/LDAP/LOCAL 配置互斥、LOCAL 不 JIT、秘密独立持有与脱敏连接测试的聚合根。
 IdentitySourceStatus.java: ACTIVE/DISABLED 身份源状态集合。
 IdentitySourceType.java: OIDC/LDAP/LOCAL 身份源类型集合。
 LdapSettings.java: 不含 manager 密码的 LDAP URL、搜索与稳定属性配置。
-LoginTransaction.java: 5 分钟 Redis 事务，绑定 client/redirect/state/S256 challenge/installation/session device 与 CSRF。
+LoginTransaction.java: 5 分钟 Redis 事务，绑定 client/redirect/S256/CSRF 与可选的成员、身份源、发起管理员绑定目标。
 OidcClaimMapping.java: OIDC 原始 claims 到统一 principal 的显式白名单。
 OidcCodeCredentials.java: T05 状态校验后用于 code+PKCE 交换的一次性脱敏凭据。
 OidcLoginState.java: 与平台 code 分区保存的 OIDC state/nonce/verifier/callback 一次性事实。

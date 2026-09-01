@@ -21,5 +21,10 @@ V14__enterprise_harness_model_profile.sql: 将模型配置校正为 Harness 可�
 V15__enterprise_model_reasoning_profile.sql: 增加 pi-ai reasoningEfforts false/object 三态与 completions compat JSONB 模型事实，数据库只约束顶层形状并由领域层校验具体档位。
 V16__product_navigation.sql: 将 RuoYi 与企业菜单收敛为 Agent 管控、系统设置和运行状态三组产品导航，并停用已裁模块及上游宣传入口。
 V17__enterprise_admin_system_access.sql: 将系统设置与运行状态的有效菜单授予 enterprise_admin，并在版本化变更后恢复内置角色权限不可变保护。
+V18__product_access_scopes.sql: 破坏性删除部门模型授权/配额及其窗口快照、旧变更审计，将 USER/DEFAULT 收敛为 MEMBER/ORGANIZATION，移除 grant 默认标记并让种子 Token 上限默认无限。
+V19__product_member_read_permission.sql: 新增独立成员目录读取权限并授予企业、模型和插件管理员，避免复用身份源或业务写权限。
+V20__product_member_management.sql: 为 sys_user 增加 revision 与成员写权限，只允许 enterprise_admin 执行角色和状态治理。
+V21__product_member_identity_unlink.sql: 将 USER_UNLINKED 加入数据库审计 action 白名单，不改写已有事件。
+V22__identity_source_provisioning_mode.sql: 增加 JIT/LINK_ONLY 身份源生命周期约束，现有 OIDC/LDAP 保持 JIT、LOCAL 固定 LINK_ONLY。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

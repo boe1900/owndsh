@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 ModelGrantService、可信 enterprise-admin 上下文、认证 cursor 与 ent:grant 权限码。
  * [OUTPUT]: 提供 /enterprise/admin/v1/model-grants 的 list/create/update/delete 与原子 batch create。
- * [POS]: model/web 的授权管理入口，默认冲突和主体事实仅由 application/数据库裁决。
+ * [POS]: model/web 的授权管理入口，重复约束和主体事实仅由 application/数据库裁决。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.model.web;

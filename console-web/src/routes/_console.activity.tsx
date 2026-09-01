@@ -1,13 +1,13 @@
 /**
- * [INPUT]: 依赖 TanStack pathless 文件路由与共享 SectionPage。
- * [OUTPUT]: 提供活动记录产品路由。
- * [POS]: _console 的活动入口，P2-07 接入用量、审计与 Session 事实。
+ * [INPUT]: 依赖 TanStack pathless 文件路由与 features/activity 产品页。
+ * [OUTPUT]: 提供活动记录产品路由薄入口。
+ * [POS]: _console 的活动入口，领域查询与权限分段由 ActivityPage 独占。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { createFileRoute } from '@tanstack/react-router';
-import { SectionPage } from './-section-page';
+import { ActivityPage } from '@/features/activity/activity-page';
 
 export const Route = createFileRoute('/_console/activity')({
-  component: () => <SectionPage title="活动记录" emptyText="暂无活动记录" />
+  component: ActivityPage
 });

@@ -6,7 +6,7 @@ Enterprise Agent Platform 是基于 DeepSeek Harness 构建的企业 Agent 管�
 
 ## 当前阶段
 
-T00 至 T21 已完成：仓库包含锁定产品源码、Harness 官方插件 workspace、Java/TypeScript 同源 OpenAPI 3.1 协议、PostgreSQL/Redis 企业模块、桌面管理控制台、插件分发闭环、Session 端到端复制、审计闭环、安全/故障基线和 Linux `amd64` 单机交付。T22 正在使用单后端、单 Harness 本地环境逐功能人工验收；第二阶段 P2-02 已完成锁定 Beautiful UI 源码的组件、Harness 示例与同源 Vite/TanStack 产品壳迁移，下一任务为 P2-03 登录与静态角色路由。当前清单见 [`docs/t22-manual-acceptance.md`](docs/t22-manual-acceptance.md)，第二阶段见 [`docs/phase-2-product-console-design.md`](docs/phase-2-product-console-design.md)。
+T00 至 T21 已完成：仓库包含锁定产品源码、Harness 官方插件 workspace、Java/TypeScript 同源 OpenAPI 3.1 协议、PostgreSQL/Redis 企业模块、桌面管理控制台、插件分发闭环、Session 端到端复制、审计闭环、安全/故障基线和 Linux `amd64` 单机交付。T22 正在使用单后端、单 Harness 本地环境逐功能人工验收；第二阶段 P2-00 至 P2-07 已完成独立 Vite/TanStack 产品控制台、Beautiful UI 产品壳、登录/静态角色、模型/访问、插件、成员/身份、活动记录与设置，下一任务为 P2-08 真实链路切换验收。当前清单见 [`docs/t22-manual-acceptance.md`](docs/t22-manual-acceptance.md)，第二阶段见 [`docs/phase-2-product-console-design.md`](docs/phase-2-product-console-design.md)。
 
 ## 文档
 

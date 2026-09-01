@@ -100,6 +100,7 @@ declare namespace API {
     | "LOGOUT"
     | "IDENTITY_SOURCE_CHANGED"
     | "USER_LINKED"
+    | "USER_UNLINKED"
     | "DEVICE_ENROLLED"
     | "DEVICE_HEARTBEAT"
     | "DEVICE_REVOKED"
@@ -140,6 +141,7 @@ declare namespace API {
       | "LOGOUT"
       | "IDENTITY_SOURCE_CHANGED"
       | "USER_LINKED"
+      | "USER_UNLINKED"
       | "DEVICE_ENROLLED"
       | "DEVICE_HEARTBEAT"
       | "DEVICE_REVOKED"
@@ -198,6 +200,11 @@ declare namespace API {
           unmappedGroupCount: number;
           departmentConflict: boolean;
         }
+      | {
+          sourceType: "OIDC" | "LDAP" | "LOCAL";
+          previousRevision: number;
+          currentRevision: number;
+        }
       | { platform: string; created: boolean }
       | {
           desiredRevision: number;
@@ -218,8 +225,7 @@ declare namespace API {
         }
       | {
           operation: "CREATE" | "UPDATE" | "DELETE";
-          subjectType: "USER" | "DEPT";
-          defaultGrant: boolean;
+          subjectType: "ALL_MEMBERS" | "MEMBER";
           status: "ACTIVE" | "DISABLED";
           resourceRevision: number;
           bootstrapRevision: number;
@@ -242,7 +248,7 @@ declare namespace API {
             | "PLATFORM_FAILURE";
         }
       | {
-          subjectType: "DEFAULT" | "DEPT" | "USER";
+          subjectType: "ORGANIZATION" | "MEMBER";
           status: "ACTIVE" | "DISABLED";
           previousRevision: number;
           currentRevision: number;
@@ -294,6 +300,7 @@ declare namespace API {
           | "LOGOUT"
           | "IDENTITY_SOURCE_CHANGED"
           | "USER_LINKED"
+          | "USER_UNLINKED"
           | "DEVICE_ENROLLED"
           | "DEVICE_HEARTBEAT"
           | "DEVICE_REVOKED"
@@ -351,6 +358,11 @@ declare namespace API {
               unmappedGroupCount: number;
               departmentConflict: boolean;
             }
+          | {
+              sourceType: "OIDC" | "LDAP" | "LOCAL";
+              previousRevision: number;
+              currentRevision: number;
+            }
           | { platform: string; created: boolean }
           | {
               desiredRevision: number;
@@ -371,8 +383,7 @@ declare namespace API {
             }
           | {
               operation: "CREATE" | "UPDATE" | "DELETE";
-              subjectType: "USER" | "DEPT";
-              defaultGrant: boolean;
+              subjectType: "ALL_MEMBERS" | "MEMBER";
               status: "ACTIVE" | "DISABLED";
               resourceRevision: number;
               bootstrapRevision: number;
@@ -395,7 +406,7 @@ declare namespace API {
                 | "PLATFORM_FAILURE";
             }
           | {
-              subjectType: "DEFAULT" | "DEPT" | "USER";
+              subjectType: "ORGANIZATION" | "MEMBER";
               status: "ACTIVE" | "DISABLED";
               previousRevision: number;
               currentRevision: number;
@@ -452,6 +463,7 @@ declare namespace API {
         | "LOGOUT"
         | "IDENTITY_SOURCE_CHANGED"
         | "USER_LINKED"
+        | "USER_UNLINKED"
         | "DEVICE_ENROLLED"
         | "DEVICE_HEARTBEAT"
         | "DEVICE_REVOKED"
@@ -509,6 +521,11 @@ declare namespace API {
             unmappedGroupCount: number;
             departmentConflict: boolean;
           }
+        | {
+            sourceType: "OIDC" | "LDAP" | "LOCAL";
+            previousRevision: number;
+            currentRevision: number;
+          }
         | { platform: string; created: boolean }
         | {
             desiredRevision: number;
@@ -529,8 +546,7 @@ declare namespace API {
           }
         | {
             operation: "CREATE" | "UPDATE" | "DELETE";
-            subjectType: "USER" | "DEPT";
-            defaultGrant: boolean;
+            subjectType: "ALL_MEMBERS" | "MEMBER";
             status: "ACTIVE" | "DISABLED";
             resourceRevision: number;
             bootstrapRevision: number;
@@ -553,7 +569,7 @@ declare namespace API {
               | "PLATFORM_FAILURE";
           }
         | {
-            subjectType: "DEFAULT" | "DEPT" | "USER";
+            subjectType: "ORGANIZATION" | "MEMBER";
             status: "ACTIVE" | "DISABLED";
             previousRevision: number;
             currentRevision: number;
@@ -666,7 +682,7 @@ declare namespace API {
 
   type BootstrapQuota = {
     policyId: string;
-    scope: "DEFAULT" | "DEPT" | "USER";
+    scope: "ORGANIZATION" | "MEMBER";
     dailyTokenLimit: number | null;
     monthlyTokenLimit: number | null;
     rpm: number | null;
@@ -719,7 +735,7 @@ declare namespace API {
       }[];
       quotas: {
         policyId: string;
-        scope: "DEFAULT" | "DEPT" | "USER";
+        scope: "ORGANIZATION" | "MEMBER";
         dailyTokenLimit: number | null;
         monthlyTokenLimit: number | null;
         rpm: number | null;
@@ -800,7 +816,7 @@ declare namespace API {
     }[];
     quotas: {
       policyId: string;
-      scope: "DEFAULT" | "DEPT" | "USER";
+      scope: "ORGANIZATION" | "MEMBER";
       dailyTokenLimit: number | null;
       monthlyTokenLimit: number | null;
       rpm: number | null;
@@ -832,6 +848,13 @@ declare namespace API {
     };
   };
 
+  type BuiltInRole =
+    | "enterprise_admin"
+    | "model_admin"
+    | "plugin_admin"
+    | "auditor"
+    | "employee";
+
   type completeOidcLoginParams = {
     sourceId: string;
     state: string;
@@ -841,6 +864,47 @@ declare namespace API {
   type ConcurrencyUsage = {
     limit: number;
     current: number;
+  };
+
+  type ConsoleBootstrapData = {
+    member: { id: string; displayName: string; avatarUrl: any };
+    roles: (
+      | "enterprise_admin"
+      | "model_admin"
+      | "plugin_admin"
+      | "auditor"
+      | "employee"
+    )[];
+    permissions: string[];
+    deployment: { name: string };
+  };
+
+  type ConsoleBootstrapResponse = {
+    data: {
+      member: { id: string; displayName: string; avatarUrl: any };
+      roles: (
+        | "enterprise_admin"
+        | "model_admin"
+        | "plugin_admin"
+        | "auditor"
+        | "employee"
+      )[];
+      permissions: string[];
+      deployment: { name: string };
+    };
+    /** Server-generated req_ prefix followed by one canonical ULID. */
+    requestId: string;
+  };
+
+  type ConsoleDeployment = {
+    name: string;
+  };
+
+  type ConsoleMember = {
+    /** Enterprise user snowflake ID serialized as a string. */
+    id: string;
+    displayName: string;
+    avatarUrl: any;
   };
 
   type Cursor = string;
@@ -1081,6 +1145,8 @@ declare namespace API {
       | "ENT_RESOURCE_NOT_FOUND"
       | "ENT_SESSION_CONTENT_EXPIRED"
       | "ENT_REVISION_CONFLICT"
+      | "ENT_LAST_ENTERPRISE_ADMIN"
+      | "ENT_LAST_MEMBER_IDENTITY"
       | "ENT_REQUEST_IN_PROGRESS"
       | "ENT_REQUEST_ALREADY_COMPLETED"
       | "ENT_SESSION_SEQ_GAP"
@@ -1129,6 +1195,8 @@ declare namespace API {
     | "ENT_RESOURCE_NOT_FOUND"
     | "ENT_SESSION_CONTENT_EXPIRED"
     | "ENT_REVISION_CONFLICT"
+    | "ENT_LAST_ENTERPRISE_ADMIN"
+    | "ENT_LAST_MEMBER_IDENTITY"
     | "ENT_REQUEST_IN_PROGRESS"
     | "ENT_REQUEST_ALREADY_COMPLETED"
     | "ENT_SESSION_SEQ_GAP"
@@ -1169,6 +1237,8 @@ declare namespace API {
         | "ENT_RESOURCE_NOT_FOUND"
         | "ENT_SESSION_CONTENT_EXPIRED"
         | "ENT_REVISION_CONFLICT"
+        | "ENT_LAST_ENTERPRISE_ADMIN"
+        | "ENT_LAST_MEMBER_IDENTITY"
         | "ENT_REQUEST_IN_PROGRESS"
         | "ENT_REQUEST_ALREADY_COMPLETED"
         | "ENT_SESSION_SEQ_GAP"
@@ -1242,6 +1312,10 @@ declare namespace API {
     modelId: string;
   };
 
+  type getMemberParams = {
+    userId: string;
+  };
+
   type getModelProviderParams = {
     providerId: string;
   };
@@ -1258,7 +1332,7 @@ declare namespace API {
     userId: string;
   };
 
-  type GrantSubjectType = "USER" | "DEPT";
+  type GrantSubjectType = "ALL_MEMBERS" | "MEMBER";
 
   type GroupMapping = {
     /** External group mapping snowflake ID serialized as a string. */
@@ -1320,10 +1394,29 @@ declare namespace API {
     requestId: string;
   };
 
+  type IdentityLinkStart = {
+    transactionId: string;
+    authorizeUri: string;
+  };
+
+  type IdentityLinkStartRequest = {
+    /** Identity source snowflake ID serialized as a string. */
+    sourceId: string;
+  };
+
+  type IdentityLinkStartResponse = {
+    data: { transactionId: string; authorizeUri: string };
+    /** Server-generated req_ prefix followed by one canonical ULID. */
+    requestId: string;
+  };
+
+  type IdentityProvisioningMode = "JIT" | "LINK_ONLY";
+
   type IdentitySource = {
     /** Identity source snowflake ID serialized as a string. */
     id: string;
     type: "OIDC" | "LDAP" | "LOCAL";
+    provisioningMode: "JIT" | "LINK_ONLY";
     name: string;
     issuer?: string;
     clientId?: string;
@@ -1367,6 +1460,7 @@ declare namespace API {
 
   type IdentitySourceCreateRequest = {
     type: "OIDC" | "LDAP" | "LOCAL";
+    provisioningMode: "JIT" | "LINK_ONLY";
     name: string;
     issuer?: string;
     clientId?: string;
@@ -1401,6 +1495,7 @@ declare namespace API {
       items: {
         id: string;
         type: "OIDC" | "LDAP" | "LOCAL";
+        provisioningMode: "JIT" | "LINK_ONLY";
         name: string;
         issuer?: string;
         clientId?: string;
@@ -1444,6 +1539,7 @@ declare namespace API {
     items: {
       id: string;
       type: "OIDC" | "LDAP" | "LOCAL";
+      provisioningMode: "JIT" | "LINK_ONLY";
       name: string;
       issuer?: string;
       clientId?: string;
@@ -1484,6 +1580,7 @@ declare namespace API {
     data: {
       id: string;
       type: "OIDC" | "LDAP" | "LOCAL";
+      provisioningMode: "JIT" | "LINK_ONLY";
       name: string;
       issuer?: string;
       clientId?: string;
@@ -1533,6 +1630,7 @@ declare namespace API {
 
   type IdentitySourceUpdateRequest = {
     type: "OIDC" | "LDAP" | "LOCAL";
+    provisioningMode: "JIT" | "LINK_ONLY";
     name: string;
     issuer?: string;
     clientId?: string;
@@ -1603,6 +1701,7 @@ declare namespace API {
       | "LOGOUT"
       | "IDENTITY_SOURCE_CHANGED"
       | "USER_LINKED"
+      | "USER_UNLINKED"
       | "DEVICE_ENROLLED"
       | "DEVICE_HEARTBEAT"
       | "DEVICE_REVOKED"
@@ -1660,6 +1759,13 @@ declare namespace API {
   };
 
   type listManagedModelsParams = {
+    /** Server-signed opaque cursor; clients must not parse it. */
+    cursor?: string;
+    /** Cursor page size. */
+    limit?: number;
+  };
+
+  type listMembersParams = {
     /** Server-signed opaque cursor; clients must not parse it. */
     cursor?: string;
     /** Cursor page size. */
@@ -1934,15 +2040,234 @@ declare namespace API {
     sortOrder: number;
   };
 
+  type MemberDetail = {
+    member: {
+      id: string;
+      username: string;
+      displayName: string;
+      status: "ACTIVE" | "DISABLED";
+      roles: (
+        | "enterprise_admin"
+        | "model_admin"
+        | "plugin_admin"
+        | "auditor"
+        | "employee"
+      )[];
+      loginMethods: {
+        sourceId: string | null;
+        sourceName: string;
+        sourceType: "OIDC" | "LDAP" | "LOCAL";
+        lastLoginAt: string | null;
+      }[];
+      lastActiveAt: string | null;
+      revision: number;
+    };
+    identities: {
+      identityId: string | null;
+      sourceId: string | null;
+      sourceName: string;
+      sourceType: "OIDC" | "LDAP" | "LOCAL";
+      subject: string;
+      lastLoginAt: string | null;
+    }[];
+    devices: {
+      id: string;
+      name: string;
+      platform: string;
+      status: "ACTIVE" | "REVOKED";
+      lastSeenAt: string | null;
+    }[];
+    sessions: {
+      active: number;
+      deleted: number;
+      expired: number;
+      latestUpdatedAt: string | null;
+    };
+  };
+
+  type MemberDetailResponse = {
+    data: {
+      member: {
+        id: string;
+        username: string;
+        displayName: string;
+        status: "ACTIVE" | "DISABLED";
+        roles: (
+          | "enterprise_admin"
+          | "model_admin"
+          | "plugin_admin"
+          | "auditor"
+          | "employee"
+        )[];
+        loginMethods: {
+          sourceId: string | null;
+          sourceName: string;
+          sourceType: "OIDC" | "LDAP" | "LOCAL";
+          lastLoginAt: string | null;
+        }[];
+        lastActiveAt: string | null;
+        revision: number;
+      };
+      identities: {
+        identityId: string | null;
+        sourceId: string | null;
+        sourceName: string;
+        sourceType: "OIDC" | "LDAP" | "LOCAL";
+        subject: string;
+        lastLoginAt: string | null;
+      }[];
+      devices: {
+        id: string;
+        name: string;
+        platform: string;
+        status: "ACTIVE" | "REVOKED";
+        lastSeenAt: string | null;
+      }[];
+      sessions: {
+        active: number;
+        deleted: number;
+        expired: number;
+        latestUpdatedAt: string | null;
+      };
+    };
+    /** Server-generated req_ prefix followed by one canonical ULID. */
+    requestId: string;
+  };
+
+  type MemberDeviceSummary = {
+    /** Enterprise device snowflake ID serialized as a string. */
+    id: string;
+    name: string;
+    platform: string;
+    status: "ACTIVE" | "REVOKED";
+    lastSeenAt: string | null;
+  };
+
+  type MemberIdentity = {
+    identityId: string | null;
+    sourceId: string | null;
+    sourceName: string;
+    sourceType: "OIDC" | "LDAP" | "LOCAL";
+    subject: string;
+    lastLoginAt: string | null;
+  };
+
+  type MemberListResponse = {
+    data: {
+      items: {
+        id: string;
+        username: string;
+        displayName: string;
+        status: "ACTIVE" | "DISABLED";
+        roles: (
+          | "enterprise_admin"
+          | "model_admin"
+          | "plugin_admin"
+          | "auditor"
+          | "employee"
+        )[];
+        loginMethods: {
+          sourceId: string | null;
+          sourceName: string;
+          sourceType: "OIDC" | "LDAP" | "LOCAL";
+          lastLoginAt: string | null;
+        }[];
+        lastActiveAt: string | null;
+        revision: number;
+      }[];
+      page: { hasMore: boolean; limit: number; nextCursor: string | null };
+    };
+    /** Server-generated req_ prefix followed by one canonical ULID. */
+    requestId: string;
+  };
+
+  type MemberLoginMethod = {
+    sourceId: string | null;
+    sourceName: string;
+    sourceType: "OIDC" | "LDAP" | "LOCAL";
+    lastLoginAt: string | null;
+  };
+
+  type MemberPageData = {
+    items: {
+      id: string;
+      username: string;
+      displayName: string;
+      status: "ACTIVE" | "DISABLED";
+      roles: (
+        | "enterprise_admin"
+        | "model_admin"
+        | "plugin_admin"
+        | "auditor"
+        | "employee"
+      )[];
+      loginMethods: {
+        sourceId: string | null;
+        sourceName: string;
+        sourceType: "OIDC" | "LDAP" | "LOCAL";
+        lastLoginAt: string | null;
+      }[];
+      lastActiveAt: string | null;
+      revision: number;
+    }[];
+    page: { hasMore: boolean; limit: number; nextCursor: string | null };
+  };
+
+  type MemberRoleReplaceRequest = {
+    roles: (
+      | "enterprise_admin"
+      | "model_admin"
+      | "plugin_admin"
+      | "auditor"
+      | "employee"
+    )[];
+  };
+
+  type MemberSessionSummary = {
+    active: number;
+    deleted: number;
+    expired: number;
+    latestUpdatedAt: string | null;
+  };
+
+  type MemberStatus = "ACTIVE" | "DISABLED";
+
+  type MemberStatusUpdateRequest = {
+    status: "ACTIVE" | "DISABLED";
+  };
+
+  type MemberSummary = {
+    /** Enterprise user snowflake ID serialized as a string. */
+    id: string;
+    username: string;
+    displayName: string;
+    status: "ACTIVE" | "DISABLED";
+    roles: (
+      | "enterprise_admin"
+      | "model_admin"
+      | "plugin_admin"
+      | "auditor"
+      | "employee"
+    )[];
+    loginMethods: {
+      sourceId: string | null;
+      sourceName: string;
+      sourceType: "OIDC" | "LDAP" | "LOCAL";
+      lastLoginAt: string | null;
+    }[];
+    lastActiveAt: string | null;
+    /** Monotonic compare-and-swap revision safe in JavaScript. */
+    revision: number;
+  };
+
   type ModelGrant = {
     id: string;
     /** Managed model snowflake ID serialized as a string. */
     modelId: string;
     modelAlias: string;
-    subjectType: "USER" | "DEPT";
-    subjectId: string;
+    subjectType: "ALL_MEMBERS" | "MEMBER";
+    subjectId: string | null;
     subjectName: string;
-    isDefault: boolean;
     status: "ACTIVE" | "DISABLED";
     /** Monotonic compare-and-swap revision safe in JavaScript. */
     revision: number;
@@ -1951,9 +2276,8 @@ declare namespace API {
   type ModelGrantBatchRequest = {
     items: {
       modelId: string;
-      subjectType: "USER" | "DEPT";
-      subjectId: string;
-      isDefault: boolean;
+      subjectType: "ALL_MEMBERS" | "MEMBER";
+      subjectId: string | null;
       status: "ACTIVE" | "DISABLED";
     }[];
   };
@@ -1963,10 +2287,9 @@ declare namespace API {
       id: string;
       modelId: string;
       modelAlias: string;
-      subjectType: "USER" | "DEPT";
-      subjectId: string;
+      subjectType: "ALL_MEMBERS" | "MEMBER";
+      subjectId: string | null;
       subjectName: string;
-      isDefault: boolean;
       status: "ACTIVE" | "DISABLED";
       revision: number;
     }[];
@@ -1982,10 +2305,9 @@ declare namespace API {
         id: string;
         modelId: string;
         modelAlias: string;
-        subjectType: "USER" | "DEPT";
-        subjectId: string;
+        subjectType: "ALL_MEMBERS" | "MEMBER";
+        subjectId: string | null;
         subjectName: string;
-        isDefault: boolean;
         status: "ACTIVE" | "DISABLED";
         revision: number;
       }[];
@@ -2000,10 +2322,9 @@ declare namespace API {
       id: string;
       modelId: string;
       modelAlias: string;
-      subjectType: "USER" | "DEPT";
-      subjectId: string;
+      subjectType: "ALL_MEMBERS" | "MEMBER";
+      subjectId: string | null;
       subjectName: string;
-      isDefault: boolean;
       status: "ACTIVE" | "DISABLED";
       revision: number;
     }[];
@@ -2015,10 +2336,9 @@ declare namespace API {
       id: string;
       modelId: string;
       modelAlias: string;
-      subjectType: "USER" | "DEPT";
-      subjectId: string;
+      subjectType: "ALL_MEMBERS" | "MEMBER";
+      subjectId: string | null;
       subjectName: string;
-      isDefault: boolean;
       status: "ACTIVE" | "DISABLED";
       revision: number;
     };
@@ -2029,9 +2349,8 @@ declare namespace API {
   type ModelGrantWriteRequest = {
     /** Managed model snowflake ID serialized as a string. */
     modelId: string;
-    subjectType: "USER" | "DEPT";
-    subjectId: string;
-    isDefault: boolean;
+    subjectType: "ALL_MEMBERS" | "MEMBER";
+    subjectId: string | null;
     status: "ACTIVE" | "DISABLED";
   };
 
@@ -2043,7 +2362,7 @@ declare namespace API {
     data: {
       policyId: string;
       name: string;
-      scope: "DEFAULT" | "DEPT" | "USER";
+      scope: "ORGANIZATION" | "MEMBER";
       subjectId: string | null;
       daily: {
         limit: number;
@@ -2637,7 +2956,7 @@ declare namespace API {
   type QuotaPolicy = {
     id: string;
     name: string;
-    subjectType: "DEFAULT" | "DEPT" | "USER";
+    subjectType: "ORGANIZATION" | "MEMBER";
     subjectId: string | null;
     subjectName: string | null;
     dailyTokenLimit: number | null;
@@ -2656,7 +2975,7 @@ declare namespace API {
       items: {
         id: string;
         name: string;
-        subjectType: "DEFAULT" | "DEPT" | "USER";
+        subjectType: "ORGANIZATION" | "MEMBER";
         subjectId: string | null;
         subjectName: string | null;
         dailyTokenLimit: number | null;
@@ -2676,7 +2995,7 @@ declare namespace API {
     items: {
       id: string;
       name: string;
-      subjectType: "DEFAULT" | "DEPT" | "USER";
+      subjectType: "ORGANIZATION" | "MEMBER";
       subjectId: string | null;
       subjectName: string | null;
       dailyTokenLimit: number | null;
@@ -2693,7 +3012,7 @@ declare namespace API {
     data: {
       id: string;
       name: string;
-      subjectType: "DEFAULT" | "DEPT" | "USER";
+      subjectType: "ORGANIZATION" | "MEMBER";
       subjectId: string | null;
       subjectName: string | null;
       dailyTokenLimit: number | null;
@@ -2709,7 +3028,7 @@ declare namespace API {
 
   type QuotaPolicyWriteRequest = {
     name: string;
-    subjectType: "DEFAULT" | "DEPT" | "USER";
+    subjectType: "ORGANIZATION" | "MEMBER";
     subjectId: string | null;
     dailyTokenLimit: number | null;
     monthlyTokenLimit: number | null;
@@ -2720,12 +3039,12 @@ declare namespace API {
 
   type QuotaStatus = "ACTIVE" | "DISABLED";
 
-  type QuotaSubjectType = "DEFAULT" | "DEPT" | "USER";
+  type QuotaSubjectType = "ORGANIZATION" | "MEMBER";
 
   type QuotaUsagePolicy = {
     policyId: string;
     name: string;
-    scope: "DEFAULT" | "DEPT" | "USER";
+    scope: "ORGANIZATION" | "MEMBER";
     subjectId: string | null;
     daily: {
       limit: number;
@@ -2788,6 +3107,10 @@ declare namespace API {
   };
 
   type RemoteSessionId = string;
+
+  type replaceMemberRolesParams = {
+    userId: string;
+  };
 
   type replacePluginAssignmentsParams = {
     pluginPackageId: string;
@@ -2996,6 +3319,10 @@ declare namespace API {
 
   type SessionStatus = "ACTIVE" | "DELETED" | "EXPIRED";
 
+  type startIdentityLinkParams = {
+    userId: string;
+  };
+
   type startOidcLoginParams = {
     sourceId: string;
     transaction_id: string;
@@ -3043,12 +3370,21 @@ declare namespace API {
     resetsAt: string;
   };
 
+  type unlinkMemberIdentityParams = {
+    userId: string;
+    identityId: string;
+  };
+
   type updateIdentitySourceParams = {
     sourceId: string;
   };
 
   type updateManagedModelParams = {
     modelId: string;
+  };
+
+  type updateMemberStatusParams = {
+    userId: string;
   };
 
   type updateModelGrantParams = {

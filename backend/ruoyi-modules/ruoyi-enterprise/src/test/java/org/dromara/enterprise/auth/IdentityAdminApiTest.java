@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖身份/组/用户摘要三个管理 Controller、认证 cursor、requestId filter/异常处理、MockMvc 与派生 JSON Schema。
- * [OUTPUT]: 验证身份管理与用户摘要 operation、cursor/权限/revision 及秘密不出响应。
+ * [OUTPUT]: 验证身份管理与用户摘要 operation、JIT/LINK_ONLY、cursor/权限/revision 及秘密不出响应。
  * [POS]: T04/T12 身份管理 HTTP 契约门禁，领域服务使用 mock 以把测试焦点限定在协议翻译和权限入口。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -19,6 +19,7 @@ import org.dromara.enterprise.auth.application.IdentitySourceService;
 import org.dromara.enterprise.auth.application.SecretInput;
 import org.dromara.enterprise.auth.domain.ExternalGroupMapping;
 import org.dromara.enterprise.auth.domain.ExternalIdentitySummary;
+import org.dromara.enterprise.auth.domain.IdentityProvisioningMode;
 import org.dromara.enterprise.auth.domain.IdentitySource;
 import org.dromara.enterprise.auth.domain.IdentitySourceStatus;
 import org.dromara.enterprise.auth.domain.IdentitySourceType;
@@ -299,6 +300,7 @@ class IdentityAdminApiTest {
     void clearsSecretRequestAndKeepsStringRepresentationRedacted() {
         IdentitySourceWriteRequest request = new IdentitySourceWriteRequest(
             IdentitySourceType.OIDC,
+            IdentityProvisioningMode.JIT,
             "Corporate SSO",
             URI.create("https://identity.example.test"),
             "enterprise-agent",
@@ -361,6 +363,7 @@ class IdentityAdminApiTest {
         return """
             {
               "type":"OIDC",
+              "provisioningMode":"JIT",
               "name":"Corporate SSO",
               "issuer":"https://identity.example.test",
               "clientId":"enterprise-agent",

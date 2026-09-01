@@ -3,10 +3,9 @@
     "id": "1900800000000000201",
     "modelId": "1900800000000000101",
     "modelAlias": "deepseek-chat",
-    "subjectType": "USER",
+    "subjectType": "MEMBER",
     "subjectId": "1761100000000000003",
     "subjectName": "Alice",
-    "isDefault": true,
     "status": "ACTIVE",
     "revision": 0
   },

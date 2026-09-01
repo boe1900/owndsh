@@ -1,0 +1,138 @@
+# [INPUT]: 依赖 member.yaml 产品 DTO 与根协议的 cursor、limit 和统一错误响应。
+# [OUTPUT]: 提供产品成员 cursor 列表、详情、状态/角色、一次性身份绑定发起和外部身份解除 operation。
+# [POS]: contracts/paths 的成员治理分片，以聚合响应和 revision CAS 替代 RuoYi 用户/部门/权限树 API。
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+MemberCollection:
+  get:
+    operationId: listMembers
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Cursor'
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Limit'
+    responses:
+      '200':
+        description: Product member page with built-in roles and login method summaries.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/MemberListResponse'
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+
+MemberItem:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/EnterpriseUserIdPath'
+  get:
+    operationId: getMember
+    responses:
+      '200':
+        description: Product member detail with sanitized identities, devices and Session summary.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/MemberDetailResponse'
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+
+MemberStatus:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/EnterpriseUserIdPath'
+  put:
+    operationId: updateMemberStatus
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../enterprise-openapi.yaml#/components/schemas/MemberStatusUpdateRequest'
+    responses:
+      '200':
+        description: Updated member detail.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/MemberDetailResponse'
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+
+MemberRoles:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/EnterpriseUserIdPath'
+  put:
+    operationId: replaceMemberRoles
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../enterprise-openapi.yaml#/components/schemas/MemberRoleReplaceRequest'
+    responses:
+      '200':
+        description: Member detail after replacing built-in roles.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/MemberDetailResponse'
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+
+MemberIdentityItem:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/EnterpriseUserIdPath'
+    - name: identityId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[1-9][0-9]{0,18}$'
+  delete:
+    operationId: unlinkMemberIdentity
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    responses:
+      '200':
+        description: Member detail after removing a non-final external identity.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/MemberDetailResponse'
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+
+MemberIdentityLinks:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/EnterpriseUserIdPath'
+  post:
+    operationId: startIdentityLink
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../enterprise-openapi.yaml#/components/schemas/IdentityLinkStartRequest'
+    responses:
+      '200':
+        description: One-time fresh-auth transaction for the selected member and identity source.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/IdentityLinkStartResponse'
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}

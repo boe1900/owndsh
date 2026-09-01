@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 接收管理协议的名称、主体、nullable 独立限额与状态。
- * [OUTPUT]: 对外提供经过 V1 约束同构校验的 quota policy command。
+ * [OUTPUT]: 对外提供经过 ORGANIZATION/MEMBER 约束校验的 quota policy command。
  * [POS]: quota/application 的写入值对象，null 明确表示该策略不施加对应上限。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -27,8 +27,9 @@ public record QuotaPolicySpec(
         if (name.isEmpty() || name.length() > 120) throw new IllegalArgumentException("name 长度非法");
         Objects.requireNonNull(subjectType, "subjectType");
         Objects.requireNonNull(status, "status");
-        if ((subjectType == QuotaSubjectType.DEFAULT) != (subjectId == null)) {
-            throw new IllegalArgumentException("DEFAULT 必须省略 subjectId，DEPT/USER 必须提供 subjectId");
+        if ((subjectType == QuotaSubjectType.ORGANIZATION) != (subjectId == null)
+            || subjectId != null && subjectId <= 0) {
+            throw new IllegalArgumentException("ORGANIZATION 必须省略 subjectId，MEMBER 必须提供正数 subjectId");
         }
         requirePositive(dailyTokenLimit, "dailyTokenLimit");
         requirePositive(monthlyTokenLimit, "monthlyTokenLimit");

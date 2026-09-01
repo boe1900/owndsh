@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 聚合 model/subject 授权事实、默认标记、状态、revision 与管理展示名称。
+ * [INPUT]: 聚合 model、ALL_MEMBERS/MEMBER 主体、状态、revision 与管理展示名称。
  * [OUTPUT]: 对外提供 ModelGrant 领域记录。
  * [POS]: model/domain 的显式授权事实，modelAlias/subjectName 是可信 join 投影而非授权依据。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -14,19 +14,22 @@ public record ModelGrant(
     long modelId,
     String modelAlias,
     GrantSubjectType subjectType,
-    long subjectId,
+    Long subjectId,
     String subjectName,
-    boolean isDefault,
     ModelStatus status,
     long revision
 ) {
     public ModelGrant {
-        if (id <= 0 || modelId <= 0 || subjectId <= 0) {
+        if (id <= 0 || modelId <= 0) {
             throw new IllegalArgumentException("grant id 必须为正数");
         }
         tenantId = requireText(tenantId, "tenantId", 20);
         modelAlias = requireText(modelAlias, "modelAlias", 120);
         Objects.requireNonNull(subjectType, "subjectType");
+        if ((subjectType == GrantSubjectType.ALL_MEMBERS) != (subjectId == null)
+            || subjectId != null && subjectId <= 0) {
+            throw new IllegalArgumentException("授权主体与 subjectId 不一致");
+        }
         subjectName = requireText(subjectName, "subjectName", 120);
         Objects.requireNonNull(status, "status");
         if (revision < 0) throw new IllegalArgumentException("revision 不能为负数");

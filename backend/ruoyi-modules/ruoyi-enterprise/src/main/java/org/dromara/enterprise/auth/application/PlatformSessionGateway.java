@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 接收已校验的平台 user/client/device 登录事实，并读取当前 Sa-Token 请求上下文。
- * [OUTPUT]: 对外提供签发 12 小时非共享会话、读取/注销当前会话与保留撤销原因的 Harness installation 终端撤销端口。
+ * [OUTPUT]: 对外提供签发/读取/注销会话、单 Harness installation 撤销及成员全部终端撤销端口。
  * [POS]: auth/device application 对 RuoYi Sa-Token 组装的 DIP 边界，由 ruoyi-admin adapter 实现。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -22,4 +22,6 @@ public interface PlatformSessionGateway {
     void logoutCurrent();
 
     void revokeHarnessDevice(long userId, String installationId);
+
+    void revokeUser(long userId);
 }

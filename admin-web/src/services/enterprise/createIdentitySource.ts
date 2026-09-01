@@ -6,6 +6,7 @@ import request from "@/api/enterprise/generated-request";
 export async function createIdentitySource(
   body: {
     type: "OIDC" | "LDAP" | "LOCAL";
+    provisioningMode: "JIT" | "LINK_ONLY";
     name: string;
     issuer?: string;
     clientId?: string;
@@ -38,6 +39,7 @@ export async function createIdentitySource(
     data: {
       id: string;
       type: "OIDC" | "LDAP" | "LOCAL";
+      provisioningMode: "JIT" | "LINK_ONLY";
       name: string;
       issuer: string;
       clientId: string;

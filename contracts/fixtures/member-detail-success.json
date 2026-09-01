@@ -1,0 +1,61 @@
+{
+  "data": {
+    "member": {
+      "id": "101",
+      "username": "candidate.admin",
+      "displayName": "Candidate Admin",
+      "status": "ACTIVE",
+      "roles": ["enterprise_admin"],
+      "loginMethods": [
+        {
+          "sourceId": null,
+          "sourceName": "Local",
+          "sourceType": "LOCAL",
+          "lastLoginAt": "2026-09-01T04:30:00Z"
+        },
+        {
+          "sourceId": "201",
+          "sourceName": "Entra ID",
+          "sourceType": "OIDC",
+          "lastLoginAt": "2026-09-01T05:00:00Z"
+        }
+      ],
+      "lastActiveAt": "2026-09-01T05:00:00Z",
+      "revision": 2
+    },
+    "identities": [
+      {
+        "identityId": null,
+        "sourceId": null,
+        "sourceName": "Local",
+        "sourceType": "LOCAL",
+        "subject": "101",
+        "lastLoginAt": "2026-09-01T04:30:00Z"
+      },
+      {
+        "identityId": "301",
+        "sourceId": "201",
+        "sourceName": "Entra ID",
+        "sourceType": "OIDC",
+        "subject": "stable-subject-101",
+        "lastLoginAt": "2026-09-01T05:00:00Z"
+      }
+    ],
+    "devices": [
+      {
+        "id": "401",
+        "name": "Candidate Mac",
+        "platform": "darwin-arm64",
+        "status": "ACTIVE",
+        "lastSeenAt": "2026-09-01T05:10:00Z"
+      }
+    ],
+    "sessions": {
+      "active": 3,
+      "deleted": 1,
+      "expired": 0,
+      "latestUpdatedAt": "2026-09-01T05:09:00Z"
+    }
+  },
+  "requestId": "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+}

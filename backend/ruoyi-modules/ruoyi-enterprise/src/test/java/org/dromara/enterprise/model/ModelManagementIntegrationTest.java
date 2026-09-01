@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖真实 PostgreSQL 17、V1-V15 migrations、显式活动用户 fixture、模型 JDBC adapters、事务、AES-GCM 与设备服务。
- * [OUTPUT]: 验证 CRUD/CAS/回滚、密文保持、协议/reasoning 配置往返、授权并集、默认优先级、停用和 ACTIVE bootstrap。
+ * [INPUT]: 依赖真实 PostgreSQL 17、V1-V22 migrations、显式活动用户 fixture、模型 JDBC adapters、事务、AES-GCM 与设备服务。
+ * [OUTPUT]: 验证 CRUD/CAS/回滚、密文保持、协议/reasoning 配置往返、全员/成员授权并集、排序默认、停用和 ACTIVE bootstrap。
  * [POS]: T08 主要数据库验收，跨越 service/store/revision/audit 边界但不进入 T09/T10。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -168,66 +168,67 @@ class ModelManagementIntegrationTest {
         ManagedModel chat = models.create(context, modelSpec(provider.id(), "deepseek-chat", 20));
         ManagedModel reasoner = models.create(context, modelSpec(provider.id(), "deepseek-reasoner", 10));
         ManagedModel batchModel = models.create(context, modelSpec(provider.id(), "deepseek-batch", 30));
-        ModelGrant departmentDefault = grants.create(context, new ModelGrantSpec(
-            reasoner.id(), GrantSubjectType.DEPT, user.departmentId(), true, ModelStatus.ACTIVE
+        ModelGrant allMembersReasoner = grants.create(context, new ModelGrantSpec(
+            reasoner.id(), GrantSubjectType.ALL_MEMBERS, null, ModelStatus.ACTIVE
         ));
-        ModelGrant userDefault = grants.create(context, new ModelGrantSpec(
-            chat.id(), GrantSubjectType.USER, user.id(), true, ModelStatus.ACTIVE
+        ModelGrant memberChat = grants.create(context, new ModelGrantSpec(
+            chat.id(), GrantSubjectType.MEMBER, user.id(), ModelStatus.ACTIVE
         ));
-        ModelGrant userReasoner = grants.create(context, new ModelGrantSpec(
-            reasoner.id(), GrantSubjectType.USER, user.id(), false, ModelStatus.ACTIVE
+        ModelGrant memberReasoner = grants.create(context, new ModelGrantSpec(
+            reasoner.id(), GrantSubjectType.MEMBER, user.id(), ModelStatus.ACTIVE
         ));
 
-        List<EffectiveModelResolver.EffectiveModel> effective = resolver.resolve(TENANT, user.id(), user.departmentId());
+        List<EffectiveModelResolver.EffectiveModel> effective = resolver.resolve(TENANT, user.id());
         assertThat(effective).extracting(EffectiveModelResolver.EffectiveModel::alias)
             .containsExactly("deepseek-reasoner", "deepseek-chat");
         assertThat(effective).filteredOn(EffectiveModelResolver.EffectiveModel::isDefault)
-            .singleElement().extracting(EffectiveModelResolver.EffectiveModel::alias).isEqualTo("deepseek-chat");
+            .singleElement().extracting(EffectiveModelResolver.EffectiveModel::alias).isEqualTo("deepseek-reasoner");
         assertThat(effective).filteredOn(value -> value.alias().equals("deepseek-reasoner"))
             .singleElement().satisfies(value -> assertThat(value.reasoningEfforts().values())
                 .containsEntry("off", null).containsEntry("high", "high").containsEntry("max", "max"));
-        assertThat(resolver.resolve(TENANT, USER_ID + 1, null)).isEmpty();
+        assertThat(resolver.resolve(TENANT, USER_ID + 1)).extracting(EffectiveModelResolver.EffectiveModel::alias)
+            .containsExactly("deepseek-reasoner");
 
-        long beforeDefaultConflict = revisions.current(TENANT);
+        long beforeDuplicateConflict = revisions.current(TENANT);
         assertThatThrownBy(() -> grants.update(
             context,
-            userReasoner.id(),
+            memberReasoner.id(),
             0,
-            new ModelGrantSpec(reasoner.id(), GrantSubjectType.USER, user.id(), true, ModelStatus.ACTIVE)
-        )).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("默认授权冲突");
-        assertThat(revisions.current(TENANT)).isEqualTo(beforeDefaultConflict);
-        assertThat(grants.get(TENANT, userReasoner.id())).satisfies(value -> {
-            assertThat(value.isDefault()).isFalse();
+            new ModelGrantSpec(reasoner.id(), GrantSubjectType.ALL_MEMBERS, null, ModelStatus.ACTIVE)
+        )).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("授权重复");
+        assertThat(revisions.current(TENANT)).isEqualTo(beforeDuplicateConflict);
+        assertThat(grants.get(TENANT, memberReasoner.id())).satisfies(value -> {
+            assertThat(value.subjectType()).isEqualTo(GrantSubjectType.MEMBER);
             assertThat(value.revision()).isZero();
         });
 
         long grantsBeforeBatch = jdbc.queryForObject("select count(*) from ent_model_grant", Long.class);
         long revisionBeforeBatch = revisions.current(TENANT);
         ModelGrantSpec duplicate = new ModelGrantSpec(
-            batchModel.id(), GrantSubjectType.USER, user.id(), false, ModelStatus.ACTIVE
+            batchModel.id(), GrantSubjectType.MEMBER, user.id(), ModelStatus.ACTIVE
         );
         assertThatThrownBy(() -> grants.createBatch(context, List.of(duplicate, duplicate)))
             .isInstanceOf(IllegalArgumentException.class);
         assertThat(jdbc.queryForObject("select count(*) from ent_model_grant", Long.class)).isEqualTo(grantsBeforeBatch);
         assertThat(revisions.current(TENANT)).isEqualTo(revisionBeforeBatch);
 
-        grants.update(context, userDefault.id(), 0, new ModelGrantSpec(
-            chat.id(), GrantSubjectType.USER, user.id(), true, ModelStatus.DISABLED
+        grants.update(context, memberChat.id(), 0, new ModelGrantSpec(
+            chat.id(), GrantSubjectType.MEMBER, user.id(), ModelStatus.DISABLED
         ));
-        assertThat(resolver.resolve(TENANT, user.id(), user.departmentId()))
+        assertThat(resolver.resolve(TENANT, user.id()))
             .filteredOn(EffectiveModelResolver.EffectiveModel::isDefault)
             .singleElement().extracting(EffectiveModelResolver.EffectiveModel::alias)
             .isEqualTo("deepseek-reasoner");
 
         ManagedModel disabledReasoner = models.setStatus(context, reasoner.id(), 0, ModelStatus.DISABLED);
-        assertThat(resolver.resolve(TENANT, user.id(), user.departmentId())).isEmpty();
+        assertThat(resolver.resolve(TENANT, user.id())).isEmpty();
         models.setStatus(context, reasoner.id(), disabledReasoner.revision(), ModelStatus.ACTIVE);
-        assertThat(resolver.resolve(TENANT, user.id(), user.departmentId())).hasSize(1);
+        assertThat(resolver.resolve(TENANT, user.id())).hasSize(1);
 
         ModelProvider disabledProvider = providers.setStatus(
             context, updatedProvider.id(), updatedProvider.revision(), ModelStatus.DISABLED
         );
-        assertThat(resolver.resolve(TENANT, user.id(), user.departmentId())).isEmpty();
+        assertThat(resolver.resolve(TENANT, user.id())).isEmpty();
         providers.setStatus(context, disabledProvider.id(), disabledProvider.revision(), ModelStatus.ACTIVE);
 
         BootstrapService bootstrap = bootstrapService(transaction, audit, ids, resolver, revisions, user);
@@ -242,9 +243,9 @@ class ModelManagementIntegrationTest {
         });
         assertThat(snapshot.revision()).isEqualTo(revisions.current(TENANT));
 
-        grants.delete(context, userDefault.id(), 1);
+        grants.delete(context, memberChat.id(), 1);
         long revisionAfterGrantDelete = revisions.current(TENANT);
-        grants.delete(context, userDefault.id(), 1);
+        grants.delete(context, memberChat.id(), 1);
         assertThat(revisions.current(TENANT)).isEqualTo(revisionAfterGrantDelete);
 
         models.delete(context, batchModel.id(), 0);
@@ -271,7 +272,7 @@ class ModelManagementIntegrationTest {
             Long.class
         )).isGreaterThan(0);
         assertThat(revisions.current(TENANT)).isGreaterThan(initialRevision);
-        assertThat(departmentDefault.isDefault()).isTrue();
+        assertThat(allMembersReasoner.subjectType()).isEqualTo(GrantSubjectType.ALL_MEMBERS);
     }
 
     private BootstrapService bootstrapService(
@@ -298,7 +299,7 @@ class ModelManagementIntegrationTest {
             transaction, new JdbcDeviceStore(database.jdbc()), audit, sessions, ids
         );
         EffectiveQuotaResolver quotas = mock(EffectiveQuotaResolver.class);
-        when(quotas.resolve(TENANT, user.id(), user.departmentId())).thenReturn(List.of());
+        when(quotas.resolve(TENANT, user.id())).thenReturn(List.of());
         EffectivePluginResolver plugins = mock(EffectivePluginResolver.class);
         when(plugins.resolve(TENANT, user.id(), user.departmentId()))
             .thenReturn(new EffectivePluginResolver.ResolvedAssignments(revisions.current(TENANT), List.of()));

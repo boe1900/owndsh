@@ -6,7 +6,7 @@ import request from "@/api/enterprise/generated-request";
 export async function createQuotaPolicy(
   body: {
     name: string;
-    subjectType: "DEFAULT" | "DEPT" | "USER";
+    subjectType: "ORGANIZATION" | "MEMBER";
     subjectId: string | null;
     dailyTokenLimit: number | null;
     monthlyTokenLimit: number | null;
@@ -20,7 +20,7 @@ export async function createQuotaPolicy(
     data: {
       id: string;
       name: string;
-      subjectType: "DEFAULT" | "DEPT" | "USER";
+      subjectType: "ORGANIZATION" | "MEMBER";
       subjectId: string | null;
       subjectName: string | null;
       dailyTokenLimit: number | null;

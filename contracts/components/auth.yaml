@@ -1,5 +1,5 @@
 # [INPUT]: 依赖根协议的 RequestId 与统一 envelope 约定，以及详细设计第 6 节固定 public client/PKCE 边界
-# [OUTPUT]: 提供登录事务、公开身份源、LOCAL 两阶段改密 challenge、授权码 Token 和注销 schema
+# [OUTPUT]: 提供登录事务、公开身份源、LOCAL 两阶段改密 challenge、授权码 Token、注销与产品控制台 bootstrap schema
 # [POS]: contracts/components 的认证协议分片，首次改密不重放账号/初始密码/验证码且不增加密码重置旁路
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -247,5 +247,69 @@ LogoutResponse:
   properties:
     data:
       $ref: '#/LogoutData'
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+
+BuiltInRole:
+  type: string
+  enum: [enterprise_admin, model_admin, plugin_admin, auditor, employee]
+
+ConsoleMember:
+  type: object
+  additionalProperties: false
+  required: [id, displayName, avatarUrl]
+  properties:
+    id:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/EnterpriseUserId'
+    displayName:
+      type: string
+      minLength: 1
+      maxLength: 120
+    avatarUrl:
+      type: [string, 'null']
+      format: uri
+      maxLength: 2048
+
+ConsoleDeployment:
+  type: object
+  additionalProperties: false
+  required: [name]
+  properties:
+    name:
+      type: string
+      minLength: 1
+      maxLength: 120
+
+ConsoleBootstrapData:
+  type: object
+  additionalProperties: false
+  required: [member, roles, permissions, deployment]
+  properties:
+    member:
+      $ref: '#/ConsoleMember'
+    roles:
+      type: array
+      uniqueItems: true
+      maxItems: 5
+      items:
+        $ref: '#/BuiltInRole'
+    permissions:
+      type: array
+      uniqueItems: true
+      maxItems: 100
+      items:
+        type: string
+        minLength: 1
+        maxLength: 120
+    deployment:
+      $ref: '#/ConsoleDeployment'
+
+ConsoleBootstrapResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data:
+      $ref: '#/ConsoleBootstrapData'
     requestId:
       $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'

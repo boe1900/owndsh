@@ -4,7 +4,7 @@
 
 成员清单
 
-AuditAction.java: 详细设计第 13 节 30 个 action 的枚举真源，与 PostgreSQL check 约束保持同构。
+AuditAction.java: 31 个 action 的枚举真源，与 PostgreSQL check 约束保持同构。
 AuditActorType.java: USER/SYSTEM actor 分类。
 AuditResult.java: SUCCESS/FAILURE 结果分类。
 AuditMetadata.java: 每个显式 metadata DTO 必须声明唯一 action 的编译期入口闸门。

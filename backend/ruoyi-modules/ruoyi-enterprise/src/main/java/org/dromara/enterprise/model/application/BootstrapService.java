@@ -46,10 +46,8 @@ public final class BootstrapService {
         EnterpriseDevice device = devices.requireActive(context);
         BootstrapUser user = users.findActive(context.tenantId(), device.userId())
             .orElseThrow(ModelResourceNotFoundException::new);
-        List<EffectiveModelResolver.EffectiveModel> models = resolver.resolve(
-            context.tenantId(), user.id(), user.departmentId()
-        );
-        List<QuotaPolicy> quotas = quotaResolver.resolve(context.tenantId(), user.id(), user.departmentId());
+        List<EffectiveModelResolver.EffectiveModel> models = resolver.resolve(context.tenantId(), user.id());
+        List<QuotaPolicy> quotas = quotaResolver.resolve(context.tenantId(), user.id());
         EffectivePluginResolver.ResolvedAssignments plugins = pluginResolver.resolve(
             context.tenantId(), user.id(), user.departmentId()
         );

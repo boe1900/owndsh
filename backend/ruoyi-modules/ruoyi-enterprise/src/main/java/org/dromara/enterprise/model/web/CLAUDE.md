@@ -11,9 +11,9 @@ AdminProviderController.java: provider list/get/create/update/test/enable/disabl
 ManagedModelWriteRequest.java: 受管模型创建/更新协议到 application spec 的转换 DTO，保留 reasoningEfforts 省略/false/object 三态。
 ManagedModelView.java: provider 名称、容量、reasoningEfforts 与 completions compat 的管理安全投影。
 AdminManagedModelController.java: 模型 CRUD/排序字段更新/启停与 ent:model 权限入口。
-ModelGrantWriteRequest.java: 单条授权写 DTO 与 application spec 转换。
+ModelGrantWriteRequest.java: ALL_MEMBERS/MEMBER 单条授权写 DTO 与 application spec 转换。
 ModelGrantBatchRequest.java: 最多 200 条授权的原子批量请求边界。
-ModelGrantView.java: subject/model 展示名与 revision 的管理投影。
+ModelGrantView.java: nullable subjectId、subject/model 展示名与 revision 的管理投影。
 AdminModelGrantController.java: 授权 list/create/update/delete/batch 与 ent:grant 权限入口。
 DeletedModelResourceView.java: 模型/授权删除成功的统一 id/deleted 投影。
 BootstrapView.java: T06 严格客户端消费的完整脱敏 bootstrap 外壳，向 Harness 投影模型 reasoningEfforts 并汇总配额、插件与 Session 策略。

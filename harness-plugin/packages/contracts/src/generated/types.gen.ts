@@ -29,6 +29,8 @@ export type DepartmentId = IdentityDepartmentId;
 
 export type IdentitySourceType = IdentityIdentitySourceType;
 
+export type IdentityProvisioningMode = IdentityIdentityProvisioningMode;
+
 export type IdentitySourceStatus = IdentityIdentitySourceStatus;
 
 export type OidcClaimMapping = IdentityOidcClaimMapping;
@@ -110,6 +112,46 @@ export type TokenResponse = AuthTokenResponse;
 export type LogoutData = AuthLogoutData;
 
 export type LogoutResponse = AuthLogoutResponse;
+
+export type BuiltInRole = AuthBuiltInRole;
+
+export type ConsoleMember = AuthConsoleMember;
+
+export type ConsoleDeployment = AuthConsoleDeployment;
+
+export type ConsoleBootstrapData = AuthConsoleBootstrapData;
+
+export type ConsoleBootstrapResponse = AuthConsoleBootstrapResponse;
+
+export type MemberStatus = MemberMemberStatus;
+
+export type MemberLoginMethod = MemberMemberLoginMethod;
+
+export type MemberSummary = MemberMemberSummary;
+
+export type MemberIdentity = MemberMemberIdentity;
+
+export type MemberDeviceSummary = MemberMemberDeviceSummary;
+
+export type MemberSessionSummary = MemberMemberSessionSummary;
+
+export type MemberDetail = MemberMemberDetail;
+
+export type MemberDetailResponse = MemberMemberDetailResponse;
+
+export type MemberStatusUpdateRequest = MemberMemberStatusUpdateRequest;
+
+export type MemberRoleReplaceRequest = MemberMemberRoleReplaceRequest;
+
+export type IdentityLinkStartRequest = MemberIdentityLinkStartRequest;
+
+export type IdentityLinkStart = MemberIdentityLinkStart;
+
+export type IdentityLinkStartResponse = MemberIdentityLinkStartResponse;
+
+export type MemberPageData = MemberMemberPageData;
+
+export type MemberListResponse = MemberMemberListResponse;
 
 export type DeviceStatus = DeviceDeviceStatus;
 
@@ -389,7 +431,7 @@ export type ProtocolPageResponse = {
     requestId: RequestId;
 };
 
-export type EnterpriseErrorCode = 'ENT_INVALID_REQUEST' | 'ENT_INVALID_REDIRECT_URI' | 'ENT_PKCE_REQUIRED' | 'ENT_PLUGIN_ARTIFACT_INVALID' | 'ENT_SESSION_FORMAT_UNSUPPORTED' | 'ENT_AUTH_REQUIRED' | 'ENT_AUTH_CODE_INVALID' | 'ENT_PKCE_INVALID' | 'ENT_AUTH_SESSION_EXPIRED' | 'ENT_PERMISSION_DENIED' | 'ENT_DEVICE_REVOKED' | 'ENT_MODEL_NOT_ASSIGNED' | 'ENT_PLUGIN_NOT_ASSIGNED' | 'ENT_RESOURCE_NOT_OWNED' | 'ENT_RESOURCE_NOT_FOUND' | 'ENT_SESSION_CONTENT_EXPIRED' | 'ENT_REVISION_CONFLICT' | 'ENT_REQUEST_IN_PROGRESS' | 'ENT_REQUEST_ALREADY_COMPLETED' | 'ENT_SESSION_SEQ_GAP' | 'ENT_SESSION_DIVERGED' | 'ENT_SESSION_SOURCE_DEVICE_CONFLICT' | 'ENT_IDENTITY_ALREADY_LINKED' | 'ENT_DEVICE_ALREADY_BOUND' | 'ENT_REQUEST_TOO_LARGE' | 'ENT_PLUGIN_ARCHIVE_TOO_LARGE' | 'ENT_SESSION_BATCH_TOO_LARGE' | 'ENT_QUOTA_DAILY_EXCEEDED' | 'ENT_QUOTA_MONTHLY_EXCEEDED' | 'ENT_QUOTA_RPM_EXCEEDED' | 'ENT_QUOTA_CONCURRENCY_EXCEEDED' | 'ENT_UPSTREAM_AUTH_FAILED' | 'ENT_UPSTREAM_INVALID_RESPONSE' | 'ENT_PLATFORM_UNAVAILABLE' | 'ENT_UPSTREAM_UNAVAILABLE' | 'ENT_UPSTREAM_TIMEOUT';
+export type EnterpriseErrorCode = 'ENT_INVALID_REQUEST' | 'ENT_INVALID_REDIRECT_URI' | 'ENT_PKCE_REQUIRED' | 'ENT_PLUGIN_ARTIFACT_INVALID' | 'ENT_SESSION_FORMAT_UNSUPPORTED' | 'ENT_AUTH_REQUIRED' | 'ENT_AUTH_CODE_INVALID' | 'ENT_PKCE_INVALID' | 'ENT_AUTH_SESSION_EXPIRED' | 'ENT_PERMISSION_DENIED' | 'ENT_DEVICE_REVOKED' | 'ENT_MODEL_NOT_ASSIGNED' | 'ENT_PLUGIN_NOT_ASSIGNED' | 'ENT_RESOURCE_NOT_OWNED' | 'ENT_RESOURCE_NOT_FOUND' | 'ENT_SESSION_CONTENT_EXPIRED' | 'ENT_REVISION_CONFLICT' | 'ENT_LAST_ENTERPRISE_ADMIN' | 'ENT_LAST_MEMBER_IDENTITY' | 'ENT_REQUEST_IN_PROGRESS' | 'ENT_REQUEST_ALREADY_COMPLETED' | 'ENT_SESSION_SEQ_GAP' | 'ENT_SESSION_DIVERGED' | 'ENT_SESSION_SOURCE_DEVICE_CONFLICT' | 'ENT_IDENTITY_ALREADY_LINKED' | 'ENT_DEVICE_ALREADY_BOUND' | 'ENT_REQUEST_TOO_LARGE' | 'ENT_PLUGIN_ARCHIVE_TOO_LARGE' | 'ENT_SESSION_BATCH_TOO_LARGE' | 'ENT_QUOTA_DAILY_EXCEEDED' | 'ENT_QUOTA_MONTHLY_EXCEEDED' | 'ENT_QUOTA_RPM_EXCEEDED' | 'ENT_QUOTA_CONCURRENCY_EXCEEDED' | 'ENT_UPSTREAM_AUTH_FAILED' | 'ENT_UPSTREAM_INVALID_RESPONSE' | 'ENT_PLATFORM_UNAVAILABLE' | 'ENT_UPSTREAM_UNAVAILABLE' | 'ENT_UPSTREAM_TIMEOUT';
 
 export type ValidationViolation = {
     field: string;
@@ -427,7 +469,7 @@ export type EnterpriseErrorResponse = {
     error: EnterpriseError;
 };
 
-export type AuditAuditAction = 'LOGIN_SUCCEEDED' | 'LOGIN_FAILED' | 'LOGOUT' | 'IDENTITY_SOURCE_CHANGED' | 'USER_LINKED' | 'DEVICE_ENROLLED' | 'DEVICE_HEARTBEAT' | 'DEVICE_REVOKED' | 'PROVIDER_CHANGED' | 'MODEL_CHANGED' | 'MODEL_GRANT_CHANGED' | 'MODEL_REQUEST_ACCEPTED' | 'MODEL_REQUEST_FINISHED' | 'QUOTA_CHANGED' | 'QUOTA_REJECTED' | 'RESERVATION_RECOVERED' | 'PLUGIN_UPLOADED' | 'PLUGIN_PUBLISHED' | 'PLUGIN_ASSIGNED' | 'PLUGIN_DOWNLOADED' | 'PLUGIN_INVENTORY_REPORTED' | 'SESSION_BATCH_APPENDED' | 'SESSION_EXPORTED' | 'SESSION_RESTORED' | 'SESSION_CONTENT_READ' | 'SESSION_DELETED' | 'SESSION_EXPIRED' | 'ROLE_ASSIGNED' | 'USER_STATUS_CHANGED' | 'CONFIG_CHANGED';
+export type AuditAuditAction = 'LOGIN_SUCCEEDED' | 'LOGIN_FAILED' | 'LOGOUT' | 'IDENTITY_SOURCE_CHANGED' | 'USER_LINKED' | 'USER_UNLINKED' | 'DEVICE_ENROLLED' | 'DEVICE_HEARTBEAT' | 'DEVICE_REVOKED' | 'PROVIDER_CHANGED' | 'MODEL_CHANGED' | 'MODEL_GRANT_CHANGED' | 'MODEL_REQUEST_ACCEPTED' | 'MODEL_REQUEST_FINISHED' | 'QUOTA_CHANGED' | 'QUOTA_REJECTED' | 'RESERVATION_RECOVERED' | 'PLUGIN_UPLOADED' | 'PLUGIN_PUBLISHED' | 'PLUGIN_ASSIGNED' | 'PLUGIN_DOWNLOADED' | 'PLUGIN_INVENTORY_REPORTED' | 'SESSION_BATCH_APPENDED' | 'SESSION_EXPORTED' | 'SESSION_RESTORED' | 'SESSION_CONTENT_READ' | 'SESSION_DELETED' | 'SESSION_EXPIRED' | 'ROLE_ASSIGNED' | 'USER_STATUS_CHANGED' | 'CONFIG_CHANGED';
 
 export type AuditAuditActorType = 'USER' | 'SYSTEM';
 
@@ -458,7 +500,7 @@ export type AuditAuditEventPageData = {
     page: CursorPage;
 };
 
-export type AuditAuditMetadata = EmptyAuditMetadata | AuthAuditMetadata | IdentityChangeAuditMetadata | IdentityLinkAuditMetadata | DeviceEnrollmentAuditMetadata | DeviceHeartbeatAuditMetadata | ProviderChangeAuditMetadata | ModelChangeAuditMetadata | ModelGrantChangeAuditMetadata | GatewayAcceptedAuditMetadata | GatewayFinishedAuditMetadata | QuotaChangeAuditMetadata | QuotaRejectionAuditMetadata | ReservationRecoveredAuditMetadata | PluginAuditMetadata | SessionRangeAuditMetadata | SessionRestoredAuditMetadata | SessionDeletedAuditMetadata | SessionExpiredAuditMetadata | RoleAssignedAuditMetadata | UserStatusChangedAuditMetadata | RevisionChangedAuditMetadata;
+export type AuditAuditMetadata = EmptyAuditMetadata | AuthAuditMetadata | IdentityChangeAuditMetadata | IdentityLinkAuditMetadata | IdentityUnlinkAuditMetadata | DeviceEnrollmentAuditMetadata | DeviceHeartbeatAuditMetadata | ProviderChangeAuditMetadata | ModelChangeAuditMetadata | ModelGrantChangeAuditMetadata | GatewayAcceptedAuditMetadata | GatewayFinishedAuditMetadata | QuotaChangeAuditMetadata | QuotaRejectionAuditMetadata | ReservationRecoveredAuditMetadata | PluginAuditMetadata | SessionRangeAuditMetadata | SessionRestoredAuditMetadata | SessionDeletedAuditMetadata | SessionExpiredAuditMetadata | RoleAssignedAuditMetadata | UserStatusChangedAuditMetadata | RevisionChangedAuditMetadata;
 
 export type AuditAuditResult = 'SUCCESS' | 'FAILURE';
 
@@ -516,6 +558,12 @@ export type IdentityLinkAuditMetadata = {
     departmentConflict: boolean;
 };
 
+export type IdentityUnlinkAuditMetadata = {
+    sourceType: 'OIDC' | 'LDAP' | 'LOCAL';
+    previousRevision: number;
+    currentRevision: number;
+};
+
 export type ModelChangeAuditMetadata = {
     operation: 'CREATE' | 'UPDATE' | 'ENABLE' | 'DISABLE' | 'DELETE';
     resourceRevision: number;
@@ -524,8 +572,7 @@ export type ModelChangeAuditMetadata = {
 
 export type ModelGrantChangeAuditMetadata = {
     operation: 'CREATE' | 'UPDATE' | 'DELETE';
-    subjectType: 'USER' | 'DEPT';
-    defaultGrant: boolean;
+    subjectType: 'ALL_MEMBERS' | 'MEMBER';
     status: 'ACTIVE' | 'DISABLED';
     resourceRevision: number;
     bootstrapRevision: number;
@@ -548,7 +595,7 @@ export type ProviderChangeAuditMetadata = {
 };
 
 export type QuotaChangeAuditMetadata = {
-    subjectType: 'DEFAULT' | 'DEPT' | 'USER';
+    subjectType: 'ORGANIZATION' | 'MEMBER';
     status: 'ACTIVE' | 'DISABLED';
     previousRevision: number;
     currentRevision: number;
@@ -614,6 +661,30 @@ export type AuthAuthSourcesResponse = {
 export type AuthAuthTransactionId = string;
 
 export type AuthAuthorizationCode = string;
+
+export type AuthBuiltInRole = 'enterprise_admin' | 'model_admin' | 'plugin_admin' | 'auditor' | 'employee';
+
+export type AuthConsoleBootstrapData = {
+    member: AuthConsoleMember;
+    roles: Array<AuthBuiltInRole>;
+    permissions: Array<string>;
+    deployment: AuthConsoleDeployment;
+};
+
+export type AuthConsoleBootstrapResponse = {
+    data: AuthConsoleBootstrapData;
+    requestId: RequestId;
+};
+
+export type AuthConsoleDeployment = {
+    name: string;
+};
+
+export type AuthConsoleMember = {
+    id: EnterpriseUserId;
+    displayName: string;
+    avatarUrl: string | null;
+};
 
 export type AuthInitialPasswordChangeRequest = {
     transactionId: AuthAuthTransactionId;
@@ -819,9 +890,12 @@ export type IdentityGroupMappingResponse = {
     requestId: RequestId;
 };
 
+export type IdentityIdentityProvisioningMode = 'JIT' | 'LINK_ONLY';
+
 export type IdentityIdentitySource = {
     id: IdentityIdentitySourceId;
     type: IdentityIdentitySourceType;
+    provisioningMode: IdentityIdentityProvisioningMode;
     name: string;
     issuer?: string;
     clientId?: string;
@@ -845,6 +919,7 @@ export type IdentityIdentitySourceConnection = {
 
 export type IdentityIdentitySourceCreateRequest = {
     type: IdentityIdentitySourceType;
+    provisioningMode: IdentityIdentityProvisioningMode;
     name: string;
     issuer?: string;
     clientId?: string;
@@ -883,6 +958,7 @@ export type IdentityIdentitySourceType = 'OIDC' | 'LDAP' | 'LOCAL';
 
 export type IdentityIdentitySourceUpdateRequest = {
     type: IdentityIdentitySourceType;
+    provisioningMode: IdentityIdentityProvisioningMode;
     name: string;
     issuer?: string;
     clientId?: string;
@@ -913,6 +989,94 @@ export type IdentityOidcClaimMapping = {
 export type IdentityOidcSettings = {
     scopes: Array<string>;
     claims: IdentityOidcClaimMapping;
+};
+
+export type MemberIdentityLinkStart = {
+    transactionId: string;
+    authorizeUri: string;
+};
+
+export type MemberIdentityLinkStartRequest = {
+    sourceId: IdentityIdentitySourceId;
+};
+
+export type MemberIdentityLinkStartResponse = {
+    data: MemberIdentityLinkStart;
+    requestId: RequestId;
+};
+
+export type MemberMemberDetail = {
+    member: MemberMemberSummary;
+    identities: Array<MemberMemberIdentity>;
+    devices: Array<MemberMemberDeviceSummary>;
+    sessions: MemberMemberSessionSummary;
+};
+
+export type MemberMemberDetailResponse = {
+    data: MemberMemberDetail;
+    requestId: RequestId;
+};
+
+export type MemberMemberDeviceSummary = {
+    id: EnterpriseDeviceId;
+    name: string;
+    platform: string;
+    status: DeviceDeviceStatus;
+    lastSeenAt: string | null;
+};
+
+export type MemberMemberIdentity = {
+    identityId: string | null;
+    sourceId: IdentityIdentitySourceId | null;
+    sourceName: string;
+    sourceType: IdentityIdentitySourceType;
+    subject: string;
+    lastLoginAt: string | null;
+};
+
+export type MemberMemberListResponse = {
+    data: MemberMemberPageData;
+    requestId: RequestId;
+};
+
+export type MemberMemberLoginMethod = {
+    sourceId: IdentityIdentitySourceId | null;
+    sourceName: string;
+    sourceType: IdentityIdentitySourceType;
+    lastLoginAt: string | null;
+};
+
+export type MemberMemberPageData = {
+    items: Array<MemberMemberSummary>;
+    page: CursorPage;
+};
+
+export type MemberMemberRoleReplaceRequest = {
+    roles: Array<AuthBuiltInRole>;
+};
+
+export type MemberMemberSessionSummary = {
+    active: number;
+    deleted: number;
+    expired: number;
+    latestUpdatedAt: string | null;
+};
+
+export type MemberMemberStatus = 'ACTIVE' | 'DISABLED';
+
+export type MemberMemberStatusUpdateRequest = {
+    status: MemberMemberStatus;
+};
+
+export type MemberMemberSummary = {
+    id: EnterpriseUserId;
+    username: string;
+    displayName: string;
+    status: MemberMemberStatus;
+    roles: Array<AuthBuiltInRole>;
+    loginMethods: Array<MemberMemberLoginMethod>;
+    lastActiveAt: string | null;
+    revision: Revision;
 };
 
 export type BootstrapDevice = {
@@ -960,7 +1124,7 @@ export type BootstrapUser = {
     departmentId: IdentityDepartmentId | null;
 };
 
-export type ModelGrantSubjectType = 'USER' | 'DEPT';
+export type ModelGrantSubjectType = 'ALL_MEMBERS' | 'MEMBER';
 
 export type ModelManagedModel = {
     id: ManagedModelId;
@@ -1012,9 +1176,8 @@ export type ModelModelGrant = {
     modelId: ManagedModelId;
     modelAlias: ModelAlias;
     subjectType: ModelGrantSubjectType;
-    subjectId: string;
+    subjectId: string | null;
     subjectName: string;
-    isDefault: boolean;
     status: ModelModelStatus;
     revision: Revision;
 };
@@ -1048,8 +1211,7 @@ export type ModelModelGrantResponse = {
 export type ModelModelGrantWriteRequest = {
     modelId: ManagedModelId;
     subjectType: ModelGrantSubjectType;
-    subjectId: string;
-    isDefault: boolean;
+    subjectId: string | null;
     status: ModelModelStatus;
 };
 
@@ -1412,7 +1574,7 @@ export type QuotaQuotaPolicyWriteRequest = {
 
 export type QuotaQuotaStatus = 'ACTIVE' | 'DISABLED';
 
-export type QuotaQuotaSubjectType = 'DEFAULT' | 'DEPT' | 'USER';
+export type QuotaQuotaSubjectType = 'ORGANIZATION' | 'MEMBER';
 
 export type QuotaQuotaUsagePolicy = {
     policyId: QuotaQuotaPolicyId;
@@ -1643,6 +1805,8 @@ export type AdminAuditCollection = unknown;
 
 export type Authorize = unknown;
 
+export type ConsoleBootstrap = unknown;
+
 export type Logout = unknown;
 
 export type OidcCallback = unknown;
@@ -1691,6 +1855,18 @@ export type _1Enterprise1Admin1V11IdentitySources1SourceId1Actions1Enable = unkn
 export type _1Enterprise1Admin1V11IdentitySources1SourceId1Actions1Test = unknown;
 
 export type _1Enterprise1Admin1V11Users1UserId1IdentitySummary = unknown;
+
+export type MemberCollection = unknown;
+
+export type MemberIdentityItem = unknown;
+
+export type MemberIdentityLinks = unknown;
+
+export type MemberItem = unknown;
+
+export type MemberRoles = unknown;
+
+export type MemberMemberStatus2 = unknown;
 
 export type Bootstrap = unknown;
 
@@ -1774,6 +1950,8 @@ export type DepartmentIdWritable = IdentityDepartmentId;
 
 export type IdentitySourceTypeWritable = IdentityIdentitySourceType;
 
+export type IdentityProvisioningModeWritable = IdentityIdentityProvisioningMode;
+
 export type IdentitySourceStatusWritable = IdentityIdentitySourceStatus;
 
 export type IdentitySourceCreateRequestWritable = IdentityIdentitySourceCreateRequestWritable;
@@ -1799,6 +1977,10 @@ export type PasswordCredentialRequestWritable = AuthPasswordCredentialRequestWri
 export type PasswordChangeChallengeWritable = AuthPasswordChangeChallenge;
 
 export type InitialPasswordChangeRequestWritable = AuthInitialPasswordChangeRequestWritable;
+
+export type BuiltInRoleWritable = AuthBuiltInRole;
+
+export type MemberStatusWritable = MemberMemberStatus;
 
 export type DeviceStatusWritable = DeviceDeviceStatus;
 
@@ -1900,6 +2082,7 @@ export type GatewayGatewayModelWritable = ModelAlias | 'enterprise/default';
 
 export type IdentityIdentitySourceCreateRequestWritable = {
     type: IdentityIdentitySourceType;
+    provisioningMode: IdentityIdentityProvisioningMode;
     name: string;
     issuer?: string;
     clientId?: string;
@@ -1910,6 +2093,7 @@ export type IdentityIdentitySourceCreateRequestWritable = {
 
 export type IdentityIdentitySourceUpdateRequestWritable = {
     type: IdentityIdentitySourceType;
+    provisioningMode: IdentityIdentityProvisioningMode;
     name: string;
     issuer?: string;
     clientId?: string;
@@ -2214,6 +2398,295 @@ export type LogoutPlatformSessionResponses = {
 };
 
 export type LogoutPlatformSessionResponse = LogoutPlatformSessionResponses[keyof LogoutPlatformSessionResponses];
+
+export type GetConsoleBootstrapData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/enterprise/admin/v1/bootstrap';
+};
+
+export type GetConsoleBootstrapErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+};
+
+export type GetConsoleBootstrapError = GetConsoleBootstrapErrors[keyof GetConsoleBootstrapErrors];
+
+export type GetConsoleBootstrapResponses = {
+    /**
+     * Current enterprise-admin session facts.
+     */
+    200: AuthConsoleBootstrapResponse;
+};
+
+export type GetConsoleBootstrapResponse = GetConsoleBootstrapResponses[keyof GetConsoleBootstrapResponses];
+
+export type ListMembersData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Server-signed opaque cursor; clients must not parse it.
+         */
+        cursor?: Cursor;
+        /**
+         * Cursor page size.
+         */
+        limit?: PageLimit;
+    };
+    url: '/enterprise/admin/v1/members';
+};
+
+export type ListMembersErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type ListMembersError = ListMembersErrors[keyof ListMembersErrors];
+
+export type ListMembersResponses = {
+    /**
+     * Product member page with built-in roles and login method summaries.
+     */
+    200: MemberMemberListResponse;
+};
+
+export type ListMembersResponse = ListMembersResponses[keyof ListMembersResponses];
+
+export type GetMemberData = {
+    body?: never;
+    path: {
+        userId: EnterpriseUserId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/members/{userId}';
+};
+
+export type GetMemberErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+};
+
+export type GetMemberError = GetMemberErrors[keyof GetMemberErrors];
+
+export type GetMemberResponses = {
+    /**
+     * Product member detail with sanitized identities, devices and Session summary.
+     */
+    200: MemberMemberDetailResponse;
+};
+
+export type GetMemberResponse = GetMemberResponses[keyof GetMemberResponses];
+
+export type UpdateMemberStatusData = {
+    body: MemberMemberStatusUpdateRequest;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        userId: EnterpriseUserId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/members/{userId}/status';
+};
+
+export type UpdateMemberStatusErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type UpdateMemberStatusError = UpdateMemberStatusErrors[keyof UpdateMemberStatusErrors];
+
+export type UpdateMemberStatusResponses = {
+    /**
+     * Updated member detail.
+     */
+    200: MemberMemberDetailResponse;
+};
+
+export type UpdateMemberStatusResponse = UpdateMemberStatusResponses[keyof UpdateMemberStatusResponses];
+
+export type ReplaceMemberRolesData = {
+    body: MemberMemberRoleReplaceRequest;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        userId: EnterpriseUserId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/members/{userId}/roles';
+};
+
+export type ReplaceMemberRolesErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type ReplaceMemberRolesError = ReplaceMemberRolesErrors[keyof ReplaceMemberRolesErrors];
+
+export type ReplaceMemberRolesResponses = {
+    /**
+     * Member detail after replacing built-in roles.
+     */
+    200: MemberMemberDetailResponse;
+};
+
+export type ReplaceMemberRolesResponse = ReplaceMemberRolesResponses[keyof ReplaceMemberRolesResponses];
+
+export type UnlinkMemberIdentityData = {
+    body?: never;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        userId: EnterpriseUserId;
+        identityId: string;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/members/{userId}/identities/{identityId}';
+};
+
+export type UnlinkMemberIdentityErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type UnlinkMemberIdentityError = UnlinkMemberIdentityErrors[keyof UnlinkMemberIdentityErrors];
+
+export type UnlinkMemberIdentityResponses = {
+    /**
+     * Member detail after removing a non-final external identity.
+     */
+    200: MemberMemberDetailResponse;
+};
+
+export type UnlinkMemberIdentityResponse = UnlinkMemberIdentityResponses[keyof UnlinkMemberIdentityResponses];
+
+export type StartIdentityLinkData = {
+    body: MemberIdentityLinkStartRequest;
+    path: {
+        userId: EnterpriseUserId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/members/{userId}/identity-links';
+};
+
+export type StartIdentityLinkErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type StartIdentityLinkError = StartIdentityLinkErrors[keyof StartIdentityLinkErrors];
+
+export type StartIdentityLinkResponses = {
+    /**
+     * One-time fresh-auth transaction for the selected member and identity source.
+     */
+    200: MemberIdentityLinkStartResponse;
+};
+
+export type StartIdentityLinkResponse = StartIdentityLinkResponses[keyof StartIdentityLinkResponses];
 
 export type EnrollCurrentDeviceData = {
     body: DeviceDeviceEnrollRequest;

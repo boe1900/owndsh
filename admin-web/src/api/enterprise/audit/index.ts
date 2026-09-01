@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 OpenAPI 生成的 listAuditEvents operation 与第 13 节 action/metadata 映射
+ * [INPUT]: 依赖 OpenAPI 生成的 listAuditEvents operation 与封闭 action/metadata 映射
  * [OUTPUT]: 提供严格 metadata 标量投影、审计筛选和 cursor page API
  * [POS]: api/enterprise/audit 的浏览器信任边界，未知 key 或嵌套值不能进入 React 状态
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -8,7 +8,7 @@
 import { listAuditEvents as generatedListAuditEvents } from '@/services/enterprise/listAuditEvents';
 
 export const AUDIT_ACTIONS = [
-  'LOGIN_SUCCEEDED', 'LOGIN_FAILED', 'LOGOUT', 'IDENTITY_SOURCE_CHANGED', 'USER_LINKED',
+  'LOGIN_SUCCEEDED', 'LOGIN_FAILED', 'LOGOUT', 'IDENTITY_SOURCE_CHANGED', 'USER_LINKED', 'USER_UNLINKED',
   'DEVICE_ENROLLED', 'DEVICE_HEARTBEAT', 'DEVICE_REVOKED', 'PROVIDER_CHANGED', 'MODEL_CHANGED',
   'MODEL_GRANT_CHANGED', 'MODEL_REQUEST_ACCEPTED', 'MODEL_REQUEST_FINISHED', 'QUOTA_CHANGED',
   'QUOTA_REJECTED', 'RESERVATION_RECOVERED', 'PLUGIN_UPLOADED', 'PLUGIN_PUBLISHED',
@@ -41,6 +41,7 @@ const ALLOWED_KEYS: Record<AuditAction, readonly string[]> = {
   LOGIN_SUCCEEDED: ['clientId', 'sourceType'], LOGIN_FAILED: ['clientId', 'sourceType'], LOGOUT: ['clientId'],
   IDENTITY_SOURCE_CHANGED: [...COMMON_CHANGE, 'sourceType', 'protectedValueChanged'],
   USER_LINKED: ['sourceType', 'userProvisioned', 'externalGroupCount', 'mappedGroupCount', 'unmappedGroupCount', 'departmentConflict'],
+  USER_UNLINKED: ['sourceType', 'previousRevision', 'currentRevision'],
   DEVICE_ENROLLED: ['platform', 'created'],
   DEVICE_HEARTBEAT: ['desiredRevision', 'pendingSyncItems', 'hasSuccessfulSync'],
   DEVICE_REVOKED: [],

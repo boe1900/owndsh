@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 Spring JdbcOperations 与 RuoYi sys_user 字段约束。
- * [OUTPUT]: 对外提供外部用户最小创建、显示名/邮箱/部门/最后登录同步且绝不修改角色。
- * [POS]: PlatformUserStore 的 JDBC adapter，把身份绑定限制在 RuoYi 用户事实的安全白名单。
+ * [OUTPUT]: 对外提供 active Member 查询及不带部门、岗位或角色的外部成员最小创建。
+ * [POS]: PlatformUserStore 的 JDBC adapter，只在 JIT 时复制初始显示名/邮箱，后续身份登录不覆盖成员资料。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.auth.persistence;
@@ -24,15 +24,6 @@ public final class JdbcPlatformUserStore implements PlatformUserStore {
             create_dept, create_by, create_time, update_by, update_time, remark
         ) values (?, ?, ?, ?, 'sys_user', ?, '', '0', null, '', '0', '0', '', ?, ?, ?, ?, ?, ?, 'External identity')
         """;
-    private static final String UPDATE_WITH_DEPT_SQL = """
-        update sys_user set dept_id = ?, nick_name = ?, email = ?, login_date = ?, update_time = ?
-        where user_id = ? and del_flag = '0'
-        """;
-    private static final String UPDATE_PROFILE_SQL = """
-        update sys_user set nick_name = ?, email = ?, login_date = ?, update_time = ?
-        where user_id = ? and del_flag = '0'
-        """;
-
     private final JdbcOperations jdbc;
 
     public JdbcPlatformUserStore(JdbcOperations jdbc) {
@@ -40,9 +31,9 @@ public final class JdbcPlatformUserStore implements PlatformUserStore {
     }
 
     @Override
-    public boolean exists(long userId) {
+    public boolean isActive(long userId) {
         Boolean exists = jdbc.queryForObject(
-            "select exists(select 1 from sys_user where user_id = ? and del_flag = '0')",
+            "select exists(select 1 from sys_user where user_id = ? and status = '0' and del_flag = '0')",
             Boolean.class,
             userId
         );
@@ -65,46 +56,22 @@ public final class JdbcPlatformUserStore implements PlatformUserStore {
         String username,
         String displayName,
         String email,
-        Long departmentId,
         Instant loginAt
     ) {
         LocalDateTime timestamp = LocalDateTime.ofInstant(loginAt, ZoneOffset.UTC);
         jdbc.update(
             INSERT_SQL,
             userId,
-            departmentId,
+            null,
             username,
             displayName,
             email == null ? "" : email,
             timestamp,
-            departmentId,
+            null,
             userId,
             timestamp,
             userId,
             timestamp
         );
-    }
-
-    @Override
-    public void updateProfile(
-        long userId,
-        String displayName,
-        String email,
-        Long mappedDepartmentId,
-        Instant loginAt
-    ) {
-        LocalDateTime timestamp = LocalDateTime.ofInstant(loginAt, ZoneOffset.UTC);
-        int updated = mappedDepartmentId == null
-            ? jdbc.update(UPDATE_PROFILE_SQL, displayName, email == null ? "" : email, timestamp, timestamp, userId)
-            : jdbc.update(
-                UPDATE_WITH_DEPT_SQL,
-                mappedDepartmentId,
-                displayName,
-                email == null ? "" : email,
-                timestamp,
-                timestamp,
-                userId
-            );
-        if (updated != 1) throw new IllegalStateException("平台用户不存在或不可更新");
     }
 }

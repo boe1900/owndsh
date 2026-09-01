@@ -28,8 +28,9 @@ public record QuotaPolicy(
         name = requireText(name, "name");
         Objects.requireNonNull(subjectType, "subjectType");
         Objects.requireNonNull(status, "status");
-        if ((subjectType == QuotaSubjectType.DEFAULT) != (subjectId == null)) {
-            throw new IllegalArgumentException("DEFAULT 与 subjectId 约束不一致");
+        if ((subjectType == QuotaSubjectType.ORGANIZATION) != (subjectId == null)
+            || subjectId != null && subjectId <= 0) {
+            throw new IllegalArgumentException("ORGANIZATION/MEMBER 与 subjectId 约束不一致");
         }
         requirePositive(dailyTokenLimit, "dailyTokenLimit");
         requirePositive(monthlyTokenLimit, "monthlyTokenLimit");

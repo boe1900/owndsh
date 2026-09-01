@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖事务、Grant/Model stores、bootstrap revision、AuditSink 与 ID generator。
  * [OUTPUT]: 对外提供授权 list/get/create/update/delete 及最多 200 条全成全败批量创建。
- * [POS]: model/application 的授权用例编排，主体存在性、默认唯一约束、revision 和审计统一在事务内裁决。
+ * [POS]: model/application 的授权用例编排，主体存在性、重复约束、revision 和审计统一在事务内裁决。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.model.application;
@@ -96,7 +96,7 @@ public final class ModelGrantService {
                 return List.copyOf(created);
             }));
         } catch (DataIntegrityViolationException exception) {
-            throw new IllegalArgumentException("授权重复或默认授权冲突", exception);
+            throw new IllegalArgumentException("授权重复", exception);
         }
     }
 
@@ -114,7 +114,7 @@ public final class ModelGrantService {
                 String subjectName = requireSubject(context.tenantId(), spec);
                 ModelGrant updated = new ModelGrant(
                     current.id(), current.tenantId(), model.id(), model.alias(), spec.subjectType(),
-                    spec.subjectId(), subjectName, spec.isDefault(), spec.status(), expectedRevision + 1
+                    spec.subjectId(), subjectName, spec.status(), expectedRevision + 1
                 );
                 if (!grants.update(updated, expectedRevision)) {
                     throw conflict(context.tenantId(), grantId, expectedRevision);
@@ -124,7 +124,7 @@ public final class ModelGrantService {
                 return updated;
             }));
         } catch (DataIntegrityViolationException exception) {
-            throw new IllegalArgumentException("授权重复或默认授权冲突", exception);
+            throw new IllegalArgumentException("授权重复", exception);
         }
     }
 
@@ -148,7 +148,7 @@ public final class ModelGrantService {
         String subjectName = requireSubject(tenantId, spec);
         return new ModelGrant(
             positiveId(), tenantId, model.id(), model.alias(), spec.subjectType(), spec.subjectId(),
-            subjectName, spec.isDefault(), spec.status(), 0
+            subjectName, spec.status(), 0
         );
     }
 
@@ -174,7 +174,7 @@ public final class ModelGrantService {
             AuditAction.MODEL_GRANT_CHANGED, "MODEL_GRANT", Long.toString(grant.id()), AuditResult.SUCCESS,
             null, context.requestId(), context.sourceIp(), context.userAgentHash(),
             new ModelGrantChangeMetadata(
-                operation, grant.subjectType(), grant.isDefault(), grant.status(), grant.revision(), bootstrapRevision
+                operation, grant.subjectType(), grant.status(), grant.revision(), bootstrapRevision
             )
         ));
     }

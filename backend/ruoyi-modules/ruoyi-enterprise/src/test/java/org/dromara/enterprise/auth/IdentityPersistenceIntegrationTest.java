@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖真实 PostgreSQL V1-V13、身份 JDBC stores、三个身份 Application Service、AES-GCM 与只追加审计。
- * [OUTPUT]: 验证秘密隔离、资源 CAS、显式活动用户名冲突下的稳定 subject/摘要、绑定冲突和部门映射冲突语义。
- * [POS]: T04 身份持久化事务退出门禁，以数据库最终事实证明领域规则而非用 mock 代替原子性。
+ * [INPUT]: 依赖真实 PostgreSQL 身份 stores、三个身份 Application Service、AES-GCM 与只追加审计。
+ * [OUTPUT]: 验证秘密隔离、资源 CAS、稳定 subject、JIT/LINK_ONLY、绑定冲突与成员资料/部门隔离。
+ * [POS]: 身份持久化事务门禁，以数据库最终事实证明平台 Member 与外部 Identity 的职责分离。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.auth;
@@ -10,6 +10,7 @@ import org.dromara.enterprise.audit.AuditSink;
 import org.dromara.enterprise.audit.JdbcAuditSink;
 import org.dromara.enterprise.auth.adapter.IdentityAdapter;
 import org.dromara.enterprise.auth.adapter.IdentityAdapterRegistry;
+import org.dromara.enterprise.auth.adapter.IdentityAuthenticationException;
 import org.dromara.enterprise.auth.adapter.IdentityEndpointPolicy;
 import org.dromara.enterprise.auth.adapter.IdentitySourceConnection;
 import org.dromara.enterprise.auth.application.ExternalIdentityService;
@@ -23,6 +24,7 @@ import org.dromara.enterprise.auth.application.IdentitySourceSpec;
 import org.dromara.enterprise.auth.application.SecretInput;
 import org.dromara.enterprise.auth.domain.IdentityCredential;
 import org.dromara.enterprise.auth.domain.IdentityPrincipal;
+import org.dromara.enterprise.auth.domain.IdentityProvisioningMode;
 import org.dromara.enterprise.auth.domain.IdentitySource;
 import org.dromara.enterprise.auth.domain.IdentitySourceType;
 import org.dromara.enterprise.auth.domain.OidcSettings;
@@ -196,7 +198,7 @@ class IdentityPersistenceIntegrationTest {
         mappingService(audit).create(mutation(), source.id(), "engineering", DEPARTMENT_A);
         ExternalIdentityService service = externalIdentityService();
         long collidingUserId = sequence.incrementAndGet();
-        users.insert(collidingUserId, "admin", "Existing Admin", null, DEPARTMENT_A, Instant.EPOCH);
+        users.insert(collidingUserId, "admin", "Existing Admin", null, Instant.EPOCH);
 
         IdentityPrincipal first = principal(source, "subject-001", "admin", "First Name", "first@example.test",
             List.of("engineering", "unmapped"));
@@ -204,7 +206,6 @@ class IdentityPersistenceIntegrationTest {
 
         assertThat(linked.linkedNow()).isTrue();
         assertThat(linked.userProvisioned()).isTrue();
-        assertThat(linked.departmentId()).isEqualTo(DEPARTMENT_A);
         assertThat(linked.userId()).isNotEqualTo(collidingUserId);
         assertThat(database.jdbc().queryForObject(
             "select user_name from sys_user where user_id=?", String.class, linked.userId()
@@ -220,9 +221,9 @@ class IdentityPersistenceIntegrationTest {
         assertThat(resolved.linkedNow()).isFalse();
         assertThat(database.jdbc().queryForMap(
             "select nick_name, email, dept_id from sys_user where user_id=?", linked.userId()
-        )).containsEntry("nick_name", "Renamed")
-            .containsEntry("email", "new@example.test")
-            .containsEntry("dept_id", DEPARTMENT_A);
+        )).containsEntry("nick_name", "First Name")
+            .containsEntry("email", "first@example.test")
+            .containsEntry("dept_id", null);
         assertThat(database.jdbc().queryForObject(
             "select count(*) from ent_external_identity where source_id=? and external_subject='subject-001'",
             Long.class,
@@ -236,10 +237,13 @@ class IdentityPersistenceIntegrationTest {
                 assertThat(summary.externalSubject()).isEqualTo("subject-001");
                 assertThat(summary.lastLoginAt()).isNotNull();
             });
+        database.jdbc().update("update sys_user set status='1' where user_id=?", linked.userId());
+        assertThatThrownBy(() -> service.resolveOrProvision(login(), first))
+            .isInstanceOf(IdentityAuthenticationException.class);
     }
 
     @Test
-    void rejectsExplicitBindingConflictsAndPreservesDepartmentOnAmbiguousGroups() {
+    void rejectsExplicitBindingConflictsAndIgnoresLegacyDepartmentMappings() {
         IdentitySource source = createSource(
             sourceService(audit), "Conflict OIDC", "https://conflict.example.test", "conflict-secret"
         );
@@ -254,7 +258,8 @@ class IdentityPersistenceIntegrationTest {
         assertThatThrownBy(() -> service.linkToExistingUser(
             login(),
             principal(source, "subject-b", "worker-b", "Worker B", null, List.of()),
-            first.userId()
+            first.userId(),
+            mutation().actorId()
         )).isInstanceOfSatisfying(IdentityAlreadyLinkedException.class, exception ->
             assertThat(exception.errorCode()).isEqualTo("ENT_IDENTITY_ALREADY_LINKED")
         );
@@ -262,9 +267,9 @@ class IdentityPersistenceIntegrationTest {
         service.resolveOrProvision(login(), principal(
             source, "subject-a", "worker", "Worker Updated", null, List.of("engineering", "marketing")
         ));
-        assertThat(database.jdbc().queryForObject(
-            "select dept_id from sys_user where user_id=?", Long.class, first.userId()
-        )).isEqualTo(DEPARTMENT_A);
+        assertThat(database.jdbc().queryForMap(
+            "select nick_name, dept_id from sys_user where user_id=?", first.userId()
+        )).containsEntry("nick_name", "Worker").containsEntry("dept_id", null);
 
         IdentityLinkResult ambiguous = service.resolveOrProvision(login(), principal(
             source, "subject-c", "ambiguous", "Ambiguous", null, List.of("engineering", "marketing")
@@ -277,7 +282,33 @@ class IdentityPersistenceIntegrationTest {
                 select metadata_json->>'departmentConflict' from ent_audit_event
                 where action='USER_LINKED' and actor_id=?
                 """, String.class, ambiguous.userId()
-        )).isEqualTo("true");
+        )).isEqualTo("false");
+    }
+
+    @Test
+    void linkOnlyRejectsUnknownLoginButAllowsExplicitBindingAndLaterLogin() {
+        IdentitySource source = createSource(
+            sourceService(audit),
+            "Partner OIDC",
+            "https://partner.example.test",
+            "partner-secret",
+            IdentityProvisioningMode.LINK_ONLY
+        );
+        ExternalIdentityService service = externalIdentityService();
+        long memberId = sequence.incrementAndGet();
+        users.insert(memberId, "partner-member", "Partner Member", null, Instant.EPOCH);
+        IdentityPrincipal principal = principal(
+            source, "partner-subject", "external-user", "External User", null, List.of()
+        );
+
+        assertThatThrownBy(() -> service.resolveOrProvision(login(), principal))
+            .isInstanceOf(IdentityAuthenticationException.class);
+        assertThat(count("ent_external_identity")).isZero();
+
+        IdentityLinkResult linked = service.linkToExistingUser(login(), principal, memberId, mutation().actorId());
+        assertThat(linked.userId()).isEqualTo(memberId);
+        assertThat(linked.linkedNow()).isTrue();
+        assertThat(service.resolveOrProvision(login(), principal).userId()).isEqualTo(memberId);
     }
 
     private IdentitySourceService sourceService(AuditSink sink) {
@@ -322,7 +353,7 @@ class IdentityPersistenceIntegrationTest {
     }
 
     private ExternalIdentityService externalIdentityService() {
-        return new ExternalIdentityService(transactions, sources, identities, mappings, users, audit, ids());
+        return new ExternalIdentityService(transactions, sources, identities, users, audit, ids());
     }
 
     private IdentitySource createSource(
@@ -331,14 +362,33 @@ class IdentityPersistenceIntegrationTest {
         String issuer,
         String secret
     ) {
+        return createSource(service, name, issuer, secret, IdentityProvisioningMode.JIT);
+    }
+
+    private IdentitySource createSource(
+        IdentitySourceService service,
+        String name,
+        String issuer,
+        String secret,
+        IdentityProvisioningMode provisioningMode
+    ) {
         try (SecretInput input = new SecretInput(secret.toCharArray())) {
-            return service.create(mutation(), sourceSpec(name, issuer), input);
+            return service.create(mutation(), sourceSpec(name, issuer, provisioningMode), input);
         }
     }
 
     private static IdentitySourceSpec sourceSpec(String name, String issuer) {
+        return sourceSpec(name, issuer, IdentityProvisioningMode.JIT);
+    }
+
+    private static IdentitySourceSpec sourceSpec(
+        String name,
+        String issuer,
+        IdentityProvisioningMode provisioningMode
+    ) {
         return new IdentitySourceSpec(
             IdentitySourceType.OIDC,
+            provisioningMode,
             name,
             URI.create(issuer),
             "enterprise-client",

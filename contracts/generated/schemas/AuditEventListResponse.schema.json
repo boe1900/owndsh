@@ -84,6 +84,7 @@
                   "LOGOUT",
                   "IDENTITY_SOURCE_CHANGED",
                   "USER_LINKED",
+                  "USER_UNLINKED",
                   "DEVICE_ENROLLED",
                   "DEVICE_HEARTBEAT",
                   "DEVICE_REVOKED",
@@ -264,6 +265,33 @@
                     "type": "object",
                     "additionalProperties": false,
                     "required": [
+                      "sourceType",
+                      "previousRevision",
+                      "currentRevision"
+                    ],
+                    "properties": {
+                      "sourceType": {
+                        "type": "string",
+                        "enum": [
+                          "OIDC",
+                          "LDAP",
+                          "LOCAL"
+                        ]
+                      },
+                      "previousRevision": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "currentRevision": {
+                        "type": "integer",
+                        "minimum": 1
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
                       "platform",
                       "created"
                     ],
@@ -375,7 +403,6 @@
                     "required": [
                       "operation",
                       "subjectType",
-                      "defaultGrant",
                       "status",
                       "resourceRevision",
                       "bootstrapRevision"
@@ -392,12 +419,9 @@
                       "subjectType": {
                         "type": "string",
                         "enum": [
-                          "USER",
-                          "DEPT"
+                          "ALL_MEMBERS",
+                          "MEMBER"
                         ]
-                      },
-                      "defaultGrant": {
-                        "type": "boolean"
                       },
                       "status": {
                         "type": "string",
@@ -502,9 +526,8 @@
                       "subjectType": {
                         "type": "string",
                         "enum": [
-                          "DEFAULT",
-                          "DEPT",
-                          "USER"
+                          "ORGANIZATION",
+                          "MEMBER"
                         ]
                       },
                       "status": {

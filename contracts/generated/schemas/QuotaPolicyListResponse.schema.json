@@ -47,9 +47,8 @@
               "subjectType": {
                 "type": "string",
                 "enum": [
-                  "DEFAULT",
-                  "DEPT",
-                  "USER"
+                  "ORGANIZATION",
+                  "MEMBER"
                 ]
               },
               "subjectId": {

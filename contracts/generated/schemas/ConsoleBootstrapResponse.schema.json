@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:enterprise-agent:contracts:ConsoleBootstrapResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "data",
+    "requestId"
+  ],
+  "properties": {
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "member",
+        "roles",
+        "permissions",
+        "deployment"
+      ],
+      "properties": {
+        "member": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "displayName",
+            "avatarUrl"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "description": "Enterprise user snowflake ID serialized as a string."
+            },
+            "displayName": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "avatarUrl": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uri",
+              "maxLength": 2048
+            }
+          }
+        },
+        "roles": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 5,
+          "items": {
+            "type": "string",
+            "enum": [
+              "enterprise_admin",
+              "model_admin",
+              "plugin_admin",
+              "auditor",
+              "employee"
+            ]
+          }
+        },
+        "permissions": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 100,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "deployment": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            }
+          }
+        }
+      }
+    },
+    "requestId": {
+      "type": "string",
+      "description": "Server-generated req_ prefix followed by one canonical ULID.",
+      "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+      "examples": [
+        "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+      ]
+    }
+  }
+}

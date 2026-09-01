@@ -173,7 +173,7 @@ describe('EnterprisePlatformService', () => {
               maxTokens: 8192, isDefault: true,
             }],
             quotas: [{
-              policyId: '73001', scope: 'USER', dailyTokenLimit: 1_000_000,
+              policyId: '73001', scope: 'MEMBER', dailyTokenLimit: 1_000_000,
               monthlyTokenLimit: 20_000_000, rpm: 20, concurrency: 2,
             }],
             plugins: {

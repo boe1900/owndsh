@@ -25,6 +25,7 @@
             "required": [
               "id",
               "type",
+              "provisioningMode",
               "name",
               "secretConfigured",
               "status",
@@ -44,6 +45,13 @@
                   "OIDC",
                   "LDAP",
                   "LOCAL"
+                ]
+              },
+              "provisioningMode": {
+                "type": "string",
+                "enum": [
+                  "JIT",
+                  "LINK_ONLY"
                 ]
               },
               "name": {

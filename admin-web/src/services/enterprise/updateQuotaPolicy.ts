@@ -8,7 +8,7 @@ export async function updateQuotaPolicy(
   params: API.updateQuotaPolicyParams,
   body: {
     name: string;
-    subjectType: "DEFAULT" | "DEPT" | "USER";
+    subjectType: "ORGANIZATION" | "MEMBER";
     subjectId: string | null;
     dailyTokenLimit: number | null;
     monthlyTokenLimit: number | null;
@@ -23,7 +23,7 @@ export async function updateQuotaPolicy(
     data: {
       id: string;
       name: string;
-      subjectType: "DEFAULT" | "DEPT" | "USER";
+      subjectType: "ORGANIZATION" | "MEMBER";
       subjectId: string | null;
       subjectName: string | null;
       dailyTokenLimit: number | null;

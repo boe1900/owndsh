@@ -4,7 +4,8 @@
 
 成员清单
 
-console-shell.tsx: 复用上游 SidebarNav 和 Harness tab/window 结构，注入企业静态导航并承载 TanStack Outlet 与移动抽屉。
+console-shell.tsx: 复用上游 SidebarNav、ThemeToggle 和 Harness tab/window 结构，按 bootstrap 固定角色过滤导航，在标签栏固定深浅主题切换，并在工作区菜单末尾提供 Server 确认的 Sign out。
+product-routes.ts: 六个产品页面的路径、文案、Lucide 图标和五种固定角色矩阵唯一静态真源，多角色取并集。
 router.tsx: 创建并注册 TanStack Router 类型，消费生成 routeTree 且不读取 Server 菜单。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

@@ -8,6 +8,7 @@ export async function updateIdentitySource(
   params: API.updateIdentitySourceParams,
   body: {
     type: "OIDC" | "LDAP" | "LOCAL";
+    provisioningMode: "JIT" | "LINK_ONLY";
     name: string;
     issuer?: string;
     clientId?: string;
@@ -41,6 +42,7 @@ export async function updateIdentitySource(
     data: {
       id: string;
       type: "OIDC" | "LDAP" | "LOCAL";
+      provisioningMode: "JIT" | "LINK_ONLY";
       name: string;
       issuer: string;
       clientId: string;

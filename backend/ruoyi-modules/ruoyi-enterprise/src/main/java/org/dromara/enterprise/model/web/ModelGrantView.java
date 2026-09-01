@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 投影 ModelGrant 的模型 alias、主体名称、默认/状态与 revision。
+ * [INPUT]: 投影 ModelGrant 的模型 alias、主体名称、状态与 revision。
  * [OUTPUT]: 对外提供模型授权管理响应 DTO。
  * [POS]: model/web 的授权输出边界，展示名来自服务端 join 且不参与 runtime 授权裁决。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -17,14 +17,14 @@ public record ModelGrantView(
     GrantSubjectType subjectType,
     String subjectId,
     String subjectName,
-    boolean isDefault,
     ModelStatus status,
     long revision
 ) {
     public static ModelGrantView from(ModelGrant grant) {
         return new ModelGrantView(
             Long.toString(grant.id()), Long.toString(grant.modelId()), grant.modelAlias(), grant.subjectType(),
-            Long.toString(grant.subjectId()), grant.subjectName(), grant.isDefault(), grant.status(), grant.revision()
+            grant.subjectId() == null ? null : Long.toString(grant.subjectId()),
+            grant.subjectName(), grant.status(), grant.revision()
         );
     }
 }

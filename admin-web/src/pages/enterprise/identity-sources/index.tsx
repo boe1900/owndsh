@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖身份源/组映射业务 API、RuoYi 权限事实与 cursor/revision 公共策略
- * [OUTPUT]: 提供身份源配置、最近连接测试、启停和显式外部组映射页面
+ * [OUTPUT]: 提供身份源、JIT/LINK_ONLY、连接测试、启停和旧外部组映射回退页面
  * [POS]: pages/enterprise 的身份治理工作台，secret 只在创建或替换提交时短暂存在于表单
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -45,6 +45,7 @@ import { validatedFormValues } from '../shared/validateForm';
 
 interface SourceFormValues {
   type: 'OIDC' | 'LDAP' | 'LOCAL';
+  provisioningMode: 'JIT' | 'LINK_ONLY';
   name: string;
   issuer?: string;
   clientId?: string;
@@ -75,6 +76,7 @@ function sourceInitialValues(source?: IdentitySource): SourceFormValues {
   if (!source) {
     return {
       type: 'OIDC',
+      provisioningMode: 'JIT',
       name: '',
       scopes: 'openid profile email',
       usernameClaim: 'preferred_username',
@@ -92,6 +94,7 @@ function sourceInitialValues(source?: IdentitySource): SourceFormValues {
   }
   return {
     type: source.type,
+    provisioningMode: source.provisioningMode,
     name: source.name,
     issuer: source.issuer || undefined,
     clientId: source.clientId || undefined,
@@ -124,7 +127,12 @@ function lastTest(source: IdentitySource) {
 }
 
 function sourceInput(values: SourceFormValues): IdentitySourceUpdateInput {
-  const common = { type: values.type, name: values.name.trim(), secret: values.secret || undefined };
+  const common = {
+    type: values.type,
+    provisioningMode: values.provisioningMode,
+    name: values.name.trim(),
+    secret: values.secret || undefined
+  };
   if (values.type === 'OIDC') {
     return {
       ...common,
@@ -172,6 +180,14 @@ function SourceFields({ editing }: { editing: boolean }) {
       <Form.Item name="name" label="名称" rules={[{ required: true, whitespace: true, max: 128 }]}>
         <Input />
       </Form.Item>
+      {type !== 'LOCAL' && (
+        <Form.Item name="provisioningMode" label="首次登录" rules={[{ required: true }]}>
+          <Select options={[
+            { value: 'JIT', label: 'JIT 自动创建成员' },
+            { value: 'LINK_ONLY', label: '仅允许绑定已有成员' }
+          ]} />
+        </Form.Item>
+      )}
       {type === 'OIDC' && (
         <>
           <Form.Item name="issuer" label="Issuer" rules={[{ required: true, type: 'url' }]}>
@@ -312,6 +328,7 @@ export default function IdentitySourcesPage() {
   const sourceColumns: TableColumnsType<IdentitySource> = [
     { title: '名称', dataIndex: 'name' },
     { title: '类型', dataIndex: 'type', width: 90 },
+    { title: '首次登录', dataIndex: 'provisioningMode', width: 130 },
     { title: '端点', render: (_, source) => source.issuer || source.ldap?.url || '-' },
     {
       title: '密钥',

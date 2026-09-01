@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 Redis 登录/challenge/OIDC/code 短期状态、身份源/adapter/验证码/绑定服务、会话、审计与 CSPRNG。
- * [OUTPUT]: 提供 authorize/sources/password 两阶段改密/OIDC/token/logout/cancel 的完整 T05 编排。
- * [POS]: auth application 的状态机，初始凭据仅验证一次，challenge/code 原子消费且失败不能重放。
+ * [OUTPUT]: 提供 authorize/sources/password 两阶段改密/OIDC/token/logout/cancel，以及复用新鲜认证的一次性成员身份绑定。
+ * [POS]: auth application 的状态机，初始凭据只验证一次，登录/绑定事务和 code 均原子消费且失败不能重放。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.auth.application;
@@ -175,11 +175,36 @@ public final class PlatformAuthorizationService {
 
     public AuthSources sources(String tenantId, String transactionId) {
         LoginTransaction transaction = requireTransaction(transactionId);
-        List<PublicIdentitySource> activeSources = sources.listActive(tenantId, 50).stream()
-            .map(PublicIdentitySource::from)
-            .toList();
+        List<PublicIdentitySource> activeSources = transaction.identityLink() == null
+            ? sources.listActive(tenantId, 50).stream().map(PublicIdentitySource::from).toList()
+            : List.of(PublicIdentitySource.from(requireSource(
+                tenantId, transaction.identityLink().sourceId()
+            )));
         if (activeSources.isEmpty()) throw new AuthFlowException("ENT_AUTH_REQUIRED");
         return new AuthSources(transaction.id(), transaction.csrfToken(), activeSources);
+    }
+
+    public String startIdentityLink(String tenantId, long userId, long sourceId, long actorId) {
+        if (userId <= 0 || actorId <= 0) throw new IllegalArgumentException("身份绑定成员非法");
+        IdentitySource source = requireSource(tenantId, sourceId);
+        if (source.type() == IdentitySourceType.LOCAL) throw new IllegalArgumentException("LOCAL 身份不能绑定");
+        for (int attempt = 0; attempt < MAX_RANDOM_COLLISIONS; attempt++) {
+            String transactionId = "tx_" + randomToken(24);
+            LoginTransaction transaction = new LoginTransaction(
+                transactionId,
+                PlatformClient.ENTERPRISE_ADMIN,
+                publicBaseUrl.resolve("/members"),
+                "link_" + randomToken(24),
+                randomToken(32),
+                null,
+                "admin-" + UUID.randomUUID(),
+                "csrf_" + randomToken(24),
+                Instant.now(clock),
+                new LoginTransaction.IdentityLinkTarget(userId, sourceId, actorId)
+            );
+            if (transactions.createTransaction(transaction)) return transactionId;
+        }
+        throw new IllegalStateException("无法创建唯一身份绑定事务");
     }
 
     public URI password(
@@ -195,7 +220,7 @@ public final class PlatformAuthorizationService {
     ) {
         LoginTransaction transaction = requireTransaction(transactionId);
         requireCsrf(transaction, csrfToken);
-        IdentitySource source = requireSource(tenantId, sourceId);
+        IdentitySource source = requireSource(tenantId, transaction, sourceId);
         if (source.type() == IdentitySourceType.OIDC) throw new AuthFlowException("ENT_INVALID_REQUEST");
         if (source.type() == IdentitySourceType.LOCAL
             && !captchaVerifier.verify(username, captchaId, captchaCode)) {
@@ -226,7 +251,7 @@ public final class PlatformAuthorizationService {
     ) {
         LoginTransaction transaction = requireTransaction(transactionId);
         requireCsrf(transaction, csrfToken);
-        IdentitySource source = requireSource(tenantId, sourceId);
+        IdentitySource source = requireSource(tenantId, transaction, sourceId);
         if (source.type() != IdentitySourceType.LOCAL) throw new AuthFlowException("ENT_INVALID_REQUEST");
         PasswordChangeChallenge challenge = passwordChanges.consumeChallenge(challengeToken)
             .orElseThrow(() -> new AuthFlowException("ENT_AUTH_SESSION_EXPIRED"));
@@ -252,8 +277,8 @@ public final class PlatformAuthorizationService {
     }
 
     public URI startOidc(String tenantId, String transactionId, long sourceId) {
-        requireTransaction(transactionId);
-        IdentitySource source = requireSource(tenantId, sourceId);
+        LoginTransaction transaction = requireTransaction(transactionId);
+        IdentitySource source = requireSource(tenantId, transaction, sourceId);
         if (source.type() != IdentitySourceType.OIDC) throw new AuthFlowException("ENT_INVALID_REQUEST");
         URI callbackUri = publicBaseUrl.resolve("/enterprise/auth/v1/oidc/" + sourceId + "/callback");
         for (int attempt = 0; attempt < MAX_RANDOM_COLLISIONS; attempt++) {
@@ -360,6 +385,11 @@ public final class PlatformAuthorizationService {
         LoginTransaction consumed = transactions.consumeTransaction(transaction.id())
             .orElseThrow(() -> new AuthFlowException("ENT_AUTH_SESSION_EXPIRED"));
         if (!consumed.equals(transaction)) throw new AuthFlowException("ENT_AUTH_SESSION_EXPIRED");
+        if (consumed.identityLink() != null) {
+            LoginTransaction.IdentityLinkTarget target = consumed.identityLink();
+            identities.linkToExistingUser(context, principal, target.userId(), target.actorId());
+            return publicBaseUrl.resolve("/members?identity_linked=1");
+        }
         IdentityLinkResult linked = identities.resolveOrProvision(context, principal);
         PlatformAuthorizationCode authorizationCode = createAuthorizationCode(consumed, linked.userId());
         auditSuccess(consumed, source.type(), linked.userId(), context);
@@ -426,6 +456,13 @@ public final class PlatformAuthorizationService {
             .orElseThrow(() -> new AuthFlowException("ENT_AUTH_REQUIRED"));
         if (source.status() != IdentitySourceStatus.ACTIVE) throw new AuthFlowException("ENT_AUTH_REQUIRED");
         return source;
+    }
+
+    private IdentitySource requireSource(String tenantId, LoginTransaction transaction, long sourceId) {
+        if (transaction.identityLink() != null && transaction.identityLink().sourceId() != sourceId) {
+            throw new AuthFlowException("ENT_INVALID_REQUEST");
+        }
+        return requireSource(tenantId, sourceId);
     }
 
     private void auditSuccess(

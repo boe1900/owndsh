@@ -1,12 +1,13 @@
 /**
- * [INPUT]: 依赖 Spring JdbcOperations、Jackson JsonMapper 与 V1/V7 ent_identity_source schema。
- * [OUTPUT]: 对外提供 keyset SQL、最近测试、JSONB 配置映射、bytea 密文和 revision CAS 的 IdentitySourceStore。
+ * [INPUT]: 依赖 Spring JdbcOperations、Jackson JsonMapper 与 V1/V7/V22 ent_identity_source schema。
+ * [OUTPUT]: 对外提供 keyset SQL、provisioning mode、最近测试、JSONB 配置、bytea 密文和 revision CAS。
  * [POS]: 身份源 PostgreSQL adapter，秘密只进入独立 bytea/nonce/version 列且从不序列化到 JSON。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.auth.persistence;
 
 import org.dromara.enterprise.auth.domain.IdentitySource;
+import org.dromara.enterprise.auth.domain.IdentityProvisioningMode;
 import org.dromara.enterprise.auth.domain.IdentitySourceStatus;
 import org.dromara.enterprise.auth.domain.IdentitySourceType;
 import org.dromara.enterprise.auth.domain.LdapSettings;
@@ -30,7 +31,7 @@ import java.util.Optional;
  */
 public final class JdbcIdentitySourceStore implements IdentitySourceStore {
     private static final String COLUMNS = """
-        id, tenant_id, type, name, issuer, client_id,
+        id, tenant_id, type, provisioning_mode, name, issuer, client_id,
         secret_ciphertext, secret_nonce, secret_key_version,
         ldap_config_json::text as ldap_config_json,
         claim_mapping_json::text as claim_mapping_json,
@@ -54,14 +55,14 @@ public final class JdbcIdentitySourceStore implements IdentitySourceStore {
         """;
     private static final String INSERT_SQL = """
         insert into ent_identity_source(
-            id, tenant_id, type, name, issuer, client_id,
+            id, tenant_id, type, provisioning_mode, name, issuer, client_id,
             secret_ciphertext, secret_nonce, secret_key_version,
             ldap_config_json, claim_mapping_json, status, revision, created_at, updated_at
-        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?, ?, ?)
+        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?, ?, ?)
         """;
     private static final String UPDATE_SQL = """
         update ent_identity_source set
-            name = ?, issuer = ?, client_id = ?,
+            provisioning_mode = ?, name = ?, issuer = ?, client_id = ?,
             secret_ciphertext = ?, secret_nonce = ?, secret_key_version = ?,
             ldap_config_json = ?::jsonb, claim_mapping_json = ?::jsonb,
             revision = revision + 1, updated_at = ?,
@@ -112,6 +113,7 @@ public final class JdbcIdentitySourceStore implements IdentitySourceStore {
             source.id(),
             source.tenantId(),
             source.type().name(),
+            source.provisioningMode().name(),
             source.name(),
             text(source.issuer()),
             source.clientId(),
@@ -132,6 +134,7 @@ public final class JdbcIdentitySourceStore implements IdentitySourceStore {
         EncryptedColumns secret = EncryptedColumns.from(source.encryptedSecret());
         return jdbc.update(
             UPDATE_SQL,
+            source.provisioningMode().name(),
             source.name(),
             text(source.issuer()),
             source.clientId(),
@@ -195,6 +198,7 @@ public final class JdbcIdentitySourceStore implements IdentitySourceStore {
             resultSet.getLong("id"),
             resultSet.getString("tenant_id"),
             type,
+            IdentityProvisioningMode.valueOf(resultSet.getString("provisioning_mode")),
             resultSet.getString("name"),
             uri(resultSet.getString("issuer")),
             resultSet.getString("client_id"),

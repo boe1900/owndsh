@@ -33,9 +33,11 @@ enterprise/enableQuotaPolicy.ts: 生成的配额策略启用 operation 客户端
 enterprise/enrollCurrentDevice.ts: 生成的当前设备登记 operation 客户端。
 enterprise/exchangeAuthorizationCode.ts: 生成的授权码交换 operation 客户端。
 enterprise/exportOwnedSession.ts: 生成的员工本人 Session 正文导出 operation 客户端。
+enterprise/getConsoleBootstrap.ts: 生成的新产品控制台固定角色 bootstrap operation 客户端。
 enterprise/getDevice.ts: 生成的设备详情 operation 客户端。
 enterprise/getEnterpriseBootstrap.ts: 生成的企业 bootstrap operation 客户端。
 enterprise/getIdentitySource.ts: 生成的身份源详情 operation 客户端。
+enterprise/getMember.ts: 生成的产品成员详情 operation 客户端。
 enterprise/getManagedModel.ts: 生成的受管模型详情 operation 客户端。
 enterprise/getModelProvider.ts: 生成的模型 Provider 详情 operation 客户端。
 enterprise/getPluginAssignments.ts: 生成的当前设备插件 assignment operation 客户端。
@@ -50,6 +52,7 @@ enterprise/listAuditEvents.ts: 生成的管理端审计九维筛选 cursor 列�
 enterprise/listDevices.ts: 生成的设备 cursor 列表 operation 客户端。
 enterprise/listGroupMappings.ts: 生成的外部组映射 cursor 列表 operation 客户端。
 enterprise/listIdentitySources.ts: 生成的身份源 cursor 列表 operation 客户端。
+enterprise/listMembers.ts: 生成的产品成员 cursor 列表 operation 客户端。
 enterprise/listManagedModels.ts: 生成的受管模型 cursor 列表 operation 客户端。
 enterprise/listModelGrants.ts: 生成的模型授权 cursor 列表 operation 客户端。
 enterprise/listModelProviders.ts: 生成的模型 Provider cursor 列表 operation 客户端。
@@ -65,9 +68,11 @@ enterprise/readAdminSessionContent.ts: 生成的管理端 Session 正文读取 o
 enterprise/recordSessionRestore.ts: 生成的员工本人 Session 恢复审计 operation 客户端。
 enterprise/replacePluginAssignments.ts: 生成的 package 全量 assignment 原子替换 operation 客户端。
 enterprise/replacePluginInventory.ts: 生成的当前设备插件 inventory 原子上报 operation 客户端。
+enterprise/replaceMemberRoles.ts: 生成的产品成员固定角色原子替换 operation 客户端。
 enterprise/retirePluginVersion.ts: 生成的插件版本退休 CAS operation 客户端。
 enterprise/revokeDevice.ts: 生成的设备撤销 operation 客户端。
 enterprise/startOidcLogin.ts: 生成的 OIDC 登录启动 operation 客户端。
+enterprise/startIdentityLink.ts: 生成的产品成员一次性身份绑定事务 operation 客户端。
 enterprise/streamEnterpriseAnthropicMessages.ts: 生成的 Anthropic Messages 企业模型流 operation 客户端；管理端不直接消费此能力。
 enterprise/streamEnterpriseChatCompletions.ts: 生成的 OpenAI Chat Completions 企业模型流 operation 客户端；管理端不直接消费此能力。
 enterprise/streamEnterpriseResponses.ts: 生成的 OpenAI Responses 企业模型流 operation 客户端；管理端不直接消费此能力。
@@ -75,11 +80,13 @@ enterprise/testIdentitySource.ts: 生成的身份源连接测试 operation 客�
 enterprise/testModelProvider.ts: 生成的模型 Provider 连接测试 operation 客户端。
 enterprise/typings.d.ts: 生成 operation 共用的严格 API DTO 命名空间。
 enterprise/updateIdentitySource.ts: 生成的身份源更新 operation 客户端。
+enterprise/updateMemberStatus.ts: 生成的产品成员状态 CAS 更新 operation 客户端。
 enterprise/updateManagedModel.ts: 生成的受管模型更新 operation 客户端。
 enterprise/updateModelGrant.ts: 生成的模型授权更新 operation 客户端。
 enterprise/updateModelProvider.ts: 生成的模型 Provider 更新 operation 客户端。
 enterprise/updateQuotaPolicy.ts: 生成的配额策略更新 operation 客户端。
 enterprise/uploadPluginVersion.ts: 生成的受控 tgz multipart 上传 operation 客户端。
+enterprise/unlinkMemberIdentity.ts: 生成的产品成员外部身份 CAS 解绑 operation 客户端。
 
 `enterprise/` 由 `contracts/generated/enterprise-openapi.json` 经 Umi OpenAPI 生成器整体重建，目录内文件头和实现受生成器控制且禁止手工编辑；手写认证、错误、幂等与 revision 语义位于 `src/api/enterprise/`。
 

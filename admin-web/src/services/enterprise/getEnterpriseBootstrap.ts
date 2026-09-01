@@ -50,7 +50,7 @@ export async function getEnterpriseBootstrap(options?: { [key: string]: any }) {
       }[];
       quotas: {
         policyId: string;
-        scope: "DEFAULT" | "DEPT" | "USER";
+        scope: "ORGANIZATION" | "MEMBER";
         dailyTokenLimit: number | null;
         monthlyTokenLimit: number | null;
         rpm: number | null;

@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 deploy Compose/Nginx/脚本、application-deploy.yml、Docker Compose v2 与临时假 secret。
- * [OUTPUT]: 验证四服务拓扑、唯一 443 发布、生产/本机 HSTS 边界、镜像锁定、bootstrap overlay、deploy profile、API/SPA 路由、运维脚本与本地体验边界。
- * [POS]: T21 部署与本地人工验收静态门禁，先于昂贵镜像构建发现配置漂移且不接触生产 secret。
+ * [OUTPUT]: 验证四服务拓扑、唯一 443 发布、新控制台/Harness 发布基线、镜像锁定、bootstrap overlay、deploy profile、API/SPA 路由、运维脚本与本地体验边界。
+ * [POS]: T21/P2-08 部署与本地人工验收静态门禁，先于昂贵镜像构建发现配置漂移且不接触生产 secret。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -150,7 +150,7 @@ test('deploy profile consumes configtree secrets and exposes only health', () =>
   assert.match(deploy, /snail-job:\n\s+enabled: false\n(?:\s+#.*\n)?\s+port: 2\$\{server\.port\}/)
 })
 
-test('operations scripts parse and rollback cannot remove or restore data', () => {
+test('operations scripts parse, keep Harness bundles aligned, and rollback cannot remove or restore data', () => {
   const scriptDirectory = join(DEPLOY_ROOT, 'scripts')
   const scripts = readdirSync(scriptDirectory).filter(file => file.endsWith('.sh'))
   for (const script of scripts) execFileSync('sh', ['-n', join(scriptDirectory, script)])
@@ -159,6 +159,13 @@ test('operations scripts parse and rollback cannot remove or restore data', () =
   assert.doesNotMatch(executableRollback, /down\s+(?:[^\n]*\s)?-v/)
   assert.doesNotMatch(executableRollback, /pg_restore|redis\.rdb|enterprise-keys\.tar/)
   assert.match(rollback, /key_fingerprint/)
+  assert.match(rollback, /old_release=\$\(env_value EAP_ROLLBACK_FROM_RELEASE/)
+  assert.match(rollback, /replace_env EAP_RELEASE_VERSION "\$old_release"/)
+  assert.match(rollback, /releases\/\$old_release\/harness\/\$old_harness_bundle/)
+  assert.doesNotMatch(rollback, /cordis\.patch\.yml/)
+  const upgrade = read('deploy/scripts/upgrade.sh')
+  assert.match(upgrade, /release_root\/harness\/\$new_harness_bundle/)
+  assert.doesNotMatch(upgrade, /cordis\.patch\.yml/)
   const backup = read('deploy/scripts/backup.sh')
   assert.match(backup, /data-output/)
   assert.match(backup, /key-output/)
@@ -174,6 +181,12 @@ test('operations scripts parse and rollback cannot remove or restore data', () =
   assert.match(release, /EAP_USE_LOCAL_BASE_IMAGES/)
   assert.match(release, /docker image ls --digests/)
   assert.match(release, /DOCKER_BUILDKIT=0 docker build/)
+  assert.match(release, /harness_lock="\$source_root\/upstream\/deepseek-harness\.lock\.json"/)
+  assert.match(release, /EAP_HARNESS_VERSION=\$harness_version/)
+  assert.match(release, /EAP_HARNESS_COMMIT=\$harness_commit/)
+  assert.match(release, /console-web\/BEAUTIFUL_UI_LICENSE/)
+  assert.doesNotMatch(release, /EAP_HARNESS_VERSION=\d/)
+  assert.doesNotMatch(release, /admin-web\/LICENSE/)
   assert.doesNotMatch(release, /harness-plugin\/artifacts/)
   for (const script of scripts.filter(file => file !== 'common.sh')) {
     assert.doesNotMatch(read(`deploy/scripts/${script}`), /\bsha256sum\b/)
@@ -267,10 +280,12 @@ test('Docker build contexts lock every build and runtime base by digest', () => 
     read('deploy/compose/Dockerfile.server'),
     /eclipse-temurin:21\.0\.8_9-jre-jammy@sha256:[a-f0-9]{64}/
   )
-  assert.match(
-    read('deploy/compose/Dockerfile.gateway'),
-    /COPY contracts\/generated\/enterprise-openapi\.json \/workspace\/contracts\/generated\/enterprise-openapi\.json/
-  )
+  const gateway = read('deploy/compose/Dockerfile.gateway')
+  assert.match(gateway, /WORKDIR \/workspace\/console-web/)
+  assert.match(gateway, /pnpm@11\.24\.0/)
+  assert.match(gateway, /COPY contracts\/ \/workspace\/contracts\//)
+  assert.match(gateway, /COPY --from=build \/workspace\/console-web\/dist\//)
+  assert.doesNotMatch(gateway, /admin-web/)
   assert.match(read('.dockerignore'), /deploy\/secrets/)
 })
 

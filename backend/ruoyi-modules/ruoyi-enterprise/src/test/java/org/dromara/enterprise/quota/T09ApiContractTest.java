@@ -145,7 +145,7 @@ class T09ApiContractTest {
         when(devices.requireActive(any())).thenReturn(device());
         when(subjects.findActiveUser(USER_ID))
             .thenReturn(Optional.of(new QuotaSubjectStore.QuotaUser(USER_ID, DEPARTMENT_ID)));
-        when(usage.myUsage(TENANT, USER_ID, DEPARTMENT_ID)).thenReturn(List.of(policyUsage()));
+        when(usage.myUsage(TENANT, USER_ID)).thenReturn(List.of(policyUsage()));
         when(usage.listUsage(anyString(), anyLong(), anyInt(), any())).thenReturn(usagePage());
     }
 
@@ -304,7 +304,7 @@ class T09ApiContractTest {
 
     private static QuotaPolicy policy() {
         return new QuotaPolicy(
-            POLICY_ID, TENANT, "Engineering", QuotaSubjectType.DEPT, DEPARTMENT_ID, "Engineering",
+            POLICY_ID, TENANT, "Engineering", QuotaSubjectType.MEMBER, USER_ID, "Alice",
             500_000L, 10_000_000L, 15, 3, QuotaStatus.ACTIVE, 0
         );
     }
@@ -353,10 +353,10 @@ class T09ApiContractTest {
 
     private static String policyRequest() {
         return """
-            {"name":"Engineering","subjectType":"DEPT","subjectId":"%s",
+            {"name":"Engineering","subjectType":"MEMBER","subjectId":"%s",
              "dailyTokenLimit":500000,"monthlyTokenLimit":10000000,"rpm":15,
              "concurrency":3,"status":"ACTIVE"}
-            """.formatted(DEPARTMENT_ID);
+            """.formatted(USER_ID);
     }
 
     private static Path findContractRoot() {

@@ -8,17 +8,18 @@ java/org/dromara/enterprise/crypto/SecretCipherTest.java: 验证全部封闭用�
 java/org/dromara/enterprise/auth/LocalIdentityAdapterTest.java: 验证 RuoYi BCrypt、失败策略复用、稳定 userId subject、停用与不存在账号同形失败。
 java/org/dromara/enterprise/auth/OidcIdentityAdapterTest.java: 使用 WireMock、真实 RSA ID Token 和轮换 JWKS 验证 Discovery 声明算法、code+PKCE、issuer/aud/nonce 与 claim 白名单。
 java/org/dromara/enterprise/auth/LdapIdentityAdapterTest.java: 使用 StartTLS OpenLDAP 验证 manager search、用户 bind、LDAPS/StartTLS 互斥、RFC 4515 转义和 entryUUID 稳定 subject。
-java/org/dromara/enterprise/auth/IdentityPersistenceIntegrationTest.java: 以真实 PostgreSQL 验证身份秘密隔离、keyset、资源 CAS、revision/审计回滚、活动用户名冲突下的稳定 subject、显式绑定冲突和多部门映射冲突。
-java/org/dromara/enterprise/auth/IdentityAdminApiTest.java: 以 MockMvc 和 OpenAPI 派生 schema 验证 T04 十个管理 operation、认证 cursor、requestId、权限码、revision 错误与秘密输出隔离。
+java/org/dromara/enterprise/auth/IdentityPersistenceIntegrationTest.java: 以真实 PostgreSQL 验证身份秘密隔离、keyset、资源 CAS、revision/审计回滚、JIT/LINK_ONLY、稳定 subject、显式绑定及成员资料/部门隔离。
+java/org/dromara/enterprise/auth/IdentityAdminApiTest.java: 以 MockMvc 和 OpenAPI 派生 schema 验证身份管理 operation、JIT/LINK_ONLY、认证 cursor、权限码、revision 错误与秘密输出隔离。
 java/org/dromara/enterprise/auth/EnterpriseAuthResourceConfigurationTest.java: 以真实 Spring MVC 资源链验证 login.html/css/js、两阶段改密与凭据清理逻辑可达且模块文档不公开。
 java/org/dromara/enterprise/auth/EnterpriseIdentityConfigurationTest.java: 验证 Java 公网 HTTPS authority 接受默认/合法显式端口并拒绝端口越界、路径、查询和 user-info。
-java/org/dromara/enterprise/auth/PlatformAuthorizationSecurityTest.java: 使用真实 Redis 验证 S256/redirect/client、一次性改密 challenge、code 原子消费、并发交换、取消和失效事务零副作用。
+java/org/dromara/enterprise/auth/PlatformAuthorizationSecurityTest.java: 使用真实 Redis 验证 S256/redirect/client、一次性改密与身份绑定 transaction、code 原子消费、并发交换、取消和失效事务零副作用。
+java/org/dromara/enterprise/auth/ConsoleBootstrapControllerTest.java: 验证 P2-03 产品 bootstrap 只投影启用的固定角色、成员、权限码和部署标识，不泄漏停用或任意 RuoYi 角色。
 java/org/dromara/enterprise/auth/RedisAuthStateStoreIntegrationTest.java: 使用 Redis 8 验证 5 分钟事务/challenge、60 秒 code、GETDEL 唯一消费与 namespace 分区。
 java/org/dromara/enterprise/auth/T05ApiContractTest.java: 以 MockMvc 和派生 JSON Schema 验证七个认证、JSON 两阶段改密、HTML fail-closed、设备 operation、权限与撤销翻译。
 java/org/dromara/enterprise/device/DeviceContextIsolationTest.java: 证明伪造 X-Device-Id 不会覆盖 Sa-Token terminal 的 installation 授权事实。
 java/org/dromara/enterprise/device/DeviceLifecycleIntegrationTest.java: 以真实 PostgreSQL 验证多设备 owner、heartbeat 审计限频/状态切换、CAS、审计同事务与单设备撤销隔离。
 java/org/dromara/enterprise/model/ProviderProbeTest.java: 使用 WireMock 验证 `/models` Bearer 探测、模型 ID 提取、正文隔离、状态分类与 no-redirect。
-java/org/dromara/enterprise/model/EffectiveModelResolverTest.java: 纯单元验证 USER 默认缺失时的 DEPT 默认选择与空候选边界。
+java/org/dromara/enterprise/model/EffectiveModelResolverTest.java: 纯单元验证全员/成员候选的排序首项默认、重复模型去重与空候选边界。
 java/org/dromara/enterprise/model/T08ApiContractTest.java: 以 MockMvc/JSON Schema 验证模型管理及 bootstrap 全 operation 的成功/失败协议、Session 策略启用、权限码与密钥不回显。
 java/org/dromara/enterprise/model/ModelManagementIntegrationTest.java: 以显式活动用户和真实 PostgreSQL 验证 Harness route ID、三协议投影、官方保留路由、reasoning 三态、密文/CAS/回滚、授权并集、停用与 ACTIVE bootstrap。
 java/org/dromara/enterprise/model/gateway/GatewayChatRequestParserTest.java: 验证三协议最小治理字段、原生正文透明保留与受管 route 强制替换。
@@ -38,13 +39,15 @@ java/org/dromara/enterprise/plugin/PluginServerIntegrationTest.java: 以三个�
 java/org/dromara/enterprise/plugin/T13ApiContractTest.java: 以 MockMvc/JSON Schema 验证九个插件 operation、catalog 完整 assignment 投影、权限码、稳定错误和下载头。
 java/org/dromara/enterprise/plugin/PluginTestArtifacts.java: 集中生成无脚本、无依赖、精确 rc.7 peer 的合法预构建 bundle tgz fixture。
 java/org/dromara/enterprise/session/: T16 精确 JSONL/hash、并发远端副本、正文权限、tombstone 与 V9 协议纵向门禁；局部地图见 session/CLAUDE.md。
-java/org/dromara/enterprise/audit/: T19 30-action metadata 白名单、requestId 关联、用户治理接缝与 365 天 retention 门禁；局部地图见 audit/CLAUDE.md。
+java/org/dromara/enterprise/audit/: 31-action metadata 白名单、requestId 关联、用户治理接缝与 365 天 retention 门禁；局部地图见 audit/CLAUDE.md。
 java/org/dromara/enterprise/common/api/: T20 有界 JSON 请求、稳定 413/503 与故障日志秘密隔离门禁；局部地图见 common/api/CLAUDE.md。
 java/org/dromara/enterprise/test/OpenLdapTestServer.java: 共享 OpenLDAP Testcontainer 与测试专用 TLS trust，集中管理 LDAP 集成环境。
 java/org/dromara/enterprise/test/RedisTestServer.java: 共享 Redis 8 Testcontainer，并为每项认证测试清理隔离 keyspace。
-java/org/dromara/enterprise/database/EnterpriseMigrationTest.java: 从真实 RuoYi PostgreSQL 基线验证 V1-V17 逐版本升级、产品导航与企业管理员系统权限、旧 provider 保守迁移、Harness reasoning 模型字段校正、部署状态与 Boot 4 自动迁移装配。
+java/org/dromara/enterprise/database/EnterpriseMigrationTest.java: 从真实 RuoYi PostgreSQL 基线验证 V1-V22 逐版本升级、产品导航、成员治理权限、模型配置、产品作用域迁移、身份解绑审计及 provisioning mode。
+java/org/dromara/enterprise/auth/MemberDirectoryQueryServiceTest.java: 使用真实 PostgreSQL 验证产品成员 cursor/detail、固定角色、LOCAL/OIDC 登录方式与设备/Session 聚合。
+java/org/dromara/enterprise/auth/MemberManagementServiceTest.java: 使用真实 PostgreSQL/Redis 验证角色替换、最后管理员保护、成员停用、设备与平台 Session 撤销、身份解绑 CAS 及最后登录方式保护。
 java/org/dromara/enterprise/deployment/DeploymentBootstrapServiceTest.java: 以真实 PostgreSQL 验证缺配置失败、事务回滚、幂等管理员/角色/marker，以及分步认证和 JDBC 条件首次改密。
-java/org/dromara/enterprise/database/RbacSeedTest.java: 验证五个 built-in 角色、14 个冻结权限码、最小权限集合与数据库不可变 trigger。
+java/org/dromara/enterprise/database/RbacSeedTest.java: 验证五个 built-in 角色、16 个冻结权限码、最小权限集合与数据库不可变 trigger。
 java/org/dromara/enterprise/revision/RevisionAuditIntegrationTest.java: 验证 BOOTSTRAP CAS、稳定冲突码、显式 metadata、只追加审计及同事务回滚。
 java/org/dromara/enterprise/test/PostgresTestDatabase.java: 共享 PostgreSQL 17 Testcontainer，为每组验收创建独立数据库、加载上游真实基线，并提供不依赖默认账号的最小活动用户 fixture。
 resources/ldap/bootstrap.ldif: OpenLDAP 集成测试的固定组织、用户与可验证属性数据，不含生产秘密。

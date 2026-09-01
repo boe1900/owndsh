@@ -28,6 +28,20 @@ paths:
     $ref: './paths/auth.yaml#/Token'
   /enterprise/auth/v1/logout:
     $ref: './paths/auth.yaml#/Logout'
+  /enterprise/admin/v1/bootstrap:
+    $ref: './paths/auth.yaml#/ConsoleBootstrap'
+  /enterprise/admin/v1/members:
+    $ref: './paths/member.yaml#/MemberCollection'
+  /enterprise/admin/v1/members/{userId}:
+    $ref: './paths/member.yaml#/MemberItem'
+  /enterprise/admin/v1/members/{userId}/status:
+    $ref: './paths/member.yaml#/MemberStatus'
+  /enterprise/admin/v1/members/{userId}/roles:
+    $ref: './paths/member.yaml#/MemberRoles'
+  /enterprise/admin/v1/members/{userId}/identities/{identityId}:
+    $ref: './paths/member.yaml#/MemberIdentityItem'
+  /enterprise/admin/v1/members/{userId}/identity-links:
+    $ref: './paths/member.yaml#/MemberIdentityLinks'
   /enterprise/api/v1/devices/enroll:
     $ref: './paths/device.yaml#/Enroll'
   /enterprise/api/v1/devices/heartbeat:
@@ -160,6 +174,8 @@ x-enterprise-error-statuses:
     - ENT_SESSION_CONTENT_EXPIRED
   '409':
     - ENT_REVISION_CONFLICT
+    - ENT_LAST_ENTERPRISE_ADMIN
+    - ENT_LAST_MEMBER_IDENTITY
     - ENT_REQUEST_IN_PROGRESS
     - ENT_REQUEST_ALREADY_COMPLETED
     - ENT_SESSION_SEQ_GAP
@@ -230,6 +246,15 @@ x-enterprise-fixtures:
     valid: true
   - file: fixtures/token-success.json
     schema: TokenResponse
+    valid: true
+  - file: fixtures/console-bootstrap-success.json
+    schema: ConsoleBootstrapResponse
+    valid: true
+  - file: fixtures/member-list-success.json
+    schema: MemberListResponse
+    valid: true
+  - file: fixtures/member-detail-success.json
+    schema: MemberDetailResponse
     valid: true
   - file: fixtures/device-success.json
     schema: DeviceResponse
@@ -596,6 +621,7 @@ components:
     GroupMappingId: {$ref: './components/identity.yaml#/GroupMappingId'}
     DepartmentId: {$ref: './components/identity.yaml#/DepartmentId'}
     IdentitySourceType: {$ref: './components/identity.yaml#/IdentitySourceType'}
+    IdentityProvisioningMode: {$ref: './components/identity.yaml#/IdentityProvisioningMode'}
     IdentitySourceStatus: {$ref: './components/identity.yaml#/IdentitySourceStatus'}
     OidcClaimMapping: {$ref: './components/identity.yaml#/OidcClaimMapping'}
     OidcSettings: {$ref: './components/identity.yaml#/OidcSettings'}
@@ -637,6 +663,26 @@ components:
     TokenResponse: {$ref: './components/auth.yaml#/TokenResponse'}
     LogoutData: {$ref: './components/auth.yaml#/LogoutData'}
     LogoutResponse: {$ref: './components/auth.yaml#/LogoutResponse'}
+    BuiltInRole: {$ref: './components/auth.yaml#/BuiltInRole'}
+    ConsoleMember: {$ref: './components/auth.yaml#/ConsoleMember'}
+    ConsoleDeployment: {$ref: './components/auth.yaml#/ConsoleDeployment'}
+    ConsoleBootstrapData: {$ref: './components/auth.yaml#/ConsoleBootstrapData'}
+    ConsoleBootstrapResponse: {$ref: './components/auth.yaml#/ConsoleBootstrapResponse'}
+    MemberStatus: {$ref: './components/member.yaml#/MemberStatus'}
+    MemberLoginMethod: {$ref: './components/member.yaml#/MemberLoginMethod'}
+    MemberSummary: {$ref: './components/member.yaml#/MemberSummary'}
+    MemberIdentity: {$ref: './components/member.yaml#/MemberIdentity'}
+    MemberDeviceSummary: {$ref: './components/member.yaml#/MemberDeviceSummary'}
+    MemberSessionSummary: {$ref: './components/member.yaml#/MemberSessionSummary'}
+    MemberDetail: {$ref: './components/member.yaml#/MemberDetail'}
+    MemberDetailResponse: {$ref: './components/member.yaml#/MemberDetailResponse'}
+    MemberStatusUpdateRequest: {$ref: './components/member.yaml#/MemberStatusUpdateRequest'}
+    MemberRoleReplaceRequest: {$ref: './components/member.yaml#/MemberRoleReplaceRequest'}
+    IdentityLinkStartRequest: {$ref: './components/member.yaml#/IdentityLinkStartRequest'}
+    IdentityLinkStart: {$ref: './components/member.yaml#/IdentityLinkStart'}
+    IdentityLinkStartResponse: {$ref: './components/member.yaml#/IdentityLinkStartResponse'}
+    MemberPageData: {$ref: './components/member.yaml#/MemberPageData'}
+    MemberListResponse: {$ref: './components/member.yaml#/MemberListResponse'}
     DeviceStatus: {$ref: './components/device.yaml#/DeviceStatus'}
     Device: {$ref: './components/device.yaml#/Device'}
     DeviceEnrollRequest: {$ref: './components/device.yaml#/DeviceEnrollRequest'}
@@ -852,6 +898,8 @@ components:
         - ENT_RESOURCE_NOT_FOUND
         - ENT_SESSION_CONTENT_EXPIRED
         - ENT_REVISION_CONFLICT
+        - ENT_LAST_ENTERPRISE_ADMIN
+        - ENT_LAST_MEMBER_IDENTITY
         - ENT_REQUEST_IN_PROGRESS
         - ENT_REQUEST_ALREADY_COMPLETED
         - ENT_SESSION_SEQ_GAP

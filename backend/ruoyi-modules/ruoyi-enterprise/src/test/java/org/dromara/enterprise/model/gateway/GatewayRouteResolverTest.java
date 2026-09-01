@@ -75,7 +75,7 @@ class GatewayRouteResolverTest {
         );
         when(devices.requireActive(context)).thenReturn(device);
         when(users.findActive("000000", 101)).thenReturn(Optional.of(new BootstrapUser(101, "alice", "Alice", 201L)));
-        when(effective.resolve("000000", 101, 201L)).thenReturn(List.of(
+        when(effective.resolve("000000", 101)).thenReturn(List.of(
             new EffectiveModelResolver.EffectiveModel(
                 501, "deepseek-chat", "DeepSeek Chat", 8192, 2048, 0,
                 ProviderApiProtocol.OPENAI_COMPLETIONS, null, null, true

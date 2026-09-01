@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖授权/配额/用量业务 API、模型目录、权限事实与 cursor/revision 公共策略
- * [OUTPUT]: 提供模型分配、默认标记、配额 CRUD/窗口和带用户/部门/模型语义的用量筛选页面
- * [POS]: pages/enterprise 的授权与消费治理工作台，最终有效规则始终由服务端解析
+ * [OUTPUT]: 提供全体成员/成员模型授权、组织/成员配额 CRUD/窗口和历史用量筛选页面
+ * [POS]: pages/enterprise 的切换期授权与消费治理工作台，只提交产品作用域并由服务端解析最终有效规则
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -20,7 +20,6 @@ import {
   Popconfirm,
   Select,
   Space,
-  Switch,
   Table,
   Tabs,
   Tag,
@@ -70,26 +69,23 @@ function GrantFields({ models }: { models: ManagedModel[] }) {
   return (
     <>
       <Form.Item name="modelId" label="模型" rules={[{ required: true }]}>
-        <Select options={models.map(model => ({ value: model.id, label: `${model.name ?? model.modelId} (${model.alias})` }))} />
+        <Select
+          options={models.map(model => ({ value: model.id, label: `${model.name ?? model.modelId} (${model.alias})` }))}
+        />
       </Form.Item>
       <Form.Item name="subjectType" label="对象类型" rules={[{ required: true }]}>
         <Select
           options={[
-            { value: 'USER', label: '用户' },
-            { value: 'DEPT', label: '部门' }
+            { value: 'ALL_MEMBERS', label: '全体成员' },
+            { value: 'MEMBER', label: '成员' }
           ]}
         />
       </Form.Item>
-      <Form.Item
-        name="subjectId"
-        label={`${subjectType === 'DEPT' ? '部门' : '用户'} ID`}
-        rules={[{ required: true, pattern: /^\d+$/ }]}
-      >
-        <Input />
-      </Form.Item>
-      <Form.Item name="isDefault" label="默认模型" valuePropName="checked">
-        <Switch />
-      </Form.Item>
+      {subjectType === 'MEMBER' && (
+        <Form.Item name="subjectId" label="成员 ID" rules={[{ required: true, pattern: /^\d+$/ }]}>
+          <Input />
+        </Form.Item>
+      )}
       <Form.Item name="status" label="状态" rules={[{ required: true }]}>
         <Select
           options={[
@@ -112,18 +108,13 @@ function QuotaFields() {
       <Form.Item name="subjectType" label="对象类型" rules={[{ required: true }]}>
         <Select
           options={[
-            { value: 'DEFAULT', label: '默认' },
-            { value: 'DEPT', label: '部门' },
-            { value: 'USER', label: '用户' }
+            { value: 'ORGANIZATION', label: '组织' },
+            { value: 'MEMBER', label: '成员' }
           ]}
         />
       </Form.Item>
-      {subjectType !== 'DEFAULT' && (
-        <Form.Item
-          name="subjectId"
-          label={`${subjectType === 'DEPT' ? '部门' : '用户'} ID`}
-          rules={[{ required: true, pattern: /^\d+$/ }]}
-        >
+      {subjectType === 'MEMBER' && (
+        <Form.Item name="subjectId" label="成员 ID" rules={[{ required: true, pattern: /^\d+$/ }]}>
           <Input />
         </Form.Item>
       )}
@@ -191,10 +182,11 @@ export default function GrantsPage() {
   const saveGrant = async () => {
     const values = await validatedFormValues(grantForm);
     if (!values) return;
+    const input = { ...values, subjectId: values.subjectType === 'ALL_MEMBERS' ? null : values.subjectId || null };
     setSaving(true);
     try {
-      if (grantEditor) await updateModelGrant(grantEditor.id, grantEditor.revision, values);
-      else await createModelGrant(values);
+      if (grantEditor) await updateModelGrant(grantEditor.id, grantEditor.revision, input);
+      else await createModelGrant(input);
       message.success(grantEditor ? '模型授权已更新' : '模型授权已创建');
       setGrantOpen(false);
       await grants.reload();
@@ -215,7 +207,7 @@ export default function GrantsPage() {
   const saveQuota = async () => {
     const values = await validatedFormValues(quotaForm);
     if (!values) return;
-    const input = { ...values, subjectId: values.subjectType === 'DEFAULT' ? null : values.subjectId || null };
+    const input = { ...values, subjectId: values.subjectType === 'ORGANIZATION' ? null : values.subjectId || null };
     setSaving(true);
     try {
       if (quotaEditor) await updateQuotaPolicy(quotaEditor.id, quotaEditor.revision, input);
@@ -235,7 +227,6 @@ export default function GrantsPage() {
     { title: '对象类型', dataIndex: 'subjectType', width: 100 },
     { title: '对象', dataIndex: 'subjectName' },
     { title: '对象 ID', dataIndex: 'subjectId' },
-    { title: '默认', dataIndex: 'isDefault', width: 80, render: value => (value ? '是' : '否') },
     { title: '状态', dataIndex: 'status', width: 100, render: statusTag },
     { title: 'Revision', dataIndex: 'revision', width: 90 },
     {
@@ -254,7 +245,6 @@ export default function GrantsPage() {
                   modelId: row.modelId,
                   subjectType: row.subjectType,
                   subjectId: row.subjectId,
-                  isDefault: row.isDefault,
                   status: row.status
                 });
                 setGrantOpen(true);
@@ -337,7 +327,7 @@ export default function GrantsPage() {
               </Button>
             </Popconfirm>
           )}
-          {canWrite && row.subjectType !== 'DEFAULT' && (
+          {canWrite && row.subjectType !== 'ORGANIZATION' && (
             <Popconfirm
               title="确认删除该配额策略？"
               onConfirm={async () => {
@@ -367,14 +357,16 @@ export default function GrantsPage() {
       render: (_, row) => (
         <Space direction="vertical" size={0}>
           <span>{row.userDisplayName}</span>
-          <span className="enterprise-secondary">{row.username} · {row.userId}</span>
+          <span className="enterprise-secondary">
+            {row.username} · {row.userId}
+          </span>
         </Space>
       )
     },
     {
       title: '部门',
       width: 150,
-      render: (_, row) => row.departmentName ? `${row.departmentName} · ${row.departmentId}` : '-'
+      render: (_, row) => (row.departmentName ? `${row.departmentName} · ${row.departmentId}` : '-')
     },
     {
       title: '模型',
@@ -382,7 +374,9 @@ export default function GrantsPage() {
       render: (_, row) => (
         <Space direction="vertical" size={0}>
           <span>{row.modelDisplayName}</span>
-          <span className="enterprise-secondary">{row.modelAlias} · {row.modelId}</span>
+          <span className="enterprise-secondary">
+            {row.modelAlias} · {row.modelId}
+          </span>
         </Space>
       )
     },
@@ -412,9 +406,8 @@ export default function GrantsPage() {
                         setGrantEditor(undefined);
                         grantForm.setFieldsValue({
                           modelId: '',
-                          subjectType: 'USER',
+                          subjectType: 'ALL_MEMBERS',
                           subjectId: '',
-                          isDefault: false,
                           status: 'ACTIVE'
                         });
                         setGrantOpen(true);
@@ -458,7 +451,7 @@ export default function GrantsPage() {
                         setQuotaEditor(undefined);
                         quotaForm.setFieldsValue({
                           name: '',
-                          subjectType: 'USER',
+                          subjectType: 'MEMBER',
                           subjectId: '',
                           dailyTokenLimit: null,
                           monthlyTokenLimit: null,

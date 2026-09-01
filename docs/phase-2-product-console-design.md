@@ -7,7 +7,7 @@
 
 # 第二阶段：产品控制台与成员身份收敛详细设计
 
-状态：`implementation-in-progress-p2-02`
+状态：`implementation-ready-p2-08`
 
 设计日期：2026-08-31（Asia/Shanghai）
 
@@ -167,6 +167,18 @@ Vite SPA 可以保持单镜像、同源 TLS、现有 PKCE 回调和私有部署�
 
 新项目默认不引入 Zustand、Redux、MobX、Axios 或第二套表单/表格状态库。OpenAPI 客户端使用平台已有的
 标准请求边界；只有生成器明确需要时才增加最小 fetch wrapper。
+
+### 4.5 产品表格边界
+
+模型、访问策略及后续资源列表统一使用 `@tanstack/react-table` 作为 headless 行为核心，负责排序、筛选、
+分页、行选择和列显隐；TanStack Query 持有 Server cursor 页面，TanStack Router 持有需要分享或恢复的筛选状态。
+表格的 surface、边框、密度、状态色和响应式滚动必须沿用 Beautiful UI `RecordsTable` 视觉，不引入第二套主题。
+
+shadcn/ui 只作为可访问表格、checkbox、menu、popover 等控件的源码与组合范式参考；组件进入仓库后改用现有
+Beautiful UI tokens 和 Lucide 图标，不运行 shadcn CLI，不安装整套 UI runtime，也不保留 shadcn 默认视觉。
+首批统一支持全文搜索、状态筛选、多列排序、列显隐、行选择、本地分页、Server cursor 续页及移动端横向滚动。
+列固定、批量 mutation 和行操作随真实业务动作接入；只有实测超过 500 个已加载行并出现性能问题时才引入
+`@tanstack/react-virtual`，不预先增加虚拟化复杂度。
 
 ## 5. Beautiful UI 采用设计
 
@@ -759,15 +771,25 @@ Playwright 必须通过真实 PostgreSQL、Redis、Java Server 和 HTTPS 同源�
 | P2-00 范围冻结 | `completed` | 无 | 固定本文、现有 operation 复用表、退役页面和角色矩阵 | 文档评审通过；不写 UI |
 | P2-01 新项目骨架 | `completed` | P2-00 | 创建 `console-web`、稳定版本 lock、Vite/TanStack/OpenAPI 生成 | typecheck/test/build；无旧前端依赖 |
 | P2-02 设计系统与外壳 | `completed` | P2-01 | 从锁定 Beautiful UI commit 完整迁移组件与 Harness 到 Vite/TanStack，产品复用同源 SidebarNav，并以 Lucide 替换收费图标 | `/examples`、完整 Harness、产品壳桌面/移动/键盘/主题验收通过；无收费图标和遥测依赖 |
-| P2-03 登录与静态路由 | `pending` | P2-01,P2-02 | bootstrap、PKCE、固定角色 route guards 和左侧导航 | 五角色矩阵和 direct URL E2E 通过；无 `/getRouters` |
-| P2-04 模型与访问策略 | `pending` | P2-03 | Provider、模型、ALL_MEMBERS/MEMBER 授权、组织/成员限额与速率页，删除 DEPT 授权/配额语义 | 无限/硬限额/速率及 Harness 生效 E2E 通过；协议、Schema、运行时均无 DEPT 授权分支 |
-| P2-05 插件 | `pending` | P2-03 | 插件版本、发布、分配和设备状态 | 发布到 Desktop 安装/回滚 E2E 通过 |
-| P2-06 成员与身份 | `pending` | P2-03 | product member DTO、身份摘要、固定角色、link transaction、停用 | 同名隔离、多身份绑定和撤销 E2E 通过 |
-| P2-07 活动与设置 | `pending` | P2-03 | 用量、审计、Session、身份源和健康状态 | auditor 只读、身份源 secret 隔离通过 |
-| P2-08 切换 | `pending` | P2-04..P2-07 | 网关静态资源切换、升级/回滚演练、旧页面调用观测 | 全链路人工验收通过；不换数据卷 |
+| P2-03 登录与静态路由 | `completed` | P2-01,P2-02 | bootstrap、PKCE、固定角色 route guards 和左侧导航 | 五角色矩阵和 direct URL E2E 通过；无 `/getRouters` |
+| P2-04 模型与访问策略 | `completed` | P2-03 | Provider、模型、ALL_MEMBERS/MEMBER 授权、组织/成员限额与速率页，删除 DEPT 授权/配额语义 | 自动化与真实 Server UI 通过；协议、Schema、运行时均无 DEPT 授权分支，Harness 生效留到 P2-08 集成验收 |
+| P2-05 插件 | `completed` | P2-03 | 插件版本、发布、分配和设备状态 | 自动化与真实 Server UI 通过；Desktop 安装/回滚留到 P2-08 集成验收 |
+| P2-06 成员与身份 | `completed` | P2-03 | product member DTO、身份摘要、固定角色、link transaction、停用 | Server/协议门禁通过；真实 Harness/Desktop E2E 留在 P2-08 |
+| P2-07 活动与设置 | `completed` | P2-03 | 用量、审计、Session、身份源和健康状态 | auditor 只读、身份源 secret 隔离通过 |
+| P2-08 切换 | `pending` | P2-04..P2-07 | 集中执行真实 Harness/Desktop E2E、网关静态资源切换、升级/回滚演练和旧页面调用观测 | 第 13.2 节全链路人工验收通过；不换数据卷 |
 | P2-09 旧前端退役 | `pending` | P2-08 稳定一个版本 | 删除旧构建链和确认无调用的页面/依赖 | 独立 PR、删除清单和回滚窗口关闭 |
 
 P2-02 验收证据（2026-08-31）：锁定 Beautiful UI commit `3ea4c18114de3d4bc9b63b8e3ea6f533b1a562bd`，Vite `8.2.2`、TanStack Router `1.170.32`、Router Plugin `1.168.35` 与 Query `5.102.8` 均为当日 npm 最新稳定版；`pnpm check` 通过。`/examples` 运行 20 个同源组件 demo 并可查看真实源码，`/examples/harness` 的工作区菜单、建议场景和 60 行 Records Table 真实交互通过。1280×720 下产品侧栏可在 224/52px 间折叠且无横向溢出；390×844 下主画布为 390×844、桌面侧栏隐藏，224×824 抽屉可导航并自动关闭。正式 `62209` 冷启动后三个入口均无浏览器错误；依赖图不存在 Central Icons 或 PostHog。
+
+P2-03 验收证据（2026-08-31）：`console-web` 的 OpenAPI 生成、typecheck、production build 和 `7/7` Vitest 通过；Harness contracts typecheck 与 `9/9` 测试通过；Docker Maven 25 模块构建成功，`ConsoleBootstrapControllerTest` 通过。真实 HTTPS 同源入口完成 LOCAL PKCE authorize、密码认证、Token 交换和 `/enterprise/admin/v1/bootstrap`，菜单导航与直接访问 `/plugins` 均正常；1280×720 与 390×844 无横向溢出，移动抽屉导航后关闭；工作区菜单最后一项为 `Sign out`，Server logout 后根路由回到 `/login`。Gateway 日志无 `/getRouters` 请求，浏览器无应用错误。验收使用临时同源 Gateway 构建，结束后恢复旧 `admin-web`，正式静态资源切换仍只属于 P2-08。
+
+P2-04 增量验收证据（2026-09-01）：固定 `@tanstack/react-table 9.2.4`、`@tanstack/react-form 1.33.5` 与 `zod 4.5.4`，共享产品表格已覆盖搜索、状态筛选、排序、列显隐、行选择、本地分页和 Server cursor 续页；模型页通过生成的 OpenAPI operation 管理真实 Provider/受管模型，支持 DeepSeek 官方、自定义提供商三协议、连接测试、模型发现、启停、模型删除以及 Harness 原生 `reasoningEfforts`/`compat` 声明，并按十进制 `256K=256000`、`1M=1000000` 转换容量。访问策略页使用三个真实 Server 数据视图呈现并管理 `ALL_MEMBERS/MEMBER` 模型访问、`ORGANIZATION/MEMBER` Token 限额和速率限制；写入复用生成 operation、浏览器 UUID 幂等键和 Server CAS revision，不在浏览器计算有效规则。V18 显式删除历史部门授权/配额并迁移旧成员/组织作用域，真实 migration `3/3`、模型解析/集成 `4/4`、T08/T09 API 与配额集成 `11/11` 通过；Harness contracts typecheck 与 `9/9` 测试、platform-client typecheck 与 `22/22` 测试通过。新控制台 OpenAPI 生成、typecheck、production build、`14/14` Vitest 通过，其中写入门禁验证 ALL_MEMBERS 的 null 主体、模型 `256K` 容量和 UUID 幂等键；切换期旧管理端同步刷新生成协议并通过 Oxlint 与 TypeScript 编译。临时同源 Gateway 已在 `62207` 完成真实登录、主题切换和模型表格桌面布局验收，但本增量仍不宣称 Harness 限额 E2E 完成；不得为 `62209` 开发端口放宽 PKCE HTTPS 或 redirect allowlist，完整链路需要在真实 Harness 请求中验收无限/硬限额、速率与推理档位。
+
+P2-05 验收证据（2026-09-01）：插件页通过生成 operation 和 TanStack Query/Table 交付版本、ALL/USER 分配与设备状态三个视图，支持 tgz 上传、锁定 Desktop rc.2 Harness commit、发布、退休和 package revision 原子分配；成员分配只能从产品成员目录选择，使用浏览器 UUID v4 幂等键和 Server `If-Match`，不允许手填成员 ID，也不向新界面扩散历史 DEPT 选项。V19 增加独立 `ent:member:read` 并授予企业、模型和插件管理员；成员聚合用三条有界批量 SQL 返回固定角色、LOCAL/OIDC/LDAP 登录方式和最后活动，未知 built-in 角色不会越过 OpenAPI enum。真实 PostgreSQL/Flyway migration 与成员目录 `4/4` 通过；新控制台 OpenAPI 生成、production build、typecheck 和 Vitest 通过，写入门禁覆盖成员 cursor、插件 assignment UUID/CAS 与访问策略成员选择。`62207` 已完成功能表格、空态、上传默认 commit 和无横向溢出的真实登录 UI 验收；Desktop 安装/回滚及集中真实链路 E2E 按决策留在 P2-08，不在本任务复制启动器或伪造结果。
+
+P2-06 验收证据（2026-09-01）：产品成员 cursor/detail API 已成为成员页、插件分配和访问策略的共同成员真源，并聚合固定角色、脱敏登录方式、设备与 Session 摘要，不读取部门、岗位、外部 groups/claims。成员写入使用 revision CAS；角色替换和停用均保护最后有效 `enterprise_admin`，停用会同步撤销 ACTIVE 设备和全部平台 Session。外部身份解绑使用数据库行锁、revision CAS、最后可用登录方式保护和 `USER_UNLINKED` 审计；身份绑定复用现有 `LoginTransaction`，只接受 OIDC/LDAP 新鲜认证，不允许管理员手填 subject。普通登录不再消费外部组到部门映射或覆盖成员资料，停用成员不能借外部身份恢复登录。身份源增加 `JIT/LINK_ONLY`：未知 subject 只在 JIT 创建无特权成员，LINK_ONLY 仅允许显式绑定，LOCAL 固定 LINK_ONLY。真实 PostgreSQL/Redis、migration V1-V22、OpenAPI/成员治理/RBAC/审计门禁共 `38/38` 通过；Console production build、TypeScript 与 Vitest `20/20`、Harness contracts build/test `9/9` 和旧管理端 lint 通过。按统一决策，本任务不复制 Desktop 启动器；真实 Harness/Desktop E2E 集中到 P2-08。
+
+P2-07 验收证据（2026-09-01）：活动记录按 bootstrap `ent:*` 权限动态提供用量、审计、Session 和插件关键运行异常分段；模型管理员只读用量、插件管理员只读插件异常、auditor 可读用量/审计/Session 正文但没有 Session 删除动作，Server 现有权限仍是最终裁决。Session 正文进入 React 前严格验证规范 Base64、fatal UTF-8、JSONL、连续 seq 和事件 envelope，删除继续调用服务端 tombstone operation。设置页管理 OIDC/LDAP/LOCAL、JIT/LINK_ONLY、连接测试与 CAS 启停；创建强制一次性 secret，更新留空时请求体不含 secret，列表只显示 `secretConfigured`，不恢复外部组到部门映射。系统区复用 deploy 已有同源 `/healthz`，失败局部展示并可重试，不新增健康状态机。Console OpenAPI 生成、production build、TypeScript 与 Vitest `24/24` 通过；真实 Server、Harness 与 Desktop 集中链路仍按计划留在 P2-08，不在本任务伪造。
 
 ## 15. 完成定义
 

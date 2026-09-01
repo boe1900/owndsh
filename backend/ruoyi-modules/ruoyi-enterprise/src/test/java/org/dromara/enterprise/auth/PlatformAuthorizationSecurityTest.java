@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 PlatformAuthorizationService、真实 Redis store、PKCE/client policy 与 mock 身份/会话边界。
- * [OUTPUT]: 验证 PKCE 绕过、参数混用、一次性 code/事务并发，以及失效事务不产生用户绑定副作用。
- * [POS]: T05 Authorization Code + PKCE 安全矩阵门禁，所有失败交换都证明 code 已被烧毁。
+ * [OUTPUT]: 验证 PKCE 绕过、参数混用、一次性 code/事务，以及身份绑定只能使用指定源且不签发 Session。
+ * [POS]: Authorization Code 与身份绑定共用状态机的安全门禁，所有一次性状态消费后都不能重放。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.auth;
@@ -35,6 +35,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.redisson.api.RedissonClient;
 import org.springframework.transaction.support.TransactionOperations;
 import tools.jackson.databind.json.JsonMapper;
@@ -58,6 +59,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -348,7 +350,7 @@ class PlatformAuthorizationSecurityTest {
         when(adapters.changeInitialLocalPassword(eq(source), eq(74001L), eq("alice"), any(char[].class)))
             .thenReturn(principal);
         when(identities.resolveOrProvision(context, principal))
-            .thenReturn(new IdentityLinkResult(74001L, false, false, null));
+            .thenReturn(new IdentityLinkResult(74001L, false, false));
 
         PasswordChangeRequiredException required = catchThrowableOfType(
             () -> service.password(
@@ -371,6 +373,61 @@ class PlatformAuthorizationSecurityTest {
             "ENT_AUTH_SESSION_EXPIRED"
         );
         verify(captchaVerifier).verify("alice", "captcha-id", "1234");
+    }
+
+    @Test
+    void linksOnlyTheSelectedFreshIdentityWithoutIssuingASession() {
+        IdentitySource source = mock(IdentitySource.class);
+        when(source.id()).thenReturn(7L);
+        when(source.name()).thenReturn("Corporate LDAP");
+        when(source.type()).thenReturn(IdentitySourceType.LDAP);
+        when(source.status()).thenReturn(IdentitySourceStatus.ACTIVE);
+        when(identitySources.find("000000", 7L)).thenReturn(Optional.of(source));
+        IdentityPrincipal principal = new IdentityPrincipal(
+            "7", IdentitySourceType.LDAP, "stable-subject", "alice", "Alice", null, java.util.List.of()
+        );
+        when(adapters.authenticate(eq(source), any())).thenReturn(principal);
+        IdentityLoginContext context = new IdentityLoginContext(
+            "000000", "req_identity_link", "127.0.0.1", new byte[32]
+        );
+
+        String transactionId = service.startIdentityLink("000000", 74_001L, 7L, 70_001L);
+        ArgumentCaptor<LoginTransaction> captor = ArgumentCaptor.forClass(LoginTransaction.class);
+        verify(loginTransactions).createTransaction(captor.capture());
+        LoginTransaction transaction = captor.getValue();
+        assertThat(transaction.id()).isEqualTo(transactionId);
+        assertThat(transaction.identityLink()).isEqualTo(
+            new LoginTransaction.IdentityLinkTarget(74_001L, 7L, 70_001L)
+        );
+        when(loginTransactions.find(transactionId)).thenReturn(Optional.of(transaction));
+        when(loginTransactions.consumeTransaction(transactionId))
+            .thenReturn(Optional.of(transaction), Optional.empty());
+
+        assertThat(service.sources("000000", transactionId).sources())
+            .singleElement()
+            .satisfies(value -> assertThat(value.id()).isEqualTo(7L));
+        assertCode(
+            () -> service.password(
+                "000000", transactionId, 8L, transaction.csrfToken(), "alice", "secret".toCharArray(),
+                null, null, context
+            ),
+            "ENT_INVALID_REQUEST"
+        );
+        assertThat(service.password(
+            "000000", transactionId, 7L, transaction.csrfToken(), "alice", "secret".toCharArray(),
+            null, null, context
+        )).isEqualTo(URI.create("https://platform.example/members?identity_linked=1"));
+        verify(identities).linkToExistingUser(context, principal, 74_001L, 70_001L);
+        verify(identities, never()).resolveOrProvision(any(), any());
+        verifyNoInteractions(sessions);
+
+        assertCode(
+            () -> service.password(
+                "000000", transactionId, 7L, transaction.csrfToken(), "alice", "secret".toCharArray(),
+                null, null, context
+            ),
+            "ENT_AUTH_SESSION_EXPIRED"
+        );
     }
 
     private void assertBurned(

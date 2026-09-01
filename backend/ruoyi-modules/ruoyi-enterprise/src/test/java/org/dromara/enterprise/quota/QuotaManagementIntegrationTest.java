@@ -130,19 +130,19 @@ class QuotaManagementIntegrationTest {
             .isInstanceOf(IllegalStateException.class).hasMessageContaining("已冻结值");
 
         QuotaMutationContext mutation = mutation("req_01ARZ3NDEKTSV4RRFFQ69G5FAA");
-        QuotaPolicy department = policyService.create(mutation, spec(
-            "T09 Department", QuotaSubjectType.DEPT, DEPARTMENT_ID, 500_000L, 10_000_000L, 15, 3
+        QuotaPolicy memberRate = policyService.create(mutation, spec(
+            "T09 Member Rate", QuotaSubjectType.MEMBER, USER_ID, 500_000L, 10_000_000L, 15, 3
         ));
         QuotaPolicy user = policyService.create(mutation, spec(
-            "T09 User", QuotaSubjectType.USER, USER_ID, 100_000L, 2_000_000L, 10, 2
+            "T09 Member", QuotaSubjectType.MEMBER, USER_ID, 100_000L, 2_000_000L, 10, 2
         ));
-        assertThat(resolver.resolve(TENANT, USER_ID, DEPARTMENT_ID))
+        assertThat(resolver.resolve(TENANT, USER_ID))
             .extracting(QuotaPolicy::subjectType)
-            .containsExactly(QuotaSubjectType.DEFAULT, QuotaSubjectType.DEPT, QuotaSubjectType.USER);
+            .containsExactly(QuotaSubjectType.ORGANIZATION, QuotaSubjectType.MEMBER, QuotaSubjectType.MEMBER);
         long userPolicyId = user.id();
         String userPolicyName = user.name();
         assertThatThrownBy(() -> policyService.update(mutation, userPolicyId, 99, spec(
-            userPolicyName, QuotaSubjectType.USER, USER_ID, 100_000L, null, null, null
+            userPolicyName, QuotaSubjectType.MEMBER, USER_ID, 100_000L, null, null, null
         ))).isInstanceOf(RevisionConflictException.class);
 
         BootstrapView bootstrap = BootstrapView.from(new BootstrapService.BootstrapSnapshot(
@@ -153,26 +153,28 @@ class QuotaManagementIntegrationTest {
                 "darwin-arm64", "0.1.0-rc.5", "0.1.0", DeviceStatus.ACTIVE, Instant.now(), null, 0
             ),
             List.of(),
-            resolver.resolve(TENANT, USER_ID, DEPARTMENT_ID),
+            resolver.resolve(TENANT, USER_ID),
             new EffectivePluginResolver.ResolvedAssignments(2, List.of())
         ));
         assertThat(bootstrap.quotas()).hasSize(3);
         assertThat(bootstrap.quotas().getLast().policyId()).isEqualTo(Long.toString(user.id()));
 
         QuotaPolicy temporary = policyService.create(mutation, spec(
-            "T09 Temporary", QuotaSubjectType.USER, USER_ID, null, null, 1, null
+            "T09 Temporary", QuotaSubjectType.MEMBER, USER_ID, null, null, 1, null
         ));
         policyService.delete(mutation, temporary.id(), 0);
         assertThatThrownBy(() -> policyService.get(TENANT, temporary.id()))
             .isInstanceOf(RuntimeException.class).hasMessageContaining("不存在");
 
-        QuotaPolicy defaultPolicy = policyService.get(TENANT, 1_900_100_000_000_000_002L);
-        defaultPolicy = policyService.setStatus(mutation, defaultPolicy.id(), defaultPolicy.revision(), QuotaStatus.DISABLED);
-        department = policyService.setStatus(mutation, department.id(), department.revision(), QuotaStatus.DISABLED);
+        QuotaPolicy organizationPolicy = policyService.get(TENANT, 1_900_100_000_000_000_002L);
+        organizationPolicy = policyService.setStatus(
+            mutation, organizationPolicy.id(), organizationPolicy.revision(), QuotaStatus.DISABLED
+        );
+        memberRate = policyService.setStatus(mutation, memberRate.id(), memberRate.revision(), QuotaStatus.DISABLED);
         user = policyService.update(mutation, user.id(), user.revision(), spec(
-            user.name(), QuotaSubjectType.USER, USER_ID, 250L, 10_000L, null, null
+            user.name(), QuotaSubjectType.MEMBER, USER_ID, 250L, 10_000L, null, null
         ));
-        assertThat(resolver.resolve(TENANT, USER_ID, DEPARTMENT_ID)).containsExactly(user);
+        assertThat(resolver.resolve(TENANT, USER_ID)).containsExactly(user);
 
         List<QuotaReservationService.ActiveReservation> accepted = reserveConcurrently(50, 10);
         assertThat(accepted).hasSize(25);
@@ -193,7 +195,7 @@ class QuotaManagementIntegrationTest {
         )).isZero();
 
         user = policyService.update(mutation, user.id(), user.revision(), spec(
-            user.name(), QuotaSubjectType.USER, USER_ID, 100_000L, 2_000_000L, null, null
+            user.name(), QuotaSubjectType.MEMBER, USER_ID, 100_000L, 2_000_000L, null, null
         ));
         QuotaReservationService.ActiveReservation released = reservationService.reserve(command(20, "0FAB"));
         assertThatThrownBy(() -> reservationService.reserve(replay(released, 20)))
@@ -236,7 +238,7 @@ class QuotaManagementIntegrationTest {
             .extracting("requestId", "totalTokens", "result")
             .containsExactly(expiredSent.reservation().requestId(), 40L, UsageResult.CHARGED_MAX);
 
-        assertThat(usageQuery.myUsage(TENANT, USER_ID, DEPARTMENT_ID)).singleElement().satisfies(value -> {
+        assertThat(usageQuery.myUsage(TENANT, USER_ID)).singleElement().satisfies(value -> {
             assertThat(value.daily().usedTokens()).isEqualTo(87);
             assertThat(value.daily().reservedTokens()).isZero();
         });
@@ -258,8 +260,8 @@ class QuotaManagementIntegrationTest {
             "select count(*) from ent_audit_event where action = 'RESERVATION_RECOVERED'",
             Long.class
         )).isEqualTo(2);
-        assertThat(defaultPolicy.status()).isEqualTo(QuotaStatus.DISABLED);
-        assertThat(department.status()).isEqualTo(QuotaStatus.DISABLED);
+        assertThat(organizationPolicy.status()).isEqualTo(QuotaStatus.DISABLED);
+        assertThat(memberRate.status()).isEqualTo(QuotaStatus.DISABLED);
     }
 
     private static List<QuotaReservationService.ActiveReservation> reserveConcurrently(
@@ -346,9 +348,9 @@ class QuotaManagementIntegrationTest {
         database.jdbc().update("""
             insert into ent_managed_model (
                 id, tenant_id, provider_id, alias, display_name, upstream_model,
-                context_window, max_output_tokens, reasoning, sort_order, status, revision
+                context_window, max_output_tokens, sort_order, status, revision
             ) values (?, ?, ?, 't09-model', 'T09 Model', 'deepseek-chat', 65536, 8192,
-                false, 10, 'ACTIVE', 0)
+                10, 'ACTIVE', 0)
             """, MODEL_ID, TENANT, PROVIDER_ID);
         database.jdbc().update("""
             insert into ent_device (

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 JDBC/Jackson/事务/Redisson/ID generator、部署 URI/master key 与 RuoYi 登录/会话 ports。
- * [OUTPUT]: 对外装配 T04 身份能力、T05 Redis PKCE/平台会话 Service 与统一 HTTPS authority 校验。
+ * [OUTPUT]: 对外装配身份、成员目录、Redis PKCE/平台会话 Service 与统一 HTTPS authority 校验。
  * [POS]: auth 纵向模块的 Spring composition root，领域与 adapter 均不使用静态容器查找。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -21,6 +21,8 @@ import org.dromara.enterprise.auth.application.ExternalIdentityQueryService;
 import org.dromara.enterprise.auth.application.CaptchaVerifier;
 import org.dromara.enterprise.auth.application.IdentityGroupMappingService;
 import org.dromara.enterprise.auth.application.IdentitySourceService;
+import org.dromara.enterprise.auth.application.MemberDirectoryQueryService;
+import org.dromara.enterprise.auth.application.MemberManagementService;
 import org.dromara.enterprise.auth.application.PlatformAuthorizationService;
 import org.dromara.enterprise.auth.application.PlatformSessionGateway;
 import org.dromara.enterprise.auth.persistence.ExternalGroupMappingStore;
@@ -35,6 +37,7 @@ import org.dromara.enterprise.auth.persistence.RedisAuthStateStore;
 import org.dromara.enterprise.crypto.SecretCipher;
 import org.dromara.enterprise.common.api.EnterpriseCursorCodec;
 import org.dromara.enterprise.revision.BootstrapRevisionStore;
+import org.dromara.system.event.UserGovernanceEventPublisher;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
@@ -116,6 +119,26 @@ public class EnterpriseIdentityConfiguration {
     @Bean
     ExternalIdentityStore externalIdentityStore(JdbcTemplate jdbcTemplate, JsonMapper jsonMapper) {
         return new JdbcExternalIdentityStore(jdbcTemplate, jsonMapper);
+    }
+
+    @Bean
+    MemberDirectoryQueryService memberDirectoryQueryService(JdbcTemplate jdbcTemplate) {
+        return new MemberDirectoryQueryService(jdbcTemplate);
+    }
+
+    @Bean
+    MemberManagementService memberManagementService(
+        PlatformTransactionManager transactionManager,
+        JdbcTemplate jdbcTemplate,
+        MemberDirectoryQueryService members,
+        PlatformSessionGateway sessions,
+        UserGovernanceEventPublisher governanceEvents,
+        AuditSink audit,
+        @Qualifier("enterpriseIdSupplier") LongSupplier ids
+    ) {
+        return new MemberManagementService(
+            new TransactionTemplate(transactionManager), jdbcTemplate, members, sessions, governanceEvents, audit, ids
+        );
     }
 
     @Bean
@@ -204,7 +227,6 @@ public class EnterpriseIdentityConfiguration {
         PlatformTransactionManager transactionManager,
         IdentitySourceStore sourceStore,
         ExternalIdentityStore identityStore,
-        ExternalGroupMappingStore mappingStore,
         PlatformUserStore userStore,
         AuditSink auditSink,
         @Qualifier("enterpriseIdSupplier") LongSupplier ids
@@ -213,7 +235,6 @@ public class EnterpriseIdentityConfiguration {
             new TransactionTemplate(transactionManager),
             sourceStore,
             identityStore,
-            mappingStore,
             userStore,
             auditSink,
             ids

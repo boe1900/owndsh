@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 接收管理 API 的身份源非秘密配置与一次性 char[] secret。
+ * [INPUT]: 接收管理 API 的身份源类型、provisioning mode、非秘密配置与一次性 char[] secret。
  * [OUTPUT]: 对外提供 IdentitySourceSpec、可选 SecretInput、显式清零和脱敏 toString。
  * [POS]: auth/web 的身份源写 DTO，秘密不转换为日志友好的 String 且不进入领域配置对象。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -8,6 +8,7 @@ package org.dromara.enterprise.auth.web;
 
 import org.dromara.enterprise.auth.application.IdentitySourceSpec;
 import org.dromara.enterprise.auth.application.SecretInput;
+import org.dromara.enterprise.auth.domain.IdentityProvisioningMode;
 import org.dromara.enterprise.auth.domain.IdentitySourceType;
 import org.dromara.enterprise.auth.domain.LdapSettings;
 import org.dromara.enterprise.auth.domain.OidcSettings;
@@ -20,6 +21,7 @@ import java.util.Arrays;
  */
 public record IdentitySourceWriteRequest(
     IdentitySourceType type,
+    IdentityProvisioningMode provisioningMode,
     String name,
     URI issuer,
     String clientId,
@@ -37,7 +39,7 @@ public record IdentitySourceWriteRequest(
     }
 
     public IdentitySourceSpec spec() {
-        return new IdentitySourceSpec(type, name, issuer, clientId, oidc, ldap);
+        return new IdentitySourceSpec(type, provisioningMode, name, issuer, clientId, oidc, ldap);
     }
 
     public SecretInput secretInput(boolean required) {
@@ -55,6 +57,7 @@ public record IdentitySourceWriteRequest(
 
     @Override
     public String toString() {
-        return "IdentitySourceWriteRequest[type=" + type + ", name=" + name + ", secret=[REDACTED]]";
+        return "IdentitySourceWriteRequest[type=" + type + ", provisioningMode=" + provisioningMode
+            + ", name=" + name + ", secret=[REDACTED]]";
     }
 }

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 PlatformSessionGateway、RuoYi user/RBAC 服务、LoginHelper 与 Sa-Token terminal/Token Session API。
- * [OUTPUT]: 对外提供 12 小时非共享平台会话签发、可信当前会话读取和保留撤销原因的单 installation Token kickout。
+ * [OUTPUT]: 对外提供 12 小时非共享平台会话签发、可信读取、单 installation 标记撤销和成员全部终端 kickout。
  * [POS]: ruoyi-admin composition adapter，使 ruoyi-enterprise 不反向依赖 SysLoginService/ISysUserService，并区分设备撤销与普通会话失效。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -92,7 +92,7 @@ public final class RuoYiPlatformSessionGateway implements PlatformSessionGateway
 
     @Override
     public void revokeHarnessDevice(long userId, String installationId) {
-        SysUserVo user = loadEnabledUser(userId);
+        SysUserVo user = loadUser(userId);
         String loginId = user.getUserType() + ":" + userId;
         StpLogic logic = StpUtil.getStpLogic();
         logic.getTerminalListByLoginId(loginId).stream()
@@ -101,6 +101,12 @@ public final class RuoYiPlatformSessionGateway implements PlatformSessionGateway
             .map(terminal -> terminal.getTokenValue())
             .toList()
             .forEach(token -> revokeDeviceToken(logic, token));
+    }
+
+    @Override
+    public void revokeUser(long userId) {
+        SysUserVo user = loadUser(userId);
+        StpUtil.getStpLogic().kickout(user.getUserType() + ":" + userId);
     }
 
     static boolean isRevokedDeviceToken(
@@ -126,10 +132,14 @@ public final class RuoYiPlatformSessionGateway implements PlatformSessionGateway
     }
 
     private SysUserVo loadEnabledUser(long userId) {
+        SysUserVo user = loadUser(userId);
+        if (!"0".equals(user.getStatus())) throw new AuthFlowException("ENT_AUTH_REQUIRED");
+        return user;
+    }
+
+    private SysUserVo loadUser(long userId) {
         SysUserVo user = DataPermissionHelper.ignore(() -> userService.selectUserById(userId));
-        if (user == null || !"0".equals(user.getStatus()) || user.getUserType() == null) {
-            throw new AuthFlowException("ENT_AUTH_REQUIRED");
-        }
+        if (user == null || user.getUserType() == null) throw new AuthFlowException("ENT_AUTH_REQUIRED");
         return user;
     }
 }

@@ -25,7 +25,7 @@ ModelStatus:
   enum: [ACTIVE, DISABLED]
 GrantSubjectType:
   type: string
-  enum: [USER, DEPT]
+  enum: [ALL_MEMBERS, MEMBER]
 ReasoningEffortLevel:
   type: string
   enum: [off, minimal, low, medium, high, xhigh, max]
@@ -333,16 +333,16 @@ ManagedModelListResponse:
 ModelGrantWriteRequest:
   type: object
   additionalProperties: false
-  required: [modelId, subjectType, subjectId, isDefault, status]
+  required: [modelId, subjectType, subjectId, status]
   properties:
     modelId:
       $ref: '../enterprise-openapi.yaml#/components/schemas/ManagedModelId'
     subjectType: {$ref: '#/GrantSubjectType'}
     subjectId:
-      type: string
-      pattern: '^[1-9][0-9]{0,18}$'
-    isDefault:
-      type: boolean
+      oneOf:
+        - type: string
+          pattern: '^[1-9][0-9]{0,18}$'
+        - type: 'null'
     status: {$ref: '#/ModelStatus'}
 ModelGrantBatchRequest:
   type: object
@@ -364,7 +364,6 @@ ModelGrant:
     - subjectType
     - subjectId
     - subjectName
-    - isDefault
     - status
     - revision
   properties:
@@ -374,14 +373,14 @@ ModelGrant:
     modelAlias: {$ref: '#/ModelAlias'}
     subjectType: {$ref: '#/GrantSubjectType'}
     subjectId:
-      type: string
-      pattern: '^[1-9][0-9]{0,18}$'
+      oneOf:
+        - type: string
+          pattern: '^[1-9][0-9]{0,18}$'
+        - type: 'null'
     subjectName:
       type: string
       minLength: 1
       maxLength: 120
-    isDefault:
-      type: boolean
     status: {$ref: '#/ModelStatus'}
     revision:
       $ref: '../enterprise-openapi.yaml#/components/schemas/Revision'

@@ -1,0 +1,18 @@
+-- [INPUT]: 依赖 V4 只追加审计表及其封闭 action 约束。
+-- [OUTPUT]: 将 USER_UNLINKED 加入审计 action 白名单，支持产品成员身份解除审计。
+-- [POS]: P2-06 身份解绑的前向数据库契约，不修改已有审计事件。
+-- [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+alter table ent_audit_event drop constraint ck_ent_audit_event_action;
+
+alter table ent_audit_event add constraint ck_ent_audit_event_action check (action in (
+    'LOGIN_SUCCEEDED', 'LOGIN_FAILED', 'LOGOUT', 'IDENTITY_SOURCE_CHANGED', 'USER_LINKED', 'USER_UNLINKED',
+    'DEVICE_ENROLLED', 'DEVICE_HEARTBEAT', 'DEVICE_REVOKED',
+    'PROVIDER_CHANGED', 'MODEL_CHANGED', 'MODEL_GRANT_CHANGED',
+    'MODEL_REQUEST_ACCEPTED', 'MODEL_REQUEST_FINISHED',
+    'QUOTA_CHANGED', 'QUOTA_REJECTED', 'RESERVATION_RECOVERED',
+    'PLUGIN_UPLOADED', 'PLUGIN_PUBLISHED', 'PLUGIN_ASSIGNED', 'PLUGIN_DOWNLOADED',
+    'PLUGIN_INVENTORY_REPORTED', 'SESSION_BATCH_APPENDED', 'SESSION_EXPORTED',
+    'SESSION_RESTORED', 'SESSION_CONTENT_READ', 'SESSION_DELETED', 'SESSION_EXPIRED',
+    'ROLE_ASSIGNED', 'USER_STATUS_CHANGED', 'CONFIG_CHANGED'
+));

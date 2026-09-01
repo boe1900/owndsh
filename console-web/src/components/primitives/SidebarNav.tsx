@@ -70,7 +70,7 @@ type SidebarNavProps = {
   activeNav?: string;
   onNavigate?: (key: string) => void;
   /** footer call-to-action — defaults to the demo "Upgrade" button */
-  footerLabel?: string;
+  footerLabel?: string | null;
   footerIcon?: ReactNode;
   onFooterClick?: () => void;
   primaryAction?: SidebarNavItem | null;
@@ -468,7 +468,7 @@ export default function SidebarNav({
           </GlideGroup>
         </div> : <div className="min-h-0 flex-1" />}
 
-        <div className="sidebar-copy mx-2 mt-3 w-[208px] border-t border-line pt-3">
+        {footerLabel && <div className="sidebar-copy mx-2 mt-3 w-[208px] border-t border-line pt-3">
           <button
             type="button"
             onClick={onFooterClick ?? onNewChat}
@@ -477,7 +477,7 @@ export default function SidebarNav({
             {footerIcon}
             {footerLabel}
           </button>
-        </div>
+        </div>}
       </div>
     </aside>
   );

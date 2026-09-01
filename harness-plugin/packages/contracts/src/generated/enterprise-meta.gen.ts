@@ -23,6 +23,8 @@ export const enterpriseErrorStatuses = {
   "ENT_RESOURCE_NOT_FOUND": 404,
   "ENT_SESSION_CONTENT_EXPIRED": 404,
   "ENT_REVISION_CONFLICT": 409,
+  "ENT_LAST_ENTERPRISE_ADMIN": 409,
+  "ENT_LAST_MEMBER_IDENTITY": 409,
   "ENT_REQUEST_IN_PROGRESS": 409,
   "ENT_REQUEST_ALREADY_COMPLETED": 409,
   "ENT_SESSION_SEQ_GAP": 409,
@@ -44,4 +46,4 @@ export const enterpriseErrorStatuses = {
   "ENT_UPSTREAM_TIMEOUT": 504
 } as const
 
-export const enterpriseProtocolSha256 = 'f6a8e5ec8d81ed823e97221a0d90b82157eaf1a42007d38bf1f4b53add0c99b2'
+export const enterpriseProtocolSha256 = 'd259136f4240b988b39a2d06ae4448f32aa61ab1548716a997536ba90df29a80'

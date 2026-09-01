@@ -9,8 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as R403RouteImport } from './routes/403'
 import { Route as ConsoleRouteImport } from './routes/_console'
 import { Route as ExamplesRouteImport } from './routes/examples'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as ConsoleIndexRouteImport } from './routes/_console.index'
 import { Route as ConsoleAccessRouteImport } from './routes/_console.access'
 import { Route as ConsoleActivityRouteImport } from './routes/_console.activity'
@@ -19,7 +21,13 @@ import { Route as ConsolePluginsRouteImport } from './routes/_console.plugins'
 import { Route as ConsoleSettingsRouteImport } from './routes/_console.settings'
 import { Route as ExamplesIndexRouteImport } from './routes/examples.index'
 import { Route as ExamplesHarnessRouteImport } from './routes/examples.harness'
+import { Route as EnterpriseAuthCallbackRouteImport } from './routes/enterprise.auth.callback'
 
+const R403Route = R403RouteImport.update({
+  id: '/403',
+  path: '/403',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ConsoleRoute = ConsoleRouteImport.update({
   id: '/_console',
   getParentRoute: () => rootRouteImport,
@@ -27,6 +35,11 @@ const ConsoleRoute = ConsoleRouteImport.update({
 const ExamplesRoute = ExamplesRouteImport.update({
   id: '/examples',
   path: '/examples',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConsoleIndexRoute = ConsoleIndexRouteImport.update({
@@ -69,10 +82,17 @@ const ExamplesHarnessRoute = ExamplesHarnessRouteImport.update({
   path: '/harness',
   getParentRoute: () => ExamplesRoute,
 } as any)
+const EnterpriseAuthCallbackRoute = EnterpriseAuthCallbackRouteImport.update({
+  id: '/enterprise/auth/callback',
+  path: '/enterprise/auth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
+  '/403': typeof R403Route
   '/': typeof ConsoleIndexRoute
   '/examples': typeof ExamplesRouteWithChildren
+  '/login': typeof LoginRoute
   '/access': typeof ConsoleAccessRoute
   '/activity': typeof ConsoleActivityRoute
   '/members': typeof ConsoleMembersRoute
@@ -80,8 +100,11 @@ export interface FileRoutesByFullPath {
   '/settings': typeof ConsoleSettingsRoute
   '/examples/harness': typeof ExamplesHarnessRoute
   '/examples/': typeof ExamplesIndexRoute
+  '/enterprise/auth/callback': typeof EnterpriseAuthCallbackRoute
 }
 export interface FileRoutesByTo {
+  '/403': typeof R403Route
+  '/login': typeof LoginRoute
   '/access': typeof ConsoleAccessRoute
   '/activity': typeof ConsoleActivityRoute
   '/members': typeof ConsoleMembersRoute
@@ -90,11 +113,14 @@ export interface FileRoutesByTo {
   '/examples/harness': typeof ExamplesHarnessRoute
   '/': typeof ConsoleIndexRoute
   '/examples': typeof ExamplesIndexRoute
+  '/enterprise/auth/callback': typeof EnterpriseAuthCallbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/403': typeof R403Route
   '/_console': typeof ConsoleRouteWithChildren
   '/examples': typeof ExamplesRouteWithChildren
+  '/login': typeof LoginRoute
   '/_console/access': typeof ConsoleAccessRoute
   '/_console/activity': typeof ConsoleActivityRoute
   '/_console/members': typeof ConsoleMembersRoute
@@ -103,12 +129,15 @@ export interface FileRoutesById {
   '/examples/harness': typeof ExamplesHarnessRoute
   '/_console/': typeof ConsoleIndexRoute
   '/examples/': typeof ExamplesIndexRoute
+  '/enterprise/auth/callback': typeof EnterpriseAuthCallbackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
+    | '/403'
     | '/'
     | '/examples'
+    | '/login'
     | '/access'
     | '/activity'
     | '/members'
@@ -116,8 +145,11 @@ export interface FileRouteTypes {
     | '/settings'
     | '/examples/harness'
     | '/examples/'
+    | '/enterprise/auth/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/403'
+    | '/login'
     | '/access'
     | '/activity'
     | '/members'
@@ -126,10 +158,13 @@ export interface FileRouteTypes {
     | '/examples/harness'
     | '/'
     | '/examples'
+    | '/enterprise/auth/callback'
   id:
     | '__root__'
+    | '/403'
     | '/_console'
     | '/examples'
+    | '/login'
     | '/_console/access'
     | '/_console/activity'
     | '/_console/members'
@@ -138,15 +173,26 @@ export interface FileRouteTypes {
     | '/examples/harness'
     | '/_console/'
     | '/examples/'
+    | '/enterprise/auth/callback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  R403Route: typeof R403Route
   ConsoleRoute: typeof ConsoleRouteWithChildren
   ExamplesRoute: typeof ExamplesRouteWithChildren
+  LoginRoute: typeof LoginRoute
+  EnterpriseAuthCallbackRoute: typeof EnterpriseAuthCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/403': {
+      id: '/403'
+      path: '/403'
+      fullPath: '/403'
+      preLoaderRoute: typeof R403RouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_console': {
       id: '/_console'
       path: ''
@@ -159,6 +205,13 @@ declare module '@tanstack/react-router' {
       path: '/examples'
       fullPath: '/examples'
       preLoaderRoute: typeof ExamplesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_console/': {
@@ -217,6 +270,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExamplesHarnessRouteImport
       parentRoute: typeof ExamplesRoute
     }
+    '/enterprise/auth/callback': {
+      id: '/enterprise/auth/callback'
+      path: '/enterprise/auth/callback'
+      fullPath: '/enterprise/auth/callback'
+      preLoaderRoute: typeof EnterpriseAuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -256,8 +316,11 @@ const ExamplesRouteWithChildren = ExamplesRoute._addFileChildren(
 )
 
 const rootRouteChildren: RootRouteChildren = {
+  R403Route: R403Route,
   ConsoleRoute: ConsoleRouteWithChildren,
   ExamplesRoute: ExamplesRouteWithChildren,
+  LoginRoute: LoginRoute,
+  EnterpriseAuthCallbackRoute: EnterpriseAuthCallbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

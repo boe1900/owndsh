@@ -14,7 +14,7 @@ UsageLedgerId:
   pattern: '^[1-9][0-9]{0,18}$'
 QuotaSubjectType:
   type: string
-  enum: [DEFAULT, DEPT, USER]
+  enum: [ORGANIZATION, MEMBER]
 QuotaStatus:
   type: string
   enum: [ACTIVE, DISABLED]

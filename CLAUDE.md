@@ -25,8 +25,8 @@ T00 建立上游源码与插件工作区，T01 验证官方插件扩展面，T02
 
 模型协议法则：`@deepseek-ai/dsh-llm-pi-ai` 是客户端唯一协议实现，拥有消息、tools、reasoning、replay、SSE、通用重试与 provider 兼容语义；企业层只负责认证代理、授权、配额、审计、受管模型 ID 覆盖和上游密钥注入，不增加 provider 特定重试。后续模型能力优先升级锁定 Harness/官方依赖，禁止在企业代码中复制协议 adapter 或引入第二套 AI 抽象。
 
-T18 在 T16/T17 Session 纵向边界上交付管理 metadata/正文/删除页和桌面同步/恢复/删除 tab，并以耐久 `DELETED` 游标阻止 Harness 重启后自动重传。T19 建立 30-action 显式 metadata 白名单、tenant 隔离审计查询、365 天有界 retention、用户治理事务接缝和 heartbeat 防洪。T20 建立默认同源 CORS、无已知 JWT secret、分层请求体上限、graceful drain、未知故障日志隔离、CI 秘密扫描和 PostgreSQL/Redis/artifact/key 恢复演练。T21 建立锁定 Linux amd64 release、TLS Compose、一次性管理员、secret、健康检查、备份恢复、升级与仅应用回滚。T22 退役跨模块自动总编排，改由单后端、单 Harness 的无时限本地环境逐功能人工验收；T23 在 T22 人工确认完成前不启动。
+T18 在 T16/T17 Session 纵向边界上交付管理 metadata/正文/删除页和桌面同步/恢复/删除 tab，并以耐久 `DELETED` 游标阻止 Harness 重启后自动重传。T19 建立封闭 action metadata 白名单、tenant 隔离审计查询、365 天有界 retention、用户治理事务接缝和 heartbeat 防洪。T20 建立默认同源 CORS、无已知 JWT secret、分层请求体上限、graceful drain、未知故障日志隔离、CI 秘密扫描和 PostgreSQL/Redis/artifact/key 恢复演练。T21 建立锁定 Linux amd64 release、TLS Compose、一次性管理员、secret、健康检查、备份恢复、升级与仅应用回滚。T22 退役跨模块自动总编排，改由单后端、单 Harness 的无时限本地环境逐功能人工验收；T23 在 T22 人工确认完成前不启动。
 
-第二阶段 P2-00 至 P2-02 已完成设计冻结、独立 `console-web` 骨架及锁定 Beautiful UI commit 的完整组件/Harness/同源产品壳迁移；下一任务 P2-03 接入登录、固定角色守卫与静态路由权限，旧 `admin-web` 只保留为切换前运行面。
+第二阶段 P2-00 至 P2-07 已完成设计冻结、独立 `console-web`、Beautiful UI 产品壳、PKCE/固定角色路由、模型与访问策略、插件、成员与多身份，以及权限裁剪的用量/审计/Session/运行异常和身份源/健康设置；真实 Harness/Desktop E2E 集中到 P2-08，旧 `admin-web` 只保留为切换前运行面。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

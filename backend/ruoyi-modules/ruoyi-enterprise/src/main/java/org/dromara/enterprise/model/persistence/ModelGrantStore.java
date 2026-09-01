@@ -24,9 +24,9 @@ public interface ModelGrantStore {
 
     boolean delete(String tenantId, long grantId, long expectedRevision);
 
-    boolean subjectExists(String tenantId, GrantSubjectType subjectType, long subjectId);
+    boolean subjectExists(String tenantId, GrantSubjectType subjectType, Long subjectId);
 
-    String subjectName(String tenantId, GrantSubjectType subjectType, long subjectId);
+    String subjectName(String tenantId, GrantSubjectType subjectType, Long subjectId);
 
-    List<GrantedModel> findEffectiveCandidates(String tenantId, long userId, Long departmentId);
+    List<GrantedModel> findEffectiveCandidates(String tenantId, long userId);
 }

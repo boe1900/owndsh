@@ -1,6 +1,6 @@
 # [INPUT]: 依赖 enterprise-openapi.yaml 的 RequestId、Revision 与 CursorPage 公共协议
-# [OUTPUT]: 提供 T04 身份源、OIDC/LDAP 配置、组映射和删除确认 schemas
-# [POS]: OpenAPI 逻辑真源的身份治理 schema 分片，由根 components 逐项引用并由生成器整体 bundle/hash
+# [OUTPUT]: 提供身份源、JIT/LINK_ONLY、OIDC/LDAP 配置、组映射和删除确认 schemas
+# [POS]: OpenAPI 逻辑真源的身份治理 schema 分片，保持认证、provisioning 与授权语义分离
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 IdentitySourceId:
   type: string
@@ -17,6 +17,9 @@ DepartmentId:
 IdentitySourceType:
   type: string
   enum: [OIDC, LDAP, LOCAL]
+IdentityProvisioningMode:
+  type: string
+  enum: [JIT, LINK_ONLY]
 IdentitySourceStatus:
   type: string
   enum: [ACTIVE, DISABLED]
@@ -114,10 +117,12 @@ LdapSettings:
 IdentitySourceCreateRequest:
   type: object
   additionalProperties: false
-  required: [type, name, secret]
+  required: [type, provisioningMode, name, secret]
   properties:
     type:
       $ref: '#/IdentitySourceType'
+    provisioningMode:
+      $ref: '#/IdentityProvisioningMode'
     name:
       type: string
       minLength: 1
@@ -142,10 +147,12 @@ IdentitySourceCreateRequest:
 IdentitySourceUpdateRequest:
   type: object
   additionalProperties: false
-  required: [type, name]
+  required: [type, provisioningMode, name]
   properties:
     type:
       $ref: '#/IdentitySourceType'
+    provisioningMode:
+      $ref: '#/IdentityProvisioningMode'
     name:
       type: string
       minLength: 1
@@ -173,6 +180,7 @@ IdentitySource:
   required:
     - id
     - type
+    - provisioningMode
     - name
     - secretConfigured
     - status
@@ -184,6 +192,8 @@ IdentitySource:
       $ref: '#/IdentitySourceId'
     type:
       $ref: '#/IdentitySourceType'
+    provisioningMode:
+      $ref: '#/IdentityProvisioningMode'
     name:
       type: string
       minLength: 1

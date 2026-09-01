@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 RedisTestServer、RedisAuthStateStore、Jackson 与并发 executor。
- * [OUTPUT]: 验证事务/challenge 5 分钟、code 60 秒 TTL、原子单消费、重放、取消、过期与 key 分区。
+ * [OUTPUT]: 验证普通/身份绑定事务、challenge 5 分钟、code 60 秒 TTL、原子单消费、重放、取消、过期与 key 分区。
  * [POS]: T05 PKCE 状态持久化退出门禁，使用真实 Redis GETDEL 而非 ambient fake。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -44,10 +44,23 @@ class RedisAuthStateStoreIntegrationTest {
     void storesFiveMinuteTransactionsAndSixtySecondCodesInSeparateNamespaces() {
         RedisAuthStateStore store = store(Duration.ofMinutes(5), Duration.ofSeconds(60));
         LoginTransaction transaction = transaction("tx_ttl_00000000000000000000000000");
+        LoginTransaction identityLink = new LoginTransaction(
+            "tx_link_0000000000000000000000000",
+            PlatformClient.ENTERPRISE_ADMIN,
+            URI.create("https://platform.example/members"),
+            "link-state-0001",
+            "abcdefghijklmnopqrstuvwxyzABCDEFGH123456789",
+            null,
+            "admin-123e4567-e89b-42d3-a456-426614174000",
+            "csrf_abcdefghijklmnopqrstuvwxyz123456",
+            Instant.parse("2026-08-18T00:00:00Z"),
+            new LoginTransaction.IdentityLinkTarget(74001L, 7L, 70001L)
+        );
         PasswordChangeChallenge passwordChange = passwordChange(transaction.id());
         PlatformAuthorizationCode code = code("abcdefghijklmnopqrstuvwxyzABCDEFGH123456789");
 
         assertThat(store.createTransaction(transaction)).isTrue();
+        assertThat(store.createTransaction(identityLink)).isTrue();
         assertThat(store.createChallenge(
             "pwc_abcdefghijklmnopqrstuvwxyzABCDEFGH123456789", passwordChange
         )).isTrue();
@@ -65,6 +78,7 @@ class RedisAuthStateStoreIntegrationTest {
             .contains(passwordChange);
         assertThat(store.consumeChallenge("pwc_abcdefghijklmnopqrstuvwxyzABCDEFGH123456789")).isEmpty();
         assertThat(store.find(transaction.id())).contains(transaction);
+        assertThat(store.find(identityLink.id())).contains(identityLink);
         assertThat(store.consumeOidcState("oidc_state_0000000000000000000000000000")).isPresent();
         assertThat(store.find(transaction.id())).contains(transaction);
     }

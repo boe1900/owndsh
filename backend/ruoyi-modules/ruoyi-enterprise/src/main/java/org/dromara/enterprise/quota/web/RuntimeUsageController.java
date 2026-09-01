@@ -47,7 +47,7 @@ public final class RuntimeUsageController {
         EnterpriseDevice device = devices.requireActive(context);
         QuotaSubjectStore.QuotaUser user = subjects.findActiveUser(device.userId())
             .orElseThrow(() -> new DeviceAccessException("ENT_PERMISSION_DENIED"));
-        List<MyQuotaUsageView> result = usage.myUsage(context.tenantId(), user.id(), user.departmentId())
+        List<MyQuotaUsageView> result = usage.myUsage(context.tenantId(), user.id())
             .stream().map(MyQuotaUsageView::from).toList();
         return new EnterpriseResponse<>(result, context.requestId());
     }

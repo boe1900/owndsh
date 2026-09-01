@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 QuotaPolicyStore 的 ACTIVE DEFAULT/DEPT/USER 匹配查询。
+ * [INPUT]: 依赖 QuotaPolicyStore 的 ACTIVE ORGANIZATION/MEMBER 匹配查询。
  * [OUTPUT]: 对外提供按 policy ID 升序的全部适用策略。
  * [POS]: quota/application 的生效规则单一入口，所有上限独立叠加且不做覆盖合并。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -20,8 +20,8 @@ public final class EffectiveQuotaResolver {
         this.policies = Objects.requireNonNull(policies, "policies");
     }
 
-    public List<QuotaPolicy> resolve(String tenantId, long userId, Long departmentId) {
-        return policies.findEffective(tenantId, userId, departmentId).stream()
+    public List<QuotaPolicy> resolve(String tenantId, long userId) {
+        return policies.findEffective(tenantId, userId).stream()
             .sorted(Comparator.comparingLong(QuotaPolicy::id))
             .toList();
     }

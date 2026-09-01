@@ -4,7 +4,7 @@
 
 成员清单
 
-QuotaSubjectType.java: DEFAULT/DEPT/USER 生效作用域封闭枚举。
+QuotaSubjectType.java: ORGANIZATION/MEMBER 生效作用域封闭枚举，部门不参与限额裁决。
 QuotaStatus.java: quota policy ACTIVE/DISABLED 状态真源。
 QuotaWindowType.java: 自然 DAY/MONTH Token 窗口类型。
 ReservationState.java: RESERVED/SENT 到三个终态的计费状态机真源。

@@ -13,6 +13,7 @@ export async function listIdentitySources(
       items: {
         id: string;
         type: "OIDC" | "LDAP" | "LOCAL";
+        provisioningMode: "JIT" | "LINK_ONLY";
         name: string;
         issuer?: string;
         clientId?: string;

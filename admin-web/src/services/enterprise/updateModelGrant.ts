@@ -9,9 +9,8 @@ export async function updateModelGrant(
   body: {
     /** Managed model snowflake ID serialized as a string. */
     modelId: string;
-    subjectType: "USER" | "DEPT";
-    subjectId: string;
-    isDefault: boolean;
+    subjectType: "ALL_MEMBERS" | "MEMBER";
+    subjectId: string | null;
     status: "ACTIVE" | "DISABLED";
   },
   options?: { [key: string]: any }
@@ -22,10 +21,9 @@ export async function updateModelGrant(
       id: string;
       modelId: string;
       modelAlias: string;
-      subjectType: "USER" | "DEPT";
-      subjectId: string;
+      subjectType: "ALL_MEMBERS" | "MEMBER";
+      subjectId: string | null;
       subjectName: string;
-      isDefault: boolean;
       status: "ACTIVE" | "DISABLED";
       revision: number;
     };

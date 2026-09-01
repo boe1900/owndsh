@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖第 13 节全部 AuditAction 与各业务域真实 metadata DTO
- * [OUTPUT]: 验证 30 action 全覆盖、唯一 action 声明、敏感语义 key 缺失、声明字段不序列化和错配拒绝
+ * [OUTPUT]: 验证全部 action 全覆盖、唯一 action 声明、敏感语义 key 缺失、声明字段不序列化和错配拒绝
  * [POS]: audit metadata 白名单的纯单元总门禁，新增 action 未配 DTO 时立即失败
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -9,6 +9,7 @@ package org.dromara.enterprise.audit;
 import org.dromara.enterprise.auth.application.AuthAuditMetadata;
 import org.dromara.enterprise.auth.application.IdentityChangeMetadata;
 import org.dromara.enterprise.auth.application.IdentityLinkMetadata;
+import org.dromara.enterprise.auth.application.IdentityUnlinkMetadata;
 import org.dromara.enterprise.auth.domain.IdentitySourceType;
 import org.dromara.enterprise.device.application.DeviceEnrollmentMetadata;
 import org.dromara.enterprise.device.application.DeviceHeartbeatMetadata;
@@ -89,6 +90,7 @@ class AuditMetadataPolicyTest {
                 IdentityChangeMetadata.Operation.CREATE, IdentitySourceType.LOCAL, false, 0, 1
             ),
             new IdentityLinkMetadata(IdentitySourceType.LOCAL, false, 0, 0, 0, false),
+            new IdentityUnlinkMetadata(IdentitySourceType.OIDC, 0, 1),
             new DeviceEnrollmentMetadata("darwin-arm64", true),
             new DeviceHeartbeatMetadata(1, 0, true),
             new EmptyAuditMetadata(),
@@ -97,7 +99,7 @@ class AuditMetadataPolicyTest {
             ),
             new ManagedModelChangeMetadata(ManagedModelChangeMetadata.Operation.CREATE, 0, 1),
             new ModelGrantChangeMetadata(
-                ModelGrantChangeMetadata.Operation.CREATE, GrantSubjectType.USER, true,
+                ModelGrantChangeMetadata.Operation.CREATE, GrantSubjectType.MEMBER,
                 ModelStatus.ACTIVE, 0, 1
             ),
             new GatewayAcceptedMetadata(1, reservationId, 100),
@@ -105,7 +107,7 @@ class AuditMetadataPolicyTest {
                 1, reservationId, GatewayFinishedMetadata.Outcome.SETTLED, 90, 1000,
                 GatewayFinishedMetadata.Failure.NONE
             ),
-            new QuotaPolicyChangeMetadata(QuotaSubjectType.DEFAULT, QuotaStatus.ACTIVE, -1, 0),
+            new QuotaPolicyChangeMetadata(QuotaSubjectType.ORGANIZATION, QuotaStatus.ACTIVE, -1, 0),
             new QuotaRejectionMetadata(QuotaExceededException.Kind.DAILY, 1, 100),
             new ReservationRecoveredMetadata(ReservationState.RESERVED, ReservationState.RELEASED),
             plugin(PluginAuditMetadata.Operation.UPLOAD),

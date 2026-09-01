@@ -22,6 +22,7 @@ export async function listAuditEvents(
           | "LOGOUT"
           | "IDENTITY_SOURCE_CHANGED"
           | "USER_LINKED"
+          | "USER_UNLINKED"
           | "DEVICE_ENROLLED"
           | "DEVICE_HEARTBEAT"
           | "DEVICE_REVOKED"
@@ -79,6 +80,11 @@ export async function listAuditEvents(
               unmappedGroupCount: number;
               departmentConflict: boolean;
             }
+          | {
+              sourceType: "OIDC" | "LDAP" | "LOCAL";
+              previousRevision: number;
+              currentRevision: number;
+            }
           | { platform: string; created: boolean }
           | {
               desiredRevision: number;
@@ -99,8 +105,7 @@ export async function listAuditEvents(
             }
           | {
               operation: "CREATE" | "UPDATE" | "DELETE";
-              subjectType: "USER" | "DEPT";
-              defaultGrant: boolean;
+              subjectType: "ALL_MEMBERS" | "MEMBER";
               status: "ACTIVE" | "DISABLED";
               resourceRevision: number;
               bootstrapRevision: number;
@@ -123,7 +128,7 @@ export async function listAuditEvents(
                 | "PLATFORM_FAILURE";
             }
           | {
-              subjectType: "DEFAULT" | "DEPT" | "USER";
+              subjectType: "ORGANIZATION" | "MEMBER";
               status: "ACTIVE" | "DISABLED";
               previousRevision: number;
               currentRevision: number;

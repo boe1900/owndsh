@@ -116,6 +116,7 @@ public final class IdentitySourceService {
             sourceId,
             context.tenantId(),
             spec.type(),
+            spec.provisioningMode(),
             spec.name(),
             spec.issuer(),
             spec.clientId(),
@@ -160,6 +161,7 @@ public final class IdentitySourceService {
             current.id(),
             current.tenantId(),
             current.type(),
+            spec.provisioningMode(),
             spec.name(),
             spec.issuer(),
             spec.clientId(),
@@ -198,7 +200,8 @@ public final class IdentitySourceService {
         IdentitySource current = get(context.tenantId(), sourceId);
         Instant now = Instant.now(clock);
         IdentitySource updated = new IdentitySource(
-            current.id(), current.tenantId(), current.type(), current.name(), current.issuer(), current.clientId(),
+            current.id(), current.tenantId(), current.type(), current.provisioningMode(), current.name(),
+            current.issuer(), current.clientId(),
             current.encryptedSecret(), current.oidc(), current.ldap(), status, expectedRevision + 1,
             current.createdAt(), now,
             current.lastTestedAt(), current.lastTestOk(), current.lastTestDiagnostic()

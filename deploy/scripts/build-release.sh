@@ -1,6 +1,6 @@
 #!/bin/sh
-# [INPUT]: 依赖产品源码、RuoYi PostgreSQL 基线、锁定 digest 的 Linux amd64 Docker base、可选受验本地镜像缓存、pnpm workspace 与许可证。
-# [OUTPUT]: 生成含两张应用镜像、version 0 数据库基线、企业 bundle、Compose、脚本、文档和 SHA-256 清单的发布 tarball。
+# [INPUT]: 依赖产品源码、Harness 机器锁、RuoYi PostgreSQL 基线、锁定 digest 的 Linux amd64 Docker base、可选受验本地镜像缓存、pnpm workspace 与许可证。
+# [OUTPUT]: 生成含 Server/新控制台 Gateway 镜像、version 0 数据库基线、企业 bundle、Compose、脚本、许可证、Harness 基线和 SHA-256 清单的发布 tarball。
 # [POS]: T21 源码到离线交付包的唯一构建入口，不写入安装状态或生产 secret。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -47,6 +47,10 @@ local_image_by_digest() {
 }
 
 source_root=$(CDPATH= cd -- "$script_directory/../.." && pwd)
+harness_lock="$source_root/upstream/deepseek-harness.lock.json"
+require_file "$harness_lock"
+harness_version=$(node -e 'const lock = require(process.argv[1]); if (!/^[A-Za-z0-9._-]+$/.test(lock.version ?? "")) throw new Error("invalid Harness version lock"); process.stdout.write(lock.version)' "$harness_lock")
+harness_commit=$(node -e 'const lock = require(process.argv[1]); if (!/^[0-9a-f]{40}$/.test(lock.commit ?? "")) throw new Error("invalid Harness commit lock"); process.stdout.write(lock.commit)' "$harness_lock")
 output=$(mkdir -p "$output" && CDPATH= cd -- "$output" && pwd)
 server_image="enterprise-agent-platform/server:$version"
 gateway_image="enterprise-agent-platform/gateway:$version"
@@ -83,7 +87,7 @@ cp -R "$source_root/deploy/nginx" "$package_root/nginx"
 cp -R "$source_root/deploy/scripts" "$package_root/scripts"
 cp "$source_root/deploy/README.md" "$package_root/OPERATIONS.md"
 cp "$source_root/backend/LICENSE" "$package_root/licenses/backend-MIT.txt"
-cp "$source_root/admin-web/LICENSE" "$package_root/licenses/admin-web-MIT.txt"
+cp "$source_root/console-web/BEAUTIFUL_UI_LICENSE" "$package_root/licenses/console-web-beautiful-ui-MIT.txt"
 cp "$source_root/backend/script/sql/postgres/postgres_ry_vue.sql" "$package_root/database/postgres_ry_vue.sql"
 cp "$bundle" "$package_root/harness/"
 
@@ -94,8 +98,8 @@ EAP_RELEASE_VERSION=$version
 EAP_SERVER_IMAGE=$server_image
 EAP_GATEWAY_IMAGE=$gateway_image
 EAP_HARNESS_BUNDLE=enterprise-agent-dsh-bundle-0.1.0.tgz
-EAP_HARNESS_VERSION=0.1.0-rc.7
-EAP_HARNESS_COMMIT=99f6f02fecdb7dff40c3fbc9470f5907c29f74ca
+EAP_HARNESS_VERSION=$harness_version
+EAP_HARNESS_COMMIT=$harness_commit
 EOF
 
 (

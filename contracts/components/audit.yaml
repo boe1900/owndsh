@@ -1,4 +1,4 @@
-# [INPUT]: 依赖第 13 节 30 action、显式 Java metadata DTO 与根协议 ID/cursor/requestId
+# [INPUT]: 依赖封闭 audit action、显式 Java metadata DTO 与根协议 ID/cursor/requestId
 # [OUTPUT]: 提供审计事件、封闭 metadata 联合和 cursor page schemas
 # [POS]: contracts/components 的 T19 审计真源，任意 metadata key 无法通过 additionalProperties=false
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -15,6 +15,7 @@ AuditAction:
     - LOGOUT
     - IDENTITY_SOURCE_CHANGED
     - USER_LINKED
+    - USER_UNLINKED
     - DEVICE_ENROLLED
     - DEVICE_HEARTBEAT
     - DEVICE_REVOKED
@@ -70,6 +71,14 @@ IdentityLinkAuditMetadata:
     mappedGroupCount: {type: integer, minimum: 0}
     unmappedGroupCount: {type: integer, minimum: 0}
     departmentConflict: {type: boolean}
+IdentityUnlinkAuditMetadata:
+  type: object
+  additionalProperties: false
+  required: [sourceType, previousRevision, currentRevision]
+  properties:
+    sourceType: {type: string, enum: [OIDC, LDAP, LOCAL]}
+    previousRevision: {type: integer, minimum: 0}
+    currentRevision: {type: integer, minimum: 1}
 DeviceEnrollmentAuditMetadata:
   type: object
   additionalProperties: false
@@ -106,11 +115,10 @@ ModelChangeAuditMetadata:
 ModelGrantChangeAuditMetadata:
   type: object
   additionalProperties: false
-  required: [operation, subjectType, defaultGrant, status, resourceRevision, bootstrapRevision]
+  required: [operation, subjectType, status, resourceRevision, bootstrapRevision]
   properties:
     operation: {type: string, enum: [CREATE, UPDATE, DELETE]}
-    subjectType: {type: string, enum: [USER, DEPT]}
-    defaultGrant: {type: boolean}
+    subjectType: {type: string, enum: [ALL_MEMBERS, MEMBER]}
     status: {type: string, enum: [ACTIVE, DISABLED]}
     resourceRevision: {type: integer, minimum: 0}
     bootstrapRevision: {type: integer, minimum: 0}
@@ -140,7 +148,7 @@ QuotaChangeAuditMetadata:
   additionalProperties: false
   required: [subjectType, status, previousRevision, currentRevision]
   properties:
-    subjectType: {type: string, enum: [DEFAULT, DEPT, USER]}
+    subjectType: {type: string, enum: [ORGANIZATION, MEMBER]}
     status: {type: string, enum: [ACTIVE, DISABLED]}
     previousRevision: {type: integer, minimum: -1}
     currentRevision: {type: integer, minimum: 0}
@@ -225,6 +233,7 @@ AuditMetadata:
     - $ref: '#/AuthAuditMetadata'
     - $ref: '#/IdentityChangeAuditMetadata'
     - $ref: '#/IdentityLinkAuditMetadata'
+    - $ref: '#/IdentityUnlinkAuditMetadata'
     - $ref: '#/DeviceEnrollmentAuditMetadata'
     - $ref: '#/DeviceHeartbeatAuditMetadata'
     - $ref: '#/ProviderChangeAuditMetadata'

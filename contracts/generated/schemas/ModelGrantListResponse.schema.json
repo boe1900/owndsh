@@ -29,7 +29,6 @@
               "subjectType",
               "subjectId",
               "subjectName",
-              "isDefault",
               "status",
               "revision"
             ],
@@ -52,21 +51,25 @@
               "subjectType": {
                 "type": "string",
                 "enum": [
-                  "USER",
-                  "DEPT"
+                  "ALL_MEMBERS",
+                  "MEMBER"
                 ]
               },
               "subjectId": {
-                "type": "string",
-                "pattern": "^[1-9][0-9]{0,18}$"
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]{0,18}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "subjectName": {
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 120
-              },
-              "isDefault": {
-                "type": "boolean"
               },
               "status": {
                 "type": "string",

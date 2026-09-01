@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 投影 IdentitySource 的公开管理字段、最近脱敏测试和 secretConfigured 布尔事实。
+ * [INPUT]: 投影 IdentitySource 的公开管理字段、provisioning mode、最近脱敏测试和 secretConfigured 布尔事实。
  * [OUTPUT]: 对外提供不含 ciphertext、nonce、key version、异常正文或秘密明文的身份源响应 DTO。
  * [POS]: auth/web 的秘密输出防火墙，Controller 禁止直接序列化 IdentitySource 聚合。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -7,6 +7,7 @@
 package org.dromara.enterprise.auth.web;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import org.dromara.enterprise.auth.domain.IdentityProvisioningMode;
 import org.dromara.enterprise.auth.domain.IdentitySource;
 import org.dromara.enterprise.auth.domain.IdentitySourceStatus;
 import org.dromara.enterprise.auth.domain.IdentitySourceType;
@@ -23,6 +24,7 @@ import java.time.Instant;
 public record IdentitySourceView(
     String id,
     IdentitySourceType type,
+    IdentityProvisioningMode provisioningMode,
     String name,
     URI issuer,
     String clientId,
@@ -41,6 +43,7 @@ public record IdentitySourceView(
         return new IdentitySourceView(
             Long.toString(source.id()),
             source.type(),
+            source.provisioningMode(),
             source.name(),
             source.issuer(),
             source.clientId(),

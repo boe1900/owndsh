@@ -1,5 +1,5 @@
 # [INPUT]: 依赖根协议的参数、响应与 auth schema，依赖 T05 公开认证 Controller 的实际 redirect/status 行为
-# [OUTPUT]: 提供 authorize/sources/两阶段 password/OIDC/token/logout 七个 Path Item，区分页面步骤与 JSON 错误
+# [OUTPUT]: 提供 authorize/sources/两阶段 password/OIDC/token/logout 与产品控制台 bootstrap 八个 Path Item，区分页面步骤与 JSON 错误
 # [POS]: contracts/paths 的固定 public client 登录协议分片，使根 OpenAPI 保持导航职责
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -173,5 +173,19 @@ Logout:
           application/json:
             schema:
               $ref: '../enterprise-openapi.yaml#/components/schemas/LogoutResponse'
+      '401':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+
+ConsoleBootstrap:
+  get:
+    operationId: getConsoleBootstrap
+    summary: Return the current member, fixed roles, permissions and deployment identity without a menu tree.
+    responses:
+      '200':
+        description: Current enterprise-admin session facts.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/ConsoleBootstrapResponse'
       '401':
         $ref: '../enterprise-openapi.yaml#/components/responses/Error401'

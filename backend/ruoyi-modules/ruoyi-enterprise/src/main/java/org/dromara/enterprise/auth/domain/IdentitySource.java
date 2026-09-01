@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 聚合身份源主字段、单一类型配置、可选 AES-GCM 密文与最近脱敏连接测试事实。
- * [OUTPUT]: 对外提供满足类型互斥和测试结果完整性不变量的 IdentitySource。
+ * [INPUT]: 聚合身份源主字段、provisioning mode、单一类型配置、可选 AES-GCM 密文与脱敏连接测试事实。
+ * [OUTPUT]: 对外提供满足类型互斥、LOCAL 不 JIT 和测试结果完整性不变量的 IdentitySource。
  * [POS]: auth 领域的持久化无关聚合根，管理响应通过专用 view 隔离密文。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -19,6 +19,7 @@ public record IdentitySource(
     long id,
     String tenantId,
     IdentitySourceType type,
+    IdentityProvisioningMode provisioningMode,
     String name,
     URI issuer,
     String clientId,
@@ -39,6 +40,10 @@ public record IdentitySource(
         }
         tenantId = requireText(tenantId, "tenantId");
         Objects.requireNonNull(type, "type");
+        Objects.requireNonNull(provisioningMode, "provisioningMode");
+        if (type == IdentitySourceType.LOCAL && provisioningMode != IdentityProvisioningMode.LINK_ONLY) {
+            throw new IllegalArgumentException("LOCAL 身份源不能 JIT 创建成员");
+        }
         name = requireText(name, "name");
         Objects.requireNonNull(status, "status");
         if (revision < 0) {
@@ -61,6 +66,7 @@ public record IdentitySource(
         long id,
         String tenantId,
         IdentitySourceType type,
+        IdentityProvisioningMode provisioningMode,
         String name,
         URI issuer,
         String clientId,
@@ -73,13 +79,64 @@ public record IdentitySource(
         Instant updatedAt
     ) {
         this(
-            id, tenantId, type, name, issuer, clientId, encryptedSecret, oidc, ldap,
+            id, tenantId, type, provisioningMode, name, issuer, clientId, encryptedSecret, oidc, ldap,
             status, revision, createdAt, updatedAt, null, null, null
+        );
+    }
+
+    public IdentitySource(
+        long id,
+        String tenantId,
+        IdentitySourceType type,
+        String name,
+        URI issuer,
+        String clientId,
+        EncryptedSecret encryptedSecret,
+        OidcSettings oidc,
+        LdapSettings ldap,
+        IdentitySourceStatus status,
+        long revision,
+        Instant createdAt,
+        Instant updatedAt
+    ) {
+        this(
+            id, tenantId, type, defaultProvisioningMode(type), name, issuer, clientId, encryptedSecret, oidc, ldap,
+            status, revision, createdAt, updatedAt, null, null, null
+        );
+    }
+
+    public IdentitySource(
+        long id,
+        String tenantId,
+        IdentitySourceType type,
+        String name,
+        URI issuer,
+        String clientId,
+        EncryptedSecret encryptedSecret,
+        OidcSettings oidc,
+        LdapSettings ldap,
+        IdentitySourceStatus status,
+        long revision,
+        Instant createdAt,
+        Instant updatedAt,
+        Instant lastTestedAt,
+        Boolean lastTestOk,
+        String lastTestDiagnostic
+    ) {
+        this(
+            id, tenantId, type, defaultProvisioningMode(type), name, issuer, clientId, encryptedSecret, oidc, ldap,
+            status, revision, createdAt, updatedAt, lastTestedAt, lastTestOk, lastTestDiagnostic
         );
     }
 
     public boolean secretConfigured() {
         return encryptedSecret != null;
+    }
+
+    private static IdentityProvisioningMode defaultProvisioningMode(IdentitySourceType type) {
+        return type == IdentitySourceType.LOCAL
+            ? IdentityProvisioningMode.LINK_ONLY
+            : IdentityProvisioningMode.JIT;
     }
 
     private static void validateType(

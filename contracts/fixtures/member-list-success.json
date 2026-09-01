@@ -1,0 +1,35 @@
+{
+  "data": {
+    "items": [
+      {
+        "id": "101",
+        "username": "candidate.admin",
+        "displayName": "Candidate Admin",
+        "status": "ACTIVE",
+        "roles": ["enterprise_admin"],
+        "loginMethods": [
+          {
+            "sourceId": null,
+            "sourceName": "Local",
+            "sourceType": "LOCAL",
+            "lastLoginAt": "2026-09-01T04:30:00Z"
+          },
+          {
+            "sourceId": "201",
+            "sourceName": "Entra ID",
+            "sourceType": "OIDC",
+            "lastLoginAt": "2026-09-01T05:00:00Z"
+          }
+        ],
+        "lastActiveAt": "2026-09-01T05:00:00Z",
+        "revision": 2
+      }
+    ],
+    "page": {
+      "hasMore": false,
+      "limit": 100,
+      "nextCursor": null
+    }
+  },
+  "requestId": "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+}

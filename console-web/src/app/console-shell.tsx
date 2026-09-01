@@ -1,39 +1,30 @@
 /**
- * [INPUT]: 依赖上游 SidebarNav、TanStack Outlet/navigation、Lucide 免费图标与 Beautiful UI Harness tab bar 结构。
- * [OUTPUT]: 提供企业控制台的工作区下拉、产品侧栏、可关闭页面 tab、移动抽屉和内容窗口。
+ * [INPUT]: 依赖上游 SidebarNav/ThemeToggle、静态角色路由、console bootstrap、TanStack navigation 与 Beautiful UI Harness tab bar 结构。
+ * [OUTPUT]: 提供角色过滤的产品侧栏、工作区 Sign out、全局深浅主题切换、可关闭页面 tab、移动抽屉和内容窗口。
  * [POS]: app 的产品外壳；DOM、尺寸和交互直接由 Beautiful UI Harness 3ea4c181 迁移，业务只注入路由数据。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
-import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
-import { Activity, Boxes, FlaskConical, Menu, Puzzle, Settings, ShieldCheck, UserPlus, Users, X } from 'lucide-react';
+import { Outlet, useNavigate, useRouteContext, useRouterState } from '@tanstack/react-router';
+import { FlaskConical, LogOut, Menu, Settings, UserPlus, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { logoutCurrentSession } from '@/auth/session';
 import SidebarNav, {
   type SidebarNavItem,
   type SidebarWorkspaceAction
 } from '@/components/primitives/SidebarNav';
-
-export const PRODUCT_NAV_ITEMS = [
-  { to: '/', label: '模型', icon: Boxes },
-  { to: '/access', label: '访问策略', icon: ShieldCheck },
-  { to: '/plugins', label: '插件', icon: Puzzle },
-  { to: '/members', label: '成员', icon: Users },
-  { to: '/activity', label: '活动记录', icon: Activity },
-  { to: '/settings', label: '设置', icon: Settings }
-] as const;
-
-type ProductRoute = (typeof PRODUCT_NAV_ITEMS)[number]['to'];
-
-function isProductRoute(pathname: string): pathname is ProductRoute {
-  return PRODUCT_NAV_ITEMS.some((item) => item.to === pathname);
-}
+import { ThemeToggle } from '@/components/site/ThemeToggle';
+import { isProductRoute, productRoutesFor, PRODUCT_ROUTES, type ProductRoute } from './product-routes';
 
 export function ConsoleShell() {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const navigate = useNavigate();
+  const { bootstrap } = useRouteContext({ from: '/_console' });
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const activeRoute: ProductRoute = isProductRoute(pathname) ? pathname : '/';
   const [openTabs, setOpenTabs] = useState<ProductRoute[]>([activeRoute]);
+  const [logoutError, setLogoutError] = useState<string>();
+  const availableRoutes = productRoutesFor(bootstrap.roles);
 
   useEffect(() => {
     setOpenTabs((current) => current.includes(activeRoute) ? current : [...current, activeRoute]);
@@ -41,25 +32,37 @@ export function ConsoleShell() {
 
   const go = (to: ProductRoute) => void navigate({ to });
   const closeMobileNav = () => dialogRef.current?.close();
-  const navItems: SidebarNavItem[] = PRODUCT_NAV_ITEMS.slice(0, -1).map(({ to, label, icon: Icon }) => ({
+  const settingsRoute = availableRoutes.find((route) => route.to === '/settings');
+  const navItems: SidebarNavItem[] = availableRoutes.filter((route) => route.to !== '/settings').map(({ to, label, icon: Icon }) => ({
     key: to,
     label,
     icon: <Icon size={18} />
   }));
-  const workspaceActions: SidebarWorkspaceAction[] = [
-    { label: '组织设置', icon: <Settings size={16} />, onClick: () => go('/settings') },
-    { label: '邀请成员', icon: <UserPlus size={16} />, onClick: () => go('/members') },
-    { label: '组件示例', icon: <FlaskConical size={16} />, onClick: () => void navigate({ to: '/examples' }) }
-  ];
+  const workspaceActions: SidebarWorkspaceAction[] = [];
+  if (settingsRoute) workspaceActions.push({ label: '组织设置', icon: <Settings size={16} />, onClick: () => go('/settings') });
+  if (availableRoutes.some((route) => route.to === '/members')) {
+    workspaceActions.push({ label: '邀请成员', icon: <UserPlus size={16} />, onClick: () => go('/members') });
+  }
+  workspaceActions.push(
+    { label: '组件示例', icon: <FlaskConical size={16} />, onClick: () => void navigate({ to: '/examples' }) },
+    {
+      label: 'Sign out',
+      icon: <LogOut size={16} />,
+      separated: true,
+      onClick: () => void logoutCurrentSession()
+        .then(() => navigate({ to: '/login', replace: true }))
+        .catch(() => setLogoutError('退出失败，会话仍然有效，请重试。'))
+    }
+  );
 
   const openNextTab = () => {
-    const next = PRODUCT_NAV_ITEMS.find((item) => !openTabs.includes(item.to))?.to ?? '/';
+    const next = availableRoutes.find((item) => !openTabs.includes(item.to))?.to ?? availableRoutes[0]!.to;
     go(next);
   };
 
   const closeTab = (to: ProductRoute) => {
     const remaining = openTabs.filter((item) => item !== to);
-    const nextTabs: ProductRoute[] = remaining.length > 0 ? remaining : ['/'];
+    const nextTabs: ProductRoute[] = remaining.length > 0 ? remaining : [availableRoutes[0]!.to];
     setOpenTabs(nextTabs);
     if (to === activeRoute) go(nextTabs.at(-1) ?? '/');
   };
@@ -70,12 +73,12 @@ export function ConsoleShell() {
       ariaLabel="产品导航"
       collapsible={!mobile}
       fill
-      footerIcon={<Settings size={15} />}
-      footerLabel="设置"
+      footerIcon={settingsRoute ? <Settings size={15} /> : undefined}
+      footerLabel={settingsRoute?.label ?? null}
       historyLabel={null}
       navItems={navItems}
       onFooterClick={() => {
-        go('/settings');
+        if (settingsRoute) go(settingsRoute.to);
         if (mobile) closeMobileNav();
       }}
       onNavigate={(key) => {
@@ -124,7 +127,7 @@ export function ConsoleShell() {
                 <Menu size={16} />
               </button>
               {openTabs.map((to) => {
-                const item = PRODUCT_NAV_ITEMS.find((candidate) => candidate.to === to)!;
+                const item = PRODUCT_ROUTES.find((candidate) => candidate.to === to)!;
                 return (
                   <div
                     key={to}
@@ -154,11 +157,22 @@ export function ConsoleShell() {
               >
                 <span className="text-[20px] leading-none">+</span>
               </button>
+              <div className="sticky right-0 z-10 ml-auto shrink-0 bg-page pl-2">
+                <ThemeToggle />
+              </div>
             </div>
             <Outlet />
           </section>
         </div>
       </div>
+      {logoutError && (
+        <div role="alert" className="fixed bottom-4 right-4 z-50 flex max-w-[min(360px,calc(100vw-32px))] items-center gap-3 rounded-[8px] bg-surface px-3 py-2.5 text-[13px] text-ink shadow-overlay">
+          <span className="min-w-0 flex-1">{logoutError}</span>
+          <button type="button" aria-label="关闭退出错误" onClick={() => setLogoutError(undefined)} className="flex size-7 shrink-0 items-center justify-center rounded-[7px] text-ink-3 hover:bg-hover-2 hover:text-ink">
+            <X size={15} />
+          </button>
+        </div>
+      )}
     </main>
   );
 }

@@ -13,7 +13,7 @@ export async function enableQuotaPolicy(
     data: {
       id: string;
       name: string;
-      subjectType: "DEFAULT" | "DEPT" | "USER";
+      subjectType: "ORGANIZATION" | "MEMBER";
       subjectId: string | null;
       subjectName: string | null;
       dailyTokenLimit: number | null;

@@ -4,8 +4,8 @@
 
 成员清单
 
-QuotaPolicyStore.java: 策略 CRUD/CAS、主体存在性和 DEFAULT+DEPT+USER 生效查询端口。
-JdbcQuotaPolicyStore.java: ent_quota_policy 与 RuoYi 用户/部门读投影的 PostgreSQL adapter。
+QuotaPolicyStore.java: 策略 CRUD/CAS、主体存在性和 ORGANIZATION+MEMBER 生效查询端口。
+JdbcQuotaPolicyStore.java: ent_quota_policy 与 RuoYi 成员读投影的 PostgreSQL adapter。
 QuotaSubjectStore.java: runtime 当前 ACTIVE RuoYi 用户与部门最小事实查询端口。
 JdbcQuotaSubjectStore.java: 固定部署 sys_user 状态/删除标记约束的配额用户 adapter。
 QuotaWindowStore.java: 当前窗口创建/锁定、计数调整和读查询端口。

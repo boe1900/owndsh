@@ -18,7 +18,7 @@ public interface QuotaPolicyStore {
 
     Optional<QuotaPolicy> find(String tenantId, long id);
 
-    List<QuotaPolicy> findEffective(String tenantId, long userId, Long departmentId);
+    List<QuotaPolicy> findEffective(String tenantId, long userId);
 
     boolean subjectExists(QuotaSubjectType type, Long subjectId);
 

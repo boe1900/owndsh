@@ -203,7 +203,7 @@ public final class QuotaReservationService {
     }
 
     private ReservationPlan reserveInDatabase(QuotaReservationCommand command, Instant now) {
-        List<QuotaPolicy> policies = resolver.resolve(command.tenantId(), command.userId(), command.departmentId());
+        List<QuotaPolicy> policies = resolver.resolve(command.tenantId(), command.userId());
         List<PendingWindow> pending = new ArrayList<>();
         for (QuotaPolicy policy : policies) {
             addPending(command, now, policy, QuotaWindowType.DAY, policy.dailyTokenLimit(), pending);

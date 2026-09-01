@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖生产同款 Sa-Token 1.45 JWT simple logic/内存 DAO、RuoYiPlatformSessionGateway 与 mock 用户/RBAC 服务。
- * [OUTPUT]: 验证 JWT 单 installation kickout 保留设备撤销原因、另一设备有效且普通 kickout 不被误判。
+ * [OUTPUT]: 验证 JWT 单 installation kickout 保留设备撤销原因、另一设备有效，以及成员级全部终端撤销。
  * [POS]: ruoyi-admin 平台会话 adapter 回归门禁，以真实生产 token 模式覆盖 T22 暴露的旧 Token 失效语义。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -102,6 +102,18 @@ class RuoYiPlatformSessionGatewayTest {
             secondToken,
             kicked(secondToken)
         )).isFalse();
+    }
+
+    @Test
+    void revokesEverySessionForOneMember() {
+        String firstToken = logic.createLoginSession(LOGIN_ID, device(FIRST));
+        String secondToken = logic.createLoginSession(LOGIN_ID, device(SECOND));
+
+        gateway.revokeUser(USER_ID);
+
+        assertThat(logic.getTokenValueListByLoginId(LOGIN_ID)).isEmpty();
+        assertThat(logic.getLoginIdNotHandle(firstToken)).isEqualTo(NotLoginException.KICK_OUT);
+        assertThat(logic.getLoginIdNotHandle(secondToken)).isEqualTo(NotLoginException.KICK_OUT);
     }
 
     private static SaLoginParameter device(String deviceId) {

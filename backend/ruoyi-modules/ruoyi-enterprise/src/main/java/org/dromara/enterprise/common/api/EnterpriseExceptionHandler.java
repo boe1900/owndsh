@@ -16,6 +16,7 @@ import org.dromara.enterprise.auth.adapter.IdentityAuthenticationException;
 import org.dromara.enterprise.auth.adapter.IdentitySourceConfigurationException;
 import org.dromara.enterprise.auth.application.IdentityAlreadyLinkedException;
 import org.dromara.enterprise.auth.application.IdentityResourceNotFoundException;
+import org.dromara.enterprise.auth.application.MemberManagementException;
 import org.dromara.enterprise.auth.application.AuthFlowException;
 import org.dromara.enterprise.device.application.DeviceAccessException;
 import org.dromara.enterprise.device.application.DeviceBindingConflictException;
@@ -116,6 +117,34 @@ public final class EnterpriseExceptionHandler {
     @ExceptionHandler(IdentityResourceNotFoundException.class)
     public ResponseEntity<EnterpriseErrorResponse> notFound(HttpServletRequest request) {
         return error(HttpStatus.NOT_FOUND, "ENT_RESOURCE_NOT_FOUND", "身份资源不存在", false, null, request);
+    }
+
+    @ExceptionHandler(MemberManagementException.class)
+    public ResponseEntity<EnterpriseErrorResponse> member(
+        MemberManagementException exception,
+        HttpServletRequest request
+    ) {
+        if (exception.kind() == MemberManagementException.Kind.NOT_FOUND) {
+            return error(HttpStatus.NOT_FOUND, "ENT_RESOURCE_NOT_FOUND", "成员不存在", false, null, request);
+        }
+        if (exception.kind() == MemberManagementException.Kind.LAST_IDENTITY) {
+            return error(
+                HttpStatus.CONFLICT,
+                "ENT_LAST_MEMBER_IDENTITY",
+                "成员必须保留至少一种可用登录方式",
+                false,
+                null,
+                request
+            );
+        }
+        return error(
+            HttpStatus.CONFLICT,
+            "ENT_LAST_ENTERPRISE_ADMIN",
+            "必须保留至少一个启用的企业管理员",
+            false,
+            null,
+            request
+        );
     }
 
     @ExceptionHandler(ModelResourceNotFoundException.class)

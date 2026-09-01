@@ -89,6 +89,8 @@ export const zEnterpriseErrorCode = z.enum([
     'ENT_RESOURCE_NOT_FOUND',
     'ENT_SESSION_CONTENT_EXPIRED',
     'ENT_REVISION_CONFLICT',
+    'ENT_LAST_ENTERPRISE_ADMIN',
+    'ENT_LAST_MEMBER_IDENTITY',
     'ENT_REQUEST_IN_PROGRESS',
     'ENT_REQUEST_ALREADY_COMPLETED',
     'ENT_SESSION_SEQ_GAP',
@@ -157,6 +159,7 @@ export const zAuditAuditAction = z.enum([
     'LOGOUT',
     'IDENTITY_SOURCE_CHANGED',
     'USER_LINKED',
+    'USER_UNLINKED',
     'DEVICE_ENROLLED',
     'DEVICE_HEARTBEAT',
     'DEVICE_REVOKED',
@@ -280,6 +283,16 @@ export const zIdentityLinkAuditMetadata = z.object({
     departmentConflict: z.boolean()
 }).strict();
 
+export const zIdentityUnlinkAuditMetadata = z.object({
+    sourceType: z.enum([
+        'OIDC',
+        'LDAP',
+        'LOCAL'
+    ]),
+    previousRevision: z.int().gte(0),
+    currentRevision: z.int().gte(1)
+}).strict();
+
 export const zModelChangeAuditMetadata = z.object({
     operation: z.enum([
         'CREATE',
@@ -298,8 +311,7 @@ export const zModelGrantChangeAuditMetadata = z.object({
         'UPDATE',
         'DELETE'
     ]),
-    subjectType: z.enum(['USER', 'DEPT']),
-    defaultGrant: z.boolean(),
+    subjectType: z.enum(['ALL_MEMBERS', 'MEMBER']),
     status: z.enum(['ACTIVE', 'DISABLED']),
     resourceRevision: z.int().gte(0),
     bootstrapRevision: z.int().gte(0)
@@ -321,11 +333,7 @@ export const zPluginAuditMetadata = z.object({
 }).strict();
 
 export const zQuotaChangeAuditMetadata = z.object({
-    subjectType: z.enum([
-        'DEFAULT',
-        'DEPT',
-        'USER'
-    ]),
+    subjectType: z.enum(['ORGANIZATION', 'MEMBER']),
     status: z.enum(['ACTIVE', 'DISABLED']),
     previousRevision: z.int().gte(-1),
     currentRevision: z.int().gte(0)
@@ -393,6 +401,46 @@ export const zAuthTransactionId = zAuthAuthTransactionId;
 export const zAuthAuthorizationCode = z.string().min(43).max(64).regex(/^[A-Za-z0-9_-]+$/);
 
 export const zAuthorizationCode = zAuthAuthorizationCode;
+
+export const zAuthBuiltInRole = z.enum([
+    'enterprise_admin',
+    'model_admin',
+    'plugin_admin',
+    'auditor',
+    'employee'
+]);
+
+export const zBuiltInRole = zAuthBuiltInRole;
+
+export const zAuthConsoleDeployment = z.object({
+    name: z.string().min(1).max(120)
+}).strict();
+
+export const zConsoleDeployment = zAuthConsoleDeployment;
+
+export const zAuthConsoleMember = z.object({
+    id: zEnterpriseUserId,
+    displayName: z.string().min(1).max(120),
+    avatarUrl: z.url().max(2048).nullable()
+}).strict();
+
+export const zConsoleMember = zAuthConsoleMember;
+
+export const zAuthConsoleBootstrapData = z.object({
+    member: zAuthConsoleMember,
+    roles: z.array(zAuthBuiltInRole).max(5),
+    permissions: z.array(z.string().min(1).max(120)).max(100),
+    deployment: zAuthConsoleDeployment
+}).strict();
+
+export const zConsoleBootstrapData = zAuthConsoleBootstrapData;
+
+export const zAuthConsoleBootstrapResponse = z.object({
+    data: zAuthConsoleBootstrapData,
+    requestId: zRequestId
+}).strict();
+
+export const zConsoleBootstrapResponse = zAuthConsoleBootstrapResponse;
 
 export const zAuthInstallationId = z.uuid().length(36).regex(/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/);
 
@@ -565,6 +613,10 @@ export const zDepartmentId = zIdentityDepartmentId;
 export const zIdentityGroupMappingId = z.string().regex(/^[1-9][0-9]{0,18}$/);
 
 export const zGroupMappingId = zIdentityGroupMappingId;
+
+export const zIdentityIdentityProvisioningMode = z.enum(['JIT', 'LINK_ONLY']);
+
+export const zIdentityProvisioningMode = zIdentityIdentityProvisioningMode;
 
 /**
  * Identity source snowflake ID serialized as a string.
@@ -739,6 +791,7 @@ export const zOidcSettings = zIdentityOidcSettings;
 export const zIdentityIdentitySource = z.object({
     id: zIdentityIdentitySourceId,
     type: zIdentityIdentitySourceType,
+    provisioningMode: zIdentityIdentityProvisioningMode,
     name: z.string().min(1).max(100),
     issuer: z.url().max(500).optional(),
     clientId: z.string().min(1).max(255).optional(),
@@ -758,6 +811,7 @@ export const zIdentitySource = zIdentityIdentitySource;
 
 export const zIdentityIdentitySourceCreateRequest = z.object({
     type: zIdentityIdentitySourceType,
+    provisioningMode: zIdentityIdentityProvisioningMode,
     name: z.string().min(1).max(100),
     issuer: z.url().max(500).optional(),
     clientId: z.string().min(1).max(255).optional(),
@@ -790,6 +844,7 @@ export const zIdentitySourceResponse = zIdentityIdentitySourceResponse;
 
 export const zIdentityIdentitySourceUpdateRequest = z.object({
     type: zIdentityIdentitySourceType,
+    provisioningMode: zIdentityIdentityProvisioningMode,
     name: z.string().min(1).max(100),
     issuer: z.url().max(500).optional(),
     clientId: z.string().min(1).max(255).optional(),
@@ -798,6 +853,124 @@ export const zIdentityIdentitySourceUpdateRequest = z.object({
 }).strict();
 
 export const zIdentitySourceUpdateRequest = zIdentityIdentitySourceUpdateRequest;
+
+export const zMemberIdentityLinkStart = z.object({
+    transactionId: z.string().regex(/^tx_[A-Za-z0-9_-]{20,128}$/),
+    authorizeUri: z.string().regex(/^\/enterprise\/auth\/login\.html\?transaction_id=tx_[A-Za-z0-9_-]+&source_id=[1-9][0-9]{0,18}$/)
+}).strict();
+
+export const zIdentityLinkStart = zMemberIdentityLinkStart;
+
+export const zMemberIdentityLinkStartRequest = z.object({
+    sourceId: zIdentityIdentitySourceId
+}).strict();
+
+export const zIdentityLinkStartRequest = zMemberIdentityLinkStartRequest;
+
+export const zMemberIdentityLinkStartResponse = z.object({
+    data: zMemberIdentityLinkStart,
+    requestId: zRequestId
+}).strict();
+
+export const zIdentityLinkStartResponse = zMemberIdentityLinkStartResponse;
+
+export const zMemberMemberDeviceSummary = z.object({
+    id: zEnterpriseDeviceId,
+    name: z.string().min(1).max(120),
+    platform: z.string().min(1).max(64),
+    status: zDeviceDeviceStatus,
+    lastSeenAt: z.iso.datetime({ offset: true }).nullable()
+}).strict();
+
+export const zMemberDeviceSummary = zMemberMemberDeviceSummary;
+
+export const zMemberMemberIdentity = z.object({
+    identityId: z.string().regex(/^[1-9][0-9]{0,18}$/).nullable(),
+    sourceId: zIdentityIdentitySourceId.nullable(),
+    sourceName: z.string().min(1).max(100),
+    sourceType: zIdentityIdentitySourceType,
+    subject: z.string().min(1).max(512),
+    lastLoginAt: z.iso.datetime({ offset: true }).nullable()
+}).strict();
+
+export const zMemberIdentity = zMemberMemberIdentity;
+
+export const zMemberMemberLoginMethod = z.object({
+    sourceId: zIdentityIdentitySourceId.nullable(),
+    sourceName: z.string().min(1).max(100),
+    sourceType: zIdentityIdentitySourceType,
+    lastLoginAt: z.iso.datetime({ offset: true }).nullable()
+}).strict();
+
+export const zMemberLoginMethod = zMemberMemberLoginMethod;
+
+export const zMemberMemberRoleReplaceRequest = z.object({
+    roles: z.array(zAuthBuiltInRole).min(1).max(5)
+}).strict();
+
+export const zMemberRoleReplaceRequest = zMemberMemberRoleReplaceRequest;
+
+export const zMemberMemberSessionSummary = z.object({
+    active: z.int().gte(0).lte(9007199254740991),
+    deleted: z.int().gte(0).lte(9007199254740991),
+    expired: z.int().gte(0).lte(9007199254740991),
+    latestUpdatedAt: z.iso.datetime({ offset: true }).nullable()
+}).strict();
+
+export const zMemberSessionSummary = zMemberMemberSessionSummary;
+
+export const zMemberMemberStatus = z.enum(['ACTIVE', 'DISABLED']);
+
+export const zMemberStatus = zMemberMemberStatus;
+
+export const zMemberMemberStatusUpdateRequest = z.object({
+    status: zMemberMemberStatus
+}).strict();
+
+export const zMemberStatusUpdateRequest = zMemberMemberStatusUpdateRequest;
+
+export const zMemberMemberSummary = z.object({
+    id: zEnterpriseUserId,
+    username: z.string().min(1).max(30),
+    displayName: z.string().min(1).max(120),
+    status: zMemberMemberStatus,
+    roles: z.array(zAuthBuiltInRole).max(5),
+    loginMethods: z.array(zMemberMemberLoginMethod).max(20),
+    lastActiveAt: z.iso.datetime({ offset: true }).nullable(),
+    revision: zRevision
+}).strict();
+
+export const zMemberSummary = zMemberMemberSummary;
+
+export const zMemberMemberDetail = z.object({
+    member: zMemberMemberSummary,
+    identities: z.array(zMemberMemberIdentity).max(32),
+    devices: z.array(zMemberMemberDeviceSummary).max(100),
+    sessions: zMemberMemberSessionSummary
+}).strict();
+
+export const zMemberDetail = zMemberMemberDetail;
+
+export const zMemberMemberDetailResponse = z.object({
+    data: zMemberMemberDetail,
+    requestId: zRequestId
+}).strict();
+
+export const zMemberDetailResponse = zMemberMemberDetailResponse;
+
+export const zMemberMemberPageData = z.object({
+    items: z.array(zMemberMemberSummary).max(200),
+    page: zCursorPage
+}).strict();
+
+export const zMemberPageData = zMemberMemberPageData;
+
+export const zMemberMemberListResponse = z.object({
+    data: zMemberMemberPageData,
+    requestId: zRequestId
+}).strict();
+
+export const zMemberListResponse = zMemberMemberListResponse;
 
 export const zBootstrapDevice = z.object({
     id: zEnterpriseDeviceId,
@@ -818,7 +991,7 @@ export const zBootstrapUser = z.object({
     departmentId: zIdentityDepartmentId.nullable()
 }).strict();
 
-export const zModelGrantSubjectType = z.enum(['USER', 'DEPT']);
+export const zModelGrantSubjectType = z.enum(['ALL_MEMBERS', 'MEMBER']);
 
 export const zGrantSubjectType = zModelGrantSubjectType;
 
@@ -874,9 +1047,8 @@ export const zModelModelGrant = z.object({
     modelId: zManagedModelId,
     modelAlias: zModelAlias,
     subjectType: zModelGrantSubjectType,
-    subjectId: z.string().regex(/^[1-9][0-9]{0,18}$/),
+    subjectId: z.string().regex(/^[1-9][0-9]{0,18}$/).nullable(),
     subjectName: z.string().min(1).max(120),
-    isDefault: z.boolean(),
     status: zModelModelStatus,
     revision: zRevision
 }).strict();
@@ -914,8 +1086,7 @@ export const zModelGrantResponse = zModelModelGrantResponse;
 export const zModelModelGrantWriteRequest = z.object({
     modelId: zManagedModelId,
     subjectType: zModelGrantSubjectType,
-    subjectId: z.string().regex(/^[1-9][0-9]{0,18}$/),
-    isDefault: z.boolean(),
+    subjectId: z.string().regex(/^[1-9][0-9]{0,18}$/).nullable(),
     status: zModelModelStatus
 }).strict();
 
@@ -1093,6 +1264,7 @@ export const zAuditAuditMetadata = z.union([
     zAuthAuditMetadata,
     zIdentityChangeAuditMetadata,
     zIdentityLinkAuditMetadata,
+    zIdentityUnlinkAuditMetadata,
     zDeviceEnrollmentAuditMetadata,
     zDeviceHeartbeatAuditMetadata,
     zProviderChangeAuditMetadata,
@@ -1458,11 +1630,7 @@ export const zQuotaQuotaStatus = z.enum(['ACTIVE', 'DISABLED']);
 
 export const zQuotaStatus = zQuotaQuotaStatus;
 
-export const zQuotaQuotaSubjectType = z.enum([
-    'DEFAULT',
-    'DEPT',
-    'USER'
-]);
+export const zQuotaQuotaSubjectType = z.enum(['ORGANIZATION', 'MEMBER']);
 
 export const zQuotaSubjectType = zQuotaQuotaSubjectType;
 
@@ -1860,6 +2028,8 @@ export const zAdminAuditCollection = z.unknown();
 
 export const zAuthorize = z.unknown();
 
+export const zConsoleBootstrap = z.unknown();
+
 export const zLogout = z.unknown();
 
 export const zOidcCallback = z.unknown();
@@ -1908,6 +2078,18 @@ export const z1Enterprise1Admin1V11IdentitySources1SourceId1Actions1Enable = z.u
 export const z1Enterprise1Admin1V11IdentitySources1SourceId1Actions1Test = z.unknown();
 
 export const z1Enterprise1Admin1V11Users1UserId1IdentitySummary = z.unknown();
+
+export const zMemberCollection = z.unknown();
+
+export const zMemberIdentityItem = z.unknown();
+
+export const zMemberIdentityLinks = z.unknown();
+
+export const zMemberItem = z.unknown();
+
+export const zMemberRoles = z.unknown();
+
+export const zMemberMemberStatus2 = z.unknown();
 
 export const zBootstrap = z.unknown();
 
@@ -1991,6 +2173,8 @@ export const zDepartmentIdWritable = zIdentityDepartmentId;
 
 export const zIdentitySourceTypeWritable = zIdentityIdentitySourceType;
 
+export const zIdentityProvisioningModeWritable = zIdentityIdentityProvisioningMode;
+
 export const zIdentitySourceStatusWritable = zIdentityIdentitySourceStatus;
 
 export const zPlatformClientWritable = zAuthPlatformClient;
@@ -2006,6 +2190,10 @@ export const zPkceCodeVerifierWritable = zAuthPkceCodeVerifier;
 export const zInstallationIdWritable = zAuthInstallationId;
 
 export const zPasswordChangeChallengeWritable = zAuthPasswordChangeChallenge;
+
+export const zBuiltInRoleWritable = zAuthBuiltInRole;
+
+export const zMemberStatusWritable = zMemberMemberStatus;
 
 export const zDeviceStatusWritable = zDeviceDeviceStatus;
 
@@ -2105,6 +2293,7 @@ export const zGatewayModelWritable = zGatewayGatewayModelWritable;
 
 export const zIdentityIdentitySourceCreateRequestWritable = z.object({
     type: zIdentityIdentitySourceType,
+    provisioningMode: zIdentityIdentityProvisioningMode,
     name: z.string().min(1).max(100),
     issuer: z.url().max(500).optional(),
     clientId: z.string().min(1).max(255).optional(),
@@ -2117,6 +2306,7 @@ export const zIdentitySourceCreateRequestWritable = zIdentityIdentitySourceCreat
 
 export const zIdentityIdentitySourceUpdateRequestWritable = z.object({
     type: zIdentityIdentitySourceType,
+    provisioningMode: zIdentityIdentityProvisioningMode,
     name: z.string().min(1).max(100),
     issuer: z.url().max(500).optional(),
     clientId: z.string().min(1).max(255).optional(),
@@ -2297,6 +2487,85 @@ export const zExchangeAuthorizationCodeResponse = zAuthTokenResponse;
  * Current token revoked.
  */
 export const zLogoutPlatformSessionResponse = zAuthLogoutResponse;
+
+/**
+ * Current enterprise-admin session facts.
+ */
+export const zGetConsoleBootstrapResponse = zAuthConsoleBootstrapResponse;
+
+export const zListMembersQuery = z.object({
+    cursor: zCursor.optional(),
+    limit: zPageLimit.optional()
+});
+
+/**
+ * Product member page with built-in roles and login method summaries.
+ */
+export const zListMembersResponse = zMemberMemberListResponse;
+
+export const zGetMemberPath = z.object({
+    userId: zEnterpriseUserId
+});
+
+/**
+ * Product member detail with sanitized identities, devices and Session summary.
+ */
+export const zGetMemberResponse = zMemberMemberDetailResponse;
+
+export const zUpdateMemberStatusBody = zMemberMemberStatusUpdateRequest;
+
+export const zUpdateMemberStatusHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zUpdateMemberStatusPath = z.object({
+    userId: zEnterpriseUserId
+});
+
+/**
+ * Updated member detail.
+ */
+export const zUpdateMemberStatusResponse = zMemberMemberDetailResponse;
+
+export const zReplaceMemberRolesBody = zMemberMemberRoleReplaceRequest;
+
+export const zReplaceMemberRolesHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zReplaceMemberRolesPath = z.object({
+    userId: zEnterpriseUserId
+});
+
+/**
+ * Member detail after replacing built-in roles.
+ */
+export const zReplaceMemberRolesResponse = zMemberMemberDetailResponse;
+
+export const zUnlinkMemberIdentityHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zUnlinkMemberIdentityPath = z.object({
+    userId: zEnterpriseUserId,
+    identityId: z.string().regex(/^[1-9][0-9]{0,18}$/)
+});
+
+/**
+ * Member detail after removing a non-final external identity.
+ */
+export const zUnlinkMemberIdentityResponse = zMemberMemberDetailResponse;
+
+export const zStartIdentityLinkBody = zMemberIdentityLinkStartRequest;
+
+export const zStartIdentityLinkPath = z.object({
+    userId: zEnterpriseUserId
+});
+
+/**
+ * One-time fresh-auth transaction for the selected member and identity source.
+ */
+export const zStartIdentityLinkResponse = zMemberIdentityLinkStartResponse;
 
 export const zEnrollCurrentDeviceBody = zDeviceDeviceEnrollRequest;
 

@@ -91,7 +91,7 @@ profile overlay 完整重述 `enterprise-agent` row 的 `baseUrl`、安装专属
 
 ## 升级与应用回滚
 
-从新 release 解包目录执行升级。升级先调用正式备份，再加载新镜像并让 Flyway 前向迁移：
+从新 release 解包目录执行升级。升级先调用正式备份，再加载新镜像、更新 `STATE/harness/` 中待分发的企业 bundle，并让 Flyway 前向迁移；安装专属 `cordis.patch.yml` 保持原样：
 
 ```sh
 ./scripts/upgrade.sh \
@@ -99,13 +99,15 @@ profile overlay 完整重述 `enterprise-agent` row 的 `baseUrl`、安装专属
   --backup-root /backup/pre-upgrade-0.2.0
 ```
 
-若新应用需要降级，只切换上一组 Server/Gateway 镜像：
+升级脚本不能越过设备边界修改员工 profile。服务端升级完成后，必须把输出的 bundle 重新分发，并在每个 Harness/Desktop profile 上执行上文的官方 `dsh plugin ... add`；否则旧客户端契约可能把新版 bootstrap 误报为平台不可用。应用回滚同样恢复待分发的旧 bundle，并需要重新执行官方 CLI。
+
+若新应用需要降级，切回上一 release 的 Compose 指针和 Server/Gateway 镜像：
 
 ```sh
 ./scripts/rollback.sh --state-dir /opt/enterprise-agent-platform
 ```
 
-回滚不会执行 migration undo，不恢复数据库、不替换 key，也不改变 PostgreSQL、Redis 或 artifact 卷。发布前必须确认旧应用可读取前向迁移后的 schema；不兼容时只能修复前进或按独立灾难恢复流程处理，不能把应用回滚伪装成数据库回滚。
+回滚不会执行 migration undo，不恢复数据库、不替换 key，也不改变 PostgreSQL、Redis 或 artifact 卷；恢复旧 release 指针后可再次执行同一新版的 `upgrade.sh`。发布前必须确认旧应用可读取前向迁移后的 schema；不兼容时只能修复前进或按独立灾难恢复流程处理，不能把应用回滚伪装成数据库回滚。
 
 ## 日常检查
 

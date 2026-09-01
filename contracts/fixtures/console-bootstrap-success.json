@@ -1,0 +1,15 @@
+{
+  "data": {
+    "member": {
+      "id": "1761100000000000001",
+      "displayName": "Candidate Admin",
+      "avatarUrl": null
+    },
+    "roles": ["enterprise_admin"],
+    "permissions": ["ent:model:read", "ent:model:write"],
+    "deployment": {
+      "name": "Enterprise Agent Platform"
+    }
+  },
+  "requestId": "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+}

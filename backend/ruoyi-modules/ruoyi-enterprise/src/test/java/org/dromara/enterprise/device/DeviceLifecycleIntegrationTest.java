@@ -198,5 +198,9 @@ class DeviceLifecycleIntegrationTest {
         public void revokeHarnessDevice(long userId, String installationId) {
             revoked.add(userId + ":" + installationId);
         }
+
+        @Override
+        public void revokeUser(long userId) {
+        }
     }
 }

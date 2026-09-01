@@ -3,7 +3,7 @@
     {
       "policyId": "1900100000000000002",
       "name": "Default",
-      "scope": "DEFAULT",
+      "scope": "ORGANIZATION",
       "subjectId": null,
       "daily": {
         "limit": 1000000,

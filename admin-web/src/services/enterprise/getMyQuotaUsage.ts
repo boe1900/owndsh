@@ -8,7 +8,7 @@ export async function getMyQuotaUsage(options?: { [key: string]: any }) {
     data: {
       policyId: string;
       name: string;
-      scope: "DEFAULT" | "DEPT" | "USER";
+      scope: "ORGANIZATION" | "MEMBER";
       subjectId: string | null;
       daily: {
         limit: number;

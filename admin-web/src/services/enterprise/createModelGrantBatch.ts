@@ -7,9 +7,8 @@ export async function createModelGrantBatch(
   body: {
     items: {
       modelId: string;
-      subjectType: "USER" | "DEPT";
-      subjectId: string;
-      isDefault: boolean;
+      subjectType: "ALL_MEMBERS" | "MEMBER";
+      subjectId: string | null;
       status: "ACTIVE" | "DISABLED";
     }[];
   },
@@ -20,10 +19,9 @@ export async function createModelGrantBatch(
       id: string;
       modelId: string;
       modelAlias: string;
-      subjectType: "USER" | "DEPT";
-      subjectId: string;
+      subjectType: "ALL_MEMBERS" | "MEMBER";
+      subjectId: string | null;
       subjectName: string;
-      isDefault: boolean;
       status: "ACTIVE" | "DISABLED";
       revision: number;
     }[];

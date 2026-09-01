@@ -14,10 +14,9 @@ export async function listModelGrants(
         id: string;
         modelId: string;
         modelAlias: string;
-        subjectType: "USER" | "DEPT";
-        subjectId: string;
+        subjectType: "ALL_MEMBERS" | "MEMBER";
+        subjectId: string | null;
         subjectName: string;
-        isDefault: boolean;
         status: "ACTIVE" | "DISABLED";
         revision: number;
       }[];

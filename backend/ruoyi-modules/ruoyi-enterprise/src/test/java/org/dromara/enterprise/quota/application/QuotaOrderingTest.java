@@ -26,13 +26,13 @@ class QuotaOrderingTest {
     @Test
     void sortsEffectivePoliciesAndWindowLocksByTheSameStableOrder() {
         QuotaPolicyStore store = mock(QuotaPolicyStore.class);
-        when(store.findEffective("000000", 101, 201L)).thenReturn(List.of(
-            policy(30, QuotaSubjectType.USER, 101L),
-            policy(10, QuotaSubjectType.DEFAULT, null),
-            policy(20, QuotaSubjectType.DEPT, 201L)
+        when(store.findEffective("000000", 101)).thenReturn(List.of(
+            policy(30, QuotaSubjectType.MEMBER, 101L),
+            policy(10, QuotaSubjectType.ORGANIZATION, null),
+            policy(20, QuotaSubjectType.MEMBER, 101L)
         ));
 
-        assertThat(new EffectiveQuotaResolver(store).resolve("000000", 101, 201L))
+        assertThat(new EffectiveQuotaResolver(store).resolve("000000", 101))
             .extracting(QuotaPolicy::id)
             .containsExactly(10L, 20L, 30L);
 

@@ -79,7 +79,7 @@ export const zBootstrapSnapshot = z.object({
   }).strict()),
   quotas: z.array(z.object({
     policyId: numericId,
-    scope: z.enum(['DEFAULT', 'DEPT', 'USER']),
+    scope: z.enum(['ORGANIZATION', 'MEMBER']),
     dailyTokenLimit: z.number().int().positive().safe().nullable(),
     monthlyTokenLimit: z.number().int().positive().safe().nullable(),
     rpm: z.number().int().positive().safe().nullable(),

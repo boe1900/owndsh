@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖已认证 IdentityPrincipal、身份/用户/组映射 stores、事务、AuditSink 与 ID generator。
- * [OUTPUT]: 对外提供稳定 subject 解析、首次用户创建/显式绑定、profile/部门同步和绑定冲突错误。
- * [POS]: T04 认证结果到 RuoYi user 的 Application Service，绝不按 email/username 自动合并既有账号或授予角色。
+ * [INPUT]: 依赖已认证 IdentityPrincipal、身份/用户 stores、事务、AuditSink 与 ID generator。
+ * [OUTPUT]: 对外提供稳定 subject 解析、JIT/LINK_ONLY 裁决、显式绑定、登录 touch 和绑定冲突错误。
+ * [POS]: 认证结果到平台 Member 的 Application Service，绝不按 email/username 自动合并或由外部组修改成员资料/授权。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package org.dromara.enterprise.auth.application;
@@ -14,10 +14,10 @@ import org.dromara.enterprise.audit.AuditSink;
 import org.dromara.enterprise.auth.adapter.IdentityAuthenticationException;
 import org.dromara.enterprise.auth.domain.ExternalIdentity;
 import org.dromara.enterprise.auth.domain.IdentityPrincipal;
+import org.dromara.enterprise.auth.domain.IdentityProvisioningMode;
 import org.dromara.enterprise.auth.domain.IdentitySource;
 import org.dromara.enterprise.auth.domain.IdentitySourceStatus;
 import org.dromara.enterprise.auth.domain.IdentitySourceType;
-import org.dromara.enterprise.auth.persistence.ExternalGroupMappingStore;
 import org.dromara.enterprise.auth.persistence.ExternalIdentityStore;
 import org.dromara.enterprise.auth.persistence.IdentitySourceStore;
 import org.dromara.enterprise.auth.persistence.PlatformUserStore;
@@ -29,11 +29,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.function.LongSupplier;
 
 /**
@@ -43,7 +40,6 @@ public final class ExternalIdentityService {
     private final TransactionOperations transactions;
     private final IdentitySourceStore sources;
     private final ExternalIdentityStore identities;
-    private final ExternalGroupMappingStore mappings;
     private final PlatformUserStore users;
     private final AuditSink auditSink;
     private final LongSupplier ids;
@@ -53,19 +49,17 @@ public final class ExternalIdentityService {
         TransactionOperations transactions,
         IdentitySourceStore sources,
         ExternalIdentityStore identities,
-        ExternalGroupMappingStore mappings,
         PlatformUserStore users,
         AuditSink auditSink,
         LongSupplier ids
     ) {
-        this(transactions, sources, identities, mappings, users, auditSink, ids, Clock.systemUTC());
+        this(transactions, sources, identities, users, auditSink, ids, Clock.systemUTC());
     }
 
     ExternalIdentityService(
         TransactionOperations transactions,
         IdentitySourceStore sources,
         ExternalIdentityStore identities,
-        ExternalGroupMappingStore mappings,
         PlatformUserStore users,
         AuditSink auditSink,
         LongSupplier ids,
@@ -74,7 +68,6 @@ public final class ExternalIdentityService {
         this.transactions = Objects.requireNonNull(transactions, "transactions");
         this.sources = Objects.requireNonNull(sources, "sources");
         this.identities = Objects.requireNonNull(identities, "identities");
-        this.mappings = Objects.requireNonNull(mappings, "mappings");
         this.users = Objects.requireNonNull(users, "users");
         this.auditSink = Objects.requireNonNull(auditSink, "auditSink");
         this.ids = Objects.requireNonNull(ids, "ids");
@@ -91,16 +84,21 @@ public final class ExternalIdentityService {
             ExternalIdentity existing = identities.findBySubject(
                 source.id(), issuer, principal.externalSubject()
             ).orElse(null);
-            MappingResolution mapping = resolveGroups(source.id(), principal.externalGroups());
+            MappingResolution mapping = resolveGroups(principal.externalGroups());
             Instant loginAt = Instant.now(clock);
             if (existing != null) {
-                sync(existing, principal, mapping, loginAt);
-                return new IdentityLinkResult(existing.userId(), false, false, mapping.departmentId());
+                if (!users.isActive(existing.userId())) throw new IdentityAuthenticationException();
+                sync(existing, principal, loginAt);
+                return new IdentityLinkResult(existing.userId(), false, false);
+            }
+            if (source.type() != IdentitySourceType.LOCAL
+                && source.provisioningMode() == IdentityProvisioningMode.LINK_ONLY) {
+                throw new IdentityAuthenticationException();
             }
 
             boolean provisioned = source.type() != IdentitySourceType.LOCAL;
             long userId = provisioned ? positiveId() : localUserId(principal.externalSubject());
-            if (!provisioned && !users.exists(userId)) throw new IdentityAuthenticationException();
+            if (!provisioned && !users.isActive(userId)) throw new IdentityAuthenticationException();
             if (identities.findBySourceAndUser(source.id(), userId).isPresent()) {
                 throw new IdentityAlreadyLinkedException();
             }
@@ -110,7 +108,6 @@ public final class ExternalIdentityService {
                     chooseUsername(principal, source),
                     fit(principal.displayName(), 30),
                     fitNullable(principal.email(), 50),
-                    mapping.departmentId(),
                     loginAt
                 );
             }
@@ -125,9 +122,8 @@ public final class ExternalIdentityService {
                 loginAt
             );
             insert(identity);
-            if (!provisioned) sync(identity, principal, mapping, loginAt);
             audit(context, identity, principal, mapping, provisioned);
-            return new IdentityLinkResult(userId, true, provisioned, mapping.departmentId());
+            return new IdentityLinkResult(userId, true, provisioned);
         }));
     }
 
@@ -137,9 +133,10 @@ public final class ExternalIdentityService {
     public IdentityLinkResult linkToExistingUser(
         IdentityLoginContext context,
         IdentityPrincipal principal,
-        long userId
+        long userId,
+        long actorId
     ) {
-        if (userId <= 0 || !users.exists(userId)) throw new IdentityResourceNotFoundException();
+        if (userId <= 0 || actorId <= 0 || !users.isActive(userId)) throw new IdentityResourceNotFoundException();
         return requireResult(transactions.execute(status -> {
             IdentitySource source = requireSource(context, principal);
             String issuer = stableIssuer(source);
@@ -153,21 +150,20 @@ public final class ExternalIdentityService {
             if (byUser != null && !sameSubject(byUser, issuer, principal.externalSubject())) {
                 throw new IdentityAlreadyLinkedException();
             }
-            MappingResolution mapping = resolveGroups(source.id(), principal.externalGroups());
+            MappingResolution mapping = resolveGroups(principal.externalGroups());
             Instant loginAt = Instant.now(clock);
             ExternalIdentity existing = bySubject != null ? bySubject : byUser;
             if (existing != null) {
-                sync(existing, principal, mapping, loginAt);
-                return new IdentityLinkResult(userId, false, false, mapping.departmentId());
+                sync(existing, principal, loginAt);
+                return new IdentityLinkResult(userId, false, false);
             }
             ExternalIdentity identity = new ExternalIdentity(
                 positiveId(), context.tenantId(), source.id(), userId, issuer,
                 principal.externalSubject(), normalizedGroups(principal.externalGroups()), loginAt
             );
             insert(identity);
-            sync(identity, principal, mapping, loginAt);
-            audit(context, identity, principal, mapping, false);
-            return new IdentityLinkResult(userId, true, false, mapping.departmentId());
+            audit(context, identity, principal, mapping, false, actorId);
+            return new IdentityLinkResult(userId, true, false);
         }));
     }
 
@@ -189,32 +185,14 @@ public final class ExternalIdentityService {
     private void sync(
         ExternalIdentity identity,
         IdentityPrincipal principal,
-        MappingResolution mapping,
         Instant loginAt
     ) {
-        users.updateProfile(
-            identity.userId(),
-            fit(principal.displayName(), 30),
-            fitNullable(principal.email(), 50),
-            mapping.departmentId(),
-            loginAt
-        );
         identities.touch(identity.id(), normalizedGroups(principal.externalGroups()), loginAt);
     }
 
-    private MappingResolution resolveGroups(long sourceId, List<String> externalGroups) {
+    private MappingResolution resolveGroups(List<String> externalGroups) {
         List<String> normalized = normalizedGroups(externalGroups);
-        Map<String, Long> departments = mappings.findDepartments(sourceId, normalized);
-        Set<Long> uniqueDepartments = new LinkedHashSet<>(departments.values());
-        boolean conflict = uniqueDepartments.size() > 1;
-        Long departmentId = uniqueDepartments.size() == 1 ? uniqueDepartments.iterator().next() : null;
-        return new MappingResolution(
-            departmentId,
-            normalized.size(),
-            departments.size(),
-            normalized.size() - departments.size(),
-            conflict
-        );
+        return new MappingResolution(normalized.size(), 0, normalized.size(), false);
     }
 
     private void insert(ExternalIdentity identity) {
@@ -232,12 +210,23 @@ public final class ExternalIdentityService {
         MappingResolution mapping,
         boolean provisioned
     ) {
+        audit(context, identity, principal, mapping, provisioned, identity.userId());
+    }
+
+    private void audit(
+        IdentityLoginContext context,
+        ExternalIdentity identity,
+        IdentityPrincipal principal,
+        MappingResolution mapping,
+        boolean provisioned,
+        long actorId
+    ) {
         auditSink.append(new AuditEvent(
             positiveId(),
             context.tenantId(),
             Instant.now(clock),
             AuditActorType.USER,
-            identity.userId(),
+            actorId,
             null,
             AuditAction.USER_LINKED,
             "EXTERNAL_IDENTITY",
@@ -319,7 +308,6 @@ public final class ExternalIdentityService {
     }
 
     private record MappingResolution(
-        Long departmentId,
         int externalGroupCount,
         int mappedGroupCount,
         int unmappedGroupCount,

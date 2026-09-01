@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 PostgresTestDatabase 装载真实 RuoYi 基线与 V1-V17 classpath migration。
- * [OUTPUT]: 验证空 schema、逐版本升级、产品导航与管理员系统权限、provider 配置及 Harness reasoning 模型字段迁移。
+ * [INPUT]: 依赖 PostgresTestDatabase 装载真实 RuoYi 基线与 V1-V22 classpath migration。
+ * [OUTPUT]: 验证空 schema、逐版本升级、产品导航、成员读写权限/revision、模型配置及产品授权/配额迁移。
  * [POS]: database 的持续 migration 门禁，防止后续任务只验证最终 schema 而遗漏中间版本不可升级。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -27,7 +27,7 @@ class EnterpriseMigrationTest {
 
         Flyway flyway = PostgresTestDatabase.migrate(database, null);
 
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("17");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("22");
         Integer tableCount = database.jdbc().queryForObject("""
             select count(*) from information_schema.tables
             where table_schema = 'public' and table_name like 'ent_%'
@@ -41,6 +41,10 @@ class EnterpriseMigrationTest {
             "select type from ent_identity_source where tenant_id='000000'",
             String.class
         )).isEqualTo("LOCAL");
+        assertThat(database.jdbc().queryForObject(
+            "select provisioning_mode from ent_identity_source where tenant_id='000000'",
+            String.class
+        )).isEqualTo("LINK_ONLY");
         assertThat(database.jdbc().queryForObject(
             "select count(*) from sys_user where user_name in ('admin','test','test1')",
             Integer.class
@@ -83,6 +87,20 @@ class EnterpriseMigrationTest {
               on granted.role_id=1900300000000000001 and granted.menu_id=expected.menu_id
             where granted.menu_id is null
             """, Integer.class)).isZero();
+        assertThat(database.jdbc().queryForList("""
+            select role_id from sys_role_menu where menu_id=1900400000000001015 order by role_id
+            """, Long.class)).containsExactly(
+                1900300000000000001L,
+                1900300000000000002L,
+                1900300000000000003L
+            );
+        assertThat(database.jdbc().queryForObject("""
+            select count(*) from information_schema.columns
+            where table_name='sys_user' and column_name='revision'
+            """, Integer.class)).isOne();
+        assertThat(database.jdbc().queryForList("""
+            select role_id from sys_role_menu where menu_id=1900400000000001016 order by role_id
+            """, Long.class)).containsExactly(1900300000000000001L);
     }
 
     @Test
@@ -317,13 +335,68 @@ class EnterpriseMigrationTest {
             "select menu_name from sys_menu where menu_id=1900400000000000000",
             String.class
         )).isEqualTo("Agent 管控");
-        Flyway latest = PostgresTestDatabase.migrate(database, "17");
-        assertThat(latest.info().current().getVersion().getVersion()).isEqualTo("17");
+        Flyway versionSeventeen = PostgresTestDatabase.migrate(database, "17");
+        assertThat(versionSeventeen.info().current().getVersion().getVersion()).isEqualTo("17");
         assertThat(database.jdbc().queryForObject("""
             select count(*) from sys_role_menu
             where role_id=1900300000000000001
               and menu_id in (1761400000000000001,1761400000000000002)
             """, Integer.class)).isEqualTo(2);
+
+        long departmentId = database.jdbc().queryForObject(
+            "select dept_id from sys_user where user_id=?", Long.class, userId
+        );
+        database.jdbc().update("""
+            insert into ent_model_grant(
+                id,tenant_id,model_id,subject_type,subject_id,is_default,status,revision
+            ) values
+                (1913000000000000801,'000000',1913000000000000601,'USER',?,false,'ACTIVE',0),
+                (1913000000000000802,'000000',1913000000000000601,'DEPT',?,true,'ACTIVE',0)
+            """, userId, departmentId);
+        database.jdbc().update("""
+            insert into ent_quota_policy(
+                id,tenant_id,name,subject_type,subject_id,daily_token_limit,status,revision
+            ) values
+                (1913000000000000811,'000000','Migration Member','USER',?,1000,'ACTIVE',0),
+                (1913000000000000812,'000000','Migration Department','DEPT',?,1000,'ACTIVE',0)
+            """, userId, departmentId);
+        database.jdbc().update("""
+            insert into ent_quota_window(
+                id,tenant_id,policy_id,window_type,window_start,used_tokens,reserved_tokens,revision
+            ) values (1913000000000000821,'000000',1913000000000000812,'DAY',now(),0,10,0)
+            """);
+        database.jdbc().update("""
+            insert into ent_usage_reservation(
+                id,tenant_id,user_id,device_id,model_id,idempotency_key,request_id,state,
+                estimated_tokens,reserved_windows_json,expires_at
+            ) values (
+                '123e4567-e89b-42d3-a456-426614174081','000000',?,1913000000000000301,
+                1913000000000000601,'123e4567-e89b-42d3-a456-426614174082',
+                'req_migration_quota','RESERVED',10,
+                '[{"windowId":1913000000000000821,"policyId":1913000000000000812,
+                  "windowType":"DAY","reservedTokens":10}]',now() + interval '15 minutes'
+            )
+            """, userId);
+
+        Flyway latest = PostgresTestDatabase.migrate(database, "18");
+        assertThat(latest.info().current().getVersion().getVersion()).isEqualTo("18");
+        assertThat(database.jdbc().queryForList(
+            "select subject_type from ent_model_grant order by id", String.class
+        )).containsExactly("MEMBER");
+        assertThat(database.jdbc().queryForObject("""
+            select count(*) from information_schema.columns
+            where table_name='ent_model_grant' and column_name='is_default'
+            """, Integer.class)).isZero();
+        assertThat(database.jdbc().queryForList(
+            "select subject_type from ent_quota_policy order by id", String.class
+        )).containsExactly("ORGANIZATION", "MEMBER");
+        assertThat(database.jdbc().queryForObject(
+            "select count(*) from ent_quota_window where id=1913000000000000821", Integer.class
+        )).isZero();
+        assertThat(database.jdbc().queryForObject("""
+            select reserved_windows_json = '[]'::jsonb
+            from ent_usage_reservation where id='123e4567-e89b-42d3-a456-426614174081'
+            """, Boolean.class)).isTrue();
     }
 
     @Test
@@ -340,7 +413,7 @@ class EnterpriseMigrationTest {
             .run(context -> {
                 assertThat(context).hasSingleBean(Flyway.class);
                 assertThat(context.getBean(Flyway.class).info().current().getVersion().getVersion())
-                    .isEqualTo("17");
+                    .isEqualTo("22");
             });
     }
 }

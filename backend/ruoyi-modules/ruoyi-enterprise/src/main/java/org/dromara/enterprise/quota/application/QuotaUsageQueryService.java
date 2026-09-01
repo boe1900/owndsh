@@ -54,9 +54,9 @@ public final class QuotaUsageQueryService {
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
-    public List<PolicyUsage> myUsage(String tenantId, long userId, Long departmentId) {
+    public List<PolicyUsage> myUsage(String tenantId, long userId) {
         Instant now = Instant.now(clock);
-        List<QuotaPolicy> policies = resolver.resolve(tenantId, userId, departmentId);
+        List<QuotaPolicy> policies = resolver.resolve(tenantId, userId);
         Map<Long, QuotaRateLimiter.RateSnapshot> rateSnapshots = rates.snapshot(
             policies.stream().map(QuotaPolicy::id).toList(), now
         );

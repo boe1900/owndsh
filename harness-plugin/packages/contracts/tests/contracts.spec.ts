@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 OpenAPI 生成的 fixture manifest/Zod schema、错误状态映射和品牌 ID 公共 API
- * [OUTPUT]: 验证全部正反 fixture、错误码、gateway/plugin/Session/audit 严格契约、未知字段与品牌类型隔离
+ * [OUTPUT]: 验证全部正反 fixture、38 个错误码、成员身份、gateway/plugin/Session/audit 严格契约、未知字段与品牌类型隔离
  * [POS]: contracts 的双端协议回归测试之一，与 Java JSON Schema 测试消费相同 fixture 声明
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -63,6 +63,8 @@ const expectedErrorStatuses = {
   ENT_RESOURCE_NOT_FOUND: 404,
   ENT_SESSION_CONTENT_EXPIRED: 404,
   ENT_REVISION_CONFLICT: 409,
+  ENT_LAST_ENTERPRISE_ADMIN: 409,
+  ENT_LAST_MEMBER_IDENTITY: 409,
   ENT_REQUEST_IN_PROGRESS: 409,
   ENT_REQUEST_ALREADY_COMPLETED: 409,
   ENT_SESSION_SEQ_GAP: 409,
@@ -112,7 +114,7 @@ describe('generated enterprise contracts', () => {
       code,
       enterpriseErrorHttpStatus(code as keyof typeof expectedErrorStatuses),
     ]))).toEqual(expectedErrorStatuses)
-    expect(Object.keys(expectedErrorStatuses)).toHaveLength(36)
+    expect(Object.keys(expectedErrorStatuses)).toHaveLength(38)
   })
 
   it('keeps empty audit metadata strict without generating an invalid Zod chain', () => {

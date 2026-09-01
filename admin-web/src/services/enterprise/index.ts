@@ -9,6 +9,13 @@ import * as startOidcLogin from "./startOidcLogin";
 import * as completeOidcLogin from "./completeOidcLogin";
 import * as exchangeAuthorizationCode from "./exchangeAuthorizationCode";
 import * as logoutPlatformSession from "./logoutPlatformSession";
+import * as getConsoleBootstrap from "./getConsoleBootstrap";
+import * as listMembers from "./listMembers";
+import * as getMember from "./getMember";
+import * as updateMemberStatus from "./updateMemberStatus";
+import * as replaceMemberRoles from "./replaceMemberRoles";
+import * as unlinkMemberIdentity from "./unlinkMemberIdentity";
+import * as startIdentityLink from "./startIdentityLink";
 import * as enrollCurrentDevice from "./enrollCurrentDevice";
 import * as heartbeatCurrentDevice from "./heartbeatCurrentDevice";
 import * as listDevices from "./listDevices";
@@ -84,6 +91,13 @@ export default {
   completeOidcLogin,
   exchangeAuthorizationCode,
   logoutPlatformSession,
+  getConsoleBootstrap,
+  listMembers,
+  getMember,
+  updateMemberStatus,
+  replaceMemberRoles,
+  unlinkMemberIdentity,
+  startIdentityLink,
   enrollCurrentDevice,
   heartbeatCurrentDevice,
   listDevices,

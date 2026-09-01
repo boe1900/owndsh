@@ -2,7 +2,7 @@
   "data": {
     "id": "1900900000000000001",
     "name": "Engineering",
-    "subjectType": "DEPT",
+    "subjectType": "MEMBER",
     "subjectId": "1761000000000000103",
     "subjectName": "Engineering",
     "dailyTokenLimit": 500000,

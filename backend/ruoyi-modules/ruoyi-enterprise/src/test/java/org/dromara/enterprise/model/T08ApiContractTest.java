@@ -362,7 +362,7 @@ class T08ApiContractTest {
     private static ModelGrant grant() {
         return new ModelGrant(
             Long.parseLong(GRANT_ID), "000000", Long.parseLong(MODEL_ID), "deepseek-chat",
-            GrantSubjectType.USER, Long.parseLong(USER_ID), "Alice", true, ModelStatus.ACTIVE, 0
+            GrantSubjectType.MEMBER, Long.parseLong(USER_ID), "Alice", ModelStatus.ACTIVE, 0
         );
     }
 
@@ -420,7 +420,7 @@ class T08ApiContractTest {
 
     private static String grantRequest() {
         return """
-            {"modelId":"%s","subjectType":"USER","subjectId":"%s","isDefault":true,"status":"ACTIVE"}
+            {"modelId":"%s","subjectType":"MEMBER","subjectId":"%s","status":"ACTIVE"}
             """.formatted(MODEL_ID, USER_ID).trim();
     }
 

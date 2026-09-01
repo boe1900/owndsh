@@ -1,6 +1,6 @@
 #!/bin/sh
 # [INPUT]: 依赖已安装状态、新 release、备份根目录和兼容的前向数据库 migration。
-# [OUTPUT]: 在先生成数据/key 备份后切换新 Server/Gateway 镜像，并保存上一组应用镜像引用。
+# [OUTPUT]: 在先生成数据/key 备份后切换新 Server/Gateway 镜像与待分发 Harness bundle，并保存上一组应用引用。
 # [POS]: T21 前向升级事务；数据库 migration 不回退，失败后的应用降级由 rollback.sh 显式执行。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -34,8 +34,10 @@ acquire_operation_lock
 new_release=$(env_value EAP_RELEASE_VERSION "$release_root/manifest.env")
 new_server=$(env_value EAP_SERVER_IMAGE "$release_root/manifest.env")
 new_gateway=$(env_value EAP_GATEWAY_IMAGE "$release_root/manifest.env")
+new_harness_bundle=$(env_value EAP_HARNESS_BUNDLE "$release_root/manifest.env")
 old_release=$(env_value EAP_RELEASE_VERSION "$(runtime_file)")
 [ "$new_release" != "$old_release" ] || fail "目标 release 与当前版本相同"
+require_file "$release_root/harness/$new_harness_bundle"
 
 mkdir -p "$backup_root/data" "$backup_root/keys"
 EAP_OPERATION_LOCK_HELD=1 "$script_directory/backup.sh" \
@@ -43,6 +45,8 @@ EAP_OPERATION_LOCK_HELD=1 "$script_directory/backup.sh" \
 
 rm -rf "$EAP_STATE_DIR/releases/$new_release"
 cp -R "$release_root" "$EAP_STATE_DIR/releases/$new_release"
+cp "$release_root/harness/$new_harness_bundle" "$EAP_STATE_DIR/harness/$new_harness_bundle"
+chmod 644 "$EAP_STATE_DIR/harness/$new_harness_bundle"
 load_image_archive "$release_root/images/server.tar.gz"
 load_image_archive "$release_root/images/gateway.tar.gz"
 
@@ -60,3 +64,4 @@ compose up -d storage-init server gateway
 wait_healthy server 90
 wait_healthy gateway 30
 printf '%s\n' "升级完成: $old_release -> $new_release"
+printf '%s\n' "Harness bundle 已更新；请用官方 CLI 更新各 Harness/Desktop profile: $EAP_STATE_DIR/harness/$new_harness_bundle"

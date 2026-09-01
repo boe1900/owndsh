@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 JdbcOperations、ent_quota_policy 与固定部署 RuoYi sys_user/sys_dept。
+ * [INPUT]: 依赖 JdbcOperations、ent_quota_policy 与固定部署 RuoYi sys_user。
  * [OUTPUT]: 对外提供 quota policy CRUD/CAS、subject 投影和有效策略查询。
  * [POS]: quota/persistence 的策略 adapter，tenant 只约束 ent_* 企业事实。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -20,13 +20,11 @@ public final class JdbcQuotaPolicyStore implements QuotaPolicyStore {
     private static final String SELECT = """
         select p.*,
                case p.subject_type
-                   when 'USER' then nullif(coalesce(u.nick_name, u.user_name), '')
-                   when 'DEPT' then nullif(d.dept_name, '')
+                   when 'MEMBER' then nullif(coalesce(u.nick_name, u.user_name), '')
                    else null
                end as subject_name
         from ent_quota_policy p
-        left join sys_user u on p.subject_type = 'USER' and u.user_id = p.subject_id
-        left join sys_dept d on p.subject_type = 'DEPT' and d.dept_id = p.subject_id
+        left join sys_user u on p.subject_type = 'MEMBER' and u.user_id = p.subject_id
         """;
     private static final RowMapper<QuotaPolicy> MAPPER = (rs, rowNum) -> new QuotaPolicy(
         rs.getLong("id"), rs.getString("tenant_id"), rs.getString("name"),
@@ -58,26 +56,23 @@ public final class JdbcQuotaPolicyStore implements QuotaPolicyStore {
     }
 
     @Override
-    public List<QuotaPolicy> findEffective(String tenantId, long userId, Long departmentId) {
+    public List<QuotaPolicy> findEffective(String tenantId, long userId) {
         return jdbc.query(
             SELECT + """
                  where p.tenant_id = ? and p.status = 'ACTIVE'
-                   and (p.subject_type = 'DEFAULT'
-                     or (p.subject_type = 'USER' and p.subject_id = ?)
-                     or (p.subject_type = 'DEPT' and p.subject_id = ?))
+                   and (p.subject_type = 'ORGANIZATION'
+                     or (p.subject_type = 'MEMBER' and p.subject_id = ?))
                  order by p.id
                 """,
-            MAPPER, tenantId, userId, departmentId
+            MAPPER, tenantId, userId
         );
     }
 
     @Override
     public boolean subjectExists(QuotaSubjectType type, Long subjectId) {
-        if (type == QuotaSubjectType.DEFAULT) return subjectId == null;
+        if (type == QuotaSubjectType.ORGANIZATION) return subjectId == null;
         if (subjectId == null) return false;
-        String sql = type == QuotaSubjectType.USER
-            ? "select count(*) from sys_user where user_id = ? and del_flag = '0'"
-            : "select count(*) from sys_dept where dept_id = ? and del_flag = '0'";
+        String sql = "select count(*) from sys_user where user_id = ? and del_flag = '0'";
         Long count = jdbc.queryForObject(sql, Long.class, subjectId);
         return count != null && count == 1;
     }

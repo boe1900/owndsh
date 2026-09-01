@@ -50,9 +50,7 @@ public final class GatewayRouteResolver {
         EnterpriseDevice device = devices.requireActive(context);
         BootstrapUser user = users.findActive(context.tenantId(), device.userId())
             .orElseThrow(() -> new DeviceAccessException("ENT_PERMISSION_DENIED"));
-        List<EffectiveModelResolver.EffectiveModel> effective = effectiveModels.resolve(
-            context.tenantId(), user.id(), user.departmentId()
-        );
+        List<EffectiveModelResolver.EffectiveModel> effective = effectiveModels.resolve(context.tenantId(), user.id());
         EffectiveModelResolver.EffectiveModel selected = effective.stream()
             .filter(value -> DEFAULT_MODEL.equals(requestedAlias) ? value.isDefault() : value.alias().equals(requestedAlias))
             .findFirst()
