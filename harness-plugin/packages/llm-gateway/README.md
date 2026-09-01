@@ -18,7 +18,9 @@ DeepSeek Harness rc.2 官方 `@deepseek-ai/dsh-llm-pi-ai` 的企业配置桥。�
 该代理不挂载 Harness/Desktop 的浏览器 WebServer，因此 Electron renderer 访问门禁不会误拦 Host
 内部模型请求，普通本机进程也无法借用已登录会话。认证代理把中心调用显式标记为
 `Accept: text/event-stream, application/json`：平台客户端据此取消
-模型流总时限，同时 Server 仍可在 SSE 提交前返回配额、授权等 JSON 错误。请求和响应字节保持透明。
+模型流总时限，同时 Server 仍可在 SSE 提交前返回配额、授权等 JSON 错误。成功请求和响应字节保持透明；
+平台声明为不可重试的 429 会在本机 provider 错误 envelope 中标记为终态 quota，使官方 pi-ai 分类为 `QUOTA`，
+而不是按通用 429 进入 `RATE_LIMIT` 重试。
 
 ## 边界
 

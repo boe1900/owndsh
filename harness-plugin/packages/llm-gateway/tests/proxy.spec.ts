@@ -1,11 +1,12 @@
 /**
  * [INPUT]: 依赖 Node fetch、startEnterpriseProxy 与可控平台 request port
- * [OUTPUT]: 验证 Host 私有令牌、原生 SSE relay、平台 SSE/JSON 声明与本机伪认证隔离
+ * [OUTPUT]: 验证 Host 私有令牌、原生 SSE relay、终态配额分类、平台媒体声明与本机伪认证隔离
  * [POS]: llm-gateway 的认证代理回归，锁住 Desktop/Web 共用且不经浏览器 carrier 的模型长流
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { EnterprisePlatformError } from '@enterprise-agent/dsh-platform-client'
 import { startEnterpriseProxy, type EnterpriseProxyHandle } from '../src/index.js'
 
 describe('startEnterpriseProxy', () => {
@@ -53,5 +54,38 @@ describe('startEnterpriseProxy', () => {
     expect(request).toHaveBeenCalledWith('/enterprise/gateway/v1/responses', expect.objectContaining({
       method: 'POST',
     }))
+  })
+
+  it('marks non-retryable 429 errors as terminal quota failures', async () => {
+    const proxy = await startEnterpriseProxy({
+      platform: {
+        request: () => Promise.reject(new EnterprisePlatformError(
+          'ENT_QUOTA_DAILY_EXCEEDED',
+          'enterprise platform request failed',
+          false,
+          429,
+          'req_quota',
+        )),
+      },
+      harnessVersion: '0.1.0-rc.7',
+      bundleVersion: '0.1.0',
+    })
+    proxies.push(proxy)
+
+    const response = await fetch(`${proxy.baseURL}/responses`, {
+      method: 'POST',
+      headers: { authorization: proxy.authorization },
+      body: '{}',
+    })
+
+    expect(response.status).toBe(429)
+    expect(await response.json()).toEqual({
+      error: {
+        code: 'ENT_QUOTA_DAILY_EXCEEDED',
+        message: 'enterprise platform request failed',
+        type: 'quota_exceeded',
+        request_id: 'req_quota',
+      },
+    })
   })
 })

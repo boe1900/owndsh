@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 Node HTTP/crypto、EnterprisePlatformService 认证请求与三种官方 wire 路径
- * [OUTPUT]: 对外提供随机端口与随机 bearer 保护、同时接受 SSE 成功流与 JSON 建连错误的 loopback 认证代理
- * [POS]: llm-gateway 的 Host 私有认证桥，绕开浏览器 carrier；请求 JSON 与平台响应均不解析、不改写
+ * [OUTPUT]: 对外提供随机端口与随机 bearer 保护、SSE 透明 relay 与平台错误到 provider 错误 envelope 的投影
+ * [POS]: llm-gateway 的 Host 私有认证桥，绕开浏览器 carrier；成功请求与响应字节不解析、不改写
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -89,6 +89,7 @@ function writePlatformError(response: ServerResponse, error: unknown): void {
       error: {
         code: error.code,
         message: error.message,
+        ...error.httpStatus === 429 && !error.retryable ? { type: 'quota_exceeded' } : {},
         ...(error.requestId === undefined ? {} : { request_id: error.requestId }),
       },
     }, error.requestId)

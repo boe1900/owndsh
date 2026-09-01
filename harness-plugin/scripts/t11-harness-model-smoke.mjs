@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖当前 bundle tgz、同级锁定 Harness、Corepack pnpm 与可控回环企业平台
- * [OUTPUT]: 验证真实 web profile 由官方 dsh-llm-pi-ai 提供三协议目录、default、reasoning、模型流、瞬时失败恢复及无本地上游 Key
+ * [OUTPUT]: 验证真实 web profile 由官方 dsh-llm-pi-ai 提供三协议目录、default、reasoning、模型流、瞬时失败恢复、终态配额不重试及无本地上游 Key
  * [POS]: harness-plugin 的 T11 核心组合验收器，只写临时 profile/probe 并守护上游工作区清洁度
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -633,6 +633,17 @@ try {
     maxRetries: 5,
     code: 'SERVER',
   })
+
+  const quotaRequestOffset = gatewayRequests.length
+  gatewayMode = 'quota'
+  const quotaResponse = await fetch(`${harnessUrl}/enterprise/t11/retry`)
+  const quota = await quotaResponse.json()
+  assert.equal(quotaResponse.status, 200, JSON.stringify(quota))
+  const quotaRequests = gatewayRequests.slice(quotaRequestOffset)
+    .filter(request => request.body.max_output_tokens === 8_192)
+  assert.equal(quotaRequests.length, 1, JSON.stringify(quota))
+  assert.equal(quota.data.retries.length, 0)
+  assert.equal(quota.data.turnEnd.reason.error.code, 'QUOTA')
 
   for (const [mode, code, status] of [
     ['model-not-assigned', 'ENT_MODEL_NOT_ASSIGNED', 403],

@@ -776,7 +776,7 @@ Playwright 必须通过真实 PostgreSQL、Redis、Java Server 和 HTTPS 同源�
 | P2-05 插件 | `completed` | P2-03 | 插件版本、发布、分配和设备状态 | 自动化与真实 Server UI 通过；Desktop 安装/回滚留到 P2-08 集成验收 |
 | P2-06 成员与身份 | `completed` | P2-03 | product member DTO、身份摘要、固定角色、link transaction、停用 | Server/协议门禁通过；真实 Harness/Desktop E2E 留在 P2-08 |
 | P2-07 活动与设置 | `completed` | P2-03 | 用量、审计、Session、身份源和健康状态 | auditor 只读、身份源 secret 隔离通过 |
-| P2-08 切换 | `pending` | P2-04..P2-07 | 集中执行真实 Harness/Desktop E2E、网关静态资源切换、升级/回滚演练和旧页面调用观测 | 第 13.2 节全链路人工验收通过；不换数据卷 |
+| P2-08 切换 | `in_progress` | P2-04..P2-07 | 集中执行真实 Harness/Desktop E2E、网关静态资源切换、升级/回滚演练和旧页面调用观测 | 第 13.2 节全链路人工验收通过；不换数据卷 |
 | P2-09 旧前端退役 | `pending` | P2-08 稳定一个版本 | 删除旧构建链和确认无调用的页面/依赖 | 独立 PR、删除清单和回滚窗口关闭 |
 
 P2-02 验收证据（2026-08-31）：锁定 Beautiful UI commit `3ea4c18114de3d4bc9b63b8e3ea6f533b1a562bd`，Vite `8.2.2`、TanStack Router `1.170.32`、Router Plugin `1.168.35` 与 Query `5.102.8` 均为当日 npm 最新稳定版；`pnpm check` 通过。`/examples` 运行 20 个同源组件 demo 并可查看真实源码，`/examples/harness` 的工作区菜单、建议场景和 60 行 Records Table 真实交互通过。1280×720 下产品侧栏可在 224/52px 间折叠且无横向溢出；390×844 下主画布为 390×844、桌面侧栏隐藏，224×824 抽屉可导航并自动关闭。正式 `62209` 冷启动后三个入口均无浏览器错误；依赖图不存在 Central Icons 或 PostHog。
@@ -790,6 +790,10 @@ P2-05 验收证据（2026-09-01）：插件页通过生成 operation 和 TanStac
 P2-06 验收证据（2026-09-01）：产品成员 cursor/detail API 已成为成员页、插件分配和访问策略的共同成员真源，并聚合固定角色、脱敏登录方式、设备与 Session 摘要，不读取部门、岗位、外部 groups/claims。成员写入使用 revision CAS；角色替换和停用均保护最后有效 `enterprise_admin`，停用会同步撤销 ACTIVE 设备和全部平台 Session。外部身份解绑使用数据库行锁、revision CAS、最后可用登录方式保护和 `USER_UNLINKED` 审计；身份绑定复用现有 `LoginTransaction`，只接受 OIDC/LDAP 新鲜认证，不允许管理员手填 subject。普通登录不再消费外部组到部门映射或覆盖成员资料，停用成员不能借外部身份恢复登录。身份源增加 `JIT/LINK_ONLY`：未知 subject 只在 JIT 创建无特权成员，LINK_ONLY 仅允许显式绑定，LOCAL 固定 LINK_ONLY。真实 PostgreSQL/Redis、migration V1-V22、OpenAPI/成员治理/RBAC/审计门禁共 `38/38` 通过；Console production build、TypeScript 与 Vitest `20/20`、Harness contracts build/test `9/9` 和旧管理端 lint 通过。按统一决策，本任务不复制 Desktop 启动器；真实 Harness/Desktop E2E 集中到 P2-08。
 
 P2-07 验收证据（2026-09-01）：活动记录按 bootstrap `ent:*` 权限动态提供用量、审计、Session 和插件关键运行异常分段；模型管理员只读用量、插件管理员只读插件异常、auditor 可读用量/审计/Session 正文但没有 Session 删除动作，Server 现有权限仍是最终裁决。Session 正文进入 React 前严格验证规范 Base64、fatal UTF-8、JSONL、连续 seq 和事件 envelope，删除继续调用服务端 tombstone operation。设置页管理 OIDC/LDAP/LOCAL、JIT/LINK_ONLY、连接测试与 CAS 启停；创建强制一次性 secret，更新留空时请求体不含 secret，列表只显示 `secretConfigured`，不恢复外部组到部门映射。系统区复用 deploy 已有同源 `/healthz`，失败局部展示并可重试，不新增健康状态机。Console OpenAPI 生成、production build、TypeScript 与 Vitest `24/24` 通过；真实 Server、Harness 与 Desktop 集中链路仍按计划留在 P2-08，不在本任务伪造。
+
+P2-08 首轮验收证据（2026-09-01）：同一持久 PostgreSQL/Redis 数据卷上的 Web Harness 与 DSH Desktop 均完成平台登录、设备 enrollment、bootstrap、插件 inventory 和 Session 同步。Web Harness 使用 `gpt-5.6-sol / Xhigh` 经真实 `/enterprise/gateway/v1/responses` 返回预期结果与 `Think` 内容块，Server 对主调用结算 `10,332` Token，恢复无限额后的继续调用结算 `10,404` Token，usage ledger、上游 request ID 与 `MODEL_REQUEST_ACCEPTED/FINISHED` 审计闭合。组织每日 Token 临时设为 `1` 后请求在上游前以 `ENT_QUOTA_DAILY_EXCEEDED` 拒绝，恢复 `null` 后同一会话重新成功。该场景同时发现平台客户端的脱敏错误文案使官方 pi-ai 把终态 429 误判为 `RATE_LIMIT` 并重试 5 次；Host 私有代理现仅为 Server 声明不可重试的 429 增加 provider error `type: quota_exceeded`，不配置或执行重试。隔离 T11 真实组合门禁证明 Xhigh 三协议不变、瞬时 503 仍由官方 Harness 恢复、终态 quota 主请求仅 1 次且 `llm/retry` 为 0。P2-08 仍需完成新 bundle 部署后的真实复验、五角色新登录矩阵、Member/RPM/并发、插件安装回滚、身份源、静态资源切换及升级/回滚演练。
+
+P2-08 新 bundle 复验证据（2026-09-02）：同一 bundle tgz 通过官方 `dsh plugin --profile web add` 安装到隔离 Web 与 Desktop 当前使用的持久 profile，进程重启后安装产物均包含终态 quota 分类。Web Harness 重新登录并继续使用 `gpt-5.6-sol / Xhigh`；组织每日 Token 设为 `1` 后，真实请求约 3.6 秒返回 `ENT_QUOTA_DAILY_EXCEEDED`、provider `type: quota_exceeded` 和 Harness `QUOTA`，页面未出现重试状态，Gateway 在该轮仅收到 1 个模型 POST。数据库只新增 1 条 `QUOTA_REJECTED/DAILY` 审计，无 reservation、ledger 或上游调用。恢复 `daily/monthly=null` 后，新会话返回指定文本；主调用结算 `10,338` Token，会话标题调用结算 `4,525` Token，两者均各自形成 `MODEL_REQUEST_ACCEPTED/FINISHED`、upstream request ID 和 ledger 闭环。新登录管理会话的成员目录正常返回，先前 403 确认为旧 Token 权限快照而非 RBAC 缺陷。P2-08 余项收敛为五角色矩阵、Member/RPM/并发、插件安装回滚、身份源、静态资源切换及升级/回滚演练。
 
 ## 15. 完成定义
 
