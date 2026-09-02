@@ -268,7 +268,7 @@ class T09ApiContractTest {
             "update", "ent:grant:write", "delete", "ent:grant:write", "enable", "ent:grant:write",
             "disable", "ent:grant:write", "windows", "ent:grant:read"
         ));
-        assertPermissions(AdminUsageController.class, Map.of("list", "ent:model:read"));
+        assertPermissions(AdminUsageController.class, Map.of("list", "ent:usage:read"));
     }
 
     private String response(org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request, int code)

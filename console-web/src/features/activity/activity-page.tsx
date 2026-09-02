@@ -37,7 +37,7 @@ import { ProductDialog } from '@/components/product/Dialog';
 import { decodeAdminSessionEvents } from './session-content';
 
 const ACTIVITY_SECTIONS = [
-  ['用量', 'ent:model:read'],
+  ['用量', 'ent:usage:read'],
   ['审计', 'ent:audit:read'],
   ['Session', 'ent:session:read'],
   ['运行异常', 'ent:plugin:read']

@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 QuotaUsageQueryService、管理员可信上下文、认证 cursor、canonical requestId 与 ent:grant:read。
+ * [INPUT]: 依赖 QuotaUsageQueryService、管理员可信上下文、认证 cursor、canonical requestId 与 ent:usage:read。
  * [OUTPUT]: 提供 GET `/enterprise/admin/v1/usage` 多维筛选、keyset page 与聚合。
  * [POS]: quota/web 的 prompt-free 用量管理入口，cursor AAD 绑定全部筛选条件。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -47,7 +47,7 @@ public final class AdminUsageController {
     }
 
     @GetMapping
-    @SaCheckPermission("ent:model:read")
+    @SaCheckPermission("ent:usage:read")
     public EnterpriseResponse<UsageLedgerPageView> list(
         @RequestParam(required = false) String cursor,
         @RequestParam(defaultValue = "50") int limit,

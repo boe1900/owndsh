@@ -17,7 +17,7 @@ src/main/java/org/dromara/enterprise/audit/: 31-action 显式 metadata DTO、只
 src/main/java/org/dromara/enterprise/deployment/: deploy profile 一次性管理员、PostgreSQL 锁和初始化完成标记边界；局部地图见 deployment/CLAUDE.md。
 src/main/java/org/dromara/enterprise/crypto/: HKDF-SHA-256 用途派生与 AES-256-GCM 秘密/cursor 保护，不暴露 master key 或派生 key。
 src/main/java/org/dromara/enterprise/revision/: 固定 BOOTSTRAP scope 的 optimistic CAS、稳定冲突错误码与审计同事务编排。
-src/main/resources/db/migration/: PostgreSQL `V1` 至 `V22` 真源，建立企业事实、审计/RBAC、Harness 模型配置、产品作用域、成员治理与身份生命周期；局部地图见 db/migration/CLAUDE.md。
+src/main/resources/db/migration/: PostgreSQL `V1` 至 `V23` 真源，建立企业事实、审计/RBAC、Harness 模型配置、产品作用域、成员治理、身份生命周期与产品用量权限；局部地图见 db/migration/CLAUDE.md。
 src/main/resources/static/enterprise/auth/: 无 Token 的公开身份源选择、LOCAL 首次改密/验证码、LDAP 密码与 OIDC 跳转页；局部地图见 auth/CLAUDE.md。
 src/test/java/org/dromara/enterprise/: 单元和 Testcontainers 集成验收，覆盖数据库、身份、PKCE/Redis、设备、模型、配额、插件、协议和事务边界。
 

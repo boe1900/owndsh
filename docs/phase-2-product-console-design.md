@@ -795,6 +795,10 @@ P2-08 首轮验收证据（2026-09-01）：同一持久 PostgreSQL/Redis 数据�
 
 P2-08 新 bundle 复验证据（2026-09-02）：同一 bundle tgz 通过官方 `dsh plugin --profile web add` 安装到隔离 Web 与 Desktop 当前使用的持久 profile，进程重启后安装产物均包含终态 quota 分类。Web Harness 重新登录并继续使用 `gpt-5.6-sol / Xhigh`；组织每日 Token 设为 `1` 后，真实请求约 3.6 秒返回 `ENT_QUOTA_DAILY_EXCEEDED`、provider `type: quota_exceeded` 和 Harness `QUOTA`，页面未出现重试状态，Gateway 在该轮仅收到 1 个模型 POST。数据库只新增 1 条 `QUOTA_REJECTED/DAILY` 审计，无 reservation、ledger 或上游调用。恢复 `daily/monthly=null` 后，新会话返回指定文本；主调用结算 `10,338` Token，会话标题调用结算 `4,525` Token，两者均各自形成 `MODEL_REQUEST_ACCEPTED/FINISHED`、upstream request ID 和 ledger 闭环。新登录管理会话的成员目录正常返回，先前 403 确认为旧 Token 权限快照而非 RBAC 缺陷。P2-08 余项收敛为五角色矩阵、Member/RPM/并发、插件安装回滚、身份源、静态资源切换及升级/回滚演练。
 
+P2-08 配额与速率复验证据（2026-09-02）：Member DAILY 拒绝请求 `req_01M1FR9BKKPK252APJT5JDN9X2` 形成唯一 `QUOTA_REJECTED / DAILY` 终态，reservation 与 ledger 均为 `0`；RPM 拒绝请求 `req_01M1FRD8EHJ303AW4598E73GW9` 后，允许请求 `req_01M1FRD8EF67D5R0DFWH302CQX` 成功结算 `10,330 Token`；并发拒绝请求 `req_01M1FRKC1VZJ88QNHRAMCQ5FQ7` 与允许请求 `req_01M1FRKC1S3398PHEY2GAAZN7A` 分别落入拒绝和成功路径，成功调用结算 `10,336 Token`，结束后 Redis concurrency lease `ZCARD=0`。组织策略已恢复 `daily_token_limit=null`、`monthly_token_limit=null`、`rpm=20`、`concurrency=2`，验证没有用极大数字模拟无限额，也没有遗留并发租约。
+
+P2-08 五角色复验证据（2026-09-02）：真实 Server API 矩阵中，`enterprise_admin` 可访问全部代表 API；`model_admin` 仅模型、授权、限额、成员目录和用量返回 `200`；`plugin_admin` 仅插件和成员目录返回 `200`；`auditor` 仅用量、审计和 Session 返回 `200`；`employee` 的全部管理 API 返回 `403` 而 bootstrap 保持 `200`。真实 UI 同步验证企业管理员六个产品页面、模型管理员三个页面、插件管理员两个页面、审计员仅活动记录、员工明确 `/403`，无权直接路由均回到该角色首个合法页面。测试首次暴露 auditor 因用量页借用 `ent:model:read` 而可读取模型 API；V23 新增独立 `ent:usage:read`，同时收回 auditor 的 device/model/grant 历史读取权限，并由 RBAC/API 契约 `7/7`、活动分段测试 `1/1`、V1→V23 连续 migration 和真实五角色 API/UI 矩阵共同回归。四个临时角色账号、身份、登录态、审计和登录日志已在验收后精确清理。
+
 ## 15. 完成定义
 
 第二阶段只有同时满足以下条件才算完成：

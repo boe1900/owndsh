@@ -26,5 +26,6 @@ V19__product_member_read_permission.sql: 新增独立成员目录读取权限并
 V20__product_member_management.sql: 为 sys_user 增加 revision 与成员写权限，只允许 enterprise_admin 执行角色和状态治理。
 V21__product_member_identity_unlink.sql: 将 USER_UNLINKED 加入数据库审计 action 白名单，不改写已有事件。
 V22__identity_source_provisioning_mode.sql: 增加 JIT/LINK_ONLY 身份源生命周期约束，现有 OIDC/LDAP 保持 JIT、LOCAL 固定 LINK_ONLY。
+V23__product_usage_read_permission.sql: 新增独立用量读取权限，并收回 auditor 对模型、授权和设备管理 API 的历史读取能力。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

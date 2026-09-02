@@ -10,7 +10,7 @@ import { activitySectionsFor, sessionActionsFor } from './activity-page';
 
 describe('activitySectionsFor', () => {
   it('maps auditor and specialist permissions without broadening writes', () => {
-    const auditor = ['ent:model:read', 'ent:audit:read', 'ent:session:read', 'ent:session:content:read'];
+    const auditor = ['ent:usage:read', 'ent:audit:read', 'ent:session:read', 'ent:session:content:read'];
     expect(activitySectionsFor(auditor)).toEqual(['用量', '审计', 'Session']);
     expect(sessionActionsFor(auditor)).toEqual({ canReadContent: true, canDelete: false });
     expect(activitySectionsFor(['ent:plugin:read'])).toEqual(['运行异常']);

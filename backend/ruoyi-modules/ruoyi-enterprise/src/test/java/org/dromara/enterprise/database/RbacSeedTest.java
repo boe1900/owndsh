@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 V4/V19/V20 固定 sys_role/sys_menu/sys_role_menu seed 与不可变 trigger。
- * [OUTPUT]: 验证五角色、16 权限码、最小角色集合和 built-in 数据库保护。
+ * [INPUT]: 依赖 V4/V19/V20/V23 固定 sys_role/sys_menu/sys_role_menu seed 与不可变 trigger。
+ * [OUTPUT]: 验证五角色、17 权限码、最小角色集合和 built-in 数据库保护。
  * [POS]: T03 RBAC seed 退出门禁，确保权限真源不是 remark 或仅靠 UI 约定。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -46,21 +46,21 @@ class RbacSeedTest {
             "ent:grant:read", "ent:grant:write",
             "ent:plugin:read", "ent:plugin:write",
             "ent:session:read", "ent:session:delete", "ent:session:content:read",
-            "ent:audit:read", "ent:member:read", "ent:member:write"
+            "ent:audit:read", "ent:member:read", "ent:member:write", "ent:usage:read"
         );
     }
 
     @Test
     void grantsSpecializedRolesOnlyTheirFrozenPermissionSets() {
         assertThat(permissionsFor("model_admin")).containsExactlyInAnyOrder(
-            "ent:model:read", "ent:model:write", "ent:grant:read", "ent:grant:write", "ent:member:read"
+            "ent:model:read", "ent:model:write", "ent:grant:read", "ent:grant:write", "ent:member:read",
+            "ent:usage:read"
         );
         assertThat(permissionsFor("plugin_admin")).containsExactlyInAnyOrder(
             "ent:plugin:read", "ent:plugin:write", "ent:member:read"
         );
         assertThat(permissionsFor("auditor")).containsExactlyInAnyOrder(
-            "ent:device:read", "ent:model:read", "ent:grant:read",
-            "ent:session:read", "ent:session:content:read", "ent:audit:read"
+            "ent:usage:read", "ent:session:read", "ent:session:content:read", "ent:audit:read"
         );
         assertThat(permissionsFor("employee")).isEmpty();
     }
