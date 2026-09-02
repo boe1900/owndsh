@@ -40,7 +40,7 @@ class PluginManifestSignerTest {
         byte[] signature = signer.sign(manifest);
 
         assertThat(new String(canonical, StandardCharsets.UTF_8)).isEqualTo("""
-            {"artifactId":"1901300000000000101","compatibility":{"enterpriseBundleRange":">=0.1.0 <0.2.0","harnessCommits":["99f6f02fecdb7dff40c3fbc9470f5907c29f74ca"],"operatingSystems":["darwin","linux"]},"packageName":"@example/acme-tools","sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","sizeBytes":4096,"version":"1.2.3"}
+            {"artifactId":"1901300000000000101","compatibility":{"enterpriseBundleRange":">=0.1.0 <0.2.0","harnessCommits":["b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"],"operatingSystems":["darwin","linux"]},"packageName":"@example/acme-tools","sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","sizeBytes":4096,"version":"1.2.3"}
             """.strip());
         assertThat(signature).hasSize(64);
         Signature verifier = Signature.getInstance("Ed25519");

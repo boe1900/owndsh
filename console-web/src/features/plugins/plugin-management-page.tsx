@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖生成的插件管理 operation、成员目录、console 权限事实、TanStack Query、ProductDataTable 与插件编辑器。
- * [OUTPUT]: 提供插件版本、ALL/USER 分配和设备状态三视图，以及上传、发布、退休与原子分配管理动作。
+ * [INPUT]: 依赖生成的插件管理 operation、浏览器原生 multipart、成员目录、console 权限事实、TanStack Query、ProductDataTable 与插件编辑器。
+ * [OUTPUT]: 提供插件 JSON part serializer、版本/ALL/USER 分配/设备状态三视图，以及上传、发布、退休与原子分配管理动作。
  * [POS]: features/plugins 的产品插件工作台；服务端负责验包、签名、状态机、分配裁决和设备事实。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -69,6 +69,13 @@ function unwrapData<T>(result: { data?: { data: T }; error?: EnterpriseErrorResp
 
 function requireSuccess(result: { error?: EnterpriseErrorResponse }, fallback: string) {
   if (result.error !== undefined) throw new Error(errorMessage(result.error, fallback));
+}
+
+export function serializePluginUpload(value: PluginUploadValue) {
+  const body = new FormData();
+  body.append('artifact', value.artifact);
+  body.append('compatibility', new Blob([JSON.stringify(value.compatibility)], { type: 'application/json' }));
+  return body;
 }
 
 async function loadPackages(cursor?: string) {
@@ -324,6 +331,7 @@ export function PluginManagementPage() {
     mutationFn: async (value: PluginUploadValue) => {
       const result = await uploadPluginVersion({
         body: value,
+        bodySerializer: () => serializePluginUpload(value),
         headers: { 'Idempotency-Key': crypto.randomUUID() }
       });
       requireSuccess(result, 'ENT_PLUGIN_UPLOAD_FAILED');

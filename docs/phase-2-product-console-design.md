@@ -799,6 +799,8 @@ P2-08 配额与速率复验证据（2026-09-02）：Member DAILY 拒绝请求 `r
 
 P2-08 五角色复验证据（2026-09-02）：真实 Server API 矩阵中，`enterprise_admin` 可访问全部代表 API；`model_admin` 仅模型、授权、限额、成员目录和用量返回 `200`；`plugin_admin` 仅插件和成员目录返回 `200`；`auditor` 仅用量、审计和 Session 返回 `200`；`employee` 的全部管理 API 返回 `403` 而 bootstrap 保持 `200`。真实 UI 同步验证企业管理员六个产品页面、模型管理员三个页面、插件管理员两个页面、审计员仅活动记录、员工明确 `/403`，无权直接路由均回到该角色首个合法页面。测试首次暴露 auditor 因用量页借用 `ent:model:read` 而可读取模型 API；V23 新增独立 `ent:usage:read`，同时收回 auditor 的 device/model/grant 历史读取权限，并由 RBAC/API 契约 `7/7`、活动分段测试 `1/1`、V1→V23 连续 migration 和真实五角色 API/UI 矩阵共同回归。四个临时角色账号、身份、登录态、审计和登录日志已在验收后精确清理。
 
+P2-08 受管插件复验证据（2026-09-02）：控制面以 Desktop `2.0.3` 派生 Harness commit `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e` 验包，新控制台 multipart 保留 tgz `File` 并以 `application/json` part 发送 compatibility。真实 `62207` Server 与源码 `62208` Web Harness 完成 `2.0.0` 发布分配、CLI 安装、`RESTART_REQUIRED`、重启后 `ACTIVE`，再切换 `1.0.0` 完成同样的回滚确认，最后以显式 `ABSENT / ALL` 分配执行卸载；重启登录后本地记录、profile dependency 和 `node_modules` 条目均消失。各阶段 bootstrap revision 从 `41` 递增到 `44`，无插件错误码。首次失败的根因是源码 Web Harness 没有可供子进程调用的 `dsh` 可执行文件；本地人工验收入口现仅生成临时 CLI shim 指回同一锁定 Harness 工作区，未修改生产 bundle、Desktop command port 或插件状态机。自动门禁中 Console Vitest `25/25`、production build、部署测试 `10/10`、后端签名测试 `2/2` 及 shell 语法均通过。P2-08 余项为身份源、静态资源切换及升级/回滚演练。
+
 ## 15. 完成定义
 
 第二阶段只有同时满足以下条件才算完成：

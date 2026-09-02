@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 deploy Compose/Nginx/脚本、application-deploy.yml、Docker Compose v2 与临时假 secret。
- * [OUTPUT]: 验证四服务拓扑、唯一 443 发布、新控制台/Harness 发布基线、镜像锁定、bootstrap overlay、deploy profile、API/SPA 路由、运维脚本与本地体验边界。
+ * [OUTPUT]: 验证四服务拓扑、唯一 443 发布、新控制台/Harness 发布基线、镜像锁定、bootstrap overlay、deploy profile、API/SPA 路由、运维脚本与源码 CLI 可调和的本地体验边界。
  * [POS]: T21/P2-08 部署与本地人工验收静态门禁，先于昂贵镜像构建发现配置漂移且不接触生产 secret。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -293,6 +293,8 @@ test('local demo starts one real Harness without candidate automation', () => {
   const localDemo = read('scripts/local-demo.sh')
   assert.match(localDemo, /plugin --profile web add --ignore-scripts/)
   assert.match(localDemo, /dsh --profile web --port "\$harness_port"/)
+  assert.match(localDemo, /EAP_LOCAL_HARNESS_ROOT=.*PATH="\$harness_bin:\$PATH"/)
+  assert.match(localDemo, /exec corepack pnpm@11\.7\.0 --dir "\$EAP_LOCAL_HARNESS_ROOT" dsh "\$@"/)
   assert.match(localDemo, /NODE_EXTRA_CA_CERTS=/)
   assert.equal(localDemo.match(/-days 365/g)?.length, 2)
   assert.doesNotMatch(localDemo, /-days 2(?:\s|$)/)

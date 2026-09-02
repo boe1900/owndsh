@@ -16,7 +16,7 @@ public record PluginCompatibility(
     String enterpriseBundleRange,
     List<String> operatingSystems
 ) {
-    public static final String LOCKED_HARNESS_COMMIT = "99f6f02fecdb7dff40c3fbc9470f5907c29f74ca";
+    public static final String LOCKED_HARNESS_COMMIT = "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e";
     private static final Pattern COMMIT = Pattern.compile("^[0-9a-f]{40}$");
     private static final Set<String> OPERATING_SYSTEMS = Set.of("darwin", "linux", "win32");
 

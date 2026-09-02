@@ -3,7 +3,7 @@
 Java 21 + Spring Boot 4.1 + Sa-Token + PostgreSQL + React 19 + TypeScript + DeepSeek Harness 插件
 
 <directory>
-admin-web/ - plus-ui React 管理端锁定源码，承载 enterprise-admin PKCE、动态权限路由与企业治理页面
+admin-web/ - 第一阶段 plus-ui React 锁定源码，仅作业务行为与 API 兼容参考，P2-09 删除
 backend/ - RuoYi-Vue-Plus 后端锁定源码，T03 起承载 ruoyi-enterprise 模块
 console-web/ - 第二阶段独立 Vite/TanStack 产品控制台，使用静态路由与 OpenAPI Fetch client，不依赖旧 Umi 管理端
 contracts/ - OpenAPI 3.1 协议真源、跨语言 schema 和 fixture 验收
@@ -27,6 +27,6 @@ T00 建立上游源码与插件工作区，T01 验证官方插件扩展面，T02
 
 T18 在 T16/T17 Session 纵向边界上交付管理 metadata/正文/删除页和桌面同步/恢复/删除 tab，并以耐久 `DELETED` 游标阻止 Harness 重启后自动重传。T19 建立封闭 action metadata 白名单、tenant 隔离审计查询、365 天有界 retention、用户治理事务接缝和 heartbeat 防洪。T20 建立默认同源 CORS、无已知 JWT secret、分层请求体上限、graceful drain、未知故障日志隔离、CI 秘密扫描和 PostgreSQL/Redis/artifact/key 恢复演练。T21 建立锁定 Linux amd64 release、TLS Compose、一次性管理员、secret、健康检查、备份恢复、升级与仅应用回滚。T22 退役跨模块自动总编排，改由单后端、单 Harness 的无时限本地环境逐功能人工验收；T23 在 T22 人工确认完成前不启动。
 
-第二阶段 P2-00 至 P2-07 已完成设计冻结、独立 `console-web`、Beautiful UI 产品壳、PKCE/固定角色路由、模型与访问策略、插件、成员与多身份，以及权限裁剪的用量/审计/Session/运行异常和身份源/健康设置；P2-08 已完成真实 Harness/Desktop 模型调用、Organization/Member/RPM/并发和五角色矩阵 E2E，继续执行插件回滚、身份源、静态资源切换及升级/回滚演练，旧 `admin-web` 只保留为切换前运行面。
+第二阶段 P2-00 至 P2-07 已完成设计冻结、独立 `console-web`、Beautiful UI 产品壳、PKCE/固定角色路由、模型与访问策略、插件、成员与多身份，以及权限裁剪的用量/审计/Session/运行异常和身份源/健康设置；P2-08 已完成真实 Harness/Desktop 模型调用、Organization/Member/RPM/并发、五角色矩阵与受管插件安装/回滚/卸载 E2E，继续执行身份源、静态资源切换及升级/回滚演练，旧 `admin-web` 只作行为参考并在 P2-09 移除。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

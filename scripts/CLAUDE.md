@@ -7,7 +7,7 @@
 bootstrap-harness.ps1: Windows/PowerShell 开发环境入口，读取版本锁并准备同级 Harness checkout。
 bootstrap-harness.sh: macOS/Linux 开发环境入口，执行与 PowerShell 脚本相同的版本锁校验和 checkout 准备。
 bootstrap-desktop.mjs: 跨平台 Desktop 开发环境入口，按发行锁准备同级 Desktop checkout 及其 Harness submodule，拒绝污染或版本漂移。
-local-demo.sh: 人工验收唯一启动入口，以一年期本机 CA/TLS 证书、全新临时 release 后端和单个真实系统浏览器 Harness 提供无自动业务操作的本地体验环境。
+local-demo.sh: 人工验收唯一启动入口，以一年期本机 CA/TLS 证书、全新临时 release 后端和源码 CLI shim 驱动的单个真实浏览器 Harness 提供可执行受管插件调和且无自动业务操作的本地体验环境。
 scan-sensitive-logs.mjs: CI 日志流式扫描器，检测常见凭据形状与外置受控 literal 且不回显命中内容。
 scan-sensitive-logs.test.mjs: 日志扫描器自验，覆盖递归干净日志、Bearer 与受控明文失败。
 t20-recovery-drill.sh: 隔离 Docker 故障演练，覆盖 PostgreSQL/Redis kill-restart、全新恢复、artifact/key 分离备份与只读磁盘。

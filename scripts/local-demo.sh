@@ -1,6 +1,6 @@
 #!/bin/sh
 # [INPUT]: 依赖 Linux amd64 Docker、OpenSSL、Node/pnpm、锁定 release 与同级干净 Harness；可选复用 EAP_LOCAL_RELEASE_TARBALL。
-# [OUTPUT]: 在全新临时状态中启动正式后端、签发一年期本机证书、安装企业 bundle 并启动真实浏览器 Harness，持续到 Ctrl+C。
+# [OUTPUT]: 在全新临时状态中启动正式后端、签发一年期本机证书、安装企业 bundle，并以源码 CLI shim 启动真实浏览器 Harness，持续到 Ctrl+C。
 # [POS]: 人工功能验收的唯一启动入口，不运行 Playwright、候选 fixture、多设备控制面、截图或自动业务操作。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -13,6 +13,7 @@ temporary_root=$(mktemp -d "${TMPDIR:-/tmp}/enterprise-local-demo.XXXXXX")
 state_directory="$temporary_root/state"
 release_output="$temporary_root/release"
 harness_log="$temporary_root/harness.log"
+harness_bin="$temporary_root/bin"
 release_project="eap-local-$(date +%s)-$$"
 harness_pid=
 release_root=
@@ -56,7 +57,12 @@ for command in curl docker node corepack openssl tar; do require_command "$comma
 [ -d "$harness_root/.git" ] || fail "同级 deepseek-harness 不存在"
 "$project_root/scripts/bootstrap-harness.sh" --check-only >/dev/null
 
-mkdir -p "$temporary_root/certificates" "$release_output"
+mkdir -p "$temporary_root/certificates" "$release_output" "$harness_bin"
+printf '%s\n' \
+  '#!/bin/sh' \
+  'exec corepack pnpm@11.7.0 --dir "$EAP_LOCAL_HARNESS_ROOT" dsh "$@"' \
+  > "$harness_bin/dsh"
+chmod 700 "$harness_bin/dsh"
 https_port=${EAP_LOCAL_HTTPS_PORT:-$(free_port)}
 harness_port=${EAP_LOCAL_HARNESS_PORT:-$(free_port)}
 for port in "$https_port" "$harness_port"; do
@@ -115,6 +121,7 @@ cp "$state_directory/harness/cordis.patch.yml" "$dsh_home/profiles/web/cordis.pa
 chmod 600 "$dsh_home/profiles/web/cordis.patch.yml"
 
 NODE_EXTRA_CA_CERTS="$temporary_root/certificates/ca.crt" DSH_HOME="$dsh_home" \
+  EAP_LOCAL_HARNESS_ROOT="$harness_root" PATH="$harness_bin:$PATH" \
   corepack pnpm@11.7.0 --dir "$harness_root" dsh --profile web --port "$harness_port" \
   > "$harness_log" 2>&1 &
 harness_pid=$!
