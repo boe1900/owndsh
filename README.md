@@ -1,8 +1,15 @@
+<!--
+[INPUT]: 依赖 OwnDsh 当前产品边界、上游版本锁、V1 功能清单与各阶段验收文档。
+[OUTPUT]: 提供仓库定位、目录、员工插件安装模型、开发入口和安全规则总览。
+[POS]: 项目公开入口，面向部署者与开发者导航到详细设计和可执行验收真源。
+[PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+-->
+
 # OwnDsh
 
 OwnDsh 是基于 DeepSeek Harness 构建的企业 Agent 管理平台。员工在本机运行 Harness，中心平台负责企业身份、受管模型、配额、插件分发和审计，不远程执行员工工具，也不挂载员工工作区；V1 保留现有 Session 服务端代码和数据，但客户端不执行 Session 同步。
 
-本仓库只保存企业产品自行开发的后台、管理端、Harness 企业插件、部署配置和文档，不复制或 fork DSH Desktop/DeepSeek Harness 源码。DSH Desktop 是发行基线，Harness 版本从其 gitlink 派生；精确 commit 分别记录在 [`upstream/dsh-desktop.lock.json`](upstream/dsh-desktop.lock.json) 和 [`upstream/deepseek-harness.lock.json`](upstream/deepseek-harness.lock.json)。
+本仓库只保存企业产品自行开发的后台、管理端、Harness 企业插件、部署配置和文档，不复制或 fork DSH Desktop/DeepSeek Harness 源码。DSH Desktop 是开发与发布验证基线，Harness 版本从其 gitlink 派生；精确 commit 分别记录在 [`upstream/dsh-desktop.lock.json`](upstream/dsh-desktop.lock.json) 和 [`upstream/deepseek-harness.lock.json`](upstream/deepseek-harness.lock.json)。发布插件不校验 Desktop 精确版本，按 Harness 官方包的兼容 peer 范围组合，并上报宿主提供的真实 Harness 版本。
 
 ## 当前阶段
 
@@ -11,8 +18,8 @@ T00 至 T21 已完成：仓库包含锁定产品源码、Harness 官方插件 wo
 ## 文档
 
 - [V1 产品功能清单](docs/v1-product-feature-catalog.md)：平台功能、当前状态、关键产品语义、发布门禁和明确非目标的范围真源。
-- [企业 Agent 工作平台预研](docs/enterprise-agent-work-platform.md)：产品形态、可行性、边界和长期方向。
-- [企业 Agent 治理平台 MVP 可执行详细设计](docs/enterprise-agent-governance-mvp-design.md)：冻结的技术决策、模块、接口、数据表、状态机、测试、T00-T23 实施顺序和验收标准。
+- [企业 Agent 工作平台预研](docs/owndsh-work-platform.md)：产品形态、可行性、边界和长期方向。
+- [企业 Agent 治理平台 MVP 可执行详细设计](docs/owndsh-governance-mvp-design.md)：冻结的技术决策、模块、接口、数据表、状态机、测试、T00-T23 实施顺序和验收标准。
 - [第二阶段产品控制台与成员身份收敛详细设计](docs/phase-2-product-console-design.md)：冻结 TanStack/Beautiful UI 新前端、产品功能裁剪、静态角色路由、多身份成员及授权/限额模型。
 - [Desktop 2.0.3 / Harness rc.2 基线迁移](docs/desktop-2.0.3-harness-rc2-migration.md)：Desktop 派生版本锁、插件影响、重试变化与 Web/Desktop 门禁证据。
 - [T01 技术刺探验收记录](docs/t01-technical-spike-acceptance.md)：官方插件路线修正、正式模块、自动测试、真实 package consumer、Harness Web 与浏览器验收证据。
@@ -21,7 +28,7 @@ T00 至 T21 已完成：仓库包含锁定产品源码、Harness 官方插件 wo
 - [T04 身份适配器验收记录](docs/t04-identity-adapter-acceptance.md)：OIDC/LDAP/LOCAL、稳定绑定、组映射、管理 API、cursor 和秘密隔离证据。
 - [T05 PKCE 与设备验收记录](docs/t05-pkce-device-acceptance.md)：Redis 一次性状态、固定 public client、Sa-Token 终端隔离、设备生命周期与公开登录页证据。
 - [T06 Harness 平台客户端验收记录](docs/t06-harness-platform-client-acceptance.md)：Service 状态机、内存 Token、bootstrap 刷新、本地 JSON/SSE、真实 tgz consumer 与锁定 Harness 组合证据。
-- [T07 员工登录 UI 验收记录](docs/t07-employee-login-ui-acceptance.md)：官方 Settings/sidebar/onboarding 路线、十态 UI、同源浏览器边界与真实 Harness 桌面流程证据。
+- [T07 员工插件门禁验收记录](docs/t07-employee-login-ui-acceptance.md)：标准插件唯一交付、官方 settings Server 持久化、全局登录门禁、失效重锁与宿主零修改证据。
 - [T08 模型管理验收记录](docs/t08-model-management-acceptance.md)：provider/model/grant API、密钥隔离、PostgreSQL 默认解析、bootstrap 模型目录与跨端协议证据。
 - [T09 配额管理验收记录](docs/t09-quota-management-acceptance.md)：叠加策略、冻结时区、并发预留、Redis lease、结算恢复、用量 API 与跨端协议证据。
 - [T10 模型网关验收记录](docs/t10-model-gateway-acceptance.md)：请求级授权、DeepSeek SSE、配额终态、首字节错误、审计原子性与敏感信息隔离证据。
@@ -35,7 +42,7 @@ T00 至 T21 已完成：仓库包含锁定产品源码、Harness 官方插件 wo
 - [T18 Session 页面验收记录](docs/t18-session-pages-acceptance.md)：管理正文权限/审计/tombstone、员工同步/恢复/删除与锁定 rc.7 重启不重传证据。
 - [T19 审计闭环验收记录](docs/t19-audit-closure-acceptance.md)：30-action metadata 白名单、requestId 关联、只读权限、retention、用户治理和 heartbeat 防洪证据。
 - [T20 安全与故障验收记录](docs/t20-security-fault-acceptance.md)：有界请求、同源 CORS、graceful drain、日志扫描、服务/磁盘故障与四类数据恢复证据。
-- [T21 部署交付验收记录](docs/t21-deployment-delivery-acceptance.md)：Linux amd64 release、TLS Compose、一次性管理员、secret、健康检查、备份恢复、升级与仅应用回滚证据。
+- [T21 部署交付验收记录](docs/t21-deployment-delivery-acceptance.md)：Linux amd64 release、HTTP Compose、一次性管理员、secret、健康检查、备份恢复、升级与仅应用回滚证据。
 - [T22 人工功能验收](docs/t22-manual-acceptance.md)：单后端/单 Harness 启动方式、自动总编排退役决策与逐功能确认清单。
 
 实现者先阅读 MVP 详细设计的第 1 至 21 节，再严格按照第 22 节任务依赖推进。发现设计矛盾时先修订设计并记录决定，不在代码中引入未经确认的替代方案。
@@ -53,7 +60,7 @@ owndsh/
   upstream/                    # 第三方仓库地址、版本和许可证记录，不存第三方源码
 ```
 
-Harness 企业插件位于本仓库的 `plugin/`，构建为预编译 `.tgz` bundle。普通 Web 通过 `dsh plugin --profile web add <bundle.tgz>` 安装；Desktop 通过其公开 profile/plugin command 服务管理当前 profile。插件只能依赖公开扩展点，不把修改后的第三方源码复制进本仓库。
+Harness 企业插件位于本仓库的 `plugin/`，构建为预编译 `.tgz` bundle。普通 Web 通过 `dsh plugin --profile web add <bundle.tgz>` 安装；Desktop 通过其公开 profile/plugin command 服务管理当前 profile。安装后员工只填写 OwnDsh Server 地址并登录，其他界面继续由官方宿主提供。插件只能依赖公开扩展点，不把修改后的第三方源码复制进本仓库。
 
 ## 上游关系
 
@@ -61,7 +68,7 @@ DSH Desktop 官方仓库：<https://github.com/anywhere-labs/dsh-desktop>
 
 DeepSeek Harness 官方仓库：<https://github.com/deepseek-ai/deepseek-harness>
 
-当前发行基线为 DSH Desktop `2.0.3`；其固定 Harness `0.1.1-rc.2`。Desktop 锁是主真源，Harness 锁必须与其 gitlink 完全一致。
+当前已验证基线为 DSH Desktop `2.0.3`；其固定 Harness `0.1.1-rc.2`。Desktop 锁是测试真源，Harness 锁必须与其 gitlink 完全一致；它们不构成用户安装时的精确版本拦截。
 
 开发工作区把官方 Harness clone 为本仓库的同级目录，不放入本仓库：
 
@@ -90,16 +97,15 @@ macOS/Linux 使用 POSIX shell：
 ./scripts/bootstrap-harness.sh
 ```
 
-首次导入产品上游基线时运行：
+校验本地 Desktop/Harness checkout 与产品锁定基线时运行：
 
 ```sh
-node scripts/upstream-baseline.mjs verify-locks
-node scripts/upstream-baseline.mjs import
+node scripts/upstream-baseline.mjs verify
 ```
 
-`import` 只允许 `server/` 不存在时执行，绝不覆盖已进入产品开发的后端。日常校验使用 `node scripts/upstream-baseline.mjs verify`；T00 的实际环境、命令和退出证据记录在 [`docs/t00-baseline-acceptance.md`](docs/t00-baseline-acceptance.md)。
+该命令只验证 Desktop、Harness 的仓库来源、锁定版本、gitlink 与工作区状态，不导入或覆盖 OwnDsh 自有代码；T00 的实际环境、命令和退出证据记录在 [`docs/t00-baseline-acceptance.md`](docs/t00-baseline-acceptance.md)。
 
-本项目不自动跟随上游默认分支。升级时先选择 Desktop 发行 commit，再从其 gitlink 派生 Harness 锁；随后运行企业登录、模型网关、插件安装、Session 同步和 Web/Desktop 组合测试。全部通过后，版本锁变更与必要适配在同一个 PR 提交。
+本项目不自动跟随上游默认分支。升级时先选择 Desktop 发行 commit，再从其 gitlink 派生 Harness 锁；随后运行企业门禁、模型网关、插件安装、Session 停用和 Web/Desktop 组合测试。全部通过后，版本锁变更与必要适配在同一个 PR 提交。
 
 日常开发不得修改同级 `deepseek-harness/`。确需验证官方尚未提供的扩展点时只能使用临时分支，最终结果必须形成官方可合并的通用 PR；产品任务等待包含该扩展点的新锁定 commit，不在本仓库长期维护 Harness patch。
 

@@ -41,7 +41,7 @@ node_modules/.bin/playwright test e2e/session-pages.spec.ts --reporter=list
 cd backend
 JAVA_HOME=/usr/local/opt/openjdk@21 \
 PATH=/usr/local/opt/openjdk@21/bin:$PATH \
-./mvnw -B -ntp -pl ruoyi-modules/owndsh-enterprise -am \
+./mvnw -B -ntp -pl owndsh-modules/owndsh-enterprise -am \
   -Dmaven.test.skip=false -DskipTests=false \
   -Dtest=SessionServerIntegrationTest \
   -Dsurefire.failIfNoSpecifiedTests=false test
@@ -108,7 +108,7 @@ node scripts/t01-harness-smoke.mjs
 ## 上游与边界
 
 ```sh
-node scripts/upstream-baseline.mjs verify-locks
+node scripts/upstream-baseline.mjs verify
 node scripts/upstream-baseline.mjs verify
 ./scripts/bootstrap-harness.sh --check-only
 git diff --check

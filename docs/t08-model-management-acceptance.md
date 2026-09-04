@@ -11,13 +11,13 @@ T08 已完成，且没有进入 T09。Server 已提供 provider、受管模型�
 `ent_model_provider`、`ent_managed_model` 和 `ent_model_grant`，没有新增 migration，也没有提前实现
 配额、模型网关、插件分发或 Session 同步。
 
-RuoYi PostgreSQL 基线的 `sys_user/sys_dept` 没有 `tenant_id`。详细设计第 5.1 节冻结的是单部署
+原始服务端框架 PostgreSQL 基线的 `sys_user/sys_dept` 没有 `tenant_id`。详细设计第 5.1 节冻结的是单部署
 固定 tenant，而不是 SaaS 多租户；因此企业模型链在 `ent_*` 表上按 tenant 约束，用户和部门使用
-部署内全局主键。本次真实 PostgreSQL 测试发现并纠正了把 tenant 列错误投射到 RuoYi 系统表的实现。
+部署内全局主键。本次真实 PostgreSQL 测试发现并纠正了把 tenant 列错误投射到 原始服务端框架 系统表的实现。
 
 ## 核心实现
 
-- `org.dromara.enterprise.model` 按 domain/application/persistence/web 分层，Spring composition root
+- `com.owndsh.enterprise.model` 按 domain/application/persistence/web 分层，Spring composition root
   只负责装配 JDBC ports、短事务服务、provider probe、有效模型 resolver 和 bootstrap service。
 - provider 支持 list/get/create/update/test/enable/disable；model 支持 CRUD、排序字段与启停；grant
   支持 list/create/update/delete 和最多 200 项的原子 batch create。19 个管理 operation 使用冻结的
@@ -29,7 +29,7 @@ RuoYi PostgreSQL 基线的 `sys_user/sys_dept` 没有 `tenant_id`。详细设计
 - 有效模型是当前 USER 与当前 DEPT 授权并集，并要求 grant、model、provider 三层 `ACTIVE`；默认
   优先级固定为 USER、DEPT、最小 `sortOrder` fallback，同模型重复授权只输出一次。
 - bootstrap 每次重新验证 Sa-Token terminal 对应设备的 owner、client 与 ACTIVE 状态，再读取当前
-  RuoYi 用户和有效模型。runtime 只获得 alias、显示名和模型能力，不获得 provider、base URL、
+  原始服务端框架 用户和有效模型。runtime 只获得 alias、显示名和模型能力，不获得 provider、base URL、
   upstream model 或 credential。
 
 ## 密钥与上游探测
@@ -63,7 +63,7 @@ T08 定向服务端门禁：
 ```sh
 JAVA_HOME=/usr/local/opt/openjdk@21 \
 PATH=/usr/local/opt/openjdk@21/bin:$PATH \
-./mvnw -pl ruoyi-modules/owndsh-enterprise -am \
+./mvnw -pl owndsh-modules/owndsh-enterprise -am \
   -Dmaven.test.skip=false \
   -Dsurefire.failIfNoSpecifiedTests=false \
   -Dtest=EffectiveModelResolverTest,ProviderProbeTest,T08ApiContractTest,ModelManagementIntegrationTest test
@@ -78,7 +78,7 @@ ACTIVE bootstrap、设备撤销和审计秘密扫描；WireMock probe 覆盖 Bea
 ```sh
 JAVA_HOME=/usr/local/opt/openjdk@21 \
 PATH=/usr/local/opt/openjdk@21/bin:$PATH \
-./mvnw -B -ntp -pl ruoyi-modules/owndsh-enterprise -am \
+./mvnw -B -ntp -pl owndsh-modules/owndsh-enterprise -am \
   -Dmaven.test.skip=false test
 ```
 

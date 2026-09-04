@@ -1,0 +1,4 @@
+com.owndsh.common.web.config.CaptchaConfig
+com.owndsh.common.web.config.FilterConfig
+com.owndsh.common.web.config.I18nConfig
+com.owndsh.common.web.config.ResourcesConfig

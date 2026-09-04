@@ -1,5 +1,5 @@
 <!--
-[INPUT]: 依赖锁定的 DSH Desktop/Harness 基线、第二阶段产品设计、OpenAPI 与当前身份、LDAP 目录、模型、配额、插件、设备和审计实现事实，以及 2026-09-03 确认的 V1 收口决定。
+[INPUT]: 依赖锁定的 DSH Desktop/Harness 基线、第二阶段产品设计、OpenAPI 与当前身份、LDAP 目录、模型、配额、插件、设备和审计实现事实，以及 2026-09-04 确认的插件交付边界。
 [OUTPUT]: 提供 OwnDsh V1 产品功能、交付状态、关键语义、发布门禁与明确非目标的单一清单。
 [POS]: 产品与验收人员判断“平台有什么、还缺什么、何时算完成”的 V1 范围真源；技术结构和历史证据仍由详细设计及验收文档负责。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -9,13 +9,13 @@
 
 状态：`scope-frozen-implementation-in-progress`
 
-更新日期：2026-09-03（Asia/Shanghai）
+更新日期：2026-09-04（Asia/Shanghai）
 
 适用基线：DSH Desktop `2.0.3`、DeepSeek Harness `0.1.1-rc.2`。
 
 ## 1. 文档定位
 
-本文是 V1 产品功能真源，回答三个问题：平台向管理员和员工提供什么能力，当前实现距离交付还差什么，以及发布前必须验证什么。技术架构、接口和数据库细节继续由[治理平台 MVP 详细设计](enterprise-agent-governance-mvp-design.md)与[第二阶段产品控制台设计](phase-2-product-console-design.md)负责；V1 全场景执行和证据统一记录在 [V1 E2E 验收](v1-e2e-acceptance.md)，历史任务证据继续保留在各阶段验收文档中。
+本文是 V1 产品功能真源，回答三个问题：平台向管理员和员工提供什么能力，当前实现距离交付还差什么，以及发布前必须验证什么。技术架构、接口和数据库细节继续由[治理平台 MVP 详细设计](owndsh-governance-mvp-design.md)与[第二阶段产品控制台设计](phase-2-product-console-design.md)负责；V1 全场景执行和证据统一记录在 [V1 E2E 验收](v1-e2e-acceptance.md)，历史任务证据继续保留在各阶段验收文档中。
 
 代码存在不等于 V1 已交付。本文使用以下状态：
 
@@ -32,6 +32,8 @@
 
 OwnDsh 是 DSH Desktop 和 DeepSeek Harness 的企业控制面。员工仍在本机运行 Harness、保留本地工作区、工具、终端和会话；平台只负责企业身份、受管模型、访问授权、Token 配额、速率控制、插件分发、设备治理、用量与审计。
 
+OwnDsh 不维护、复制或分叉官方 Web/Desktop UI。员工侧唯一交付物是标准 `owndsh-plugin`：安装后只填写 OwnDsh Server 地址，未配置、未登录、登录过期或设备撤销时由官方 `shell.overlay` 扩展点全屏阻断；认证可用后恢复官方原生界面。地址保存在 Harness 官方 settings 中，不要求员工修改 profile。
+
 平台不实现第二套模型 SDK。消息转换、tools、reasoning、SSE 解析和模型请求重试由锁定的 Harness `dsh-llm-pi-ai` 与 `dsh-llm-retry` 负责；企业网关只做认证、授权、限流、配额、审计、受管模型替换和上游密钥注入。
 
 V1 的两个使用面如下：
@@ -39,7 +41,7 @@ V1 的两个使用面如下：
 | 使用面 | 用户 | 核心流程 |
 |---|---|---|
 | 产品控制台 | 企业管理员、模型管理员、插件管理员、审计员 | 配置身份源、成员、模型、策略和插件，查询用量、审计与运行异常 |
-| DSH Desktop / Harness Web | 员工 | 企业登录，获取受管模型和插件，通过企业网关调用模型 |
+| 官方 DSH Desktop / Harness Web + `owndsh-plugin` | 员工 | 填写 Server 地址、企业登录、获取受管模型和插件，通过企业网关调用模型 |
 
 典型上线顺序固定为：身份源和成员 → 模型供应商和受管模型 → 用户组和模型集 → 模型授权 → Token/速率策略 → 插件分配 → 员工登录和调用 → 用量与审计。
 
@@ -48,7 +50,8 @@ V1 的两个使用面如下：
 | 功能域 | V1 功能 | 当前状态 |
 |---|---|---|
 | 企业登录 | 控制台、Desktop 和 Web Harness 使用 Authorization Code + PKCE 企业登录 | 已实现，待 V1 验收 |
-| 控制台会话 | Secure/HttpOnly/SameSite=Strict host-only Cookie、写请求同源校验、新标签复用、服务端注销 | 已实现，待真实浏览器验收 |
+| 客户端插件门禁 | 零配置安装、Server 地址持久化、全屏登录/失效门禁和显式整包卸载 | 已实现，待 V1 验收 |
+| 控制台会话 | HTTP(S) 自适应的 HttpOnly/SameSite=Strict host-only Cookie、写请求同源校验、新标签复用、服务端注销 | 已实现，待真实浏览器验收 |
 | 身份源 | LOCAL、LDAP、OIDC，显式字段/Claim 映射、连接测试、启停 | 已实现，待 V1 验收 |
 | 自动建号 | LDAP/OIDC 首次登录按稳定外部 subject JIT 建号 | 已实现，待 V1 验收 |
 | LDAP 导入 | 后台搜索 LDAP 目录并按需导入单个成员 | 已实现，待 V1 验收 |
@@ -96,7 +99,7 @@ V1 的两个使用面如下：
 - 管理员输入一次性初始密码，服务端按共享密码策略校验后只保存 BCrypt hash，并设置 `password_change_required=true`；API 响应、日志和审计不回显密码。
 - 新成员第一次使用初始密码认证后必须完成现有一次性 `CHANGE_PASSWORD` challenge，成功前不签发平台会话；challenge 不重放用户名、初始密码或验证码。
 - 工作区菜单在 `Sign out` 上方提供独立“用户中心”，`/account` 基本信息与 `/account/security` 安全设置分别承载只读事实和改密。当前用户必须提交正确旧密码，成功后服务端撤销该成员全部平台会话并删除管理端 Cookie；其他标签在下次请求或刷新时返回登录页。
-- 控制台 Token 只存在于 `__Host-enterprise-admin` Secure/HttpOnly/SameSite=Strict/host-only Cookie，JavaScript 不读取、不写入 localStorage/sessionStorage，也不注入 Authorization；服务端通过 Origin/Referer 拒绝显式跨源写请求。新标签直接通过 Cookie 请求 bootstrap，注销与改密后其他标签的下次请求返回 401。Desktop 继续使用 Host 内存 Bearer Token。
+- 控制台 Token 只存在于 HttpOnly/SameSite=Strict/host-only Cookie；HTTPS 使用 `__Host-enterprise-admin` 并设置 `Secure`，HTTP 使用 `enterprise-admin`。JavaScript 不读取、不写入 localStorage/sessionStorage，也不注入 Authorization；服务端通过 Origin/Referer 拒绝显式跨源写请求。新标签直接通过 Cookie 请求 bootstrap，注销与改密后其他标签的下次请求返回 401。Desktop 继续使用 Host 内存 Bearer Token。
 - LDAP/OIDC-only 成员没有 LOCAL 密码时，用户中心返回明确错误，不擅自创建本地凭据。V1 不提供管理员重置他人密码或“忘记密码”旁路；需要恢复时先绑定可认证外部身份，或由后续经过身份核验的恢复流程承接。
 
 ### 4.4 LDAP 单人导入
@@ -237,7 +240,7 @@ V1 必须区分三类 429：
 
 ## 9. 控制台与角色
 
-控制台使用静态 TanStack 路由和固定产品角色，不向客户暴露 RuoYi 菜单管理、权限树、部门、岗位、字典或系统参数后台。
+控制台使用静态 TanStack 路由和固定产品角色，不向客户暴露 原始服务端框架 菜单管理、权限树、部门、岗位、字典或系统参数后台。
 
 | 页面 | 企业管理员 | 模型管理员 | 插件管理员 | 审计员 |
 |---|---|---|---|---|
@@ -271,7 +274,7 @@ Session 同步不是 V1 产品功能，但现有代码和数据库不删除：
 - 审计覆盖登录、身份源、成员、用户组、模型、授权、配额、插件、设备和模型调用的重要动作。
 - API Key、平台 Token、密码、LDAP manager secret、OIDC client secret、模型请求正文和 Session 正文不得进入普通日志或审计 metadata。
 - 管理写操作使用幂等键和 revision CAS；并发修改返回明确冲突，不以最后写入静默覆盖。
-- PostgreSQL 保存业务与账本事实，Redis 保存短期登录状态、会话和限流租约；正式部署通过 TLS、健康检查、备份、恢复、升级和应用回滚门禁。
+- PostgreSQL 保存业务与账本事实，Redis 保存短期登录状态、会话和限流租约；正式 Compose 提供 HTTP、健康检查、备份、恢复、升级和应用回滚，需要 TLS 时由部署方外层网关终止。
 
 ## 12. V1 发布门禁
 
@@ -300,16 +303,18 @@ RATE 和 429 必须使用真实 Redis、真实 Java Server 与锁定 Harness 组
 
 发布候选必须同时完成 Desktop 和普通 Web Harness 流程：
 
-1. 管理员通过企业身份登录产品控制台。
-2. 创建 LOCAL 成员并验证首次登录强制改密和用户中心改密；或配置 LDAP/OIDC，通过 LDAP 有界搜索导入单个成员，并从 LDAP 目录选择组映射到产品用户组。
-3. 配置 DeepSeek 官方和自定义供应商，发现或手工添加模型并组成模型集。
-4. 使用全员、LDAP 映射用户组和成员授权，确认登录/重新导入会刷新组关系，空组会撤销旧授权，客户端只显示并只能调用被授权模型。
-5. 分别通过 Chat Completions、Responses 和 Anthropic Messages 完成真实流式调用、usage 结算和推理档位验证。
-6. 验证四种 Token 窗口、供应商/组织/成员 RPM 与并发，以及重叠策略。
-7. 验证上游 429 自动重试、企业配额终态不重试，以及失败后租约和预留正确收敛。
-8. 完成插件安装、升级、回滚和卸载，重启后库存与控制台一致。
-9. 验证用量和审计能够用同一 request ID 关联一次模型请求，且没有正文和 secret。
-10. 验证整个流程不产生 Session 同步请求，刷新和重启后仍不执行同步。
+1. 在未修改的官方宿主安装 `owndsh-plugin`，不编辑 profile；只填写 Server 地址，重启后地址仍然存在。
+2. 验证未配置、未登录、登录过期和设备撤销均全屏阻断，登录成功后恢复官方界面；显式卸载移除 OwnDsh 与受管插件，Desktop 自动重启、Web 提示重启。
+3. 管理员通过企业身份登录产品控制台。
+4. 创建 LOCAL 成员并验证首次登录强制改密和用户中心改密；或配置 LDAP/OIDC，通过 LDAP 有界搜索导入单个成员，并从 LDAP 目录选择组映射到产品用户组。
+5. 配置 DeepSeek 官方和自定义供应商，发现或手工添加模型并组成模型集。
+6. 使用全员、LDAP 映射用户组和成员授权，确认登录/重新导入会刷新组关系，空组会撤销旧授权，客户端只显示并只能调用被授权模型。
+7. 分别通过 Chat Completions、Responses 和 Anthropic Messages 完成真实流式调用、usage 结算和推理档位验证。
+8. 验证四种 Token 窗口、供应商/组织/成员 RPM 与并发，以及重叠策略。
+9. 验证上游 429 自动重试、企业配额终态不重试，以及失败后租约和预留正确收敛。
+10. 完成受管插件安装、升级、回滚和卸载，重启后库存与控制台一致。
+11. 验证用量和审计能够用同一 request ID 关联一次模型请求，且没有正文和 secret。
+12. 验证整个流程不产生 Session 同步请求，刷新和重启后仍不执行同步。
 
 ## 13. V1 明确不做
 
@@ -320,7 +325,7 @@ RATE 和 429 必须使用真实 Redis、真实 Java Server 与锁定 Harness 组
 - 金额、价格、倍率、余额、套餐、订阅和账单。
 - 服务端模型重试、长连接排队、自动供应商限流探测、自动故障转移和负载均衡。
 - MCP 配置与 Coding Rules 专用产品入口。
-- 自定义角色、菜单管理、部门、岗位、权限树和通用 RuoYi 系统管理页面。
+- 自定义角色、菜单管理、部门、岗位、权限树和通用 原始服务端框架 系统管理页面。
 - 客户端工作区、源代码、终端进程和工具执行的远程控制。
 
 ## 14. 已收口事项

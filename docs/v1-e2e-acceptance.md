@@ -152,7 +152,7 @@
 | 时间 | 命令/环境 | 结果 | 证据摘要 |
 |---|---|---|---|
 | 2026-09-03 | `OWNDSH_E2E_ADMIN_PASSWORD=*** node scripts/v1-e2e.mjs`，`runId=2ba8c996` | PASS | E01-E47 共 46 个纵向场景连续通过；覆盖真实部署、LOCAL/LDAP/OIDC、五角色、模型/配额/RATE、锁定 Harness 三协议与重试、插件生命周期、设备、审计及 Session 停用 |
-| 2026-09-03 | `./mvnw -B -ntp -Dmaven.test.skip=false -DskipTests=false test` | PASS | 41 个 Reactor 模块成功；`owndsh-enterprise` 163/163、`owndsh-server` 13/13、`ruoyi-common-web` 5/5 |
+| 2026-09-03 | `./mvnw -B -ntp -Dmaven.test.skip=false -DskipTests=false test` | PASS | 41 个 Reactor 模块成功；`owndsh-enterprise` 163/163、`owndsh-server` 13/13、`owndsh-common-web` 5/5 |
 | 2026-09-03 | `corepack pnpm@11.24.0 check`（Console） | PASS | OpenAPI 生成、Vite production build、TypeScript 及 Vitest 38/38 通过 |
 | 2026-09-03 | `corepack pnpm@11.7.0 check`（Harness） | PASS | 7 个插件包 77 项、workspace 4 项通过；contracts `check:generated` 无漂移 |
 | 2026-09-03 | 部署、基线与格式门禁 | PASS | 部署 10/10；Desktop 派生 Harness `0.1.1-rc.2` commit `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`；`git diff --check` 通过 |

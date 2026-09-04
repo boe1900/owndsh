@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:enterprise-agent:contracts:QuotaPolicyListResponse",
+  "$id": "urn:owndsh:contracts:QuotaPolicyListResponse",
   "type": "object",
   "additionalProperties": false,
   "required": [

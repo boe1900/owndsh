@@ -53,7 +53,7 @@ Sources:
 Password:
   post:
     operationId: completePasswordLogin
-    summary: Authenticate over HTTPS or complete a one-time LOCAL password-change challenge in the same transaction.
+    summary: Authenticate over HTTP(S) or complete a one-time LOCAL password-change challenge in the same transaction.
     security: []
     requestBody:
       required: true

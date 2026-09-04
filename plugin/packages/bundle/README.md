@@ -1,15 +1,22 @@
+<!--
+[INPUT]: 依赖 bundle manifest/profile patch、Host 组合根、官方模型适配与 Client 门禁实现。
+[OUTPUT]: 提供 owndsh-plugin 安装、可选部署默认值、信任根和 Web/Desktop 运行边界说明。
+[POS]: 可发布员工插件的使用入口，定义安装后只填 Server 与官方宿主零分叉契约。
+[PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+-->
+
 # owndsh-plugin
 
-Prebuilt enterprise composition package for the locked Harness release. It
+Prebuilt enterprise composition package for compatible Harness releases. It
 ships one Cordis Host plugin, one `dsh.client` lazy-CJS browser bundle, and the
 `cordis.patch.yml` layer that inserts the row by bare package name.
 
 The profile layer sets provider `enterprise` and model `enterprise/default` on
 `agent-default-model`, disables the built-in DeepSeek and pi-ai provider rows,
 and disables the personal Models settings page. The Host plugin configures the
-official rc.2 `dsh-llm-pi-ai` adapter through `ctx.llm`, and mounts distribution
+official `dsh-llm-pi-ai` adapter through `ctx.llm`, and mounts distribution
 through ordinary `ctx.subprocess`/`ctx.pluginInventory` or Desktop's public
-`desktopProfiles`/`desktopPnpm` services. Exact rc.2 peers resolve from the Host dependency fallback instead of
+`desktopProfiles`/`desktopPnpm` services. Harness peers use the official caret-compatible release line and resolve from the Host dependency fallback instead of
 installing second Service Definitions into the profile. V1 does not inject the
 official Session Services or construct `EnterpriseSessionSyncService`; the
 independent Session implementation remains in the repository for a later release.
@@ -21,18 +28,25 @@ not installed dependencies. Install it with:
 dsh plugin --profile <profile> add ./owndsh-plugin-0.1.0.tgz
 ```
 
-The profile overlay must set `config.baseUrl` to the enterprise platform HTTPS
-origin and `config.trustedPluginPublicKey` to the installation-owned Ed25519
-SPKI public key; neither has a runtime default. The platform bootstrap cannot
-replace that trust root. `bootstrapIntervalMs`, `requestTimeoutMs`,
+After installation, the employee only enters the OwnDsh Server origin in the
+full-screen access gate. The value is saved by the official Harness settings
+service; `config.baseUrl` is only an optional deployment default. An installer
+may embed the deployment-owned Ed25519 `config.trustedPluginPublicKey`; when it
+is absent, login and model access still work but managed-plugin installation
+fails closed. The platform bootstrap cannot replace that trust root.
+`bootstrapIntervalMs`, `requestTimeoutMs`,
 `disposeTimeoutMs`, managed profile and `dshCommand` use the detailed-design
 defaults unless the installation layer overrides them. The authenticated
 bootstrap explicitly publishes `sessionPolicy.enabled=false`. The Host half publishes `ctx.enterprisePlatform`
 and mounts only same-origin `/enterprise/api/v1/local/*` JSON/SSE routes. Model
 streams do not traverse that browser control plane: the official adapter uses a
-random-port, random-bearer Host-only loopback proxy, which calls the enterprise
-HTTPS center through the in-memory authenticated Service.
-The Client half adds only the official settings shell to its T07 module graph,
-then contributes Enterprise settings, footer status, and onboarding slots.
-`enableTechnicalProbe` may allow an HTTP loopback fake platform for acceptance;
-released profiles keep it disabled and require the HTTPS origin.
+random-port, random-bearer Host-only loopback proxy, which calls the configured
+HTTP(S) enterprise center through the in-memory authenticated Service.
+The Client half uses only official Client modules, then contributes Enterprise
+settings, footer status, and a global `shell.overlay` access gate. OwnDsh does
+not ship or maintain a replacement Harness Web/Desktop UI.
+`enableTechnicalProbe` only enables the acceptance-only Session-copy route; it
+does not alter Server URL validation. Both HTTP and HTTPS origins are accepted,
+while production deployments should prefer HTTPS.
+
+DSH Desktop `2.0.3` / Harness `0.1.1-rc.2` is the verified baseline, not an exact Desktop runtime lock. The bundle reads the actual Harness version from `@deepseek-ai/dsh-llm` and its own version from this package manifest. On a compatible but not yet commit-verified Harness, login and model access remain available; center-managed third-party artifacts fail closed until their exact Harness commit is approved.

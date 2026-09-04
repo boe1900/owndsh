@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>owndsh-parent</artifactId>
+        <groupId>com.owndsh</groupId>
+        <version>${revision}</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>owndsh-common</artifactId>
+    <packaging>pom</packaging>
+
+    <description>
+        common 通用模块
+    </description>
+
+    <modules>
+        <module>owndsh-common-core</module>
+        <module>owndsh-common-doc</module>
+        <module>owndsh-common-excel</module>
+        <module>owndsh-common-log</module>
+        <module>owndsh-common-mybatis</module>
+        <module>owndsh-common-oss</module>
+        <module>owndsh-common-redis</module>
+        <module>owndsh-common-satoken</module>
+        <module>owndsh-common-security</module>
+        <module>owndsh-common-web</module>
+        <module>owndsh-common-translation</module>
+        <module>owndsh-common-sensitive</module>
+        <module>owndsh-common-json</module>
+        <module>owndsh-common-encrypt</module>
+        <module>owndsh-common-push</module>
+    </modules>
+
+</project>

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 bundle manifest/Config/patch、构建产物和 Node vm 中的官方 React lazy-CJS seed 模型
- * [OUTPUT]: 验证 dsh.bundle/dsh.client、官方 pi-ai/分发注入、V1 Session 停用、固定信任根、Harness peers 与 Client apply
+ * [OUTPUT]: 验证 dsh.bundle/dsh.client、官方 pi-ai/分发注入、V1 Session 停用、运行时版本来源、兼容 Harness peers 与 Client apply
  * [POS]: bundle 发布不变量测试，拒绝 Typert ambient shim、Harness 源码路径和未打包运行依赖
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -23,17 +23,18 @@ describe('enterprise bundle', () => {
     expect(manifest.dsh.client).toMatchObject({ platform: 'web' })
     expect(manifest.dsh.client.inject).toEqual([
       '@deepseek-ai/dsh-client-runtime',
+      '@deepseek-ai/dsh-client-ui-layout',
       '@deepseek-ai/dsh-client-ui-sidebar',
       '@deepseek-ai/dsh-client-ui-settings-general',
     ])
     expect(manifest.dependencies).toBeUndefined()
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-llm']).toBe('0.1.1-rc.2')
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-llm-pi-ai']).toBe('0.1.1-rc.2')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-llm']).toBe('^0.1.1-rc.2')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-llm-pi-ai']).toBe('^0.1.1-rc.2')
     expect(manifest.peerDependencies['@deepseek-ai/dsh-session']).toBeUndefined()
     expect(manifest.peerDependencies['@deepseek-ai/dsh-session-persistence']).toBeUndefined()
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-subprocess']).toBe('0.1.1-rc.2')
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-host-plugin-inventory']).toBe('0.1.1-rc.2')
-    expect(manifest.peerDependencies['@deepseek-ai/schemastery']).toBe('3.18.1')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-subprocess']).toBe('^0.1.1-rc.2')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-host-plugin-inventory']).toBe('^0.1.1-rc.2')
+    expect(manifest.peerDependencies['@deepseek-ai/schemastery']).toBe('^3.18.1')
     expect(inject).toEqual([
       'webServer', 'llm', 'subprocess', 'pluginInventory',
     ])
@@ -47,6 +48,7 @@ describe('enterprise bundle', () => {
       requestTimeoutMs: 30_000,
       disposeTimeoutMs: 3_000,
     })
+    expect(Config({})).toMatchObject({ baseUrl: '', trustedPluginPublicKey: '' })
     const patch = await readFile(resolve(ROOT, 'cordis.patch.yml'), 'utf8')
     expect(patch).toContain("name: 'owndsh-plugin'")
     expect(patch).toMatch(/id: agent-default-model[\s\S]*provider: enterprise[\s\S]*model: enterprise\/default/)
@@ -54,6 +56,10 @@ describe('enterprise bundle', () => {
       expect(patch).toMatch(new RegExp(`id: ${id}\\n  disabled: true`))
     }
     expect(patch).not.toContain('deepseek-harness')
+    const source = await readFile(resolve(ROOT, 'src/index.ts'), 'utf8')
+    expect(source).toContain('const HARNESS_VERSION = APP_IDENTITY.version')
+    expect(source).toContain("createRequire(import.meta.url)('../package.json')")
+    expect(source).not.toContain("const HARNESS_VERSION = '0.1.1-rc.2'")
   })
 
   it('materializes the built lazy-CJS Client factory and registers the footer slot', async () => {

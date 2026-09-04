@@ -6,7 +6,7 @@
 
 ## 实际修改路径
 
-- `server/`：从 RuoYi-Vue-Plus `v6.0.0` 的提交 `7180b529776834fee912113b23f0bd7a387a8222` 导入，不含上游 `.git`；产品导入工具补齐 `mvnw` Unix 执行位。
+- `server/`：从 原始服务端框架-Vue-Plus `v6.0.0` 的提交 `7180b529776834fee912113b23f0bd7a387a8222` 导入，不含上游 `.git`；产品导入工具补齐 `mvnw` Unix 执行位。
 - `admin-web/`：从 plus-ui `6.X-React` 的提交 `29fc02f0a6d5a2462872487524a11c64e956534b` 导入，不含上游 `.git`；按机器锁补入上游历史 MIT `LICENSE`。
 - `plugin/`：建立与锁定 Harness 相同 Node/pnpm 约束的独立空 workspace；T01 才创建首批技术刺探包。
 - `scripts/upstream-baseline.mjs`：校验三个版本锁、验证远端引用、原子导入两个产品源码快照并检查同级 Harness。
@@ -39,7 +39,7 @@
 | `./scripts/bootstrap-harness.sh --check-only` | 成功；构建后 Harness 仍位于锁定提交且 `git status --porcelain` 为空 |
 | `git diff --cached --check -- . ':(exclude)server/**' ':(exclude)admin-web/**'`，再检查三个产品补充文件 | 成功；产品自有变更无 whitespace 错误 |
 
-完整 staged diff 会报告 RuoYi 锁定快照原有的尾随空格和文件尾空行。T00 保留上游源码内容，不为通过样式检查而批量改写第三方基线；后续产品代码仍执行严格 whitespace 门禁。
+完整 staged diff 会报告 原始服务端框架 锁定快照原有的尾随空格和文件尾空行。T00 保留上游源码内容，不为通过样式检查而批量改写第三方基线；后续产品代码仍执行严格 whitespace 门禁。
 
 ## 退出结论
 

@@ -7,7 +7,7 @@
 ## 结论
 
 T12 已完成，且没有进入 T13。plus-ui React 管理端通过固定 `enterprise-admin` public client 完成
-Authorization Code + PKCE 登录，在标签页内保存平台会话，并以 RuoYi 服务端菜单和权限码裁剪路由与操作。
+Authorization Code + PKCE 登录，在标签页内保存平台会话，并以 原始服务端框架 服务端菜单和权限码裁剪路由与操作。
 身份源、组映射、用户外部身份、设备、Provider、受管模型、授权、配额窗口和 prompt-free 用量均通过真实
 Server API 工作，没有 mock-only 页面、未保护端点或浏览器侧授权算法。
 
@@ -25,7 +25,7 @@ Server API 工作，没有 mock-only 页面、未保护端点或浏览器侧授�
   读取、写入和状态动作，不把隐藏按钮当成服务端授权替代品。
 - 身份源支持 OIDC/LDAP 创建、编辑、连接测试、启停与外部组映射；内置 LOCAL 类型保持只读。Server
   只返回 `secretConfigured` 和固定诊断码，最近测试结果由 V7 migration 独立持久化。
-- RuoYi 用户详情按 `ent:identity:read` 读取外部身份摘要，只显示来源、类型、稳定 subject 与最后登录时间，
+- 原始服务端框架 用户详情按 `ent:identity:read` 读取外部身份摘要，只显示来源、类型、稳定 subject 与最后登录时间，
   不返回 groups、claims 或凭据。
 - 设备列表展示 revision、插件清单摘要、待同步事件和最后成功同步时间；撤销使用当前 Server revision，成功后
   以返回事实刷新，状态列直接显示 ACTIVE/REVOKED。
@@ -53,7 +53,7 @@ Server 全 reactor 门禁：
 cd backend
 JAVA_HOME=/usr/local/opt/openjdk@21 \
 PATH=/usr/local/opt/openjdk@21/bin:$PATH \
-./mvnw -B -ntp -pl ruoyi-modules/owndsh-enterprise -am \
+./mvnw -B -ntp -pl owndsh-modules/owndsh-enterprise -am \
   -Dmaven.test.skip=false -DskipTests=false test
 ```
 

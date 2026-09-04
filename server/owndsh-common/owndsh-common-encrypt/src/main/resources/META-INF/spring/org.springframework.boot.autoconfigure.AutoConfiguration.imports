@@ -1,0 +1,2 @@
+com.owndsh.common.encrypt.config.EncryptorAutoConfiguration
+com.owndsh.common.encrypt.config.ApiDecryptAutoConfiguration

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 EnterpriseAccountStore、local-api 端口和可控 SSE test double
- * [OUTPUT]: 验证订阅生命周期、账号动作、连接/revision 去重加载、V1 Session 停用与错误投影
+ * [OUTPUT]: 验证订阅生命周期、地址/账号/卸载动作、连接 revision 去重加载、V1 Session 停用与错误投影
  * [POS]: dsh-ui 账号状态控制器测试，覆盖三个官方 slot 共享的行为真源
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -23,6 +23,7 @@ describe('EnterpriseAccountStore', () => {
     const close = vi.fn()
     const api: EnterpriseLocalApi = {
       status: vi.fn(async () => current),
+      setServerUrl: vi.fn(async serverUrl => ({ serverUrl })),
       bootstrap: vi.fn(async () => ({
         user: { id: '10031', username: 'zhangsan', displayName: 'Zhang San', departmentId: '210' },
         device: { id: '90018', installationId: '4c96d076-a80a-4b6c-8df6-f0db804b6f0a', status: 'ACTIVE' },
@@ -56,6 +57,7 @@ describe('EnterpriseAccountStore', () => {
       startLogin: vi.fn(async () => { current = { ...base, state: 'AUTHORIZING', flowId: 'flow-1' }; return { flowId: 'flow-1' } }),
       cancelLogin: vi.fn(async () => { current = { ...base, state: 'CANCELLED', errorCode: 'ENT_AUTH_CANCELLED' }; return { cancelled: true } }),
       logout: vi.fn(async () => { current = { ...base, state: 'SIGNED_OUT' }; return { loggedOut: true } }),
+      uninstall: vi.fn(async () => ({ uninstalled: true, restartRequested: false })),
       events: (onStatus) => { publish = onStatus; return { close } },
     }
     const store = new EnterpriseAccountStore(api)
@@ -94,6 +96,9 @@ describe('EnterpriseAccountStore', () => {
     expect(store.getSnapshot().status?.state).toBe('SIGNED_OUT')
     expect(store.getSnapshot().bootstrap).toBeUndefined()
     expect(store.getSnapshot().pluginStatus).toBeUndefined()
+    await store.uninstall()
+    expect(store.getSnapshot().uninstallRestartRequested).toBe(false)
+    expect(api.uninstall).toHaveBeenCalledOnce()
 
     unsubscribe()
     expect(close).toHaveBeenCalledOnce()
@@ -102,6 +107,7 @@ describe('EnterpriseAccountStore', () => {
   it('maps local failures to a stable code without service messages', async () => {
     const api: EnterpriseLocalApi = {
       status: vi.fn(async () => { throw new EnterpriseLocalApiError('ENT_PLATFORM_UNAVAILABLE', 503) }),
+      setServerUrl: vi.fn(),
       bootstrap: vi.fn(),
       plugins: vi.fn(),
       sessionSync: vi.fn(),
@@ -111,6 +117,7 @@ describe('EnterpriseAccountStore', () => {
       startLogin: vi.fn(),
       cancelLogin: vi.fn(),
       logout: vi.fn(),
+      uninstall: vi.fn(),
       events: () => ({ close: vi.fn() }),
     }
     const store = new EnterpriseAccountStore(api)

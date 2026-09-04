@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 React、Lucide 图标与 EnterpriseAccountStore 的脱敏账号/插件 snapshot 和动作
- * [OUTPUT]: 对外提供对齐官方交互的账号/插件 settings tabs、sidebar 状态入口、登录 onboarding 与固定状态投影
+ * [OUTPUT]: 对外提供账号/插件 settings tabs、sidebar 状态入口，以及品牌化 Server 编辑与键盘封闭的全局访问门禁
  * [POS]: dsh-ui 的员工呈现层，官方 slot 复用同一状态源且不接触 Host Context、Token 或执行细节
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -14,10 +14,13 @@ import {
   LoaderCircle,
   LogIn,
   LogOut,
+  Pencil,
   Package,
   RefreshCw,
+  Save,
   Server,
   ShieldAlert,
+  Trash2,
   UserRound,
   X,
 } from 'lucide-react'
@@ -50,11 +53,7 @@ export interface EnterpriseSettingsSectionProps extends EnterpriseStoreInjected 
   readonly close: () => void
 }
 
-export interface EnterpriseOnboardingProps extends EnterpriseStoreInjected {
-  readonly stepId: string
-  readonly complete: () => void
-  readonly openSection: (id: string) => void
-}
+export interface EnterpriseAccessGateProps extends EnterpriseStoreInjected {}
 
 interface StatePresentation {
   readonly title: string
@@ -64,6 +63,12 @@ interface StatePresentation {
 }
 
 const CONNECTION_PRESENTATION: Record<EnterpriseConnectionState, StatePresentation> = {
+  UNCONFIGURED: {
+    title: '配置企业服务',
+    description: '设置 OwnDsh Server 地址后即可登录',
+    color: 'var(--dsw-alias-accent-primary, #2563eb)',
+    icon: 'building',
+  },
   SIGNED_OUT: {
     title: '未登录',
     description: '尚未连接企业服务',
@@ -141,6 +146,7 @@ const PLUGIN_PRESENTATION: Record<ManagedPluginState, StatePresentation> = {
 }
 
 const ERROR_MESSAGES: Readonly<Record<string, string>> = {
+  ENT_INVALID_REQUEST: '请输入有效的 HTTP 或 HTTPS Server 地址。',
   ENT_AUTH_CANCELLED: '登录已取消。',
   ENT_AUTH_REQUIRED: '需要重新登录企业账号。',
   ENT_AUTH_SESSION_EXPIRED: '企业登录已过期。',
@@ -302,30 +308,71 @@ const secondaryButton: CSSProperties = {
   color: 'var(--dsw-alias-label-primary, #101828)',
 }
 
-const overlay: CSSProperties = {
+const accessGate: CSSProperties = {
   alignItems: 'center',
-  background: 'var(--dsw-alias-bg-mask-1, rgba(16, 24, 40, 0.42))',
+  background: 'var(--dsw-alias-bg-layer-2, #fff)',
+  boxSizing: 'border-box',
+  color: 'var(--dsw-alias-label-primary, #101828)',
   display: 'flex',
   inset: 0,
   justifyContent: 'center',
-  padding: 24,
-  position: 'fixed',
-  zIndex: 1100,
+  overflowY: 'auto',
+  padding: 'clamp(28px, 6vh, 64px) 24px',
+  pointerEvents: 'auto',
+  position: 'absolute',
 }
 
-const dialog: CSSProperties = {
-  background: 'var(--dsw-alias-bg-layer-2, #fff)',
-  borderRadius: 8,
-  boxShadow: 'var(--dsw-shadow-lv3, 0 20px 48px rgba(16, 24, 40, 0.2))',
+const accessContent: CSSProperties = {
+  alignItems: 'center',
   boxSizing: 'border-box',
   display: 'flex',
   flexDirection: 'column',
-  gap: 18,
-  maxHeight: 'calc(100vh - 48px)',
-  maxWidth: 520,
-  overflowY: 'auto',
-  padding: 28,
+  maxWidth: 440,
+  textAlign: 'center',
   width: '100%',
+}
+
+const serverInput: CSSProperties = {
+  background: 'var(--dsw-alias-bg-layer-2, #fff)',
+  border: '1px solid var(--dsw-alias-stroke-border-2, #d0d5dd)',
+  borderRadius: 8,
+  boxSizing: 'border-box',
+  color: 'var(--dsw-alias-label-primary, #101828)',
+  font: 'inherit',
+  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+  fontSize: 14,
+  height: 40,
+  minWidth: 0,
+  outlineColor: 'var(--dsw-alias-accent-primary, #2563eb)', outlineOffset: -1,
+  padding: '0 38px 0 13px',
+  width: '100%',
+}
+
+const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+
+function gateFocusables(root: HTMLElement): readonly HTMLElement[] {
+  return [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(element => !element.hidden)
+}
+
+function trapGateTab(event: React.KeyboardEvent<HTMLElement>): void {
+  if (event.key !== 'Tab') return
+  const root = event.currentTarget
+  const focusable = gateFocusables(root)
+  if (focusable.length === 0) {
+    event.preventDefault()
+    root.focus()
+    return
+  }
+  const first = focusable[0]
+  const last = focusable.at(-1)
+  if (first === undefined || last === undefined) return
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault()
+    first.focus()
+  }
 }
 
 function useAccount(store: EnterpriseAccountStore): EnterpriseAccountSnapshot {
@@ -345,6 +392,10 @@ export function enterpriseErrorMessage(code: string): string {
   return ERROR_MESSAGES[code] ?? '企业服务操作失败。'
 }
 
+export function enterpriseAccessBlocked(state?: EnterpriseConnectionState): boolean {
+  return state !== 'READY' && state !== 'REFRESHING'
+}
+
 function StateIcon({ presentation, size = 20 }: { presentation: StatePresentation; size?: number }): ReactNode {
   const props = { 'aria-hidden': true, color: presentation.color, size, strokeWidth: 2 }
   if (presentation.icon === 'success') return createElement(CircleCheck, props)
@@ -359,6 +410,7 @@ function LoginActions({ store, snapshot }: { store: EnterpriseAccountStore; snap
   const disabled = snapshot.busy !== undefined
   const authenticating = state === 'AUTHORIZING' || state === 'ENROLLING' || state === 'BOOTSTRAPPING'
   const connected = state === 'READY' || state === 'REFRESHING'
+  if (state === 'UNCONFIGURED') return null
   if (authenticating) {
     return <button type="button" style={secondaryButton} disabled={disabled} onClick={() => { void store.cancelLogin() }}>
       <X aria-hidden size={15} />{snapshot.busy === 'cancel' ? '正在取消' : '取消登录'}
@@ -374,6 +426,20 @@ function LoginActions({ store, snapshot }: { store: EnterpriseAccountStore; snap
   </button>
 }
 
+function UninstallAction({ store, snapshot }: { store: EnterpriseAccountStore; snapshot: EnterpriseAccountSnapshot }): ReactNode {
+  return <button
+    type="button"
+    style={{ ...secondaryButton, color: 'var(--dsw-alias-status-error, #c4320a)' }}
+    disabled={snapshot.busy !== undefined}
+    onClick={() => {
+      if (!globalThis.confirm('将移除 OwnDsh 和全部受管插件。确定继续吗？')) return
+      void store.uninstall()
+    }}
+  >
+    <Trash2 aria-hidden size={15} />{snapshot.busy === 'uninstall' ? '正在卸载' : '卸载 OwnDsh'}
+  </button>
+}
+
 function Detail({ icon, label, value }: { icon: ReactNode; label: string; value: string }): ReactNode {
   return <div style={detailRow}>
     <div style={detailLabel}>{icon}<span>{label}</span></div>
@@ -381,8 +447,48 @@ function Detail({ icon, label, value }: { icon: ReactNode; label: string; value:
   </div>
 }
 
+function ServerUrlEditor({
+  store,
+  snapshot,
+  onSaved,
+}: { store: EnterpriseAccountStore; snapshot: EnterpriseAccountSnapshot; onSaved?: () => void }): ReactNode {
+  const current = snapshot.status?.platformUrl ?? ''
+  const [serverUrl, setServerUrl] = useState(current)
+  useEffect(() => { setServerUrl(current) }, [current])
+
+  return <form
+    style={{ display: 'flex', gap: 8, minWidth: 0, width: '100%' }}
+    onSubmit={(event) => {
+      event.preventDefault()
+      void store.setServerUrl(serverUrl.trim()).then(() => { onSaved?.() })
+    }}
+  >
+    <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+      <input
+        aria-label="OwnDsh Server 地址"
+        autoComplete="url"
+        disabled={snapshot.busy !== undefined}
+        onChange={event => { setServerUrl(event.currentTarget.value) }}
+        placeholder="http://owndsh.example.com"
+        required spellCheck={false} style={serverInput} type="url" value={serverUrl}
+      />
+      {serverUrl === '' ? null : <button
+        aria-label="清空 Server 地址" disabled={snapshot.busy !== undefined} onClick={() => { setServerUrl('') }}
+        style={{ background: 'transparent', border: 0, color: 'var(--dsw-alias-label-tertiary, #98a2b3)', cursor: 'pointer', padding: 5, position: 'absolute', right: 7, top: 7 }}
+        title="清空" type="button"
+      ><X aria-hidden size={16} /></button>}
+    </div>
+    <button type="submit" style={{ ...primaryButton, height: 40, padding: '0 16px' }} disabled={snapshot.busy !== undefined || serverUrl.trim() === ''}>
+      {snapshot.busy === 'configure'
+        ? <><LoaderCircle aria-hidden size={15} />正在保存</>
+        : <><Save aria-hidden size={15} />保存</>}
+    </button>
+  </form>
+}
+
 function EnterpriseAccountContent({ store }: EnterpriseStoreInjected): ReactNode {
   const snapshot = useAccount(store)
+  const [editingServer, setEditingServer] = useState(false)
   const status = snapshot.status
   const presentation = status === undefined
     ? { title: '正在连接', description: '正在读取本地企业服务状态', color: '#667085', icon: 'progress' as const }
@@ -409,16 +515,31 @@ function EnterpriseAccountContent({ store }: EnterpriseStoreInjected): ReactNode
     <div style={detailList}>
       <Detail icon={<UserRound aria-hidden size={15} />} label="用户" value={user === undefined ? '登录后可用' : `${user.displayName} (${user.username})`} />
       <Detail icon={<Laptop aria-hidden size={15} />} label="设备" value={bootstrap === undefined ? '登录后可用' : `${bootstrap.device.id} · ${bootstrap.device.installationId}`} />
-      <Detail icon={<Server aria-hidden size={15} />} label="平台地址" value={status?.platformUrl ?? '正在读取'} />
+      <Detail icon={<Server aria-hidden size={15} />} label="平台地址" value={status?.platformUrl ?? '未配置'} />
       <Detail icon={<Building2 aria-hidden size={15} />} label="Bundle 版本" value={status?.bundleVersion ?? '正在读取'} />
       <Detail icon={<Clock3 aria-hidden size={15} />} label="连接时间" value={status?.connectedAt ?? '尚未连接'} />
     </div>
+    {status?.state === 'UNCONFIGURED' || editingServer
+      ? <ServerUrlEditor store={store} snapshot={snapshot} onSaved={() => { setEditingServer(false) }} />
+      : null}
     <div style={actions}>
       <LoginActions store={store} snapshot={snapshot} />
+      {status === undefined || status.state === 'UNCONFIGURED' || editingServer ? null : <button
+        type="button"
+        style={secondaryButton}
+        disabled={snapshot.busy !== undefined}
+        onClick={() => { setEditingServer(true) }}
+      >
+        <Pencil aria-hidden size={15} />修改 Server 地址
+      </button>}
       <button type="button" style={secondaryButton} disabled={snapshot.busy !== undefined} onClick={() => { void store.refresh() }}>
         <RefreshCw aria-hidden size={15} />刷新状态
       </button>
+      <UninstallAction store={store} snapshot={snapshot} />
     </div>
+    {snapshot.uninstallRestartRequested === false ? <div role="status" style={{ color: 'var(--dsw-alias-status-warning, #b54708)', fontSize: 13 }}>
+      OwnDsh 已卸载，请手动重启 Harness。
+    </div> : null}
   </div>
 }
 
@@ -585,41 +706,95 @@ export function EnterpriseFooterAction(props: EnterpriseFooterActionProps): Reac
   </button>
 }
 
-/** 官方 `settings.onboarding` 登录步骤；READY 后自动完成，详情跳转只用 owner 的 `openSection`。 */
-export function EnterpriseOnboarding(props: EnterpriseOnboardingProps): ReactNode {
+/** 官方 `shell.overlay` 全局门禁；未配置、未登录和失效状态都阻断宿主交互。 */
+export function EnterpriseAccessGate(props: EnterpriseAccessGateProps): ReactNode {
   const snapshot = useAccount(props.store)
   const status = snapshot.status
-  const connected = status?.state === 'READY' || status?.state === 'REFRESHING'
-
+  const [editingServer, setEditingServer] = useState(false)
+  const gateRef = useRef<HTMLElement | null>(null)
+  const blocked = enterpriseAccessBlocked(status?.state)
   useEffect(() => {
-    if (connected) props.complete()
-  }, [connected, props.complete])
+    if (!blocked) return
+    const root = gateRef.current
+    if (root === null) return
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : undefined
+    const keepInside = (event: FocusEvent) => {
+      if (event.target instanceof Node && !root.contains(event.target)) {
+        const first = gateFocusables(root)[0] ?? root
+        first.focus()
+      }
+    }
+    const first = gateFocusables(root)[0] ?? root
+    first.focus()
+    document.addEventListener('focusin', keepInside)
+    return () => {
+      document.removeEventListener('focusin', keepInside)
+      if (previous?.isConnected === true) previous.focus()
+    }
+  }, [blocked, status?.state])
+  if (!blocked) return null
 
-  if (connected || status === undefined) return null
-  const presentation = enterpriseStatePresentation(status.state)
-  const error = snapshot.errorCode ?? status.errorCode
-  return <div style={overlay} role="presentation">
-    <section style={dialog} role="dialog" aria-modal="true" aria-labelledby="enterprise-onboarding-title">
-      <StateIcon presentation={presentation} size={28} />
-      <div>
-        <h2 id="enterprise-onboarding-title" style={heading}>连接企业账号</h2>
-        <p style={{ color: 'var(--dsw-alias-label-secondary, #475467)', fontSize: 14, lineHeight: '22px', margin: '8px 0 0' }}>
+  const presentation = status === undefined
+    ? { title: '正在启动', description: '正在读取本地企业服务状态', color: '#667085', icon: 'progress' as const }
+    : enterpriseStatePresentation(status.state)
+  const error = snapshot.errorCode ?? status?.errorCode
+  const showServerEditor = status?.state === 'UNCONFIGURED' || editingServer
+
+  return <section ref={gateRef} style={accessGate} role="dialog" aria-modal="true"
+    aria-labelledby="enterprise-access-title" tabIndex={-1} onKeyDown={trapGateTab}>
+    <div style={accessContent} data-enterprise-access-state={status?.state ?? snapshot.phase}>
+      <div style={{
+        alignItems: 'center', background: 'var(--dsw-alias-label-primary, #101828)', border: '1px solid var(--dsw-alias-stroke-border-1, #1d2939)', borderRadius: 12,
+        boxShadow: '0 1px 2px rgba(16, 24, 40, 0.08)', color: 'var(--dsw-alias-bg-layer-2, #fff)', display: 'flex', height: 48, justifyContent: 'center', width: 48,
+      }}>
+        <Building2 aria-hidden size={24} strokeWidth={1.8} />
+      </div>
+      <h1 id="enterprise-access-title" style={{ fontSize: 28, fontWeight: 650, lineHeight: '36px', margin: '18px 0 0' }}>
+        OwnDsh
+      </h1>
+      <p style={{ color: 'var(--dsw-alias-label-secondary, #475467)', fontSize: 13, lineHeight: '20px', margin: '5px 0 0' }}>
+        OwnDsh - Truly Own Your DeepSeek-Harness
+      </p>
+      <div style={{ marginTop: 38, width: '100%' }}>
+        <div style={{ alignItems: 'center', display: 'flex', gap: 7, justifyContent: 'center' }}>
+          <StateIcon presentation={presentation} size={16} />
+          <span style={{ fontSize: 13, fontWeight: 600 }}>{presentation.title}</span>
+        </div>
+        <p style={{ color: 'var(--dsw-alias-label-tertiary, #667085)', fontSize: 12, lineHeight: '18px', margin: '6px 0 16px' }}>
           {presentation.description}
         </p>
-      </div>
-      {error === undefined ? null : <p role="alert" style={{ color: 'var(--dsw-alias-status-error, #c4320a)', fontSize: 13, lineHeight: '20px', margin: 0 }}>
-        {enterpriseErrorMessage(error)} <code>{error}</code>
-      </p>}
-      <div style={actions}>
-        <LoginActions store={props.store} snapshot={snapshot} />
-        <button
+        {error === undefined ? null : <p role="alert" style={{ color: 'var(--dsw-alias-status-error, #c4320a)', fontSize: 13, lineHeight: '20px', margin: '0 0 16px' }}>
+          {enterpriseErrorMessage(error)} <code>{error}</code>
+        </p>}
+        {showServerEditor
+          ? <ServerUrlEditor store={props.store} snapshot={snapshot} onSaved={() => { setEditingServer(false) }} />
+          : <LoginActions store={props.store} snapshot={snapshot} />}
+        {status?.platformUrl === null || showServerEditor ? null : <button
           type="button"
-          style={secondaryButton}
-          onClick={() => { props.complete(); props.openSection('enterprise') }}
+          disabled={snapshot.busy !== undefined}
+          onClick={() => { setEditingServer(true) }}
+          style={{ ...secondaryButton, border: 0, marginTop: 10 }}
         >
-          查看账号详情
-        </button>
+          <Pencil aria-hidden size={14} />修改 Server 地址
+        </button>}
       </div>
-    </section>
-  </div>
+      <div style={{
+        alignItems: 'center', borderTop: '1px solid var(--dsw-alias-stroke-border-2, #e4e7ec)',
+        color: 'var(--dsw-alias-label-tertiary, #667085)', display: 'flex', fontSize: 12,
+        justifyContent: 'space-between', marginTop: 28, paddingTop: 14, width: '100%',
+      }}>
+        <span style={{ alignItems: 'center', display: 'flex', gap: 8, minWidth: 0 }}>
+          <span aria-hidden style={{ background: status?.platformUrl === null ? 'var(--dsw-alias-label-disabled, #d0d5dd)' : presentation.color, borderRadius: '50%', flex: 'none', height: 6, width: 6 }} />
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={status?.platformUrl ?? undefined}>
+            {status?.platformUrl ?? '尚未配置 Server'}
+          </span>
+        </span>
+        <span style={{ flex: 'none' }}>v{status?.bundleVersion ?? '0.1.0'}</span>
+      </div>
+      <div style={{ marginTop: 16 }}><UninstallAction store={props.store} snapshot={snapshot} /></div>
+      {snapshot.uninstallRestartRequested === false ? <p role="status" style={{ color: 'var(--dsw-alias-status-warning, #b54708)', fontSize: 13, margin: '12px 0 0' }}>
+        OwnDsh 已卸载，请手动重启 Harness。
+      </p> : null}
+    </div>
+  </section>
 }

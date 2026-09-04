@@ -27,7 +27,7 @@ LDAP adapter 使用 manager search 后再以用户 DN bind，过滤值按 RFC 45
 属性（例如 `entryUUID`），不会回退到可变用户名。传输层强制 LDAPS 与 StartTLS 二选一，测试使用
 真实 OpenLDAP StartTLS 和主机名校验。
 
-LOCAL adapter 复用 RuoYi BCrypt 与 Redis 登录失败策略，并以 `sys_user.user_id` 作为稳定 subject。
+LOCAL adapter 复用 原始服务端框架 BCrypt 与 Redis 登录失败策略，并以 `sys_user.user_id` 作为稳定 subject。
 账号不存在、密码错误、账号停用和锁定都走不枚举账号的统一失败路径；停用账号即使密码正确也会
 累计失败次数，不会意外清空锁定状态。密码和身份源 secret 在 Java 边界使用可清零 `char[]`。
 
@@ -64,7 +64,7 @@ OIDC client secret 与 LDAP manager password 只以 AES-GCM 密文进入数据�
 ```sh
 JAVA_HOME=/usr/local/opt/openjdk@21 \
 PATH=/usr/local/opt/openjdk@21/bin:$PATH \
-./mvnw -B -ntp -pl ruoyi-modules/owndsh-enterprise -am \
+./mvnw -B -ntp -pl owndsh-modules/owndsh-enterprise -am \
   -Dmaven.test.skip=false test
 ```
 

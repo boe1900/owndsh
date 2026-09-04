@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖已构建 bundle tgz、同级锁定 Harness checkout、Corepack pnpm 与临时 DSH_HOME
- * [OUTPUT]: 提供无 ambient shim consumer、profile layer、真实 Web/API/SSE/Client、插件状态、installation 与 Session seed smoke
+ * [OUTPUT]: 提供零业务配置安装、官方 settings 地址写入、真实 Web/API/SSE/Client、插件状态与 installation smoke
  * [POS]: plugin 的 T01/T06 组合验收入口，只写临时目录并断言同级 Harness 跟踪工作区始终干净
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -126,14 +126,12 @@ try {
     env: harnessEnv,
   })
   assert.match(dump.stdout, /# == owndsh-plugin/)
-  assert.match(dump.stdout, /name: 'owndsh-plugin'/)
+  assert.match(dump.stdout, /patched by owndsh-plugin/)
 
   const profilePatch = resolve(home, 'profiles', 'web', 'cordis.patch.yml')
   await writeFile(profilePatch, [
-    '- id: enterprise-agent',
+    '- id: owndsh',
     '  config:',
-    "    baseUrl: 'https://enterprise.example.invalid'",
-    "    trustedPluginPublicKey: 'MCowBQYDK2VwAyEAgl6STzO84FyXlwmeHinWGgY/TgbGBUUBLF1xPT7SvT8='",
     '    enableTechnicalProbe: true',
     '',
   ].join('\n'))
@@ -146,16 +144,38 @@ try {
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   const ready = await waitForUrl(web, 60_000)
+  const unconfigured = await fetch(`${ready.url}/enterprise/api/v1/local/status`)
+  assert.equal(unconfigured.status, 200)
+  assert.deepEqual(await unconfigured.json(), {
+    data: {
+      state: 'UNCONFIGURED',
+      bundleVersion: '0.1.0',
+      platformUrl: null,
+      transport: 'webServer.register',
+    },
+  })
+
+  const configured = await fetch(`${ready.url}/enterprise/api/v1/local/server`, {
+    body: JSON.stringify({ serverUrl: 'http://127.0.0.1:65535' }),
+    headers: { 'content-type': 'application/json' },
+    method: 'POST',
+  })
+  assert.equal(configured.status, 200)
+  assert.deepEqual(await configured.json(), { data: { serverUrl: 'http://127.0.0.1:65535' } })
   const status = await fetch(`${ready.url}/enterprise/api/v1/local/status`)
   assert.equal(status.status, 200)
   assert.deepEqual(await status.json(), {
     data: {
       state: 'SIGNED_OUT',
       bundleVersion: '0.1.0',
-      platformUrl: 'https://enterprise.example.invalid',
+      platformUrl: 'http://127.0.0.1:65535',
       transport: 'webServer.register',
     },
   })
+  assert.match(
+    await readFile(resolve(home, 'settings.yaml'), 'utf8'),
+    /owndsh:[\s\S]*serverUrl: http:\/\/127\.0\.0\.1:65535/,
+  )
 
   const plugins = await fetch(`${ready.url}/enterprise/api/v1/local/plugins`)
   assert.equal(plugins.status, 200)
@@ -198,21 +218,6 @@ try {
   assert.match(clientBundle, /window\.__ModuleLoader__\.load/)
   assert.doesNotMatch(clientBundle, /dsh-typert-protocol/)
 
-  const copy = await fetch(`${ready.url}/enterprise/api/v1/local/session-copies`, {
-    body: JSON.stringify({
-      sourceSessionId: 'remote-t01-source',
-      targetCwd: resolve(home, 'workspace'),
-      events: [{ type: 'enterprise/t01-probe', seq: 0, time: 1, data: { ok: true }, ignorable: true }],
-    }),
-    headers: { 'content-type': 'application/json' },
-    method: 'POST',
-  })
-  assert.equal(copy.status, 201)
-  const copyBody = await copy.json()
-  assert.equal(copyBody.data.sourceSessionId, 'remote-t01-source')
-  assert.equal(copyBody.data.seedLength, 1)
-  assert.match(copyBody.data.sessionId, /^enterprise-restored-/)
-
   await stop(web)
   web = undefined
   const harnessStatus = await run('git', ['status', '--porcelain'], { cwd: harnessRoot, env: process.env })
@@ -228,7 +233,6 @@ try {
     packageConsumer: 'passed',
     pluginStatusApi: 'passed',
     profile: 'web',
-    sessionSeed: 'passed',
     statusApi: 'passed',
     temporaryDshHome: keep ? home : undefined,
   }, null, 2)}\n`)

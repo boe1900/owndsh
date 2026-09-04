@@ -721,7 +721,7 @@
     "/enterprise/auth/v1/password": {
       "post": {
         "operationId": "completePasswordLogin",
-        "summary": "Authenticate over HTTPS or complete a one-time LOCAL password-change challenge in the same transaction.",
+        "summary": "Authenticate over HTTP(S) or complete a one-time LOCAL password-change challenge in the same transaction.",
         "security": [],
         "requestBody": {
           "required": true,
@@ -93141,7 +93141,8 @@
       "EnterpriseAdminCookie": {
         "type": "apiKey",
         "in": "cookie",
-        "name": "__Host-enterprise-admin"
+        "name": "enterprise-admin",
+        "description": "Logical console session cookie. HTTP uses enterprise-admin; HTTPS uses __Host-enterprise-admin with Secure. Both are HttpOnly, SameSite=Strict, Path=/ and host-only."
       }
     },
     "parameters": {

@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖官方 Client `slots`、EnterpriseAccountStore 与账号/插件 Settings 及账号辅助组件
- * [OUTPUT]: 对外提供 Client apply，并注册企业 Settings、sidebar 状态和登录 onboarding
+ * [INPUT]: 依赖官方 Client `slots`、EnterpriseAccountStore 与账号/插件 Settings 及全局访问门禁
+ * [OUTPUT]: 对外提供 Client apply，并注册企业 Settings、sidebar 状态和 shell.overlay 登录门禁
  * [POS]: dsh-ui 的浏览器组合根，只向 React 注入共享脱敏 store，不传递 Host Context
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -8,8 +8,8 @@
 import type { ReactNode } from 'react'
 import { EnterpriseAccountStore } from './account-store.js'
 import {
+  EnterpriseAccessGate,
   EnterpriseFooterAction,
-  EnterpriseOnboarding,
   EnterpriseSettingsSection,
 } from './account-view.js'
 import { createEnterpriseLocalApi } from './local-api.js'
@@ -47,10 +47,10 @@ export function apply(ctx: SlotContextPort): void {
     order: 50,
     inject: () => ({ store }),
   }, EnterpriseFooterAction as (props: never) => ReactNode))
-  ctx.slots.inject('settings.onboarding', () => ctx.slots.register({
-    name: 'settings.onboarding',
-    id: 'enterprise-login',
-    order: -50,
+  ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+    name: 'shell.overlay',
+    id: 'enterprise-access',
+    order: -100,
     inject: () => ({ store }),
-  }, EnterpriseOnboarding as (props: never) => ReactNode))
+  }, EnterpriseAccessGate as (props: never) => ReactNode))
 }

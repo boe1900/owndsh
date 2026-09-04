@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 dsh-ui 同源 local-api、标准 Response 与 EventSource test double
- * [OUTPUT]: 验证账号/插件/Session 严格解码、固定路径、恢复/删除、脱敏投影、复合 SSE 与秘密字段拒绝
+ * [OUTPUT]: 验证账号/插件/Session 严格解码、地址/卸载固定路径、恢复/删除、脱敏投影、复合 SSE 与秘密字段拒绝
  * [POS]: dsh-ui 浏览器网络边界测试，确保浏览器只能消费 Host 脱敏 DTO
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -60,9 +60,12 @@ function ok(data: unknown): Response {
 }
 
 describe('enterprise local browser API', () => {
-  it('strictly decodes all ten public connection states', () => {
+  it('strictly decodes every public connection state', () => {
     for (const state of ENTERPRISE_CONNECTION_STATES) {
-      expect(decodeEnterpriseLocalStatus({ ...STATUS, state })).toEqual({ ...STATUS, state })
+      const value = state === 'UNCONFIGURED'
+        ? { ...STATUS, state, platformUrl: null }
+        : { ...STATUS, state }
+      expect(decodeEnterpriseLocalStatus(value)).toEqual(value)
     }
     expect(() => decodeEnterpriseLocalStatus({ ...STATUS, accessToken: 'must-not-cross' }))
       .toThrow('ENT_LOCAL_RESPONSE_INVALID')
@@ -204,6 +207,8 @@ describe('enterprise local browser API', () => {
       if (path.endsWith('/auth/start')) return ok({ flowId: 'flow-1' })
       if (path.endsWith('/auth/cancel')) return ok({ cancelled: true })
       if (path.endsWith('/logout')) return ok({ loggedOut: true })
+      if (path.endsWith('/server')) return ok({ serverUrl: 'https://next.example.com' })
+      if (path.endsWith('/uninstall')) return ok({ uninstalled: true, restartRequested: false })
       throw new Error(`unexpected path ${path}`)
     })
     const api = createEnterpriseLocalApi(fetcher)
@@ -212,17 +217,26 @@ describe('enterprise local browser API', () => {
     await expect(api.startLogin(signal)).resolves.toEqual({ flowId: 'flow-1' })
     await expect(api.cancelLogin(signal)).resolves.toEqual({ cancelled: true })
     await expect(api.logout(signal)).resolves.toEqual({ loggedOut: true })
+    await expect(api.setServerUrl('https://next.example.com', signal)).resolves.toEqual({
+      serverUrl: 'https://next.example.com',
+    })
+    await expect(api.uninstall(signal)).resolves.toEqual({ uninstalled: true, restartRequested: false })
 
     expect(fetcher.mock.calls.map(call => String(call[0]))).toEqual([
       '/enterprise/api/v1/local/status',
       '/enterprise/api/v1/local/auth/start',
       '/enterprise/api/v1/local/auth/cancel',
       '/enterprise/api/v1/local/logout',
+      '/enterprise/api/v1/local/server',
+      '/enterprise/api/v1/local/uninstall',
     ])
-    for (const call of fetcher.mock.calls.slice(1)) {
+    for (const call of [1, 2, 3, 5].map(index => fetcher.mock.calls[index])) {
       expect(call[1]).toMatchObject({ body: '{}', method: 'POST' })
       expect(new Headers(call[1]?.headers).get('authorization')).toBeNull()
     }
+    expect(fetcher.mock.calls[4]?.[1]).toMatchObject({
+      body: '{"serverUrl":"https://next.example.com"}', method: 'POST',
+    })
   })
 
   it('decodes status events and closes the browser stream', () => {

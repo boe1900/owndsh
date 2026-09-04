@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 deploy Compose/Nginx/脚本、application-deploy.yml、Docker Compose v2 与临时假 secret。
- * [OUTPUT]: 验证四服务拓扑、唯一 443 发布、新控制台/Harness 发布基线、镜像锁定、bootstrap overlay、deploy profile、API/SPA 路由、运维脚本与源码 CLI 可调和的本地体验边界。
+ * [OUTPUT]: 验证内部数据服务加 HTTP Console/Server 拓扑、新控制台/Harness 发布基线、镜像锁定、bootstrap overlay、API/SPA 路由、运维脚本与源码 CLI 可调和边界。
  * [POS]: T21/P2-08 部署与本地人工验收静态门禁，先于昂贵镜像构建发现配置漂移且不接触生产 secret。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -27,15 +27,12 @@ function read(relative) {
 function composeConfig(includeBootstrap = false, baseImageRegistry = undefined) {
   const state = mkdtempSync(join(tmpdir(), 'owndsh-compose-'))
   const secrets = join(state, 'secrets')
-  const tls = join(state, 'tls')
   const database = join(state, 'releases', 'test', 'database')
-  execFileSync('mkdir', ['-p', secrets, tls, database])
+  execFileSync('mkdir', ['-p', secrets, database])
   for (const file of [
     'postgres_password', 'redis_password', 'sa_token_jwt_secret_key',
     'enterprise_master_key', 'plugin_signing_private_key',
   ]) writeFileSync(join(secrets, file), 'fixture')
-  writeFileSync(join(tls, 'tls.crt'), 'fixture')
-  writeFileSync(join(tls, 'tls.key'), 'fixture')
   writeFileSync(join(database, 'postgres_owndsh.sql'), 'select 1;')
   writeFileSync(join(state, 'bootstrap.secret'), 'fixture')
   const args = ['compose', '-f', COMPOSE]
@@ -56,14 +53,15 @@ function composeConfig(includeBootstrap = false, baseImageRegistry = undefined) 
   return JSON.parse(execFileSync('docker', args, { env, encoding: 'utf8' }))
 }
 
-test('compose publishes only Console TLS and pins all third-party images', () => {
+test('compose publishes only the HTTP Console and pins all third-party images', () => {
   const config = composeConfig()
   assert.deepEqual(Object.keys(config.services).sort(), ['console', 'postgres', 'redis', 'server', 'storage-init'])
   assert.equal(config.services.postgres.ports, undefined)
   assert.equal(config.services.redis.ports, undefined)
   assert.equal(config.services.server.ports, undefined)
   assert.equal(config.services.console.ports.length, 1)
-  assert.equal(config.services.console.ports[0].target, 443)
+  assert.equal(config.services.console.ports[0].target, 8080)
+  assert.equal(config.services.console.secrets, undefined)
   assert.ok(config.services.postgres.configs.some(config =>
     config.source === 'postgres_baseline' && config.target === '/docker-entrypoint-initdb.d/00-owndsh-baseline.sql'
   ))
@@ -92,22 +90,19 @@ test('bootstrap password exists only in the one-time overlay', () => {
   assert.ok(bootstrap.services.server.secrets.some(secret => secret.source === 'bootstrap_admin_password'))
 })
 
-test('gateway overwrites forwarding headers and keeps model SSE unbuffered', () => {
+test('HTTP gateway preserves an upstream HTTP(S) origin and keeps model SSE unbuffered', () => {
   const nginx = read('deploy/nginx/nginx.conf')
   assert.match(nginx, /proxy_set_header Forwarded "";/)
   assert.match(nginx, /proxy_set_header X-Forwarded-For \$remote_addr;/)
-  assert.match(nginx, /proxy_set_header X-Forwarded-Proto https;/)
-  assert.match(nginx, /map \$http_host \$external_https_port \{[\s\S]*?default 443;[\s\S]*?\}/)
-  assert.match(nginx, /proxy_set_header X-Forwarded-Port \$external_https_port;/)
-  assert.doesNotMatch(nginx, /proxy_set_header X-Forwarded-Port 443;/)
+  assert.match(nginx, /listen 8080;/)
+  assert.match(nginx, /map \$http_x_forwarded_proto \$external_proto \{[\s\S]*?https https;[\s\S]*?default \$scheme;/)
+  assert.match(nginx, /proxy_set_header X-Forwarded-Proto \$external_proto;/)
+  assert.match(nginx, /proxy_set_header X-Forwarded-Port \$external_port;/)
   assert.doesNotMatch(nginx, /\$proxy_add_x_forwarded_for/)
   assert.match(nginx, /location ~ \^\/prod-api\/enterprise\/gateway\/v1\/\(\?:chat\/completions\|responses\|messages\)\$/)
   assert.match(nginx, /location ~ \^\/enterprise\/gateway\/v1\/\(\?:chat\/completions\|responses\|messages\)\$/)
   assert.match(nginx, /enterprise\/gateway\/v1\/[\s\S]*?proxy_buffering off;/)
-  assert.match(nginx, /ssl_protocols TLSv1\.2 TLSv1\.3;/)
-  assert.match(nginx, /map \$host \$strict_transport_security \{[\s\S]*?127\.0\.0\.1 "max-age=0";[\s\S]*?localhost "max-age=0";[\s\S]*?default "max-age=31536000";/)
-  assert.match(nginx, /add_header Strict-Transport-Security \$strict_transport_security always;/)
-  assert.doesNotMatch(nginx, /add_header Strict-Transport-Security "max-age=31536000" always;/)
+  assert.doesNotMatch(nginx, /ssl_certificate|ssl_protocols|Strict-Transport-Security/)
   assert.match(nginx, /add_header Referrer-Policy strict-origin always;/)
   assert.doesNotMatch(nginx, /add_header Referrer-Policy no-referrer/)
   const adminCallback = nginx.indexOf('location = /enterprise/auth/callback {')
@@ -146,8 +141,7 @@ test('deploy profile consumes configtree secrets and exposes only health', () =>
   assert.match(deploy, /include: health/)
   assert.match(deploy, /show-details: never/)
   assert.match(deploy, /api-docs:\n\s+enabled: false/)
-  assert.match(deploy, /actuator-basic-auth-enabled: false/)
-  assert.match(deploy, /snail-job:\n\s+enabled: false\n(?:\s+#.*\n)?\s+port: 2\$\{server\.port\}/)
+  assert.doesNotMatch(deploy, /actuator-basic-auth-enabled|spring:\n[\s\S]*?boot:\n\s+admin:|snail-job|snail-ai/)
 })
 
 test('operations scripts parse, keep Harness bundles aligned, and rollback cannot remove or restore data', () => {
@@ -216,8 +210,6 @@ test('installer rejects runtime.env injection and invalid published ports before
     '--state-dir', join(tmpdir(), 'owndsh-install-input'),
     '--bootstrap-admin', 'platform.admin',
     '--bootstrap-password-file', '/not-read',
-    '--tls-cert', '/not-read',
-    '--tls-key', '/not-read',
   ]
   const injectedAuthority = 'https://platform.example.test\nOWNDSH_SERVER_IMAGE=attacker'
   const injected = spawnSync('sh', [
@@ -236,19 +228,29 @@ test('installer rejects runtime.env injection and invalid published ports before
     '--public-base-url', 'https://platform.example.test',
     '--admin-redirect-uri', 'https://platform.example.test/enterprise/auth/callback',
     ...sharedArgs,
-    '--https-port', '65536',
+    '--http-port', '65536',
   ], { encoding: 'utf8' })
   assert.notEqual(invalidPort.status, 0)
   assert.match(invalidPort.stderr, /1\.\.65535/)
 
-  const mismatchedPort = spawnSync('sh', [
+  const unsupportedScheme = spawnSync('sh', [
     install,
-    '--public-base-url', 'https://platform.example.test:18443',
-    '--admin-redirect-uri', 'https://platform.example.test:18443/enterprise/auth/callback',
+    '--public-base-url', 'ftp://platform.example.test',
+    '--admin-redirect-uri', 'ftp://platform.example.test/enterprise/auth/callback',
     ...sharedArgs,
   ], { encoding: 'utf8' })
-  assert.notEqual(mismatchedPort.status, 0)
-  assert.match(mismatchedPort.stderr, /端口必须与 HTTPS 发布端口一致/)
+  assert.notEqual(unsupportedScheme.status, 0)
+  assert.match(unsupportedScheme.stderr, /HTTP\(S\) authority/)
+
+  const httpAccepted = spawnSync('sh', [
+    install,
+    '--public-base-url', 'http://platform.example.test:8080',
+    '--admin-redirect-uri', 'http://platform.example.test:8080/enterprise/auth/callback',
+    ...sharedArgs,
+  ], { encoding: 'utf8' })
+  assert.notEqual(httpAccepted.status, 0)
+  assert.match(httpAccepted.stderr, /缺少文件: \/not-read/)
+  assert.doesNotMatch(httpAccepted.stderr, /public base URL|管理回调|HTTP 端口/)
 
   const invalidProject = spawnSync('sh', [
     install,
@@ -295,9 +297,9 @@ test('local demo starts one real Harness without candidate automation', () => {
   assert.match(localDemo, /dsh --profile web --port "\$harness_port"/)
   assert.match(localDemo, /OWNDSH_LOCAL_HARNESS_ROOT=.*PATH="\$harness_bin:\$PATH"/)
   assert.match(localDemo, /exec corepack pnpm@11\.7\.0 --dir "\$OWNDSH_LOCAL_HARNESS_ROOT" dsh "\$@"/)
-  assert.match(localDemo, /NODE_EXTRA_CA_CERTS=/)
-  assert.equal(localDemo.match(/-days 365/g)?.length, 2)
-  assert.doesNotMatch(localDemo, /-days 2(?:\s|$)/)
+  assert.match(localDemo, /platform_origin="http:\/\/127\.0\.0\.1:\$http_port"/)
+  assert.match(localDemo, /--http-port "\$http_port"/)
+  assert.doesNotMatch(localDemo, /NODE_EXTRA_CA_CERTS|openssl|tls-cert|tls-key|https-port/)
   assert.match(localDemo, /COMPOSE_PROGRESS=quiet/)
   assert.doesNotMatch(localDemo, /playwright|candidate-harness|manual_acceptance|accept:t22/)
 })

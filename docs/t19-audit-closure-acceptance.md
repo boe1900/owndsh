@@ -30,7 +30,7 @@ T19 已完成，且没有进入 T20。第 13 节冻结的 30 个 action 现在�
 cd backend
 JAVA_HOME=/usr/local/opt/openjdk@21 \
 PATH=/usr/local/opt/openjdk@21/bin:$PATH \
-./mvnw -B -ntp -pl ruoyi-modules/owndsh-enterprise -am \
+./mvnw -B -ntp -pl owndsh-modules/owndsh-enterprise -am \
   -Dmaven.test.skip=false -DskipTests=false \
   -Dtest=PlusWebInvokeTimeInterceptorTest,T19AuditApiContractTest,UserGovernanceAuditListenerTest,AuditMetadataPolicyTest,AuditIntegrationTest,EnterpriseMigrationTest,DeviceLifecycleIntegrationTest \
   -Dsurefire.failIfNoSpecifiedTests=false test
@@ -84,7 +84,7 @@ GIF 为 `1280x720`、9 秒、90 帧，覆盖 requestId 双记录、metadata 白�
 最终数据扫描覆盖 42 条审计事件及 144 个 metadata key 实例：非 object metadata、禁用语义 key 和四个受控明文均为 0。最新 requestId 的审计 API 断言关联 2 条模型记录且序列化响应无 prompt、credential、Authorization、message、tool 或 stack。最终 Server 日志共 2402 行，四个受控明文各 0 命中；3 张 PNG 和 1 个 GIF 的逐文件字节扫描中四个受控明文各 0 命中，并完成页面视觉复核。
 
 ```sh
-node scripts/upstream-baseline.mjs verify-locks
+node scripts/upstream-baseline.mjs verify
 node scripts/upstream-baseline.mjs verify
 ./scripts/bootstrap-harness.sh --check-only
 git diff --check

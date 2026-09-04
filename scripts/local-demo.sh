@@ -1,6 +1,6 @@
 #!/bin/sh
-# [INPUT]: 依赖 Linux amd64 Docker、OpenSSL、Node/pnpm、锁定 release 与同级干净 Harness；可选复用 OWNDSH_LOCAL_RELEASE_TARBALL。
-# [OUTPUT]: 在全新临时状态中启动正式后端、签发一年期本机证书、安装企业 bundle，并以源码 CLI shim 启动真实浏览器 Harness，持续到 Ctrl+C。
+# [INPUT]: 依赖 Linux amd64 Docker、Node/pnpm、锁定 release 与同级干净 Harness；可选复用 OWNDSH_LOCAL_RELEASE_TARBALL。
+# [OUTPUT]: 在全新临时状态中以 HTTP 启动正式后端、安装企业 bundle，并以源码 CLI shim 启动真实浏览器 Harness，持续到 Ctrl+C。
 # [POS]: 人工功能验收的唯一启动入口，不运行 Playwright、候选 fixture、多设备控制面、截图或自动业务操作。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -51,39 +51,25 @@ cleanup() {
 }
 trap cleanup EXIT HUP INT TERM
 
-for command in curl docker node corepack openssl tar; do require_command "$command"; done
+for command in curl docker node corepack tar; do require_command "$command"; done
 [ "$(docker version --format '{{.Server.Os}}/{{.Server.Arch}}')" = linux/amd64 ] \
   || fail "Docker runtime 必须是 linux/amd64"
 [ -d "$harness_root/.git" ] || fail "同级 deepseek-harness 不存在"
 "$project_root/scripts/bootstrap-harness.sh" --check-only >/dev/null
 
-mkdir -p "$temporary_root/certificates" "$release_output" "$harness_bin"
+mkdir -p "$release_output" "$harness_bin"
 printf '%s\n' \
   '#!/bin/sh' \
   'exec corepack pnpm@11.7.0 --dir "$OWNDSH_LOCAL_HARNESS_ROOT" dsh "$@"' \
   > "$harness_bin/dsh"
 chmod 700 "$harness_bin/dsh"
-https_port=${OWNDSH_LOCAL_HTTPS_PORT:-$(free_port)}
+http_port=${OWNDSH_LOCAL_HTTP_PORT:-$(free_port)}
 harness_port=${OWNDSH_LOCAL_HARNESS_PORT:-$(free_port)}
-for port in "$https_port" "$harness_port"; do
+for port in "$http_port" "$harness_port"; do
   case "$port" in ''|*[!0-9]*) fail "本地端口必须是数字" ;; esac
   [ "$port" -ge 1024 ] && [ "$port" -le 65535 ] || fail "本地端口必须在 1024..65535"
 done
-platform_origin="https://127.0.0.1:$https_port"
-
-openssl req -x509 -newkey rsa:2048 -nodes -days 365 -sha256 \
-  -subj '/CN=Enterprise Local Demo CA' \
-  -keyout "$temporary_root/certificates/ca.key" \
-  -out "$temporary_root/certificates/ca.crt" >/dev/null 2>&1
-openssl req -newkey rsa:2048 -nodes -sha256 -subj '/CN=127.0.0.1' \
-  -keyout "$temporary_root/certificates/tls.key" \
-  -out "$temporary_root/certificates/tls.csr" >/dev/null 2>&1
-printf '%s\n' 'subjectAltName=IP:127.0.0.1,DNS:localhost' 'extendedKeyUsage=serverAuth' \
-  > "$temporary_root/certificates/tls.ext"
-openssl x509 -req -days 365 -sha256 -in "$temporary_root/certificates/tls.csr" \
-  -CA "$temporary_root/certificates/ca.crt" -CAkey "$temporary_root/certificates/ca.key" -CAcreateserial \
-  -extfile "$temporary_root/certificates/tls.ext" -out "$temporary_root/certificates/tls.crt" >/dev/null 2>&1
-chmod 600 "$temporary_root/certificates"/*.key
+platform_origin="http://127.0.0.1:$http_port"
 
 admin_initial_password=${OWNDSH_LOCAL_ADMIN_INITIAL_PASSWORD:-CandidateBootstrap!42}
 admin_password=${OWNDSH_LOCAL_ADMIN_PASSWORD:-CandidateAdminReady!42}
@@ -107,10 +93,8 @@ COMPOSE_PROGRESS=quiet OWNDSH_COMPOSE_PROJECT_NAME="$release_project" "$release_
   --admin-redirect-uri "$platform_origin/enterprise/auth/callback" \
   --bootstrap-admin candidate.admin \
   --bootstrap-password-file "$temporary_root/bootstrap-password" \
-  --tls-cert "$temporary_root/certificates/tls.crt" \
-  --tls-key "$temporary_root/certificates/tls.key" \
   --time-zone Asia/Shanghai \
-  --https-port "$https_port"
+  --http-port "$http_port"
 
 bundle=$(find "$state_directory/harness" -type f -name '*.tgz' -print | head -n 1)
 [ -n "$bundle" ] || fail "release 未包含 Harness bundle"
@@ -120,8 +104,7 @@ DSH_HOME="$dsh_home" corepack pnpm@11.7.0 --dir "$harness_root" dsh \
 cp "$state_directory/harness/cordis.patch.yml" "$dsh_home/profiles/web/cordis.patch.yml"
 chmod 600 "$dsh_home/profiles/web/cordis.patch.yml"
 
-NODE_EXTRA_CA_CERTS="$temporary_root/certificates/ca.crt" DSH_HOME="$dsh_home" \
-  OWNDSH_LOCAL_HARNESS_ROOT="$harness_root" PATH="$harness_bin:$PATH" \
+DSH_HOME="$dsh_home" OWNDSH_LOCAL_HARNESS_ROOT="$harness_root" PATH="$harness_bin:$PATH" \
   corepack pnpm@11.7.0 --dir "$harness_root" dsh --profile web --port "$harness_port" \
   > "$harness_log" 2>&1 &
 harness_pid=$!
@@ -141,7 +124,7 @@ printf '%s\n' \
   "LOCAL 账号: candidate.admin" \
   "初始密码: $admin_initial_password" \
   "首次登录新密码: $admin_password" \
-  "登录按钮会调用真实系统浏览器；首次访问平台需接受本地 CA。" \
+  "登录按钮会调用真实系统浏览器。" \
   "按 Ctrl+C 停止并删除本次临时环境。"
 wait "$harness_pid"
 harness_pid=

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖当前 bundle tgz、同级锁定 Harness、Corepack pnpm 与可控回环企业平台
- * [OUTPUT]: 验证真实 web profile 由官方 dsh-llm-pi-ai 提供三协议目录、default、reasoning、模型流、瞬时失败恢复、终态配额不重试及无本地上游 Key
+ * [OUTPUT]: 验证兼容 peer 安装后真实 web profile 由官方 dsh-llm-pi-ai 提供三协议目录、default、reasoning、模型流、瞬时失败恢复、终态配额不重试及无本地上游 Key
  * [POS]: plugin 的 T11 核心组合验收器，只写临时 profile/probe 并守护上游工作区清洁度
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -494,7 +494,7 @@ try {
   const probePath = resolve(temporaryDshHome, 'enterprise-t11-acceptance-probe.mjs')
   await writeFile(probePath, probeSource)
   await writeFile(resolve(profileDir, 'cordis.patch.yml'), [
-    '- id: enterprise-agent',
+    '- id: owndsh',
     '  config:',
     `    baseUrl: ${JSON.stringify(platformUrl)}`,
     "    trustedPluginPublicKey: 'MCowBQYDK2VwAyEAgl6STzO84FyXlwmeHinWGgY/TgbGBUUBLF1xPT7SvT8='",
@@ -516,8 +516,7 @@ try {
     assert.match(dump.stdout, new RegExp(`id: ${id}[\\s\\S]{0,160}disabled: true`))
   }
   const profileLock = await readFile(resolve(profileDir, 'pnpm-lock.yaml'), 'utf8')
-  assert.match(profileLock, /'@deepseek-ai\/dsh-llm': 0\.1\.1-rc\.2/)
-  assert.doesNotMatch(profileLock, /'@deepseek-ai\/dsh-llm': 0\.1\.1-rc\.(?!2\b)\d+/)
+  assert.match(profileLock, /'@deepseek-ai\/dsh-llm': \^0\.1\.1-rc\.2/)
 
   harness = spawn('corepack', [
     'pnpm@11.7.0', '--dir', harnessRoot, 'dsh', '--profile', 'web', '--port', '0',

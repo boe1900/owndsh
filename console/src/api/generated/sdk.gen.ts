@@ -29,7 +29,7 @@ export const authorizePlatformClient = <ThrowOnError extends boolean = false>(op
 export const listPublicIdentitySources = <ThrowOnError extends boolean = false>(options: Options<ListPublicIdentitySourcesData, ThrowOnError>): RequestResult<ListPublicIdentitySourcesResponses, ListPublicIdentitySourcesErrors, ThrowOnError> => (options.client ?? client).get<ListPublicIdentitySourcesResponses, ListPublicIdentitySourcesErrors, ThrowOnError>({ url: '/enterprise/auth/v1/sources', ...options });
 
 /**
- * Authenticate over HTTPS or complete a one-time LOCAL password-change challenge in the same transaction.
+ * Authenticate over HTTP(S) or complete a one-time LOCAL password-change challenge in the same transaction.
  */
 export const completePasswordLogin = <ThrowOnError extends boolean = false>(options: Options<CompletePasswordLoginData, ThrowOnError>): RequestResult<CompletePasswordLoginResponses, CompletePasswordLoginErrors, ThrowOnError> => (options.client ?? client).post<CompletePasswordLoginResponses, CompletePasswordLoginErrors, ThrowOnError>({
     ...urlSearchParamsBodySerializer,
@@ -81,7 +81,7 @@ export const exchangeBrowserAuthorizationCode = <ThrowOnError extends boolean = 
 export const logoutPlatformSession = <ThrowOnError extends boolean = false>(options?: Options<LogoutPlatformSessionData, ThrowOnError>): RequestResult<LogoutPlatformSessionResponses, LogoutPlatformSessionErrors, ThrowOnError> => (options?.client ?? client).post<LogoutPlatformSessionResponses, LogoutPlatformSessionErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/auth/v1/logout',
@@ -94,7 +94,7 @@ export const logoutPlatformSession = <ThrowOnError extends boolean = false>(opti
 export const getConsoleBootstrap = <ThrowOnError extends boolean = false>(options?: Options<GetConsoleBootstrapData, ThrowOnError>): RequestResult<GetConsoleBootstrapResponses, GetConsoleBootstrapErrors, ThrowOnError> => (options?.client ?? client).get<GetConsoleBootstrapResponses, GetConsoleBootstrapErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/bootstrap',
@@ -107,7 +107,7 @@ export const getConsoleBootstrap = <ThrowOnError extends boolean = false>(option
 export const changeCurrentAccountPassword = <ThrowOnError extends boolean = false>(options: Options<ChangeCurrentAccountPasswordData, ThrowOnError>): RequestResult<ChangeCurrentAccountPasswordResponses, ChangeCurrentAccountPasswordErrors, ThrowOnError> => (options.client ?? client).put<ChangeCurrentAccountPasswordResponses, ChangeCurrentAccountPasswordErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/account/password',
@@ -121,7 +121,7 @@ export const changeCurrentAccountPassword = <ThrowOnError extends boolean = fals
 export const listMembers = <ThrowOnError extends boolean = false>(options?: Options<ListMembersData, ThrowOnError>): RequestResult<ListMembersResponses, ListMembersErrors, ThrowOnError> => (options?.client ?? client).get<ListMembersResponses, ListMembersErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/members',
@@ -131,7 +131,7 @@ export const listMembers = <ThrowOnError extends boolean = false>(options?: Opti
 export const createLocalMember = <ThrowOnError extends boolean = false>(options: Options<CreateLocalMemberData, ThrowOnError>): RequestResult<CreateLocalMemberResponses, CreateLocalMemberErrors, ThrowOnError> => (options.client ?? client).post<CreateLocalMemberResponses, CreateLocalMemberErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/members',
@@ -145,7 +145,7 @@ export const createLocalMember = <ThrowOnError extends boolean = false>(options:
 export const getMember = <ThrowOnError extends boolean = false>(options: Options<GetMemberData, ThrowOnError>): RequestResult<GetMemberResponses, GetMemberErrors, ThrowOnError> => (options.client ?? client).get<GetMemberResponses, GetMemberErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/members/{userId}',
@@ -155,7 +155,7 @@ export const getMember = <ThrowOnError extends boolean = false>(options: Options
 export const updateMemberStatus = <ThrowOnError extends boolean = false>(options: Options<UpdateMemberStatusData, ThrowOnError>): RequestResult<UpdateMemberStatusResponses, UpdateMemberStatusErrors, ThrowOnError> => (options.client ?? client).put<UpdateMemberStatusResponses, UpdateMemberStatusErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/members/{userId}/status',
@@ -169,7 +169,7 @@ export const updateMemberStatus = <ThrowOnError extends boolean = false>(options
 export const replaceMemberRoles = <ThrowOnError extends boolean = false>(options: Options<ReplaceMemberRolesData, ThrowOnError>): RequestResult<ReplaceMemberRolesResponses, ReplaceMemberRolesErrors, ThrowOnError> => (options.client ?? client).put<ReplaceMemberRolesResponses, ReplaceMemberRolesErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/members/{userId}/roles',
@@ -183,7 +183,7 @@ export const replaceMemberRoles = <ThrowOnError extends boolean = false>(options
 export const unlinkMemberIdentity = <ThrowOnError extends boolean = false>(options: Options<UnlinkMemberIdentityData, ThrowOnError>): RequestResult<UnlinkMemberIdentityResponses, UnlinkMemberIdentityErrors, ThrowOnError> => (options.client ?? client).delete<UnlinkMemberIdentityResponses, UnlinkMemberIdentityErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/members/{userId}/identities/{identityId}',
@@ -193,7 +193,7 @@ export const unlinkMemberIdentity = <ThrowOnError extends boolean = false>(optio
 export const startIdentityLink = <ThrowOnError extends boolean = false>(options: Options<StartIdentityLinkData, ThrowOnError>): RequestResult<StartIdentityLinkResponses, StartIdentityLinkErrors, ThrowOnError> => (options.client ?? client).post<StartIdentityLinkResponses, StartIdentityLinkErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/members/{userId}/identity-links',
@@ -210,7 +210,7 @@ export const startIdentityLink = <ThrowOnError extends boolean = false>(options:
 export const enrollCurrentDevice = <ThrowOnError extends boolean = false>(options: Options<EnrollCurrentDeviceData, ThrowOnError>): RequestResult<EnrollCurrentDeviceResponses, EnrollCurrentDeviceErrors, ThrowOnError> => (options.client ?? client).post<EnrollCurrentDeviceResponses, EnrollCurrentDeviceErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/api/v1/devices/enroll',
@@ -227,7 +227,7 @@ export const enrollCurrentDevice = <ThrowOnError extends boolean = false>(option
 export const heartbeatCurrentDevice = <ThrowOnError extends boolean = false>(options: Options<HeartbeatCurrentDeviceData, ThrowOnError>): RequestResult<HeartbeatCurrentDeviceResponses, HeartbeatCurrentDeviceErrors, ThrowOnError> => (options.client ?? client).post<HeartbeatCurrentDeviceResponses, HeartbeatCurrentDeviceErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/api/v1/devices/heartbeat',
@@ -244,7 +244,7 @@ export const heartbeatCurrentDevice = <ThrowOnError extends boolean = false>(opt
 export const listDevices = <ThrowOnError extends boolean = false>(options?: Options<ListDevicesData, ThrowOnError>): RequestResult<ListDevicesResponses, ListDevicesErrors, ThrowOnError> => (options?.client ?? client).get<ListDevicesResponses, ListDevicesErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/devices',
@@ -257,7 +257,7 @@ export const listDevices = <ThrowOnError extends boolean = false>(options?: Opti
 export const getDevice = <ThrowOnError extends boolean = false>(options: Options<GetDeviceData, ThrowOnError>): RequestResult<GetDeviceResponses, GetDeviceErrors, ThrowOnError> => (options.client ?? client).get<GetDeviceResponses, GetDeviceErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/devices/{deviceId}',
@@ -270,7 +270,7 @@ export const getDevice = <ThrowOnError extends boolean = false>(options: Options
 export const revokeDevice = <ThrowOnError extends boolean = false>(options: Options<RevokeDeviceData, ThrowOnError>): RequestResult<RevokeDeviceResponses, RevokeDeviceErrors, ThrowOnError> => (options.client ?? client).post<RevokeDeviceResponses, RevokeDeviceErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/devices/{deviceId}/actions/revoke',
@@ -283,7 +283,7 @@ export const revokeDevice = <ThrowOnError extends boolean = false>(options: Opti
 export const listIdentitySources = <ThrowOnError extends boolean = false>(options?: Options<ListIdentitySourcesData, ThrowOnError>): RequestResult<ListIdentitySourcesResponses, ListIdentitySourcesErrors, ThrowOnError> => (options?.client ?? client).get<ListIdentitySourcesResponses, ListIdentitySourcesErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/identity-sources',
@@ -296,7 +296,7 @@ export const listIdentitySources = <ThrowOnError extends boolean = false>(option
 export const createIdentitySource = <ThrowOnError extends boolean = false>(options: Options<CreateIdentitySourceData, ThrowOnError>): RequestResult<CreateIdentitySourceResponses, CreateIdentitySourceErrors, ThrowOnError> => (options.client ?? client).post<CreateIdentitySourceResponses, CreateIdentitySourceErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/identity-sources',
@@ -313,7 +313,7 @@ export const createIdentitySource = <ThrowOnError extends boolean = false>(optio
 export const getIdentitySource = <ThrowOnError extends boolean = false>(options: Options<GetIdentitySourceData, ThrowOnError>): RequestResult<GetIdentitySourceResponses, GetIdentitySourceErrors, ThrowOnError> => (options.client ?? client).get<GetIdentitySourceResponses, GetIdentitySourceErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/identity-sources/{sourceId}',
@@ -326,7 +326,7 @@ export const getIdentitySource = <ThrowOnError extends boolean = false>(options:
 export const updateIdentitySource = <ThrowOnError extends boolean = false>(options: Options<UpdateIdentitySourceData, ThrowOnError>): RequestResult<UpdateIdentitySourceResponses, UpdateIdentitySourceErrors, ThrowOnError> => (options.client ?? client).put<UpdateIdentitySourceResponses, UpdateIdentitySourceErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/identity-sources/{sourceId}',
@@ -343,7 +343,7 @@ export const updateIdentitySource = <ThrowOnError extends boolean = false>(optio
 export const testIdentitySource = <ThrowOnError extends boolean = false>(options: Options<TestIdentitySourceData, ThrowOnError>): RequestResult<TestIdentitySourceResponses, TestIdentitySourceErrors, ThrowOnError> => (options.client ?? client).post<TestIdentitySourceResponses, TestIdentitySourceErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/identity-sources/{sourceId}/actions/test',
@@ -356,7 +356,7 @@ export const testIdentitySource = <ThrowOnError extends boolean = false>(options
 export const enableIdentitySource = <ThrowOnError extends boolean = false>(options: Options<EnableIdentitySourceData, ThrowOnError>): RequestResult<EnableIdentitySourceResponses, EnableIdentitySourceErrors, ThrowOnError> => (options.client ?? client).post<EnableIdentitySourceResponses, EnableIdentitySourceErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/identity-sources/{sourceId}/actions/enable',
@@ -369,7 +369,7 @@ export const enableIdentitySource = <ThrowOnError extends boolean = false>(optio
 export const disableIdentitySource = <ThrowOnError extends boolean = false>(options: Options<DisableIdentitySourceData, ThrowOnError>): RequestResult<DisableIdentitySourceResponses, DisableIdentitySourceErrors, ThrowOnError> => (options.client ?? client).post<DisableIdentitySourceResponses, DisableIdentitySourceErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/identity-sources/{sourceId}/actions/disable',
@@ -382,7 +382,7 @@ export const disableIdentitySource = <ThrowOnError extends boolean = false>(opti
 export const searchLdapUsers = <ThrowOnError extends boolean = false>(options: Options<SearchLdapUsersData, ThrowOnError>): RequestResult<SearchLdapUsersResponses, SearchLdapUsersErrors, ThrowOnError> => (options.client ?? client).get<SearchLdapUsersResponses, SearchLdapUsersErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/identity-sources/{sourceId}/ldap/users',
@@ -395,7 +395,7 @@ export const searchLdapUsers = <ThrowOnError extends boolean = false>(options: O
 export const importLdapUser = <ThrowOnError extends boolean = false>(options: Options<ImportLdapUserData, ThrowOnError>): RequestResult<ImportLdapUserResponses, ImportLdapUserErrors, ThrowOnError> => (options.client ?? client).post<ImportLdapUserResponses, ImportLdapUserErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/identity-sources/{sourceId}/ldap/users/actions/import',
@@ -412,7 +412,7 @@ export const importLdapUser = <ThrowOnError extends boolean = false>(options: Op
 export const searchLdapGroups = <ThrowOnError extends boolean = false>(options: Options<SearchLdapGroupsData, ThrowOnError>): RequestResult<SearchLdapGroupsResponses, SearchLdapGroupsErrors, ThrowOnError> => (options.client ?? client).get<SearchLdapGroupsResponses, SearchLdapGroupsErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/identity-sources/{sourceId}/ldap/groups',
@@ -425,7 +425,7 @@ export const searchLdapGroups = <ThrowOnError extends boolean = false>(options: 
 export const listGroupMappings = <ThrowOnError extends boolean = false>(options: Options<ListGroupMappingsData, ThrowOnError>): RequestResult<ListGroupMappingsResponses, ListGroupMappingsErrors, ThrowOnError> => (options.client ?? client).get<ListGroupMappingsResponses, ListGroupMappingsErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/group-mappings',
@@ -438,7 +438,7 @@ export const listGroupMappings = <ThrowOnError extends boolean = false>(options:
 export const createGroupMapping = <ThrowOnError extends boolean = false>(options: Options<CreateGroupMappingData, ThrowOnError>): RequestResult<CreateGroupMappingResponses, CreateGroupMappingErrors, ThrowOnError> => (options.client ?? client).post<CreateGroupMappingResponses, CreateGroupMappingErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/group-mappings',
@@ -455,7 +455,7 @@ export const createGroupMapping = <ThrowOnError extends boolean = false>(options
 export const deleteGroupMapping = <ThrowOnError extends boolean = false>(options: Options<DeleteGroupMappingData, ThrowOnError>): RequestResult<DeleteGroupMappingResponses, DeleteGroupMappingErrors, ThrowOnError> => (options.client ?? client).delete<DeleteGroupMappingResponses, DeleteGroupMappingErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/group-mappings/{mappingId}',
@@ -465,7 +465,7 @@ export const deleteGroupMapping = <ThrowOnError extends boolean = false>(options
 export const listAccessGroups = <ThrowOnError extends boolean = false>(options?: Options<ListAccessGroupsData, ThrowOnError>): RequestResult<ListAccessGroupsResponses, ListAccessGroupsErrors, ThrowOnError> => (options?.client ?? client).get<ListAccessGroupsResponses, ListAccessGroupsErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/access-groups',
@@ -475,7 +475,7 @@ export const listAccessGroups = <ThrowOnError extends boolean = false>(options?:
 export const createAccessGroup = <ThrowOnError extends boolean = false>(options: Options<CreateAccessGroupData, ThrowOnError>): RequestResult<CreateAccessGroupResponses, CreateAccessGroupErrors, ThrowOnError> => (options.client ?? client).post<CreateAccessGroupResponses, CreateAccessGroupErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/access-groups',
@@ -489,7 +489,7 @@ export const createAccessGroup = <ThrowOnError extends boolean = false>(options:
 export const deleteAccessGroup = <ThrowOnError extends boolean = false>(options: Options<DeleteAccessGroupData, ThrowOnError>): RequestResult<DeleteAccessGroupResponses, DeleteAccessGroupErrors, ThrowOnError> => (options.client ?? client).delete<DeleteAccessGroupResponses, DeleteAccessGroupErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/access-groups/{accessGroupId}',
@@ -499,7 +499,7 @@ export const deleteAccessGroup = <ThrowOnError extends boolean = false>(options:
 export const getAccessGroup = <ThrowOnError extends boolean = false>(options: Options<GetAccessGroupData, ThrowOnError>): RequestResult<GetAccessGroupResponses, GetAccessGroupErrors, ThrowOnError> => (options.client ?? client).get<GetAccessGroupResponses, GetAccessGroupErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/access-groups/{accessGroupId}',
@@ -509,7 +509,7 @@ export const getAccessGroup = <ThrowOnError extends boolean = false>(options: Op
 export const updateAccessGroup = <ThrowOnError extends boolean = false>(options: Options<UpdateAccessGroupData, ThrowOnError>): RequestResult<UpdateAccessGroupResponses, UpdateAccessGroupErrors, ThrowOnError> => (options.client ?? client).put<UpdateAccessGroupResponses, UpdateAccessGroupErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/access-groups/{accessGroupId}',
@@ -526,7 +526,7 @@ export const updateAccessGroup = <ThrowOnError extends boolean = false>(options:
 export const getUserExternalIdentitySummary = <ThrowOnError extends boolean = false>(options: Options<GetUserExternalIdentitySummaryData, ThrowOnError>): RequestResult<GetUserExternalIdentitySummaryResponses, GetUserExternalIdentitySummaryErrors, ThrowOnError> => (options.client ?? client).get<GetUserExternalIdentitySummaryResponses, GetUserExternalIdentitySummaryErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/users/{userId}/identity-summary',
@@ -536,7 +536,7 @@ export const getUserExternalIdentitySummary = <ThrowOnError extends boolean = fa
 export const listModelProviders = <ThrowOnError extends boolean = false>(options?: Options<ListModelProvidersData, ThrowOnError>): RequestResult<ListModelProvidersResponses, ListModelProvidersErrors, ThrowOnError> => (options?.client ?? client).get<ListModelProvidersResponses, ListModelProvidersErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/providers',
@@ -546,7 +546,7 @@ export const listModelProviders = <ThrowOnError extends boolean = false>(options
 export const createModelProvider = <ThrowOnError extends boolean = false>(options: Options<CreateModelProviderData, ThrowOnError>): RequestResult<CreateModelProviderResponses, CreateModelProviderErrors, ThrowOnError> => (options.client ?? client).post<CreateModelProviderResponses, CreateModelProviderErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/providers',
@@ -560,7 +560,7 @@ export const createModelProvider = <ThrowOnError extends boolean = false>(option
 export const getModelProvider = <ThrowOnError extends boolean = false>(options: Options<GetModelProviderData, ThrowOnError>): RequestResult<GetModelProviderResponses, GetModelProviderErrors, ThrowOnError> => (options.client ?? client).get<GetModelProviderResponses, GetModelProviderErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/providers/{providerId}',
@@ -570,7 +570,7 @@ export const getModelProvider = <ThrowOnError extends boolean = false>(options: 
 export const updateModelProvider = <ThrowOnError extends boolean = false>(options: Options<UpdateModelProviderData, ThrowOnError>): RequestResult<UpdateModelProviderResponses, UpdateModelProviderErrors, ThrowOnError> => (options.client ?? client).put<UpdateModelProviderResponses, UpdateModelProviderErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/providers/{providerId}',
@@ -584,7 +584,7 @@ export const updateModelProvider = <ThrowOnError extends boolean = false>(option
 export const testModelProvider = <ThrowOnError extends boolean = false>(options: Options<TestModelProviderData, ThrowOnError>): RequestResult<TestModelProviderResponses, TestModelProviderErrors, ThrowOnError> => (options.client ?? client).post<TestModelProviderResponses, TestModelProviderErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/providers/{providerId}/actions/test',
@@ -598,7 +598,7 @@ export const testModelProvider = <ThrowOnError extends boolean = false>(options:
 export const enableModelProvider = <ThrowOnError extends boolean = false>(options: Options<EnableModelProviderData, ThrowOnError>): RequestResult<EnableModelProviderResponses, EnableModelProviderErrors, ThrowOnError> => (options.client ?? client).post<EnableModelProviderResponses, EnableModelProviderErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/providers/{providerId}/actions/enable',
@@ -608,7 +608,7 @@ export const enableModelProvider = <ThrowOnError extends boolean = false>(option
 export const disableModelProvider = <ThrowOnError extends boolean = false>(options: Options<DisableModelProviderData, ThrowOnError>): RequestResult<DisableModelProviderResponses, DisableModelProviderErrors, ThrowOnError> => (options.client ?? client).post<DisableModelProviderResponses, DisableModelProviderErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/providers/{providerId}/actions/disable',
@@ -618,7 +618,7 @@ export const disableModelProvider = <ThrowOnError extends boolean = false>(optio
 export const listManagedModels = <ThrowOnError extends boolean = false>(options?: Options<ListManagedModelsData, ThrowOnError>): RequestResult<ListManagedModelsResponses, ListManagedModelsErrors, ThrowOnError> => (options?.client ?? client).get<ListManagedModelsResponses, ListManagedModelsErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/models',
@@ -628,7 +628,7 @@ export const listManagedModels = <ThrowOnError extends boolean = false>(options?
 export const createManagedModel = <ThrowOnError extends boolean = false>(options: Options<CreateManagedModelData, ThrowOnError>): RequestResult<CreateManagedModelResponses, CreateManagedModelErrors, ThrowOnError> => (options.client ?? client).post<CreateManagedModelResponses, CreateManagedModelErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/models',
@@ -642,7 +642,7 @@ export const createManagedModel = <ThrowOnError extends boolean = false>(options
 export const deleteManagedModel = <ThrowOnError extends boolean = false>(options: Options<DeleteManagedModelData, ThrowOnError>): RequestResult<DeleteManagedModelResponses, DeleteManagedModelErrors, ThrowOnError> => (options.client ?? client).delete<DeleteManagedModelResponses, DeleteManagedModelErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/models/{modelId}',
@@ -652,7 +652,7 @@ export const deleteManagedModel = <ThrowOnError extends boolean = false>(options
 export const getManagedModel = <ThrowOnError extends boolean = false>(options: Options<GetManagedModelData, ThrowOnError>): RequestResult<GetManagedModelResponses, GetManagedModelErrors, ThrowOnError> => (options.client ?? client).get<GetManagedModelResponses, GetManagedModelErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/models/{modelId}',
@@ -662,7 +662,7 @@ export const getManagedModel = <ThrowOnError extends boolean = false>(options: O
 export const updateManagedModel = <ThrowOnError extends boolean = false>(options: Options<UpdateManagedModelData, ThrowOnError>): RequestResult<UpdateManagedModelResponses, UpdateManagedModelErrors, ThrowOnError> => (options.client ?? client).put<UpdateManagedModelResponses, UpdateManagedModelErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/models/{modelId}',
@@ -676,7 +676,7 @@ export const updateManagedModel = <ThrowOnError extends boolean = false>(options
 export const enableManagedModel = <ThrowOnError extends boolean = false>(options: Options<EnableManagedModelData, ThrowOnError>): RequestResult<EnableManagedModelResponses, EnableManagedModelErrors, ThrowOnError> => (options.client ?? client).post<EnableManagedModelResponses, EnableManagedModelErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/models/{modelId}/actions/enable',
@@ -686,7 +686,7 @@ export const enableManagedModel = <ThrowOnError extends boolean = false>(options
 export const disableManagedModel = <ThrowOnError extends boolean = false>(options: Options<DisableManagedModelData, ThrowOnError>): RequestResult<DisableManagedModelResponses, DisableManagedModelErrors, ThrowOnError> => (options.client ?? client).post<DisableManagedModelResponses, DisableManagedModelErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/models/{modelId}/actions/disable',
@@ -696,7 +696,7 @@ export const disableManagedModel = <ThrowOnError extends boolean = false>(option
 export const listModelSets = <ThrowOnError extends boolean = false>(options?: Options<ListModelSetsData, ThrowOnError>): RequestResult<ListModelSetsResponses, ListModelSetsErrors, ThrowOnError> => (options?.client ?? client).get<ListModelSetsResponses, ListModelSetsErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/model-sets',
@@ -706,7 +706,7 @@ export const listModelSets = <ThrowOnError extends boolean = false>(options?: Op
 export const createModelSet = <ThrowOnError extends boolean = false>(options: Options<CreateModelSetData, ThrowOnError>): RequestResult<CreateModelSetResponses, CreateModelSetErrors, ThrowOnError> => (options.client ?? client).post<CreateModelSetResponses, CreateModelSetErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/model-sets',
@@ -720,7 +720,7 @@ export const createModelSet = <ThrowOnError extends boolean = false>(options: Op
 export const deleteModelSet = <ThrowOnError extends boolean = false>(options: Options<DeleteModelSetData, ThrowOnError>): RequestResult<DeleteModelSetResponses, DeleteModelSetErrors, ThrowOnError> => (options.client ?? client).delete<DeleteModelSetResponses, DeleteModelSetErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/model-sets/{modelSetId}',
@@ -730,7 +730,7 @@ export const deleteModelSet = <ThrowOnError extends boolean = false>(options: Op
 export const getModelSet = <ThrowOnError extends boolean = false>(options: Options<GetModelSetData, ThrowOnError>): RequestResult<GetModelSetResponses, GetModelSetErrors, ThrowOnError> => (options.client ?? client).get<GetModelSetResponses, GetModelSetErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/model-sets/{modelSetId}',
@@ -740,7 +740,7 @@ export const getModelSet = <ThrowOnError extends boolean = false>(options: Optio
 export const updateModelSet = <ThrowOnError extends boolean = false>(options: Options<UpdateModelSetData, ThrowOnError>): RequestResult<UpdateModelSetResponses, UpdateModelSetErrors, ThrowOnError> => (options.client ?? client).put<UpdateModelSetResponses, UpdateModelSetErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/model-sets/{modelSetId}',
@@ -754,7 +754,7 @@ export const updateModelSet = <ThrowOnError extends boolean = false>(options: Op
 export const listModelGrants = <ThrowOnError extends boolean = false>(options?: Options<ListModelGrantsData, ThrowOnError>): RequestResult<ListModelGrantsResponses, ListModelGrantsErrors, ThrowOnError> => (options?.client ?? client).get<ListModelGrantsResponses, ListModelGrantsErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/model-grants',
@@ -764,7 +764,7 @@ export const listModelGrants = <ThrowOnError extends boolean = false>(options?: 
 export const createModelGrant = <ThrowOnError extends boolean = false>(options: Options<CreateModelGrantData, ThrowOnError>): RequestResult<CreateModelGrantResponses, CreateModelGrantErrors, ThrowOnError> => (options.client ?? client).post<CreateModelGrantResponses, CreateModelGrantErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/model-grants',
@@ -778,7 +778,7 @@ export const createModelGrant = <ThrowOnError extends boolean = false>(options: 
 export const createModelGrantBatch = <ThrowOnError extends boolean = false>(options: Options<CreateModelGrantBatchData, ThrowOnError>): RequestResult<CreateModelGrantBatchResponses, CreateModelGrantBatchErrors, ThrowOnError> => (options.client ?? client).post<CreateModelGrantBatchResponses, CreateModelGrantBatchErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/model-grants/batch',
@@ -792,7 +792,7 @@ export const createModelGrantBatch = <ThrowOnError extends boolean = false>(opti
 export const deleteModelGrant = <ThrowOnError extends boolean = false>(options: Options<DeleteModelGrantData, ThrowOnError>): RequestResult<DeleteModelGrantResponses, DeleteModelGrantErrors, ThrowOnError> => (options.client ?? client).delete<DeleteModelGrantResponses, DeleteModelGrantErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/model-grants/{grantId}',
@@ -802,7 +802,7 @@ export const deleteModelGrant = <ThrowOnError extends boolean = false>(options: 
 export const updateModelGrant = <ThrowOnError extends boolean = false>(options: Options<UpdateModelGrantData, ThrowOnError>): RequestResult<UpdateModelGrantResponses, UpdateModelGrantErrors, ThrowOnError> => (options.client ?? client).put<UpdateModelGrantResponses, UpdateModelGrantErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/model-grants/{grantId}',
@@ -816,7 +816,7 @@ export const updateModelGrant = <ThrowOnError extends boolean = false>(options: 
 export const getEnterpriseBootstrap = <ThrowOnError extends boolean = false>(options?: Options<GetEnterpriseBootstrapData, ThrowOnError>): RequestResult<GetEnterpriseBootstrapResponses, GetEnterpriseBootstrapErrors, ThrowOnError> => (options?.client ?? client).get<GetEnterpriseBootstrapResponses, GetEnterpriseBootstrapErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/api/v1/bootstrap',
@@ -826,7 +826,7 @@ export const getEnterpriseBootstrap = <ThrowOnError extends boolean = false>(opt
 export const listQuotaPolicies = <ThrowOnError extends boolean = false>(options?: Options<ListQuotaPoliciesData, ThrowOnError>): RequestResult<ListQuotaPoliciesResponses, ListQuotaPoliciesErrors, ThrowOnError> => (options?.client ?? client).get<ListQuotaPoliciesResponses, ListQuotaPoliciesErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/quotas',
@@ -836,7 +836,7 @@ export const listQuotaPolicies = <ThrowOnError extends boolean = false>(options?
 export const createQuotaPolicy = <ThrowOnError extends boolean = false>(options: Options<CreateQuotaPolicyData, ThrowOnError>): RequestResult<CreateQuotaPolicyResponses, CreateQuotaPolicyErrors, ThrowOnError> => (options.client ?? client).post<CreateQuotaPolicyResponses, CreateQuotaPolicyErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/quotas',
@@ -850,7 +850,7 @@ export const createQuotaPolicy = <ThrowOnError extends boolean = false>(options:
 export const deleteQuotaPolicy = <ThrowOnError extends boolean = false>(options: Options<DeleteQuotaPolicyData, ThrowOnError>): RequestResult<DeleteQuotaPolicyResponses, DeleteQuotaPolicyErrors, ThrowOnError> => (options.client ?? client).delete<DeleteQuotaPolicyResponses, DeleteQuotaPolicyErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/quotas/{quotaId}',
@@ -860,7 +860,7 @@ export const deleteQuotaPolicy = <ThrowOnError extends boolean = false>(options:
 export const getQuotaPolicy = <ThrowOnError extends boolean = false>(options: Options<GetQuotaPolicyData, ThrowOnError>): RequestResult<GetQuotaPolicyResponses, GetQuotaPolicyErrors, ThrowOnError> => (options.client ?? client).get<GetQuotaPolicyResponses, GetQuotaPolicyErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/quotas/{quotaId}',
@@ -870,7 +870,7 @@ export const getQuotaPolicy = <ThrowOnError extends boolean = false>(options: Op
 export const updateQuotaPolicy = <ThrowOnError extends boolean = false>(options: Options<UpdateQuotaPolicyData, ThrowOnError>): RequestResult<UpdateQuotaPolicyResponses, UpdateQuotaPolicyErrors, ThrowOnError> => (options.client ?? client).put<UpdateQuotaPolicyResponses, UpdateQuotaPolicyErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/quotas/{quotaId}',
@@ -884,7 +884,7 @@ export const updateQuotaPolicy = <ThrowOnError extends boolean = false>(options:
 export const enableQuotaPolicy = <ThrowOnError extends boolean = false>(options: Options<EnableQuotaPolicyData, ThrowOnError>): RequestResult<EnableQuotaPolicyResponses, EnableQuotaPolicyErrors, ThrowOnError> => (options.client ?? client).post<EnableQuotaPolicyResponses, EnableQuotaPolicyErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/quotas/{quotaId}/actions/enable',
@@ -894,7 +894,7 @@ export const enableQuotaPolicy = <ThrowOnError extends boolean = false>(options:
 export const disableQuotaPolicy = <ThrowOnError extends boolean = false>(options: Options<DisableQuotaPolicyData, ThrowOnError>): RequestResult<DisableQuotaPolicyResponses, DisableQuotaPolicyErrors, ThrowOnError> => (options.client ?? client).post<DisableQuotaPolicyResponses, DisableQuotaPolicyErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/quotas/{quotaId}/actions/disable',
@@ -904,7 +904,7 @@ export const disableQuotaPolicy = <ThrowOnError extends boolean = false>(options
 export const getQuotaPolicyWindows = <ThrowOnError extends boolean = false>(options: Options<GetQuotaPolicyWindowsData, ThrowOnError>): RequestResult<GetQuotaPolicyWindowsResponses, GetQuotaPolicyWindowsErrors, ThrowOnError> => (options.client ?? client).get<GetQuotaPolicyWindowsResponses, GetQuotaPolicyWindowsErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/quotas/{quotaId}/windows',
@@ -914,7 +914,7 @@ export const getQuotaPolicyWindows = <ThrowOnError extends boolean = false>(opti
 export const getMyQuotaUsage = <ThrowOnError extends boolean = false>(options?: Options<GetMyQuotaUsageData, ThrowOnError>): RequestResult<GetMyQuotaUsageResponses, GetMyQuotaUsageErrors, ThrowOnError> => (options?.client ?? client).get<GetMyQuotaUsageResponses, GetMyQuotaUsageErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/api/v1/usage/me',
@@ -924,7 +924,7 @@ export const getMyQuotaUsage = <ThrowOnError extends boolean = false>(options?: 
 export const listUsageLedger = <ThrowOnError extends boolean = false>(options?: Options<ListUsageLedgerData, ThrowOnError>): RequestResult<ListUsageLedgerResponses, ListUsageLedgerErrors, ThrowOnError> => (options?.client ?? client).get<ListUsageLedgerResponses, ListUsageLedgerErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/usage',
@@ -934,7 +934,7 @@ export const listUsageLedger = <ThrowOnError extends boolean = false>(options?: 
 export const streamEnterpriseChatCompletions = <ThrowOnError extends boolean = false>(options: Options<StreamEnterpriseChatCompletionsData, ThrowOnError, StreamEnterpriseChatCompletionsResponse>): Promise<ServerSentEventsResult<StreamEnterpriseChatCompletionsResponses>> => (options.client ?? client).sse.post<StreamEnterpriseChatCompletionsResponses, StreamEnterpriseChatCompletionsErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/gateway/v1/chat/completions',
@@ -948,7 +948,7 @@ export const streamEnterpriseChatCompletions = <ThrowOnError extends boolean = f
 export const streamEnterpriseResponses = <ThrowOnError extends boolean = false>(options: Options<StreamEnterpriseResponsesData, ThrowOnError, StreamEnterpriseResponsesResponse>): Promise<ServerSentEventsResult<StreamEnterpriseResponsesResponses>> => (options.client ?? client).sse.post<StreamEnterpriseResponsesResponses, StreamEnterpriseResponsesErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/gateway/v1/responses',
@@ -962,7 +962,7 @@ export const streamEnterpriseResponses = <ThrowOnError extends boolean = false>(
 export const streamEnterpriseAnthropicMessages = <ThrowOnError extends boolean = false>(options: Options<StreamEnterpriseAnthropicMessagesData, ThrowOnError, StreamEnterpriseAnthropicMessagesResponse>): Promise<ServerSentEventsResult<StreamEnterpriseAnthropicMessagesResponses>> => (options.client ?? client).sse.post<StreamEnterpriseAnthropicMessagesResponses, StreamEnterpriseAnthropicMessagesErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/gateway/v1/messages',
@@ -976,7 +976,7 @@ export const streamEnterpriseAnthropicMessages = <ThrowOnError extends boolean =
 export const listPluginPackages = <ThrowOnError extends boolean = false>(options?: Options<ListPluginPackagesData, ThrowOnError>): RequestResult<ListPluginPackagesResponses, ListPluginPackagesErrors, ThrowOnError> => (options?.client ?? client).get<ListPluginPackagesResponses, ListPluginPackagesErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/plugins',
@@ -987,7 +987,7 @@ export const uploadPluginVersion = <ThrowOnError extends boolean = false>(option
     ...formDataBodySerializer,
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/plugins/versions',
@@ -1001,7 +1001,7 @@ export const uploadPluginVersion = <ThrowOnError extends boolean = false>(option
 export const publishPluginVersion = <ThrowOnError extends boolean = false>(options: Options<PublishPluginVersionData, ThrowOnError>): RequestResult<PublishPluginVersionResponses, PublishPluginVersionErrors, ThrowOnError> => (options.client ?? client).post<PublishPluginVersionResponses, PublishPluginVersionErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/plugins/versions/{pluginVersionId}/actions/publish',
@@ -1011,7 +1011,7 @@ export const publishPluginVersion = <ThrowOnError extends boolean = false>(optio
 export const retirePluginVersion = <ThrowOnError extends boolean = false>(options: Options<RetirePluginVersionData, ThrowOnError>): RequestResult<RetirePluginVersionResponses, RetirePluginVersionErrors, ThrowOnError> => (options.client ?? client).post<RetirePluginVersionResponses, RetirePluginVersionErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/plugins/versions/{pluginVersionId}/actions/retire',
@@ -1021,7 +1021,7 @@ export const retirePluginVersion = <ThrowOnError extends boolean = false>(option
 export const replacePluginAssignments = <ThrowOnError extends boolean = false>(options: Options<ReplacePluginAssignmentsData, ThrowOnError>): RequestResult<ReplacePluginAssignmentsResponses, ReplacePluginAssignmentsErrors, ThrowOnError> => (options.client ?? client).post<ReplacePluginAssignmentsResponses, ReplacePluginAssignmentsErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/plugins/{pluginPackageId}/assignments/batch',
@@ -1035,7 +1035,7 @@ export const replacePluginAssignments = <ThrowOnError extends boolean = false>(o
 export const listPluginInventory = <ThrowOnError extends boolean = false>(options?: Options<ListPluginInventoryData, ThrowOnError>): RequestResult<ListPluginInventoryResponses, ListPluginInventoryErrors, ThrowOnError> => (options?.client ?? client).get<ListPluginInventoryResponses, ListPluginInventoryErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/plugins/inventory',
@@ -1045,7 +1045,7 @@ export const listPluginInventory = <ThrowOnError extends boolean = false>(option
 export const getPluginAssignments = <ThrowOnError extends boolean = false>(options?: Options<GetPluginAssignmentsData, ThrowOnError>): RequestResult<GetPluginAssignmentsResponses, GetPluginAssignmentsErrors, ThrowOnError> => (options?.client ?? client).get<GetPluginAssignmentsResponses, GetPluginAssignmentsErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/api/v1/plugins/assignments',
@@ -1055,7 +1055,7 @@ export const getPluginAssignments = <ThrowOnError extends boolean = false>(optio
 export const downloadPluginVersion = <ThrowOnError extends boolean = false>(options: Options<DownloadPluginVersionData, ThrowOnError>): RequestResult<DownloadPluginVersionResponses, DownloadPluginVersionErrors, ThrowOnError> => (options.client ?? client).get<DownloadPluginVersionResponses, DownloadPluginVersionErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/api/v1/plugins/versions/{pluginVersionId}/download',
@@ -1065,7 +1065,7 @@ export const downloadPluginVersion = <ThrowOnError extends boolean = false>(opti
 export const replacePluginInventory = <ThrowOnError extends boolean = false>(options: Options<ReplacePluginInventoryData, ThrowOnError>): RequestResult<ReplacePluginInventoryResponses, ReplacePluginInventoryErrors, ThrowOnError> => (options.client ?? client).put<ReplacePluginInventoryResponses, ReplacePluginInventoryErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/api/v1/plugins/inventory',
@@ -1079,7 +1079,7 @@ export const replacePluginInventory = <ThrowOnError extends boolean = false>(opt
 export const listOwnedSessions = <ThrowOnError extends boolean = false>(options?: Options<ListOwnedSessionsData, ThrowOnError>): RequestResult<ListOwnedSessionsResponses, ListOwnedSessionsErrors, ThrowOnError> => (options?.client ?? client).get<ListOwnedSessionsResponses, ListOwnedSessionsErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/api/v1/sessions',
@@ -1089,7 +1089,7 @@ export const listOwnedSessions = <ThrowOnError extends boolean = false>(options?
 export const appendSessionBatch = <ThrowOnError extends boolean = false>(options: Options<AppendSessionBatchData, ThrowOnError>): RequestResult<AppendSessionBatchResponses, AppendSessionBatchErrors, ThrowOnError> => (options.client ?? client).post<AppendSessionBatchResponses, AppendSessionBatchErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/api/v1/sessions/{sessionId}/batches',
@@ -1103,7 +1103,7 @@ export const appendSessionBatch = <ThrowOnError extends boolean = false>(options
 export const exportOwnedSession = <ThrowOnError extends boolean = false>(options: Options<ExportOwnedSessionData, ThrowOnError>): RequestResult<ExportOwnedSessionResponses, ExportOwnedSessionErrors, ThrowOnError> => (options.client ?? client).get<ExportOwnedSessionResponses, ExportOwnedSessionErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/api/v1/sessions/{sessionId}/export',
@@ -1113,7 +1113,7 @@ export const exportOwnedSession = <ThrowOnError extends boolean = false>(options
 export const deleteOwnedSession = <ThrowOnError extends boolean = false>(options: Options<DeleteOwnedSessionData, ThrowOnError>): RequestResult<DeleteOwnedSessionResponses, DeleteOwnedSessionErrors, ThrowOnError> => (options.client ?? client).delete<DeleteOwnedSessionResponses, DeleteOwnedSessionErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/api/v1/sessions/{sessionId}',
@@ -1123,7 +1123,7 @@ export const deleteOwnedSession = <ThrowOnError extends boolean = false>(options
 export const recordSessionRestore = <ThrowOnError extends boolean = false>(options: Options<RecordSessionRestoreData, ThrowOnError>): RequestResult<RecordSessionRestoreResponses, RecordSessionRestoreErrors, ThrowOnError> => (options.client ?? client).post<RecordSessionRestoreResponses, RecordSessionRestoreErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/api/v1/sessions/{sessionId}/restore-record',
@@ -1137,7 +1137,7 @@ export const recordSessionRestore = <ThrowOnError extends boolean = false>(optio
 export const listAdminSessions = <ThrowOnError extends boolean = false>(options?: Options<ListAdminSessionsData, ThrowOnError>): RequestResult<ListAdminSessionsResponses, ListAdminSessionsErrors, ThrowOnError> => (options?.client ?? client).get<ListAdminSessionsResponses, ListAdminSessionsErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/sessions',
@@ -1147,7 +1147,7 @@ export const listAdminSessions = <ThrowOnError extends boolean = false>(options?
 export const readAdminSessionContent = <ThrowOnError extends boolean = false>(options: Options<ReadAdminSessionContentData, ThrowOnError>): RequestResult<ReadAdminSessionContentResponses, ReadAdminSessionContentErrors, ThrowOnError> => (options.client ?? client).get<ReadAdminSessionContentResponses, ReadAdminSessionContentErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/sessions/{replicaId}/content',
@@ -1157,7 +1157,7 @@ export const readAdminSessionContent = <ThrowOnError extends boolean = false>(op
 export const deleteAdminSession = <ThrowOnError extends boolean = false>(options: Options<DeleteAdminSessionData, ThrowOnError>): RequestResult<DeleteAdminSessionResponses, DeleteAdminSessionErrors, ThrowOnError> => (options.client ?? client).delete<DeleteAdminSessionResponses, DeleteAdminSessionErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/sessions/{replicaId}',
@@ -1167,7 +1167,7 @@ export const deleteAdminSession = <ThrowOnError extends boolean = false>(options
 export const listAuditEvents = <ThrowOnError extends boolean = false>(options?: Options<ListAuditEventsData, ThrowOnError>): RequestResult<ListAuditEventsResponses, ListAuditEventsErrors, ThrowOnError> => (options?.client ?? client).get<ListAuditEventsResponses, ListAuditEventsErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
-            name: '__Host-enterprise-admin',
+            name: 'enterprise-admin',
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/audit-events',

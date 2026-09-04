@@ -299,7 +299,7 @@ try {
     env: harnessEnv,
   })
   await writeFile(resolve(temporaryDshHome, 'profiles', 'web', 'cordis.patch.yml'), [
-    '- id: enterprise-agent',
+    '- id: owndsh',
     '  config:',
     `    baseUrl: '${platformUrl}'`,
     `    trustedPluginPublicKey: '${trustedPluginPublicKey}'`,

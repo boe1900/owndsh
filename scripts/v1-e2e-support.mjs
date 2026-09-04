@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 Node HTTP/Crypto/Child Process 标准库、真实 EAP HTTPS 入口与运行中的 Compose 服务。
+ * [INPUT]: 依赖 Node HTTP/Crypto/Child Process 标准库、真实 OwnDsh HTTP(S) 入口与运行中的 Compose 服务。
  * [OUTPUT]: 提供 V1 E2E 的 PKCE 登录、Cookie/Bearer 请求、断言记录和 PostgreSQL/Redis 查询原语。
  * [POS]: scripts 的 E2E 传输支撑层，只封装协议机械细节，不包含产品场景或测试数据决策。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -228,7 +228,7 @@ export async function oidcLogin({ sourceId, clientId = 'enterprise-admin', insta
 export function psql(sql) {
   return execFileSync('docker', [
     'exec', POSTGRES_CONTAINER, 'psql', '-X', '-v', 'ON_ERROR_STOP=1',
-    '-U', 'enterprise_agent', '-d', 'enterprise_agent', '-Atc', sql,
+    '-U', 'owndsh', '-d', 'owndsh', '-Atc', sql,
   ], { encoding: 'utf8' }).trim();
 }
 

@@ -1,0 +1,6 @@
+com.owndsh.common.translation.config.TranslationConfig
+com.owndsh.common.translation.core.impl.DeptNameTranslationImpl
+com.owndsh.common.translation.core.impl.DictTypeTranslationImpl
+com.owndsh.common.translation.core.impl.OssUrlTranslationImpl
+com.owndsh.common.translation.core.impl.UserNameTranslationImpl
+com.owndsh.common.translation.core.impl.NicknameTranslationImpl

@@ -18,10 +18,10 @@ ACTIVE 设备 bootstrap 现在返回全部适用配额；本任务没有调用�
 
 ## 核心实现
 
-- `org.dromara.enterprise.quota` 按 domain/application/persistence/web 分层；Spring composition root
+- `com.owndsh.enterprise.quota` 按 domain/application/persistence/web 分层；Spring composition root
   只装配 JDBC、Redisson、事务、冻结时区、bootstrap resolver 和每分钟恢复任务。
 - 策略支持 list/get/create/update/delete/enable/disable/current windows，DEFAULT 要求空 subject，
-  DEPT/USER 要求真实 RuoYi 主体，至少一个 limit 为正；所有写入使用 revision CAS、递增 bootstrap
+  DEPT/USER 要求真实 原始服务端框架 主体，至少一个 limit 为正；所有写入使用 revision CAS、递增 bootstrap
   revision，并在同一事务写 `QUOTA_CHANGED` 审计。
 - 生效规则同时应用全部 ACTIVE DEFAULT、当前 DEPT 与 USER 策略，不做覆盖合并。resolver 在
   application 层强制按 policy ID 排序，不把 JDBC 返回顺序当作隐式正确性条件。
@@ -41,7 +41,7 @@ ACTIVE 设备 bootstrap 现在返回全部适用配额；本任务没有调用�
 OpenAPI 新增 10 个 operation，总数从 42 增至 52：配额 CRUD/启停/窗口、ACTIVE 设备
 `/enterprise/api/v1/usage/me` 和管理员 `/enterprise/admin/v1/usage`。管理读取与写入复用冻结的
 `ent:grant:read/write` 权限；创建要求 UUID v4 `Idempotency-Key`，修改/状态/删除要求 `If-Match`。
-删除不存在的 quota 明确返回 404；用量查询在设备有效但 RuoYi 用户失效时返回 403，不把访问主体
+删除不存在的 quota 明确返回 404；用量查询在设备有效但 原始服务端框架 用户失效时返回 403，不把访问主体
 失效伪装成配额资源不存在。管理员 ledger 的 requestId 筛选严格接受协议定义的 canonical ULID。
 
 统一异常边界新增四类 429 `QuotaExceededDetails` 和两类幂等 409 `RequestConflictDetails`。MockMvc
@@ -50,7 +50,7 @@ revision 409、两类幂等 409 和四类 429 的稳定 code/details。
 
 ledger 只输出分类 Token、result、requestId、上游 requestId 和时间，不包含 prompt、messages、
 provider route、credential 或 tenant 内部字段。员工本人用量每次重新验证 Sa-Token terminal 对应
-的 ACTIVE `dsh-desktop` 设备 owner 与当前 ACTIVE RuoYi 用户。
+的 ACTIVE `dsh-desktop` 设备 owner 与当前 ACTIVE 原始服务端框架 用户。
 
 ## 协议验收
 
@@ -70,7 +70,7 @@ T09 定向服务端门禁：
 ```sh
 JAVA_HOME=/usr/local/opt/openjdk@21 \
 PATH=/usr/local/opt/openjdk@21/bin:$PATH \
-./mvnw -B -ntp -pl ruoyi-modules/owndsh-enterprise -am \
+./mvnw -B -ntp -pl owndsh-modules/owndsh-enterprise -am \
   -Dmaven.test.skip=false \
   -Dtest=QuotaOrderingTest,QuotaWindowCalculatorTest,RedisQuotaRateLimiterTest,QuotaManagementIntegrationTest,T09ApiContractTest \
   -Dsurefire.failIfNoSpecifiedTests=false test
@@ -86,7 +86,7 @@ SENT、SETTLED、CHARGED_MAX、两类幂等冲突、过期恢复、ledger 聚合
 ```sh
 JAVA_HOME=/usr/local/opt/openjdk@21 \
 PATH=/usr/local/opt/openjdk@21/bin:$PATH \
-./mvnw -B -ntp -pl ruoyi-modules/owndsh-enterprise -am \
+./mvnw -B -ntp -pl owndsh-modules/owndsh-enterprise -am \
   -Dmaven.test.skip=false test
 ```
 

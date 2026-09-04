@@ -12,7 +12,7 @@ server:
   servlet:
     # 应用的访问路径
     context-path: /
-  # 仅信任由部署反向代理重写的 forwarding headers，使 HTTPS 登录判定使用外部协议。
+  # 使用 Console 网关规范后的 forwarding headers 还原部署方外部 HTTP(S) 协议。
   forward-headers-strategy: native
   # jetty 配置
   jetty:
@@ -37,7 +37,7 @@ captcha:
 # 日志配置
 logging:
   level:
-    org.dromara: @logging.level@
+    com.owndsh: @logging.level@
     org.springframework: warn
     org.mybatis.spring.mapper: error
     org.apache.fury: warn
@@ -153,9 +153,6 @@ security:
     - /error
     - /*/api-docs
     - /*/api-docs/**
-    - /warm-flow-ui/config
-    - /snail-chat/**
-    - /api/snail/chat/**
     - /enterprise/auth/v1/**
 
 # MyBatisPlus配置
@@ -163,12 +160,12 @@ security:
 mybatis-plus:
   # 自定义配置 是否全局开启逻辑删除 关闭后 所有逻辑删除功能将失效
   enableLogicDelete: true
-  # 多包名使用 例如 org.dromara.**.mapper,org.xxx.**.mapper
-  mapperPackage: org.dromara.**.mapper
+  # 多包名使用逗号分隔
+  mapperPackage: com.owndsh.**.mapper
   # 对应的 XML 文件位置
   mapperLocations: classpath*:mapper/**/*Mapper.xml
   # 实体扫描，多个package用逗号或者分号分隔
-  typeAliasesPackage: org.dromara.**.domain
+  typeAliasesPackage: com.owndsh.**.domain
   global-config:
     dbConfig:
       # 主键类型
@@ -218,18 +215,14 @@ springdoc:
     contact:
       name: OwnDsh
       url: https://github.com/boe1900/owndsh
-  #这里定义了两个分组，可定义多个，也可以不定义
+  # OwnDsh 对外 API 分组
   group-configs:
-    - group: 1.演示模块
-      packages-to-scan: org.dromara.demo
-    - group: 2.通用模块
-      packages-to-scan: org.dromara.web
-    - group: 3.系统模块
-      packages-to-scan: org.dromara.system
-    - group: 4.代码生成模块
-      packages-to-scan: org.dromara.gen
-    - group: 5.工作流模块
-      packages-to-scan: org.dromara.workflow
+    - group: 1.企业治理
+      packages-to-scan: com.owndsh.enterprise
+    - group: 2.系统基础
+      packages-to-scan: com.owndsh.system
+    - group: 3.服务入口
+      packages-to-scan: com.owndsh.web
 
 # 防止XSS攻击
 xss:
@@ -238,7 +231,6 @@ xss:
   # 排除链接
   excludeUrls:
     - /system/notice
-    - /warm-flow/save-json
 
 --- # 分布式锁 lock4j 全局配置
 lock4j:
@@ -276,152 +268,3 @@ message:
   web-socket-send-time-limit: 10000
   # WebSocket 发送缓冲区大小
   web-socket-buffer-size-limit: 64000
-
---- # warm-flow工作流配置
-warm-flow:
-  # 是否开启工作流，默认true
-  enabled: true
-  # 是否开启设计器ui
-  ui: true
-  # 是否显示流程图顶部文字
-  top-text-show: true
-  # 是否渲染节点悬浮提示，默认true
-  node-tooltip: true
-  # 默认Authorization，如果有多个token，用逗号分隔
-  token-name: ${sa-token.token-name},clientid
-
---- # LiteFlow 业务规则编排
-liteflow:
-  # 跟随工作流模块开关，避免禁用工作流时仍加载任务办理链
-  enable: ${warm-flow.enabled:true}
-  # 工作流模块用于编排任务办理链路
-  rule-source: classpath:liteflow/*.el.xml
-  # 开启虚拟线程
-  enable-virtual-thread: true
-
---- # mqtt 配置
-# 具体配置还需查看文档
-# https://mica-mqtt.dreamlu.net/guide/spring/client.html
-mqtt.client:
-  # 是否开启客户端，默认：true
-  enabled: false
-  # 连接的服务端 ip ，默认：127.0.0.1
-  ip: 127.0.0.1
-  # 端口：默认：1883
-  port: 1883
-  # 客户端名称
-  name: Mqtt-Client
-  # 客户端Id（非常重要，一般为设备 sn，不可重复）
-  client-id: 000001
-  username: owndsh
-  password: 123456
-  # 超时时间，单位：秒，默认：5秒
-  timeout: 5
-  # 重连时间，默认 5000 毫秒
-  re-interval: 5000
-  # mqtt 协议版本，可选 MQTT_3_1、mqtt_3_1_1、mqtt_5，默认：mqtt_5
-  version: mqtt_5
-  # 接收数据的 buffer size，默认：8k
-  read-buffer-size: 8KB
-  # 消息解析最大 bytes 长度，默认：10M
-  max-bytes-in-message: 10MB
-  # keep-alive 时间，单位：秒
-  keep-alive-secs: 60
-  # 开启保留 session 时，session 的有效期
-  session-expiry-interval-secs: 0
-  # 工作线程数，如果消息量比较大，例如做 emqx 的转发消息处理，可以调大此参数
-  mqtt-executor-size: 2
-  # 是否开启 ssl
-  ssl:
-    enabled: false
-    keystore-path:
-    keystore-pass:
-    truststore-path:
-    truststore-pass:
-
---- # elasticsearch 功能配置
-# 文档地址: https://www.easy-es.cn/
-# 更改包名需要去 EasyEsConfiguration 修改包扫描(后续版本支持配置文件读取)
-easy-es:
-  # 是否开启EE自动配置
-  enable: false
-  # 兼容模式
-  compatible: true
-  # es连接地址+端口 格式必须为ip:port,如果是集群则可用逗号隔开
-  address: localhost:9200
-  # 默认为http
-  schema: http
-  # 注意ES建议使用账号认证 不使用会报警告日志
-  # 如果无账号密码则可不配置此行
-  # username:
-  # 如果无账号密码则可不配置此行
-  # password:
-  # 心跳策略时间 单位:ms
-  keep-alive-millis: 18000
-  # 连接超时时间 单位:ms
-  connectTimeout: 5000
-  # 通信超时时间 单位:ms
-  socketTimeout: 5000
-  # 连接请求超时时间 单位:ms
-  connectionRequestTimeout: 5000
-  # 最大连接数 单位:个
-  maxConnTotal: 100
-  # 最大连接路由数 单位:个
-  maxConnPerRoute: 100
-  global-config:
-    # 开启控制台打印通过本框架生成的DSL语句,默认为开启,测试稳定后的生产环境建议关闭,以提升少量性能
-    print-dsl: true
-    # 异步处理索引是否阻塞主线程 默认阻塞 数据量过大时调整为非阻塞异步进行 项目启动更快
-    asyncProcessIndexBlocking: true
-    db-config:
-      # 是否开启下划线转驼峰 默认为false
-      map-underscore-to-camel-case: true
-      # id生成策略 customize为自定义,id值由用户生成,比如取MySQL中的数据id,如缺省此项配置,则id默认策略为es自动生成
-      id-type: customize
-      # 字段更新策略 默认为not_null
-      field-strategy: not_null
-      # 默认开启,查询若指定了size超过1w条时也会自动开启,开启后查询所有匹配数据,若不开启,会导致无法获取数据总条数,其它功能不受影响.
-      enable-track-total-hits: true
-      # 数据刷新策略,默认为不刷新
-      refresh-policy: immediate
-
---- # MCP 服务端配置
-spring.ai.mcp:
-  server:
-    # 与 owndsh-server 共用端口，默认端点为 /mcp
-    enabled: true
-    protocol: STREAMABLE
-    name: ${spring.application.name}
-    version: ${project.version}
-    type: SYNC
-    annotation-scanner:
-      enabled: true
-    streamable-http:
-      mcp-endpoint: /mcp
-
---- # MCP 客户端配置
-spring.ai.mcp:
-  client:
-    # 需要接入外部 MCP Server 时再打开，并配置 streamable-http/stdio connections
-    enabled: false
-    name: ${spring.application.name}-mcp-client
-    version: ${project.version}
-    type: SYNC
-    toolcallback:
-      enabled: false
-    # Streamable HTTP 多服务端示例
-    streamable-http:
-      connections:
-        knowledge:
-          url: http://localhost:9001
-        crm:
-          url: http://localhost:9002
-    # STDIO 多服务端示例
-    stdio:
-      connections:
-        filesystem:
-          command: npx
-          args:
-            - -y
-            - '@modelcontextprotocol/server-filesystem'
-            - D:/data

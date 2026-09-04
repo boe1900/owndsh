@@ -59,7 +59,7 @@ Server 全 reactor 门禁：
 cd backend
 JAVA_HOME=/usr/local/opt/openjdk@21 \
 PATH=/usr/local/opt/openjdk@21/bin:$PATH \
-./mvnw -B -ntp -pl ruoyi-modules/owndsh-enterprise -am \
+./mvnw -B -ntp -pl owndsh-modules/owndsh-enterprise -am \
   -Dmaven.test.skip=false -DskipTests=false test
 ```
 
@@ -93,14 +93,14 @@ platform-client 18 项、llm-gateway 14 项、bundle 3 项和 workspace 4 项不
 ## 安全与上游边界
 
 ```sh
-node scripts/upstream-baseline.mjs verify-locks
+node scripts/upstream-baseline.mjs verify
 node scripts/upstream-baseline.mjs verify
 ./scripts/bootstrap-harness.sh --check-only
 git diff --check
 ```
 
 环境为 Git 2.39.5、Node.js 24.14.1、pnpm 11.7.0、Java 21.0.12 与 Docker client/server 28.5.2。
-RuoYi、plus-ui 与 Harness 三份锁全部匹配。同级 `deepseek-harness` 精确位于标签
+原始服务端框架、plus-ui 与 Harness 三份锁全部匹配。同级 `deepseek-harness` 精确位于标签
 `dsh-v0.1.0-rc.7`、提交 `99f6f02fecdb7dff40c3fbc9470f5907c29f74ca`，工作区干净。
 
 仓库新增内容不包含私钥、Token、API Key、client secret、artifact 字节或生产凭据。归档错误对外只映射

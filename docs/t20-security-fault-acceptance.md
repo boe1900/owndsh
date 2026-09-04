@@ -1,3 +1,10 @@
+<!--
+[INPUT]: 依赖 T20 应用安全边界、故障恢复演练与后续 T21 当前部署职责。
+[OUTPUT]: 记录请求限制、错误隔离、秘密扫描和数据恢复的验收事实。
+[POS]: 应用安全纵向的历史验收证据；后续部署建议保持与现行 HTTP Compose 边界一致。
+[PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+-->
+
 # T20 安全与故障验收记录
 
 状态：`completed`
@@ -19,7 +26,7 @@ T20 已完成，且没有进入 T21。平台现在以默认拒绝跨域、强制
 - CORS 默认 `allowCredentials=false` 且 origin 列表为空。无 `Origin` 的同源请求正常通过，跨域请求默认 403，只有显式精确 origin 才会产生 CORS 许可头。
 - `SA_TOKEN_JWT_SECRET_KEY` 无仓库 fallback，缺失时 Spring placeholder 解析失败，不能再用上游已知样例密钥签发平台 Token。
 - `EnterpriseExceptionHandler` 和 `SaTokenExceptionHandler` 不记录异常 message/stack 或 raw Token；对外响应继续使用稳定安全文案。
-- 配额不新增第二套限流系统。模型请求继续使用 T09 的真实 Redis Lua RPM/并发全成全败限流和 lease TTL；LOCAL 登录继续复用 captcha 与 RuoYi 用户失败锁定。
+- 配额不新增第二套限流系统。模型请求继续使用 T09 的真实 Redis Lua RPM/并发全成全败限流和 lease TTL；LOCAL 登录继续复用 captcha 与 原始服务端框架 用户失败锁定。
 - provider 连接/读取、LDAP 连接/读取、Redis 连接/命令、Hikari 连接获取和 Harness 控制面请求继续使用已有有界超时，没有引入无界重试。
 
 ## 安全负例矩阵
@@ -80,7 +87,7 @@ corepack pnpm pack:bundle
 2026-08-20 最终实测结果：定向 Java reactor 通过且扫描 0 命中；完整后端 36 模块 reactor 在
 4 分 10 秒内通过；管理端 lint/生产构建通过；Harness workspace 的 typecheck、测试、构建和 bundle
 打包全部通过。全量执行还暴露并修复了 graceful drain 测试把 JVM root logger 设为 `OFF` 的测试间
-污染，`ruoyi-common-web` 随后按完整测试顺序 5 项通过。
+污染，`owndsh-common-web` 随后按完整测试顺序 5 项通过。
 
 ## 故障与恢复证据
 
@@ -110,7 +117,7 @@ T20 恢复演练通过: PostgreSQL=1 Redis=2 artifact=1 keys=2 kill/restart=2 di
 ## 上游与仓库边界
 
 ```sh
-node scripts/upstream-baseline.mjs verify-locks
+node scripts/upstream-baseline.mjs verify
 node scripts/upstream-baseline.mjs verify
 ./scripts/bootstrap-harness.sh --check-only
 git diff --check
@@ -128,8 +135,8 @@ git diff --check
 
 ## 改进建议
 
-T21 应把本任务验证的数据集合收敛为生产 Compose 持久卷、正式备份/恢复入口和健康检查，同时完成 TLS、可信 forwarding header 清洗和一次性 bootstrap admin。不要把 T20 的开发演练脚本直接宣称为生产备份方案。
+T21 应把本任务验证的数据集合收敛为生产 Compose 持久卷、正式备份/恢复入口和健康检查，同时完成 HTTP gateway forwarding header 规范化和一次性 bootstrap admin；需要 TLS 时由部署方外层网关终止。不要把 T20 的开发演练脚本直接宣称为生产备份方案。
 
 ## 任务边界
 
-T21 是唯一下一项：交付 Compose、Nginx TLS、初始化管理员、secret 生成、健康检查、正式备份/升级/回滚脚本与安装文档。T21 独立验收并提交前不得开始 T22。
+T21 是唯一下一项：交付 HTTP Compose/Nginx、初始化管理员、secret 生成、健康检查、正式备份/升级/回滚脚本与安装文档。T21 独立验收并提交前不得开始 T22。

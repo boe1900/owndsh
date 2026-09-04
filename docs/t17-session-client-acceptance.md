@@ -94,7 +94,7 @@ restoredSeed: durable-new-id
 ## 上游与安全门禁
 
 ```sh
-node scripts/upstream-baseline.mjs verify-locks
+node scripts/upstream-baseline.mjs verify
 node scripts/upstream-baseline.mjs verify
 ./scripts/bootstrap-harness.sh --check-only
 git diff --check

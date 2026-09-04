@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Cordis Context、真实临时状态/制品文件、签名 assignment 与 fake platform/subprocess/inventory
- * [OUTPUT]: 验证 argv、Cordis 代理、失败不激活、跨进程确认、ABSENT、回滚、库存和核心保护
+ * [OUTPUT]: 验证 argv、Cordis 代理、无信任根关闭、失败不激活、跨进程确认、ABSENT、回滚、整包卸载、库存和核心保护
  * [POS]: plugin-distribution 的完整状态机验收，模拟中心 revision 而不修改或替身化 Harness 源码
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -147,6 +147,7 @@ async function environment(options: {
   readonly dshHome?: string
   readonly runMarker?: string
   readonly commandPort?: DshPluginCommandPort
+  readonly trustedPluginPublicKey?: string | null
 }): Promise<{
   readonly context: PluginDistributionContext
   readonly home: string
@@ -161,7 +162,10 @@ async function environment(options: {
   ctx.reflect.provide('subprocess', subprocess.runtime)
   ctx.reflect.provide('pluginInventory' as never, (options.inventory ?? inventory()) as never)
   const service = new EnterprisePluginDistributionService(ctx as unknown as PluginDistributionContext, {
-    trustedPluginPublicKey: testKey.publicKey.export({ type: 'spki', format: 'der' }).toString('base64'),
+    ...(options.trustedPluginPublicKey === null ? {} : {
+      trustedPluginPublicKey: options.trustedPluginPublicKey
+        ?? testKey.publicKey.export({ type: 'spki', format: 'der' }).toString('base64'),
+    }),
     harnessCommit: HARNESS_COMMIT,
     bundleVersion: '0.1.0',
     profile: 'enterprise',
@@ -188,6 +192,20 @@ async function environment(options: {
 const testKey = generateKeyPairSync('ed25519')
 
 describe('EnterprisePluginDistributionService', () => {
+  it('keeps managed installation fail-closed when no trust root was packaged', async () => {
+    const content = Buffer.from('unsigned deployment bundle')
+    const desired = assignment(testKey, content)
+    const platform = new FakePlatform(bootstrap(1, [desired]), new Map([[desired.downloadUrl!, content]]))
+    const env = await environment({ platform, trustedPluginPublicKey: null })
+
+    await env.service.settled()
+
+    expect(env.service.status().plugins[0]).toMatchObject({
+      state: 'FAILED', lastErrorCode: 'ENT_PLUGIN_SIGNATURE_INVALID',
+    })
+    expect(env.subprocess.specs).toHaveLength(0)
+  })
+
   it('uses Desktop plugin argv without resolving an ambient dsh executable', async () => {
     const content = Buffer.from('managed Desktop bundle')
     const desired = assignment(testKey, content)
@@ -369,5 +387,24 @@ describe('EnterprisePluginDistributionService', () => {
     expect(restarted.service.status().plugins).toEqual([])
     expect(restarted.subprocess.specs).toHaveLength(0)
     expect(restartedPlatform.reports.at(-1)).toEqual({ items: [] })
+  })
+
+  it('uninstalls managed packages before OwnDsh and clears managed state', async () => {
+    const content = Buffer.from('managed bundle to remove')
+    const desired = assignment(testKey, content)
+    const platform = new FakePlatform(bootstrap(1, [desired]), new Map([[desired.downloadUrl!, content]]))
+    const env = await environment({ platform })
+    await env.service.settled()
+
+    await env.service.uninstall()
+
+    expect(env.subprocess.specs.map(spec => spec.argv.slice(-2))).toEqual([
+      ['--save-exact', join(env.home, 'enterprise', 'artifacts', `${desired.sha256}.tgz`)],
+      ['remove', desired.packageName],
+      ['remove', 'owndsh-plugin'],
+    ])
+    expect(env.service.status().plugins).toEqual([])
+    expect(JSON.parse(await readFile(join(env.home, 'enterprise', 'managed-plugins.json'), 'utf8')))
+      .toMatchObject({ plugins: [] })
   })
 })

@@ -36,7 +36,7 @@ importers:
   packages/bundle:
     dependencies:
       '@deepseek-ai/cordis':
-        specifier: 4.0.1
+        specifier: ^4.0.1
         version: 4.0.1
     devDependencies:
       '@deepseek-ai/dsh-host-plugin-inventory':
@@ -48,6 +48,9 @@ importers:
       '@deepseek-ai/dsh-llm-pi-ai':
         specifier: link:../../../../deepseek-harness/packages/llm/llm-pi-ai
         version: link:../../../../deepseek-harness/packages/llm/llm-pi-ai
+      '@deepseek-ai/dsh-settings':
+        specifier: link:../../../../deepseek-harness/packages/settings/settings
+        version: link:../../../../deepseek-harness/packages/settings/settings
       '@deepseek-ai/dsh-subprocess':
         specifier: link:../../../../deepseek-harness/packages/subprocess/subprocess
         version: link:../../../../deepseek-harness/packages/subprocess/subprocess
@@ -83,7 +86,7 @@ importers:
   packages/llm-gateway:
     dependencies:
       '@deepseek-ai/cordis':
-        specifier: 4.0.1
+        specifier: ^4.0.1
         version: 4.0.1
       '@owndsh/platform-client':
         specifier: workspace:*
@@ -96,7 +99,7 @@ importers:
   packages/platform-client:
     dependencies:
       '@deepseek-ai/cordis':
-        specifier: 4.0.1
+        specifier: ^4.0.1
         version: 4.0.1
       '@owndsh/contracts':
         specifier: workspace:*
@@ -104,11 +107,18 @@ importers:
       zod:
         specifier: 4.4.3
         version: 4.4.3
+    devDependencies:
+      '@deepseek-ai/dsh-settings':
+        specifier: link:../../../../deepseek-harness/packages/settings/settings
+        version: link:../../../../deepseek-harness/packages/settings/settings
+      '@deepseek-ai/schemastery':
+        specifier: 3.18.1
+        version: 3.18.1
 
   packages/plugin-distribution:
     dependencies:
       '@deepseek-ai/cordis':
-        specifier: 4.0.1
+        specifier: ^4.0.1
         version: 4.0.1
       '@owndsh/contracts':
         specifier: workspace:*
@@ -133,7 +143,7 @@ importers:
   packages/session-sync:
     dependencies:
       '@deepseek-ai/cordis':
-        specifier: 4.0.1
+        specifier: ^4.0.1
         version: 4.0.1
       '@owndsh/contracts':
         specifier: workspace:*

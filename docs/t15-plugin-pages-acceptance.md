@@ -48,7 +48,7 @@ Server catalog 在同一 package 投影中返回 versions 与 assignments；既�
 cd backend
 JAVA_HOME=/usr/local/opt/openjdk@21 \
 PATH=/usr/local/opt/openjdk@21/bin:$PATH \
-./mvnw -B -ntp -pl ruoyi-modules/owndsh-enterprise -am \
+./mvnw -B -ntp -pl owndsh-modules/owndsh-enterprise -am \
   -Dmaven.test.skip=false -DskipTests=false test
 
 cd ../admin-web

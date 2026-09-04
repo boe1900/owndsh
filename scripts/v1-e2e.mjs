@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 V1 验收矩阵、真实 TLS 部署、临时 LDAPS、可控 OIDC/模型 fixture 与环境注入管理员凭据。
+ * [INPUT]: 依赖 V1 验收矩阵、真实 HTTP(S) 部署、临时 LDAPS、可控 OIDC/模型 fixture 与环境注入管理员凭据。
  * [OUTPUT]: 执行 E01-E48 的表驱动真实链路验收，输出不含秘密的 JSON 证据并记录精确测试资源。
  * [POS]: scripts 的 V1 发布验收主执行器；复用产品 API 和锁定 Harness，不复制业务判断或放宽生产校验。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -127,7 +127,7 @@ async function expectDenied(session, path, statuses = [401, 403]) {
 }
 
 async function runDeploymentAndAuth() {
-  await acceptance.check('E01', 'TLS deployment topology is healthy and minimally exposed', async () => {
+  await acceptance.check('E01', 'HTTP(S) deployment topology is healthy and minimally exposed', async () => {
     const health = await fetch(`${ORIGIN}/healthz`);
     assert.equal(health.status, 200);
     for (const service of ['server', 'postgres', 'redis']) {
@@ -135,8 +135,10 @@ async function runDeploymentAndAuth() {
       assert.equal(dockerInspect(container, '{{.State.Health.Status}}'), 'healthy');
       assert.equal(dockerInspect(container, '{{json .NetworkSettings.Ports}}').includes('0.0.0.0'), false);
     }
-    assert.match(dockerInspect(`${COMPOSE_PROJECT}-console-1`, '{{json .NetworkSettings.Ports}}'), /62207/);
-    return 'Console/Server/PostgreSQL/Redis healthy; only Console publishes 62207';
+    const origin = new URL(ORIGIN);
+    const consolePort = origin.port || (origin.protocol === 'https:' ? '443' : '80');
+    assert.match(dockerInspect(`${COMPOSE_PROJECT}-console-1`, '{{json .NetworkSettings.Ports}}'), new RegExp(consolePort));
+    return `Console/Server/PostgreSQL/Redis healthy; only Console publishes ${consolePort}`;
   });
 
   await acceptance.check('E02', 'existing volume and Flyway V27 data survived current image', async () => {
@@ -166,9 +168,11 @@ async function runDeploymentAndAuth() {
   const admin = adminLogin.session;
   await acceptance.check('E05', 'LOCAL admin PKCE establishes only hardened browser cookie', async () => {
     const cookie = adminLogin.setCookie;
-    assert.match(cookie, /^__Host-enterprise-admin=/);
+    const secure = new URL(ORIGIN).protocol === 'https:';
+    assert.match(cookie, secure ? /^__Host-enterprise-admin=/ : /^enterprise-admin=/);
     assert.match(cookie, /; Path=\//i);
-    assert.match(cookie, /; Secure/i);
+    if (secure) assert.match(cookie, /; Secure/i);
+    else assert.doesNotMatch(cookie, /; Secure/i);
     assert.match(cookie, /; HttpOnly/i);
     assert.match(cookie, /; SameSite=Strict/i);
     assert.doesNotMatch(cookie, /Domain=/i);

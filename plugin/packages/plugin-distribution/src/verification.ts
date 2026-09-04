@@ -14,7 +14,7 @@ import { distributionError, PluginDistributionError } from './errors.js'
 import type { EnterprisePlatformPort, RuntimePluginAssignment } from './types.js'
 
 export interface ArtifactCompatibilityContext {
-  readonly harnessCommit: string
+  readonly harnessCommit?: string
   readonly bundleVersion: string
   readonly operatingSystem?: NodeJS.Platform
 }
@@ -83,7 +83,8 @@ export function verifyAssignmentMetadata(
 ): void {
   const compatibility = assignment.compatibility
   const operatingSystem = context.operatingSystem ?? process.platform
-  if (!compatibility.harnessCommits.includes(context.harnessCommit)
+  if (context.harnessCommit === undefined
+    || !compatibility.harnessCommits.includes(context.harnessCommit)
     || !compatibility.operatingSystems.includes(operatingSystem as 'darwin' | 'linux' | 'win32')
     || !satisfies(context.bundleVersion, compatibility.enterpriseBundleRange, { includePrerelease: true })) {
     throw new PluginDistributionError('ENT_PLUGIN_INCOMPATIBLE', 'plugin assignment is incompatible with this runtime')

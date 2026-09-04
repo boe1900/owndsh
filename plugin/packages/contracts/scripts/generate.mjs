@@ -145,7 +145,7 @@ async function generateInto(typescriptOutput, jsonSchemaOutput) {
     if (schema === undefined) throw new TypeError(`dereferenced schema is missing: ${schemaName}`)
     await writeFile(resolve(jsonSchemaOutput, 'schemas', `${schemaName}.schema.json`), stableJson({
       $schema: 'https://json-schema.org/draft/2020-12/schema',
-      $id: `urn:enterprise-agent:contracts:${schemaName}`,
+      $id: `urn:owndsh:contracts:${schemaName}`,
       ...schema,
     }))
   }

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 EnterprisePlatformService、Cordis Context、真实 Node HTTP 假平台/本地 route carrier 与临时 DSH_HOME
- * [OUTPUT]: 验证 PKCE→Token→enroll→bootstrap、状态订阅隔离、控制面限时/SSE 无总时限、取消、刷新退避与停稳
+ * [OUTPUT]: 验证 HTTP(S) origin、PKCE→Token→enroll→bootstrap、状态订阅隔离、控制面限时/SSE 无总时限、取消、刷新退避与 installation 停稳
  * [POS]: platform-client T06 核心生命周期测试，跨越真实 socket 而不伪造 Token 存储边界
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -10,6 +10,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
+import { SettingsProvider, type SettingsNamespace } from '@deepseek-ai/dsh-settings'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   EnterprisePlatformError,
@@ -36,9 +37,24 @@ interface Environment {
     at: number
     bootstrapMode?: BootstrapMode
   }[]
+  readonly settings?: MemorySettings
   setAutoCallback(value: boolean): void
   setBootstrap(mode: BootstrapMode, revision?: number): void
   close(): Promise<void>
+}
+
+class MemorySettings extends SettingsProvider {
+  readonly writable = true
+  readonly document: Record<string, unknown> = {}
+
+  protected load(): Promise<Record<string, unknown>> {
+    return Promise.resolve(structuredClone(this.document))
+  }
+
+  protected persist(namespace: SettingsNamespace, section: Record<string, unknown>): Promise<void> {
+    this.document[namespace] = structuredClone(section)
+    return Promise.resolve()
+  }
 }
 
 function json(response: ServerResponse, status: number, body: unknown): void {
@@ -78,6 +94,8 @@ describe('EnterprisePlatformService', () => {
     readonly refreshRetryMaxMs?: number
     readonly now?: () => Date
     readonly forgedCallbackState?: boolean
+    readonly withSettings?: boolean
+    readonly startUnconfigured?: boolean
   } = {}): Promise<Environment> {
     const home = await mkdtemp(join(tmpdir(), 'enterprise-platform-service-'))
     const routes = new Map<string, Route>()
@@ -252,10 +270,15 @@ describe('EnterprisePlatformService', () => {
     }
     const ctx = new Context()
     ctx.reflect.provide('webServer', webServer)
+    let settings: MemorySettings | undefined
+    if (options.withSettings === true) {
+      await ctx.plugin(MemorySettings)
+      settings = ctx.settings as MemorySettings
+    }
     const service = new EnterprisePlatformService(
       ctx as Context & { readonly webServer: WebServerRoutePort },
       {
-        baseUrl: platformUrl,
+        ...(options.startUnconfigured === true ? {} : { baseUrl: platformUrl }),
         harnessVersion: '0.1.0-rc.7',
         bundleVersion: '0.1.0',
         bootstrapIntervalMs: options.bootstrapIntervalMs ?? 60_000,
@@ -266,7 +289,6 @@ describe('EnterprisePlatformService', () => {
         installationName: 'Acceptance Workstation',
       },
       {
-        allowInsecureLoopbackBaseUrl: true,
         refreshRetryInitialMs: options.refreshRetryInitialMs ?? 10,
         refreshRetryMaxMs: options.refreshRetryMaxMs ?? 40,
         ...(options.now === undefined ? {} : { now: options.now }),
@@ -296,6 +318,7 @@ describe('EnterprisePlatformService', () => {
       service,
       authorizeUrls,
       platformRequests,
+      ...(settings === undefined ? {} : { settings }),
       setAutoCallback(value) { autoCallback = value },
       setBootstrap(mode, revision) {
         bootstrapMode = mode
@@ -323,18 +346,47 @@ describe('EnterprisePlatformService', () => {
     }, { timeout: 2_000 })
   }
 
-  it('requires one credential-free HTTPS origin in production configuration', () => {
-    const ctx = new Context()
+  it('accepts credential-free HTTP and HTTPS origins and rejects other URL shapes', async () => {
     const webServer: WebServerRoutePort = { register: () => () => undefined }
-    ctx.reflect.provide('webServer', webServer)
-    const create = (baseUrl: string): EnterprisePlatformService => new EnterprisePlatformService(
-      ctx as Context & { readonly webServer: WebServerRoutePort },
-      { baseUrl, harnessVersion: '0.1.0-rc.7', bundleVersion: '0.1.0' },
-    )
-    expect(() => create('http://enterprise.example.com')).toThrow('baseUrl must use https')
-    expect(() => create('https://user@enterprise.example.com/private')).toThrow(
-      'baseUrl must be an origin without credentials, query, fragment, or path',
-    )
+    const home = await mkdtemp(join(tmpdir(), 'enterprise-platform-origin-'))
+    const create = (baseUrl: string): EnterprisePlatformService => {
+      const ctx = new Context()
+      ctx.reflect.provide('webServer', webServer)
+      return new EnterprisePlatformService(
+        ctx as Context & { readonly webServer: WebServerRoutePort },
+        { baseUrl, harnessVersion: '0.1.0-rc.7', bundleVersion: '0.1.0', dshHome: home },
+      )
+    }
+    const http = create('http://enterprise.example.com')
+    const https = create('https://enterprise.example.com:8443/')
+    try {
+      expect(http.status().platformUrl).toBe('http://enterprise.example.com')
+      expect(https.status().platformUrl).toBe('https://enterprise.example.com:8443')
+      expect(() => create('ftp://enterprise.example.com')).toThrow('baseUrl must use http or https')
+      expect(() => create('https://user@enterprise.example.com/private')).toThrow(
+        'baseUrl must be an origin without credentials, query, fragment, or path',
+      )
+    } finally {
+      await Promise.all([http.dispose(), https.dispose()])
+      await rm(home, { force: true, recursive: true })
+    }
+  })
+
+  it('persists the Server origin through official settings and clears authentication when it changes', async () => {
+    const env = await environment({ withSettings: true, startUnconfigured: true })
+    expect(env.service.status()).toMatchObject({ state: 'UNCONFIGURED', platformUrl: null })
+
+    await env.service.setServerUrl(env.platformUrl)
+    expect(env.service.status()).toMatchObject({ state: 'SIGNED_OUT', platformUrl: env.platformUrl })
+    expect(env.settings?.document).toEqual({ owndsh: { serverUrl: env.platformUrl } })
+
+    await login(env)
+    await env.service.setServerUrl(env.localUrl)
+    expect(env.service.status()).toMatchObject({ state: 'SIGNED_OUT', platformUrl: env.localUrl })
+    expect(env.service.bootstrap()).toBeUndefined()
+    await expect(env.service.request('/enterprise/api/v1/probe')).rejects.toMatchObject({
+      code: 'ENT_AUTH_REQUIRED',
+    })
   })
 
   it('completes PKCE, enroll and bootstrap while keeping Token in Host memory only', async () => {
@@ -445,7 +497,6 @@ describe('EnterprisePlatformService', () => {
         bundleVersion: '0.1.0',
         dshHome: env.home,
       },
-      { allowInsecureLoopbackBaseUrl: true },
     )
     expect(restarted.status().state).toBe('SIGNED_OUT')
     expect(restarted.bootstrap()).toBeUndefined()

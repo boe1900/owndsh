@@ -1,6 +1,6 @@
 # [INPUT]: 依赖 release manifest/runtime.env、上游 PostgreSQL 基线、安装 secret、四个持久卷、可写临时目录与锁定 Linux amd64 镜像。
-# [OUTPUT]: 提供首次装载上游基线、只发布 443 的 Console、具备 Fontconfig 临时缓存的单 Server、PostgreSQL 17.6 和 Redis 7.4.5 拓扑。
-# [POS]: T21 部署唯一运行时事实源；空数据库先由官方 initdb 装载 version 0，已有卷不重放，Flyway 接管后续版本。
+# [OUTPUT]: 提供首次装载上游基线、只发布 HTTP 8080 的 Console、具备 Fontconfig 临时缓存的单 Server、PostgreSQL 17.6 和 Redis 7.4.5 拓扑。
+# [POS]: T21 部署运行时事实源；OwnDsh 不终止 TLS，空数据库先由官方 initdb 装载 version 0，Flyway 接管后续版本。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 name: ${OWNDSH_COMPOSE_PROJECT_NAME:-owndsh}
@@ -11,8 +11,8 @@ services:
     platform: linux/amd64
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${ENT_POSTGRES_DATABASE:-enterprise_agent}
-      POSTGRES_USER: ${ENT_POSTGRES_USERNAME:-enterprise_agent}
+      POSTGRES_DB: ${ENT_POSTGRES_DATABASE:-owndsh}
+      POSTGRES_USER: ${ENT_POSTGRES_USERNAME:-owndsh}
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
       TZ: UTC
     secrets:
@@ -76,8 +76,8 @@ services:
       ENT_ADMIN_REDIRECT_URI: ${ENT_ADMIN_REDIRECT_URI:?ENT_ADMIN_REDIRECT_URI must be set}
       ENT_DEPLOYMENT_TIME_ZONE: ${ENT_DEPLOYMENT_TIME_ZONE:-Asia/Shanghai}
       ENT_ALLOW_INSECURE_OIDC: ${ENT_ALLOW_INSECURE_OIDC:-false}
-      ENT_POSTGRES_DATABASE: ${ENT_POSTGRES_DATABASE:-enterprise_agent}
-      ENT_POSTGRES_USERNAME: ${ENT_POSTGRES_USERNAME:-enterprise_agent}
+      ENT_POSTGRES_DATABASE: ${ENT_POSTGRES_DATABASE:-owndsh}
+      ENT_POSTGRES_USERNAME: ${ENT_POSTGRES_USERNAME:-owndsh}
       ENT_MASTER_KEY_FILE: /run/secrets/enterprise_master_key
       ENT_PLUGIN_SIGNING_PRIVATE_KEY_FILE: /run/secrets/plugin_signing_private_key
       ENT_ARTIFACT_ROOT: /var/lib/enterprise/artifacts
@@ -121,16 +121,11 @@ services:
     user: "101:101"
     restart: unless-stopped
     ports:
-      - "${OWNDSH_HTTPS_BIND:-0.0.0.0}:${OWNDSH_HTTPS_PORT:-443}:443"
-    secrets:
-      - source: tls_certificate
-        target: tls.crt
-      - source: tls_private_key
-        target: tls.key
+      - "${OWNDSH_HTTP_BIND:-0.0.0.0}:${OWNDSH_HTTP_PORT:-8080}:8080"
     depends_on:
       server: {condition: service_healthy}
     healthcheck:
-      test: ["CMD", "wget", "--no-check-certificate", "-q", "-O", "/dev/null", "https://127.0.0.1/healthz"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -140,7 +135,6 @@ services:
       - /tmp:size=64m,mode=1777
     networks: [backend]
     cap_drop: [ALL]
-    cap_add: [NET_BIND_SERVICE]
     security_opt: [no-new-privileges:true]
 
 networks:
@@ -164,11 +158,6 @@ secrets:
     file: ${OWNDSH_STATE_DIR:?OWNDSH_STATE_DIR must be set}/secrets/enterprise_master_key
   plugin_signing_private_key:
     file: ${OWNDSH_STATE_DIR:?OWNDSH_STATE_DIR must be set}/secrets/plugin_signing_private_key
-  tls_certificate:
-    file: ${OWNDSH_STATE_DIR:?OWNDSH_STATE_DIR must be set}/tls/tls.crt
-  tls_private_key:
-    file: ${OWNDSH_STATE_DIR:?OWNDSH_STATE_DIR must be set}/tls/tls.key
-
 configs:
   postgres_baseline:
     file: ${OWNDSH_STATE_DIR:?OWNDSH_STATE_DIR must be set}/releases/${OWNDSH_RELEASE_VERSION:?OWNDSH_RELEASE_VERSION must be set}/database/postgres_owndsh.sql

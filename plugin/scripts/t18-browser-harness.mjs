@@ -484,7 +484,7 @@ try {
   })
   const profileDir = resolve(home, 'profiles', 'web')
   await writeFile(resolve(profileDir, 'cordis.patch.yml'), [
-    '- id: enterprise-agent',
+    '- id: owndsh',
     '  config:',
     `    baseUrl: ${JSON.stringify(platformUrl)}`,
     "    trustedPluginPublicKey: 'MCowBQYDK2VwAyEAgl6STzO84FyXlwmeHinWGgY/TgbGBUUBLF1xPT7SvT8='",
@@ -504,7 +504,7 @@ try {
     env: harnessEnv,
   })
   assert.match(dump.stdout, /id: session-persistence-jsonl/)
-  assert.match(dump.stdout, /id: enterprise-agent/)
+  assert.match(dump.stdout, /id: owndsh/)
   await startHarness()
   process.stdout.write(`T18_BROWSER_READY ${JSON.stringify({
     completionUrl: `${platformUrl}/control/complete`,

@@ -343,10 +343,6 @@ comment on column sys_menu.remark       is '备注';
 -- 一级菜单
 insert into sys_menu values(1761400000000000001, '系统管理', 0, 1, 'system', null, '', 'N', 'Y', 'M', '0', '0', '', 'system', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, '系统管理目录');
 insert into sys_menu values(1761400000000000002, '系统监控', 0, 3, 'monitor', null, '', 'N', 'Y', 'M', '0', '0', '', 'monitor', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, '系统监控目录');
-insert into sys_menu values(1761400000000000003, '系统工具', 0, 4, 'tool', null, '', 'N', 'Y', 'M', '0', '0', '', 'tool', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, '系统工具目录');
-insert into sys_menu values(1761400000000000005, '测试菜单', 0, 5, 'demo', null, '', 'N', 'Y', 'M', '0', '0', null, 'star', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, '测试菜单');
-insert into sys_menu values(1761400000000000006, 'AI会话',  0, 8, 'aichat', 'ai/chat/index', '', 'N', 'Y', 'C', '0', '0', '', 'checkbox', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, 'AI聊天菜单');
-insert into sys_menu values(1761400000000000004, 'PLUS官网', 0, 9, 'https://gitee.com/dromara/RuoYi-Vue-Plus', null, '', 'Y', 'Y', 'M', '0', '0', '', 'guide', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, 'RuoYi-Vue-Plus官网地址');
 -- 二级菜单
 insert into sys_menu values(1761400000000000100, '用户管理', 1761400000000000001, 1, 'user', 'system/user/index', '', 'N', 'Y', 'C', '0', '0', 'system:user:list', 'user', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, '用户管理菜单');
 insert into sys_menu values(1761400000000000101, '角色管理', 1761400000000000001, 2, 'role', 'system/role/index', '', 'N', 'Y', 'C', '0', '0', 'system:role:list', 'peoples', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, '角色管理菜单');
@@ -359,21 +355,13 @@ insert into sys_menu values(1761400000000000107, '通知公告', 176140000000000
 insert into sys_menu values(1761400000000000108, '日志管理', 1761400000000000001, 9, 'log', '', '', 'N', 'Y', 'M', '0', '0', '', 'log', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, '日志管理菜单');
 insert into sys_menu values(1761400000000000109, '在线用户', 1761400000000000002, 1, 'online', 'monitor/online/index', '', 'N', 'Y', 'C', '0', '0', 'monitor:online:list', 'online', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, '在线用户菜单');
 insert into sys_menu values(1761400000000000113, '缓存监控', 1761400000000000002, 5, 'cache', 'monitor/cache/index', '', 'N', 'Y', 'C', '0', '0', 'monitor:cache:list', 'redis', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, '缓存监控菜单');
-insert into sys_menu values(1761400000000000115, '代码生成', 1761400000000000003, 2, 'gen', 'tool/gen/index', '', 'N', 'Y', 'C', '0', '0', 'tool:gen:list', 'code', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, '代码生成菜单');
 insert into sys_menu values(1761400000000000123, '客户端管理', 1761400000000000001, 11, 'client', 'system/client/index', '', 'N', 'Y', 'C', '0', '0', 'system:client:list', 'international', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, '客户端管理菜单');
-insert into sys_menu values(1761400000000000116, '修改生成配置', 1761400000000000003, 2, 'gen-edit/index/:tableId', 'tool/gen/editTable', '', 'N', 'N', 'C', '1', '0', 'tool:gen:edit', '#', '/tool/gen', '', 1761000000000000103, 1761100000000000001, now(), null, null, '');
 insert into sys_menu values(1761400000000000130, '分配用户', 1761400000000000001, 2, 'role-auth/user/:roleId', 'system/role/authUser', '', 'N', 'N', 'C', '1', '0', 'system:role:edit', '#', '/system/role', '', 1761000000000000103, 1761100000000000001, now(), null, null, '');
 insert into sys_menu values(1761400000000000131, '分配角色', 1761400000000000001, 1, 'user-auth/role/:userId', 'system/user/authRole', '', 'N', 'N', 'C', '1', '0', 'system:user:edit', '#', '/system/user', '', 1761000000000000103, 1761100000000000001, now(), null, null, '');
 insert into sys_menu values(1761400000000000133, '文件配置管理', 1761400000000000001, 10, 'oss-config/index', 'system/oss/config', '', 'N', 'N', 'C', '1', '0', 'system:ossConfig:list', '#', '/system/oss', '', 1761000000000000103, 1761100000000000001, now(), null, null, '');
 
--- springboot-admin监控
-insert into sys_menu values(1761400000000000117, 'Admin监控', 1761400000000000002, 5, 'Admin', 'monitor/admin/index', '', 'N', 'Y', 'C', '0', '0', 'monitor:admin:list', 'dashboard', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, 'Admin监控菜单');
 -- oss菜单
 insert into sys_menu values(1761400000000000118, '文件管理', 1761400000000000001, 10, 'oss', 'system/oss/index', '', 'N', 'Y', 'C', '0', '0', 'system:oss:list', 'upload', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, '文件管理菜单');
--- snail-job server控制台
-insert into sys_menu values(1761400000000000120, '任务调度中心', 1761400000000000002, 6, 'snailjob', 'monitor/snailjob/index', '', 'N', 'Y', 'C', '0', '0', 'monitor:snailjob:list', 'job', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, 'SnailJob控制台菜单');
--- snail-ai server控制台
-insert into sys_menu values(1761400000000000121, 'AI控制台', 1761400000000000002, 7, 'snailai', 'monitor/snailai/index', '', 'N', 'Y', 'C', '0', '0', 'monitor:snailai:list', 'checkbox', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, 'AI控制台菜单');
 
 -- 三级菜单
 insert into sys_menu values(1761400000000000500, '操作日志', 1761400000000000108, 1, 'operlog', 'monitor/operlog/index', '', 'N', 'Y', 'C', '0', '0', 'monitor:operlog:list', 'form', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, '操作日志菜单');
@@ -438,13 +426,6 @@ insert into sys_menu values(1761400000000001050, '账户解锁', 176140000000000
 insert into sys_menu values(1761400000000001046, '在线查询', 1761400000000000109, 1, '#', '', '', 'N', 'Y', 'F', '0', '0', 'monitor:online:query', '#', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, '');
 insert into sys_menu values(1761400000000001047, '批量强退', 1761400000000000109, 2, '#', '', '', 'N', 'Y', 'F', '0', '0', 'monitor:online:batchLogout', '#', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, '');
 insert into sys_menu values(1761400000000001048, '单条强退', 1761400000000000109, 3, '#', '', '', 'N', 'Y', 'F', '0', '0', 'monitor:online:forceLogout', '#', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, '');
--- 代码生成按钮
-insert into sys_menu values(1761400000000001055, '生成查询', 1761400000000000115, 1, '#', '', '', 'N', 'Y', 'F', '0', '0', 'tool:gen:query', '#', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, '');
-insert into sys_menu values(1761400000000001056, '生成修改', 1761400000000000115, 2, '#', '', '', 'N', 'Y', 'F', '0', '0', 'tool:gen:edit', '#', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, '');
-insert into sys_menu values(1761400000000001057, '生成删除', 1761400000000000115, 3, '#', '', '', 'N', 'Y', 'F', '0', '0', 'tool:gen:remove', '#', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, '');
-insert into sys_menu values(1761400000000001058, '导入代码', 1761400000000000115, 2, '#', '', '', 'N', 'Y', 'F', '0', '0', 'tool:gen:import', '#', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, '');
-insert into sys_menu values(1761400000000001059, '预览代码', 1761400000000000115, 4, '#', '', '', 'N', 'Y', 'F', '0', '0', 'tool:gen:preview', '#', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, '');
-insert into sys_menu values(1761400000000001060, '生成代码', 1761400000000000115, 5, '#', '', '', 'N', 'Y', 'F', '0', '0', 'tool:gen:code', '#', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, '');
 -- oss相关按钮
 insert into sys_menu values(1761400000000001600, '文件查询', 1761400000000000118, 1, '#', '', '', 'N', 'Y', 'F', '0', '0', 'system:oss:query', '#', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, '');
 insert into sys_menu values(1761400000000001601, '文件上传', 1761400000000000118, 2, '#', '', '', 'N', 'Y', 'F', '0', '0', 'system:oss:upload', '#', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, '');
@@ -460,19 +441,6 @@ insert into sys_menu values(1761400000000001062, '客户端管理新增', 176140
 insert into sys_menu values(1761400000000001063, '客户端管理修改', 1761400000000000123, 3, '#', '', '', 'N', 'Y', 'F', '0', '0', 'system:client:edit', '#', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, '');
 insert into sys_menu values(1761400000000001064, '客户端管理删除', 1761400000000000123, 4, '#', '', '', 'N', 'Y', 'F', '0', '0', 'system:client:remove', '#', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, '');
 insert into sys_menu values(1761400000000001065, '客户端管理导出', 1761400000000000123, 5, '#', '', '', 'N', 'Y', 'F', '0', '0', 'system:client:export', '#', '', '', 1761000000000000103, 1761100000000000001, now(), null, null, '');
--- 测试菜单
-insert into sys_menu values(1761400000000001500, '测试单表', 1761400000000000005, 1, 'demo', 'demo/demo/index', '', 'N', 'Y', 'C', '0', '0', 'demo:demo:list', '#', '', '', 1761000000000000103, 1761100000000000001, now(), NULL, NULL, '测试单表菜单');
-insert into sys_menu values(1761400000000001501, '测试单表查询', 1761400000000001500, 1, '#', '', '', 'N', 'Y', 'F', '0', '0', 'demo:demo:query', '#', '', '', 1761000000000000103, 1761100000000000001, now(), NULL, NULL, '');
-insert into sys_menu values(1761400000000001502, '测试单表新增', 1761400000000001500, 2, '#', '', '', 'N', 'Y', 'F', '0', '0', 'demo:demo:add', '#', '', '', 1761000000000000103, 1761100000000000001, now(), NULL, NULL, '');
-insert into sys_menu values(1761400000000001503, '测试单表修改', 1761400000000001500, 3, '#', '', '', 'N', 'Y', 'F', '0', '0', 'demo:demo:edit', '#', '', '', 1761000000000000103, 1761100000000000001, now(), NULL, NULL, '');
-insert into sys_menu values(1761400000000001504, '测试单表删除', 1761400000000001500, 4, '#', '', '', 'N', 'Y', 'F', '0', '0', 'demo:demo:remove', '#', '', '', 1761000000000000103, 1761100000000000001, now(), NULL, NULL, '');
-insert into sys_menu values(1761400000000001505, '测试单表导出', 1761400000000001500, 5, '#', '', '', 'N', 'Y', 'F', '0', '0', 'demo:demo:export', '#', '', '', 1761000000000000103, 1761100000000000001, now(), NULL, NULL, '');
-insert into sys_menu values(1761400000000001506, '测试树表', 1761400000000000005, 1, 'tree', 'demo/tree/index', '', 'N', 'Y', 'C', '0', '0', 'demo:tree:list', '#', '', '', 1761000000000000103, 1761100000000000001, now(), NULL, NULL, '测试树表菜单');
-insert into sys_menu values(1761400000000001507, '测试树表查询', 1761400000000001506, 1, '#', '', '', 'N', 'Y', 'F', '0', '0', 'demo:tree:query', '#', '', '', 1761000000000000103, 1761100000000000001, now(), NULL, NULL, '');
-insert into sys_menu values(1761400000000001508, '测试树表新增', 1761400000000001506, 2, '#', '', '', 'N', 'Y', 'F', '0', '0', 'demo:tree:add', '#', '', '', 1761000000000000103, 1761100000000000001, now(), NULL, NULL, '');
-insert into sys_menu values(1761400000000001509, '测试树表修改', 1761400000000001506, 3, '#', '', '', 'N', 'Y', 'F', '0', '0', 'demo:tree:edit', '#', '', '', 1761000000000000103, 1761100000000000001, now(), NULL, NULL, '');
-insert into sys_menu values(1761400000000001510, '测试树表删除', 1761400000000001506, 4, '#', '', '', 'N', 'Y', 'F', '0', '0', 'demo:tree:remove', '#', '', '', 1761000000000000103, 1761100000000000001, now(), NULL, NULL, '');
-insert into sys_menu values(1761400000000001511, '测试树表导出', 1761400000000001506, 5, '#', '', '', 'N', 'Y', 'F', '0', '0', 'demo:tree:export', '#', '', '', 1761000000000000103, 1761100000000000001, now(), NULL, NULL, '');
 
 
 -- ----------------------------
@@ -516,7 +484,6 @@ comment on column sys_role_menu.menu_id     is '菜单ID';
 -- 初始化-角色和菜单关联表数据
 -- ----------------------------
 insert into sys_role_menu values (1761300000000000003, 1761400000000000001);
-insert into sys_role_menu values (1761300000000000003, 1761400000000000005);
 insert into sys_role_menu values (1761300000000000003, 1761400000000000100);
 insert into sys_role_menu values (1761300000000000003, 1761400000000000101);
 insert into sys_role_menu values (1761300000000000003, 1761400000000000102);
@@ -584,18 +551,6 @@ insert into sys_role_menu values (1761300000000000003, 1761400000000001062);
 insert into sys_role_menu values (1761300000000000003, 1761400000000001063);
 insert into sys_role_menu values (1761300000000000003, 1761400000000001064);
 insert into sys_role_menu values (1761300000000000003, 1761400000000001065);
-insert into sys_role_menu values (1761300000000000003, 1761400000000001500);
-insert into sys_role_menu values (1761300000000000003, 1761400000000001501);
-insert into sys_role_menu values (1761300000000000003, 1761400000000001502);
-insert into sys_role_menu values (1761300000000000003, 1761400000000001503);
-insert into sys_role_menu values (1761300000000000003, 1761400000000001504);
-insert into sys_role_menu values (1761300000000000003, 1761400000000001505);
-insert into sys_role_menu values (1761300000000000003, 1761400000000001506);
-insert into sys_role_menu values (1761300000000000003, 1761400000000001507);
-insert into sys_role_menu values (1761300000000000003, 1761400000000001508);
-insert into sys_role_menu values (1761300000000000003, 1761400000000001509);
-insert into sys_role_menu values (1761300000000000003, 1761400000000001510);
-insert into sys_role_menu values (1761300000000000003, 1761400000000001511);
 insert into sys_role_menu values (1761300000000000003, 1761400000000001600);
 insert into sys_role_menu values (1761300000000000003, 1761400000000001601);
 insert into sys_role_menu values (1761300000000000003, 1761400000000001602);
@@ -619,19 +574,6 @@ insert into sys_role_menu values (1761300000000000003, 1761400000000011641);
 insert into sys_role_menu values (1761300000000000003, 1761400000000011642);
 insert into sys_role_menu values (1761300000000000003, 1761400000000011643);
 insert into sys_role_menu values (1761300000000000003, 1761400000000011701);
-insert into sys_role_menu values (1761300000000000004, 1761400000000000005);
-insert into sys_role_menu values (1761300000000000004, 1761400000000001500);
-insert into sys_role_menu values (1761300000000000004, 1761400000000001501);
-insert into sys_role_menu values (1761300000000000004, 1761400000000001502);
-insert into sys_role_menu values (1761300000000000004, 1761400000000001503);
-insert into sys_role_menu values (1761300000000000004, 1761400000000001504);
-insert into sys_role_menu values (1761300000000000004, 1761400000000001505);
-insert into sys_role_menu values (1761300000000000004, 1761400000000001506);
-insert into sys_role_menu values (1761300000000000004, 1761400000000001507);
-insert into sys_role_menu values (1761300000000000004, 1761400000000001508);
-insert into sys_role_menu values (1761300000000000004, 1761400000000001509);
-insert into sys_role_menu values (1761300000000000004, 1761400000000001510);
-insert into sys_role_menu values (1761300000000000004, 1761400000000001511);
 
 -- ----------------------------
 -- 8、角色和部门关联表  角色1-N部门
@@ -1189,11 +1131,11 @@ comment on column sys_oss_config.update_by      is '更新者';
 comment on column sys_oss_config.update_time    is '更新时间';
 comment on column sys_oss_config.remark         is '备注';
 
-insert into sys_oss_config values (1761900000000000001, 'minio', 'ruoyi', 'ruoyi123', 'ruoyi', '', '127.0.0.1:9000', '', 'N', '', '1', 'Y', '', 1761000000000000103, 1761100000000000001, now(), 1761100000000000001, now(), null);
-insert into sys_oss_config values (1761900000000000002, 'qiniu', 'XXXXXXXXXXXXXXX', 'XXXXXXXXXXXXXXX', 'ruoyi', '', 's3-cn-north-1.qiniucs.com', '', 'N', '', '1', 'N', '', 1761000000000000103, 1761100000000000001, now(), 1761100000000000001, now(), null);
-insert into sys_oss_config values (1761900000000000003, 'aliyun', 'XXXXXXXXXXXXXXX', 'XXXXXXXXXXXXXXX', 'ruoyi', '', 'oss-cn-beijing.aliyuncs.com', '', 'N', '', '1', 'N', '', 1761000000000000103, 1761100000000000001, now(), 1761100000000000001, now(), null);
-insert into sys_oss_config values (1761900000000000004, 'qcloud', 'XXXXXXXXXXXXXXX', 'XXXXXXXXXXXXXXX', 'ruoyi-1240000000', '', 'cos.ap-beijing.myqcloud.com', '', 'N', 'ap-beijing', '1', 'N', '', 1761000000000000103, 1761100000000000001, now(), 1761100000000000001, now(), null);
-insert into sys_oss_config values (1761900000000000005, 'image', 'ruoyi', 'ruoyi123', 'ruoyi', 'image', '127.0.0.1:9000', '', 'N', '', '1', 'N', '', 1761000000000000103, 1761100000000000001, now(), 1761100000000000001, now(), NULL);
+insert into sys_oss_config values (1761900000000000001, 'minio', 'owndsh', 'owndsh123', 'owndsh', '', '127.0.0.1:9000', '', 'N', '', '1', 'Y', '', 1761000000000000103, 1761100000000000001, now(), 1761100000000000001, now(), null);
+insert into sys_oss_config values (1761900000000000002, 'qiniu', 'XXXXXXXXXXXXXXX', 'XXXXXXXXXXXXXXX', 'owndsh', '', 's3-cn-north-1.qiniucs.com', '', 'N', '', '1', 'N', '', 1761000000000000103, 1761100000000000001, now(), 1761100000000000001, now(), null);
+insert into sys_oss_config values (1761900000000000003, 'aliyun', 'XXXXXXXXXXXXXXX', 'XXXXXXXXXXXXXXX', 'owndsh', '', 'oss-cn-beijing.aliyuncs.com', '', 'N', '', '1', 'N', '', 1761000000000000103, 1761100000000000001, now(), 1761100000000000001, now(), null);
+insert into sys_oss_config values (1761900000000000004, 'qcloud', 'XXXXXXXXXXXXXXX', 'XXXXXXXXXXXXXXX', 'owndsh-1240000000', '', 'cos.ap-beijing.myqcloud.com', '', 'N', 'ap-beijing', '1', 'N', '', 1761000000000000103, 1761100000000000001, now(), 1761100000000000001, now(), null);
+insert into sys_oss_config values (1761900000000000005, 'image', 'owndsh', 'owndsh123', 'owndsh', 'image', '127.0.0.1:9000', '', 'N', '', '1', 'N', '', 1761000000000000103, 1761100000000000001, now(), 1761100000000000001, now(), NULL);
 
 -- ----------------------------
 -- 系统授权表
@@ -1337,4 +1279,3 @@ select to_timestamp($1, 'yyyy-mm-dd hh24:mi:ss');
 $$ language sql strict ;
 
 create cast (varchar as timestamptz) with function cast_varchar_to_timestamp as IMPLICIT;
-

@@ -36,6 +36,7 @@ describe('enterprise local API', () => {
     }
     platform = {
       status: () => structuredClone(currentStatus),
+      setServerUrl: vi.fn(async serverUrl => ({ serverUrl })),
       startLogin: vi.fn(async () => ({ flowId: 'flow-1' })),
       cancelLogin: vi.fn(() => true),
       logout: vi.fn(async () => undefined),
@@ -133,6 +134,30 @@ describe('enterprise local API', () => {
       body: '{"unexpected":true}', headers: { 'content-type': 'application/json' }, method: 'POST',
     })
     expect(unknownField.status).toBe(400)
+  })
+
+  it('updates the Server origin and responds before invoking the optional restart after uninstall', async () => {
+    const calls: string[] = []
+    registerEnterpriseLocalApi(webServer, {
+      platform,
+      pluginStatus,
+      uninstallPlugin: async () => ({ restart: () => { calls.push('restart') } }),
+    })
+    const server = await fetch(`${baseUrl}/enterprise/api/v1/local/server`, {
+      body: JSON.stringify({ serverUrl: 'https://next.example.com' }),
+      headers: { 'content-type': 'application/json' },
+      method: 'POST',
+    })
+    await expect(server.json()).resolves.toEqual({ data: { serverUrl: 'https://next.example.com' } })
+    expect(platform.setServerUrl).toHaveBeenCalledWith('https://next.example.com')
+
+    const uninstall = await fetch(`${baseUrl}/enterprise/api/v1/local/uninstall`, {
+      body: '{}', headers: { 'content-type': 'application/json' }, method: 'POST',
+    })
+    await expect(uninstall.json()).resolves.toEqual({
+      data: { uninstalled: true, restartRequested: true },
+    })
+    expect(calls).toEqual(['restart'])
   })
 
   it('streams initial and changed status through local SSE and unsubscribes on close', async () => {

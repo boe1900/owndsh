@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:enterprise-agent:contracts:LdapDirectoryGroupSearchResponse",
+  "$id": "urn:owndsh:contracts:LdapDirectoryGroupSearchResponse",
   "type": "object",
   "additionalProperties": false,
   "required": [

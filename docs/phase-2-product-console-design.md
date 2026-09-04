@@ -22,14 +22,14 @@
 新控制台采用 React、Vite 和最新稳定 TanStack 技术栈。产品壳明确以
 [Beautiful UI Harness](https://www.beautifului.dev/harness) 为结构与视觉基线：窄侧栏、紧凑顶部工作区、平面中央内容区、
 低对比度表面和轻边框。登录、回调、首次改密、权限错误及全部业务页面共享同一套 tokens、排版和控件，不再出现
-独立的 RuoYi 登录模板。Beautiful UI 源码引入后由产品维护，运行时不依赖其服务。
+独立的 原始服务端框架 登录模板。Beautiful UI 源码引入后由产品维护，运行时不依赖其服务。
 
 产品不再暴露通用企业后台。菜单、部门、岗位、字典、参数、认证客户端、OSS、公告、在线用户、缓存监控、
 代码生成器和工作流等能力退出新控制台。左侧导航只服务于模型接入、访问策略、插件、成员和活动记录。
 
 身份模型收敛为成熟开发者平台的共同语义：一个平台成员可以绑定多个 OIDC、LDAP 或本地身份；稳定身份键
 来自身份源和外部 subject，用户名与邮箱不得自动合并账号；固定角色和访问策略负责授权，外部组不再映射
-RuoYi 部门。
+原始服务端框架 部门。
 
 资源治理使用扁平用户组和模型集完成批量授权；策略共享主体/资源/状态生命周期，但由 `TOKEN | RATE` 显式分型。
 Token 限额支持 5 小时、自然日、自然周和自然月窗口；速率限制只承载 RPM/并发。产品不引入金额、余额、价格表、倍率或订阅计费。
@@ -61,7 +61,7 @@ Token 限额支持 5 小时、自然日、自然周和自然月窗口；速率�
 - 菜单管理、部门、岗位、字典和系统参数成为产品概念。
 - Ant Design/ProComponents 决定页面密度和视觉，而不是产品任务。
 - 成员来源只藏在详情抽屉，列表不能识别 OIDC、LDAP、本地或多身份成员。
-- 外部身份组映射 RuoYi 部门，认证和组织结构发生错误耦合。
+- 外部身份组映射 原始服务端框架 部门，认证和组织结构发生错误耦合。
 
 继续换主题只能隐藏问题，不能消除运行时依赖和产品语义。
 
@@ -85,11 +85,11 @@ Token 限额支持 5 小时、自然日、自然周和自然月窗口；速率�
 - 不实现 SCIM；有真实客户需求后再设计。
 - 不实现外部目录组织树同步。
 - 不按用户名或邮箱自动合并身份。
-- 不在第二阶段物理删除全部 RuoYi 表、接口或源码模块。
+- 不在第二阶段物理删除全部 原始服务端框架 表、接口或源码模块。
 - 不重写已经稳定的模型网关、插件协议和 Session 协议。
 - 不引入 TanStack Start、Next.js、SSR 或独立 Node 服务。
 - 不同时运行 Umi Router 和 TanStack Router。
-- 不迁移已隐藏的 Generator、Demo、Workflow、RuoYi AI 和 Job 页面。
+- 不迁移已隐藏的 Generator、Demo、Workflow、原始服务端框架 AI 和 Job 页面。
 
 ## 4. 冻结技术决策
 
@@ -154,7 +154,7 @@ P2-01 于 2026-08-31 验收完成：`pnpm check` 的 OpenAPI 生成、typecheck�
 ### 4.3 为什么不用 TanStack Start
 
 控制台由 Java Server 提供 API，并以静态资源交付。它不需要 SSR、Server Functions 或第二个服务端运行时。
-Vite SPA 可以保持单镜像、同源 TLS、现有 PKCE 回调和私有部署拓扑，复杂度更低。
+Vite SPA 可以保持单镜像、同源 HTTP(S)、现有 PKCE 回调和私有部署拓扑，复杂度更低；OwnDsh Compose 只提供 HTTP，需要 TLS 时由部署方外层网关终止。
 
 ### 4.4 状态所有权
 
@@ -227,7 +227,7 @@ Chat、Prompt Bar、Thinking、Streaming Text、Tool Chips、Flowchart、Fine-tu
 已登录页面使用 Harness shell；`/login` 使用 shadcn authentication 双栏骨架并完全套用 Beautiful UI foundation，桌面左栏只承载产品识别，右栏以最大 410px 内容区完成认证，移动端退化为单栏。PKCE callback、403/404 和全局错误页不显示侧栏，并与登录页共享字体、控件、焦点、主题和动效规则，禁止渐变背景、宣传插画或另一套视觉模板。
 
 1. 第一视口固定呈现 Harness 式产品侧栏和当前业务内容，不创建营销首页；骨架只复用布局语义，不复制聊天功能。
-2. 桌面端左侧为 224px 至 240px 固定导航，顶部保留紧凑页面标题/操作区，中央内容占剩余宽度；不保留 RuoYi 工具栏或 TagsView。
+2. 桌面端左侧为 224px 至 240px 固定导航，顶部保留紧凑页面标题/操作区，中央内容占剩余宽度；不保留 原始服务端框架 工具栏或 TagsView。
 3. 不使用面包屑、TagsView、布局设置、尺寸选择、语言工具条、文档/Git 链接或全屏工具条。
 4. 不创建传统仪表盘卡片矩阵。默认入口直接进入“模型”。
 5. 页面标题保持紧凑；表格、筛选和命令在同一内容平面组织，不把页面 section 做成浮动卡片。
@@ -280,8 +280,8 @@ Chat、Prompt Bar、Thinking、Streaming Text、Tool Chips、Flowchart、Fine-tu
 - 字典、系统参数、通知公告。
 - OAuth/认证客户端通用管理。
 - OSS 配置和通用文件管理。
-- 在线用户、缓存、Server、登录日志和操作日志的 RuoYi 页面。
-- Generator、Demo、Workflow、RuoYi AI、Job 和上游宣传入口。
+- 在线用户、缓存、Server、登录日志和操作日志的 原始服务端框架 页面。
+- Generator、Demo、Workflow、原始服务端框架 AI、Job 和上游宣传入口。
 - 用户导入导出、社交账号绑定、性别、手机号等与本产品无关的通用 HR 字段。
 
 第二阶段只移除产品入口和新前端依赖。旧表和旧接口的物理删除必须等新控制台上线一个稳定版本、生产查询
@@ -347,7 +347,7 @@ type ConsoleRouteMeta = {
 
 ### 7.4 旧权限数据的迁移策略
 
-第二阶段不为了删除 UI 而立即重写 Sa-Token/RuoYi 权限查询。`sys_menu/sys_role_menu` 可以暂时作为内部权限码
+第二阶段不为了删除 UI 而立即重写 Sa-Token/原始服务端框架 权限查询。`sys_menu/sys_role_menu` 可以暂时作为内部权限码
 存储，但新控制台不读取其中的菜单层次，产品也不提供编辑入口。
 
 当新控制台稳定后，可独立评估把固定角色权限集合迁入专用表或 Java 固定映射。只有新旧权限结果逐项相同、
@@ -457,7 +457,7 @@ Datadog 的严格 Role Mapping 会在 assertion 不匹配时移除原角色，�
 | 外部组映射产品访问范围 | 采用 | 外部组显式映射本地扁平用户组，成员关系按来源同步 |
 | SCIM 创建、停用和组同步 | 延后 | 有客户提出登录前回收或批量同步需求时独立设计 |
 | 相同邮箱/用户名自动关联 | 拒绝 | 即使邮箱已验证也不能证明两个账号应归为同一成员 |
-| 外部目录同步 RuoYi 部门/岗位 | 拒绝 | 产品不拥有 HR 组织树，登录不得写 `sys_dept`/`sys_post` |
+| 外部目录同步 原始服务端框架 部门/岗位 | 拒绝 | 产品不拥有 HR 组织树，登录不得写 `sys_dept`/`sys_post` |
 | 客户编辑菜单、路由和权限树 | 拒绝 | 静态产品路由 + 固定角色 + Server 权限码 |
 | 合并两个已有平台成员及历史数据 | 拒绝 | 第二阶段只绑定新身份，不迁移设备、Session、用量或审计 |
 
@@ -515,7 +515,7 @@ Member
 | `ent_model_set` / membership | 模型集 | 新建扁平模型集合，作为批量授权和限额资源 |
 | `ent_model_grant` / quota | Access Policy | 扩展到用户组、模型集和单模型资源 |
 | `ent_external_group_mapping` | 外部组映射 | 删除部门目标，改为显式映射产品用户组 |
-| `sys_dept` / `sys_post` | RuoYi 组织数据 | 新产品不使用 |
+| `sys_dept` / `sys_post` | 原始服务端框架 组织数据 | 新产品不使用 |
 
 ### 8.3 稳定身份键
 
@@ -618,7 +618,7 @@ V1 新增 LDAP 组目录发现，而不建立目录镜像。LDAP 身份源可配
 成功后服务端撤销该成员全部平台 Session 并删除管理端 Cookie，其他标签在下次请求或刷新时返回登录页。OIDC/LDAP-only 成员收到“没有
 LOCAL 密码”的明确错误；第二阶段不增加管理员重置他人密码或未经身份核验的恢复旁路。
 
-控制台认证事实固定为 `__Host-enterprise-admin` host-only Cookie，属性为 `Secure + HttpOnly + SameSite=Strict + Path=/`。浏览器专用 PKCE exchange 只返回 `204 + Set-Cookie`，不把 opaque Token 放进 JSON、JavaScript、localStorage 或 sessionStorage；Sa-Token 通用 Cookie 读取继续关闭，仅由 `/enterprise/admin/**` 前置 Filter 在 MVC 权限注解执行前桥接这一固定 Cookie，平台会话 adapter 保留 Controller 内兜底读取。新标签直接凭 Cookie 请求 bootstrap，注销与改密由服务端撤销会话并删除 Cookie；其他标签下一次请求或刷新时按 401 返回登录，不增加跨标签状态同步层。Desktop 的 Host 内存 Bearer Token 流程保持不变。
+控制台认证使用 HttpOnly/SameSite=Strict/host-only Cookie：外部地址为 HTTPS 时名称为 `__Host-enterprise-admin` 并设置 `Secure`，HTTP 时名称为 `enterprise-admin`。浏览器专用 PKCE exchange 只返回 `204 + Set-Cookie`，不把 opaque Token 放进 JSON、JavaScript、localStorage 或 sessionStorage；Sa-Token 通用 Cookie 读取继续关闭，仅由 `/enterprise/admin/**` 前置 Filter 在 MVC 权限注解执行前桥接与部署协议对应的 Cookie，平台会话 adapter 保留 Controller 内兜底读取。新标签直接凭 Cookie 请求 bootstrap，注销与改密由服务端撤销会话并删除 Cookie；其他标签下一次请求或刷新时按 401 返回登录，不增加跨标签状态同步层。Desktop 的 Host 内存 Bearer Token 流程保持不变。
 
 ## 9. 授权、Token 配额与速率控制
 
@@ -700,7 +700,7 @@ OpenAI 官方语义证明了多层硬上限和独立速率限制的合理性，�
 ### 10.1 原则
 
 - `contracts/enterprise-openapi.yaml` 继续是跨端协议真源。
-- 新控制台只消费 product DTO，不直接依赖 RuoYi `SysUser`、menu 或 dept DTO。
+- 新控制台只消费 product DTO，不直接依赖 原始服务端框架 `SysUser`、menu 或 dept DTO。
 - Snowflake ID 在 JSON 中继续使用字符串。
 - mutation 继续使用 revision/`If-Match`，冲突只刷新事实，不自动重放。
 - secret 只可写入或替换，永不回显。
@@ -710,7 +710,7 @@ OpenAI 官方语义证明了多层硬上限和独立速率限制的合理性，�
 | Operation | 用途 | 备注 |
 |---|---|---|
 | `getConsoleBootstrap` | 当前成员、角色、权限和部署名 | 不返回菜单 |
-| `listMembers` | 成员分页、角色和登录方式摘要 | 替代 RuoYi 用户列表 |
+| `listMembers` | 成员分页、角色和登录方式摘要 | 替代 原始服务端框架 用户列表 |
 | `getMember` | 成员、身份、设备、Session 摘要 | 产品详情 DTO |
 | `updateMemberStatus` | 启停成员 | 停用撤销会话/设备 |
 | `replaceMemberRoles` | 替换固定角色集合 | 不接受权限树 |
@@ -720,7 +720,7 @@ OpenAI 官方语义证明了多层硬上限和独立速率限制的合理性，�
 | `getAccessSettings` / `updateAccessSettings` | Organization 默认模型 | revision + 权限校验 |
 
 Provider、模型、授权、配额、插件、用量、审计、设备和 Session operation 优先复用现有企业 API。只有现有 DTO
-暴露 RuoYi 概念或造成 N+1 时才新增产品投影，不创建第二套业务状态机。
+暴露 原始服务端框架 概念或造成 N+1 时才新增产品投影，不创建第二套业务状态机。
 
 ## 11. 前端数据与错误行为
 
@@ -785,7 +785,7 @@ mutation 成功后只失效所属实体和列表；不全局清空缓存。revis
 
 ### 13.2 真实 E2E
 
-Playwright 必须通过真实 PostgreSQL、Redis、Java Server 和 HTTPS 同源入口验证：
+Playwright 必须通过真实 PostgreSQL、Redis、Java Server 和配置一致的 HTTP(S) 同源入口验证：
 
 1. LOCAL 管理员 PKCE 登录并进入“模型”。
 2. 登录后新标签直接复用服务端 Cookie；任一标签 Sign out 后其他标签的后续管理 API 返回 401，刷新后进入登录页；浏览器 JavaScript 存储中不存在平台 Token。
@@ -872,7 +872,7 @@ P2-08C 自动验收证据（2026-09-03）：管理端继续复用现有 PKCE/密
 - 菜单管理、部门、岗位、字典、参数等通用后台能力不出现在产品中。
 - 成员列表显示登录方式，成员详情可显示多个稳定外部身份。
 - 没有 LDAP/OIDC 时可创建 `ACTIVE + employee` LOCAL 成员；首次登录强制改密，用户中心改密验证旧密码并撤销全部会话。
-- 控制台只使用 host-only `Secure + HttpOnly + SameSite=Strict` Cookie；服务端拒绝显式跨源写入，新标签共享登录，Sign out/改密后其他标签的下次请求失效，JavaScript 不持有平台 Token。
+- 控制台只使用 host-only `HttpOnly + SameSite=Strict` Cookie，HTTPS 部署额外使用 `__Host-` 名称和 `Secure`；服务端拒绝显式跨源写入，新标签共享登录，Sign out/改密后其他标签的下次请求失效，JavaScript 不持有平台 Token。
 - 同名多身份不自动合并，显式绑定经过真实身份认证。
 - LDAP 支持单人导入和组目录有界发现；Group DN 显式映射产品用户组，空组在登录或重新导入时撤销旧来源关系。
 - 登录不再修改部门，成员授权只由固定角色和资源访问策略决定。

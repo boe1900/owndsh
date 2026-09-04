@@ -1,0 +1,2 @@
+com.owndsh.common.json.config.JacksonConfig
+com.owndsh.common.json.config.JsonEnhancementConfig

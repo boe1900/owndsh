@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 platform-client bootstrap/request、rc.2 subprocess/pluginInventory、可选 Desktop command port、制品校验与原子状态文件
- * [OUTPUT]: 对外提供 EnterprisePluginDistributionService、核心保护集合、串行调和与库存状态
+ * [INPUT]: 依赖 platform-client bootstrap/request、兼容 Harness subprocess/pluginInventory、可选 Desktop command port、制品校验与原子状态文件
+ * [OUTPUT]: 对外提供 EnterprisePluginDistributionService、核心保护集合、串行调和、显式整包卸载与库存状态
  * [POS]: plugin-distribution 的 Cordis shadow-compatible 生命周期所有者，把中心期望收敛为 Loader 可证事实
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -36,10 +36,11 @@ export const PROTECTED_ENTERPRISE_PACKAGES = new Set([
   '@owndsh/session-sync',
   '@owndsh/ui',
 ])
+const OWNDSH_PACKAGE = 'owndsh-plugin'
 
 interface ResolvedConfig {
-  readonly trustedPublicKey: ReturnType<typeof parseTrustedPluginPublicKey>
-  readonly harnessCommit: string
+  readonly trustedPublicKey?: ReturnType<typeof parseTrustedPluginPublicKey>
+  readonly harnessCommit?: string
   readonly bundleVersion: string
   readonly profile: string
   readonly dshCommand: string
@@ -56,7 +57,9 @@ export interface PluginDistributionInternals {
 }
 
 function resolveConfig(config: PluginDistributionConfig): ResolvedConfig {
-  if (!/^[0-9a-f]{40}$/.test(config.harnessCommit)) throw new TypeError('harnessCommit must be a full lowercase commit')
+  if (config.harnessCommit !== undefined && !/^[0-9a-f]{40}$/.test(config.harnessCommit)) {
+    throw new TypeError('harnessCommit must be a full lowercase commit')
+  }
   if (config.bundleVersion.length === 0) throw new TypeError('bundleVersion is required')
   const profile = config.profile ?? 'enterprise'
   if (profile === '' || profile === '.' || profile === '..' || profile.includes('/') || profile.includes('\\')) {
@@ -69,8 +72,10 @@ function resolveConfig(config: PluginDistributionConfig): ResolvedConfig {
     throw new TypeError('subprocessGraceMs must be a positive safe integer')
   }
   return {
-    trustedPublicKey: parseTrustedPluginPublicKey(config.trustedPluginPublicKey),
-    harnessCommit: config.harnessCommit,
+    ...(config.trustedPluginPublicKey === undefined || config.trustedPluginPublicKey.trim() === ''
+      ? {}
+      : { trustedPublicKey: parseTrustedPluginPublicKey(config.trustedPluginPublicKey) }),
+    ...(config.harnessCommit === undefined ? {} : { harnessCommit: config.harnessCommit }),
     bundleVersion: config.bundleVersion,
     profile,
     dshCommand,
@@ -109,8 +114,10 @@ export class EnterprisePluginDistributionService extends Service {
   private lastReconciledRevision = -1
   private pending: BootstrapSnapshot | undefined
   private worker: Promise<void> | undefined
+  private uninstallTask: Promise<void> | undefined
   private fatalErrorCode: string | undefined
   private lastReportErrorCode: string | undefined
+  private uninstalling = false
   private disposed = false
 
   constructor(
@@ -155,6 +162,24 @@ export class EnterprisePluginDistributionService extends Service {
     while (this.worker !== undefined) await this.worker
   }
 
+  /** 显式移除全部已安装受管包和 OwnDsh 自身；调用方在响应成功后负责请求宿主重启。 */
+  uninstall(): Promise<void> {
+    if (this.disposed) return Promise.reject(new PluginDistributionError(
+      'ENT_PLUGIN_CLI_FAILED', 'plugin distribution is disposed',
+    ))
+    if (this.uninstallTask !== undefined) return this.uninstallTask
+    this.uninstalling = true
+    this.pending = undefined
+    this.unsubscribe()
+    const operation = this.runUninstall().catch((error: unknown) => {
+      if (this.uninstallTask === operation) this.uninstallTask = undefined
+      this.uninstalling = false
+      throw error
+    })
+    this.uninstallTask = operation
+    return operation
+  }
+
   /** 中止下载/CLI，取消平台订阅，并等待唯一 worker 退出。 */
   async dispose(): Promise<void> {
     if (this.disposed) return
@@ -171,7 +196,7 @@ export class EnterprisePluginDistributionService extends Service {
   }
 
   private schedule(snapshot: BootstrapSnapshot | undefined): void {
-    if (snapshot === undefined || this.disposed) return
+    if (snapshot === undefined || this.disposed || this.uninstalling) return
     this.pending = snapshot
     if (this.worker !== undefined) return
     const worker = this.drain().catch((error: unknown) => {
@@ -269,6 +294,12 @@ export class EnterprisePluginDistributionService extends Service {
   }
 
   private async reconcileInstalled(assignment: RuntimePluginAssignment): Promise<void> {
+    const trustedPublicKey = this.config.trustedPublicKey
+    if (trustedPublicKey === undefined) {
+      throw new PluginDistributionError(
+        'ENT_PLUGIN_SIGNATURE_INVALID', 'managed plugin trust root is not configured',
+      )
+    }
     const current = this.records.get(assignment.packageName)
     if (sameArtifact(current, assignment)) {
       if (current?.state === 'ACTIVE' && this.loaderActive(assignment.packageName)) {
@@ -290,8 +321,8 @@ export class EnterprisePluginDistributionService extends Service {
       platform: this.pluginContext.enterprisePlatform,
       assignment,
       dshHome: this.config.dshHome,
-      trustedPublicKey: this.config.trustedPublicKey,
-      harnessCommit: this.config.harnessCommit,
+      trustedPublicKey,
+      ...(this.config.harnessCommit === undefined ? {} : { harnessCommit: this.config.harnessCommit }),
       bundleVersion: this.config.bundleVersion,
       operatingSystem: this.operatingSystem,
       signal: this.abort.signal,
@@ -337,6 +368,20 @@ export class EnterprisePluginDistributionService extends Service {
       graceMs: this.config.subprocessGraceMs,
       signal: this.abort.signal,
     }
+  }
+
+  private async runUninstall(): Promise<void> {
+    await this.settled()
+    if (this.fatalErrorCode !== undefined) {
+      throw new PluginDistributionError('ENT_PLUGIN_STATE_INVALID', 'managed plugin state is unavailable')
+    }
+    const installed = [...this.records.values()]
+      .filter(record => record.desiredState === 'INSTALLED' || record.state === 'FAILED' && this.loaderEntry(record.packageName) !== undefined)
+      .sort((left, right) => left.packageName.localeCompare(right.packageName))
+    for (const record of installed) await removeManagedPlugin(this.commandOptions(), record.packageName)
+    this.records.clear()
+    await this.persist()
+    await removeManagedPlugin(this.commandOptions(), OWNDSH_PACKAGE)
   }
 
   private async put(

@@ -1,28 +1,37 @@
+<!--
+[INPUT]: 依赖当前 deploy Compose/Nginx/运维脚本、T21 历史全量演练与部署静态门禁。
+[OUTPUT]: 记录当前 HTTP 交付拓扑，以及初始化、备份恢复、升级回滚的可追溯验收证据。
+[POS]: 部署交付的验收真源，明确区分现行拓扑静态回归与旧 TLS 拓扑历史演练。
+[PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+-->
+
 # T21 部署交付验收记录
 
 状态：`completed`
 
-验收日期：2026-08-20（Asia/Shanghai）
+初次验收日期：2026-08-20（Asia/Shanghai）
+
+HTTP 拓扑收敛日期：2026-09-04（Asia/Shanghai）
 
 ## 结论
 
-T21 已完成，且没有进入 T22。平台现在具备可复现的 Linux `amd64` release、只发布 Gateway HTTPS 的单机 Compose、Nginx TLS/可信代理头边界、一次性初始化管理员、部署 secret 生成、健康检查、数据与 key 分离备份、恢复、前向升级和仅应用回滚。
+当前 Linux `amd64` release 的 Compose 只通过 Console 发布 HTTP `8080`；Nginx 提供静态资源、API/SSE 代理和健康检查，不管理证书、TLS 或 HSTS。需要 HTTPS 时由部署方已有 Nginx、Ingress 或负载均衡在外层终止。一次性初始化管理员、部署 secret、数据与 key 分离备份、恢复、前向升级和仅应用回滚保持不变。
 
-全新状态目录安装、无 bootstrap overlay 常规重启、数据/key 恢复、`0.1.0 -> 0.1.1` 升级和应用回滚均在 `x86_64` Linux Docker runtime 上实际执行。回滚后数据库、Redis、artifact 卷和 key 指纹保持不变，Flyway 保持 V12；当前四个服务健康，唯一宿主端口为 Gateway `18443`。
+2026-08-20 曾对旧 TLS 拓扑完整执行全新安装、无 bootstrap overlay 重启、数据/key 恢复、`0.1.0 -> 0.1.1` 升级和应用回滚；这些证据继续证明数据与运维脚本边界，但不证明 2026-09-04 的 HTTP 镜像已重新构建并完成全量安装。当前 HTTP 收敛只记录本轮实际运行的静态 Compose、脚本、协议和认证回归。
 
 ## 核心实现
 
-- `deploy/compose/compose.yml` 固定 PostgreSQL 17.6、Redis 7.4.5 及全部 build/runtime 基础镜像 digest，强制 `linux/amd64`。PostgreSQL、Redis 和 Server 不发布宿主端口；Server/Gateway 使用只读根文件系统、最小 capability、`no-new-privileges`、tmpfs 和健康检查。
-- `deploy/nginx/nginx.conf` 提供 TLS 1.2/1.3 同源入口，覆盖而非追加客户端 `Forwarded`/`X-Forwarded-*`，模型 SSE 关闭 buffering。Nginx 全部临时目录位于 `/tmp`，因此只读根文件系统可正常运行。
+- `deploy/compose/compose.yml` 固定 PostgreSQL 17.6、Redis 7.4.5 及全部 build/runtime 基础镜像 digest，强制 `linux/amd64`。PostgreSQL、Redis 和 Server 不发布宿主端口；Console 只发布 HTTP `8080`，Server/Console 使用只读根文件系统、最小 capability、`no-new-privileges`、tmpfs 和健康检查。
+- `deploy/nginx/nginx.conf` 提供 HTTP 同源入口，规范传递可选上级代理的 HTTP(S) 协议与端口，模型 SSE 关闭 buffering。Nginx 全部临时目录位于 `/tmp`，因此只读根文件系统可正常运行。
 - `application-deploy.yml` 通过 configtree 消费 Docker secrets，只暴露无详情 health，关闭 OpenAPI、监控、消息、MCP、任务、AI、工作流和样例能力。
 - Flyway V12 仅在匹配上游精确已知 hash 时退役 `admin/test/test1` 与两个已知 client，不删除用户主键；新增 `password_change_required` 和无 secret 的 `ent_deployment_state`。
 - `DeploymentBootstrapService` 在 PostgreSQL transaction advisory lock 内原子创建唯一 `enterprise_admin`、设置首次强制改密并写 `BOOTSTRAP_ADMIN_COMPLETED`。管理员、角色和 marker 全成全败；marker 存在后不再要求或读取 bootstrap secret。
 - LOCAL 首次登录在同一事务中验证旧密码与新密码策略、更新 BCrypt hash 并清除首次改密标记；失败不会签发授权码或留下半完成状态。
 - `build-release.sh` 交付镜像归档、PostgreSQL version 0 基线、Compose/Nginx/脚本、预构建 Harness bundle、许可证和 SHA-256 清单，不从同级 Harness checkout 取文件。
-- `install.sh` 在写状态前校验 authority、回调、端口、管理员名、密码、证书和 registry；生成 PostgreSQL/Redis/JWT/master/signing secrets，仅在首次 overlay 挂载 bootstrap 密码，完成后删除安装目录副本并以常规 Compose 重建 Server。
+- `install.sh` 在写状态前校验 HTTP(S) authority、精确回调、HTTP 发布端口、管理员名、密码文件和 registry；不接收或保存证书。脚本生成 PostgreSQL/Redis/JWT/master/signing secrets，仅在首次 overlay 挂载 bootstrap 密码，完成后删除安装目录副本并以常规 Compose 重建 Server。
 - `backup.sh` 把 PostgreSQL custom dump、Redis RDB、artifact 与非 secret runtime metadata 写入普通数据备份，把 master/signing key 写入独立 key 备份。
 - `restore.sh` 先校验 RDB，清空精确 Redis 数据卷，再以隔离 Redis 进程关闭 AOF 加载 RDB、开启 AOF 并等待 rewrite/manifest 完成，避免 Redis 7 在 AOF 模式下忽略独立 `dump.rdb`。
-- `upgrade.sh` 强制先备份再加载新镜像和前向迁移；`rollback.sh` 只切回上一组 Server/Gateway 镜像，显式验证 key 指纹且不执行 migration undo、不替换数据或 key。
+- `upgrade.sh` 强制先备份再加载新镜像和前向迁移；`rollback.sh` 只切回上一组 Server/Console 镜像，显式验证 key 指纹且不执行 migration undo、不替换数据或 key。
 
 ## 环境与静态门禁
 
@@ -46,7 +55,7 @@ node --test deploy/tests/deployment.test.mjs
 node --test scripts/scan-sensitive-logs.test.mjs
 ```
 
-结果：部署配置 8/8 通过；日志扫描器 3/3 通过。门禁覆盖唯一 TLS 端口、digest、bootstrap overlay、registry 注入、可信代理头、只读 Gateway tmpfs、deploy profile、脚本语法、恢复 AOF 路径、回滚不碰数据及安装参数注入负例。
+2026-08-20 旧拓扑结果：部署配置 8/8 通过；日志扫描器 3/3 通过。门禁当时覆盖唯一 TLS 端口、digest、bootstrap overlay、registry 注入、可信代理头、只读 Gateway tmpfs、deploy profile、脚本语法、恢复 AOF 路径、回滚不碰数据及安装参数注入负例。
 
 ## Server 与管理端回归
 
@@ -56,7 +65,7 @@ node --test scripts/scan-sensitive-logs.test.mjs
 cd backend
 JAVA_HOME=/usr/local/opt/openjdk@21 \
 PATH=/usr/local/opt/openjdk@21/bin:$PATH \
-./mvnw -B -ntp -pl ruoyi-modules/owndsh-enterprise -am \
+./mvnw -B -ntp -pl owndsh-modules/owndsh-enterprise -am \
   -Dmaven.test.skip=false -DskipTests=false \
   -Dtest=IdentityPersistenceIntegrationTest,ModelManagementIntegrationTest,ModelGatewayTransactionIntegrationTest,QuotaManagementIntegrationTest,PluginServerIntegrationTest \
   -Dsurefire.failIfNoSpecifiedTests=false test
@@ -95,7 +104,15 @@ corepack pnpm@11.7.0 --filter @owndsh/contracts check:generated
 
 七个产品 package typecheck/build 通过，83 项 Vitest 与 4 项 workspace 边界测试通过；bundle 重新打包为 `artifacts/owndsh-plugin-0.1.0.tgz`。生成协议无漂移，产品源码仍不导入同级 Harness 或 Typert Remote shim。
 
-## 全新安装证据
+## 2026-09-04 HTTP 拓扑回归
+
+本轮验证当前 Compose 只发布 Console HTTP `8080`，不挂载证书 secret；Nginx 不含 SSL/HSTS 指令；安装脚本接受 HTTP/HTTPS 外部根地址但只管理本机 HTTP 发布端口；本地人工入口不再生成自签 CA。认证回归同时覆盖 HTTP `enterprise-admin` Cookie 与 HTTPS `__Host-enterprise-admin; Secure` Cookie。
+
+实际结果：部署门禁 `10/10`；OpenAPI 生成无漂移且协议测试 `9/9`；Console 生产构建与测试 `38/38`；插件全部 package 类型检查/构建、Vitest `82/82` 和 workspace 边界 `4/4`；Java 25 模块定向构建及认证测试 `14/14` 均通过。
+
+本轮没有重新构建 Linux release 镜像，也没有重新执行全新安装、备份恢复和升级回滚；以下全量运行结果是 2026-08-20 旧 TLS 拓扑的历史证据。
+
+## 历史 TLS 全新安装证据（2026-08-20）
 
 全新状态目录：`/tmp/owndsh-t21-state-fixed.owpNNs`。使用本地测试证书、`https://localhost:18443` authority 和镜像 digest mirror 完整执行安装，结果如下：
 
@@ -107,7 +124,7 @@ corepack pnpm@11.7.0 --filter @owndsh/contracts check:generated
 - 安装状态中的 `bootstrap_admin_password` 已删除；移除 bootstrap overlay 后常规重启成功。
 - 四个当前部署容器日志经正式扫描器检查，共 4 个文件、0 个秘密形状命中。
 
-## 备份恢复证据
+## 历史备份恢复证据（2026-08-20）
 
 实际备份：
 
@@ -120,7 +137,7 @@ keys: /tmp/owndsh-t21-key-backup.h8GweE/20260820T092550Z
 
 破坏探针后执行正式恢复，PostgreSQL、Redis、artifact 均从 `after` 恢复为 `before`；master/signing key 组合指纹恢复为 `fc2c6d0f077e129ae441026fde0a44da9e4ae22aeb927c0db404ce52938026c9`。Redis 恢复后的 AOF manifest/rewrite 完成，随后常规 Compose Redis 启动并读回原值。
 
-## 升级与回滚证据
+## 历史升级与回滚证据（2026-08-20）
 
 升级候选：
 
@@ -135,7 +152,7 @@ size: 321 MiB
 ## 上游与仓库边界
 
 ```sh
-node scripts/upstream-baseline.mjs verify-locks
+node scripts/upstream-baseline.mjs verify
 node scripts/upstream-baseline.mjs verify
 ./scripts/bootstrap-harness.sh --check-only
 git diff --check
@@ -153,8 +170,8 @@ git diff --check
 
 ## 改进建议
 
-T22 使用 T21 正式 release 启动单后端、单 Harness 环境，由用户按详细设计第 21.1 节逐功能人工验收和优化；不再维护跨模块自动总编排、候选外部系统或自动媒体。当前 MVP 不作为生产上线候选，因此不执行镜像漏洞扫描；不要在人工验收中改变 T21 的单机拓扑、引入多节点编排或把 key 合并回普通备份。
+下一次正式发版前，应使用新构建的 HTTP release 完整执行一次全新安装、备份恢复和升级回滚。该门禁不需要给 OwnDsh 增加 TLS；需要 HTTPS 的环境由部署方外层网关覆盖。
 
 ## 任务边界
 
-T22 是唯一下一项。T22 必须在 T21 本提交之后独立开发、验收和提交；本任务未创建假外部系统、14 步 E2E 或候选版媒体。
+部署交付只拥有 HTTP Compose 与生命周期脚本，不拥有部署方的域名、证书或 TLS 配置。历史演练不可冒充当前镜像演练，当前静态回归也不可替代发版前的全量安装门禁。

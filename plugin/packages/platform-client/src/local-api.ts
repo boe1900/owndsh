@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Harness `ctx.webServer.register()` route port、平台操作端口及插件/Session 只读反转端口
- * [OUTPUT]: 对外提供 registerEnterpriseLocalApi、严格 JSON action、远端 Session 分页/恢复/删除与复合 SSE
+ * [OUTPUT]: 对外提供 registerEnterpriseLocalApi、Server 地址更新、整包卸载、严格 JSON action、远端 Session 分页/恢复/删除与复合 SSE
  * [POS]: platform-client 的 Host/Client 同源协作边界，只序列化脱敏 DTO 并把认证 HTTP 留在 Host Service
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -30,6 +30,7 @@ export interface WebServerRoutePort {
 /** 挂载到本地同源 API 的脱敏 Service 操作端口。 */
 export interface EnterpriseLocalPlatformPort {
   status(): EnterprisePlatformStatus
+  setServerUrl(serverUrl: string): Promise<{ readonly serverUrl: string }>
   startLogin(): Promise<EnterpriseLoginFlow>
   cancelLogin(): boolean
   logout(): Promise<void>
@@ -66,6 +67,8 @@ export interface EnterpriseLocalApiOptions {
   readonly platform: EnterpriseLocalPlatformPort
   /** 由组合层绑定 distribution，避免 platform-client 反向依赖具体插件包。 */
   readonly pluginStatus: () => unknown
+  /** 由组合层绑定整包卸载；返回的重启动作必须在 HTTP 成功响应写出后才执行。 */
+  readonly uninstallPlugin?: () => Promise<{ readonly restart?: () => void }>
   /** 由组合层延迟绑定 session-sync，保持认证 Service 先于其消费者构造。 */
   readonly sessionSync?: () => EnterpriseLocalSessionPort | undefined
   readonly enableTechnicalProbe?: boolean
@@ -163,6 +166,20 @@ function parseRestoreInput(value: unknown): { readonly targetCwd: string } {
   return { targetCwd: body['targetCwd'] }
 }
 
+function parseServerUrlInput(value: unknown): { readonly serverUrl: string } {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new TypeError('server URL body must be an object')
+  }
+  const body = value as Record<string, unknown>
+  if (Object.keys(body).join(',') !== 'serverUrl'
+    || typeof body['serverUrl'] !== 'string'
+    || body['serverUrl'].length === 0
+    || body['serverUrl'].length > 2048) {
+    throw new TypeError('server URL body is invalid')
+  }
+  return { serverUrl: body['serverUrl'] }
+}
+
 function requestUrl(request: IncomingMessage): URL {
   return new URL(request.url ?? '/', 'http://enterprise.local')
 }
@@ -237,6 +254,26 @@ export function registerEnterpriseLocalApi(
           return
         }
         writeJson(response, 200, { data: options.platform.status() })
+      },
+    }))
+
+    disposers.push(webServer.register({
+      kind: 'exact',
+      path: `${LOCAL_API_PREFIX}/server`,
+      handler: async (request, response) => {
+        if (request.method !== 'POST') {
+          methodNotAllowed(response, 'POST')
+          return
+        }
+        try {
+          const input = parseServerUrlInput(await readJson(request))
+          writeJson(response, 200, { data: await options.platform.setServerUrl(input.serverUrl) })
+        } catch (error) {
+          const status = actionErrorStatus(error)
+          writeJson(response, status, {
+            error: { code: status === 400 ? 'ENT_INVALID_REQUEST' : errorCode(error) },
+          })
+        }
       },
     }))
 
@@ -323,6 +360,31 @@ export function registerEnterpriseLocalApi(
       await options.platform.logout()
       return { loggedOut: true }
     }))
+
+    if (options.uninstallPlugin !== undefined) {
+      disposers.push(webServer.register({
+        kind: 'exact',
+        path: `${LOCAL_API_PREFIX}/uninstall`,
+        handler: async (request, response) => {
+          if (request.method !== 'POST') {
+            methodNotAllowed(response, 'POST')
+            return
+          }
+          try {
+            await requireEmptyObject(request)
+            const result = await options.uninstallPlugin?.()
+            const restart = result?.restart
+            writeJson(response, 200, { data: { uninstalled: true, restartRequested: restart !== undefined } })
+            restart?.()
+          } catch (error) {
+            const status = actionErrorStatus(error)
+            writeJson(response, status, {
+              error: { code: status === 413 ? 'ENT_REQUEST_TOO_LARGE' : status === 400 ? 'ENT_INVALID_REQUEST' : errorCode(error) },
+            })
+          }
+        },
+      }))
+    }
 
     disposers.push(webServer.register({
       kind: 'exact',

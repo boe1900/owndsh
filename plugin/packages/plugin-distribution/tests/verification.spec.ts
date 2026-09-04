@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Node Ed25519/临时文件、可控 Response 流与 plugin-distribution 制品边界
- * [OUTPUT]: 验证 JCS 向量、流式成功、中断清理、hash、签名、compatibility 和缓存再验签
+ * [OUTPUT]: 验证 JCS 向量、流式成功、中断清理、hash、签名、已知/未知 Harness compatibility 和缓存再验签
  * [POS]: plugin-distribution 的零 CLI 信任回归测试，确保失败制品永远停在激活边界之外
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -143,6 +143,20 @@ describe('plugin artifact verification', () => {
     })).rejects.toMatchObject({ code })
     const part = join(dshHome, 'enterprise', 'artifacts', `${assignment.sha256}.tgz.part`)
     await expect(stat(part)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('rejects managed artifacts when the running Harness commit is not verified', async () => {
+    const content = Buffer.from('future harness artifact')
+    const { assignment, publicKey } = signedAssignment(content)
+    const dshHome = await home()
+    await expect(downloadAndVerifyArtifact({
+      platform: platform(() => new Response(content)),
+      assignment,
+      dshHome,
+      trustedPublicKey: parseTrustedPluginPublicKey(publicKey),
+      bundleVersion: '0.1.0',
+      operatingSystem: process.platform,
+    })).rejects.toMatchObject({ code: 'ENT_PLUGIN_INCOMPATIBLE' })
   })
 
   it('removes an interrupted partial download without producing a final artifact', async () => {

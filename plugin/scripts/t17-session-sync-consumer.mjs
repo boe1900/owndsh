@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖已构建 contracts/platform-client/session-sync tgz、npm 官方 rc.2 Session 包与全新临时 consumer
- * [OUTPUT]: 提供无 ambient shim 的真实 SessionStore+JSONL persistence 同步、原子 cursor 与新 ID seed 恢复验收
+ * [OUTPUT]: 提供兼容 peer 下无 ambient shim 的真实 SessionStore+JSONL persistence 同步、原子 cursor 与新 ID seed 恢复验收
  * [POS]: plugin T17 树外 package consumer，证明发布产物不借用 workspace 或同级 Harness 源码
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -195,8 +195,8 @@ try {
   const manifest = JSON.parse(await readFile(resolve(installedRoot, 'package.json'), 'utf8'))
   assert.equal(manifest.dependencies['@owndsh/contracts'], '0.1.0')
   assert.equal(manifest.dependencies['@owndsh/platform-client'], '0.1.0')
-  assert.equal(manifest.peerDependencies['@deepseek-ai/dsh-session'], '0.1.1-rc.2')
-  assert.equal(manifest.peerDependencies['@deepseek-ai/dsh-session-persistence'], '0.1.1-rc.2')
+  assert.equal(manifest.peerDependencies['@deepseek-ai/dsh-session'], '^0.1.1-rc.2')
+  assert.equal(manifest.peerDependencies['@deepseek-ai/dsh-session-persistence'], '^0.1.1-rc.2')
   const built = [
     await readFile(resolve(installedRoot, 'lib', 'index.js'), 'utf8'),
     await readFile(resolve(installedRoot, 'lib', 'service.js'), 'utf8'),

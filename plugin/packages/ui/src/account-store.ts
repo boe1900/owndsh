@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 local-api 的脱敏账号/插件查询、复合 SSE 与账号动作，并保留未挂载的 Session 手工操作端口
- * [OUTPUT]: 对外提供按连接/revision 去重的 EnterpriseAccountStore 与账号/插件 snapshot；V1 不自动读取或同步 Session
+ * [INPUT]: 依赖 local-api 的脱敏账号/插件查询、Server 地址更新、复合 SSE 与账号动作，并保留未挂载的 Session 手工操作端口
+ * [OUTPUT]: 对外提供按连接/revision 去重的 EnterpriseAccountStore、地址/账号动作与账号/插件 snapshot；V1 不自动读取或同步 Session
  * [POS]: dsh-ui 的浏览器状态控制器，在官方 slot 与 Settings tabs 间共享事实且隔离网络细节
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -16,7 +16,7 @@ import type {
 } from './local-api.js'
 import { EnterpriseLocalApiError } from './local-api.js'
 
-export type EnterpriseAccountAction = 'login' | 'cancel' | 'logout'
+export type EnterpriseAccountAction = 'configure' | 'login' | 'cancel' | 'logout' | 'uninstall'
 export type EnterpriseSessionAction = 'restore' | 'delete'
 
 export interface EnterpriseAccountSnapshot {
@@ -35,6 +35,7 @@ export interface EnterpriseAccountSnapshot {
   readonly lastRestoredSessionId?: string
   readonly busy?: EnterpriseAccountAction
   readonly errorCode?: string
+  readonly uninstallRestartRequested?: boolean
 }
 
 function failureCode(error: unknown): string {
@@ -120,12 +121,23 @@ export class EnterpriseAccountStore {
     await this.#action('login', signal => this.#api.startLogin(signal))
   }
 
+  async setServerUrl(serverUrl: string): Promise<void> {
+    await this.#action('configure', signal => this.#api.setServerUrl(serverUrl, signal))
+  }
+
   async cancelLogin(): Promise<void> {
     await this.#action('cancel', signal => this.#api.cancelLogin(signal))
   }
 
   async logout(): Promise<void> {
     await this.#action('logout', signal => this.#api.logout(signal))
+  }
+
+  async uninstall(): Promise<void> {
+    await this.#action('uninstall', async signal => {
+      const result = await this.#api.uninstall(signal)
+      this.#set({ ...this.#snapshot, uninstallRestartRequested: result.restartRequested })
+    })
   }
 
   #start(): void {
@@ -166,7 +178,7 @@ export class EnterpriseAccountStore {
     this.#set({ ...withoutError, busy: action })
     try {
       await operation(signal)
-      await this.refresh()
+      if (action !== 'uninstall') await this.refresh()
     } catch (error) {
       if (!signal.aborted) this.#set({ ...this.#snapshot, errorCode: failureCode(error) })
     } finally {

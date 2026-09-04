@@ -5,7 +5,7 @@
 成员清单
 
 README.md: 企业受管模型配置桥说明，冻结官方协议所有权与企业治理边界。
-package.json: 私有 workspace package 清单，只直接依赖平台客户端并精确声明官方 dsh-llm-pi-ai rc.2 peer。
+package.json: 私有 workspace package 清单，只直接依赖平台客户端并按官方 caret 规则声明 dsh-llm-pi-ai 兼容 peer。
 tsconfig.json: Node/Web Streams ESM 声明边界，仅跳过链接上游 Anthropic SDK 的损坏声明检查。
 src/index.ts: package facade，只导出 profile、认证代理与官方插件注册三个边界。
 src/profiles.ts: 将 bootstrap 模型事实和短生命期代理 bearer 按三种 wire API/SDK base URL 约定投影为 PiAi profiles/default sentinel，不覆盖官方 provider 重试策略。

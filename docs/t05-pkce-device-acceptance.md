@@ -1,3 +1,10 @@
+<!--
+[INPUT]: 依赖 T05 认证/设备实现、OpenAPI 与当前 HTTP(S) 部署协议。
+[OUTPUT]: 记录 PKCE、短期状态、Cookie/Bearer 会话和设备生命周期的验收事实。
+[POS]: 身份纵向的历史验收证据；当前传输与 Cookie 语义随产品部署边界同步更新。
+[PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+-->
+
 # T05 PKCE 与设备验收记录
 
 状态：`completed`
@@ -13,13 +20,13 @@ Token terminal 不可混用。
 
 设备纵向能力已覆盖 enroll、heartbeat、管理员 list/get/revoke。Runtime 授权只相信服务端会话中的
 terminal，不相信 `X-Device-Id`；撤销只注销目标 installation 的 Harness Token，不影响同一用户的
-其他设备。公开登录页覆盖 LOCAL、LDAP 与 OIDC 分支，LOCAL 复用 RuoYi 现有验证码与失败记录。
+其他设备。公开登录页覆盖 LOCAL、LDAP 与 OIDC 分支，LOCAL 复用 原始服务端框架 现有验证码与失败记录。
 
 ## PKCE 与短期状态
 
 `dsh-desktop` 只允许 `http://127.0.0.1:<1024-65535>/callback` 和 UUID v4 installation；
 `localhost`、其他回环地址、userinfo、fragment、额外路径和端口边界绕过均拒绝。
-`enterprise-admin` 只允许部署配置中的精确 HTTPS redirect 且禁止 installation 参数。PKCE 固定
+`enterprise-admin` 只允许部署配置中的精确 HTTP(S) redirect 且禁止 installation 参数。PKCE 固定
 S256，verifier 只接受 43 至 128 个 ASCII 字符。
 
 Redis 中登录事务与 LOCAL 首次改密 challenge TTL 为 5 分钟、授权码 TTL 为 60 秒，登录事务、
@@ -29,8 +36,8 @@ Sa-Token 会话。已经被消费或取消的登录事务不会产生用户绑�
 
 ## 登录页面与验证码
 
-公开页面直接调用 `/enterprise/auth/v1/sources`，OIDC 使用浏览器跳转，LOCAL/LDAP 使用同一 HTTPS
-密码入口。LOCAL 在密码校验前通过 `CaptchaVerifier` 验证验证码；RuoYi composition adapter 复用
+公开页面直接调用 `/enterprise/auth/v1/sources`，OIDC 使用浏览器跳转，LOCAL/LDAP 使用同一 HTTP(S)
+密码入口。LOCAL 在密码校验前通过 `CaptchaVerifier` 验证验证码；原始服务端框架 composition adapter 复用
 `CaptchaProperties`、`GlobalConstants.CAPTCHA_CODE_KEY`、Redisson `GETDEL` 和
 `SysLoginService.recordLoginInfo`。LDAP 不要求验证码，验证码失败统一为 `ENT_AUTH_REQUIRED`，
 不泄漏用户、密码或验证码失败原因。

@@ -42,7 +42,7 @@ corepack pnpm@11.7.0 --filter @owndsh/platform-client typecheck
 corepack pnpm@11.7.0 --filter @owndsh/platform-client build
 ```
 
-结果：4 个 Vitest 文件、18 项测试全部通过。测试覆盖 HTTPS origin 负例、回环/state/伪造 state/取消/超时、并发 installation、
+结果：4 个 Vitest 文件、18 项测试全部通过。测试覆盖 HTTP(S) origin 与非法 URL 负例、回环/state/伪造 state/取消/超时、并发 installation、
 真实 HTTP 本地 API/SSE、登录串行、Token 重启丢失、revision 刷新、指数退避、恢复、撤销、
 AbortSignal 和 dispose 停稳。
 

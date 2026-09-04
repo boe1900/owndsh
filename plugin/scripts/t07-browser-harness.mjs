@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖当前 bundle tgz、同级锁定 Harness、Corepack pnpm 与 Node HTTP 回环假平台
- * [OUTPUT]: 启动可控的真实 Harness Web profile，供 T07 登录/取消/ready/过期/撤销浏览器验收
+ * [OUTPUT]: 启动零业务配置的真实 Harness Web profile，供 Server 设置、全局门禁、登录/ready/过期/撤销浏览器验收
  * [POS]: T07 无密钥浏览器组合载体，只写临时 DSH_HOME，不替代 T08 Server 且退出时校验 Harness 清洁度
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -237,10 +237,8 @@ try {
     env: harnessEnv,
   })
   await writeFile(resolve(temporaryDshHome, 'profiles', 'web', 'cordis.patch.yml'), [
-    '- id: enterprise-agent',
+    '- id: owndsh',
     '  config:',
-    `    baseUrl: '${platformUrl}'`,
-    "    trustedPluginPublicKey: 'MCowBQYDK2VwAyEAgl6STzO84FyXlwmeHinWGgY/TgbGBUUBLF1xPT7SvT8='",
     '    bootstrapIntervalMs: 700',
     '    requestTimeoutMs: 2000',
     '    enableTechnicalProbe: true',

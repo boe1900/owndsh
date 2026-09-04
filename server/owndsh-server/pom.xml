@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
         <artifactId>owndsh-parent</artifactId>
-        <groupId>org.dromara</groupId>
+        <groupId>com.owndsh</groupId>
         <version>${revision}</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
@@ -40,37 +40,25 @@
 <!--        </dependency>-->
 
         <dependency>
-            <groupId>org.dromara</groupId>
-            <artifactId>ruoyi-common-doc</artifactId>
-        </dependency>
-
-        <!-- 授权认证 -->
-        <dependency>
-            <groupId>org.dromara</groupId>
-            <artifactId>ruoyi-common-social</artifactId>
-        </dependency>
-
-        <!-- 邮件服务 -->
-        <dependency>
-            <groupId>org.dromara</groupId>
-            <artifactId>ruoyi-common-mail</artifactId>
+            <groupId>com.owndsh</groupId>
+            <artifactId>owndsh-common-doc</artifactId>
         </dependency>
 
         <!-- api模块 -->
         <dependency>
-            <groupId>org.dromara</groupId>
-            <artifactId>ruoyi-api</artifactId>
+            <groupId>com.owndsh</groupId>
+            <artifactId>owndsh-api</artifactId>
         </dependency>
 
         <!-- 系统模块 -->
         <dependency>
-            <groupId>org.dromara</groupId>
-            <artifactId>ruoyi-system</artifactId>
+            <groupId>com.owndsh</groupId>
+            <artifactId>owndsh-system</artifactId>
         </dependency>
 
         <!-- 企业治理业务模块 -->
         <dependency>
-            <groupId>org.dromara</groupId>
+            <groupId>com.owndsh</groupId>
             <artifactId>owndsh-enterprise</artifactId>
         </dependency>
 

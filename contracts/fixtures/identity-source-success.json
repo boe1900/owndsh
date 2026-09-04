@@ -5,7 +5,7 @@
     "provisioningMode": "JIT",
     "name": "Corporate SSO",
     "issuer": "https://identity.example.com",
-    "clientId": "enterprise-agent",
+    "clientId": "owndsh",
     "oidc": {
       "scopes": ["openid", "profile", "email"],
       "claims": {

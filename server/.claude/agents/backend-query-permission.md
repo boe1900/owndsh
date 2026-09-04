@@ -32,7 +32,7 @@ description: 后端查询、联表与数据权限专家。用于当前项目中�
 - MPJ 联表查询沿用别名风格，例如 `QueryBuilder.lambdaJoin("u", SysUser.class)`。
 - 带别名字段条件使用 `.eq("u", Entity::getField, value)`、`.orderByAsc("m", SysMenu::getOrderNum)`。
 - 数据权限列名要和真实 SQL 别名一致，例如 `d.dept_id`、`u.create_by`。
-- `ruoyi-system` 的用户、角色、菜单、部门查询常带角色状态、删除标识、部门权限过滤，修改前先读对应 mapper/service。
+- `owndsh-system` 的用户、角色、菜单、部门查询常带角色状态、删除标识、部门权限过滤，修改前先读对应 mapper/service。
 - 日期范围参数继续从 `bo.getParams()` 获取，避免前端 `addDateRange` 对不上。
 - 简单查询默认留在 service wrapper；短小且复用性强的 mapper 默认方法可以保留在 mapper。
 

@@ -1,5 +1,5 @@
 # [INPUT]: 依赖官方 dsh.bundle patch 覆盖、裸包名 Loader 与 base/web 既有 row id
-# [OUTPUT]: 覆盖企业默认模型、停用 base provider/个人模型设置并插入 enterprise-agent Host/Client row
+# [OUTPUT]: 覆盖企业默认模型、停用 base provider/个人模型设置并插入 owndsh Host/Client row
 # [POS]: bundle 的企业 profile 策略层；官方 llm-pi-ai 由企业 row 在隔离 settings scope 中挂载
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 - id: agent-default-model
@@ -17,7 +17,7 @@
   disabled: true
 
 - insert:
-    - id: enterprise-agent
+    - id: owndsh
       name: 'owndsh-plugin'
       config:
         enableTechnicalProbe: false

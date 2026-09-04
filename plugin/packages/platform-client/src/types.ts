@@ -10,6 +10,7 @@ import { zBootstrapQuota, zRequestId, zRevision } from '@owndsh/contracts'
 
 /** 本地 Client 界面渲染的固定生命周期。 */
 export type EnterpriseConnectionState =
+  | 'UNCONFIGURED'
   | 'SIGNED_OUT'
   | 'AUTHORIZING'
   | 'ENROLLING'
@@ -133,7 +134,7 @@ export interface EnterpriseStatusUser {
 export interface EnterprisePlatformStatus {
   readonly state: EnterpriseConnectionState
   readonly bundleVersion: string
-  readonly platformUrl: string
+  readonly platformUrl: string | null
   readonly transport: 'webServer.register'
   readonly flowId?: string
   readonly user?: EnterpriseStatusUser

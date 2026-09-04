@@ -6,7 +6,7 @@
 
 ## 结论
 
-T03 已完成，且没有进入 T04。`owndsh-enterprise` 已作为独立 Maven 业务模块接入聚合根和 `owndsh-server`；数据库只支持 PostgreSQL，Flyway `V1` 至 `V5` 在仓库自带的完整 RuoYi PostgreSQL 基线上同时通过一次性迁移和逐版本升级。
+T03 已完成，且没有进入 T04。`owndsh-enterprise` 已作为独立 Maven 业务模块接入聚合根和 `owndsh-server`；数据库只支持 PostgreSQL，Flyway `V1` 至 `V5` 在仓库自带的完整 原始服务端框架 PostgreSQL 基线上同时通过一次性迁移和逐版本升级。
 
 本任务建立的是后续纵向能力共享的硬边界：20 张 `ent_` 表、五个固定角色、14 个详细设计冻结权限码、三用途秘密加密、`BOOTSTRAP` revision CAS，以及只暴露 append 的审计端口和同事务编排。没有创建身份适配器、Controller、管理页面、provider CRUD、配额结算、插件分发或 Session 同步实现。
 
@@ -41,7 +41,7 @@ T03 已完成，且没有进入 T04。`owndsh-enterprise` 已作为独立 Maven 
 ```sh
 JAVA_HOME=/usr/local/opt/openjdk@21 \
 PATH=/usr/local/opt/openjdk@21/bin:$PATH \
-./mvnw -B -ntp -pl ruoyi-modules/owndsh-enterprise -am \
+./mvnw -B -ntp -pl owndsh-modules/owndsh-enterprise -am \
   -Dmaven.test.skip=false test
 ```
 

@@ -354,7 +354,7 @@ try {
   const probePath = resolve(home, 'enterprise-t17-acceptance-probe.mjs')
   await writeFile(probePath, probeSource)
   await writeFile(resolve(profileDir, 'cordis.patch.yml'), [
-    '- id: enterprise-agent',
+    '- id: owndsh',
     '  config:',
     `    baseUrl: ${JSON.stringify(platformUrl)}`,
     "    trustedPluginPublicKey: 'MCowBQYDK2VwAyEAgl6STzO84FyXlwmeHinWGgY/TgbGBUUBLF1xPT7SvT8='",
@@ -377,7 +377,7 @@ try {
     env: harnessEnv,
   })
   assert.match(dump.stdout, /id: session-persistence-jsonl/)
-  assert.match(dump.stdout, /id: enterprise-agent/)
+  assert.match(dump.stdout, /id: owndsh/)
   assert.match(dump.stdout, /id: enterprise-t17-acceptance-probe/)
 
   harness = spawn('corepack', [

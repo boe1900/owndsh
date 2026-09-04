@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:enterprise-agent:contracts:ExternalIdentitySummaryResponse",
+  "$id": "urn:owndsh:contracts:ExternalIdentitySummaryResponse",
   "type": "object",
   "additionalProperties": false,
   "required": [

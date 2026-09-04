@@ -1,111 +1,75 @@
-# T07 员工登录 UI 验收记录
+<!--
+[INPUT]: 依赖锁定 Harness 0.1.1-rc.2、owndsh-plugin 发布包、官方 Client slots/settings 与可控回环平台。
+[OUTPUT]: 提供零配置插件安装、Server 地址持久化、全局登录门禁、失效重锁和宿主零修改的 T07 验收证据。
+[POS]: 员工客户端接入的独立验收真源，证明 OwnDsh 只交付标准插件而不维护官方 Web/Desktop UI 分叉。
+[PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+-->
+
+# T07 员工插件门禁验收记录
 
 状态：`completed`
 
-验收日期：2026-08-18（Asia/Shanghai）
+最近验收日期：2026-09-04（Asia/Shanghai）
 
 ## 结论
 
-T07 已完成，且没有进入 T08。员工账号界面完全建立在锁定 Harness 的公开 Client 扩展点上：
-`settings.section` 承载企业账号页，`sidebar.footer.action` 显示并刷新连接状态，
-`settings.onboarding` 在未登录时引导登录并通过 owner 公开的 `openSection('enterprise')` 进入详情。
-实现没有查询 Harness DOM、修改私有 React 状态或扩展 Typert Remote。
+员工侧只安装 `owndsh-plugin`，OwnDsh 不修改或维护官方 Harness Web/Desktop UI。插件通过公开
+`settings.section`、`sidebar.footer.action` 和 `shell.overlay` 扩展点工作；初装后只填写 OwnDsh
+Server 地址，不编辑 profile、不配置 API Key，也不要求员工填写插件信任公钥。
 
-本产品把 Harness 定位为桌面员工工作台。本次真实浏览器验收固定为 1280x720；官方桌面 Settings
-shell 在移动宽度下的布局不属于 T07，也没有为未公开的移动契约增加补偿对话框。未来移动端由独立
-产品入口承载认证和交互，不与桌面插件内部导航耦合。
+全屏门禁仅在 `READY` 和 `REFRESHING` 时放行。未配置、未登录、授权中、失败、登录过期和设备撤销
+都会阻断宿主交互并提供对应动作；登录成功后门禁卸载，用户继续使用官方原生 UI。
 
 ## 核心实现
 
-- `EnterpriseAccountStore` 是三个 slot 的单一状态源，首个订阅者建立 SSE，最后一个订阅者退出时
-  关闭 EventSource 与请求 lifetime；登录、取消、退出动作串行执行。
-- 浏览器 API 只能访问固定同源 `/enterprise/api/v1/local/*` 路径。三个动作严格发送
-  `application/json` 的 `{}`，调用方不能注入平台 origin 或 `Authorization`。
-- status 严格解码十种连接状态和脱敏字段，未知字段会失败；bootstrap 只向 UI 投影用户与设备，
-  模型、配额、插件和 Session policy 不进入账号 snapshot。
-- READY/REFRESHING 才读取 bootstrap；认证过期、设备撤销、取消、退出和重新登录都会清除旧账号事实。
-- 所有错误使用稳定 code 映射固定中文文案，不显示服务端 message。footer 只有官方公开的 `wide`
-  owner 参数，因此只负责状态与刷新；账号页导航归 Harness Settings 自己所有。
-- bundle 的 Client graph 只新增官方 `@deepseek-ai/dsh-client-ui-settings-general`，React、图标和账号逻辑
-  继续打入 lazy-CJS Client factory，没有新增运行时 package 安装或 ambient shim。
-
-## 状态与浏览器验收
-
-十态呈现固定覆盖 `SIGNED_OUT`、`AUTHORIZING`、`ENROLLING`、`BOOTSTRAPPING`、`READY`、
-`CANCELLED`、`FAILED`、`REFRESHING`、`AUTH_EXPIRED` 和 `DEVICE_REVOKED`。真实流程使用本任务的
-`scripts/t07-browser-harness.mjs` 启动可控回环假平台、临时 `DSH_HOME` 和未修改的锁定 Harness
-`web` profile；假平台只存在于验收进程，发行 bundle 仍要求 HTTPS。
-
-![T07 员工登录 UI 真实桌面流程](assets/t07-employee-login.gif)
-
-六张原始无密钥快照分别为：
-
-1. [`SIGNED_OUT`](assets/t07-01-signed-out.png)：企业 onboarding 与 sidebar 未登录状态。
-2. [`AUTHORIZING`](assets/t07-02-authorizing.png)：系统浏览器授权等待与可取消动作。
-3. [`CANCELLED`](assets/t07-03-cancelled.png)：稳定错误 `ENT_AUTH_CANCELLED` 与重新登录。
-4. [`READY`](assets/t07-04-ready.png)：官方“设置 → 企业 → 账号”中的用户、设备与连接事实。
-5. [`AUTH_EXPIRED`](assets/t07-05-auth-expired.png)：SSE 切换至 `ENT_AUTH_SESSION_EXPIRED`。
-6. [`DEVICE_REVOKED`](assets/t07-06-device-revoked.png)：重新登录后 SSE 切换至 `ENT_DEVICE_REVOKED`。
-
-官方 DeepSeek API Key onboarding 在企业登录完成后仍正常出现，证明企业 onboarding 没有破坏 Harness
-原有步骤；验收通过“稍后配置”关闭它，不输入任何模型 Key。账号页、错误文案和动作按钮在
-1280x720 下均完整可见，无裁切、横向溢出或不连贯重叠。
+- Server origin 通过 `@deepseek-ai/dsh-settings` 保存为 `$DSH_HOME/settings.yaml` 中的
+  `owndsh.serverUrl`；HTTP 和 HTTPS 均可使用，bundle `baseUrl` 只作可选安装默认值。
+- 更换 Server 会取消在途登录和旧请求，清空内存 Token/bootstrap，并回到 `SIGNED_OUT`；平台 Token
+  始终只存在 Host 内存。
+- 浏览器只调用固定同源 `/enterprise/api/v1/local/*`；Server、登录、取消、退出和卸载均严格校验
+  JSON 请求，不允许浏览器指定任意平台代理路径或认证 header。
+- 显式卸载先移除当前已安装的受管插件、清空受管状态，再移除 `owndsh-plugin`。Desktop 通过官方
+  `desktopActions.requestRestart()` 重启，普通 Web 只提示手动重启。
+- 缺少安装层 Ed25519 公钥时，基础登录和模型代理保持可用，但受管插件安装以
+  `ENT_PLUGIN_SIGNATURE_INVALID` 严格失败；bootstrap 无权替换信任根。
+- V1 不实例化 Session 同步服务，账号 store 不自动读取 Session API。
 
 ## 自动验收
 
-受影响 package 定点门禁：
-
 ```sh
-corepack pnpm@11.7.0 --filter @owndsh/ui test
-corepack pnpm@11.7.0 --filter @owndsh/ui typecheck
-corepack pnpm@11.7.0 --filter @owndsh/platform-client test
-corepack pnpm@11.7.0 --filter owndsh-plugin test
-```
-
-结果：UI 3 个文件 7 项、platform-client 4 个文件 18 项、bundle 3 项全部通过。测试覆盖十态严格
-解码、未知/Token 形态状态字段拒绝、固定同源路径、空对象动作、SSE 生命周期、共享 store、动作
-串行、READY bootstrap、稳定错误投影和三个官方 slot 的注册顺序/共享注入。
-
-插件 workspace 完整门禁：
-
-```sh
-corepack pnpm@11.7.0 run check
-```
-
-结果：生成无漂移，6 个 package 的 typecheck/build、全部 package 测试和 workspace 不变量均通过。
-
-## 真实包与锁定 Harness
-
-bundle 重新打包后先通过现有 package consumer/组合 smoke，再由 T07 载体安装到真实 Harness：
-
-```sh
-corepack pnpm@11.7.0 run pack:platform-client
-corepack pnpm@11.7.0 run smoke:platform-client
-corepack pnpm@11.7.0 run pack:bundle
+corepack pnpm check
 node scripts/t01-harness-smoke.mjs \
   --tgz ../artifacts/owndsh-plugin-0.1.0.tgz
-corepack pnpm@11.7.0 run accept:t07-browser -- \
-  --tgz ../artifacts/owndsh-plugin-0.1.0.tgz
 ```
 
-真实 Client factory 从 Harness 官方 seed 解析 `react` 与 `react/jsx-runtime`，发现 Settings、sidebar、
-onboarding 三个 slot；本地 status/SSE、Session seed 和 installation smoke 继续通过。T07 载体退出时
-关闭 Harness/假平台、删除临时 `DSH_HOME`，并再次断言上游工作区为空。
+工作区门禁通过：UI `13/13`、contracts `9/9`、platform-client `24/24`、plugin-distribution
+`14/14`、session-sync `15/15`、llm-gateway `4/4`、bundle `3/3`、workspace invariants `4/4`。
 
-## 安全与边界门禁
+T01 在未修改的锁定 Harness `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e` 临时 profile 中证明：
 
-```sh
-./scripts/bootstrap-harness.sh --check-only
-node scripts/upstream-baseline.mjs verify
-git diff --check
-```
+1. 发布包不携带业务配置也能安装，初始状态为 `UNCONFIGURED`。
+2. `POST /enterprise/api/v1/local/server` 后状态变为 `SIGNED_OUT`，地址写入官方 `settings.yaml`。
+3. Client bundle、状态 API、插件状态 API、本地事件和树外 package consumer 全部通过。
+4. 验收前后锁定 Harness 工作区均为空。
 
-三项均通过。浏览器 DTO、截图、GIF 与本任务 diff 的敏感字段扫描没有发现真实 Token、API Key、
-OIDC/LDAP secret 或生产数据。同级 `deepseek-harness` 保持 detached HEAD
-`47f943859bef60e4160492346772ded9b24f765a` 且工作区干净，本任务没有修改任何 Harness 文件。
+## 真实浏览器验收
 
-## 任务边界
+`scripts/t07-browser-harness.mjs` 使用临时 `DSH_HOME`、零业务配置发布包和可控回环平台启动真实
+Harness Web。2026-09-04 实测依次通过：
 
-T08 可以在独立后续任务实现模型/provider/grant/default 与 bootstrap 模型部分。T07 没有提前实现
-模型管理、配额、模型网关、插件分发、Session 同步或移动端页面；详细设计中的 T08-T23 仍为
-`pending`。
+1. 初始 `UNCONFIGURED` 全屏显示 OwnDsh 和 Server 输入，官方会话界面不可操作。
+   Tab 与 Shift+Tab 焦点均封闭在门禁内，不会进入底层 sidebar、会话区或设置按钮。
+2. 输入测试 Server 后状态进入 `SIGNED_OUT`，门禁显示企业登录和修改地址。
+3. 浏览器 PKCE 完成后状态为 `READY`，门禁消失，官方 Harness 原生界面恢复。
+4. 平台返回 `401 / ENT_AUTH_SESSION_EXPIRED` 后门禁重新出现并提供重新登录。
+5. 重新登录后平台返回 `403 / ENT_DEVICE_REVOKED`，门禁再次出现并显示设备撤销语义。
+6. 页面没有暴露 Token、provider API Key、信任公钥、CLI 输出或 Session 正文。
+
+验收载体使用 HTTP loopback，同一地址校验同时接受 HTTP 和 HTTPS origin；生产部署仍推荐 HTTPS。
+卸载命令顺序与 Desktop 成功响应后
+重启由单元测试覆盖；真实浏览器验收不点击卸载，避免主动破坏正在运行的临时宿主。
+
+## 边界
+
+官方 UI、路由、会话列表、编辑器、终端和工作区均归上游维护。OwnDsh 只维护插件公开扩展面、
+企业 Server 与产品控制台；上游升级通过版本锁和未修改宿主 smoke 验证兼容性。

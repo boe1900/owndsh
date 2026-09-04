@@ -1,6 +1,6 @@
 # [INPUT]: 依赖 console pnpm 锁、完整 OpenAPI 真源，以及默认 registry 或受验本地 RepoDigest 提供的固定 Node/Nginx 镜像。
-# [OUTPUT]: 构建内含 TanStack 产品控制台静态资源与受审 Nginx TLS 配置的 Console 镜像。
-# [POS]: P2-08 唯一公网制品定义，浏览器和 Server 同域且不携带任何生产 secret。
+# [OUTPUT]: 构建内含 TanStack 产品控制台静态资源与受审 Nginx HTTP 配置的 Console 镜像。
+# [POS]: P2-08 唯一对外制品定义，浏览器和 Server 同域且不携带任何生产 secret。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 ARG OWNDSH_BASE_IMAGE_REGISTRY=docker.io/library

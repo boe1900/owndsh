@@ -304,7 +304,7 @@ export async function runHarnessScenarios({ acceptance, admin, fixture, prefix, 
     const probePath = resolve(temporaryHome, 'v1-e2e-probe.mjs');
     await writeFile(probePath, probeSource());
     await writeFile(resolve(profileDir, 'cordis.patch.yml'), [
-      '- id: enterprise-agent',
+      '- id: owndsh',
       '  config:',
       `    baseUrl: ${JSON.stringify(ORIGIN)}`,
       `    trustedPluginPublicKey: ${JSON.stringify(publicKey)}`,

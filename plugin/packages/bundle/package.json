@@ -32,6 +32,7 @@
       "platform": "web",
       "inject": [
         "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-ui-layout",
         "@deepseek-ai/dsh-client-ui-sidebar",
         "@deepseek-ai/dsh-client-ui-settings-general"
       ]
@@ -44,17 +45,19 @@
     "pack": "pnpm pack"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "4.0.1",
-    "@deepseek-ai/dsh-host-plugin-inventory": "0.1.1-rc.2",
-    "@deepseek-ai/dsh-llm": "0.1.1-rc.2",
-    "@deepseek-ai/dsh-llm-pi-ai": "0.1.1-rc.2",
-    "@deepseek-ai/dsh-subprocess": "0.1.1-rc.2",
-    "@deepseek-ai/schemastery": "3.18.1"
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-host-plugin-inventory": "^0.1.1-rc.2",
+    "@deepseek-ai/dsh-llm": "^0.1.1-rc.2",
+    "@deepseek-ai/dsh-llm-pi-ai": "^0.1.1-rc.2",
+    "@deepseek-ai/dsh-settings": "^0.1.1-rc.2",
+    "@deepseek-ai/dsh-subprocess": "^0.1.1-rc.2",
+    "@deepseek-ai/schemastery": "^3.18.1"
   },
   "devDependencies": {
     "@deepseek-ai/dsh-host-plugin-inventory": "link:../../../../deepseek-harness/packages/host/plugin-inventory",
     "@deepseek-ai/dsh-llm": "link:../../../../deepseek-harness/packages/llm/llm",
     "@deepseek-ai/dsh-llm-pi-ai": "link:../../../../deepseek-harness/packages/llm/llm-pi-ai",
+    "@deepseek-ai/dsh-settings": "link:../../../../deepseek-harness/packages/settings/settings",
     "@deepseek-ai/dsh-subprocess": "link:../../../../deepseek-harness/packages/subprocess/subprocess",
     "@deepseek-ai/schemastery": "3.18.1",
     "@owndsh/llm-gateway": "workspace:*",

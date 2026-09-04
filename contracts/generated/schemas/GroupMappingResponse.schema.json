@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:enterprise-agent:contracts:GroupMappingResponse",
+  "$id": "urn:owndsh:contracts:GroupMappingResponse",
   "type": "object",
   "additionalProperties": false,
   "required": [

@@ -1,6 +1,13 @@
+<!--
+[INPUT]: 依赖 Harness Session/Persistence 公共契约、平台同步 API 与本地游标实现。
+[OUTPUT]: 提供本地优先同步、校验恢复、删除终态和兼容 peer 边界说明。
+[POS]: session-sync 的语义入口；V1 bundle 不装载该能力，但保留独立实现供后续启用。
+[PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+-->
+
 # @owndsh/session-sync
 
-Harness Host 的本地优先 Session 复制边界。`EnterpriseSessionSyncService` 依赖官方 rc.2
+Harness Host 的本地优先 Session 复制边界。`EnterpriseSessionSyncService` 依赖兼容 Harness 的
 `sessions`、`sessionPersistence` 和产品 `enterprisePlatform` Service，并注册
 `ctx.enterpriseSessionSync`。`session/event` 回调只标记 dirty；默认防抖 2 秒后，每个 Session
 由唯一 worker 执行 `flush -> readFrom(lastAckSeq + 1) -> batch upload -> cursor commit`，因此本地

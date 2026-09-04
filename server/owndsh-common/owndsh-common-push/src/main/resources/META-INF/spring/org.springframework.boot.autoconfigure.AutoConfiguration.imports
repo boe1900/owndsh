@@ -1,0 +1,3 @@
+com.owndsh.common.push.config.MessageAutoConfiguration
+com.owndsh.common.push.config.MessageSseConfiguration
+com.owndsh.common.push.config.MessageWebSocketConfiguration

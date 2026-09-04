@@ -1,4 +1,4 @@
-# [INPUT]: 依赖 Compose 内网 DNS、configtree Docker secrets、持久 artifact 路径与唯一外部 HTTPS URI。
+# [INPUT]: 依赖 Compose 内网 DNS、configtree Docker secrets、持久 artifact 路径与唯一外部 HTTP(S) URI。
 # [OUTPUT]: 提供 PostgreSQL/Redis/Flyway、公开最小 health、完整禁用样例能力所需占位配置和 T21 bootstrap 的生产装配。
 # [POS]: owndsh-server 的单机 Linux amd64 交付 profile，所有秘密从 /run/secrets 文件读取或引用。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -15,8 +15,8 @@ spring:
         master:
           type: ${spring.datasource.type}
           driver-class-name: org.postgresql.Driver
-          url: jdbc:postgresql://postgres:5432/${ENT_POSTGRES_DATABASE:enterprise_agent}?sslmode=disable&reWriteBatchedInserts=true
-          username: ${ENT_POSTGRES_USERNAME:enterprise_agent}
+          url: jdbc:postgresql://postgres:5432/${ENT_POSTGRES_DATABASE:owndsh}?sslmode=disable&reWriteBatchedInserts=true
+          username: ${ENT_POSTGRES_USERNAME:owndsh}
       hikari:
         max-pool-size: 20
         min-idle: 4
@@ -38,17 +38,6 @@ spring:
       timeout: 10s
       ssl:
         enabled: false
-  boot:
-    admin:
-      client:
-        enabled: false
-  ai:
-    mcp:
-      server:
-        enabled: false
-      client:
-        enabled: false
-
 enterprise:
   public-base-url: ${ENT_PUBLIC_BASE_URL}
   admin-redirect-uri: ${ENT_ADMIN_REDIRECT_URI}
@@ -87,30 +76,7 @@ message:
   enabled: false
   allowedOrigins: []
 
-mail:
-  enabled: false
-
-snail-job:
-  enabled: false
-  # 上游示例 Job Bean 即使客户端关闭仍会解析该占位符；保留与 prod profile 一致的非发布端口。
-  port: 2${server.port}
-
-snail-ai:
-  enabled: false
-
-warm-flow:
-  enabled: false
-  ui: false
-
-liteflow:
-  enable: false
-
-mqtt:
-  client:
-    enabled: false
-
 security:
-  actuator-basic-auth-enabled: false
   excludes:
     - /*.html
     - /**/*.html

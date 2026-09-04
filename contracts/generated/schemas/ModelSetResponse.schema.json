@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:enterprise-agent:contracts:ModelSetResponse",
+  "$id": "urn:owndsh:contracts:ModelSetResponse",
   "type": "object",
   "additionalProperties": false,
   "required": [

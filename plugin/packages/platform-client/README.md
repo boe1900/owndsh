@@ -1,10 +1,18 @@
+<!--
+[INPUT]: 依赖 EnterprisePlatformService、官方 settings、同源本地 API 和内存认证实现。
+[OUTPUT]: 提供 Server 地址、平台方法、状态刷新、Token 与本地路由安全边界说明。
+[POS]: @owndsh/platform-client 的公开语义入口，连接 Host 认证核心与浏览器插件调用面。
+[PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+-->
+
 # @owndsh/platform-client
 
 Harness Host 的企业平台控制面。`EnterprisePlatformService` 通过 Cordis 注册
-`ctx.enterprisePlatform`，并固定公开以下七个方法：
+`ctx.enterprisePlatform`，并固定公开以下八个方法：
 
 | 方法 | 职责 |
 |---|---|
+| `setServerUrl()` | 校验 Server origin，写入 Harness 官方 settings，并清除旧 Server 的认证状态。 |
 | `startLogin()` | 幂等启动系统浏览器 PKCE，立即返回 flow ID，后台完成 Token/enroll/bootstrap。 |
 | `logout()` | 尝试注销中心会话，并无条件清空本地内存认证状态。 |
 | `status()` | 返回连接状态、平台 origin、脱敏用户、revision、连接时间和稳定错误码。 |
@@ -13,7 +21,10 @@ Harness Host 的企业平台控制面。`EnterprisePlatformService` 通过 Cordi
 | `request()` | 执行同源、带认证且可取消的平台 fetch；这是唯一读取 Token 的代码路径。 |
 | `dispose()` | 取消登录/刷新/请求，关闭 SSE 和本地路由，等待工作停稳。 |
 
-`baseUrl` 必须是不含 user-info、path、query 或 fragment 的 HTTPS origin。默认
+`baseUrl` 只是安装层可选默认值。未提供时 Service 进入 `UNCONFIGURED`，员工在全屏门禁中填写
+Server 地址；地址通过 `@deepseek-ai/dsh-settings` 持久化到 `$DSH_HOME/settings.yaml` 的
+`owndsh.serverUrl`。地址必须是不含 user-info、path、query 或 fragment 的 HTTP 或 HTTPS origin；
+传输安全由部署方决定，公网和生产部署推荐 HTTPS。默认
 bootstrap 刷新周期 60 秒、普通请求超时 30 秒、dispose 超时 3 秒。成功且 revision 未变化的
 bootstrap 轮询不发布状态事件；只有失败重试才进入 `REFRESHING`，恢复或 revision 变化时发布
 `READY`。`Accept` 包含
@@ -31,9 +42,11 @@ installation 文件，也不会通过本地 HTTP/SSE 返回给浏览器。
 本地 Client 只通过 Harness 官方 `ctx.webServer.register()` 同源访问：
 
 - `GET /enterprise/api/v1/local/status`
+- `POST /enterprise/api/v1/local/server`
 - `POST /enterprise/api/v1/local/auth/start`
 - `POST /enterprise/api/v1/local/auth/cancel`
 - `POST /enterprise/api/v1/local/logout`
+- `POST /enterprise/api/v1/local/uninstall`
 - `GET /enterprise/api/v1/local/bootstrap`
 - `GET /enterprise/api/v1/local/plugins`
 - `GET /enterprise/api/v1/local/sessions/sync`
@@ -42,8 +55,8 @@ installation 文件，也不会通过本地 HTTP/SSE 返回给浏览器。
 - `DELETE /enterprise/api/v1/local/sessions/{id}`
 - `GET /enterprise/api/v1/local/events`
 
-POST action 必须使用 `application/json` 且 body 为严格空对象 `{}`。本地 API 不配置
-CORS。Session 恢复 action 的 body 只接受 `{ "targetCwd": "..." }`，成功返回 `201`；列表 limit
+POST action 必须使用 `application/json`；登录、取消、退出和卸载使用严格空对象 `{}`，Server
+更新只接受 `{ "serverUrl": "http://..." }` 或 `{ "serverUrl": "https://..." }`。本地 API 不配置 CORS。Session 恢复 action 的 body 只接受 `{ "targetCwd": "..." }`，成功返回 `201`；列表 limit
 范围为 1 至 200。Session 删除只接受路径 ID，成功返回不含正文的 tombstone；路由不接受任意平台 URL。插件与 Session 状态都由 bundle 通过最小反转端口接入，platform-client 不反向依赖
 distribution 或 session-sync 包；复合 SSE 分别发送 `status` 和 `session-sync` event，返回值不含
 tgz 路径、公钥、CLI 输出、Session 正文或 Token。T01 Session-copy 技术 seam 仅在验收 overlay 显式

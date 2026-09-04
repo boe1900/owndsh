@@ -50,7 +50,7 @@ OpenAPI 使用公共 `NativeGatewayRequest`：只约束企业治理字段，并�
 
 ```sh
 JAVA_HOME=/usr/local/opt/openjdk@21 \
-./mvnw -pl ruoyi-modules/owndsh-enterprise -am \
+./mvnw -pl owndsh-modules/owndsh-enterprise -am \
   -Dmaven.test.skip=false -DskipTests=false \
   -Dtest=GatewayChatRequestParserTest,ModelGatewayServiceTest,T10GatewayApiContractTest,DeepSeekUpstreamClientTest,EnterpriseJsonBodyLimitFilterTest \
   -Dsurefire.failIfNoSpecifiedTests=false test

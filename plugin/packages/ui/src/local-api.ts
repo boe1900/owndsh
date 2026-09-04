@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖浏览器 fetch/EventSource 与 platform-client 的同源 `/enterprise/api/v1/local/*` 脱敏协议
- * [OUTPUT]: 对外提供严格账号/插件/Session 状态解码、登录/恢复/删除动作和复合事件订阅端口
+ * [OUTPUT]: 对外提供严格账号/插件/Session 状态解码、Server 地址/登录/整包卸载/恢复/删除动作和复合事件订阅端口
  * [POS]: dsh-ui 的浏览器网络边界，只投影 Settings 所需事实并拒绝秘密、正文与本地执行细节
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -8,6 +8,7 @@
 const LOCAL_API_PREFIX = '/enterprise/api/v1/local'
 
 export const ENTERPRISE_CONNECTION_STATES = [
+  'UNCONFIGURED',
   'SIGNED_OUT',
   'AUTHORIZING',
   'ENROLLING',
@@ -64,7 +65,7 @@ export interface EnterpriseStatusUser {
 export interface EnterpriseLocalStatus {
   readonly state: EnterpriseConnectionState
   readonly bundleVersion: string
-  readonly platformUrl: string
+  readonly platformUrl: string | null
   readonly transport: 'webServer.register'
   readonly flowId?: string
   readonly user?: EnterpriseStatusUser
@@ -156,6 +157,7 @@ export interface EnterpriseStatusStream {
 
 export interface EnterpriseLocalApi {
   status(signal: AbortSignal): Promise<EnterpriseLocalStatus>
+  setServerUrl(serverUrl: string, signal: AbortSignal): Promise<{ readonly serverUrl: string }>
   bootstrap(signal: AbortSignal): Promise<EnterpriseAccountBootstrap | undefined>
   plugins(signal: AbortSignal): Promise<EnterprisePluginStatus>
   sessionSync(signal: AbortSignal): Promise<EnterpriseSessionSyncStatus>
@@ -165,6 +167,7 @@ export interface EnterpriseLocalApi {
   startLogin(signal: AbortSignal): Promise<{ readonly flowId: string }>
   cancelLogin(signal: AbortSignal): Promise<{ readonly cancelled: boolean }>
   logout(signal: AbortSignal): Promise<{ readonly loggedOut: true }>
+  uninstall(signal: AbortSignal): Promise<{ readonly uninstalled: true; readonly restartRequested: boolean }>
   events(
     onStatus: (status: EnterpriseLocalStatus) => void,
     onSessionSync: (status: EnterpriseSessionSyncStatus) => void,
@@ -230,8 +233,11 @@ export function decodeEnterpriseLocalStatus(value: unknown): EnterpriseLocalStat
     || !hasExactKeys(status, ['state', 'bundleVersion', 'platformUrl', 'transport'], allowedOptional)
     || !ENTERPRISE_CONNECTION_STATES.includes(status['state'] as EnterpriseConnectionState)
     || !nonEmptyString(status['bundleVersion'])
-    || !safePlatformUrl(status['platformUrl'])
+    || !(status['platformUrl'] === null || safePlatformUrl(status['platformUrl']))
     || status['transport'] !== 'webServer.register') {
+    throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+  }
+  if ((status['state'] === 'UNCONFIGURED') !== (status['platformUrl'] === null)) {
     throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
   }
   if (status['flowId'] !== undefined && !nonEmptyString(status['flowId'])) {
@@ -252,7 +258,7 @@ export function decodeEnterpriseLocalStatus(value: unknown): EnterpriseLocalStat
   return {
     state: status['state'] as EnterpriseConnectionState,
     bundleVersion: status['bundleVersion'],
-    platformUrl: status['platformUrl'],
+    platformUrl: status['platformUrl'] as string | null,
     transport: 'webServer.register',
     ...(status['flowId'] === undefined ? {} : { flowId: status['flowId'] as string }),
     ...(user === undefined ? {} : { user }),
@@ -525,6 +531,13 @@ export function createEnterpriseLocalApi(
 ): EnterpriseLocalApi {
   return {
     status: async signal => decodeEnterpriseLocalStatus(await requestJson('/status', getInit(signal), fetcher)),
+    setServerUrl: async (serverUrl, signal) => {
+      const data = record(await requestJson('/server', jsonInit('POST', { serverUrl }, signal), fetcher))
+      if (data === undefined || !hasExactKeys(data, ['serverUrl']) || !safePlatformUrl(data['serverUrl'])) {
+        throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+      }
+      return { serverUrl: data['serverUrl'] }
+    },
     bootstrap: async signal => decodeBootstrap(await requestJson('/bootstrap', getInit(signal), fetcher)),
     plugins: async signal => decodeEnterprisePluginStatus(await requestJson('/plugins', getInit(signal), fetcher)),
     sessionSync: async signal => decodeEnterpriseSessionSyncStatus(
@@ -574,6 +587,14 @@ export function createEnterpriseLocalApi(
         throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
       }
       return { loggedOut: true }
+    },
+    uninstall: async (signal) => {
+      const data = record(await requestJson('/uninstall', postInit(signal), fetcher))
+      if (data === undefined || !hasExactKeys(data, ['uninstalled', 'restartRequested'])
+        || data['uninstalled'] !== true || typeof data['restartRequested'] !== 'boolean') {
+        throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+      }
+      return { uninstalled: true, restartRequested: data['restartRequested'] }
     },
     events: (onStatus, onSessionSync, onError) => {
       const source = eventSourceFactory(`${LOCAL_API_PREFIX}/events`)

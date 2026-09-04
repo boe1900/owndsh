@@ -385,7 +385,8 @@ components:
     EnterpriseAdminCookie:
       type: apiKey
       in: cookie
-      name: __Host-enterprise-admin
+      name: enterprise-admin
+      description: Logical console session cookie. HTTP uses enterprise-admin; HTTPS uses __Host-enterprise-admin with Secure. Both are HttpOnly, SameSite=Strict, Path=/ and host-only.
 
   parameters:
     AuthClientId:

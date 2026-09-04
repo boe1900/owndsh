@@ -1,13 +1,15 @@
 /**
- * [INPUT]: 依赖 Cordis Service/WebServer、T02 contracts、PKCE/installation/browser 原语、插件/Session 反转端口与 Node fetch
- * [OUTPUT]: 对外提供 ctx.enterprisePlatform、七方法、控制面限时/SSE 无总时限请求、成功静默的 bootstrap 刷新、脱敏 schema 诊断与稳定错误
- * [POS]: platform-client 的 Host 业务核心，以 Cordis shadow-compatible 私有状态承载 Token、登录与刷新生命周期
+ * [INPUT]: 依赖 Cordis Service/WebServer/settings、T02 contracts、PKCE/installation/browser 原语、插件状态/卸载与 Session 反转端口及 Node fetch
+ * [OUTPUT]: 对外提供 ctx.enterprisePlatform、官方 settings 持久化 HTTP(S) Server 地址、控制面请求、bootstrap 刷新、完整停稳与稳定错误
+ * [POS]: platform-client 的 Host 业务核心，以 Cordis shadow-compatible 私有状态承载 Server origin、Token、登录与刷新生命周期
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { randomBytes, randomUUID } from 'node:crypto'
 import { platform as hostPlatform } from 'node:os'
 import { Context, Service } from '@deepseek-ai/cordis'
+import { settingsNamespace, type SettingsScope } from '@deepseek-ai/dsh-settings'
+import z from '@deepseek-ai/schemastery'
 import {
   decodeEnterpriseError,
   zDeviceResponse,
@@ -39,6 +41,11 @@ import {
 
 const AUTH_PATH = '/enterprise/auth/v1'
 const API_PATH = '/enterprise/api/v1'
+const SETTINGS_NAMESPACE = settingsNamespace('owndsh')
+interface EnterpriseConnectionSettings { readonly serverUrl: string }
+const CONNECTION_SETTINGS: z<EnterpriseConnectionSettings> = z.object({
+  serverUrl: z.string().default(''),
+})
 const TRANSITIONAL_REQUEST_PATHS = new Set([
   `${AUTH_PATH}/logout`,
   `${API_PATH}/bootstrap`,
@@ -68,7 +75,7 @@ export class EnterprisePlatformError extends Error {
 
 /** T06 平台客户端所需的部署时与 Host 版本事实。 */
 export interface EnterprisePlatformConfig {
-  readonly baseUrl: string
+  readonly baseUrl?: string
   readonly harnessVersion: string
   readonly bundleVersion: string
   readonly bootstrapIntervalMs?: number
@@ -89,15 +96,14 @@ export interface EnterprisePlatformInternals {
   readonly createFlowId?: () => string
   readonly createState?: () => string
   readonly installation?: Omit<InstallationOptions, 'dshHome' | 'name'>
-  readonly allowInsecureLoopbackBaseUrl?: boolean
   readonly refreshRetryInitialMs?: number
   readonly refreshRetryMaxMs?: number
   readonly pluginStatus?: () => unknown
+  readonly uninstallPlugin?: () => Promise<{ readonly restart?: () => void }>
   readonly sessionSync?: () => EnterpriseLocalSessionPort | undefined
 }
 
 interface ResolvedConfig {
-  readonly baseUrl: URL
   readonly harnessVersion: string
   readonly bundleVersion: string
   readonly bootstrapIntervalMs: number
@@ -122,26 +128,26 @@ function positiveInteger(value: number | undefined, fallback: number, name: stri
   return resolved
 }
 
-function resolveConfig(
-  config: EnterprisePlatformConfig,
-  allowInsecureLoopbackBaseUrl: boolean,
-): ResolvedConfig {
-  if (typeof config.baseUrl !== 'string' || config.baseUrl.length === 0) throw new TypeError('baseUrl is required')
-  const baseUrl = new URL(config.baseUrl)
-  const insecureLoopback = allowInsecureLoopbackBaseUrl
-    && baseUrl.protocol === 'http:' && (baseUrl.hostname === '127.0.0.1' || baseUrl.hostname === '[::1]')
-  if (baseUrl.protocol !== 'https:' && !insecureLoopback) throw new TypeError('baseUrl must use https')
+function resolveBaseUrl(value: string | undefined): URL | undefined {
+  if (value === undefined || value.trim() === '') return undefined
+  const baseUrl = new URL(value.trim())
+  if (baseUrl.protocol !== 'http:' && baseUrl.protocol !== 'https:') {
+    throw new TypeError('baseUrl must use http or https')
+  }
   if (baseUrl.username !== '' || baseUrl.password !== '' || baseUrl.search !== '' || baseUrl.hash !== ''
     || (baseUrl.pathname !== '' && baseUrl.pathname !== '/')) {
     throw new TypeError('baseUrl must be an origin without credentials, query, fragment, or path')
   }
+  baseUrl.pathname = '/'
+  return baseUrl
+}
+
+function resolveConfig(config: EnterprisePlatformConfig): ResolvedConfig {
   if (typeof config.harnessVersion !== 'string' || config.harnessVersion.length === 0
     || typeof config.bundleVersion !== 'string' || config.bundleVersion.length === 0) {
     throw new TypeError('harnessVersion and bundleVersion are required')
   }
-  baseUrl.pathname = '/'
   return {
-    baseUrl,
     harnessVersion: config.harnessVersion,
     bundleVersion: config.bundleVersion,
     bootstrapIntervalMs: positiveInteger(config.bootstrapIntervalMs, 60_000, 'bootstrapIntervalMs'),
@@ -181,8 +187,11 @@ export class EnterprisePlatformService extends Service {
   private readonly refreshRetryMaxMs: number
   private readonly disposeLocalApi: () => void
   private readonly logger: Context['logger']
+  private readonly compositionServerUrl: string
 
   private currentStatus: EnterprisePlatformStatus
+  private baseUrl: URL | undefined
+  private settingsScope: SettingsScope<EnterpriseConnectionSettings> | undefined
   private token: string | undefined
   private tokenExpiresAt = 0
   private bootstrapSnapshot: BootstrapSnapshot | undefined
@@ -200,9 +209,12 @@ export class EnterprisePlatformService extends Service {
     config: EnterprisePlatformConfig,
     internals: EnterprisePlatformInternals = {},
   ) {
-    const resolvedConfig = resolveConfig(config, internals.allowInsecureLoopbackBaseUrl === true)
+    const resolvedConfig = resolveConfig(config)
+    const baseUrl = resolveBaseUrl(config.baseUrl)
     super(ctx, 'enterprisePlatform')
     this.config = resolvedConfig
+    this.baseUrl = baseUrl
+    this.compositionServerUrl = baseUrl?.origin ?? ''
     this.fetch = internals.fetch ?? globalThis.fetch
     this.openBrowser = internals.openBrowser ?? openSystemBrowser
     this.logger = ctx.logger
@@ -213,9 +225,9 @@ export class EnterprisePlatformService extends Service {
     this.refreshRetryMaxMs = positiveInteger(internals.refreshRetryMaxMs, 60_000, 'refreshRetryMaxMs')
     this.refreshRetryMs = this.refreshRetryInitialMs
     this.currentStatus = {
-      state: 'SIGNED_OUT',
+      state: baseUrl === undefined ? 'UNCONFIGURED' : 'SIGNED_OUT',
       bundleVersion: this.config.bundleVersion,
-      platformUrl: this.config.baseUrl.origin,
+      platformUrl: baseUrl?.origin ?? null,
       transport: 'webServer.register',
     }
     this.installation = loadOrCreateInstallation({
@@ -229,6 +241,7 @@ export class EnterprisePlatformService extends Service {
     this.disposeLocalApi = registerEnterpriseLocalApi(ctx.webServer, {
       platform: {
         status: () => this.status(),
+        setServerUrl: serverUrl => this.setServerUrl(serverUrl),
         startLogin: () => this.startLogin(),
         cancelLogin: () => this.cancelLogin(),
         logout: () => this.logout(),
@@ -236,6 +249,7 @@ export class EnterprisePlatformService extends Service {
         subscribe: listener => this.subscribe(listener),
       },
       pluginStatus: internals.pluginStatus ?? (() => ({ assignmentRevision: 0, plugins: [] })),
+      ...(internals.uninstallPlugin === undefined ? {} : { uninstallPlugin: internals.uninstallPlugin }),
       ...(internals.sessionSync === undefined ? {} : { sessionSync: internals.sessionSync }),
       ...(this.config.enableTechnicalProbe === undefined
         ? {}
@@ -244,12 +258,42 @@ export class EnterprisePlatformService extends Service {
         ? {}
         : { restoreSessionCopy: this.config.restoreSessionCopy }),
     })
+    ctx.inject(['settings'], (settingsContext) => {
+      const scope = settingsContext.settings.register(SETTINGS_NAMESPACE, CONNECTION_SETTINGS, {
+        base: { serverUrl: this.compositionServerUrl },
+        validate: value => { resolveBaseUrl(value.serverUrl) },
+      })
+      this.settingsScope = scope
+      this.applyServerUrl(scope.get().serverUrl)
+      const unwatch = scope.watch(next => { this.applyServerUrl(next.serverUrl) })
+      settingsContext.effect(() => () => {
+        unwatch()
+        if (this.settingsScope !== scope) return
+        this.settingsScope = undefined
+        if (!this.disposed) this.applyServerUrl(this.compositionServerUrl)
+      }, 'enterprisePlatform.settings')
+    })
     ctx.effect(() => () => this.dispose(), 'enterprisePlatform.dispose()')
+  }
+
+  /** 校验并写入 Harness 官方 settings；更换 origin 时丢弃旧服务的内存会话。 */
+  async setServerUrl(serverUrl: string): Promise<{ readonly serverUrl: string }> {
+    this.assertOpen()
+    const resolved = resolveBaseUrl(serverUrl)
+    if (resolved === undefined) throw new TypeError('serverUrl is required')
+    const scope = this.settingsScope
+    if (scope === undefined) {
+      throw new EnterprisePlatformError('ENT_PLATFORM_UNAVAILABLE', 'Harness settings are unavailable', true)
+    }
+    await scope.update({ serverUrl: resolved.origin })
+    this.applyServerUrl(resolved.origin)
+    return { serverUrl: resolved.origin }
   }
 
   /** 幂等启动一个浏览器 PKCE 流程，并在浏览器完成前返回。 */
   async startLogin(): Promise<EnterpriseLoginFlow> {
     this.assertOpen()
+    this.requireBaseUrl()
     if (this.login !== undefined) return { flowId: this.login.flowId }
     if (this.currentStatus.state === 'READY' || this.currentStatus.state === 'REFRESHING') {
       throw new EnterprisePlatformError('ENT_INVALID_REQUEST', 'logout before starting another login')
@@ -276,7 +320,7 @@ export class EnterprisePlatformService extends Service {
     this.cancelLogin()
     await this.loginTask
     let failure: unknown
-    if (this.currentStatus.state !== 'SIGNED_OUT') {
+    if (this.currentStatus.state !== 'SIGNED_OUT' && this.currentStatus.state !== 'UNCONFIGURED') {
       try {
         await this.request(`${AUTH_PATH}/logout`, { method: 'POST' })
       } catch (error) {
@@ -285,7 +329,7 @@ export class EnterprisePlatformService extends Service {
       }
     }
     this.clearSession()
-    this.transition('SIGNED_OUT')
+    this.transition(this.baseUrl === undefined ? 'UNCONFIGURED' : 'SIGNED_OUT')
     if (failure !== undefined) throw failure
   }
 
@@ -317,8 +361,9 @@ export class EnterprisePlatformService extends Service {
    */
   async request(input: string | URL, init: RequestInit = {}): Promise<Response> {
     this.assertOpen()
-    const url = new URL(input.toString(), this.config.baseUrl)
-    if (url.origin !== this.config.baseUrl.origin || url.username !== '' || url.password !== '') {
+    const baseUrl = this.requireBaseUrl()
+    const url = new URL(input.toString(), baseUrl)
+    if (url.origin !== baseUrl.origin || url.username !== '' || url.password !== '') {
       throw new EnterprisePlatformError('ENT_INVALID_REQUEST', 'authenticated requests must stay on the platform origin')
     }
     if (!TRANSITIONAL_REQUEST_PATHS.has(url.pathname)
@@ -366,6 +411,7 @@ export class EnterprisePlatformService extends Service {
     this.listeners.clear()
     this.clearSession()
     const pending = Promise.allSettled([
+      this.installation,
       ...(this.loginTask === undefined ? [] : [this.loginTask]),
       ...(this.refreshTask === undefined ? [] : [this.refreshTask]),
     ])
@@ -384,6 +430,7 @@ export class EnterprisePlatformService extends Service {
   }
 
   private async runLogin(transaction: LoginTransaction): Promise<void> {
+    const baseUrl = this.requireBaseUrl()
     const installation = await this.installation
     transaction.abort.signal.throwIfAborted()
     const state = this.createState()
@@ -394,7 +441,7 @@ export class EnterprisePlatformService extends Service {
       signal: transaction.abort.signal,
     })
     transaction.callback = callback
-    const authorizeUrl = new URL(`${AUTH_PATH}/authorize`, this.config.baseUrl)
+    const authorizeUrl = new URL(`${AUTH_PATH}/authorize`, baseUrl)
     authorizeUrl.search = new URLSearchParams({
       client_id: 'dsh-desktop',
       redirect_uri: callback.redirectUri,
@@ -451,7 +498,7 @@ export class EnterprisePlatformService extends Service {
   }
 
   private async fetchPublicJson(path: string, init: RequestInit, signal: AbortSignal): Promise<unknown> {
-    const response = await this.executeFetch(new URL(path, this.config.baseUrl), { ...init, signal, redirect: 'error' })
+    const response = await this.executeFetch(new URL(path, this.requireBaseUrl()), { ...init, signal, redirect: 'error' })
     if (!response.ok) throw await this.decodeResponseError(response)
     try {
       return await response.json()
@@ -597,9 +644,10 @@ export class EnterprisePlatformService extends Service {
     else this.transition('FAILED', { flowId: transaction.flowId, errorCode: code })
   }
 
-  private cancelLogin(): boolean {
+  private cancelLogin(silent = false): boolean {
     const transaction = this.login
     if (transaction === undefined) return false
+    if (silent) this.login = undefined
     transaction.abort.abort(new DOMException('login cancelled', 'AbortError'))
     transaction.callback?.cancel()
     return true
@@ -623,6 +671,25 @@ export class EnterprisePlatformService extends Service {
     this.clearRefreshTimer()
   }
 
+  private applyServerUrl(serverUrl: string): void {
+    const next = resolveBaseUrl(serverUrl)
+    if (next?.origin === this.baseUrl?.origin) return
+    this.cancelLogin(true)
+    this.clearSession()
+    for (const controller of this.activeRequests) {
+      controller.abort(new DOMException('enterprise server changed', 'AbortError'))
+    }
+    this.baseUrl = next
+    this.transition(next === undefined ? 'UNCONFIGURED' : 'SIGNED_OUT')
+  }
+
+  private requireBaseUrl(): URL {
+    if (this.baseUrl === undefined) {
+      throw new EnterprisePlatformError('ENT_INVALID_REQUEST', 'enterprise server is not configured')
+    }
+    return this.baseUrl
+  }
+
   private clearRefreshTimer(): void {
     if (this.refreshTimer !== undefined) clearTimeout(this.refreshTimer)
     this.refreshTimer = undefined
@@ -637,7 +704,7 @@ export class EnterprisePlatformService extends Service {
     this.currentStatus = {
       state,
       bundleVersion: this.config.bundleVersion,
-      platformUrl: this.config.baseUrl.origin,
+      platformUrl: this.baseUrl?.origin ?? null,
       transport: 'webServer.register',
       ...detail,
       ...(snapshot === undefined ? {} : {
