@@ -1,5 +1,5 @@
 # [INPUT]: 依赖 console pnpm 锁、完整 OpenAPI 真源，以及默认 registry 或受验本地 RepoDigest 提供的固定 Node/Nginx 镜像。
-# [OUTPUT]: 构建内含 TanStack 产品控制台静态资源与受审 Nginx HTTP 配置的 Console 镜像。
+# [OUTPUT]: 构建内含 TanStack 产品控制台静态资源与经构建期语法校验的 Nginx HTTP 配置的 Console 镜像。
 # [POS]: P2-08 唯一对外制品定义，浏览器和 Server 同域且不携带任何生产 secret。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -17,6 +17,8 @@ RUN pnpm build
 
 FROM ${OWNDSH_NGINX_IMAGE}
 COPY deploy/nginx/nginx.conf /etc/nginx/nginx.conf
+RUN sed 's/server server:8080;/server 127.0.0.1:8080;/' /etc/nginx/nginx.conf > /tmp/nginx.conf \
+    && nginx -t -c /tmp/nginx.conf
 COPY --from=build /workspace/console/dist/ /usr/share/nginx/html/
 USER 101:101
 ENTRYPOINT []
