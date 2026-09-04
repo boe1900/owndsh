@@ -1,6 +1,6 @@
-# [INPUT]: 依赖生产 Dockerfile、插件 pnpm 锁、GitHub Container Registry 与 npm Trusted Publishing。
-# [OUTPUT]: 验证 Linux amd64 前后端镜像和插件；main 发布 GHCR next，v*-* 标签发布版本镜像与 npm next。
-# [POS]: OwnDsh 唯一公开制品流水线；PR 不推送，测试版不创建 latest 标签，也不使用 npm 长期 Token。
+# [INPUT]: 依赖生产 Dockerfile、插件 pnpm 锁、GitHub Actions artifact、GitHub Container Registry 与 npm Trusted Publishing。
+# [OUTPUT]: 验证 Linux amd64 前后端镜像和插件，保留可下载 tgz；main 发布 GHCR next，v*-* 标签将同一 tgz 发布到 npm next。
+# [POS]: OwnDsh 唯一公开制品流水线；构建与发布复用同一插件包，测试版不创建 latest 标签，也不使用 npm 长期 Token。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 name: Release test artifacts
@@ -58,7 +58,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}
 
   plugin-check:
-    name: Check plugin
+    name: Build plugin package
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -72,10 +72,23 @@ jobs:
         run: |
           corepack enable
           corepack prepare pnpm@11.7.0 --activate
+      - name: Set prerelease version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: npm --prefix plugin/packages/bundle pkg set version="${GITHUB_REF_NAME#v}"
       - name: Install and check plugin
         run: |
           pnpm --dir plugin install --frozen-lockfile
           pnpm --dir plugin run check
+      - name: Pack plugin
+        run: |
+          mkdir -p artifacts
+          pnpm --dir plugin --filter owndsh-plugin pack --pack-destination "$GITHUB_WORKSPACE/artifacts"
+      - name: Upload plugin package
+        uses: actions/upload-artifact@v4
+        with:
+          name: owndsh-plugin-package
+          path: artifacts/*.tgz
+          if-no-files-found: error
 
   plugin-publish:
     name: Publish plugin next
@@ -86,27 +99,15 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
-      - name: Install pnpm and dependencies
-        run: |
-          corepack enable
-          corepack prepare pnpm@11.7.0 --activate
-          pnpm --dir plugin install --frozen-lockfile
-      - name: Prepare prerelease package
-        run: |
-          version="${GITHUB_REF_NAME#v}"
-          case "$version" in
-            *-*) ;;
-            *) echo "Only prerelease versions are allowed" >&2; exit 1 ;;
-          esac
-          npm --prefix plugin/packages/bundle pkg set version="$version"
-          pnpm --dir plugin --filter owndsh-plugin build
-          pnpm --dir plugin --filter owndsh-plugin pack --pack-destination "$RUNNER_TEMP"
+      - uses: actions/download-artifact@v4
+        with:
+          name: owndsh-plugin-package
+          path: plugin-package
       - name: Publish npm next
         run: |
           npm install --global npm@11.11.0
-          npm publish "$RUNNER_TEMP/owndsh-plugin-${GITHUB_REF_NAME#v}.tgz" --tag next --provenance --access public
+          npm publish plugin-package/*.tgz --tag next --provenance --access public

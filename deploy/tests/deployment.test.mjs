@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 deploy Compose/Nginx/脚本、单一 application.yml、Docker Compose v2 与测试环境变量。
- * [OUTPUT]: 验证内部数据服务加 HTTP Console/Server 拓扑、GitHub 测试版发布、环境参数、幂等 bootstrap、API/SPA 路由与运维边界。
+ * [OUTPUT]: 验证内部数据服务加 HTTP Console/Server 拓扑、GitHub 插件制品与测试版发布、环境参数、幂等 bootstrap、API/SPA 路由与运维边界。
  * [POS]: T21/P2-08 部署与本地人工验收静态门禁，先于昂贵镜像构建发现配置漂移。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -114,7 +114,9 @@ test('release workflow publishes only test artifacts and uses npm OIDC', () => {
   assert.match(workflow, /type=raw,value=next/)
   assert.match(workflow, /flavor: latest=false/)
   assert.match(workflow, /id-token: write/)
-  assert.match(workflow, /npm publish .* --tag next --provenance --access public/)
+  assert.match(workflow, /uses: actions\/upload-artifact@v4/)
+  assert.match(workflow, /uses: actions\/download-artifact@v4/)
+  assert.match(workflow, /npm publish plugin-package\/\*\.tgz --tag next --provenance --access public/)
   assert.doesNotMatch(workflow, /NPM_TOKEN|NODE_AUTH_TOKEN|type=raw,value=latest/)
 })
 

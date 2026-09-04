@@ -3,7 +3,7 @@
 Java 21 + Spring Boot 4.1 + Sa-Token + PostgreSQL + React 19 + TypeScript + DeepSeek Harness 插件
 
 <directory>
-.github/ - GitHub Actions 自动验证并发布 GHCR 前后端测试镜像与 npm next 插件
+.github/ - GitHub Actions 自动验证并发布 GHCR 前后端测试镜像、可下载插件包与 npm next 插件
 server/ - OwnDsh 后端锁定源码，T03 起承载 owndsh-enterprise 模块
 console/ - 第二阶段独立 Vite/TanStack 产品控制台，使用静态路由与 OpenAPI Fetch client，不依赖旧 Umi 管理端
 contracts/ - OpenAPI 3.1 协议真源、跨语言 schema 和 fixture 验收
