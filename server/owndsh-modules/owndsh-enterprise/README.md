@@ -3,7 +3,8 @@
 企业治理后端领域模块。T03 提供 PostgreSQL Flyway `V1` 至 `V5`、用途隔离 AES-256-GCM、
 bootstrap revision CAS 和只追加审计事务基础设施；T04 在同一模块内增加 OIDC、LDAP、LOCAL
 身份适配器、稳定 external identity、显式组映射和身份管理 API；T05 增加固定 public client 的
-Authorization Code + PKCE、Sa-Token 终端隔离、公开登录页与设备生命周期；T08 增加
+Authorization Code + PKCE、Sa-Token 终端隔离、公开登录页与设备生命周期；V28 增加绑定 installation 的
+30 天单次轮换 Refresh Session；T08 增加
 provider/model/grant 管理、provider 密钥保护、有效默认解析和 runtime bootstrap 模型目录；T09
 增加 Flyway `V6`、叠加配额、PostgreSQL reservation、Redis lease、结算恢复和用量 API；T10
 增加请求级授权、三协议透明 upstream、原生 SSE、计费终态和模型调用审计；T13 增加
@@ -37,8 +38,10 @@ master key 的独立 `API_CURSOR` 用途进行 AES-GCM 认证，并绑定 tenant
   redirect/client/installation/verifier 任一不匹配都不能恢复或重放。
 - Sa-Token 会话绝对有效期 12 小时且 `is-share=false`。Harness terminal 使用
   `deviceType=harness, deviceId=installationId`，管理端使用独立 `console` terminal。
+- `dsh-desktop` 登录签发绝对有效 30 天的 opaque Refresh Token，PostgreSQL 只保存 SHA-256 摘要；
+  每次刷新原子轮换且不延长 family 到期时间，旧 Token 重放会吊销整个 family 和该 installation 的 Access Session。
 - Runtime 设备授权只读取服务端 Sa-Token terminal，不信任 `X-Device-Id`。撤销设备更新数据库和
-  审计同一事务，随后只注销该 installation 的 Harness Token；其他设备保持有效。
+  审计同一事务，随后幂等吊销该 installation 的 Access/Refresh Session；其他设备保持有效。
 
 认证入口为 `/enterprise/auth/v1`，设备 Runtime 入口为 `/enterprise/api/v1/devices`，管理入口为
 `/enterprise/admin/v1/devices`。设备管理读取与撤销分别要求 `ent:device:read/revoke`。
@@ -140,7 +143,8 @@ PostgreSQL 基线已经存在，并为企业表创建显式外键、检查约束
 真实的 `built_in` 列并写入固定角色和权限集合；`V5` 为默认 tenant `000000` 写入 LOCAL 身份源、
 默认配额策略和 `BOOTSTRAP` revision；`V6` 冻结部署时区并给 reservation 增加可恢复 requestId；
 `V8` 把历史 assignment 期望态前向迁移为 `INSTALLED/ABSENT` 并冻结客户端调和库存状态；`V9` 不修改
-已发布 V3，而是前向把尚未启用的 Session `format_version > 0` 历史约束修正为官方 rc.7 的精确 v0。
+已发布 V3，而是前向把尚未启用的 Session `format_version > 0` 历史约束修正为官方 rc.7 的精确 v0；
+`V28` 建立只存摘要、绑定用户/client/installation、保留轮换重放证据的 Refresh Session family。
 
 ## 测试
 

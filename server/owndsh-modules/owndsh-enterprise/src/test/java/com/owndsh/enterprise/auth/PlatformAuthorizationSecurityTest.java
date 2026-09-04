@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 PlatformAuthorizationService、真实 Redis store、PKCE/client policy 与 mock 身份/会话边界。
- * [OUTPUT]: 验证 PKCE 绕过、参数混用、一次性 code/事务，以及身份绑定只能使用指定源且不签发 Session。
+ * [INPUT]: 依赖 PlatformAuthorizationService、真实 Redis store、PKCE/client policy 与 mock 身份/Access/Refresh 会话边界。
+ * [OUTPUT]: 验证 PKCE 绕过、参数混用、一次性 code/事务，以及身份绑定只能使用指定源且不签发会话。
  * [POS]: Authorization Code 与身份绑定共用状态机的安全门禁，所有一次性状态消费后都不能重放。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -19,6 +19,8 @@ import com.owndsh.enterprise.auth.application.IssuedPlatformSession;
 import com.owndsh.enterprise.auth.application.PlatformAuthorizationService;
 import com.owndsh.enterprise.auth.application.PlatformSessionGateway;
 import com.owndsh.enterprise.auth.application.PasswordChangeRequiredException;
+import com.owndsh.enterprise.auth.application.RefreshSessionService;
+import com.owndsh.enterprise.auth.application.TokenExchangeResult;
 import com.owndsh.enterprise.auth.domain.Pkce;
 import com.owndsh.enterprise.auth.domain.IdentityPrincipal;
 import com.owndsh.enterprise.auth.domain.IdentitySource;
@@ -80,6 +82,7 @@ class PlatformAuthorizationSecurityTest {
     private CaptchaVerifier captchaVerifier;
     private ExternalIdentityService identities;
     private PlatformSessionGateway sessions;
+    private RefreshSessionService refreshSessions;
     private PlatformAuthorizationService service;
 
     @AfterAll
@@ -98,6 +101,10 @@ class PlatformAuthorizationSecurityTest {
         sessions = mock(PlatformSessionGateway.class);
         when(sessions.issue(anyLong(), any(), anyString()))
             .thenReturn(new IssuedPlatformSession("issued-platform-token", 43_200));
+        refreshSessions = mock(RefreshSessionService.class);
+        when(refreshSessions.issue(anyLong(), any(), any(), anyString())).thenReturn(new TokenExchangeResult(
+            "issued-platform-token", "Bearer", 43_200, "dsh-desktop", "dshr_" + "a".repeat(43), 2_592_000L
+        ));
         loginTransactions = mock(LoginTransactionStore.class);
         when(loginTransactions.createTransaction(any())).thenReturn(true);
         identitySources = mock(IdentitySourceStore.class);
@@ -116,6 +123,7 @@ class PlatformAuthorizationSecurityTest {
             captchaVerifier,
             identities,
             sessions,
+            refreshSessions,
             TransactionOperations.withoutTransaction(),
             mock(AuditSink.class),
             new AtomicLong(10_000)::incrementAndGet,
@@ -240,7 +248,9 @@ class PlatformAuthorizationSecurityTest {
         }
 
         assertThat(successes).hasValue(1);
-        verify(sessions).issue(1761100000000000003L, PlatformClient.DSH_DESKTOP, INSTALLATION.toString());
+        verify(refreshSessions).issue(
+            1761100000000000003L, PlatformClient.DSH_DESKTOP, INSTALLATION, INSTALLATION.toString()
+        );
         assertCode(
             () -> service.exchange(grant.code(), PlatformClient.DSH_DESKTOP, REDIRECT, VERIFIER, INSTALLATION),
             "ENT_AUTH_CODE_INVALID"

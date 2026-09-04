@@ -39,6 +39,9 @@ importers:
         specifier: ^4.0.1
         version: 4.0.1
     devDependencies:
+      '@deepseek-ai/dsh-credentials':
+        specifier: link:../../../../deepseek-harness/packages/credentials/credentials
+        version: link:../../../../deepseek-harness/packages/credentials/credentials
       '@deepseek-ai/dsh-host-plugin-inventory':
         specifier: link:../../../../deepseek-harness/packages/host/plugin-inventory
         version: link:../../../../deepseek-harness/packages/host/plugin-inventory
@@ -108,6 +111,9 @@ importers:
         specifier: 4.4.3
         version: 4.4.3
     devDependencies:
+      '@deepseek-ai/dsh-credentials':
+        specifier: link:../../../../deepseek-harness/packages/credentials/credentials
+        version: link:../../../../deepseek-harness/packages/credentials/credentials
       '@deepseek-ai/dsh-settings':
         specifier: link:../../../../deepseek-harness/packages/settings/settings
         version: link:../../../../deepseek-harness/packages/settings/settings

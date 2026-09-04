@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 Redis 登录/challenge/OIDC/code 短期状态、身份源/adapter/验证码/绑定服务、会话、审计与 CSPRNG。
- * [OUTPUT]: 提供 authorize/sources/password 两阶段改密/OIDC/token/logout/cancel，以及复用新鲜认证的一次性成员身份绑定。
- * [POS]: auth application 的状态机，初始凭据只验证一次，登录/绑定事务和 code 均原子消费且失败不能重放。
+ * [INPUT]: 依赖 Redis 登录/challenge/OIDC/code 短期状态、身份源/adapter/验证码/绑定服务、Access/Refresh 会话、审计与 CSPRNG。
+ * [OUTPUT]: 提供 authorize/sources/password 两阶段改密/OIDC/code exchange/refresh/logout/cancel，以及复用新鲜认证的一次性成员身份绑定。
+ * [POS]: auth application 的状态机，初始凭据只验证一次，登录/绑定/code/refresh 均绑定 client 与 installation。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.auth.application;
@@ -64,6 +64,7 @@ public final class PlatformAuthorizationService {
     private final CaptchaVerifier captchaVerifier;
     private final ExternalIdentityService identities;
     private final PlatformSessionGateway sessions;
+    private final RefreshSessionService refreshSessions;
     private final TransactionOperations databaseTransactions;
     private final AuditSink auditSink;
     private final LongSupplier ids;
@@ -83,6 +84,7 @@ public final class PlatformAuthorizationService {
         CaptchaVerifier captchaVerifier,
         ExternalIdentityService identities,
         PlatformSessionGateway sessions,
+        RefreshSessionService refreshSessions,
         TransactionOperations databaseTransactions,
         AuditSink auditSink,
         LongSupplier ids,
@@ -91,7 +93,7 @@ public final class PlatformAuthorizationService {
     ) {
         this(
             transactions, passwordChanges, codes, oidcStates, sources, adapters, oidcAdapter, captchaVerifier,
-            identities, sessions,
+            identities, sessions, refreshSessions,
             databaseTransactions, auditSink, ids, publicBaseUrl, adminRedirectUri,
             new SecureRandom(), Clock.systemUTC()
         );
@@ -108,6 +110,7 @@ public final class PlatformAuthorizationService {
         CaptchaVerifier captchaVerifier,
         ExternalIdentityService identities,
         PlatformSessionGateway sessions,
+        RefreshSessionService refreshSessions,
         TransactionOperations databaseTransactions,
         AuditSink auditSink,
         LongSupplier ids,
@@ -126,6 +129,7 @@ public final class PlatformAuthorizationService {
         this.captchaVerifier = Objects.requireNonNull(captchaVerifier, "captchaVerifier");
         this.identities = Objects.requireNonNull(identities, "identities");
         this.sessions = Objects.requireNonNull(sessions, "sessions");
+        this.refreshSessions = Objects.requireNonNull(refreshSessions, "refreshSessions");
         this.databaseTransactions = Objects.requireNonNull(databaseTransactions, "databaseTransactions");
         this.auditSink = Objects.requireNonNull(auditSink, "auditSink");
         this.ids = Objects.requireNonNull(ids, "ids");
@@ -343,12 +347,20 @@ public final class PlatformAuthorizationService {
         if (!Pkce.matches(codeVerifier, authorizationCode.codeChallenge())) {
             throw new AuthFlowException("ENT_PKCE_INVALID");
         }
+        if (authorizationCode.client() == PlatformClient.DSH_DESKTOP) {
+            return refreshSessions.issue(
+                authorizationCode.userId(), authorizationCode.client(),
+                authorizationCode.installationId(), authorizationCode.sessionDeviceId()
+            );
+        }
         IssuedPlatformSession issued = sessions.issue(
-            authorizationCode.userId(),
-            authorizationCode.client(),
-            authorizationCode.sessionDeviceId()
+            authorizationCode.userId(), authorizationCode.client(), authorizationCode.sessionDeviceId()
         );
         return TokenExchangeResult.from(issued, authorizationCode.client());
+    }
+
+    public TokenExchangeResult refresh(String refreshToken, PlatformClient client, UUID installationId) {
+        return refreshSessions.refresh(refreshToken, client, installationId);
     }
 
     public void cancelAuthorizationCode(String code) {

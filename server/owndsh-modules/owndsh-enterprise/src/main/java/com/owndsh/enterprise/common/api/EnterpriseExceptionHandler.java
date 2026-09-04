@@ -58,6 +58,7 @@ public final class EnterpriseExceptionHandler {
     ) {
         HttpStatus status = switch (exception.code()) {
             case "ENT_INVALID_REQUEST", "ENT_INVALID_REDIRECT_URI", "ENT_PKCE_REQUIRED" -> HttpStatus.BAD_REQUEST;
+            case "ENT_DEVICE_REVOKED" -> HttpStatus.FORBIDDEN;
             default -> HttpStatus.UNAUTHORIZED;
         };
         String message = switch (exception.code()) {
@@ -67,6 +68,7 @@ public final class EnterpriseExceptionHandler {
             case "ENT_PKCE_INVALID" -> "PKCE 校验失败";
             case "ENT_AUTH_SESSION_EXPIRED" -> "登录事务已过期";
             case "ENT_AUTH_REQUIRED" -> "身份认证失败";
+            case "ENT_DEVICE_REVOKED" -> "设备已撤销";
             default -> "请求参数不合法";
         };
         return error(status, exception.code(), message, false, null, request);

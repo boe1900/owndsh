@@ -1,6 +1,6 @@
 # [INPUT]: 依赖根协议的参数、响应与 auth schema，依赖 T05 公开认证 Controller 的实际 redirect/status 行为
-# [OUTPUT]: 提供 authorize 的 HTML/同源 JSON 启动、sources/password/OIDC、Desktop token、管理端 Cookie、logout、当前用户改密与 bootstrap Path Item。
-# [POS]: contracts/paths 的固定 public client 登录协议分片，隔离 Desktop 跳转/Bearer 与管理端第一方页面/Cookie 会话
+# [OUTPUT]: 提供 authorize 的 HTML/同源 JSON 启动、sources/password/OIDC、Desktop code/refresh token、管理端 Cookie、logout、当前用户改密与 bootstrap Path Item。
+# [POS]: contracts/paths 的固定 public client 登录协议分片，隔离 Desktop 轮换 Bearer 与管理端第一方页面/Cookie 会话
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 Authorize:
@@ -147,8 +147,8 @@ OidcCallback:
 
 Token:
   post:
-    operationId: exchangeAuthorizationCode
-    summary: Atomically consume one Desktop authorization code after exact PKCE/client binding checks.
+    operationId: exchangeDesktopToken
+    summary: Consume one PKCE authorization code or rotate one installation-bound Desktop refresh token.
     security: []
     requestBody:
       required: true
@@ -158,7 +158,7 @@ Token:
             $ref: '../enterprise-openapi.yaml#/components/schemas/TokenRequest'
     responses:
       '200':
-        description: Twelve-hour non-shared Sa-Token session.
+        description: Twelve-hour non-shared Sa-Token session plus a rotated thirty-day refresh token.
         content:
           application/json:
             schema:
@@ -167,6 +167,8 @@ Token:
         $ref: '../enterprise-openapi.yaml#/components/responses/Error400'
       '401':
         $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+      '403':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error403'
 
 BrowserSession:
   post:

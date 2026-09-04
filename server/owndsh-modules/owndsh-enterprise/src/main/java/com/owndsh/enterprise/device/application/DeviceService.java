@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖可信 PlatformSession、DeviceStore 原子 heartbeat 审计闸门、数据库事务、AuditSink、Sa-Token gateway 与 ID generator。
  * [OUTPUT]: 提供 enroll/限频 heartbeat/active check、管理员 list/get/revoke 的设备用例。
- * [POS]: device application 的唯一状态编排，数据库状态与防洪审计同事务，单设备 Token 撤销在提交后执行。
+ * [POS]: device application 的唯一状态编排，数据库状态与防洪审计同事务，单设备凭据撤销在提交后幂等执行。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.device.application;
@@ -162,7 +162,7 @@ public final class DeviceService {
             if (current.revision() != expectedRevision) {
                 throw new RevisionConflictException(expectedRevision, current.revision());
             }
-            if (current.status() == DeviceStatus.REVOKED) return new RevokeResult(current, false);
+            if (current.status() == DeviceStatus.REVOKED) return new RevokeResult(current);
             if (!devices.revoke(context.tenantId(), deviceId, expectedRevision, Instant.now(clock))) {
                 EnterpriseDevice actual = devices.findById(context.tenantId(), deviceId)
                     .orElseThrow(DeviceNotFoundException::new);
@@ -171,11 +171,9 @@ public final class DeviceService {
             EnterpriseDevice revoked = devices.findById(context.tenantId(), deviceId)
                 .orElseThrow(DeviceNotFoundException::new);
             audit(context, revoked, AuditAction.DEVICE_REVOKED, new EmptyAuditMetadata());
-            return new RevokeResult(revoked, true);
+            return new RevokeResult(revoked);
         }));
-        if (result.changed()) {
-            sessions.revokeHarnessDevice(result.device().userId(), result.device().installationId().toString());
-        }
+        sessions.revokeHarnessDevice(result.device().userId(), result.device().installationId().toString());
         return result.device();
     }
 
@@ -232,6 +230,6 @@ public final class DeviceService {
         return Objects.requireNonNull(result, "事务没有返回结果");
     }
 
-    private record RevokeResult(EnterpriseDevice device, boolean changed) {
+    private record RevokeResult(EnterpriseDevice device) {
     }
 }

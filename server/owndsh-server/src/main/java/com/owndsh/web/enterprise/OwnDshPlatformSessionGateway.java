@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 PlatformSessionGateway、Host user/RBAC、LoginHelper、Sa-Token、外部 HTTP(S) 地址与管理端 HttpOnly Cookie 约定。
- * [OUTPUT]: 提供 12 小时平台会话签发、Bearer/管理端 Cookie 可信读取、单 installation 撤销和成员 kickout。
- * [POS]: owndsh-server composition adapter，在 Sa-Token 通用 Cookie 读取保持关闭时只桥接固定管理端 Cookie。
+ * [INPUT]: 依赖 PlatformSessionGateway、RefreshSessionStore、Host user/RBAC、LoginHelper、Sa-Token 与外部 HTTP(S) 地址。
+ * [OUTPUT]: 提供 12 小时平台会话签发/读取，并统一吊销 Access 与 Refresh installation/user 会话。
+ * [POS]: owndsh-server 会话 adapter，在 Sa-Token 通用 Cookie 读取关闭时桥接管理 Cookie 并同步长期凭据生命周期。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.web.enterprise;
@@ -22,12 +22,17 @@ import com.owndsh.enterprise.auth.application.PlatformSession;
 import com.owndsh.enterprise.auth.application.PlatformSessionGateway;
 import com.owndsh.enterprise.auth.application.PlatformSessionRevokedException;
 import com.owndsh.enterprise.auth.domain.PlatformClient;
+import com.owndsh.enterprise.auth.domain.RefreshSession;
+import com.owndsh.enterprise.auth.persistence.RefreshSessionStore;
 import com.owndsh.enterprise.auth.web.AdminSessionCookie;
 import com.owndsh.system.api.model.LoginUser;
 import com.owndsh.system.domain.vo.SysUserVo;
 import com.owndsh.system.service.ISysUserService;
 import com.owndsh.web.service.SysLoginService;
 import org.springframework.stereotype.Component;
+
+import java.time.Instant;
+import java.util.UUID;
 
 /**
  * Host 平台 Sa-Token adapter。
@@ -41,6 +46,7 @@ public final class OwnDshPlatformSessionGateway implements PlatformSessionGatewa
     private final ISysUserService userService;
     private final SysLoginService loginService;
     private final EnterpriseIdentityProperties properties;
+    private final RefreshSessionStore refreshSessions;
 
     @Override
     public IssuedPlatformSession issue(long userId, PlatformClient client, String deviceId) {
@@ -100,11 +106,24 @@ public final class OwnDshPlatformSessionGateway implements PlatformSessionGatewa
 
     @Override
     public void logoutCurrent() {
+        if (StpUtil.isLogin()) {
+            PlatformSession session = current();
+            if (session.client() == PlatformClient.DSH_DESKTOP) {
+                refreshSessions.revokeInstallation(
+                    properties.getTenantId(), session.userId(), session.client(),
+                    UUID.fromString(session.deviceId()), RefreshSession.RevocationReason.LOGOUT, Instant.now()
+                );
+            }
+        }
         StpUtil.logout();
     }
 
     @Override
     public void revokeHarnessDevice(long userId, String installationId) {
+        refreshSessions.revokeInstallation(
+            properties.getTenantId(), userId, PlatformClient.DSH_DESKTOP, UUID.fromString(installationId),
+            RefreshSession.RevocationReason.DEVICE_REVOKED, Instant.now()
+        );
         SysUserVo user = loadUser(userId);
         String loginId = user.getUserType() + ":" + userId;
         StpLogic logic = StpUtil.getStpLogic();
@@ -118,6 +137,7 @@ public final class OwnDshPlatformSessionGateway implements PlatformSessionGatewa
 
     @Override
     public void revokeUser(long userId) {
+        refreshSessions.revokeUser(userId, RefreshSession.RevocationReason.USER_REVOKED, Instant.now());
         SysUserVo user = loadUser(userId);
         StpUtil.getStpLogic().kickout(user.getUserType() + ":" + userId);
     }

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 JDBC/Jackson/事务/Redisson/ID generator、部署 URI/master key 与 Host 登录/会话 ports。
- * [OUTPUT]: 对外装配身份、成员目录、Redis PKCE/平台会话 Service 与统一 HTTP(S) authority 校验。
+ * [OUTPUT]: 对外装配身份、成员目录、Redis PKCE、PostgreSQL Refresh Session 与统一 HTTP(S) authority 校验。
  * [POS]: auth 纵向模块的 Spring composition root，领域与 adapter 均不使用静态容器查找。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -27,6 +27,7 @@ import com.owndsh.enterprise.auth.application.MemberDirectoryQueryService;
 import com.owndsh.enterprise.auth.application.MemberManagementService;
 import com.owndsh.enterprise.auth.application.PlatformAuthorizationService;
 import com.owndsh.enterprise.auth.application.PlatformSessionGateway;
+import com.owndsh.enterprise.auth.application.RefreshSessionService;
 import com.owndsh.enterprise.auth.persistence.ExternalGroupMappingStore;
 import com.owndsh.enterprise.auth.persistence.ExternalIdentityStore;
 import com.owndsh.enterprise.auth.persistence.IdentitySourceStore;
@@ -34,7 +35,9 @@ import com.owndsh.enterprise.auth.persistence.JdbcExternalGroupMappingStore;
 import com.owndsh.enterprise.auth.persistence.JdbcExternalIdentityStore;
 import com.owndsh.enterprise.auth.persistence.JdbcIdentitySourceStore;
 import com.owndsh.enterprise.auth.persistence.JdbcPlatformUserStore;
+import com.owndsh.enterprise.auth.persistence.JdbcRefreshSessionStore;
 import com.owndsh.enterprise.auth.persistence.PlatformUserStore;
+import com.owndsh.enterprise.auth.persistence.RefreshSessionStore;
 import com.owndsh.enterprise.auth.persistence.RedisAuthStateStore;
 import com.owndsh.enterprise.crypto.SecretCipher;
 import com.owndsh.enterprise.common.api.EnterpriseCursorCodec;
@@ -164,6 +167,25 @@ public class EnterpriseIdentityConfiguration {
     }
 
     @Bean
+    RefreshSessionStore refreshSessionStore(JdbcTemplate jdbcTemplate) {
+        return new JdbcRefreshSessionStore(jdbcTemplate);
+    }
+
+    @Bean
+    RefreshSessionService refreshSessionService(
+        PlatformTransactionManager transactionManager,
+        RefreshSessionStore refreshSessions,
+        PlatformSessionGateway sessionGateway,
+        @Qualifier("enterpriseIdSupplier") LongSupplier ids,
+        EnterpriseIdentityProperties properties
+    ) {
+        return new RefreshSessionService(
+            properties.getTenantId(), refreshSessions, sessionGateway,
+            new TransactionTemplate(transactionManager), ids
+        );
+    }
+
+    @Bean
     LocalAccountStore localAccountStore(JdbcTemplate jdbcTemplate) {
         return new JdbcLocalAccountStore(jdbcTemplate);
     }
@@ -286,6 +308,7 @@ public class EnterpriseIdentityConfiguration {
         CaptchaVerifier captchaVerifier,
         ExternalIdentityService externalIdentityService,
         PlatformSessionGateway sessionGateway,
+        RefreshSessionService refreshSessionService,
         AuditSink auditSink,
         @Qualifier("enterpriseIdSupplier") LongSupplier ids,
         EnterpriseIdentityProperties properties
@@ -301,6 +324,7 @@ public class EnterpriseIdentityConfiguration {
             captchaVerifier,
             externalIdentityService,
             sessionGateway,
+            refreshSessionService,
             new TransactionTemplate(transactionManager),
             auditSink,
             ids,

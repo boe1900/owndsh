@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 PlatformAuthorizationService、固定 HTTP(S) enterprise 配置、可信 metadata、密码表单与管理端 Cookie。
- * [OUTPUT]: 提供 authorize 的 HTML/同源 JSON 启动、sources/password challenge/OIDC、Desktop Token、浏览器 HttpOnly 会话和 logout。
- * [POS]: auth/web 的平台登录门面，管理端在自身登录页完成 Cookie 会话，Desktop 继续使用跳转与 Bearer Token。
+ * [OUTPUT]: 提供 authorize 的 HTML/同源 JSON 启动、sources/password challenge/OIDC、Desktop Access/Refresh Token、浏览器 HttpOnly 会话和 logout。
+ * [POS]: auth/web 的平台登录门面，管理端在自身登录页完成 Cookie 会话，Desktop 使用 code/refresh 两类 grant。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.auth.web;
@@ -183,20 +183,24 @@ public final class PlatformAuthController {
         HttpServletRequest request
     ) {
         if (body == null) throw new AuthFlowException("ENT_INVALID_REQUEST");
-        if (!"authorization_code".equals(body.grantType())) {
-            throw new AuthFlowException("ENT_INVALID_REQUEST");
-        }
         PlatformClient requestedClient = client(body.clientId());
         if (requestedClient != PlatformClient.DSH_DESKTOP) {
             throw new AuthFlowException("ENT_INVALID_REQUEST");
         }
-        TokenExchangeResult result = authorization.exchange(
-            body.code(),
-            requestedClient,
-            uri(body.redirectUri(), "ENT_AUTH_CODE_INVALID"),
-            body.codeVerifier(),
-            optionalUuidV4(body.installationId())
-        );
+        UUID installationId = optionalUuidV4(required(body.installationId()));
+        TokenExchangeResult result = switch (required(body.grantType())) {
+            case "authorization_code" -> authorization.exchange(
+                required(body.code()),
+                requestedClient,
+                uri(required(body.redirectUri()), "ENT_AUTH_CODE_INVALID"),
+                required(body.codeVerifier()),
+                installationId
+            );
+            case "refresh_token" -> authorization.refresh(
+                required(body.refreshToken()), requestedClient, installationId
+            );
+            default -> throw new AuthFlowException("ENT_INVALID_REQUEST");
+        };
         return new EnterpriseResponse<>(result, EnterpriseRequestMetadata.from(request).requestId());
     }
 

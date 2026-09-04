@@ -1,13 +1,14 @@
 /**
- * [INPUT]: 依赖 Cordis Service/WebServer/settings、T02 contracts、PKCE/installation/browser 原语、插件状态/卸载与 Session 反转端口及 Node fetch
- * [OUTPUT]: 对外提供 ctx.enterprisePlatform、官方 settings 持久化 HTTP(S) Server 地址、控制面请求、bootstrap 刷新、完整停稳与稳定错误
- * [POS]: platform-client 的 Host 业务核心，以 Cordis shadow-compatible 私有状态承载 Server origin、Token、登录与刷新生命周期
+ * [INPUT]: 依赖 Cordis Service/WebServer/settings/credentials、T02 contracts、PKCE/installation/browser 原语与 Node fetch
+ * [OUTPUT]: 对外提供 ctx.enterprisePlatform、Server 地址、Host GrantRecord、内存 Access Token、可退避静默恢复/轮换、控制面请求与完整停稳
+ * [POS]: platform-client 的 Host 业务核心，跨 Web/Desktop 复用官方凭据平面且不向 Client UI 暴露任何 Token
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { randomBytes, randomUUID } from 'node:crypto'
 import { platform as hostPlatform } from 'node:os'
 import { Context, Service } from '@deepseek-ai/cordis'
+import type { CredentialProvider } from '@deepseek-ai/dsh-credentials'
 import { settingsNamespace, type SettingsScope } from '@deepseek-ai/dsh-settings'
 import z from '@deepseek-ai/schemastery'
 import {
@@ -21,7 +22,6 @@ import {
 import { openSystemBrowser } from './browser.js'
 import {
   loadOrCreateInstallation,
-  type InstallationOptions,
   type InstallationRecord,
 } from './installation.js'
 import {
@@ -32,15 +32,20 @@ import {
   type WebServerRoutePort,
 } from './local-api.js'
 import { createPkceS256, PkceLoopbackError, startLoopbackCallback, type LoopbackCallback } from './pkce.js'
+import { PlatformCredentialManager } from './platform-credentials.js'
 import {
+  EnterprisePlatformError,
   zBootstrapResponse,
   type BootstrapSnapshot,
   type EnterpriseLoginFlow,
+  type EnterprisePlatformConfig,
+  type EnterprisePlatformInternals,
   type EnterprisePlatformStatus,
 } from './types.js'
 
 const AUTH_PATH = '/enterprise/auth/v1'
 const API_PATH = '/enterprise/api/v1'
+const ACCESS_REFRESH_MARGIN_MS = 60_000
 const SETTINGS_NAMESPACE = settingsNamespace('owndsh')
 interface EnterpriseConnectionSettings { readonly serverUrl: string }
 const CONNECTION_SETTINGS: z<EnterpriseConnectionSettings> = z.object({
@@ -56,51 +61,6 @@ declare module '@deepseek-ai/cordis' {
   interface Context {
     enterprisePlatform: EnterprisePlatformService
   }
-}
-
-/** 不携带响应主体或凭据的稳定 Service 失败，并保留经过 Fetch 校验的 Retry-After。 */
-export class EnterprisePlatformError extends Error {
-  constructor(
-    readonly code: EnterpriseErrorCode | 'ENT_AUTH_CANCELLED' | 'ENT_AUTH_TIMEOUT' | 'ENT_PLATFORM_DISPOSED',
-    message: string,
-    readonly retryable = false,
-    readonly httpStatus?: number,
-    readonly requestId?: string,
-    readonly retryAfter?: string,
-  ) {
-    super(message)
-    this.name = 'EnterprisePlatformError'
-  }
-}
-
-/** T06 平台客户端所需的部署时与 Host 版本事实。 */
-export interface EnterprisePlatformConfig {
-  readonly baseUrl?: string
-  readonly harnessVersion: string
-  readonly bundleVersion: string
-  readonly bootstrapIntervalMs?: number
-  readonly requestTimeoutMs?: number
-  readonly disposeTimeoutMs?: number
-  readonly callbackTimeoutMs?: number
-  readonly dshHome?: string
-  readonly installationName?: string
-  readonly enableTechnicalProbe?: boolean
-  readonly restoreSessionCopy?: (input: SessionCopyProbeInput) => Promise<SessionCopyProbeResult>
-}
-
-/** 不进入可序列化 bundle Config 的测试与 carrier seam。 */
-export interface EnterprisePlatformInternals {
-  readonly fetch?: typeof globalThis.fetch
-  readonly openBrowser?: (url: string, signal: AbortSignal) => Promise<void>
-  readonly now?: () => Date
-  readonly createFlowId?: () => string
-  readonly createState?: () => string
-  readonly installation?: Omit<InstallationOptions, 'dshHome' | 'name'>
-  readonly refreshRetryInitialMs?: number
-  readonly refreshRetryMaxMs?: number
-  readonly pluginStatus?: () => unknown
-  readonly uninstallPlugin?: () => Promise<{ readonly restart?: () => void }>
-  readonly sessionSync?: () => EnterpriseLocalSessionPort | undefined
 }
 
 interface ResolvedConfig {
@@ -171,10 +131,11 @@ function isAbort(error: unknown): boolean {
 
 /** Host 独占的企业控制面，也是内存平台 Token 的唯一读取者。 */
 export class EnterprisePlatformService extends Service {
-  static inject = ['webServer']
+  static inject = ['webServer', 'credentials']
 
   private readonly config: ResolvedConfig
   private readonly fetch: typeof globalThis.fetch
+  private readonly platformCredentials: PlatformCredentialManager
   private readonly openBrowser: (url: string, signal: AbortSignal) => Promise<void>
   private readonly now: () => Date
   private readonly createFlowId: () => string
@@ -192,8 +153,6 @@ export class EnterprisePlatformService extends Service {
   private currentStatus: EnterprisePlatformStatus
   private baseUrl: URL | undefined
   private settingsScope: SettingsScope<EnterpriseConnectionSettings> | undefined
-  private token: string | undefined
-  private tokenExpiresAt = 0
   private bootstrapSnapshot: BootstrapSnapshot | undefined
   private connectedAt: string | undefined
   private login: LoginTransaction | undefined
@@ -201,11 +160,12 @@ export class EnterprisePlatformService extends Service {
   private refreshTask: Promise<void> | undefined
   private refreshTimer: NodeJS.Timeout | undefined
   private refreshRetryMs: number
+  private restoreOrigin: string | undefined
   private disposed = false
   private disposeTask: Promise<void> | undefined
 
   constructor(
-    ctx: Context & { readonly webServer: WebServerRoutePort },
+    ctx: Context & { readonly webServer: WebServerRoutePort, readonly credentials: CredentialProvider },
     config: EnterprisePlatformConfig,
     internals: EnterprisePlatformInternals = {},
   ) {
@@ -235,6 +195,25 @@ export class EnterprisePlatformService extends Service {
       ...(this.config.installationName === undefined ? {} : { name: this.config.installationName }),
       ...internals.installation,
     })
+    this.platformCredentials = new PlatformCredentialManager(
+      ctx.credentials,
+      this.installation,
+      this.now,
+      async (refreshBaseUrl, request, signal) => {
+        const parsed = zTokenResponse.safeParse(await this.fetchPublicJsonAt(
+          refreshBaseUrl,
+          `${AUTH_PATH}/token`,
+          { body: JSON.stringify(request), headers: { 'content-type': 'application/json' }, method: 'POST' },
+          signal,
+        ))
+        if (!parsed.success) {
+          throw new EnterprisePlatformError('ENT_PLATFORM_UNAVAILABLE', 'platform returned an invalid token', true)
+        }
+        return parsed.data.data
+      },
+      origin => !this.disposed && this.baseUrl?.origin === origin,
+      () => { this.logger.warn('enterprise platform: failed to remove rejected refresh credential') },
+    )
     void this.installation.catch(() => {
       this.transition('FAILED', { errorCode: 'ENT_PLATFORM_UNAVAILABLE' })
     })
@@ -274,6 +253,7 @@ export class EnterprisePlatformService extends Service {
       }, 'enterprisePlatform.settings')
     })
     ctx.effect(() => () => this.dispose(), 'enterprisePlatform.dispose()')
+    this.startSessionRestore()
   }
 
   /** 校验并写入 Harness 官方 settings；更换 origin 时丢弃旧服务的内存会话。 */
@@ -328,6 +308,11 @@ export class EnterprisePlatformService extends Service {
           || (error.code !== 'ENT_AUTH_REQUIRED' && error.code !== 'ENT_AUTH_SESSION_EXPIRED')) failure = error
       }
     }
+    try {
+      await this.platformCredentials.delete()
+    } catch (error) {
+      failure ??= error
+    }
     this.clearSession()
     this.transition(this.baseUrl === undefined ? 'UNCONFIGURED' : 'SIGNED_OUT')
     if (failure !== undefined) throw failure
@@ -371,11 +356,8 @@ export class EnterprisePlatformService extends Service {
       && this.currentStatus.state !== 'REFRESHING') {
       throw new EnterprisePlatformError('ENT_AUTH_REQUIRED', 'enterprise platform is not ready')
     }
-    if (this.tokenExpiresAt !== 0 && this.now().getTime() >= this.tokenExpiresAt) {
-      this.expireAuthentication('ENT_AUTH_SESSION_EXPIRED')
-      throw new EnterprisePlatformError('ENT_AUTH_SESSION_EXPIRED', 'platform session expired')
-    }
-    const token = this.token
+    await this.ensureAccessToken()
+    const token = this.platformCredentials.accessToken()
     if (token === undefined) throw new EnterprisePlatformError('ENT_AUTH_REQUIRED', 'platform login is required')
     const headers = new Headers(init.headers)
     if (headers.has('authorization')) {
@@ -414,6 +396,7 @@ export class EnterprisePlatformService extends Service {
       this.installation,
       ...(this.loginTask === undefined ? [] : [this.loginTask]),
       ...(this.refreshTask === undefined ? [] : [this.refreshTask]),
+      ...this.platformCredentials.pending(),
     ])
     let timer: NodeJS.Timeout | undefined
     const timeout = new Promise<never>((_resolve, reject) => {
@@ -469,8 +452,8 @@ export class EnterprisePlatformService extends Service {
       { body: JSON.stringify(tokenRequest), headers: { 'content-type': 'application/json' }, method: 'POST' },
       transaction.abort.signal,
     ))
-    this.token = tokenResponse.data.accessToken
-    this.tokenExpiresAt = this.now().getTime() + tokenResponse.data.expiresIn * 1_000
+    await this.platformCredentials.store(tokenResponse.data, baseUrl.origin)
+    transaction.abort.signal.throwIfAborted()
     this.transition('ENROLLING', { flowId: transaction.flowId })
 
     const enrollRequest: DeviceEnrollRequest = {
@@ -497,8 +480,82 @@ export class EnterprisePlatformService extends Service {
     this.scheduleRefresh(this.config.bootstrapIntervalMs)
   }
 
+  private async ensureAccessToken(): Promise<void> {
+    if (!this.platformCredentials.needsRefresh(ACCESS_REFRESH_MARGIN_MS)) return
+    if (this.platformCredentials.accessToken() === undefined) {
+      throw new EnterprisePlatformError('ENT_AUTH_REQUIRED', 'platform login is required')
+    }
+    try {
+      if (await this.platformCredentials.refresh(this.requireBaseUrl(), this.lifetime.signal)) return
+    } catch (error) {
+      if (error instanceof EnterprisePlatformError && error.code === 'ENT_DEVICE_REVOKED') {
+        this.expireDevice()
+      } else if (error instanceof EnterprisePlatformError
+        && (error.code === 'ENT_AUTH_REQUIRED' || error.code === 'ENT_AUTH_SESSION_EXPIRED')) {
+        this.platformCredentials.discard()
+        this.expireAuthentication(error.code)
+      }
+      throw error
+    }
+    this.platformCredentials.discard()
+    this.expireAuthentication('ENT_AUTH_SESSION_EXPIRED')
+    throw new EnterprisePlatformError('ENT_AUTH_SESSION_EXPIRED', 'platform session expired')
+  }
+
+  private startSessionRestore(): void {
+    const baseUrl = this.baseUrl
+    if (this.disposed || baseUrl === undefined || this.restoreOrigin === baseUrl.origin) return
+    this.restoreOrigin = baseUrl.origin
+    const task = this.restoreSession(baseUrl)
+    this.refreshTask = task
+    void task.then(
+      () => { if (this.refreshTask === task) this.refreshTask = undefined },
+      () => { if (this.refreshTask === task) this.refreshTask = undefined },
+    )
+  }
+
+  private async restoreSession(baseUrl: URL): Promise<void> {
+    try {
+      if (!await this.platformCredentials.refresh(baseUrl, this.lifetime.signal)
+        || this.disposed
+        || this.baseUrl?.origin !== baseUrl.origin) return
+      this.transition('BOOTSTRAPPING')
+      await this.loadBootstrap(this.lifetime.signal)
+      if (this.disposed || this.baseUrl?.origin !== baseUrl.origin) return
+      this.refreshRetryMs = this.refreshRetryInitialMs
+      this.transition('READY')
+      this.scheduleRefresh(this.config.bootstrapIntervalMs)
+    } catch (error) {
+      if (this.disposed || isAbort(error) || this.baseUrl?.origin !== baseUrl.origin) return
+      if (error instanceof EnterprisePlatformError && error.code === 'ENT_DEVICE_REVOKED') {
+        this.expireDevice()
+        return
+      }
+      if (error instanceof EnterprisePlatformError
+        && (error.code === 'ENT_AUTH_REQUIRED' || error.code === 'ENT_AUTH_SESSION_EXPIRED')) {
+        this.platformCredentials.discard()
+        this.expireAuthentication(error.code)
+        return
+      }
+      const code = error instanceof EnterprisePlatformError ? error.code : 'ENT_PLATFORM_UNAVAILABLE'
+      this.transition('REFRESHING', { errorCode: code })
+      const delay = Math.min(this.refreshRetryMs, this.refreshRetryMaxMs)
+      this.refreshRetryMs = Math.min(delay * 2, this.refreshRetryMaxMs)
+      this.scheduleRefresh(delay)
+    }
+  }
+
   private async fetchPublicJson(path: string, init: RequestInit, signal: AbortSignal): Promise<unknown> {
-    const response = await this.executeFetch(new URL(path, this.requireBaseUrl()), { ...init, signal, redirect: 'error' })
+    return this.fetchPublicJsonAt(this.requireBaseUrl(), path, init, signal)
+  }
+
+  private async fetchPublicJsonAt(
+    baseUrl: URL,
+    path: string,
+    init: RequestInit,
+    signal: AbortSignal,
+  ): Promise<unknown> {
+    const response = await this.executeFetch(new URL(path, baseUrl), { ...init, signal, redirect: 'error' })
     if (!response.ok) throw await this.decodeResponseError(response)
     try {
       return await response.json()
@@ -533,11 +590,16 @@ export class EnterprisePlatformService extends Service {
 
   private scheduleRefresh(delayMs: number): void {
     this.clearRefreshTimer()
-    if (this.disposed || this.tokenExpiresAt === 0) return
+    if (this.disposed) return
     this.refreshTimer = setTimeout(() => {
       this.refreshTimer = undefined
+      if (this.platformCredentials.accessToken() === undefined) {
+        this.restoreOrigin = undefined
+        this.startSessionRestore()
+        return
+      }
       this.refreshTask = this.refreshBootstrap().finally(() => { this.refreshTask = undefined })
-    }, delayMs)
+    }, this.platformCredentials.refreshDelay(delayMs, ACCESS_REFRESH_MARGIN_MS))
     this.refreshTimer.unref()
   }
 
@@ -545,6 +607,7 @@ export class EnterprisePlatformService extends Service {
     if (this.disposed) return
     const previousRevision = this.bootstrapSnapshot?.revision
     try {
+      await this.ensureAccessToken()
       await this.loadBootstrap(this.lifetime.signal)
       this.refreshRetryMs = this.refreshRetryInitialMs
       if (this.currentStatus.state !== 'READY' || this.bootstrapSnapshot?.revision !== previousRevision) {
@@ -659,13 +722,13 @@ export class EnterprisePlatformService extends Service {
   }
 
   private expireDevice(): void {
+    this.platformCredentials.discard()
     this.clearSession()
     this.transition('DEVICE_REVOKED', { errorCode: 'ENT_DEVICE_REVOKED' })
   }
 
   private clearSession(): void {
-    this.token = undefined
-    this.tokenExpiresAt = 0
+    this.platformCredentials.clearAccess()
     this.bootstrapSnapshot = undefined
     this.connectedAt = undefined
     this.clearRefreshTimer()
@@ -680,7 +743,9 @@ export class EnterprisePlatformService extends Service {
       controller.abort(new DOMException('enterprise server changed', 'AbortError'))
     }
     this.baseUrl = next
+    this.restoreOrigin = undefined
     this.transition(next === undefined ? 'UNCONFIGURED' : 'SIGNED_OUT')
+    this.startSessionRestore()
   }
 
   private requireBaseUrl(): URL {

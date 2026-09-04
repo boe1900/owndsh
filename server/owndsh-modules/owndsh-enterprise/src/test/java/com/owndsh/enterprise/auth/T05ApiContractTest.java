@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 T05 auth/device Controllers、真实设备上下文解析器、MockMvc、认证 cursor、统一异常/filter 与派生 JSON Schema。
- * [OUTPUT]: 验证 Desktop 跳转/Bearer、管理端同源登录/HttpOnly 会话、跨源写入拒绝、密码流程、设备与权限入口。
+ * [OUTPUT]: 验证 Desktop authorization_code/refresh_token、管理端同源登录/HttpOnly 会话、跨源写入拒绝、密码流程、设备与权限入口。
  * [POS]: T05 Server/OpenAPI 同步门禁，Application Service 使用 mock 以隔离协议与 redirect 行为。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -56,8 +56,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -120,7 +122,14 @@ class T05ApiContractTest {
         when(authorization.oidcCallback(anyString(), anyLong(), anyString(), anyString(), any()))
             .thenReturn(URI.create("https://admin.example/auth/callback?code=code&state=client-state-0001"));
         when(authorization.exchange(anyString(), any(), any(), anyString(), any()))
-            .thenReturn(new TokenExchangeResult("fixture-sa-token-value-not-a-secret", "Bearer", 43_200, "dsh-desktop"));
+            .thenReturn(new TokenExchangeResult(
+                "fixture-sa-token-value-not-a-secret", "Bearer", 43_200, "dsh-desktop",
+                "dshr_abcdefghijklmnopqrstuvwxyzABCDEFGH123456789", 2_592_000L
+            ));
+        when(authorization.refresh(anyString(), any(), any())).thenReturn(new TokenExchangeResult(
+            "fixture-refreshed-sa-token-not-a-secret", "Bearer", 43_200, "dsh-desktop",
+            "dshr_123456789abcdefghijklmnopqrstuvwxyzABCDEFGH", 2_591_900L
+        ));
         when(authorization.exchange(
             anyString(),
             org.mockito.ArgumentMatchers.eq(PlatformClient.ENTERPRISE_ADMIN),
@@ -379,6 +388,28 @@ class T05ApiContractTest {
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString(),
             "TokenResponse"
+        );
+        assertSchema(
+            mvc.perform(post("/enterprise/auth/v1/token")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""
+                        {
+                          "grantType":"refresh_token",
+                          "refreshToken":"dshr_abcdefghijklmnopqrstuvwxyzABCDEFGH123456789",
+                          "clientId":"dsh-desktop",
+                          "installationId":"%s"
+                        }
+                        """.formatted(INSTALLATION)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.accessToken").value("fixture-refreshed-sa-token-not-a-secret"))
+                .andExpect(jsonPath("$.data.refreshToken").value("dshr_123456789abcdefghijklmnopqrstuvwxyzABCDEFGH"))
+                .andReturn().getResponse().getContentAsString(),
+            "TokenResponse"
+        );
+        verify(authorization).refresh(
+            eq("dshr_abcdefghijklmnopqrstuvwxyzABCDEFGH123456789"),
+            eq(PlatformClient.DSH_DESKTOP),
+            eq(UUID.fromString(INSTALLATION))
         );
         mvc.perform(post("/enterprise/auth/v1/logout"))
             .andExpect(status().isOk())

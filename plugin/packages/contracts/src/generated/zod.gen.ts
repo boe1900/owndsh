@@ -499,23 +499,37 @@ export const zAuthPlatformClient = z.enum(['dsh-desktop', 'enterprise-admin']);
 
 export const zPlatformClient = zAuthPlatformClient;
 
-export const zAuthTokenData = z.object({
-    accessToken: z.string().min(16).max(512).regex(/^\S+$/),
-    tokenType: z.literal('Bearer'),
-    expiresIn: z.literal(43200),
-    clientId: zAuthPlatformClient
-}).strict();
-
-export const zTokenData = zAuthTokenData;
-
-export const zAuthTokenRequest = z.object({
+export const zAuthorizationCodeTokenRequest = z.object({
     grantType: z.literal('authorization_code'),
     code: zAuthAuthorizationCode,
     clientId: zAuthPlatformClient,
     redirectUri: z.url().min(1).max(2048),
     codeVerifier: zAuthPkceCodeVerifier,
-    installationId: zAuthInstallationId.nullish()
+    installationId: zAuthInstallationId
 }).strict();
+
+export const zRefreshTokenRequest = z.object({
+    grantType: z.literal('refresh_token'),
+    refreshToken: z.string().length(48).regex(/^dshr_[A-Za-z0-9_-]{43}$/),
+    clientId: z.literal('dsh-desktop'),
+    installationId: zAuthInstallationId
+}).strict();
+
+export const zAuthTokenData = z.object({
+    accessToken: z.string().min(16).max(512).regex(/^\S+$/),
+    tokenType: z.literal('Bearer'),
+    expiresIn: z.literal(43200),
+    clientId: zAuthPlatformClient,
+    refreshToken: z.string().length(48).regex(/^dshr_[A-Za-z0-9_-]{43}$/),
+    refreshExpiresIn: z.int().gte(1).lte(2592000)
+}).strict();
+
+export const zTokenData = zAuthTokenData;
+
+export const zAuthTokenRequest = z.union([
+    zAuthorizationCodeTokenRequest,
+    zRefreshTokenRequest
+]);
 
 export const zTokenRequest = zAuthTokenRequest;
 
@@ -2781,12 +2795,12 @@ export const zCompleteOidcLoginQuery = z.object({
     code: z.string().min(1).max(2048)
 });
 
-export const zExchangeAuthorizationCodeBody = zAuthTokenRequest;
+export const zExchangeDesktopTokenBody = zAuthTokenRequest;
 
 /**
- * Twelve-hour non-shared Sa-Token session.
+ * Twelve-hour non-shared Sa-Token session plus a rotated thirty-day refresh token.
  */
-export const zExchangeAuthorizationCodeResponse = zAuthTokenResponse;
+export const zExchangeDesktopTokenResponse = zAuthTokenResponse;
 
 export const zExchangeBrowserAuthorizationCodeBody = zAuthBrowserSessionRequest;
 

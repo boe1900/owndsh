@@ -5,17 +5,7 @@
 成员清单
 
 java/com/owndsh/enterprise/crypto/SecretCipherTest.java: 验证全部封闭用途 AES-GCM round trip、随机 nonce、AAD/用途隔离、篡改认证与防御性复制。
-java/com/owndsh/enterprise/auth/LocalIdentityAdapterTest.java: 验证 Host BCrypt、失败策略复用、稳定 userId subject、停用与不存在账号同形失败。
-java/com/owndsh/enterprise/auth/OidcIdentityAdapterTest.java: 使用 WireMock、真实 RSA ID Token 和轮换 JWKS 验证 Discovery 声明算法、code+PKCE、issuer/aud/nonce 与 claim 白名单。
-java/com/owndsh/enterprise/auth/LdapIdentityAdapterTest.java: 使用 StartTLS OpenLDAP 验证 manager search、用户 bind、LDAPS/StartTLS 互斥、RFC 4515 转义和 entryUUID 稳定 subject。
-java/com/owndsh/enterprise/auth/IdentityPersistenceIntegrationTest.java: 以真实 PostgreSQL 验证身份秘密隔离、keyset、资源 CAS、revision/审计回滚、JIT/LINK_ONLY、稳定 subject、显式绑定/目录导入、产品用户组/部门隔离及外部组缺失/空/非空三态同步。
-java/com/owndsh/enterprise/auth/IdentityAdminApiTest.java: 以 MockMvc 和 OpenAPI 派生 schema 验证身份源、外部组映射、用户组 operation、JIT/LINK_ONLY、认证 cursor、权限码、revision 错误与秘密输出隔离。
-java/com/owndsh/enterprise/auth/EnterpriseAuthResourceConfigurationTest.java: 以真实 Spring MVC 资源链验证 login.html/css/js、两阶段改密与凭据清理逻辑可达且模块文档不公开。
-java/com/owndsh/enterprise/auth/EnterpriseIdentityConfigurationTest.java: 验证 Java 公网 HTTP(S) authority 接受默认/合法显式端口并拒绝其他协议、端口越界、路径、查询和 user-info。
-java/com/owndsh/enterprise/auth/PlatformAuthorizationSecurityTest.java: 使用真实 Redis 验证 S256/redirect/client、一次性改密与身份绑定 transaction、code 原子消费、并发交换、取消和失效事务零副作用。
-java/com/owndsh/enterprise/auth/ConsoleBootstrapControllerTest.java: 验证产品 bootstrap 投影当前账号、多登录来源、启用的固定角色、ent:* 产品权限码和部署标识，不泄漏外部 subject、旧后台权限、停用或任意 Host 角色。
-java/com/owndsh/enterprise/auth/RedisAuthStateStoreIntegrationTest.java: 使用 Redis 8 验证 5 分钟事务/challenge、60 秒 code、GETDEL 唯一消费与 namespace 分区。
-java/com/owndsh/enterprise/auth/T05ApiContractTest.java: 以 MockMvc 和派生 JSON Schema 验证 Desktop Bearer、HTTP/HTTPS 管理端 Cookie、JSON 两阶段改密、HTML fail-closed、设备 operation、权限与撤销翻译。
+java/com/owndsh/enterprise/auth/: 身份、PKCE、Access/Refresh Session、成员治理与认证 HTTP 契约门禁；局部地图见 auth/CLAUDE.md。
 java/com/owndsh/enterprise/device/DeviceContextIsolationTest.java: 证明伪造 X-Device-Id 不会覆盖 Sa-Token terminal 的 installation 授权事实。
 java/com/owndsh/enterprise/device/DeviceLifecycleIntegrationTest.java: 以真实 PostgreSQL 验证多设备 owner、heartbeat 审计限频/状态切换、CAS、审计同事务与单设备撤销隔离。
 java/com/owndsh/enterprise/model/ProviderProbeTest.java: 使用 WireMock 验证 `/models` Bearer 探测、模型 ID 提取、正文隔离、状态分类与 no-redirect。
@@ -43,9 +33,7 @@ java/com/owndsh/enterprise/audit/: 31-action metadata 白名单、requestId 关�
 java/com/owndsh/enterprise/common/api/: T20 有界 JSON 请求、稳定 413/503 与故障日志秘密隔离门禁；局部地图见 common/api/CLAUDE.md。
 java/com/owndsh/enterprise/test/OpenLdapTestServer.java: 共享 OpenLDAP Testcontainer 与测试专用 TLS trust，集中管理 LDAP 集成环境。
 java/com/owndsh/enterprise/test/RedisTestServer.java: 共享 Redis 8 Testcontainer，并为每项认证测试清理隔离 keyspace。
-java/com/owndsh/enterprise/database/EnterpriseMigrationTest.java: 从真实 Host PostgreSQL 基线验证 V1-V27 逐版本升级、产品导航、成员治理、身份生命周期、用户组/模型集、TOKEN/RATE 互斥及供应商唯一速率策略迁移。
-java/com/owndsh/enterprise/auth/MemberDirectoryQueryServiceTest.java: 使用真实 PostgreSQL 验证产品成员 cursor/detail、固定角色、LOCAL/OIDC 登录方式与设备/Session 聚合。
-java/com/owndsh/enterprise/auth/MemberManagementServiceTest.java: 使用真实 PostgreSQL 验证 LOCAL 建号/首次改密标记/常规改密、角色替换、最后管理员保护、成员停用、会话撤销、身份解绑 CAS 及最后登录方式保护。
+java/com/owndsh/enterprise/database/EnterpriseMigrationTest.java: 从真实 Host PostgreSQL 基线验证 V1-V28 逐版本升级及 Refresh Session 约束。
 java/com/owndsh/enterprise/deployment/DeploymentBootstrapServiceTest.java: 以真实 PostgreSQL 验证缺配置失败、事务回滚、幂等管理员/角色/marker，以及分步认证和 JDBC 条件首次改密。
 java/com/owndsh/enterprise/database/RbacSeedTest.java: 验证五个 built-in 角色、16 个冻结权限码、最小权限集合与数据库不可变 trigger。
 java/com/owndsh/enterprise/revision/RevisionAuditIntegrationTest.java: 验证 BOOTSTRAP CAS、稳定冲突码、显式 metadata、只追加审计及同事务回滚。

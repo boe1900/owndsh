@@ -24,8 +24,8 @@ GroupMappingView.java: 外部组映射公开管理字段投影。
 IdentityAdminRequestContextResolver.java: Controller 到可信管理请求上下文的 DIP 端口。
 IdentitySourceView.java: 隔离 encryptedSecret/异常正文，只公开 JIT/LINK_ONLY、secretConfigured 与最近脱敏测试结果的身份源响应投影。
 IdentitySourceWriteRequest.java: 接收 JIT/LINK_ONLY 与一次性 char[] secret、显式清零并提供脱敏字符串输出的写 DTO。
-PlatformAuthController.java: HTTP(S) authorize/sources/password/OIDC/Desktop token/浏览器 Cookie/logout 门面；管理端专用交换不返回 Token，页面 JSON 以 CHANGE_PASSWORD 或精确回调驱动两阶段流程。
+PlatformAuthController.java: HTTP(S) authorize/sources/password/OIDC/Desktop code/refresh token/浏览器 Cookie/logout 门面；管理端专用交换不返回 Token。
 OwnDshIdentityAdminRequestContextResolver.java: 从固定部署 tenant、Host 会话与 Servlet 元数据构造管理请求上下文。
-TokenExchangeRequest.java: authorization_code grant 的 client/redirect/verifier/installation JSON 输入边界。
+TokenExchangeRequest.java: authorization_code/refresh_token grants 的 client/installation 与对应秘密 JSON 输入边界。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

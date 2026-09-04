@@ -3,7 +3,9 @@
     "accessToken": "fixture-sa-token-value-not-a-secret",
     "tokenType": "Bearer",
     "expiresIn": 43200,
-    "clientId": "dsh-desktop"
+    "clientId": "dsh-desktop",
+    "refreshToken": "dshr_abcdefghijklmnopqrstuvwxyzABCDEFGH123456789",
+    "refreshExpiresIn": 2592000
   },
   "requestId": "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
 }

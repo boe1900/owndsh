@@ -14,8 +14,8 @@ OpenAI-compatible SSE, Session seed restoration, Client slots, and a
 self-contained bundle. OwnDsh does not fork or maintain the official Harness
 Web/Desktop UI: `owndsh-plugin` is the only employee-side deliverable, and the
 locked upstream checkouts remain read-only verification fixtures. Published peers follow the same caret ranges as Harness packages, while the Host reports its actual Harness version through the official LLM runtime identity. T06 promotes the PKCE probe into `ctx.enterprisePlatform`
-with in-memory Token ownership, installation persistence, enroll/bootstrap,
-refresh, and same-origin local JSON/SSE. The workspace uses the locked Harness
+with in-memory Access Token ownership, official Host `GrantRecord` persistence for the rotating Refresh Token,
+installation persistence, enroll/bootstrap, restart recovery, and same-origin local JSON/SSE. The workspace uses the locked Harness
 release's public plugin surface and does not generate or mount a custom Typert
 Remote. T07 adds the employee account experience through the official
 `settings.section`, `sidebar.footer.action`, and `shell.overlay` slots. The

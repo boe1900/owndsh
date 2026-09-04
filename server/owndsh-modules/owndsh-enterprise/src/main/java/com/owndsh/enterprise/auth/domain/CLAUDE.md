@@ -27,5 +27,6 @@ PasswordCredentials.java: LOCAL/LDAP 一次性账号与当前密码凭据，防�
 Pkce.java: RFC 7636 verifier/challenge 语法、S256 计算与 constant-time 比较真源。
 PlatformAuthorizationCode.java: 60 秒一次性 code，绑定 client/redirect/challenge/user/installation/session device。
 PlatformClient.java: 固定 dsh-desktop/enterprise-admin 参数集合、回环/管理回调 allowlist 与 terminal 类型。
+RefreshSession.java: 不含 Token 摘要的 Refresh family 用户/client/installation、绝对到期、轮换状态与封闭撤销原因事实。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 PostgresTestDatabase 装载真实 Host 基线与 V1-V27 classpath migration。
- * [OUTPUT]: 验证空 schema、逐版本升级、产品导航、成员读写权限/revision、模型配置及供应商 RATE 迁移。
+ * [INPUT]: 依赖 PostgresTestDatabase 装载真实 Host 基线与 V1-V28 classpath migration。
+ * [OUTPUT]: 验证空 schema、逐版本升级、产品治理迁移及 Refresh Session 约束。
  * [POS]: database 的持续 migration 门禁，防止后续任务只验证最终 schema 而遗漏中间版本不可升级。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -27,12 +27,12 @@ class EnterpriseMigrationTest {
 
         Flyway flyway = PostgresTestDatabase.migrate(database, null);
 
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("27");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("28");
         Integer tableCount = database.jdbc().queryForObject("""
             select count(*) from information_schema.tables
             where table_schema = 'public' and table_name like 'ent_%'
             """, Integer.class);
-        assertThat(tableCount).isEqualTo(26);
+        assertThat(tableCount).isEqualTo(27);
         assertThat(database.jdbc().queryForObject(
             "select policy_type from ent_quota_policy where tenant_id='000000'",
             String.class
@@ -424,6 +424,11 @@ class EnterpriseMigrationTest {
             ) values (1913000000000000832,'000000','Duplicate Provider Rate','RATE','ORGANIZATION',null,
                 'PROVIDER',1913000000000000501,2,'ACTIVE')
             """)).isInstanceOf(RuntimeException.class);
+        Flyway versionTwentyEight = PostgresTestDatabase.migrate(database, "28");
+        assertThat(versionTwentyEight.info().current().getVersion().getVersion()).isEqualTo("28");
+        assertThat(database.jdbc().queryForObject(
+            "select to_regclass('ent_refresh_session') is not null", Boolean.class
+        )).isTrue();
     }
 
     @Test
@@ -440,7 +445,7 @@ class EnterpriseMigrationTest {
             .run(context -> {
                 assertThat(context).hasSingleBean(Flyway.class);
                 assertThat(context.getBean(Flyway.class).info().current().getVersion().getVersion())
-                    .isEqualTo("27");
+                    .isEqualTo("28");
             });
     }
 }

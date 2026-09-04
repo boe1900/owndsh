@@ -15,7 +15,9 @@
         "accessToken",
         "tokenType",
         "expiresIn",
-        "clientId"
+        "clientId",
+        "refreshToken",
+        "refreshExpiresIn"
       ],
       "properties": {
         "accessToken": {
@@ -38,6 +40,17 @@
             "dsh-desktop",
             "enterprise-admin"
           ]
+        },
+        "refreshToken": {
+          "type": "string",
+          "minLength": 48,
+          "maxLength": 48,
+          "pattern": "^dshr_[A-Za-z0-9_-]{43}$"
+        },
+        "refreshExpiresIn": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2592000
         }
       }
     },

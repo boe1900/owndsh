@@ -1,6 +1,6 @@
 <!--
-[INPUT]: 依赖 EnterprisePlatformService、官方 settings、同源本地 API 和内存认证实现。
-[OUTPUT]: 提供 Server 地址、平台方法、状态刷新、Token 与本地路由安全边界说明。
+[INPUT]: 依赖 EnterprisePlatformService、官方 settings/credentials、同源本地 API 和 Host 认证实现。
+[OUTPUT]: 提供 Server 地址、平台方法、Access/Refresh 生命周期与本地路由安全边界说明。
 [POS]: @owndsh/platform-client 的公开语义入口，连接 Host 认证核心与浏览器插件调用面。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
@@ -14,7 +14,7 @@ Harness Host 的企业平台控制面。`EnterprisePlatformService` 通过 Cordi
 |---|---|
 | `setServerUrl()` | 校验 Server origin，写入 Harness 官方 settings，并清除旧 Server 的认证状态。 |
 | `startLogin()` | 幂等启动系统浏览器 PKCE，立即返回 flow ID，后台完成 Token/enroll/bootstrap。 |
-| `logout()` | 尝试注销中心会话，并无条件清空本地内存认证状态。 |
+| `logout()` | 尝试注销中心会话，并无条件删除本地 GrantRecord 与内存认证状态。 |
 | `status()` | 返回连接状态、平台 origin、脱敏用户、revision、连接时间和稳定错误码。 |
 | `bootstrap()` | 返回最新已校验脱敏快照的副本。 |
 | `subscribe()` | 订阅 Host 内存状态副本；幂等 disposer 只移除当前监听器。 |
@@ -29,11 +29,13 @@ bootstrap 刷新周期 60 秒、普通请求超时 30 秒、dispose 超时 3 秒
 bootstrap 轮询不发布状态事件；只有失败重试才进入 `REFRESHING`，恢复或 revision 变化时发布
 `READY`。`Accept` 包含
 `text/event-stream` 的模型流不设置总时限，仍服从调用方取消、Service dispose 和服务端流超时。刷新与退避期间继续使用
-内存 Token 和最后一份已校验 bootstrap 服务认证请求；只有明确认证过期或设备撤销才清空会话。
+内存 Access Token 和最后一份已校验 bootstrap 服务认证请求；只有明确认证过期或设备撤销才清空会话。
 
 Service 在 `$DSH_HOME/enterprise/device.json` 只持久化 installation UUID v4、显示名和
-创建时间。平台 Token 只位于 Host 内存，不写入设置、凭据、Session、日志或
-installation 文件，也不会通过本地 HTTP/SSE 返回给浏览器。
+创建时间。12 小时 Access Token 只位于 Host 内存；绝对有效 30 天的 Refresh Token 以
+`owndsh/platform` GrantRecord 交给官方 `ctx.credentials` provider 保存并单次轮换，不写入 settings、
+Session、日志或 installation 文件。Host 重启会静默恢复，Server 暂不可达时沿用现有指数退避。
+任何平台 Token 都不会通过本地 HTTP/SSE 返回给浏览器。
 
 失败响应通过 contracts 解码为稳定 `EnterprisePlatformError`，只保留 code、retryable、HTTP status
 和 requestId。中心 message、details、响应正文与认证 header 不进入异常；LLM adapter 通过 requestId

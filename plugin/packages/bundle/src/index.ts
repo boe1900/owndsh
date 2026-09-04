@@ -1,12 +1,13 @@
 /**
- * [INPUT]: 依赖 Cordis/Schemastery、兼容 Harness LLM/subprocess/inventory、官方运行时身份、可选 Desktop actions/services 与企业业务模块
- * [OUTPUT]: 对外提供 Web/Desktop 共用 bundle apply、运行时版本投影、官方 pi-ai profile 桥、整包卸载组合、V1 Service inject 和 Config schema
+ * [INPUT]: 依赖 Cordis/Schemastery、Harness credentials/LLM/subprocess/inventory、官方运行时身份与企业业务模块
+ * [OUTPUT]: 对外提供 Web/Desktop 共用 bundle apply、Host 凭据持久化、官方 pi-ai profile 桥、整包卸载组合与 Config schema
  * [POS]: bundle 的唯一 Host Loader 入口，组合平台认证、官方企业模型与环境原生插件调和；V1 不启动 Session 同步
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { createRequire } from 'node:module'
 import type { Context } from '@deepseek-ai/cordis'
+import type { CredentialProvider } from '@deepseek-ai/dsh-credentials'
 import { APP_IDENTITY, type LlmRuntime } from '@deepseek-ai/dsh-llm'
 import z from '@deepseek-ai/schemastery'
 import { registerEnterpriseGateway } from '@owndsh/llm-gateway'
@@ -21,7 +22,7 @@ import {
 } from '@owndsh/platform-client'
 
 export const name = 'owndsh'
-export const inject = ['webServer', 'llm', 'subprocess', 'pluginInventory']
+export const inject = ['webServer', 'credentials', 'llm', 'subprocess', 'pluginInventory']
 
 const VERIFIED_HARNESS_COMMITS: Readonly<Record<string, string>> = {
   '0.1.1-rc.2': 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e',
@@ -56,6 +57,7 @@ export const Config: z<Config> = z.object({
 
 interface EnterpriseHostContext extends Context {
   readonly webServer: WebServerRoutePort
+  readonly credentials: CredentialProvider
   readonly llm: LlmRuntime
   readonly subprocess: PluginDistributionContext['subprocess']
   readonly pluginInventory: PluginDistributionContext['pluginInventory']

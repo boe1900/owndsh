@@ -1,5 +1,5 @@
 # [INPUT]: 依赖根协议的 RequestId 与统一 envelope 约定，以及详细设计第 6 节固定 public client/PKCE 边界
-# [OUTPUT]: 提供登录事务、LOCAL 改密、公开身份源、Desktop Token、浏览器 Cookie exchange、注销与 console bootstrap schema
+# [OUTPUT]: 提供登录事务、LOCAL 改密、公开身份源、Desktop code/refresh Token、浏览器 Cookie exchange、注销与 console bootstrap schema
 # [POS]: contracts/components 的认证协议分片，隔离两类客户端会话输出且不增加密码重置旁路
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -214,9 +214,14 @@ PasswordStepResponse:
       $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
 
 TokenRequest:
+  oneOf:
+    - $ref: '#/AuthorizationCodeTokenRequest'
+    - $ref: '#/RefreshTokenRequest'
+
+AuthorizationCodeTokenRequest:
   type: object
   additionalProperties: false
-  required: [grantType, code, clientId, redirectUri, codeVerifier]
+  required: [grantType, code, clientId, redirectUri, codeVerifier, installationId]
   properties:
     grantType:
       type: string
@@ -233,9 +238,26 @@ TokenRequest:
     codeVerifier:
       $ref: '#/PkceCodeVerifier'
     installationId:
-      oneOf:
-        - $ref: '#/InstallationId'
-        - type: 'null'
+      $ref: '#/InstallationId'
+
+RefreshTokenRequest:
+  type: object
+  additionalProperties: false
+  required: [grantType, refreshToken, clientId, installationId]
+  properties:
+    grantType:
+      type: string
+      const: refresh_token
+    refreshToken:
+      type: string
+      minLength: 48
+      maxLength: 48
+      pattern: '^dshr_[A-Za-z0-9_-]{43}$'
+    clientId:
+      type: string
+      const: dsh-desktop
+    installationId:
+      $ref: '#/InstallationId'
 
 BrowserSessionRequest:
   type: object
@@ -255,7 +277,7 @@ BrowserSessionRequest:
 TokenData:
   type: object
   additionalProperties: false
-  required: [accessToken, tokenType, expiresIn, clientId]
+  required: [accessToken, tokenType, expiresIn, clientId, refreshToken, refreshExpiresIn]
   properties:
     accessToken:
       type: string
@@ -270,6 +292,15 @@ TokenData:
       const: 43200
     clientId:
       $ref: '#/PlatformClient'
+    refreshToken:
+      type: string
+      minLength: 48
+      maxLength: 48
+      pattern: '^dshr_[A-Za-z0-9_-]{43}$'
+    refreshExpiresIn:
+      type: integer
+      minimum: 1
+      maximum: 2592000
 
 TokenResponse:
   type: object

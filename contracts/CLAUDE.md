@@ -52,7 +52,7 @@ fixtures/audit-event-list-success.json: T19 同 requestId 的模型 accepted/fin
 fixtures/protocol-page-success.json: 带品牌 ID、revision 和 cursor page metadata 的成功响应样例。
 fixtures/protocol-success.json: 最小统一成功响应样例，验证 data/requestId envelope。
 fixtures/quota-error.json: 带固定 QuotaExceededDetails 的第 17 节失败响应样例。
-fixtures/token-success.json: T05 12 小时 dsh-desktop Bearer Token 成功响应样例，只使用显式假值。
+fixtures/token-success.json: T05 12 小时 Access Token 与 30 天轮换 Refresh Token 成功响应样例，只使用显式假值。
 fixtures/console-bootstrap-success.json: P2-03 产品控制台当前账号、多登录来源、固定角色、权限码与部署标识成功响应样例，不含外部 subject、菜单和部门。
 fixtures/member-list-success.json: P2-06 成员固定角色与 LOCAL/OIDC 登录方式聚合成功样例。
 fixtures/member-detail-success.json: P2-06 成员详情、稳定身份、设备与 Session 摘要成功样例，不含部门和原始 claims。

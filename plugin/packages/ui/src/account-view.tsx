@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 React、Lucide 图标与 EnterpriseAccountStore 的脱敏账号/插件 snapshot 和动作
+ * [INPUT]: 依赖 React、Lucide 图标、内嵌 OwnDsh 品牌鲸图与 EnterpriseAccountStore 的脱敏账号/插件 snapshot 和动作
  * [OUTPUT]: 对外提供账号/插件 settings tabs、sidebar 状态入口，以及品牌化 Server 编辑与键盘封闭的全局访问门禁
  * [POS]: dsh-ui 的员工呈现层，官方 slot 复用同一状态源且不接触 Host Context、Token 或执行细节
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -40,6 +40,8 @@ import type {
   EnterpriseConnectionState,
   ManagedPluginState,
 } from './local-api.js'
+
+const OWNDSH_ICON = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAIAAABt+uBvAAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAYKADAAQAAAABAAAAYAAAAACpM19OAAAMcUlEQVR4Ae2ceUwUWR7H7YbmUPEAcVFHUXdWTVx1xCNeo3iNV0SdzRoYr3jE8YgKo9FEB3eMmsVj/UOzE92IR4xnNPGYOF7xjBmveKOLo6sCgwioIIeCivtpC8rqquqmuqovCPUHvPer937H912/93uvq5bJZKrl5ON8DTUBqmLLiarv1JjU0GoQqEGgBoEaBGoQqEGgBoEaBGoQ8BICfl6S61tiO3ToMHXq1GnTpgUFBd29e9e3lPOuNkCze/fuoqKijxVPbGysd1XyFelmszkhPv7Vq1cCMh8+PaRTU1Mb1K/vK1p6S486tWtv3bpVCo0AEH8hTp4y2VuK+YTcgICAPXv2AERZWZmIi5iAfvToUR1BDp+wzSVKrFi+3IqOCIltgldZWVmNGjVyiayqx6R3795v375V7TsCULx6V1raufNXgm3mqmeiQ40ZPrVr17b4+6uWYmJesnhJYGAg3US1gDVS97GWv8USGhomFFBnpFrZZ4nh4eH9+vWLjo7+a/v2jcLDAwIDigqLMjIyrl+/fuzYsUuXLolwtG/ffsDAAWJWaRGwmUColsnPr1p4iA0bNlyxYmV6ejo2qz7v378/ffr04MGDBSzi4+MpZjvnyHMMMWp17dpVCV8VowRYLEeOHBFwkVtZkcdaCrx7927VqlWMu+Tk5EoBosCLFy+aNm1axeBQqhsZGVlYWFipwWBFGZ4dO3acP3+eRAV66v8pcPHiRT+/8tm5Cs9Br1+/znuVV6dOHSV2Mgr9CMr48eOBREjLCsiyJ06coKBArMKrGLuEGzdvyGxzkAWaSt0/Crx582b//gMinyoMEDbgEIuWuCQBQHSflJTqsqGvV6/e/fv3K51W1CcbBZUuVlJS0rNnT5dg7StM4uK+AyBsU9jrNAE+69evlxnm/UNe/NqIiIg/RUQ0Dg+vX78+fjDmvi4oyMnJyczM/CMzs7CgQKa0NItzvG3btgkTJmiZfaUVZWn4XLt2DY8pLy/P5pVXEGKo49TOnDlz586dRPDQieamAWUPcaxHjx4dPnw4PiGeyJaN3pJMgwYNzp45S12n+0xFBeo+ffK0Xbt2Eq5eSrZq1Srhhx9wNIqLi6VwKMcIY4auJJah/JkzZyZNmlS3bl2l7uw2fvmlEqexAg35f0Q8fPgwKipKydajFJz3LVu24KQKNisRkStumxeRosdNmTLFYrHItGeoLk1MFCOEGvlTrKCgoHPnzjJuHs126tSJuC9BBsFIW8OdzglM6E09evRQmtG2bdt169bRI7BcxFRM2BM2a9YsJSuB4t4pKDQ0dNGiRYhnXAha2tPDKTpKm8xmZqiVK1euWbOGvaWsekhICK3Sq1cv/rIjYZKy+FuCgoOaf9H8o3WzbvMwPbPd7dKlC8uCzQt3Z4g/3Lp1S8DFXtMZoQucDxw4UGn0jyBRcFAws4y9UBmsEhMT3Q2IDf+5c+cKZylGINBSF9uI+ERGtrARr5YhNkKQiPJKthDT0tIqBVqNq/M0f3//df9ah0gepSruoCDo9u3brI+OlSU8cuf2HXtaQadRHXNwwVuWEuE4ReMi4iq8MI/4IQ6nAxusruDVqw4AunnzJvo74GD0FWFKISKlB5337w2CheWnTp1S9ZIEw5iJcBHsAYTOPGLs0SgWqvV/+sdPiC/74IJtkT6wkL4lOdls5xZuWFhYZuYzewAhkVfbt29XNc0FxJEjRxLZpBH02eaSWrQNRs6bN0/VHjxVxxpSl91f48bh0uquiQc1iWiyYcMGpmdkSLl7OG31cT7WwjnqHx2tFN0/ur9jDWndJk2a9OnztbSuawBKXLoUfwwBUtZeSZd9LCMIuzk5uUULm4WfCSg2TtO1jWFDh7pY8y5RUYQpvTu4ZCOUjnzhwgUmHdHUGd9/D1FWTJmlTEpKiovXsr2fLgIohXmXgqmXfvuN3QYxpnHfjSPCr6UJWWPwb9nQicga3YsRprl8+TIXs1BIZCpLIMPuO1lRl2ZxfEpLS7KyngvDTeMMQK242Ng9e/cKuhidgyZOnBgcHOwAHcR4Gp2KpgIRiyUAdFBPIzoCKF9Joh+GzsXwykaPHu3SVldnRquKLyo3VeIHAQ2PWFdjgminWPKzYJGkPdGtW7fWrf+sQwPtIigJOvv37x86dOiQIUMI0UrBcoqP9sKtW7cW52lDPWjgwIFms6nyJnWgGs0raXBlQeBgAxEXFycEfTi0Ki0pmTxliiGhSjG2lMaNG7P15xoVZP09iMB7nz59bDk7n3OIjsBu06ZN0pDYP5OSCJIi3XlhmmowIELq1hVdBP0AwUK6HMqE0/I8Bs0w1aJ7fnjy5LGU+f8ePfr9we8GOUsZytIAFBAYSCxUoOsHCNeZCJPqBAQ0ubm5jx9bDSMt00B7lo2D2ezXKMzmuiDXD96WlFiZOD/7ahFNzwR9vCehsH7tIyNbqm5tQGTjxo3EN4kHjx41iiDeZ4x0mcQ2WGoYPbdVq5ZWintGmbDmOQibWEVreRISEug+MncZCueTbHxEDiNGjCgtLdW9yWcy5hLQoEGDRIbLli1TypWpYTALf06WBIn6V7EmdsJ3XDIGEdGeX389euPGje7du+OsiUTtCXRl88kyv3nz5tT/pvaL7sdPBSBq56CvJIODigw3/QCFSraCUiVybQ9POJ568OABAEnLKNPCMFRdvCEyI8yfP1+oBToeAKhclpFlnlsGSjuhfPmXL2V05SmoUABQxCcvP+/cuXMMDVldIQtG4uMZdDggKldSVSEtRGxTLRYTMyo8/PO6wxmeavdhpdi1axfHivSvO3fujP372JiYkdxisMdWVZb7iMVFxQJzdSO1CJY6b2J52pnlf9Om/wgHDPVCQlavWsWBDHSxjJAAIM7RV69ejTPVsWNH3OXly1fgNyhLyip6JltQWH7nRv8cJGIs0xgLx4wZQwCYyFPLli25U6JqM8TZs2dza4BJnTE4fPhwdnaqJWX83Z21eqcfPrx8+VIQpB+gly9f2NMVO5t/eijgwGZiEAS0eAQ+DkraE+QOuslsKi56S+8WmOsHSNjL2VNRi7Ws1WBkj4MX6YQfRYD0z0HpGRletMGtop8/f56fny+IMABQWjqrsvs2jW6FwDHzp0+fikuQfoAy/sgA5moJ0L1790QE9QOUnZ2dnpYuMqoeCSHIxC0G0Rz9ANEJU+6liIyqScJkwofGcRXNMRsJzHHgIzKqHglmDG5SPXnyRDTHbGRfbO8ehcjdHQlrQMsdfCt4cm2Qg+KKnIHd/Jw5c5JWrfbM1lFUl4SRFpXysZfmzFr6SqejyM6A27YETbQ4hFJ5Lk6Dluu6E+OLSBY/upMqqWeSJoKVlJTkfXSww3XoWJmZTOwf+fmQUYD6ft2XI3nf3CVIbdORPn78uDQcCgc9PahzlPXivrvnAh3mGalC98FxOXjwoIyJHoDkPxiSsayaWQAids5VWZn6egAiNoo3BUcZr6qe5eCfS4wyK/Q4isxk8KpOABHnzcnO2bdvnwwdsjodxSU//siHiHwkfqy0Sgdl957dz549U1bUM8Tg8jwrixsX6Wlp1QAj9gPchvj3zz8r0YGiEyBqMqXhLl69ehWMqjZMJhMfZXiQmqoKkKFvnGTnWMctzjRuERfxmJU8v/NQtUo70Wwy577InTx5sr2l2RBA6MEPzfm8yqGDB0k0a9aMe0dVCyZC9Fw85yMp9jB15VIdFho6+JtvFi5cyGGOl/do9sy1pTMz4Pj07duXq7+2bz7nXAmQwLVNmzZnz57lTr+PY0RPZ1fBvUfcus94KFL6J2kFq3ICR8nTp08vKSn18ZkbgNauXesYHUwyOgepwgRG+Xn5w4YPU33rC0Qaj24+Y8YM8fTCnlZuAQhhV65c4fd1fFrMnmAv0kEnLS3922//lpOTXaka7gIIwfy0na+ziCfLlarimQKgw5Q8duxYdqZaJLoRIMRzZ4NrRHy6kBsByh+sa9HPtWWYd1g6mCIPHTqkkbN7AcJvPHnyJFvkAQMG0HTedSNBh2fBggVcvNaIjueK8VESjmEByOD1St3VEc2Dj+Y5m52VxJed+HU7WtLJddupryJCWa3mxcc7q7Ony3PFme4NQGisz1QdtZDFPmvcuHGetla3PH5BJfx+3d0w0VcRQbdV/U6Mbv09UZFrvYsXL+Y32O7DiH7K/pnfYtNtDZnExG6ovoHKXzRrRhhAgZHaJxgEmvXrDOVvK6axzxTr6Ct/af2aJM5OTEyMAe3Kq/4fHOZNutFJOEMAAAAASUVORK5CYII='
 
 export interface EnterpriseStoreInjected {
   readonly store: EnterpriseAccountStore
@@ -343,7 +345,7 @@ const serverInput: CSSProperties = {
   fontSize: 14,
   height: 40,
   minWidth: 0,
-  outlineColor: 'var(--dsw-alias-accent-primary, #2563eb)', outlineOffset: -1,
+  outlineColor: 'var(--dsw-alias-accent-primary, #2563eb)',
   padding: '0 38px 0 13px',
   width: '100%',
 }
@@ -743,12 +745,7 @@ export function EnterpriseAccessGate(props: EnterpriseAccessGateProps): ReactNod
   return <section ref={gateRef} style={accessGate} role="dialog" aria-modal="true"
     aria-labelledby="enterprise-access-title" tabIndex={-1} onKeyDown={trapGateTab}>
     <div style={accessContent} data-enterprise-access-state={status?.state ?? snapshot.phase}>
-      <div style={{
-        alignItems: 'center', background: 'var(--dsw-alias-label-primary, #101828)', border: '1px solid var(--dsw-alias-stroke-border-1, #1d2939)', borderRadius: 12,
-        boxShadow: '0 1px 2px rgba(16, 24, 40, 0.08)', color: 'var(--dsw-alias-bg-layer-2, #fff)', display: 'flex', height: 48, justifyContent: 'center', width: 48,
-      }}>
-        <Building2 aria-hidden size={24} strokeWidth={1.8} />
-      </div>
+      <img alt="" aria-hidden height={48} src={OWNDSH_ICON} style={{ borderRadius: 12, boxShadow: '0 1px 2px rgba(16, 24, 40, 0.08)', display: 'block' }} width={48} />
       <h1 id="enterprise-access-title" style={{ fontSize: 28, fontWeight: 650, lineHeight: '36px', margin: '18px 0 0' }}>
         OwnDsh
       </h1>

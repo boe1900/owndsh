@@ -37,11 +37,12 @@ fails closed. The platform bootstrap cannot replace that trust root.
 `bootstrapIntervalMs`, `requestTimeoutMs`,
 `disposeTimeoutMs`, managed profile and `dshCommand` use the detailed-design
 defaults unless the installation layer overrides them. The authenticated
-bootstrap explicitly publishes `sessionPolicy.enabled=false`. The Host half publishes `ctx.enterprisePlatform`
+bootstrap explicitly publishes `sessionPolicy.enabled=false`. The Host half requires the official credentials service, publishes `ctx.enterprisePlatform`
 and mounts only same-origin `/enterprise/api/v1/local/*` JSON/SSE routes. Model
 streams do not traverse that browser control plane: the official adapter uses a
 random-port, random-bearer Host-only loopback proxy, which calls the configured
-HTTP(S) enterprise center through the in-memory authenticated Service.
+HTTP(S) enterprise center through the in-memory Access Token. The rotating Refresh Token remains in the
+official Host credential provider, so Desktop, CLI and Web profiles can recover after a Host restart without exposing it to Client UI.
 The Client half uses only official Client modules, then contributes Enterprise
 settings, footer status, and a global `shell.overlay` access gate. OwnDsh does
 not ship or maintain a replacement Harness Web/Desktop UI.

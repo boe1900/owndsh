@@ -19,7 +19,8 @@ public final class AuthFlowException extends RuntimeException {
         "ENT_AUTH_REQUIRED",
         "ENT_AUTH_CODE_INVALID",
         "ENT_PKCE_INVALID",
-        "ENT_AUTH_SESSION_EXPIRED"
+        "ENT_AUTH_SESSION_EXPIRED",
+        "ENT_DEVICE_REVOKED"
     );
 
     private final String code;

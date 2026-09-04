@@ -1,124 +1,216 @@
 <!--
-[INPUT]: 依赖 OwnDsh 当前产品边界、上游版本锁、V1 功能清单与各阶段验收文档。
-[OUTPUT]: 提供仓库定位、目录、员工插件安装模型、开发入口和安全规则总览。
-[POS]: 项目公开入口，面向部署者与开发者导航到详细设计和可执行验收真源。
+[INPUT]: 依赖 OwnDsh 当前产品边界、Linux amd64 交付包、Harness 插件安装模型、官方凭据平面与已验证上游基线。
+[OUTPUT]: 提供开源项目定位、服务端部署、员工端接入、登录保持、升级卸载和故障排查入口。
+[POS]: 项目公开用户入口，优先帮助管理员完成自托管、帮助员工连接 OwnDsh，并将开发细节下沉到专项文档。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
 
-# OwnDsh
+<div align="center">
 
-OwnDsh 是基于 DeepSeek Harness 构建的企业 Agent 管理平台。员工在本机运行 Harness，中心平台负责企业身份、受管模型、配额、插件分发和审计，不远程执行员工工具，也不挂载员工工作区；V1 保留现有 Session 服务端代码和数据，但客户端不执行 Session 同步。
+<h1>OwnDsh</h1>
+<h2>OwnDsh · Truly Own Your DeepSeek-Harness.</h2>
+<p><em>The Self-Hosted Control Plane for DeepSeek-Harness.</em></p>
+<p>真正拥有属于你的 DeepSeek-Harness。<br>DeepSeek-Harness 的私有化控制面。</p>
 
-本仓库只保存企业产品自行开发的后台、管理端、Harness 企业插件、部署配置和文档，不复制或 fork DSH Desktop/DeepSeek Harness 源码。DSH Desktop 是开发与发布验证基线，Harness 版本从其 gitlink 派生；精确 commit 分别记录在 [`upstream/dsh-desktop.lock.json`](upstream/dsh-desktop.lock.json) 和 [`upstream/deepseek-harness.lock.json`](upstream/deepseek-harness.lock.json)。发布插件不校验 Desktop 精确版本，按 Harness 官方包的兼容 peer 范围组合，并上报宿主提供的真实 Harness 版本。
+</div>
 
-## 当前阶段
+OwnDsh 为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 和 [DSH Desktop](https://github.com/anywhere-labs/dsh-desktop) 提供可自托管的团队控制面。企业统一管理身份、模型、权限、配额、插件、设备与审计；员工仍在自己的电脑上使用官方 Harness，工作区、工具和本地会话不会交给 OwnDsh 远程执行。
 
-T00 至 T21 已完成：仓库包含锁定产品源码、Harness 官方插件 workspace、Java/TypeScript 同源 OpenAPI 3.1 协议、PostgreSQL/Redis 企业模块、桌面管理控制台、插件分发闭环、Session 端到端复制、审计闭环、安全/故障基线和 Linux `amd64` 单机交付。T22 正在使用单后端、单 Harness 本地环境逐功能人工验收；第二阶段 P2-00 至 P2-07 已完成独立 Vite/TanStack 产品控制台、Beautiful UI 产品壳、登录/静态角色、模型/访问、插件、成员/身份接入与活动记录，P2-08 正在执行真实 Harness/Desktop、配额、插件和发布切换验收。V1 产品范围见 [`docs/v1-product-feature-catalog.md`](docs/v1-product-feature-catalog.md)，当前人工清单见 [`docs/t22-manual-acceptance.md`](docs/t22-manual-acceptance.md)。
+OwnDsh 不 fork、不替换官方 Web 或 Desktop UI。员工端只有一个标准 Harness 插件：安装后填写 OwnDsh Server 地址并完成企业登录，之后继续使用熟悉的官方界面。
+
+## 你会得到什么
+
+| 使用者 | 能力 |
+|---|---|
+| 企业管理员 | 自托管管理控制台、LOCAL/LDAP/OIDC 身份、成员与设备治理 |
+| 模型管理员 | 集中保管供应商密钥，管理模型、模型集、访问授权、Token 配额、RPM 与并发 |
+| 插件管理员 | 上传、签名、发布和分配 Harness 插件，查看客户端安装状态 |
+| 审计员 | 查询管理操作、模型调用、用量与 request ID 关联记录 |
+| 员工 | 用企业账号登录 DSH Desktop/Harness，直接使用获准模型和插件，无需持有上游 API Key |
+
+核心原则：控制归平台，执行留在本地。OwnDsh Server 不挂载员工工作区，也不远程运行员工工具。
+
+## 快速开始
+
+完整接入分为两部分：管理员部署 OwnDsh Server，员工安装 `owndsh-plugin`。
+
+### 1. 准备环境
+
+服务端当前交付目标为单机 Linux `amd64`，需要：
+
+- Docker Engine 与 Docker Compose v2
+- Node.js、pnpm、OpenSSL、curl、tar、gzip、`sha256sum`
+- 一个员工设备可以访问的域名或 IP
+- 生产环境推荐由现有反向代理、Ingress 或负载均衡提供可信 HTTPS
+
+客户端需要兼容版本的 DSH Desktop 或 DeepSeek Harness。当前已验证基线为 DSH Desktop `2.0.3`、DeepSeek Harness `0.1.1-rc.2`；它是测试基线，不是精确版本锁。
+
+### 2. 获取发布包
+
+可以从 [GitHub Releases](https://github.com/boe1900/owndsh/releases) 下载 `owndsh-<version>-linux-amd64.tgz`。需要从源码构建时：
+
+```sh
+git clone https://github.com/boe1900/owndsh.git
+cd owndsh
+corepack enable
+pnpm --dir plugin install --frozen-lockfile
+./deploy/scripts/build-release.sh --version 0.1.0 --output ./dist
+```
+
+构建完成后会生成 `dist/owndsh-0.1.0-linux-amd64.tgz`。构建机的 Docker runtime 必须是 `linux/amd64`。
+
+### 3. 安装 OwnDsh Server
+
+解压发布包，并为初始管理员准备一个权限为 `0600` 的密码文件。密码必须为 14-128 位，包含大小写字母、数字和符号。
+
+```sh
+tar -xzf owndsh-0.1.0-linux-amd64.tgz
+cd owndsh-0.1.0-linux-amd64
+
+./scripts/install.sh \
+  --state-dir /opt/owndsh \
+  --public-base-url http://owndsh.example.com:8080 \
+  --admin-redirect-uri http://owndsh.example.com:8080/enterprise/auth/callback \
+  --bootstrap-admin platform.admin \
+  --bootstrap-password-file /secure-input/bootstrap-password \
+  --http-port 8080 \
+  --time-zone Asia/Shanghai
+```
+
+确认服务可用：
+
+```sh
+curl --fail http://owndsh.example.com:8080/healthz
+```
+
+然后打开 `http://owndsh.example.com:8080`，使用初始管理员账号登录。首次登录会要求修改密码。
+
+安装器会自动生成数据库、Redis、Sa-Token、数据加密和插件签名所需的密钥。不要删除 `/opt/owndsh/secrets`；备份、恢复、升级和 HTTPS 接入请阅读[部署与运维指南](deploy/README.md)。
+
+### 4. 配置企业
+
+首次进入控制台后，建议按以下顺序配置：
+
+1. 在“成员”中配置 LOCAL、LDAP 或 OIDC 身份来源。
+2. 在“模型”中添加供应商、API Key 和受管模型。
+3. 创建模型集，并向全部成员、用户组或指定成员授权。
+4. 按需配置 Token 配额、RPM 和并发限制。
+5. 邀请员工安装插件并登录。
+
+员工设备不会获得供应商 API Key；每次模型请求都由 OwnDsh 网关重新校验身份、授权和额度。
+
+### 5. 安装员工插件
+
+管理员从安装目录的 `/opt/owndsh/harness/` 分发 `owndsh-plugin-0.1.0.tgz`。员工设备必须先确保 `pnpm` 在 `PATH` 中，然后安装到正在使用的 profile。
+
+DSH Desktop：
+
+```sh
+dsh plugin --profile desktop add --ignore-scripts /absolute/path/owndsh-plugin-0.1.0.tgz
+```
+
+Harness Web：
+
+```sh
+dsh plugin --profile web add --ignore-scripts /absolute/path/owndsh-plugin-0.1.0.tgz
+dsh --profile web
+```
+
+如果从 DeepSeek Harness 源码运行 CLI：
+
+```sh
+corepack pnpm@11.7.0 --dir /path/to/deepseek-harness dsh \
+  plugin --profile desktop add --ignore-scripts \
+  /absolute/path/owndsh-plugin-0.1.0.tgz
+```
+
+安装完成后重启 DSH Desktop 或对应 Harness profile。
+
+仅安装 tgz 即可填写 Server、登录并使用企业模型。若要接收平台下发的受管插件，IT 管理员还需要把 `/opt/owndsh/harness/cordis.patch.yml` 中的 `owndsh` 配置合并到目标 profile；它包含部署专属 Server 默认值和插件签名公钥。不要覆盖已有 profile 的其他配置，也不要把服务端签名私钥复制到员工设备。全新独立 profile 的安装方式见[部署与运维指南](deploy/README.md#harness-企业-profile)。
+
+### 6. 连接并登录
+
+1. 打开 DSH Desktop 或 Harness Web。
+2. 在 OwnDsh 页面填写 Server 地址，例如 `https://owndsh.example.com`。
+3. 点击“保存”，再点击企业登录。
+4. 在浏览器中完成 LOCAL、LDAP 或 OIDC 登录。
+5. 返回 Harness；状态变为“已连接”后即可选择企业授权的模型。
+
+Server 地址必须是完整的 HTTP(S) origin，不要附加 API 路径。生产部署应使用系统信任的 HTTPS 证书。
+
+登录成功后最长保持 30 天，从本次登录开始计算且不会无限滑动续期。12 小时 Access Token 只存在于
+Harness Host 内存；30 天 Refresh Token 由官方 `ctx.credentials` 服务保存并单次轮换。DSH Desktop、
+命令行和 Harness Web profile 使用同一套 Host 侧机制，浏览器页面不会读取或保存 Token。Host 重启后
+会自动恢复；若 Server 暂时不可达，会退避重试而不是要求重新登录。主动退出、设备撤销、成员停用或
+改密会使对应长期会话失效。
+
+## 更新与卸载
+
+升级同版本的本地 tgz 时，pnpm 可能复用缓存。最稳妥的方式是先移除旧包，再安装新包并重启：
+
+```sh
+dsh plugin --profile desktop remove owndsh-plugin
+dsh plugin --profile desktop add --ignore-scripts /absolute/path/owndsh-plugin-0.1.0.tgz
+```
+
+也可以在 OwnDsh 页面点击“卸载 OwnDsh”，同时移除 OwnDsh 和它管理的插件。服务端升级、回滚和员工 bundle 重新分发见[部署与运维指南](deploy/README.md)。
+
+## 常见问题
+
+### `pnpm not found on PATH`
+
+`dsh plugin` 会在 profile 中调用 pnpm。先启用 Corepack 并确认 `pnpm --version` 能直接运行：
+
+```sh
+corepack enable
+corepack install --global pnpm@11.7.0
+pnpm --version
+```
+
+### 安装成功，但界面仍是旧版本
+
+先执行 `remove`，再从绝对路径重新 `add`，最后彻底重启 DSH Desktop。仅覆盖同名、同版本 tgz 不保证刷新 pnpm store。
+
+### 保存 Server 后显示平台不可用
+
+先从员工设备访问 `<Server地址>/healthz`，再检查 DNS、防火墙和 TLS 证书。DSH Desktop 不应依赖自签名且未被系统信任的生产证书。
+
+### 登录成功，但看不到模型
+
+管理员需要同时启用供应商和模型，并为该员工、员工所在用户组或全部成员授予模型访问权限。配额或速率策略不会代替访问授权。
+
+### 重启后仍然要求登录
+
+正常重启会使用 Host 凭据存储中的 Refresh Token 静默恢复。若仍要求登录，通常是 30 天有效期已到、
+用户主动退出、设备或成员已被撤销，或者 Server 地址已切换。检查 `$DSH_HOME` 是否指向原 profile，
+并确认该 profile 的官方 credentials provider 可写。
+
+## 安全边界
+
+- 员工端不保存上游模型 API Key。
+- Access Token 只保存在 Harness Host 进程内存中；Refresh Token 仅由官方 Host credentials provider 持久化。
+- 浏览器 Client UI 不接收、读取或保存 Access/Refresh Token。
+- Server 不挂载员工工作区，不远程执行终端或工具。
+- Server secret、master key、插件签名私钥和生产备份不得提交到 Git。
+- OwnDsh 自带入口只提供 HTTP；公网部署应由可信基础设施终止 TLS。
+- V1 不启用 Session 同步，不会把本地会话正文上传到平台。
 
 ## 文档
 
-- [V1 产品功能清单](docs/v1-product-feature-catalog.md)：平台功能、当前状态、关键产品语义、发布门禁和明确非目标的范围真源。
-- [企业 Agent 工作平台预研](docs/owndsh-work-platform.md)：产品形态、可行性、边界和长期方向。
-- [企业 Agent 治理平台 MVP 可执行详细设计](docs/owndsh-governance-mvp-design.md)：冻结的技术决策、模块、接口、数据表、状态机、测试、T00-T23 实施顺序和验收标准。
-- [第二阶段产品控制台与成员身份收敛详细设计](docs/phase-2-product-console-design.md)：冻结 TanStack/Beautiful UI 新前端、产品功能裁剪、静态角色路由、多身份成员及授权/限额模型。
-- [Desktop 2.0.3 / Harness rc.2 基线迁移](docs/desktop-2.0.3-harness-rc2-migration.md)：Desktop 派生版本锁、插件影响、重试变化与 Web/Desktop 门禁证据。
-- [T01 技术刺探验收记录](docs/t01-technical-spike-acceptance.md)：官方插件路线修正、正式模块、自动测试、真实 package consumer、Harness Web 与浏览器验收证据。
-- [T02 协议骨架验收记录](docs/t02-contract-foundation-acceptance.md)：OpenAPI 真源、双语言生成与 fixture、稳定错误码和真实 tarball consumer 证据。
-- [T03 Server 模块与数据库验收记录](docs/t03-server-database-acceptance.md)：PostgreSQL V1-V5、固定 RBAC、AES-GCM、revision CAS 与审计事务证据。
-- [T04 身份适配器验收记录](docs/t04-identity-adapter-acceptance.md)：OIDC/LDAP/LOCAL、稳定绑定、组映射、管理 API、cursor 和秘密隔离证据。
-- [T05 PKCE 与设备验收记录](docs/t05-pkce-device-acceptance.md)：Redis 一次性状态、固定 public client、Sa-Token 终端隔离、设备生命周期与公开登录页证据。
-- [T06 Harness 平台客户端验收记录](docs/t06-harness-platform-client-acceptance.md)：Service 状态机、内存 Token、bootstrap 刷新、本地 JSON/SSE、真实 tgz consumer 与锁定 Harness 组合证据。
-- [T07 员工插件门禁验收记录](docs/t07-employee-login-ui-acceptance.md)：标准插件唯一交付、官方 settings Server 持久化、全局登录门禁、失效重锁与宿主零修改证据。
-- [T08 模型管理验收记录](docs/t08-model-management-acceptance.md)：provider/model/grant API、密钥隔离、PostgreSQL 默认解析、bootstrap 模型目录与跨端协议证据。
-- [T09 配额管理验收记录](docs/t09-quota-management-acceptance.md)：叠加策略、冻结时区、并发预留、Redis lease、结算恢复、用量 API 与跨端协议证据。
-- [T10 模型网关验收记录](docs/t10-model-gateway-acceptance.md)：请求级授权、DeepSeek SSE、配额终态、首字节错误、审计原子性与敏感信息隔离证据。
-- [T11 Harness 模型链路验收记录](docs/t11-harness-model-integration-acceptance.md)：官方 rc.7 adapter、动态目录/default、真实 `ctx.llm` 模型流、错误矩阵与无本地上游 Key 证据。
-- [T12 管理控制台验收记录](docs/t12-admin-console-acceptance.md)：enterprise-admin PKCE、动态权限路由、治理页面、真实 Server Playwright、CAS 恢复和密钥隔离证据。
-- [T13 插件服务端验收记录](docs/t13-plugin-server-acceptance.md)：tgz 安全检查、JCS/Ed25519、CAS、发布分配、下载授权、库存、协议与真实 PostgreSQL 证据。
-- [T14 插件客户端验收记录](docs/t14-plugin-client-acceptance.md)：受管下载验签、官方 CLI argv、原子状态、重启确认、回滚、树外 consumer 与真实 rc.7 CLI 证据。
-- [T15 插件页面验收记录](docs/t15-plugin-pages-acceptance.md)：管理端插件纵向闭环、完整 assignment CAS、设备 inventory、员工插件 tab 与真实 rc.7 Harness 重启证据。
-- [T16 Session 服务端验收记录](docs/t16-session-server-acceptance.md)：官方 format v0、精确 JSONL/hash、并发复制、AES-GCM、正文权限、tombstone 与 retention 证据。
-- [T17 Session 客户端验收记录](docs/t17-session-client-acceptance.md)：dirty queue、确认游标、退避终态、树外 consumer 与锁定 rc.7 同步恢复证据。
-- [T18 Session 页面验收记录](docs/t18-session-pages-acceptance.md)：管理正文权限/审计/tombstone、员工同步/恢复/删除与锁定 rc.7 重启不重传证据。
-- [T19 审计闭环验收记录](docs/t19-audit-closure-acceptance.md)：30-action metadata 白名单、requestId 关联、只读权限、retention、用户治理和 heartbeat 防洪证据。
-- [T20 安全与故障验收记录](docs/t20-security-fault-acceptance.md)：有界请求、同源 CORS、graceful drain、日志扫描、服务/磁盘故障与四类数据恢复证据。
-- [T21 部署交付验收记录](docs/t21-deployment-delivery-acceptance.md)：Linux amd64 release、HTTP Compose、一次性管理员、secret、健康检查、备份恢复、升级与仅应用回滚证据。
-- [T22 人工功能验收](docs/t22-manual-acceptance.md)：单后端/单 Harness 启动方式、自动总编排退役决策与逐功能确认清单。
+- [部署、备份、恢复、升级与回滚](deploy/README.md)
+- [V1 产品功能清单](docs/v1-product-feature-catalog.md)
+- [管理控制台与身份设计](docs/phase-2-product-console-design.md)
+- [技术架构与安全边界](docs/owndsh-governance-mvp-design.md)
+- [V1 端到端验收](docs/v1-e2e-acceptance.md)
 
-实现者先阅读 MVP 详细设计的第 1 至 21 节，再严格按照第 22 节任务依赖推进。发现设计矛盾时先修订设计并记录决定，不在代码中引入未经确认的替代方案。
-
-## 计划目录
-
-```text
-owndsh/
-  server/                     # OwnDsh 后台与 owndsh-enterprise 模块
-  console/                     # Vite/TanStack 产品控制台
-  plugin/                      # Harness 企业插件与 bundle
-  contracts/                   # OpenAPI 协议真源
-  deploy/                      # Compose、Nginx、安装和运维脚本
-  docs/                        # 产品预研、详细设计和交付文档
-  upstream/                    # 第三方仓库地址、版本和许可证记录，不存第三方源码
-```
-
-Harness 企业插件位于本仓库的 `plugin/`，构建为预编译 `.tgz` bundle。普通 Web 通过 `dsh plugin --profile web add <bundle.tgz>` 安装；Desktop 通过其公开 profile/plugin command 服务管理当前 profile。安装后员工只填写 OwnDsh Server 地址并登录，其他界面继续由官方宿主提供。插件只能依赖公开扩展点，不把修改后的第三方源码复制进本仓库。
-
-## 上游关系
-
-DSH Desktop 官方仓库：<https://github.com/anywhere-labs/dsh-desktop>
-
-DeepSeek Harness 官方仓库：<https://github.com/deepseek-ai/deepseek-harness>
-
-当前已验证基线为 DSH Desktop `2.0.3`；其固定 Harness `0.1.1-rc.2`。Desktop 锁是测试真源，Harness 锁必须与其 gitlink 完全一致；它们不构成用户安装时的精确版本拦截。
-
-开发工作区把官方 Harness clone 为本仓库的同级目录，不放入本仓库：
-
-```text
-agent-platform-workspace/
-  dsh-desktop/                  # 官方 Desktop 发行 commit 与 Harness submodule
-  deepseek-harness/             # 官方仓库的锁定 commit
-  owndsh/    # 本仓库
-```
-
-首次准备 Desktop 发行基线运行：
-
-```sh
-node scripts/bootstrap-desktop.mjs
-```
-
-仅开发普通 Web Host 时可使用原 Harness bootstrap。脚本只在来源正确且工作区干净时切换版本。Windows 使用 PowerShell 7：
-
-```powershell
-pwsh -File scripts/bootstrap-harness.ps1
-```
-
-macOS/Linux 使用 POSIX shell：
-
-```sh
-./scripts/bootstrap-harness.sh
-```
-
-校验本地 Desktop/Harness checkout 与产品锁定基线时运行：
-
-```sh
-node scripts/upstream-baseline.mjs verify
-```
-
-该命令只验证 Desktop、Harness 的仓库来源、锁定版本、gitlink 与工作区状态，不导入或覆盖 OwnDsh 自有代码；T00 的实际环境、命令和退出证据记录在 [`docs/t00-baseline-acceptance.md`](docs/t00-baseline-acceptance.md)。
-
-本项目不自动跟随上游默认分支。升级时先选择 Desktop 发行 commit，再从其 gitlink 派生 Harness 锁；随后运行企业门禁、模型网关、插件安装、Session 停用和 Web/Desktop 组合测试。全部通过后，版本锁变更与必要适配在同一个 PR 提交。
-
-日常开发不得修改同级 `deepseek-harness/`。确需验证官方尚未提供的扩展点时只能使用临时分支，最终结果必须形成官方可合并的通用 PR；产品任务等待包含该扩展点的新锁定 commit，不在本仓库长期维护 Harness patch。
-
-## 本地人工验收
+本地体验与开发验证可运行：
 
 ```sh
 ./scripts/local-demo.sh
 ```
 
-该入口启动一套正式 release 后端和一个企业插件 Harness，不运行 Playwright、外部 fixture、多设备控制面或自动业务操作，也没有人工等待超时。终端会输出管理端、Harness 和 LOCAL 首次登录凭据；保持进程运行即可逐功能检查，按 `Ctrl+C` 清理本次隔离环境。
+该脚本要求同级存在已锁定的 `deepseek-harness` checkout，并使用隔离状态启动正式 Server 和 Harness；按 `Ctrl+C` 后清理本次环境。
 
-## 安全
+## 上游与声明
 
-仓库不得提交 `.env`、模型 API Key、OIDC client secret、LDAP manager 密码、平台 Token、master key、插件签名私钥、生产证书或真实 Session 数据。开发和测试只使用显式假数据及可撤销凭据。
-
-平台启动必须由环境提供 `SA_TOKEN_JWT_SECRET_KEY`。CI 可以用 `node scripts/scan-sensitive-logs.mjs --literal-file <controlled-literals> <logs...>` 扫描测试日志；开发环境可用 `./scripts/t20-recovery-drill.sh` 重复隔离的恢复与故障演练。
+OwnDsh 是独立开源项目，不隶属于 DeepSeek AI 或 Anywhere Labs。DeepSeek Harness 与 DSH Desktop 的名称、代码和商标归各自所有；OwnDsh 只通过它们公开的插件扩展点集成。

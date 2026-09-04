@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 EnterprisePlatformService、Cordis Context、真实 Node HTTP 假平台/本地 route carrier 与临时 DSH_HOME
- * [OUTPUT]: 验证 HTTP(S) origin、PKCE→Token→enroll→bootstrap、状态订阅隔离、控制面限时/SSE 无总时限、取消、刷新退避与 installation 停稳
- * [POS]: platform-client T06 核心生命周期测试，跨越真实 socket 而不伪造 Token 存储边界
+ * [INPUT]: 依赖 EnterprisePlatformService、Cordis Context、Host CredentialProvider、真实 Node HTTP 假平台与临时 DSH_HOME
+ * [OUTPUT]: 验证 PKCE、GrantRecord、Access/Refresh 轮换、重启离线退避恢复、控制面限时、取消与 installation 停稳
+ * [POS]: platform-client 核心生命周期测试，跨真实 socket 与 Context 重启证明 Token 只进入 Host 凭据边界
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -10,7 +10,9 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
+import type { CredentialKey, CredentialProvider, CredentialRecord } from '@deepseek-ai/dsh-credentials'
 import { SettingsProvider, type SettingsNamespace } from '@deepseek-ai/dsh-settings'
+import type { TokenResponse } from '@owndsh/contracts'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   EnterprisePlatformError,
@@ -19,6 +21,7 @@ import {
   type EnterprisePlatformStatus,
   type WebServerRoutePort,
 } from '../src/index.js'
+import { PlatformCredentialManager } from '../src/platform-credentials.js'
 
 type Route = Parameters<WebServerRoutePort['register']>[0]
 type BootstrapMode = 'ok' | 'invalid' | 'unavailable' | 'revoked'
@@ -38,6 +41,8 @@ interface Environment {
     bootstrapMode?: BootstrapMode
   }[]
   readonly settings?: MemorySettings
+  readonly credentials: MemoryCredentials
+  readonly tokenGrantTypes: string[]
   setAutoCallback(value: boolean): void
   setBootstrap(mode: BootstrapMode, revision?: number): void
   close(): Promise<void>
@@ -53,6 +58,24 @@ class MemorySettings extends SettingsProvider {
 
   protected persist(namespace: SettingsNamespace, section: Record<string, unknown>): Promise<void> {
     this.document[namespace] = structuredClone(section)
+    return Promise.resolve()
+  }
+}
+
+class MemoryCredentials {
+  record: CredentialRecord | undefined
+
+  async modifyRecord(
+    _key: CredentialKey,
+    mutate: (current: CredentialRecord | undefined) => Promise<CredentialRecord | undefined>,
+  ): Promise<CredentialRecord | undefined> {
+    const next = await mutate(this.record === undefined ? undefined : structuredClone(this.record))
+    if (next !== undefined) this.record = structuredClone(next)
+    return this.record === undefined ? undefined : structuredClone(this.record)
+  }
+
+  deleteRecord(_key: CredentialKey): Promise<void> {
+    this.record = undefined
     return Promise.resolve()
   }
 }
@@ -101,7 +124,10 @@ describe('EnterprisePlatformService', () => {
     const routes = new Map<string, Route>()
     const authorizeUrls: URL[] = []
     const platformRequests: Environment['platformRequests'][number][] = []
+    const tokenGrantTypes: string[] = []
     let installationId = ''
+    let refreshSequence = 0
+    let activeRefreshToken: string | undefined
     let autoCallback = true
     let bootstrapMode: BootstrapMode = 'ok'
     let bootstrapRevision = 1
@@ -116,13 +142,24 @@ describe('EnterprisePlatformService', () => {
       })
       if (path === '/enterprise/auth/v1/token' && request.method === 'POST') {
         const token = await body(request)
+        const grantType = String(token['grantType'])
+        tokenGrantTypes.push(grantType)
         installationId = String(token['installationId'])
+        if (grantType === 'refresh_token' && token['refreshToken'] !== activeRefreshToken) {
+          json(response, 401, {
+            error: { code: 'ENT_AUTH_REQUIRED', message: 'invalid refresh token', requestId: REQUEST_ID, retryable: false },
+          })
+          return
+        }
+        activeRefreshToken = `dshr_${String(++refreshSequence).padStart(43, 'r')}`
         json(response, 200, {
           data: {
             accessToken: 'platform-token-never-local',
             tokenType: 'Bearer',
             expiresIn: 43200,
             clientId: 'dsh-desktop',
+            refreshToken: activeRefreshToken,
+            refreshExpiresIn: 2592000,
           },
           requestId: REQUEST_ID,
         })
@@ -270,13 +307,15 @@ describe('EnterprisePlatformService', () => {
     }
     const ctx = new Context()
     ctx.reflect.provide('webServer', webServer)
+    const credentials = new MemoryCredentials()
+    ctx.reflect.provide('credentials', credentials as unknown as CredentialProvider)
     let settings: MemorySettings | undefined
     if (options.withSettings === true) {
       await ctx.plugin(MemorySettings)
       settings = ctx.settings as MemorySettings
     }
     const service = new EnterprisePlatformService(
-      ctx as Context & { readonly webServer: WebServerRoutePort },
+      ctx as Context & { readonly webServer: WebServerRoutePort, readonly credentials: CredentialProvider },
       {
         ...(options.startUnconfigured === true ? {} : { baseUrl: platformUrl }),
         harnessVersion: '0.1.0-rc.7',
@@ -318,6 +357,8 @@ describe('EnterprisePlatformService', () => {
       service,
       authorizeUrls,
       platformRequests,
+      credentials,
+      tokenGrantTypes,
       ...(settings === undefined ? {} : { settings }),
       setAutoCallback(value) { autoCallback = value },
       setBootstrap(mode, revision) {
@@ -352,8 +393,9 @@ describe('EnterprisePlatformService', () => {
     const create = (baseUrl: string): EnterprisePlatformService => {
       const ctx = new Context()
       ctx.reflect.provide('webServer', webServer)
+      ctx.reflect.provide('credentials', new MemoryCredentials() as unknown as CredentialProvider)
       return new EnterprisePlatformService(
-        ctx as Context & { readonly webServer: WebServerRoutePort },
+        ctx as Context & { readonly webServer: WebServerRoutePort, readonly credentials: CredentialProvider },
         { baseUrl, harnessVersion: '0.1.0-rc.7', bundleVersion: '0.1.0', dshHome: home },
       )
     }
@@ -387,6 +429,42 @@ describe('EnterprisePlatformService', () => {
     await expect(env.service.request('/enterprise/api/v1/probe')).rejects.toMatchObject({
       code: 'ENT_AUTH_REQUIRED',
     })
+  })
+
+  it('does not apply a refresh result after its Server origin becomes stale', async () => {
+    const credentials = new MemoryCredentials()
+    const installation = Promise.resolve({
+      installationId: '11111111-1111-4111-8111-111111111111',
+      name: 'Race Workstation',
+      createdAt: '2026-08-18T00:00:00.000Z',
+    })
+    let resolveRefresh: (token: TokenResponse['data']) => void = () => {}
+    let markStarted: () => void = () => {}
+    const refreshResponse = new Promise<TokenResponse['data']>(resolve => { resolveRefresh = resolve })
+    const started = new Promise<void>(resolve => { markStarted = resolve })
+    let currentOrigin = 'https://old.example'
+    const manager = new PlatformCredentialManager(
+      credentials as unknown as CredentialProvider,
+      installation,
+      () => new Date('2026-08-18T00:00:00.000Z'),
+      async () => { markStarted(); return refreshResponse },
+      origin => origin === currentOrigin,
+      () => {},
+    )
+    const token = (accessToken: string, refreshToken: string): TokenResponse['data'] => ({
+      accessToken, tokenType: 'Bearer', expiresIn: 43_200, clientId: 'dsh-desktop',
+      refreshToken, refreshExpiresIn: 2_592_000,
+    })
+    await manager.store(token('old-access', `dshr_${'a'.repeat(43)}`), currentOrigin)
+    manager.clearAccess()
+
+    const refresh = manager.refresh(new URL(currentOrigin), new AbortController().signal)
+    await started
+    currentOrigin = 'https://new.example'
+    resolveRefresh(token('stale-access', `dshr_${'b'.repeat(43)}`))
+
+    await expect(refresh).resolves.toBe(false)
+    expect(manager.accessToken()).toBeUndefined()
   })
 
   it('completes PKCE, enroll and bootstrap while keeping Token in Host memory only', async () => {
@@ -468,15 +546,15 @@ describe('EnterprisePlatformService', () => {
     expect(JSON.stringify(warnings)).not.toContain('secret-payload')
   })
 
-  it('starts signed out after restart and expires an elapsed in-memory session', async () => {
+  it('rotates an elapsed access token and retries silent restoration after a Host restart', async () => {
     let now = Date.parse('2026-08-18T00:00:00.000Z')
     const env = await environment({ now: () => new Date(now) })
     await login(env)
     now += 13 * 60 * 60 * 1_000
-    await expect(env.service.request('/enterprise/api/v1/probe')).rejects.toMatchObject({
-      code: 'ENT_AUTH_SESSION_EXPIRED',
-    })
-    expect(env.service.status()).toMatchObject({ state: 'AUTH_EXPIRED', errorCode: 'ENT_AUTH_SESSION_EXPIRED' })
+    await expect(env.service.request('/enterprise/api/v1/probe').then(response => response.json()))
+      .resolves.toEqual({ data: { authorized: true } })
+    expect(env.service.status().state).toBe('READY')
+    expect(env.tokenGrantTypes).toContain('refresh_token')
 
     await env.service.dispose()
     const routes = new Map<string, Route>()
@@ -489,18 +567,33 @@ describe('EnterprisePlatformService', () => {
     }
     const ctx = new Context()
     ctx.reflect.provide('webServer', webServer)
+    ctx.reflect.provide('credentials', env.credentials as unknown as CredentialProvider)
+    let failFirstRestore = true
     const restarted = new EnterprisePlatformService(
-      ctx as Context & { readonly webServer: WebServerRoutePort },
+      ctx as Context & { readonly webServer: WebServerRoutePort, readonly credentials: CredentialProvider },
       {
         baseUrl: env.platformUrl,
         harnessVersion: '0.1.0-rc.7',
         bundleVersion: '0.1.0',
         dshHome: env.home,
       },
+      {
+        now: () => new Date(now),
+        refreshRetryInitialMs: 10,
+        refreshRetryMaxMs: 40,
+        fetch: async (input, init) => {
+          if (failFirstRestore) {
+            failFirstRestore = false
+            throw new TypeError('platform temporarily unavailable')
+          }
+          return fetch(input, init)
+        },
+      },
     )
-    expect(restarted.status().state).toBe('SIGNED_OUT')
-    expect(restarted.bootstrap()).toBeUndefined()
-    await expect(restarted.request('/enterprise/api/v1/probe')).rejects.toMatchObject({ code: 'ENT_AUTH_REQUIRED' })
+    await vi.waitFor(() => expect(restarted.status().state).toBe('READY'))
+    expect(restarted.bootstrap()?.user.username).toBe('zhangsan')
+    await expect(restarted.request('/enterprise/api/v1/probe').then(response => response.json()))
+      .resolves.toEqual({ data: { authorized: true } })
     await restarted.dispose()
   })
 

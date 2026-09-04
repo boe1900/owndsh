@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 Sa-Token 1.45 JWT/权限拦截器/mock HTTP context、管理端 Cookie Filter 与平台会话 adapter。
- * [OUTPUT]: 验证管理端 Cookie 在权限注解前生效、单 installation 撤销隔离和成员级全部终端撤销。
- * [POS]: owndsh-server 平台会话回归门禁，覆盖浏览器 Cookie 与 Desktop Bearer 共用的服务端会话事实。
+ * [INPUT]: 依赖 Sa-Token 1.45 JWT/权限拦截器/mock HTTP context、Refresh Session store 与平台会话 adapter。
+ * [OUTPUT]: 验证管理端 Cookie 前置生效，以及单 installation/成员的 Access 与 Refresh 会话同步撤销。
+ * [POS]: owndsh-server 会话回归门禁，覆盖浏览器 Cookie 与 Desktop 长短期凭据共用的服务端生命周期。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.web.enterprise;
@@ -25,6 +25,7 @@ import jakarta.servlet.http.Cookie;
 import com.owndsh.common.satoken.utils.LoginHelper;
 import com.owndsh.enterprise.auth.application.PlatformSession;
 import com.owndsh.enterprise.auth.EnterpriseIdentityProperties;
+import com.owndsh.enterprise.auth.persistence.RefreshSessionStore;
 import com.owndsh.enterprise.auth.web.AdminSessionCookie;
 import com.owndsh.system.domain.vo.SysUserVo;
 import com.owndsh.system.service.ISysUserService;
@@ -63,6 +64,7 @@ class OwnDshPlatformSessionGatewayTest {
     private StpLogic logic;
     private OwnDshPlatformSessionGateway gateway;
     private EnterpriseIdentityProperties properties;
+    private RefreshSessionStore refreshSessions;
 
     @BeforeEach
     void setUp() {
@@ -103,7 +105,10 @@ class OwnDshPlatformSessionGatewayTest {
         when(user.getUserType()).thenReturn("sys_user");
         properties = new EnterpriseIdentityProperties();
         properties.setPublicBaseUrl(URI.create("https://platform.example.test"));
-        gateway = new OwnDshPlatformSessionGateway(users, mock(SysLoginService.class), properties);
+        refreshSessions = mock(RefreshSessionStore.class);
+        gateway = new OwnDshPlatformSessionGateway(
+            users, mock(SysLoginService.class), properties, refreshSessions
+        );
     }
 
     @AfterEach

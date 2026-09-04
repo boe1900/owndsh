@@ -1,12 +1,63 @@
 /**
- * [INPUT]: 依赖 zod、生成契约的 Bootstrap 配额 schema 与 T13 插件协议对 bootstrap 脱敏快照做严格边界校验和安全整数归一化
- * [OUTPUT]: 对外提供含模型 API 协议/推理 profile、完整插件签名/compatibility/ABSENT 的 BootstrapSnapshot、平台状态与运行时 schema
- * [POS]: platform-client 的无秘密数据契约，隔离中心 HTTP 输入与 Host 内部状态
+ * [INPUT]: 依赖 zod、生成契约、installation 与本地 API 端口，约束 bootstrap 输入及 Service 配置边界
+ * [OUTPUT]: 对外提供 BootstrapSnapshot、平台状态/错误、Service 配置与运行时 schema
+ * [POS]: platform-client 的公共契约层，隔离中心 HTTP 输入、Host 运行参数与无秘密界面状态
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { z } from 'zod'
-import { zBootstrapQuota, zRequestId, zRevision } from '@owndsh/contracts'
+import { zBootstrapQuota, zRequestId, zRevision, type EnterpriseErrorCode } from '@owndsh/contracts'
+import type { InstallationOptions } from './installation.js'
+import type {
+  EnterpriseLocalSessionPort,
+  SessionCopyProbeInput,
+  SessionCopyProbeResult,
+} from './local-api.js'
+
+/** 不携带响应主体或凭据的稳定 Service 失败，并保留经过 Fetch 校验的 Retry-After。 */
+export class EnterprisePlatformError extends Error {
+  constructor(
+    readonly code: EnterpriseErrorCode | 'ENT_AUTH_CANCELLED' | 'ENT_AUTH_TIMEOUT' | 'ENT_PLATFORM_DISPOSED',
+    message: string,
+    readonly retryable = false,
+    readonly httpStatus?: number,
+    readonly requestId?: string,
+    readonly retryAfter?: string,
+  ) {
+    super(message)
+    this.name = 'EnterprisePlatformError'
+  }
+}
+
+/** 平台客户端所需的部署时与 Host 版本事实。 */
+export interface EnterprisePlatformConfig {
+  readonly baseUrl?: string
+  readonly harnessVersion: string
+  readonly bundleVersion: string
+  readonly bootstrapIntervalMs?: number
+  readonly requestTimeoutMs?: number
+  readonly disposeTimeoutMs?: number
+  readonly callbackTimeoutMs?: number
+  readonly dshHome?: string
+  readonly installationName?: string
+  readonly enableTechnicalProbe?: boolean
+  readonly restoreSessionCopy?: (input: SessionCopyProbeInput) => Promise<SessionCopyProbeResult>
+}
+
+/** 不进入可序列化 bundle Config 的测试与 carrier seam。 */
+export interface EnterprisePlatformInternals {
+  readonly fetch?: typeof globalThis.fetch
+  readonly openBrowser?: (url: string, signal: AbortSignal) => Promise<void>
+  readonly now?: () => Date
+  readonly createFlowId?: () => string
+  readonly createState?: () => string
+  readonly installation?: Omit<InstallationOptions, 'dshHome' | 'name'>
+  readonly refreshRetryInitialMs?: number
+  readonly refreshRetryMaxMs?: number
+  readonly pluginStatus?: () => unknown
+  readonly uninstallPlugin?: () => Promise<{ readonly restart?: () => void }>
+  readonly sessionSync?: () => EnterpriseLocalSessionPort | undefined
+}
 
 /** 本地 Client 界面渲染的固定生命周期。 */
 export type EnterpriseConnectionState =

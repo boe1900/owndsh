@@ -13,7 +13,7 @@ java/com/owndsh/test/ParamUnitTest.java: Host 上游参数化测试示例，随�
 java/com/owndsh/test/OwnDshCaptchaVerifierTest.java: 验证 LOCAL 登录复用 Host captcha 开关、生成端默认 Redis codec、全局 key、GETDEL 单消费与失败记录。
 java/com/owndsh/test/SaTokenSecretLoggingTest.java: 用携带受控 JWT 的真实 Sa-Token 异常验证全局 401/403 日志不记录 message、stack 或 Token。
 java/com/owndsh/test/SaTokenDeviceSessionTest.java: T01 Sa-Token `deviceType/deviceId`、`is-share=false` 与单 Token 注销隔离验收。
-java/com/owndsh/web/enterprise/OwnDshPlatformSessionGatewayTest.java: 以真实 Sa-Token 1.45 内存 DAO/mock HTTP context 和 MVC 权限拦截器验证 HTTP/HTTPS 管理端 Cookie 在权限注解前生效，以及设备撤销标记、精确 kickout 与终端隔离。
+java/com/owndsh/web/enterprise/OwnDshPlatformSessionGatewayTest.java: 以真实 Sa-Token 1.45 和 mock Refresh Store 验证管理 Cookie、Access/Refresh logout、设备撤销、成员 kickout 与终端隔离。
 java/com/owndsh/test/TagUnitTest.java: Host 上游 Tag 筛选示例测试，随锁定源码基线保留。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
