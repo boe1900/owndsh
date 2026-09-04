@@ -4,6 +4,7 @@
 !.env.example
 secrets/
 deploy/secrets/
+.owndsh/
 
 # Java
 target/

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 deploy Compose/Nginx/脚本、application-deploy.yml、Docker Compose v2 与临时假 secret。
- * [OUTPUT]: 验证内部数据服务加 HTTP Console/Server 拓扑、新控制台/Harness 发布基线、镜像锁定、bootstrap overlay、API/SPA 路由、运维脚本与源码 CLI 可调和边界。
+ * [OUTPUT]: 验证内部数据服务加 HTTP Console/Server 拓扑、GitHub 测试版发布、镜像锁定、bootstrap overlay、API/SPA 路由、运维脚本与源码 CLI 可调和边界。
  * [POS]: T21/P2-08 部署与本地人工验收静态门禁，先于昂贵镜像构建发现配置漂移且不接触生产 secret。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -17,7 +17,7 @@ import test from 'node:test'
 const TEST_ROOT = dirname(fileURLToPath(import.meta.url))
 const PROJECT_ROOT = resolve(TEST_ROOT, '../..')
 const DEPLOY_ROOT = resolve(TEST_ROOT, '..')
-const COMPOSE = join(DEPLOY_ROOT, 'compose', 'compose.yml')
+const COMPOSE = join(PROJECT_ROOT, 'docker-compose.yml')
 const BOOTSTRAP = join(DEPLOY_ROOT, 'compose', 'compose.bootstrap.yml')
 
 function read(relative) {
@@ -61,6 +61,8 @@ test('compose publishes only the HTTP Console and pins all third-party images', 
   assert.equal(config.services.server.ports, undefined)
   assert.equal(config.services.console.ports.length, 1)
   assert.equal(config.services.console.ports[0].target, 8080)
+  assert.equal(config.services.server.image, 'owndsh/server:test')
+  assert.equal(config.services.console.image, 'owndsh/console:test')
   assert.equal(config.services.console.secrets, undefined)
   assert.ok(config.services.postgres.configs.some(config =>
     config.source === 'postgres_baseline' && config.target === '/docker-entrypoint-initdb.d/00-owndsh-baseline.sql'
@@ -74,6 +76,30 @@ test('compose publishes only the HTTP Console and pins all third-party images', 
   assert.ok(config.services.server.tmpfs.some(mount =>
     typeof mount === 'string' ? mount.split(':')[0] === '/tmp' : mount.target === '/tmp'
   ))
+})
+
+test('root Compose is a thin public entry over GHCR defaults and contains no secret', () => {
+  const entry = read('docker-compose.yml')
+  const compose = read('deploy/compose/compose.yml')
+  const environment = read('.env.example')
+  assert.match(entry, /include:\n\s+- path: \.\/deploy\/compose\/compose\.yml/)
+  assert.match(compose, /ghcr\.io\/boe1900\/owndsh-server:next/)
+  assert.match(compose, /ghcr\.io\/boe1900\/owndsh-console:next/)
+  assert.match(environment, /OWNDSH_STATE_DIR=\$\{PWD\}\/\.owndsh/)
+  assert.match(environment, /OWNDSH_POSTGRES_BASELINE=\$\{PWD\}\/server\/script\/sql\/postgres\/postgres_owndsh\.sql/)
+  assert.doesNotMatch(environment, /(?:PASSWORD|SECRET|PRIVATE_KEY)=\S+/)
+  assert.match(read('.gitignore'), /^\.owndsh\/$/m)
+  assert.match(read('.dockerignore'), /^\.owndsh$/m)
+})
+
+test('release workflow publishes only test artifacts and uses npm OIDC', () => {
+  const workflow = read('.github/workflows/release.yml')
+  assert.match(workflow, /tags: \['v\*-\*'\]/)
+  assert.match(workflow, /type=raw,value=next/)
+  assert.match(workflow, /flavor: latest=false/)
+  assert.match(workflow, /id-token: write/)
+  assert.match(workflow, /npm publish .* --tag next --provenance --access public/)
+  assert.doesNotMatch(workflow, /NPM_TOKEN|NODE_AUTH_TOKEN|type=raw,value=latest/)
 })
 
 test('compose registry mirror cannot change pinned runtime image content', () => {

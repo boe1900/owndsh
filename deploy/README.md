@@ -1,13 +1,15 @@
 <!--
 [INPUT]: 依赖 Linux amd64 release、HTTP Compose、一次性管理员输入与部署方可选外部反向代理。
-[OUTPUT]: 提供 OwnDsh 安装、员工插件分发、备份恢复、升级回滚和外部 TLS 接入操作说明。
-[POS]: deploy 的运维入口；OwnDsh 只发布 HTTP Console，TLS 证书与终止策略归部署方基础设施。
+[OUTPUT]: 提供 Compose 快速部署入口，以及离线 release 安装、备份恢复、升级回滚和外部 TLS 接入说明。
+[POS]: deploy 的详细运维入口；普通用户从根 Compose 开始，离线受控环境使用 release 包。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
 
-# OwnDsh 单机部署
+# OwnDsh 部署与运维
 
-本目录交付详细设计 T21 的单企业、单 Server、Linux `amd64` 部署。对外只有 Console 的 HTTP `8080`；Server、PostgreSQL 和 Redis 没有宿主端口。Console 与管理 API 同域。OwnDsh 不管理证书或终止 TLS；需要 HTTPS 时，由部署方现有的 Nginx、Ingress、负载均衡或零信任网关代理到该 HTTP 入口。
+普通联网环境直接使用根目录 [Docker Compose 快速开始](../README.md#docker-compose-部署)，从 GHCR 拉取 `next` 前后端镜像。本文后续内容面向需要离线制品、完整校验、备份恢复与应用回滚的单机 Linux `amd64` 环境。
+
+两种方式共用同一生产 Compose 拓扑。对外只有 Console 的 HTTP `8080`；Server、PostgreSQL 和 Redis 没有宿主端口。Console 与管理 API 同域。OwnDsh 不管理证书或终止 TLS；需要 HTTPS 时，由部署方现有的 Nginx、Ingress、负载均衡或零信任网关代理到该 HTTP 入口。
 
 ## 交付包
 

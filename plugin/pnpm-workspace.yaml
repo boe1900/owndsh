@@ -4,4 +4,6 @@ packages:
 # Bundle compilation needs esbuild's reviewed native binary. Every other
 # dependency lifecycle script remains denied by pnpm 11.
 allowBuilds:
+  '@google/genai': false
   esbuild: true
+  protobufjs: false

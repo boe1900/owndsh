@@ -720,6 +720,15 @@ export type AuthAuthTransactionId = string;
 
 export type AuthAuthorizationCode = string;
 
+export type AuthorizationCodeTokenRequest = {
+    grantType: 'authorization_code';
+    code: AuthAuthorizationCode;
+    clientId: AuthPlatformClient;
+    redirectUri: string;
+    codeVerifier: AuthPkceCodeVerifier;
+    installationId: AuthInstallationId;
+};
+
 export type AuthBrowserSessionRequest = {
     code: AuthAuthorizationCode;
     redirectUri: string;
@@ -829,21 +838,23 @@ export type AuthPublicIdentitySource = {
     type: IdentityIdentitySourceType;
 };
 
+export type RefreshTokenRequest = {
+    grantType: 'refresh_token';
+    refreshToken: string;
+    clientId: 'dsh-desktop';
+    installationId: AuthInstallationId;
+};
+
 export type AuthTokenData = {
     accessToken: string;
     tokenType: 'Bearer';
     expiresIn: 43200;
     clientId: AuthPlatformClient;
+    refreshToken: string;
+    refreshExpiresIn: number;
 };
 
-export type AuthTokenRequest = {
-    grantType: 'authorization_code';
-    code: AuthAuthorizationCode;
-    clientId: AuthPlatformClient;
-    redirectUri: string;
-    codeVerifier: AuthPkceCodeVerifier;
-    installationId?: AuthInstallationId | null;
-};
+export type AuthTokenRequest = AuthorizationCodeTokenRequest | RefreshTokenRequest;
 
 export type AuthTokenResponse = {
     data: AuthTokenData;
@@ -2639,14 +2650,14 @@ export type CompleteOidcLoginErrors = {
 
 export type CompleteOidcLoginError = CompleteOidcLoginErrors[keyof CompleteOidcLoginErrors];
 
-export type ExchangeAuthorizationCodeData = {
+export type ExchangeDesktopTokenData = {
     body: AuthTokenRequest;
     path?: never;
     query?: never;
     url: '/enterprise/auth/v1/token';
 };
 
-export type ExchangeAuthorizationCodeErrors = {
+export type ExchangeDesktopTokenErrors = {
     /**
      * Invalid request.
      */
@@ -2655,18 +2666,22 @@ export type ExchangeAuthorizationCodeErrors = {
      * Authentication failed.
      */
     401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
 };
 
-export type ExchangeAuthorizationCodeError = ExchangeAuthorizationCodeErrors[keyof ExchangeAuthorizationCodeErrors];
+export type ExchangeDesktopTokenError = ExchangeDesktopTokenErrors[keyof ExchangeDesktopTokenErrors];
 
-export type ExchangeAuthorizationCodeResponses = {
+export type ExchangeDesktopTokenResponses = {
     /**
-     * Twelve-hour non-shared Sa-Token session.
+     * Twelve-hour non-shared Sa-Token session plus a rotated thirty-day refresh token.
      */
     200: AuthTokenResponse;
 };
 
-export type ExchangeAuthorizationCodeResponse = ExchangeAuthorizationCodeResponses[keyof ExchangeAuthorizationCodeResponses];
+export type ExchangeDesktopTokenResponse = ExchangeDesktopTokenResponses[keyof ExchangeDesktopTokenResponses];
 
 export type ExchangeBrowserAuthorizationCodeData = {
     body: AuthBrowserSessionRequest;

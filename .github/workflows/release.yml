@@ -1,0 +1,112 @@
+# [INPUT]: 依赖生产 Dockerfile、插件 pnpm 锁、GitHub Container Registry 与 npm Trusted Publishing。
+# [OUTPUT]: 验证 Linux amd64 前后端镜像和插件；main 发布 GHCR next，v*-* 标签发布版本镜像与 npm next。
+# [POS]: OwnDsh 唯一公开制品流水线；PR 不推送，测试版不创建 latest 标签，也不使用 npm 长期 Token。
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+name: Release test artifacts
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ['v*-*']
+
+jobs:
+  images:
+    name: Build ${{ matrix.name }} image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - name: server
+            dockerfile: deploy/compose/Dockerfile.server
+          - name: console
+            dockerfile: deploy/compose/Dockerfile.console
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set image tags
+        id: metadata
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/owndsh-${{ matrix.name }}
+          flavor: latest=false
+          tags: |
+            type=raw,value=next,enable=${{ github.ref == 'refs/heads/main' }}
+            type=sha,prefix=sha-,enable=${{ github.event_name == 'push' }}
+            type=semver,pattern={{version}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  plugin-check:
+    name: Check plugin
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - name: Install pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.7.0 --activate
+      - name: Install and check plugin
+        run: |
+          pnpm --dir plugin install --frozen-lockfile
+          pnpm --dir plugin run check
+
+  plugin-publish:
+    name: Publish plugin next
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: plugin-check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - name: Install pnpm and dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.7.0 --activate
+          pnpm --dir plugin install --frozen-lockfile
+      - name: Prepare prerelease package
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          case "$version" in
+            *-*) ;;
+            *) echo "Only prerelease versions are allowed" >&2; exit 1 ;;
+          esac
+          npm --prefix plugin/packages/bundle pkg set version="$version"
+          pnpm --dir plugin --filter owndsh-plugin build
+          pnpm --dir plugin --filter owndsh-plugin pack --pack-destination "$RUNNER_TEMP"
+      - name: Publish npm next
+        run: |
+          npm install --global npm@11.11.0
+          npm publish "$RUNNER_TEMP/owndsh-plugin-${GITHUB_REF_NAME#v}.tgz" --tag next --provenance --access public

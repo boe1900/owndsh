@@ -1,5 +1,5 @@
-# [INPUT]: 依赖 release manifest/runtime.env、上游 PostgreSQL 基线、安装 secret、四个持久卷、可写临时目录与锁定 Linux amd64 镜像。
-# [OUTPUT]: 提供首次装载上游基线、只发布 HTTP 8080 的 Console、具备 Fontconfig 临时缓存的单 Server、PostgreSQL 17.6 和 Redis 7.4.5 拓扑。
+# [INPUT]: 依赖 runtime.env、可覆盖的 PostgreSQL 基线、安装 secret、四个持久卷、可写临时目录与锁定 Linux amd64 镜像。
+# [OUTPUT]: 提供默认拉取 GHCR next 镜像、首次装载上游基线、只发布 HTTP 8080 的 Console、单 Server、PostgreSQL 17.6 和 Redis 7.4.5 拓扑。
 # [POS]: T21 部署运行时事实源；OwnDsh 不终止 TLS，空数据库先由官方 initdb 装载 version 0，Flyway 接管后续版本。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -53,7 +53,7 @@ services:
     security_opt: [no-new-privileges:true]
 
   storage-init:
-    image: ${OWNDSH_SERVER_IMAGE:?OWNDSH_SERVER_IMAGE must be set}
+    image: ${OWNDSH_SERVER_IMAGE:-ghcr.io/boe1900/owndsh-server:next}
     platform: linux/amd64
     user: "0:0"
     command: ["sh", "-ec", "chown -R 10001:10001 /var/lib/enterprise /app/logs"]
@@ -67,7 +67,7 @@ services:
     security_opt: [no-new-privileges:true]
 
   server:
-    image: ${OWNDSH_SERVER_IMAGE:?OWNDSH_SERVER_IMAGE must be set}
+    image: ${OWNDSH_SERVER_IMAGE:-ghcr.io/boe1900/owndsh-server:next}
     platform: linux/amd64
     restart: unless-stopped
     environment:
@@ -116,7 +116,7 @@ services:
     stop_grace_period: 40s
 
   console:
-    image: ${OWNDSH_CONSOLE_IMAGE:?OWNDSH_CONSOLE_IMAGE must be set}
+    image: ${OWNDSH_CONSOLE_IMAGE:-ghcr.io/boe1900/owndsh-console:next}
     platform: linux/amd64
     user: "101:101"
     restart: unless-stopped
@@ -160,4 +160,4 @@ secrets:
     file: ${OWNDSH_STATE_DIR:?OWNDSH_STATE_DIR must be set}/secrets/plugin_signing_private_key
 configs:
   postgres_baseline:
-    file: ${OWNDSH_STATE_DIR:?OWNDSH_STATE_DIR must be set}/releases/${OWNDSH_RELEASE_VERSION:?OWNDSH_RELEASE_VERSION must be set}/database/postgres_owndsh.sql
+    file: ${OWNDSH_POSTGRES_BASELINE:-${OWNDSH_STATE_DIR:?OWNDSH_STATE_DIR must be set}/releases/${OWNDSH_RELEASE_VERSION:?OWNDSH_RELEASE_VERSION must be set}/database/postgres_owndsh.sql}

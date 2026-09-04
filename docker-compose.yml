@@ -1,0 +1,7 @@
+# [INPUT]: 依赖 deploy/compose/compose.yml 的唯一生产拓扑。
+# [OUTPUT]: 提供仓库根目录可直接执行的 Docker Compose 入口。
+# [POS]: 面向源码部署用户的薄入口，不复制 Server、Console、PostgreSQL 或 Redis 配置。
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+include:
+  - path: ./deploy/compose/compose.yml

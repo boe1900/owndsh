@@ -1,7 +1,19 @@
 {
   "name": "owndsh-plugin",
   "version": "0.1.0",
-  "description": "OwnDsh bundle for DeepSeek Harness",
+  "description": "Self-hosted enterprise control plane plugin for DeepSeek Harness",
+  "keywords": ["deepseek", "harness", "self-hosted", "enterprise", "ai"],
+  "homepage": "https://github.com/boe1900/owndsh#readme",
+  "bugs": "https://github.com/boe1900/owndsh/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/boe1900/owndsh.git",
+    "directory": "plugin/packages/bundle"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "next"
+  },
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
@@ -55,12 +67,12 @@
     "@deepseek-ai/schemastery": "^3.18.1"
   },
   "devDependencies": {
-    "@deepseek-ai/dsh-credentials": "link:../../../../deepseek-harness/packages/credentials/credentials",
-    "@deepseek-ai/dsh-host-plugin-inventory": "link:../../../../deepseek-harness/packages/host/plugin-inventory",
-    "@deepseek-ai/dsh-llm": "link:../../../../deepseek-harness/packages/llm/llm",
-    "@deepseek-ai/dsh-llm-pi-ai": "link:../../../../deepseek-harness/packages/llm/llm-pi-ai",
-    "@deepseek-ai/dsh-settings": "link:../../../../deepseek-harness/packages/settings/settings",
-    "@deepseek-ai/dsh-subprocess": "link:../../../../deepseek-harness/packages/subprocess/subprocess",
+    "@deepseek-ai/dsh-credentials": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-host-plugin-inventory": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-llm": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-llm-pi-ai": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-settings": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-subprocess": "0.1.1-rc.2",
     "@deepseek-ai/schemastery": "3.18.1",
     "@owndsh/llm-gateway": "workspace:*",
     "@owndsh/platform-client": "workspace:*",

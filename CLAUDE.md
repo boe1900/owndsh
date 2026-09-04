@@ -3,6 +3,7 @@
 Java 21 + Spring Boot 4.1 + Sa-Token + PostgreSQL + React 19 + TypeScript + DeepSeek Harness 插件
 
 <directory>
+.github/ - GitHub Actions 自动验证并发布 GHCR 前后端测试镜像与 npm next 插件
 server/ - OwnDsh 后端锁定源码，T03 起承载 owndsh-enterprise 模块
 console/ - 第二阶段独立 Vite/TanStack 产品控制台，使用静态路由与 OpenAPI Fetch client，不依赖旧 Umi 管理端
 contracts/ - OpenAPI 3.1 协议真源、跨语言 schema 和 fixture 验收
@@ -16,7 +17,10 @@ upstream/ - 以 DSH Desktop 为发行真源的第三方源码地址与精确派�
 <config>
 AGENTS.md - Agent 工作规则与 GEB 文档协议
 README.md - 面向管理员与员工的开源入口，提供产品定位、自托管部署、插件接入、日常使用与排障路径
+docker-compose.yml - 根目录 Compose 薄入口，复用 deploy/compose 的单一生产拓扑
+.env.example - GHCR next 镜像与无秘密 Compose 部署参数模板
 .gitignore - 密钥、依赖、构建产物和本机文件排除规则
+.dockerignore - Server/Console 共用构建上下文边界，排除本机状态、密钥、缓存与制品
 .gitattributes - 跨平台文本与换行约定
 </config>
 

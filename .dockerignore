@@ -17,6 +17,7 @@
 artifacts
 deploy/secrets
 deploy/runtime
+.owndsh
 release
 *.log
 *.pid

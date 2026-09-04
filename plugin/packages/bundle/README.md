@@ -1,53 +1,63 @@
 <!--
-[INPUT]: 依赖 bundle manifest/profile patch、Host 组合根、官方模型适配与 Client 门禁实现。
-[OUTPUT]: 提供 owndsh-plugin 安装、可选部署默认值、信任根和 Web/Desktop 运行边界说明。
-[POS]: 可发布员工插件的使用入口，定义安装后只填 Server 与官方宿主零分叉契约。
+[INPUT]: 依赖 npm next 包、Harness 官方 plugin/profile/settings/credentials 扩展点与 OwnDsh Server。
+[OUTPUT]: 提供员工安装、连接、登录、更新和卸载 owndsh-plugin 的 npm 用户说明。
+[POS]: npm 包详情页与插件内置 README；面向员工，不承载 workspace 开发细节。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
 
 # owndsh-plugin
 
-Prebuilt enterprise composition package for compatible Harness releases. It
-ships one Cordis Host plugin, one `dsh.client` lazy-CJS browser bundle, and the
-`cordis.patch.yml` layer that inserts the row by bare package name.
+OwnDsh 的 DeepSeek Harness 官方扩展点插件。它把 DSH Desktop 或 Harness Web 连接到自托管 OwnDsh Server，让员工使用企业身份、受管模型和受管插件，而不在本机保存供应商 API Key。
 
-The profile layer sets provider `enterprise` and model `enterprise/default` on
-`agent-default-model`, disables the built-in DeepSeek and pi-ai provider rows,
-and disables the personal Models settings page. The Host plugin configures the
-official `dsh-llm-pi-ai` adapter through `ctx.llm`, and mounts distribution
-through ordinary `ctx.subprocess`/`ctx.pluginInventory` or Desktop's public
-`desktopProfiles`/`desktopPnpm` services. Harness peers use the official caret-compatible release line and resolve from the Host dependency fallback instead of
-installing second Service Definitions into the profile. V1 does not inject the
-official Session Services or construct `EnterpriseSessionSyncService`; the
-independent Session implementation remains in the repository for a later release.
+> 当前只发布测试版。请显式安装 `next`，`latest` 暂不更新。
 
-The tarball is self-contained at runtime: workspace packages are build inputs,
-not installed dependencies. Install it with:
+## 安装
+
+先让 pnpm 在 PATH 中可用：
 
 ```sh
-dsh plugin --profile <profile> add ./owndsh-plugin-0.1.0.tgz
+corepack enable
+corepack install --global pnpm@11.7.0
 ```
 
-After installation, the employee only enters the OwnDsh Server origin in the
-full-screen access gate. The value is saved by the official Harness settings
-service; `config.baseUrl` is only an optional deployment default. An installer
-may embed the deployment-owned Ed25519 `config.trustedPluginPublicKey`; when it
-is absent, login and model access still work but managed-plugin installation
-fails closed. The platform bootstrap cannot replace that trust root.
-`bootstrapIntervalMs`, `requestTimeoutMs`,
-`disposeTimeoutMs`, managed profile and `dshCommand` use the detailed-design
-defaults unless the installation layer overrides them. The authenticated
-bootstrap explicitly publishes `sessionPolicy.enabled=false`. The Host half requires the official credentials service, publishes `ctx.enterprisePlatform`
-and mounts only same-origin `/enterprise/api/v1/local/*` JSON/SSE routes. Model
-streams do not traverse that browser control plane: the official adapter uses a
-random-port, random-bearer Host-only loopback proxy, which calls the configured
-HTTP(S) enterprise center through the in-memory Access Token. The rotating Refresh Token remains in the
-official Host credential provider, so Desktop, CLI and Web profiles can recover after a Host restart without exposing it to Client UI.
-The Client half uses only official Client modules, then contributes Enterprise
-settings, footer status, and a global `shell.overlay` access gate. OwnDsh does
-not ship or maintain a replacement Harness Web/Desktop UI.
-`enableTechnicalProbe` only enables the acceptance-only Session-copy route; it
-does not alter Server URL validation. Both HTTP and HTTPS origins are accepted,
-while production deployments should prefer HTTPS.
+选择实际使用的 Harness profile：
 
-DSH Desktop `2.0.3` / Harness `0.1.1-rc.2` is the verified baseline, not an exact Desktop runtime lock. The bundle reads the actual Harness version from `@deepseek-ai/dsh-llm` and its own version from this package manifest. On a compatible but not yet commit-verified Harness, login and model access remain available; center-managed third-party artifacts fail closed until their exact Harness commit is approved.
+```sh
+# Harness Web
+dsh plugin --profile web add --ignore-scripts owndsh-plugin@next
+
+# DSH Desktop
+dsh plugin --profile desktop add --ignore-scripts owndsh-plugin@next
+```
+
+从 Harness 源码运行 CLI 时：
+
+```sh
+pnpm --dir /path/to/deepseek-harness dsh \
+  plugin --profile web add --ignore-scripts owndsh-plugin@next
+```
+
+安装后重启对应 profile。填写管理员提供的 OwnDsh Server HTTP(S) 地址并完成企业登录。
+
+## 登录保持
+
+Server 地址由 Harness 官方 settings 服务保存；轮换 Refresh Token 由 Host 官方 credentials 服务保存；Access Token 只保留在 Host 内存。正常重启会静默恢复登录，浏览器 Client 不会读取或保存 Token。
+
+主动退出、设备撤销、成员停用、改密或 30 天有效期结束后需要重新登录。
+
+## 更新与卸载
+
+```sh
+dsh plugin --profile web remove owndsh-plugin
+dsh plugin --profile web add --ignore-scripts owndsh-plugin@next
+```
+
+完全卸载只执行第一条命令。把 `web` 换成实际 profile。
+
+## 兼容性与边界
+
+当前验证基线是 DSH Desktop `2.0.3` / DeepSeek Harness `0.1.1-rc.2`。OwnDsh 不替换官方 Web/Desktop UI，不访问员工工作区，也不实现第二套模型协议。
+
+登录和企业模型只需安装本包。平台下发第三方受管插件时，管理员还需通过 profile 配置部署专属 Ed25519 公钥；没有信任根时该能力会安全关闭。
+
+项目与完整部署说明：[github.com/boe1900/owndsh](https://github.com/boe1900/owndsh)
