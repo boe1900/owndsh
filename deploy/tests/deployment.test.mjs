@@ -116,7 +116,7 @@ test('release workflow publishes only test artifacts and uses npm OIDC', () => {
   assert.match(workflow, /id-token: write/)
   assert.match(workflow, /uses: actions\/upload-artifact@v4/)
   assert.match(workflow, /uses: actions\/download-artifact@v4/)
-  assert.match(workflow, /npm publish plugin-package\/\*\.tgz --tag next --provenance --access public/)
+  assert.match(workflow, /npm publish \.\/plugin-package\/\*\.tgz --tag next --provenance --access public/)
   assert.doesNotMatch(workflow, /NPM_TOKEN|NODE_AUTH_TOKEN|type=raw,value=latest/)
 })
 

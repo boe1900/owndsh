@@ -110,4 +110,4 @@ jobs:
       - name: Publish npm next
         run: |
           npm install --global npm@11.11.0
-          npm publish plugin-package/*.tgz --tag next --provenance --access public
+          npm publish ./plugin-package/*.tgz --tag next --provenance --access public
