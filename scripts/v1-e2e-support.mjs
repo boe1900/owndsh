@@ -235,7 +235,7 @@ export function psql(sql) {
 export function redis(...args) {
   return execFileSync('docker', [
     'exec', REDIS_CONTAINER, 'sh', '-ec',
-    'export REDISCLI_AUTH="$(cat /run/secrets/redis_password)"; exec redis-cli --raw "$@"',
+    'export REDISCLI_AUTH="$REDIS_PASSWORD"; exec redis-cli --raw "$@"',
     'redis-cli', ...args,
   ], { encoding: 'utf8' }).trim();
 }

@@ -1,6 +1,6 @@
 # [INPUT]: 依赖仓库 server 源码、Maven lock，以及默认 registry 或受验本地 RepoDigest 提供的固定 Maven 与 Jammy/glibc JRE Linux 镜像。
 # [OUTPUT]: 构建只含可执行 owndsh-server.jar 的非 root Java 21 Server 镜像，避免 Alpine/musl AWT 验证码原生崩溃。
-# [POS]: T21 Server 生产制品定义，migration 和 application-deploy.yml 随 JAR 同版交付。
+# [POS]: T21 Server 生产制品定义，migration 和唯一 application.yml 随 JAR 同版交付。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 ARG OWNDSH_BASE_IMAGE_REGISTRY=docker.io/library

@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 JDBC/Jackson/事务、设备/用户、revision/audit、ID 与 artifact root/Ed25519 部署配置。
+ * [INPUT]: 依赖 JDBC/Jackson/事务、设备/用户、revision/audit、ID 与 artifact root/环境 Ed25519 配置。
  * [OUTPUT]: 装配 T13 inspector、JCS signer、CAS store、plugin persistence、catalog 与 runtime 服务 Beans。
  * [POS]: plugin 纵向模块的 Spring composition root，领域/application 不使用静态容器或请求路径。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -70,7 +70,7 @@ public class EnterprisePluginConfiguration {
         JsonMapper jsonMapper,
         EnterprisePluginProperties properties
     ) {
-        return PluginManifestSigner.fromPkcs8File(jsonMapper, properties.getSigningPrivateKeyFile());
+        return PluginManifestSigner.fromPkcs8(jsonMapper, properties.getSigningPrivateKey());
     }
 
     @Bean

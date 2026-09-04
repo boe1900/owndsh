@@ -21,7 +21,7 @@ OidcClaimMapping.java: OIDC 原始 claims 到统一 principal 的显式白名单
 OidcCodeCredentials.java: T05 状态校验后用于 code+PKCE 交换的一次性脱敏凭据。
 OidcLoginState.java: 与平台 code 分区保存的 OIDC state/nonce/verifier/callback 一次性事实。
 OidcSettings.java: 强制 openid scope 与不可变 claim mapping 的 OIDC 配置。
-LocalPasswordPolicy.java: bootstrap 与首次改密共享的 LOCAL 长度、字符类别、空白和用户名隔离规则。
+LocalPasswordPolicy.java: LOCAL 正式密码的长度、字符类别、空白和用户名隔离规则，用于首次改密、主动改密与管理员创建成员。
 PasswordChangeChallenge.java: 5 分钟 Redis 一次性状态，绑定已认证 LOCAL 用户与原登录事务且不保存任何凭据。
 PasswordCredentials.java: LOCAL/LDAP 一次性账号与当前密码凭据，防御性复制并显式清零。
 Pkce.java: RFC 7636 verifier/challenge 语法、S256 计算与 constant-time 比较真源。

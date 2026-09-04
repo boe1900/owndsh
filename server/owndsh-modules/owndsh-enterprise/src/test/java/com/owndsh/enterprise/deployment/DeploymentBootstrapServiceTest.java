@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖真实 PostgreSQL Host+V1-V13、DeploymentBootstrapService、JdbcLocalAccountStore 与 BCrypt。
- * [OUTPUT]: 验证缺配置失败、原子回滚、唯一管理员/角色/marker、重启忽略输入及首次强制改密。
+ * [OUTPUT]: 验证任意非空初始密码、缺配置失败、原子回滚、唯一管理员/角色/marker、重启忽略输入及首次强制安全改密。
  * [POS]: T21 初始化管理员的数据库验收门禁，证明部署脚本之外仍有并发安全和恢复语义。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -21,8 +21,6 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -33,7 +31,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @Tag("dev")
 class DeploymentBootstrapServiceTest {
     private static final String USERNAME = "platform.admin";
-    private static final String INITIAL_PASSWORD = "Temp!Admin#2026Secure";
+    private static final String INITIAL_PASSWORD = "x";
     private static final String NEW_PASSWORD = "Changed!Admin#2026Safe";
 
     @Test
@@ -49,11 +47,10 @@ class DeploymentBootstrapServiceTest {
     }
 
     @Test
-    void createsExactlyOneForcedChangeAdministratorAndIgnoresInputsAfterMarker() throws Exception {
+    void createsExactlyOneForcedChangeAdministratorAndIgnoresInputsAfterMarker() {
         var database = database("bootstrap_success");
-        Path passwordFile = passwordFile(INITIAL_PASSWORD);
 
-        service(database, USERNAME, passwordFile).initialize();
+        service(database, USERNAME, INITIAL_PASSWORD).initialize();
 
         var row = database.jdbc().queryForMap("""
             select u.user_id, u.password, u.password_change_required, r.role_key
@@ -72,7 +69,7 @@ class DeploymentBootstrapServiceTest {
     }
 
     @Test
-    void rollsBackUserAndRoleWhenMarkerWriteFails() throws Exception {
+    void rollsBackUserAndRoleWhenMarkerWriteFails() {
         var database = database("bootstrap_rollback");
         database.jdbc().execute("""
             create function reject_deployment_marker() returns trigger language plpgsql as $$
@@ -83,7 +80,7 @@ class DeploymentBootstrapServiceTest {
             for each row execute function reject_deployment_marker()
             """);
 
-        assertThatThrownBy(() -> service(database, USERNAME, passwordFile(INITIAL_PASSWORD)).initialize())
+        assertThatThrownBy(() -> service(database, USERNAME, INITIAL_PASSWORD).initialize())
             .isInstanceOf(RuntimeException.class);
 
         assertThat(count(database, "select count(*) from ent_deployment_state")).isZero();
@@ -95,9 +92,9 @@ class DeploymentBootstrapServiceTest {
     }
 
     @Test
-    void changesBootstrapPasswordOnceThroughTheRealLocalStore() throws Exception {
+    void changesBootstrapPasswordOnceThroughTheRealLocalStore() {
         var database = database("bootstrap_password");
-        service(database, USERNAME, passwordFile(INITIAL_PASSWORD)).initialize();
+        service(database, USERNAME, INITIAL_PASSWORD).initialize();
         LocalIdentityAdapter adapter = new LocalIdentityAdapter(
             new JdbcLocalAccountStore(database.jdbc()),
             (username, failed) -> {
@@ -146,22 +143,15 @@ class DeploymentBootstrapServiceTest {
     private static DeploymentBootstrapService service(
         PostgresTestDatabase.Database database,
         String username,
-        Path passwordFile
+        String password
     ) {
         return new DeploymentBootstrapService(
             database.jdbc(),
             new TransactionTemplate(new org.springframework.jdbc.datasource.DataSourceTransactionManager(database.dataSource())),
             new AtomicLong(195_210_000_000_000_001L)::getAndIncrement,
             username,
-            passwordFile
+            password
         );
-    }
-
-    private static Path passwordFile(String password) throws Exception {
-        Path path = Files.createTempFile("enterprise-bootstrap-", ".secret");
-        path.toFile().deleteOnExit();
-        Files.writeString(path, password + "\n");
-        return path;
     }
 
     private static int count(PostgresTestDatabase.Database database, String sql) {

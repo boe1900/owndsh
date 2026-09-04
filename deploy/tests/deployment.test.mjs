@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 deploy Compose/Nginx/脚本、application-deploy.yml、Docker Compose v2 与临时假 secret。
- * [OUTPUT]: 验证内部数据服务加 HTTP Console/Server 拓扑、GitHub 测试版发布、镜像锁定、bootstrap overlay、API/SPA 路由、运维脚本与源码 CLI 可调和边界。
- * [POS]: T21/P2-08 部署与本地人工验收静态门禁，先于昂贵镜像构建发现配置漂移且不接触生产 secret。
+ * [INPUT]: 依赖 deploy Compose/Nginx/脚本、单一 application.yml、Docker Compose v2 与测试环境变量。
+ * [OUTPUT]: 验证内部数据服务加 HTTP Console/Server 拓扑、GitHub 测试版发布、环境参数、幂等 bootstrap、API/SPA 路由与运维边界。
+ * [POS]: T21/P2-08 部署与本地人工验收静态门禁，先于昂贵镜像构建发现配置漂移。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -18,37 +18,27 @@ const TEST_ROOT = dirname(fileURLToPath(import.meta.url))
 const PROJECT_ROOT = resolve(TEST_ROOT, '../..')
 const DEPLOY_ROOT = resolve(TEST_ROOT, '..')
 const COMPOSE = join(PROJECT_ROOT, 'docker-compose.yml')
-const BOOTSTRAP = join(DEPLOY_ROOT, 'compose', 'compose.bootstrap.yml')
 
 function read(relative) {
   return readFileSync(join(PROJECT_ROOT, relative), 'utf8')
 }
 
-function composeConfig(includeBootstrap = false, baseImageRegistry = undefined) {
-  const state = mkdtempSync(join(tmpdir(), 'owndsh-compose-'))
-  const secrets = join(state, 'secrets')
-  const database = join(state, 'releases', 'test', 'database')
-  execFileSync('mkdir', ['-p', secrets, database])
-  for (const file of [
-    'postgres_password', 'redis_password', 'sa_token_jwt_secret_key',
-    'enterprise_master_key', 'plugin_signing_private_key',
-  ]) writeFileSync(join(secrets, file), 'fixture')
-  writeFileSync(join(database, 'postgres_owndsh.sql'), 'select 1;')
-  writeFileSync(join(state, 'bootstrap.secret'), 'fixture')
-  const args = ['compose', '-f', COMPOSE]
-  if (includeBootstrap) args.push('-f', BOOTSTRAP)
-  args.push('config', '--format', 'json')
+function composeConfig(baseImageRegistry = undefined) {
+  const args = ['compose', '-f', COMPOSE, 'config', '--format', 'json']
   const env = {
     ...process.env,
-    OWNDSH_STATE_DIR: state,
     OWNDSH_SERVER_IMAGE: 'owndsh/server:test',
     OWNDSH_CONSOLE_IMAGE: 'owndsh/console:test',
-    OWNDSH_RELEASE_VERSION: 'test',
     ...(baseImageRegistry ? { OWNDSH_BASE_IMAGE_REGISTRY: baseImageRegistry } : {}),
     ENT_PUBLIC_BASE_URL: 'https://platform.example.test',
     ENT_ADMIN_REDIRECT_URI: 'https://platform.example.test/enterprise/auth/callback',
+    ENT_POSTGRES_PASSWORD: 'postgres-fixture',
+    ENT_REDIS_PASSWORD: 'redis-fixture',
+    SA_TOKEN_JWT_SECRET_KEY: 'jwt-fixture',
+    ENT_MASTER_KEY: '0123456789abcdef0123456789abcdef',
+    ENT_PLUGIN_SIGNING_PRIVATE_KEY: 'signing-fixture',
     ENT_BOOTSTRAP_ADMIN_USERNAME: 'platform.admin',
-    OWNDSH_BOOTSTRAP_PASSWORD_FILE: join(state, 'bootstrap.secret'),
+    ENT_BOOTSTRAP_ADMIN_PASSWORD: 'FixturePassword1!',
   }
   return JSON.parse(execFileSync('docker', args, { env, encoding: 'utf8' }))
 }
@@ -64,6 +54,7 @@ test('compose publishes only the HTTP Console and pins all third-party images', 
   assert.equal(config.services.server.image, 'owndsh/server:test')
   assert.equal(config.services.console.image, 'owndsh/console:test')
   assert.equal(config.services.console.secrets, undefined)
+  assert.equal(config.services.server.secrets, undefined)
   assert.ok(config.services.postgres.configs.some(config =>
     config.source === 'postgres_baseline' && config.target === '/docker-entrypoint-initdb.d/00-owndsh-baseline.sql'
   ))
@@ -78,18 +69,46 @@ test('compose publishes only the HTTP Console and pins all third-party images', 
   ))
 })
 
-test('root Compose is a thin public entry over GHCR defaults and contains no secret', () => {
+test('root Compose has GHCR images and overridable test defaults', () => {
   const entry = read('docker-compose.yml')
   const compose = read('deploy/compose/compose.yml')
   const environment = read('.env.example')
   assert.match(entry, /include:\n\s+- path: \.\/deploy\/compose\/compose\.yml/)
+  assert.match(entry, /env_file: \.\/\.env\.example/)
   assert.match(compose, /ghcr\.io\/boe1900\/owndsh-server:next/)
   assert.match(compose, /ghcr\.io\/boe1900\/owndsh-console:next/)
-  assert.match(environment, /OWNDSH_STATE_DIR=\$\{PWD\}\/\.owndsh/)
+  for (const variable of [
+    'ENT_POSTGRES_PASSWORD', 'ENT_REDIS_PASSWORD', 'SA_TOKEN_JWT_SECRET_KEY',
+    'ENT_MASTER_KEY', 'ENT_PLUGIN_SIGNING_PRIVATE_KEY', 'ENT_BOOTSTRAP_ADMIN_USERNAME',
+    'ENT_BOOTSTRAP_ADMIN_PASSWORD',
+  ]) assert.match(compose, new RegExp(`\\$\\{${variable}:-`))
   assert.match(environment, /OWNDSH_POSTGRES_BASELINE=\$\{PWD\}\/server\/script\/sql\/postgres\/postgres_owndsh\.sql/)
-  assert.doesNotMatch(environment, /(?:PASSWORD|SECRET|PRIVATE_KEY)=\S+/)
+  assert.doesNotMatch(environment, /OWNDSH_STATE_DIR/)
+  assert.match(environment, /^ENT_BOOTSTRAP_ADMIN_USERNAME=admin$/m)
+  assert.match(environment, /^ENT_BOOTSTRAP_ADMIN_PASSWORD=owndsh$/m)
+  assert.match(environment, /^ENT_POSTGRES_PASSWORD=owndsh$/m)
+  assert.match(environment, /^ENT_REDIS_PASSWORD=owndsh$/m)
+  assert.match(environment, /^SA_TOKEN_JWT_SECRET_KEY=.+$/m)
+  assert.match(environment, /^ENT_MASTER_KEY=.{32}$/m)
+  assert.match(environment, /^ENT_PLUGIN_SIGNING_PRIVATE_KEY=.+$/m)
   assert.match(read('.gitignore'), /^\.owndsh\/$/m)
   assert.match(read('.dockerignore'), /^\.owndsh$/m)
+})
+
+test('root Compose starts without .env and derives public URLs from the published port', () => {
+  const env = { ...process.env, OWNDSH_HTTP_PORT: '19090' }
+  delete env.ENT_PUBLIC_BASE_URL
+  delete env.ENT_ADMIN_REDIRECT_URI
+  const config = JSON.parse(execFileSync('docker', [
+    'compose', '--env-file', '/dev/null', '-f', COMPOSE, 'config', '--format', 'json',
+  ], { env, encoding: 'utf8' }))
+  assert.equal(config.services.server.environment.ENT_PUBLIC_BASE_URL, 'http://localhost:19090')
+  assert.equal(
+    config.services.server.environment.ENT_ADMIN_REDIRECT_URI,
+    'http://localhost:19090/enterprise/auth/callback'
+  )
+  assert.equal(config.services.server.environment.ENT_BOOTSTRAP_ADMIN_USERNAME, 'admin')
+  assert.equal(config.services.server.environment.ENT_BOOTSTRAP_ADMIN_PASSWORD, 'owndsh')
 })
 
 test('release workflow publishes only test artifacts and uses npm OIDC', () => {
@@ -103,17 +122,32 @@ test('release workflow publishes only test artifacts and uses npm OIDC', () => {
 })
 
 test('compose registry mirror cannot change pinned runtime image content', () => {
-  const config = composeConfig(false, 'mirror.gcr.io/library')
+  const config = composeConfig('mirror.gcr.io/library')
   assert.match(config.services.postgres.image, /^mirror\.gcr\.io\/library\/postgres:17\.6-alpine3\.22@sha256:[a-f0-9]{64}$/)
   assert.match(config.services.redis.image, /^mirror\.gcr\.io\/library\/redis:7\.4\.5-alpine3\.21@sha256:[a-f0-9]{64}$/)
 })
 
-test('bootstrap password exists only in the one-time overlay', () => {
-  const base = composeConfig()
-  const bootstrap = composeConfig(true)
-  assert.equal(JSON.stringify(base).includes('bootstrap_admin_password'), false)
-  assert.equal(bootstrap.services.server.environment.ENT_BOOTSTRAP_ADMIN_USERNAME, 'platform.admin')
-  assert.ok(bootstrap.services.server.secrets.some(secret => secret.source === 'bootstrap_admin_password'))
+test('bootstrap credentials and runtime secrets come directly from overridable environment values', () => {
+  const config = composeConfig()
+  assert.equal(config.secrets, undefined)
+  assert.equal(config.services.postgres.environment.POSTGRES_PASSWORD, 'postgres-fixture')
+  assert.equal(config.services.redis.environment.REDIS_PASSWORD, 'redis-fixture')
+  assert.deepEqual(
+    Object.fromEntries([
+      'ENT_BOOTSTRAP_ADMIN_USERNAME', 'ENT_BOOTSTRAP_ADMIN_PASSWORD', 'ENT_POSTGRES_PASSWORD',
+      'ENT_REDIS_PASSWORD', 'SA_TOKEN_JWT_SECRET_KEY', 'ENT_MASTER_KEY',
+      'ENT_PLUGIN_SIGNING_PRIVATE_KEY',
+    ].map(name => [name, config.services.server.environment[name]])),
+    {
+      ENT_BOOTSTRAP_ADMIN_USERNAME: 'platform.admin',
+      ENT_BOOTSTRAP_ADMIN_PASSWORD: 'FixturePassword1!',
+      ENT_POSTGRES_PASSWORD: 'postgres-fixture',
+      ENT_REDIS_PASSWORD: 'redis-fixture',
+      SA_TOKEN_JWT_SECRET_KEY: 'jwt-fixture',
+      ENT_MASTER_KEY: '0123456789abcdef0123456789abcdef',
+      ENT_PLUGIN_SIGNING_PRIVATE_KEY: 'signing-fixture',
+    }
+  )
 })
 
 test('HTTP gateway preserves an upstream HTTP(S) origin and keeps model SSE unbuffered', () => {
@@ -160,14 +194,20 @@ test('HTTP gateway preserves an upstream HTTP(S) origin and keeps model SSE unbu
   ))
 })
 
-test('deploy profile consumes configtree secrets and exposes only health', () => {
-  const deploy = read('server/owndsh-server/src/main/resources/application-deploy.yml')
-  assert.match(deploy, /configtree:\/run\/secrets\//)
-  assert.match(deploy, /jwt-secret-key: \$\{sa_token_jwt_secret_key\}/)
-  assert.match(deploy, /include: health/)
-  assert.match(deploy, /show-details: never/)
-  assert.match(deploy, /api-docs:\n\s+enabled: false/)
-  assert.doesNotMatch(deploy, /actuator-basic-auth-enabled|spring:\n[\s\S]*?boot:\n\s+admin:|snail-job|snail-ai/)
+test('server has one environment-driven application configuration', () => {
+  const resources = join(PROJECT_ROOT, 'server/owndsh-server/src/main/resources')
+  const applications = readdirSync(resources).filter(file => /^application.*\.ya?ml$/.test(file))
+  const application = read('server/owndsh-server/src/main/resources/application.yml')
+  assert.deepEqual(applications, ['application.yml'])
+  for (const variable of [
+    'ENT_POSTGRES_HOST', 'ENT_POSTGRES_PASSWORD', 'ENT_REDIS_HOST', 'ENT_REDIS_PASSWORD',
+    'SA_TOKEN_JWT_SECRET_KEY', 'ENT_MASTER_KEY', 'ENT_PLUGIN_SIGNING_PRIVATE_KEY',
+    'ENT_BOOTSTRAP_ADMIN_USERNAME', 'ENT_BOOTSTRAP_ADMIN_PASSWORD',
+  ]) assert.match(application, new RegExp(`\\$\\{${variable}`))
+  assert.match(application, /include: \$\{MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE:health\}/)
+  assert.match(application, /show-details: \$\{MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS:never\}/)
+  assert.match(application, /api-docs:\n\s+#.*\n\s+enabled: \$\{SPRINGDOC_API_DOCS_ENABLED:false\}/)
+  assert.doesNotMatch(application, /configtree:|@profiles\.active@|@logging\.level@/)
 })
 
 test('operations scripts parse, keep Harness bundles aligned, and rollback cannot remove or restore data', () => {

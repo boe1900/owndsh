@@ -17,8 +17,8 @@ upstream/ - 以 DSH Desktop 为发行真源的第三方源码地址与精确派�
 <config>
 AGENTS.md - Agent 工作规则与 GEB 文档协议
 README.md - 面向管理员与员工的开源入口，提供产品定位、自托管部署、插件接入、日常使用与排障路径
-docker-compose.yml - 根目录 Compose 薄入口，复用 deploy/compose 的单一生产拓扑
-.env.example - GHCR next 镜像与无秘密 Compose 部署参数模板
+docker-compose.yml - 根目录零配置 Compose 入口，复用 deploy/compose 拓扑并加载 .env.example 默认环境
+.env.example - GHCR next 镜像、`admin/owndsh` 与其他运行参数的可选环境变量覆盖模板
 .gitignore - 密钥、依赖、构建产物和本机文件排除规则
 .dockerignore - Server/Console 共用构建上下文边界，排除本机状态、密钥、缓存与制品
 .gitattributes - 跨平台文本与换行约定

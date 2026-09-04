@@ -1,24 +1,15 @@
 /**
- * [INPUT]: 依赖 PostgreSQL JDBC/事务、ID supplier、LOCAL 密码策略与一次性用户名/密码文件。
- * [OUTPUT]: 提供带 transaction advisory lock 的幂等管理员初始化；完成后只保留无 secret marker。
+ * [INPUT]: 依赖 PostgreSQL JDBC/事务、ID supplier 与一次性用户名/非空密码环境变量。
+ * [OUTPUT]: 提供带 transaction advisory lock 的幂等管理员初始化；初始密码不套用正式策略，完成后只保留无 secret marker。
  * [POS]: deployment 的安全启动核心，角色绑定、用户创建和完成标记全成全败，重启不再读取 bootstrap secret。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.deployment;
 
 import cn.hutool.crypto.digest.BCrypt;
-import com.owndsh.enterprise.auth.domain.LocalPasswordPolicy;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.transaction.support.TransactionOperations;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
-import java.nio.charset.CharacterCodingException;
-import java.nio.charset.CodingErrorAction;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Arrays;
@@ -29,27 +20,27 @@ import java.util.regex.Pattern;
 public final class DeploymentBootstrapService {
     static final String COMPLETED_MARKER = "BOOTSTRAP_ADMIN_COMPLETED";
     private static final long ADVISORY_LOCK_ID = 730_210_001L;
-    private static final int MAX_PASSWORD_FILE_BYTES = 1024;
+    private static final int MAX_INITIAL_PASSWORD_LENGTH = 1024;
     private static final Pattern USERNAME = Pattern.compile("[A-Za-z][A-Za-z0-9._-]{2,29}");
 
     private final JdbcOperations jdbc;
     private final TransactionOperations transactions;
     private final LongSupplier ids;
     private final String username;
-    private final Path passwordFile;
+    private final String password;
 
     public DeploymentBootstrapService(
         JdbcOperations jdbc,
         TransactionOperations transactions,
         LongSupplier ids,
         String username,
-        Path passwordFile
+        String password
     ) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
         this.transactions = Objects.requireNonNull(transactions, "transactions");
         this.ids = Objects.requireNonNull(ids, "ids");
         this.username = username;
-        this.passwordFile = passwordFile;
+        this.password = password;
     }
 
     public void initialize() {
@@ -58,9 +49,8 @@ public final class DeploymentBootstrapService {
             if (markerExists()) return;
 
             String normalizedUsername = requireUsername(username);
-            char[] password = readPassword(passwordFile);
+            char[] password = requirePassword(this.password);
             try {
-                LocalPasswordPolicy.validate(normalizedUsername, password);
                 createAdministrator(normalizedUsername, password);
             } finally {
                 Arrays.fill(password, '\0');
@@ -130,44 +120,10 @@ public final class DeploymentBootstrapService {
         return normalized;
     }
 
-    private static char[] readPassword(Path path) {
-        if (path == null) {
-            throw new IllegalStateException("ENT_BOOTSTRAP_ADMIN_PASSWORD_FILE 必须配置");
+    private static char[] requirePassword(String value) {
+        if (value == null || value.isEmpty() || value.length() > MAX_INITIAL_PASSWORD_LENGTH) {
+            throw new IllegalStateException("ENT_BOOTSTRAP_ADMIN_PASSWORD 必须为非空值");
         }
-        byte[] bytes;
-        try {
-            bytes = Files.readAllBytes(path);
-        } catch (IOException exception) {
-            throw new IllegalStateException("bootstrap 管理员密码文件不可读", exception);
-        }
-        try {
-            if (bytes.length == 0 || bytes.length > MAX_PASSWORD_FILE_BYTES) {
-                throw new IllegalStateException("bootstrap 管理员密码文件长度不合法");
-            }
-            CharBuffer decoded = decodeUtf8(bytes);
-            char[] password = new char[decoded.remaining()];
-            decoded.get(password);
-            int length = password.length;
-            while (length > 0 && (password[length - 1] == '\n' || password[length - 1] == '\r')) length--;
-            if (length != password.length) {
-                char[] trimmed = Arrays.copyOf(password, length);
-                Arrays.fill(password, '\0');
-                password = trimmed;
-            }
-            return password;
-        } finally {
-            Arrays.fill(bytes, (byte) 0);
-        }
-    }
-
-    private static CharBuffer decodeUtf8(byte[] bytes) {
-        try {
-            return StandardCharsets.UTF_8.newDecoder()
-                .onMalformedInput(CodingErrorAction.REPORT)
-                .onUnmappableCharacter(CodingErrorAction.REPORT)
-                .decode(ByteBuffer.wrap(bytes));
-        } catch (CharacterCodingException exception) {
-            throw new IllegalStateException("bootstrap 管理员密码文件必须是 UTF-8", exception);
-        }
+        return value.toCharArray();
     }
 }

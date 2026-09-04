@@ -34,7 +34,7 @@ public class DeploymentBootstrapConfiguration {
             new TransactionTemplate(transactionManager),
             ids,
             properties.getUsername(),
-            properties.getPasswordFile()
+            properties.getPassword()
         );
     }
 

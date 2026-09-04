@@ -6,7 +6,7 @@
 
 ConsoleBootstrapControllerTest.java: 验证控制台 bootstrap 只投影当前账号、登录来源、固定角色、产品权限与部署标识。
 EnterpriseAuthResourceConfigurationTest.java: 验证登录静态资源映射、两阶段改密页面与凭据清理边界。
-EnterpriseIdentityConfigurationTest.java: 验证公网 HTTP(S) authority 的协议、端口、路径、查询与 user-info 约束。
+EnterpriseIdentityConfigurationTest.java: 验证公网 HTTP(S) authority 的协议/端口/结构约束，以及环境 master key 的精确 32 字节边界。
 IdentityAdminApiTest.java: 以 MockMvc 和派生 schema 验证身份源、映射、用户组、认证 cursor、权限与秘密隔离。
 IdentityPersistenceIntegrationTest.java: 以真实 PostgreSQL 验证身份、绑定、目录导入、用户组与审计事务边界。
 LdapIdentityAdapterTest.java: 以 OpenLDAP 验证 StartTLS/LDAPS、用户 bind、目录查询转义与稳定 subject。

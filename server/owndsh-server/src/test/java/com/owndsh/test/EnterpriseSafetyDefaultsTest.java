@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 owndsh-server 经 Maven 过滤后的 application.yml 与 Spring YAML loader。
- * [OUTPUT]: 验证 graceful drain、无总时长 SSE、请求上限、同源 CORS、Session 1 MiB 与无默认 JWT secret。
+ * [OUTPUT]: 验证 graceful drain、请求上限、同源 CORS、单配置环境入口与无默认 JWT secret。
  * [POS]: owndsh-server 的 T20 部署默认值回归，防止配置退化绕过业务层边界。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -40,6 +40,16 @@ class EnterpriseSafetyDefaultsTest {
         assertThat(property("web.cors.allow-credentials")).isEqualTo(false);
         assertThat(property("web.cors.allowed-origin-patterns")).isEqualTo("");
         assertThat(property("sa-token.jwt-secret-key")).isEqualTo("${SA_TOKEN_JWT_SECRET_KEY}");
+    }
+
+    @Test
+    void exposesDatabaseRedisAndEnterpriseSecretsAsEnvironmentOverrides() {
+        assertThat(property("spring.datasource.dynamic.datasource.master.password"))
+            .isEqualTo("${ENT_POSTGRES_PASSWORD:owndsh}");
+        assertThat(property("spring.data.redis.password")).isEqualTo("${ENT_REDIS_PASSWORD:owndsh}");
+        assertThat(property("enterprise.crypto.master-key")).isEqualTo("${ENT_MASTER_KEY:}");
+        assertThat(property("enterprise.plugin.signing-private-key"))
+            .isEqualTo("${ENT_PLUGIN_SIGNING_PRIVATE_KEY:}");
     }
 
     private Object property(String name) {

@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 EnterpriseIdentityConfiguration 的公网 HTTP(S) authority 校验边界。
- * [OUTPUT]: 验证 HTTP/HTTPS 默认端口与合法显式端口可用，其他协议、越界端口和非 authority 结构 fail-closed。
+ * [INPUT]: 依赖 EnterpriseIdentityConfiguration 的公网 HTTP(S) authority 与环境 master key 校验边界。
+ * [OUTPUT]: 验证合法 HTTP(S) authority、精确 32 字节 master key，并拒绝非法 URI 与 key 长度。
  * [POS]: auth 部署配置的轻量回归门禁，使 Java 运行时契约与 T21 安装器保持一致。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -16,6 +16,19 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @Tag("dev")
 class EnterpriseIdentityConfigurationTest {
+    @Test
+    void requiresExactlyThirtyTwoMasterKeyBytes() {
+        var configuration = new EnterpriseIdentityConfiguration();
+        var properties = new EnterpriseIdentityProperties();
+        properties.getCrypto().setMasterKey("0123456789abcdef0123456789abcdef");
+        assertThat(configuration.enterpriseSecretCipher(properties)).isNotNull();
+
+        properties.getCrypto().setMasterKey("short");
+        assertThatThrownBy(() -> configuration.enterpriseSecretCipher(properties))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("ENT_MASTER_KEY");
+    }
+
     @Test
     void acceptsHttpAndHttpsAuthorityWithDefaultOrExplicitPort() {
         assertThat(EnterpriseIdentityConfiguration.requirePublicBaseUrl(

@@ -1,6 +1,6 @@
 #!/bin/sh
 # [INPUT]: 依赖已校验 release、全新绝对状态目录、隔离 Compose project、HTTP(S) 外部地址、HTTP 发布端口与一次性管理员密码文件。
-# [OUTPUT]: 生成安装 secret，加载镜像，事务初始化管理员，移除 bootstrap 副本并输出员工 profile 材料。
+# [OUTPUT]: 生成运行时 secret，加载镜像，通过环境变量初始化管理员并输出员工 profile 材料。
 # [POS]: T21 全新安装事务；已有 runtime.env 时 fail-closed，绝不覆盖既有数据库或 key。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -84,10 +84,9 @@ load_image_archive "$release_root/images/console.tar.gz"
 openssl rand -base64 48 | tr -d '\n' > "$OWNDSH_STATE_DIR/secrets/postgres_password"
 openssl rand -base64 48 | tr -d '\n' > "$OWNDSH_STATE_DIR/secrets/redis_password"
 openssl rand -base64 64 | tr -d '\n' > "$OWNDSH_STATE_DIR/secrets/sa_token_jwt_secret_key"
-openssl rand 32 > "$OWNDSH_STATE_DIR/secrets/enterprise_master_key"
+openssl rand -base64 24 | tr -d '\n' > "$OWNDSH_STATE_DIR/secrets/enterprise_master_key"
 openssl genpkey -algorithm ED25519 -out "$OWNDSH_STATE_DIR/secrets/plugin_signing_private_key" >/dev/null 2>&1
 openssl pkey -in "$OWNDSH_STATE_DIR/secrets/plugin_signing_private_key" -pubout -out "$OWNDSH_STATE_DIR/secrets/plugin_signing_public_key" >/dev/null 2>&1
-cp "$bootstrap_password_file" "$OWNDSH_STATE_DIR/secrets/bootstrap_admin_password"
 chmod 600 "$OWNDSH_STATE_DIR"/secrets/*
 
 cat > "$OWNDSH_STATE_DIR/runtime.env" <<EOF
@@ -118,20 +117,19 @@ chmod 644 "$OWNDSH_STATE_DIR/harness/"*
 
 runtime=$(runtime_file)
 base_compose=$(compose_file)
-bootstrap_compose="$OWNDSH_STATE_DIR/releases/$release/compose/compose.bootstrap.yml"
+ENT_POSTGRES_PASSWORD="$(cat "$OWNDSH_STATE_DIR/secrets/postgres_password")" \
+ENT_REDIS_PASSWORD="$(cat "$OWNDSH_STATE_DIR/secrets/redis_password")" \
+SA_TOKEN_JWT_SECRET_KEY="$(cat "$OWNDSH_STATE_DIR/secrets/sa_token_jwt_secret_key")" \
+ENT_MASTER_KEY="$(cat "$OWNDSH_STATE_DIR/secrets/enterprise_master_key")" \
+ENT_PLUGIN_SIGNING_PRIVATE_KEY="$(cat "$OWNDSH_STATE_DIR/secrets/plugin_signing_private_key")" \
 ENT_BOOTSTRAP_ADMIN_USERNAME=$bootstrap_admin \
-OWNDSH_BOOTSTRAP_PASSWORD_FILE="$OWNDSH_STATE_DIR/secrets/bootstrap_admin_password" \
-  docker compose --env-file "$runtime" -f "$base_compose" -f "$bootstrap_compose" up -d
+ENT_BOOTSTRAP_ADMIN_PASSWORD="$(cat "$bootstrap_password_file")" \
+  docker compose --env-file "$runtime" -f "$base_compose" up -d
 wait_healthy server 90
 wait_healthy console 30
 
-marker=$(compose exec -T postgres sh -ec 'export PGPASSWORD="$(cat /run/secrets/postgres_password)"; psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "select count(*) from ent_deployment_state where state_key=\$\$BOOTSTRAP_ADMIN_COMPLETED\$\$"' 2>/dev/null || true)
+marker=$(compose exec -T postgres sh -ec 'export PGPASSWORD="$POSTGRES_PASSWORD"; psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "select count(*) from ent_deployment_state where state_key=\$\$BOOTSTRAP_ADMIN_COMPLETED\$\$"' 2>/dev/null || true)
 [ "$marker" = 1 ] || fail "bootstrap 完成 marker 不存在"
-
-compose up -d --force-recreate server console
-wait_healthy server 90
-wait_healthy console 30
-rm -f "$OWNDSH_STATE_DIR/secrets/bootstrap_admin_password"
 
 curl --fail --silent --show-error "http://127.0.0.1:$http_port/healthz" >/dev/null
 printf '%s\n' "安装完成: $public_base_url"

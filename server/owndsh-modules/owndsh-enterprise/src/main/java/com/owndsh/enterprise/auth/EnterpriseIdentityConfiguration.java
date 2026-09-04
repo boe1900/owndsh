@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 JDBC/Jackson/事务/Redisson/ID generator、部署 URI/master key 与 Host 登录/会话 ports。
+ * [INPUT]: 依赖 JDBC/Jackson/事务/Redisson/ID generator、部署 URI/环境 master key 与 Host 登录/会话 ports。
  * [OUTPUT]: 对外装配身份、成员目录、Redis PKCE、PostgreSQL Refresh Session 与统一 HTTP(S) authority 校验。
  * [POS]: auth 纵向模块的 Spring composition root，领域与 adapter 均不使用静态容器查找。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -53,10 +53,8 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.json.JsonMapper;
 
-import java.io.IOException;
 import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
@@ -70,19 +68,11 @@ import java.util.function.LongSupplier;
 public class EnterpriseIdentityConfiguration {
     @Bean
     SecretCipher enterpriseSecretCipher(EnterpriseIdentityProperties properties) {
-        Path masterKeyFile = properties.getCrypto().getMasterKeyFile();
-        if (masterKeyFile == null) {
-            throw new IllegalStateException("enterprise.crypto.master-key-file 必须配置");
-        }
-        byte[] masterKey;
-        try {
-            masterKey = Files.readAllBytes(masterKeyFile);
-        } catch (IOException exception) {
-            throw new IllegalStateException("enterprise master key 文件不可读", exception);
-        }
+        String configuredKey = properties.getCrypto().getMasterKey();
+        byte[] masterKey = configuredKey == null ? new byte[0] : configuredKey.getBytes(StandardCharsets.UTF_8);
         if (masterKey.length != 32) {
             Arrays.fill(masterKey, (byte) 0);
-            throw new IllegalStateException("enterprise master key 文件必须精确为 32 字节");
+            throw new IllegalStateException("ENT_MASTER_KEY 必须精确为 32 字节");
         }
         try {
             return new SecretCipher(masterKey);

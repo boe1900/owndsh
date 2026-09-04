@@ -1,9 +1,8 @@
-# [INPUT]: 依赖部署环境提供的 enterprise 公网 URI、管理回调、master key、冻结配额时区与 Redis/PostgreSQL 配置
-# [OUTPUT]: 提供 OwnDsh 应用、公开认证白名单、无总时长 SSE 与 enterprise 强类型配置的统一启动真源
-# [POS]: owndsh-server 的默认应用装配；生产秘密只接受环境变量/文件路径，不写入仓库
+# [INPUT]: 依赖环境变量提供的 PostgreSQL、Redis、JWT、enterprise 公网 URI 与 master/signing key
+# [OUTPUT]: 提供 OwnDsh 唯一应用配置、数据库迁移、公开认证白名单、健康检查与 enterprise 强类型装配
+# [POS]: owndsh-server 的单一启动真源；开发、容器与生产使用相同配置结构，仅由环境变量覆盖运行值
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
-# 开发环境配置
 server:
   # 服务器的HTTP端口，默认为8080
   port: 8080
@@ -37,7 +36,7 @@ captcha:
 # 日志配置
 logging:
   level:
-    com.owndsh: @logging.level@
+    com.owndsh: ${OWNDSH_LOG_LEVEL:info}
     org.springframework: warn
     org.mybatis.spring.mapper: error
     org.apache.fury: warn
@@ -57,7 +56,14 @@ enterprise:
   public-base-url: ${ENT_PUBLIC_BASE_URL:}
   admin-redirect-uri: ${ENT_ADMIN_REDIRECT_URI:}
   crypto:
-    master-key-file: ${ENT_MASTER_KEY_FILE:}
+    master-key: ${ENT_MASTER_KEY:}
+  plugin:
+    artifact-root: ${ENT_ARTIFACT_ROOT:./data/enterprise/artifacts}
+    signing-private-key: ${ENT_PLUGIN_SIGNING_PRIVATE_KEY:}
+  deployment:
+    bootstrap:
+      username: ${ENT_BOOTSTRAP_ADMIN_USERNAME:}
+      password: ${ENT_BOOTSTRAP_ADMIN_PASSWORD:}
   auth:
     allow-insecure-oidc: ${ENT_ALLOW_INSECURE_OIDC:false}
   quota:
@@ -79,6 +85,40 @@ enterprise:
 spring:
   application:
     name: OwnDsh
+  datasource:
+    type: com.zaxxer.hikari.HikariDataSource
+    dynamic:
+      primary: master
+      strict: true
+      datasource:
+        master:
+          type: ${spring.datasource.type}
+          driver-class-name: org.postgresql.Driver
+          url: jdbc:postgresql://${ENT_POSTGRES_HOST:localhost}:${ENT_POSTGRES_PORT:5432}/${ENT_POSTGRES_DATABASE:owndsh}?sslmode=${ENT_POSTGRES_SSL_MODE:disable}&reWriteBatchedInserts=true
+          username: ${ENT_POSTGRES_USERNAME:owndsh}
+          password: ${ENT_POSTGRES_PASSWORD:owndsh}
+      hikari:
+        max-pool-size: ${ENT_POSTGRES_POOL_MAX_SIZE:20}
+        min-idle: ${ENT_POSTGRES_POOL_MIN_IDLE:4}
+        connection-timeout: 30000
+        validation-timeout: 5000
+        idle-timeout: 600000
+        max-lifetime: 1800000
+        keepalive-time: 30000
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
+  data:
+    redis:
+      host: ${ENT_REDIS_HOST:localhost}
+      port: ${ENT_REDIS_PORT:6379}
+      database: ${ENT_REDIS_DATABASE:0}
+      password: ${ENT_REDIS_PASSWORD:owndsh}
+      timeout: 10s
+      ssl:
+        enabled: ${ENT_REDIS_SSL_ENABLED:false}
   threads:
     # 开启虚拟线程 仅jdk21可用
     virtual:
@@ -97,8 +137,6 @@ spring:
   messages:
     # 国际化资源文件路径
     basename: i18n/messages
-  profiles:
-    active: @profiles.active@
   # 文件上传
   servlet:
     multipart:
@@ -154,10 +192,14 @@ security:
     - /*/api-docs
     - /*/api-docs/**
     - /enterprise/auth/v1/**
+    - /actuator/health
 
 # MyBatisPlus配置
 # https://baomidou.com/config/
 mybatis-plus:
+  sql-log:
+    enabled: ${OWNDSH_SQL_LOG_ENABLED:false}
+    output: console
   # 自定义配置 是否全局开启逻辑删除 关闭后 所有逻辑删除功能将失效
   enableLogicDelete: true
   # 多包名使用逗号分隔
@@ -190,7 +232,7 @@ mybatis-encryptor:
 # api接口加密
 api-decrypt:
   # 是否开启全局接口加密
-  enabled: true
+  enabled: ${API_DECRYPT_ENABLED:false}
   # AES 加密头标识
   headerFlag: encrypt-key
   # 响应加密公钥 非对称算法的公私钥 如：SM2，RSA 使用者请自行更换
@@ -203,7 +245,7 @@ api-decrypt:
 springdoc:
   api-docs:
     # 是否开启接口文档
-    enabled: true
+    enabled: ${SPRINGDOC_API_DOCS_ENABLED:false}
   info:
     # 标题
     title: 'OwnDsh API'
@@ -244,22 +286,24 @@ management:
   endpoints:
     web:
       exposure:
-        include: '*'
+        include: ${MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE:health}
   endpoint:
     health:
-      show-details: ALWAYS
+      show-details: ${MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS:never}
+      probes:
+        enabled: true
     logfile:
       external-file: ./logs/sys-console.log
 
 --- # 统一消息推送配置
 message:
-  enabled: true
+  enabled: ${MESSAGE_ENABLED:false}
   # sse / websocket
   transport: sse
   # 统一访问路径
   path: /resource/message
   # websocket 允许的跨域来源
-  allowedOrigins: '*'
+  allowedOrigins: []
   # SSE 连接超时时间，单位毫秒
   sse-timeout: 86400000
   # 本地连接心跳检测间隔，单位秒

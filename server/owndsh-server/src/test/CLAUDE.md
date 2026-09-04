@@ -7,7 +7,7 @@
 java/com/owndsh/test/AssertUnitTest.java: Host 上游断言示例测试，随锁定源码基线保留。
 java/com/owndsh/test/DemoUnitTest.java: Host 上游 JUnit 基础示例，随锁定源码基线保留。
 java/com/owndsh/test/EnterpriseContractSchemaTest.java: 遍历 OpenAPI 生成的全部 manifest 条目，以 Draft 2020-12 schema 验证与 TypeScript 相同的正反 fixture，避免协议扩展与手工计数耦合。
-java/com/owndsh/test/EnterpriseSafetyDefaultsTest.java: 结构化读取 application.yml，验证分层请求上限、无总时长 SSE、graceful drain、同源 CORS、Session 1 MiB 与强制外部 JWT secret。
+java/com/owndsh/test/EnterpriseSafetyDefaultsTest.java: 结构化读取唯一 application.yml，验证请求上限、graceful drain、同源 CORS，以及 PostgreSQL/Redis/JWT/master/signing key 环境入口。
 java/com/owndsh/common/security/config/SecurityConfigEnterpriseRouteTest.java: 锁定企业路由下沉领域 context、非企业路由保留全局 Sa-Token 登录校验的边界。
 java/com/owndsh/test/ParamUnitTest.java: Host 上游参数化测试示例，随锁定源码基线保留。
 java/com/owndsh/test/OwnDshCaptchaVerifierTest.java: 验证 LOCAL 登录复用 Host captcha 开关、生成端默认 Redis codec、全局 key、GETDEL 单消费与失败记录。

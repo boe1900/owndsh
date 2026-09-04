@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 JDK Ed25519 keypair、RFC 8785 signer 与冻结 compatibility/signature manifest。
- * [OUTPUT]: 验证确定性 canonical bytes、64 字节签名、公钥验签和 PKCS#8 文件加载。
+ * [OUTPUT]: 验证确定性 canonical bytes、64 字节签名、公钥验签和环境 PKCS#8 加载。
  * [POS]: T13 服务端与后续 T14 客户端共享签名语义的规范向量门禁。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -10,14 +10,12 @@ import com.owndsh.enterprise.plugin.artifact.PluginManifestSigner;
 import com.owndsh.enterprise.plugin.domain.PluginCompatibility;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.security.KeyPairGenerator;
 import java.security.Signature;
+import java.util.Base64;
 import java.util.HexFormat;
 import java.util.List;
 
@@ -26,9 +24,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Tag("dev")
 class PluginManifestSignerTest {
     private static final JsonMapper JSON = JsonMapper.builder().build();
-
-    @TempDir
-    Path temporary;
 
     @Test
     void canonicalizesTheFrozenManifestAndProducesVerifiableEd25519() throws Exception {
@@ -50,19 +45,23 @@ class PluginManifestSignerTest {
     }
 
     @Test
-    void loadsOnlyRealPkcs8PrivateKeyMaterialFromAFile() throws Exception {
+    void loadsOnlyRealPkcs8PrivateKeyMaterialFromEnvironmentText() throws Exception {
         var pair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
-        Path key = temporary.resolve("plugin-signing.pk8");
-        Files.write(key, pair.getPrivate().getEncoded());
-        PluginManifestSigner signer = PluginManifestSigner.fromPkcs8File(JSON, key);
+        String base64 = Base64.getEncoder().encodeToString(pair.getPrivate().getEncoded());
+        for (String key : List.of(
+            base64,
+            "-----BEGIN PRIVATE KEY-----\n" + base64 + "\n-----END PRIVATE KEY-----"
+        )) {
+            PluginManifestSigner signer = PluginManifestSigner.fromPkcs8(JSON, key);
 
-        byte[] signature = signer.sign(manifest());
+            byte[] signature = signer.sign(manifest());
 
-        Signature verifier = Signature.getInstance("Ed25519");
-        verifier.initVerify(pair.getPublic());
-        verifier.update(signer.canonicalize(manifest()));
-        assertThat(verifier.verify(signature)).isTrue();
-        assertThat(HexFormat.of().formatHex(signature)).hasSize(128);
+            Signature verifier = Signature.getInstance("Ed25519");
+            verifier.initVerify(pair.getPublic());
+            verifier.update(signer.canonicalize(manifest()));
+            assertThat(verifier.verify(signature)).isTrue();
+            assertThat(HexFormat.of().formatHex(signature)).hasSize(128);
+        }
     }
 
     private static PluginManifestSigner.SignatureManifest manifest() {

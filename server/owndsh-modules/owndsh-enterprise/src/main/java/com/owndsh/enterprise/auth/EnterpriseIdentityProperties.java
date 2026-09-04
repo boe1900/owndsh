@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 绑定 enterprise tenant/public base/admin redirect、crypto master key 与 OIDC 安全开关部署配置。
+ * [INPUT]: 绑定 enterprise tenant/public base/admin redirect、环境 master key 与 OIDC 安全开关部署配置。
  * [OUTPUT]: 对外提供身份、PKCE composition root 和可信请求上下文所需的强类型配置。
- * [POS]: auth 模块的部署配置边界，master key 只保存文件路径且不接受明文配置值。
+ * [POS]: auth 模块的部署配置边界，master key 由容器环境注入且不写入配置文件。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.auth;
@@ -9,8 +9,6 @@ package com.owndsh.enterprise.auth;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.net.URI;
-import java.nio.file.Path;
-
 /**
  * 企业身份部署配置。
  */
@@ -55,14 +53,14 @@ public final class EnterpriseIdentityProperties {
     }
 
     public static final class Crypto {
-        private Path masterKeyFile;
+        private String masterKey;
 
-        public Path getMasterKeyFile() {
-            return masterKeyFile;
+        public String getMasterKey() {
+            return masterKey;
         }
 
-        public void setMasterKeyFile(Path masterKeyFile) {
-            this.masterKeyFile = masterKeyFile;
+        public void setMasterKey(String masterKey) {
+            this.masterKey = masterKey;
         }
     }
 

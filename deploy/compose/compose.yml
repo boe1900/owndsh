@@ -1,5 +1,5 @@
-# [INPUT]: 依赖 runtime.env、可覆盖的 PostgreSQL 基线、安装 secret、四个持久卷、可写临时目录与锁定 Linux amd64 镜像。
-# [OUTPUT]: 提供默认拉取 GHCR next 镜像、首次装载上游基线、只发布 HTTP 8080 的 Console、单 Server、PostgreSQL 17.6 和 Redis 7.4.5 拓扑。
+# [INPUT]: 依赖带默认值的环境变量、可覆盖的 PostgreSQL 基线、四个持久卷、可写临时目录与锁定 Linux amd64 镜像。
+# [OUTPUT]: 提供默认拉取 GHCR next 镜像、`admin/owndsh` 幂等初始化、HTTP Console、单 Server、PostgreSQL 17.6 和 Redis 7.4.5 拓扑。
 # [POS]: T21 部署运行时事实源；OwnDsh 不终止 TLS，空数据库先由官方 initdb 装载 version 0，Flyway 接管后续版本。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -13,10 +13,8 @@ services:
     environment:
       POSTGRES_DB: ${ENT_POSTGRES_DATABASE:-owndsh}
       POSTGRES_USER: ${ENT_POSTGRES_USERNAME:-owndsh}
-      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      POSTGRES_PASSWORD: ${ENT_POSTGRES_PASSWORD:-owndsh}
       TZ: UTC
-    secrets:
-      - postgres_password
     configs:
       - source: postgres_baseline
         target: /docker-entrypoint-initdb.d/00-owndsh-baseline.sql
@@ -35,16 +33,16 @@ services:
     image: ${OWNDSH_BASE_IMAGE_REGISTRY:-docker.io/library}/redis:7.4.5-alpine3.21@sha256:bb186d083732f669da90be8b0f975a37812b15e913465bb14d845db72a4e3e08
     platform: linux/amd64
     restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${ENT_REDIS_PASSWORD:-owndsh}
     command:
       - sh
       - -ec
-      - exec redis-server --appendonly yes --appendfsync everysec --requirepass "$$(cat /run/secrets/redis_password)"
-    secrets:
-      - redis_password
+      - exec redis-server --appendonly yes --appendfsync everysec --requirepass "$$REDIS_PASSWORD"
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD-SHELL", "REDISCLI_AUTH=$$(cat /run/secrets/redis_password) redis-cli ping | grep -q PONG"]
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$$REDIS_PASSWORD redis-cli ping | grep -q PONG"]
       interval: 5s
       timeout: 5s
       retries: 30
@@ -72,27 +70,27 @@ services:
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: deploy
-      ENT_PUBLIC_BASE_URL: ${ENT_PUBLIC_BASE_URL:?ENT_PUBLIC_BASE_URL must be set}
-      ENT_ADMIN_REDIRECT_URI: ${ENT_ADMIN_REDIRECT_URI:?ENT_ADMIN_REDIRECT_URI must be set}
+      ENT_PUBLIC_BASE_URL: ${ENT_PUBLIC_BASE_URL:-http://localhost:${OWNDSH_HTTP_PORT:-8080}}
+      ENT_ADMIN_REDIRECT_URI: ${ENT_ADMIN_REDIRECT_URI:-${ENT_PUBLIC_BASE_URL:-http://localhost:${OWNDSH_HTTP_PORT:-8080}}/enterprise/auth/callback}
       ENT_DEPLOYMENT_TIME_ZONE: ${ENT_DEPLOYMENT_TIME_ZONE:-Asia/Shanghai}
       ENT_ALLOW_INSECURE_OIDC: ${ENT_ALLOW_INSECURE_OIDC:-false}
       ENT_POSTGRES_DATABASE: ${ENT_POSTGRES_DATABASE:-owndsh}
       ENT_POSTGRES_USERNAME: ${ENT_POSTGRES_USERNAME:-owndsh}
-      ENT_MASTER_KEY_FILE: /run/secrets/enterprise_master_key
-      ENT_PLUGIN_SIGNING_PRIVATE_KEY_FILE: /run/secrets/plugin_signing_private_key
+      ENT_POSTGRES_HOST: postgres
+      ENT_POSTGRES_PORT: "5432"
+      ENT_POSTGRES_PASSWORD: ${ENT_POSTGRES_PASSWORD:-owndsh}
+      ENT_REDIS_HOST: redis
+      ENT_REDIS_PORT: "6379"
+      ENT_REDIS_PASSWORD: ${ENT_REDIS_PASSWORD:-owndsh}
+      SA_TOKEN_JWT_SECRET_KEY: ${SA_TOKEN_JWT_SECRET_KEY:-owndsh-jwt-secret-change-me-000000000000000000000000}
+      ENT_MASTER_KEY: ${ENT_MASTER_KEY:-0123456789abcdef0123456789abcdef}
+      ENT_PLUGIN_SIGNING_PRIVATE_KEY: ${ENT_PLUGIN_SIGNING_PRIVATE_KEY:-MC4CAQAwBQYDK2VwBCIEILTqRfExQQ2Hw4v8uM2qtYMsd8gPj+OoOGYXCofntEsY}
+      ENT_BOOTSTRAP_ADMIN_USERNAME: ${ENT_BOOTSTRAP_ADMIN_USERNAME:-admin}
+      ENT_BOOTSTRAP_ADMIN_PASSWORD: ${ENT_BOOTSTRAP_ADMIN_PASSWORD:-owndsh}
       ENT_ARTIFACT_ROOT: /var/lib/enterprise/artifacts
       XDG_CACHE_HOME: /tmp
       JAVA_TOOL_OPTIONS: ${OWNDSH_JAVA_TOOL_OPTIONS:--XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError}
       TZ: ${ENT_DEPLOYMENT_TIME_ZONE:-Asia/Shanghai}
-    secrets:
-      - source: postgres_password
-        target: spring.datasource.dynamic.datasource.master.password
-      - source: redis_password
-        target: spring.data.redis.password
-      - source: sa_token_jwt_secret_key
-        target: sa_token_jwt_secret_key
-      - enterprise_master_key
-      - plugin_signing_private_key
     volumes:
       - artifacts:/var/lib/enterprise/artifacts
       - server_logs:/app/logs
@@ -147,17 +145,6 @@ volumes:
   artifacts:
   server_logs:
 
-secrets:
-  postgres_password:
-    file: ${OWNDSH_STATE_DIR:?OWNDSH_STATE_DIR must be set}/secrets/postgres_password
-  redis_password:
-    file: ${OWNDSH_STATE_DIR:?OWNDSH_STATE_DIR must be set}/secrets/redis_password
-  sa_token_jwt_secret_key:
-    file: ${OWNDSH_STATE_DIR:?OWNDSH_STATE_DIR must be set}/secrets/sa_token_jwt_secret_key
-  enterprise_master_key:
-    file: ${OWNDSH_STATE_DIR:?OWNDSH_STATE_DIR must be set}/secrets/enterprise_master_key
-  plugin_signing_private_key:
-    file: ${OWNDSH_STATE_DIR:?OWNDSH_STATE_DIR must be set}/secrets/plugin_signing_private_key
 configs:
   postgres_baseline:
-    file: ${OWNDSH_POSTGRES_BASELINE:-${OWNDSH_STATE_DIR:?OWNDSH_STATE_DIR must be set}/releases/${OWNDSH_RELEASE_VERSION:?OWNDSH_RELEASE_VERSION must be set}/database/postgres_owndsh.sql}
+    file: ${OWNDSH_POSTGRES_BASELINE:-../database/postgres_owndsh.sql}

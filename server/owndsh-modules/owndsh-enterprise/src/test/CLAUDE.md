@@ -24,7 +24,7 @@ java/com/owndsh/enterprise/quota/RedisQuotaRateLimiterTest.java: 使用真实 Re
 java/com/owndsh/enterprise/quota/QuotaManagementIntegrationTest.java: 以显式活动用户和真实 PostgreSQL 验证 TOKEN/RATE 双层互斥、组织级供应商速率、多资源叠加、四窗口/CAS/bootstrap、并发防超卖、状态机、结算与恢复。
 java/com/owndsh/enterprise/quota/T09ApiContractTest.java: 以 MockMvc/JSON Schema 验证带策略类型的配额/用量 operation、四窗口与资源范围、ACTIVE 设备/用户边界及 ledger 脱敏。
 java/com/owndsh/enterprise/plugin/PluginArtifactSecurityTest.java: 以不落地解压的恶意 tgz 验证路径、链接、设备、原生模块、metadata、归档上限、CAS、同 hash 互斥与磁盘 fail-closed。
-java/com/owndsh/enterprise/plugin/PluginManifestSignerTest.java: 以 RFC 8785 已知向量和真实 PKCS#8 key 验证 JCS/Ed25519 签名声明及私钥文件边界。
+java/com/owndsh/enterprise/plugin/PluginManifestSignerTest.java: 以 RFC 8785 已知向量和真实 PKCS#8 key 验证 JCS/Ed25519 签名声明及环境文本私钥边界。
 java/com/owndsh/enterprise/plugin/PluginServerIntegrationTest.java: 以三个显式活动用户和真实 PostgreSQL 验证并发幂等上传、catalog assignment 读回、状态/CAS、分配优先级、下载授权、库存、审计与文件补偿。
 java/com/owndsh/enterprise/plugin/T13ApiContractTest.java: 以 MockMvc/JSON Schema 验证九个插件 operation、catalog 完整 assignment 投影、权限码、稳定错误和下载头。
 java/com/owndsh/enterprise/plugin/PluginTestArtifacts.java: 集中生成无脚本、无依赖、精确 rc.7 peer 的合法预构建 bundle tgz fixture。

@@ -43,8 +43,8 @@ key_backup="$key_output/$timestamp"
 mkdir -p "$data_backup" "$key_backup"
 chmod 700 "$data_backup" "$key_backup"
 
-compose exec -T postgres sh -ec 'export PGPASSWORD="$(cat /run/secrets/postgres_password)"; exec pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom --no-owner --no-privileges' > "$data_backup/postgres.dump"
-compose exec -T redis sh -ec 'export REDISCLI_AUTH="$(cat /run/secrets/redis_password)"; redis-cli SAVE >/dev/null'
+compose exec -T postgres sh -ec 'export PGPASSWORD="$POSTGRES_PASSWORD"; exec pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom --no-owner --no-privileges' > "$data_backup/postgres.dump"
+compose exec -T redis sh -ec 'export REDISCLI_AUTH="$REDIS_PASSWORD"; redis-cli SAVE >/dev/null'
 redis_container=$(compose ps -q redis)
 docker cp "$redis_container:/data/dump.rdb" "$data_backup/redis.rdb"
 

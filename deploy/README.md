@@ -41,7 +41,7 @@ OWNDSH_USE_LOCAL_BASE_IMAGES=1 \
 
 - 唯一、无路径的 ASCII `http://` 或 `https://` 外部 authority，以及精确位于其下的 `/enterprise/auth/callback` 管理回调。
 - Console 在宿主机发布的 HTTP 端口，默认 `8080`。
-- 3-30 位初始管理员名，以及满足 14-128 位、大小写、数字、符号要求的临时密码文件。
+- 3-30 位初始管理员名，以及内容非空的临时密码文件；正式密码策略在首次登录改密时执行。
 - IANA 配额时区；首次 migration 后不可修改。
 
 解包后执行：
@@ -51,7 +51,7 @@ OWNDSH_USE_LOCAL_BASE_IMAGES=1 \
   --state-dir /opt/owndsh \
   --public-base-url http://agent.internal:8080 \
   --admin-redirect-uri http://agent.internal:8080/enterprise/auth/callback \
-  --bootstrap-admin platform.admin \
+  --bootstrap-admin admin \
   --bootstrap-password-file /secure-input/bootstrap-password \
   --http-port 8080 \
   --time-zone Asia/Shanghai
@@ -61,7 +61,7 @@ OWNDSH_USE_LOCAL_BASE_IMAGES=1 \
 
 目标机需要 mirror 时，把环境变量放在安装命令之前；安装器会将通过字符校验的 registry 前缀写入 `runtime.env`，供后续重启、升级和恢复复用。
 
-安装器生成 PostgreSQL/Redis 密码、Sa-Token JWT secret、32 字节 master key 和 Ed25519 signing key。bootstrap 密码只在首次 Compose overlay 中挂载；数据库写入 `BOOTSTRAP_ADMIN_COMPLETED` 后，Server 以常规 Compose 重建，安装目录副本被删除。以后重启不需要也不读取 bootstrap 输入。初始管理员第一次 LOCAL 登录必须在同一登录事务中修改密码。
+离线安装器会生成 PostgreSQL/Redis 密码、Sa-Token JWT secret、32 字节 master key 和 Ed25519 signing key，并在每次 Compose 操作时从独立 key 文件注入容器环境，不写入普通 `runtime.env`。bootstrap 密码从安装命令指定的文件临时注入且不复制进状态目录；数据库写入 `BOOTSTRAP_ADMIN_COMPLETED` 后，后续启动只读取 marker，不再创建管理员。初始管理员第一次 LOCAL 登录必须在同一登录事务中修改密码。
 
 安装器不删除调用方传入的密码文件。调用方应在确认安装后按自身密钥流程处置输入文件。
 

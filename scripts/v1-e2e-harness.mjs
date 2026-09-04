@@ -6,6 +6,7 @@
  */
 
 import { execFile, execFileSync, spawn } from 'node:child_process';
+import { createPrivateKey, createPublicKey } from 'node:crypto';
 import { chmod, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
@@ -293,13 +294,16 @@ export async function runHarnessScenarios({ acceptance, admin, fixture, prefix, 
     await pnpm(['--dir', HARNESS_ROOT, 'dsh', 'plugin', '--profile', 'web', 'add', '--ignore-scripts', BUNDLE], {
       cwd: HARNESS_ROOT, env,
     });
-    const mounts = JSON.parse(execFileSync('docker', [
-      'inspect', SERVER_CONTAINER, '--format', '{{json .Mounts}}',
+    const serverEnvironment = JSON.parse(execFileSync('docker', [
+      'inspect', SERVER_CONTAINER, '--format', '{{json .Config.Env}}',
     ], { encoding: 'utf8' }));
-    const privateKeyMount = mounts.find(value => value.Destination === '/run/secrets/plugin_signing_private_key');
-    assert.ok(privateKeyMount);
-    const publicKey = (await readFile(resolve(dirname(privateKeyMount.Source), 'plugin_signing_public_key'), 'utf8'))
-      .replace(/-----[^-]+-----|\s/g, '');
+    const signingKey = serverEnvironment.find(value => value.startsWith('ENT_PLUGIN_SIGNING_PRIVATE_KEY='))
+      ?.slice('ENT_PLUGIN_SIGNING_PRIVATE_KEY='.length);
+    assert.ok(signingKey);
+    const privateKey = createPrivateKey(signingKey.startsWith('-----BEGIN')
+      ? signingKey
+      : { key: Buffer.from(signingKey, 'base64'), format: 'der', type: 'pkcs8' });
+    const publicKey = createPublicKey(privateKey).export({ format: 'der', type: 'spki' }).toString('base64');
     const profileDir = resolve(temporaryHome, 'profiles', 'web');
     const probePath = resolve(temporaryHome, 'v1-e2e-probe.mjs');
     await writeFile(probePath, probeSource());

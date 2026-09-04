@@ -23,7 +23,7 @@ HTTP 拓扑收敛日期：2026-09-04（Asia/Shanghai）
 
 - `deploy/compose/compose.yml` 固定 PostgreSQL 17.6、Redis 7.4.5 及全部 build/runtime 基础镜像 digest，强制 `linux/amd64`。PostgreSQL、Redis 和 Server 不发布宿主端口；Console 只发布 HTTP `8080`，Server/Console 使用只读根文件系统、最小 capability、`no-new-privileges`、tmpfs 和健康检查。
 - `deploy/nginx/nginx.conf` 提供 HTTP 同源入口，规范传递可选上级代理的 HTTP(S) 协议与端口，模型 SSE 关闭 buffering。Nginx 全部临时目录位于 `/tmp`，因此只读根文件系统可正常运行。
-- `application-deploy.yml` 通过 configtree 消费 Docker secrets，只暴露无详情 health，关闭 OpenAPI、监控、消息、MCP、任务、AI、工作流和样例能力。
+- 唯一 `application.yml` 通过环境变量消费 PostgreSQL、Redis、JWT、master/signing key 与 bootstrap 配置，默认只暴露无详情 health，并关闭 OpenAPI、消息和 API 加密样例能力。
 - Flyway V12 仅在匹配上游精确已知 hash 时退役 `admin/test/test1` 与两个已知 client，不删除用户主键；新增 `password_change_required` 和无 secret 的 `ent_deployment_state`。
 - `DeploymentBootstrapService` 在 PostgreSQL transaction advisory lock 内原子创建唯一 `enterprise_admin`、设置首次强制改密并写 `BOOTSTRAP_ADMIN_COMPLETED`。管理员、角色和 marker 全成全败；marker 存在后不再要求或读取 bootstrap secret。
 - LOCAL 首次登录在同一事务中验证旧密码与新密码策略、更新 BCrypt hash 并清除首次改密标记；失败不会签发授权码或留下半完成状态。

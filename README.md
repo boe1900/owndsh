@@ -32,69 +32,52 @@ OwnDsh 不 fork 官方 Web/Desktop UI，不接管员工工作区，也不远程�
 
 ## Docker Compose 部署
 
-当前镜像目标为 Linux `amd64`。准备 Docker Engine、Docker Compose `2.20.3+`、Git 和 OpenSSL。
+当前镜像目标为 Linux `amd64`。准备 Docker Engine、Docker Compose `2.20.3+` 和 Git。
 
-### 1. 获取配置
+### 1. 启动
 
 ```sh
 git clone https://github.com/boe1900/owndsh.git
 cd owndsh
+docker compose up -d --wait
+```
+
+默认访问 [http://localhost:8080](http://localhost:8080)，初始账号 `admin`，密码 `owndsh`。第一次登录会强制设置符合安全策略的正式密码。
+
+需要让其他设备访问或覆盖默认凭据时，再创建 `.env`：
+
+```sh
 cp .env.example .env
 ```
 
-编辑 `.env`，至少把下面两个地址中的 `localhost` 改成员工设备能够访问的域名或 IP：
+至少把下面两个地址中的 `localhost` 改成员工设备能够访问的域名或 IP：
 
 ```dotenv
 ENT_PUBLIC_BASE_URL=http://owndsh.example.com:8080
 ENT_ADMIN_REDIRECT_URI=http://owndsh.example.com:8080/enterprise/auth/callback
 ```
 
-生产环境应由现有 Nginx、Ingress 或负载均衡提供可信 HTTPS，并把这两个值一起改成外部 HTTPS 地址。OwnDsh Compose 只开放 Console 的 HTTP 端口，不直接管理证书。
+生产环境应由现有 Nginx、Ingress 或负载均衡提供可信 HTTPS，并把这两个值一起改成外部 HTTPS 地址。OwnDsh Compose 只开放 Console 的 HTTP 端口，不直接管理证书。`.env.example` 中的数据库、Redis、JWT、master key 和签名私钥是开箱测试默认值；公网部署必须通过同名环境变量覆盖。
 
-### 2. 生成本机密钥
+### 2. 可选：设置初始密码
 
-在仓库根目录执行：
+Compose 默认使用下面的一次性管理员账号和密码；创建 `.env` 后可以自由修改：
 
-```sh
-mkdir -p .owndsh/secrets
-chmod 700 .owndsh .owndsh/secrets
-
-openssl rand -base64 48 | tr -d '\n' > .owndsh/secrets/postgres_password
-openssl rand -base64 48 | tr -d '\n' > .owndsh/secrets/redis_password
-openssl rand -base64 64 | tr -d '\n' > .owndsh/secrets/sa_token_jwt_secret_key
-openssl rand 32 > .owndsh/secrets/enterprise_master_key
-openssl genpkey -algorithm ED25519 -out .owndsh/secrets/plugin_signing_private_key
-openssl pkey -in .owndsh/secrets/plugin_signing_private_key -pubout -out .owndsh/secrets/plugin_signing_public_key
-
-bootstrap_password="Aa1!$(openssl rand -hex 16)"
-printf '%s' "$bootstrap_password" > .owndsh/secrets/bootstrap_admin_password
-printf '初始管理员: platform.admin\n初始密码: %s\n' "$bootstrap_password"
-unset bootstrap_password
-chmod 600 .owndsh/secrets/*
+```dotenv
+ENT_BOOTSTRAP_ADMIN_USERNAME=admin
+ENT_BOOTSTRAP_ADMIN_PASSWORD=owndsh
 ```
 
-保存终端输出的初始密码。第一次登录会要求修改密码。
+第一次登录会强制设置符合安全策略的正式密码。
 
-### 3. 首次启动
-
-首次启动叠加一次性管理员配置：
+### 3. 管理服务
 
 ```sh
-docker compose \
-  -f docker-compose.yml \
-  -f deploy/compose/compose.bootstrap.yml \
-  up -d --wait
-```
-
-服务健康后，立即切回常规 Compose 并删除 bootstrap 密码：
-
-```sh
-docker compose up -d --wait --force-recreate server console
-rm -f .owndsh/secrets/bootstrap_admin_password
+docker compose up -d --wait
 docker compose ps
 ```
 
-打开 `ENT_PUBLIC_BASE_URL` 配置的地址，以 `platform.admin` 和刚生成的密码登录。
+打开 `ENT_PUBLIC_BASE_URL` 配置的地址，以配置的初始账号和密码登录。数据库 marker 保证初始化只执行一次；首次改密后，默认初始密码立即失效。
 
 ### 4. 配置企业
 

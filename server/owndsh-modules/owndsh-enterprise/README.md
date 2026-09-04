@@ -27,7 +27,7 @@ Flyway `V8`、不落地解压的 tgz 验包、RFC 8785 JCS/Ed25519、CAS 制品�
 master key 的独立 `API_CURSOR` 用途进行 AES-GCM 认证，并绑定 tenant 与筛选条件。响应只暴露
 `secretConfigured`，不返回秘密或密文。
 
-部署必须通过 `enterprise.crypto.master-key-file` 指向精确 32 字节文件。开发期只有显式设置
+部署必须通过 `ENT_MASTER_KEY` 注入精确 32 字节值。开发期只有显式设置
 `enterprise.auth.allow-insecure-oidc=true` 才允许 HTTP OIDC；生产保持默认 false。
 
 ## 平台登录与设备边界
@@ -112,7 +112,7 @@ master key 的独立 `API_CURSOR` 用途进行 AES-GCM 认证，并绑定 tenant
 
 管理入口位于 `/enterprise/admin/v1/plugins`，使用 `ent:plugin:read/write`；runtime 入口位于
 `/enterprise/api/v1/plugins`。部署必须配置 `enterprise.plugin.artifact-root` 和只读 PKCS#8
-`enterprise.plugin.signing-private-key-file`；默认压缩/解压上限分别为 50 MiB/200 MiB。
+`ENT_PLUGIN_SIGNING_PRIVATE_KEY`；默认压缩/解压上限分别为 50 MiB/200 MiB。
 
 ## Session 服务端边界
 

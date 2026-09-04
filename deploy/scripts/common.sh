@@ -1,7 +1,7 @@
 #!/bin/sh
-# [INPUT]: 依赖 POSIX shell、GNU sha256sum 或 macOS shasum、Docker Compose v2、runtime.env、release manifest 与安装状态目录。
-# [OUTPUT]: 为 T21/T22 运维脚本提供可移植 SHA-256、单行输入约束、无 eval 环境读取、校验、锁、Compose 和健康等待函数。
-# [POS]: deploy/scripts 的共享机制层；业务脚本决定事务顺序，本文件不读取或打印 secret 内容。
+# [INPUT]: 依赖 POSIX shell、SHA-256 工具、Docker Compose v2、runtime.env、release manifest 与安装 key 文件。
+# [OUTPUT]: 提供校验、锁、健康等待，并把离线安装 key 临时注入 Compose 环境变量。
+# [POS]: deploy/scripts 的共享机制层；业务脚本决定事务顺序，secret 只进入 Compose 子进程且不写普通 runtime.env。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 set -eu
@@ -104,7 +104,12 @@ compose_file() {
 
 compose() {
   runtime=$(runtime_file)
-  docker compose --env-file "$runtime" -f "$(compose_file)" "$@"
+  ENT_POSTGRES_PASSWORD="$(cat "$OWNDSH_STATE_DIR/secrets/postgres_password")" \
+  ENT_REDIS_PASSWORD="$(cat "$OWNDSH_STATE_DIR/secrets/redis_password")" \
+  SA_TOKEN_JWT_SECRET_KEY="$(cat "$OWNDSH_STATE_DIR/secrets/sa_token_jwt_secret_key")" \
+  ENT_MASTER_KEY="$(cat "$OWNDSH_STATE_DIR/secrets/enterprise_master_key")" \
+  ENT_PLUGIN_SIGNING_PRIVATE_KEY="$(cat "$OWNDSH_STATE_DIR/secrets/plugin_signing_private_key")" \
+    docker compose --env-file "$runtime" -f "$(compose_file)" "$@"
 }
 
 acquire_operation_lock() {

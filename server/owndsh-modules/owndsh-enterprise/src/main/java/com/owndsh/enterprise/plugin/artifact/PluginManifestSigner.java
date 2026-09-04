@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 Jackson 3、RFC 8785 JCS 实现与 Ed25519 PKCS#8 私钥文件。
+ * [INPUT]: 依赖 Jackson 3、RFC 8785 JCS 实现与环境注入的 Ed25519 PKCS#8 私钥。
  * [OUTPUT]: 对固定 artifactId/package/version/size/hash/compatibility 声明提供 canonical bytes 与签名。
- * [POS]: plugin/artifact 的唯一签名边界，禁止字段拼接、默认序列化顺序或配置明文私钥。
+ * [POS]: plugin/artifact 的唯一签名边界，禁止字段拼接、默认序列化顺序或把私钥写入仓库配置。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.plugin.artifact;
@@ -12,8 +12,6 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
@@ -34,16 +32,13 @@ public final class PluginManifestSigner {
         }
     }
 
-    public static PluginManifestSigner fromPkcs8File(JsonMapper json, Path path) {
-        if (path == null) throw new IllegalStateException("enterprise.plugin.signing-private-key-file 必须配置");
-        byte[] file;
-        try {
-            file = Files.readAllBytes(path);
-        } catch (IOException exception) {
-            throw new IllegalStateException("插件 Ed25519 私钥文件不可读", exception);
+    public static PluginManifestSigner fromPkcs8(JsonMapper json, String value) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalStateException("ENT_PLUGIN_SIGNING_PRIVATE_KEY 必须配置");
         }
+        byte[] keyMaterial = value.getBytes(StandardCharsets.US_ASCII);
         try {
-            byte[] encoded = decodePkcs8(file);
+            byte[] encoded = decodePkcs8(keyMaterial);
             try {
                 PrivateKey key = KeyFactory.getInstance("Ed25519").generatePrivate(new PKCS8EncodedKeySpec(encoded));
                 return new PluginManifestSigner(json, key);
@@ -53,7 +48,7 @@ public final class PluginManifestSigner {
         } catch (GeneralSecurityException | IllegalArgumentException exception) {
             throw new IllegalStateException("插件 Ed25519 私钥必须是有效 PKCS#8", exception);
         } finally {
-            java.util.Arrays.fill(file, (byte) 0);
+            java.util.Arrays.fill(keyMaterial, (byte) 0);
         }
     }
 
@@ -78,9 +73,9 @@ public final class PluginManifestSigner {
         }
     }
 
-    private static byte[] decodePkcs8(byte[] file) {
-        String text = new String(file, StandardCharsets.US_ASCII).trim();
-        if (!text.startsWith("-----BEGIN")) return file.clone();
+    private static byte[] decodePkcs8(byte[] keyMaterial) {
+        String text = new String(keyMaterial, StandardCharsets.US_ASCII).trim();
+        if (!text.startsWith("-----BEGIN")) return Base64.getDecoder().decode(text);
         if (!text.startsWith("-----BEGIN PRIVATE KEY-----") || !text.endsWith("-----END PRIVATE KEY-----")) {
             throw new IllegalArgumentException("只接受未加密 PKCS#8 PRIVATE KEY PEM");
         }
