@@ -13,8 +13,8 @@
   },
   "files": ["lib", "README.md"],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "pnpm --filter @owndsh/platform-client^... run build && tsc -p tsconfig.json",
+    "typecheck": "pnpm --filter @owndsh/platform-client^... run build && tsc -p tsconfig.json --noEmit",
     "test": "vitest run tests"
   },
   "dependencies": {

@@ -5,7 +5,7 @@
 成员清单
 
 README.md: OwnDsh 标准 Harness 插件 workspace 说明，冻结官方 UI 零分叉、初装只填 Server 与树外发布边界。
-package.json: workspace 根清单，固定 Node/pnpm，保证 bundle 构建后再打包；T11 在启动真实 Host 前强制刷新 bundle tgz，并统一暴露 test、consumer 与组合门禁。
+package.json: workspace 根清单，固定 Node/pnpm，按 workspace 依赖顺序构建后再检查与打包；T11 在启动真实 Host 前强制刷新 bundle tgz，并统一暴露 test、consumer 与组合门禁。
 pnpm-lock.yaml: workspace 锁定依赖图，固定编译、测试、React Client、OpenAPI 生成与 npm 官方 rc.2 Harness 开发依赖，使发布构建不依赖同级 checkout。
 pnpm-workspace.yaml: workspace 成员边界与生命周期脚本策略，只接纳 `packages/*`、允许已审核的 esbuild 原生安装脚本，并显式拒绝上游已判定无须执行的传递脚本。
 tsconfig.base.json: 共享 TypeScript 严格配置，统一 Node/Web 标准库、声明与 sourcemap 约束。
