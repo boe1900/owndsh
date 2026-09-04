@@ -10,7 +10,7 @@
   "properties": {
     "data": {
       "type": "array",
-      "maxItems": 2,
+      "maxItems": 4,
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -31,7 +31,9 @@
           "windowType": {
             "type": "string",
             "enum": [
+              "FIVE_HOURS",
               "DAY",
+              "WEEK",
               "MONTH"
             ]
           },

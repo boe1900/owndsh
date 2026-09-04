@@ -1,0 +1,16 @@
+# [INPUT]: 依赖 V1 E2E 生成的临时 LDAP truststore 与完整 Java 测试参数。
+# [OUTPUT]: 为现有部署 Server 追加只读 truststore，不改变数据卷、网络或发布拓扑。
+# [POS]: scripts 的一次性 E2E Compose 叠加层；测试结束后由执行器恢复基础 Compose Server。
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+services:
+  server:
+    environment:
+      ENT_ALLOW_INSECURE_OIDC: "true"
+      JAVA_TOOL_OPTIONS: ${V1_E2E_JAVA_TOOL_OPTIONS:?V1_E2E_JAVA_TOOL_OPTIONS must be set}
+    secrets:
+      - v1_e2e_ldap_truststore
+
+secrets:
+  v1_e2e_ldap_truststore:
+    file: ${V1_E2E_LDAP_TRUSTSTORE:?V1_E2E_LDAP_TRUSTSTORE must be set}

@@ -1,5 +1,5 @@
 # [INPUT]: 依赖根协议的 cursor/revision/error 响应与 identity schema，依赖 T04 身份管理 Controllers
-# [OUTPUT]: 提供身份源与外部组映射十个管理 operation 的七个 OpenAPI Path Item
+# [OUTPUT]: 提供身份源、产品用户组与外部组映射管理 operation
 # [POS]: contracts/paths 的身份治理协议分片，使协议根只保留纵向 Path Item 导航
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -182,6 +182,78 @@
           $ref: '../enterprise-openapi.yaml#/components/responses/Error404'
         '409':
           $ref: '../enterprise-openapi.yaml#/components/responses/Error409'
+  /enterprise/admin/v1/identity-sources/{sourceId}/ldap/users:
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IdentitySourceIdPath'
+    get:
+      operationId: searchLdapUsers
+      summary: Search at most 50 LDAP users through the saved manager connection.
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema: {type: string, minLength: 1, maxLength: 128}
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 50, default: 50}
+      responses:
+        '200':
+          description: Sanitized LDAP user search result.
+          content:
+            application/json:
+              schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/LdapDirectoryUserSearchResponse'}
+        '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+        '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+        '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+        '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+  /enterprise/admin/v1/identity-sources/{sourceId}/ldap/users/actions/import:
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IdentitySourceIdPath'
+    post:
+      operationId: importLdapUser
+      summary: Re-read one LDAP user by DN and import it through stable-subject provisioning.
+      parameters:
+        - $ref: '../enterprise-openapi.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/LdapMemberImportRequest'}
+      responses:
+        '200':
+          description: LDAP member import result.
+          content:
+            application/json:
+              schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/LdapMemberImportResponse'}
+        '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+        '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+        '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+        '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+        '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+  /enterprise/admin/v1/identity-sources/{sourceId}/ldap/groups:
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IdentitySourceIdPath'
+    get:
+      operationId: searchLdapGroups
+      summary: Search at most 50 LDAP groups and return only display names and group DNs.
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema: {type: string, minLength: 1, maxLength: 128}
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 50, default: 50}
+      responses:
+        '200':
+          description: Sanitized LDAP group search result.
+          content:
+            application/json:
+              schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/LdapDirectoryGroupSearchResponse'}
+        '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+        '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+        '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+        '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
   /enterprise/admin/v1/group-mappings:
     get:
       operationId: listGroupMappings
@@ -210,7 +282,7 @@
           $ref: '../enterprise-openapi.yaml#/components/responses/Error404'
     post:
       operationId: createGroupMapping
-      summary: Create one explicit external group to department mapping.
+      summary: Create one explicit external group to product access group mapping.
       parameters:
         - $ref: '../enterprise-openapi.yaml#/components/parameters/IdempotencyKey'
       requestBody:
@@ -268,7 +340,7 @@
       - $ref: '../enterprise-openapi.yaml#/components/parameters/EnterpriseUserIdPath'
     get:
       operationId: getUserExternalIdentitySummary
-      summary: List sanitized external identity bindings for one RuoYi user.
+      summary: List sanitized external identity bindings for one host user.
       responses:
         '200':
           description: External identity summaries.
@@ -285,3 +357,86 @@
           $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
         '403':
           $ref: '../enterprise-openapi.yaml#/components/responses/Error403'
+
+  /enterprise/admin/v1/access-groups:
+    get:
+      operationId: listAccessGroups
+      parameters:
+        - $ref: '../enterprise-openapi.yaml#/components/parameters/Cursor'
+        - $ref: '../enterprise-openapi.yaml#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Product access group page.
+          content:
+            application/json:
+              schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/AccessGroupListResponse'}
+        '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+        '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+    post:
+      operationId: createAccessGroup
+      parameters:
+        - $ref: '../enterprise-openapi.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/AccessGroupWriteRequest'}
+      responses:
+        '201':
+          description: Product access group created.
+          content:
+            application/json:
+              schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/AccessGroupResponse'}
+        '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+        '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+        '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+
+  /enterprise/admin/v1/access-groups/{accessGroupId}:
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/AccessGroupIdPath'
+    get:
+      operationId: getAccessGroup
+      responses:
+        '200':
+          description: Product access group details.
+          content:
+            application/json:
+              schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/AccessGroupResponse'}
+        '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+        '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+        '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+    put:
+      operationId: updateAccessGroup
+      parameters:
+        - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/AccessGroupWriteRequest'}
+      responses:
+        '200':
+          description: Product access group updated.
+          content:
+            application/json:
+              schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/AccessGroupResponse'}
+        '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+        '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+        '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+        '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+        '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+    delete:
+      operationId: deleteAccessGroup
+      parameters:
+        - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+      responses:
+        '200':
+          description: Product access group deleted.
+          content:
+            application/json:
+              schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/DeletedResourceResponse'}
+        '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+        '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+        '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+        '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+        '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}

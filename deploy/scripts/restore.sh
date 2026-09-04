@@ -12,20 +12,20 @@ usage() {
   printf '%s\n' "用法: $0 --state-dir DIR --data-backup DIR --key-backup DIR"
 }
 
-EAP_STATE_DIR=
+OWNDSH_STATE_DIR=
 data_backup=
 key_backup=
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --state-dir) EAP_STATE_DIR=${2:-}; shift 2 ;;
+    --state-dir) OWNDSH_STATE_DIR=${2:-}; shift 2 ;;
     --data-backup) data_backup=${2:-}; shift 2 ;;
     --key-backup) key_backup=${2:-}; shift 2 ;;
     *) usage >&2; exit 2 ;;
   esac
 done
 
-require_safe_path "$EAP_STATE_DIR"
-require_file "$EAP_STATE_DIR/runtime.env"
+require_safe_path "$OWNDSH_STATE_DIR"
+require_file "$OWNDSH_STATE_DIR/runtime.env"
 require_file "$data_backup/SHA256SUMS"
 require_file "$key_backup/SHA256SUMS"
 require_command docker
@@ -41,14 +41,14 @@ require_command tar
 ) || fail "key 备份校验失败"
 acquire_operation_lock
 
-compose stop gateway server redis
-temporary_keys=$(mktemp -d "${TMPDIR:-/tmp}/eap-keys.XXXXXX")
-trap 'rm -rf "$temporary_keys"; rmdir "$EAP_STATE_DIR/.operation.lock" 2>/dev/null || true' EXIT HUP INT TERM
+compose stop console server redis
+temporary_keys=$(mktemp -d "${TMPDIR:-/tmp}/owndsh-keys.XXXXXX")
+trap 'rm -rf "$temporary_keys"; rmdir "$OWNDSH_STATE_DIR/.operation.lock" 2>/dev/null || true' EXIT HUP INT TERM
 tar -C "$temporary_keys" -xzf "$key_backup/enterprise-keys.tar.gz"
 for key_file in enterprise_master_key plugin_signing_private_key plugin_signing_public_key; do
   require_file "$temporary_keys/$key_file"
-  cp "$temporary_keys/$key_file" "$EAP_STATE_DIR/secrets/$key_file"
-  chmod 600 "$EAP_STATE_DIR/secrets/$key_file"
+  cp "$temporary_keys/$key_file" "$OWNDSH_STATE_DIR/secrets/$key_file"
+  chmod 600 "$OWNDSH_STATE_DIR/secrets/$key_file"
 done
 
 compose start postgres
@@ -60,7 +60,7 @@ redis_volume=$(volume_for redis /data)
 redis_image=$(docker inspect --format '{{.Image}}' "$(compose ps -aq redis)")
 docker run --rm --platform linux/amd64 --user 0:0 \
   -v "$redis_volume:/data" -v "$data_backup:/restore:ro" \
-  -v "$EAP_STATE_DIR/secrets/redis_password:/run/secrets/redis_password:ro" \
+  -v "$OWNDSH_STATE_DIR/secrets/redis_password:/run/secrets/redis_password:ro" \
   --entrypoint sh "$redis_image" -ec '
     redis-check-rdb /restore/redis.rdb >/dev/null
     find /data -mindepth 1 -maxdepth 1 -exec rm -rf {} +
@@ -96,13 +96,13 @@ docker run --rm --platform linux/amd64 --user 0:0 \
   '
 
 artifact_volume=$(volume_for server /var/lib/enterprise/artifacts)
-server_image=$(env_value EAP_SERVER_IMAGE "$(runtime_file)")
+server_image=$(env_value OWNDSH_SERVER_IMAGE "$(runtime_file)")
 docker run --rm --platform linux/amd64 --user 0:0 \
   -v "$artifact_volume:/target" -v "$data_backup:/restore:ro" \
   --entrypoint sh "$server_image" -ec 'find /target -mindepth 1 -maxdepth 1 -exec rm -rf {} +; tar -C /target -xzf /restore/artifacts.tar.gz; chown -R 10001:10001 /target'
 
-compose up -d redis storage-init server gateway
+compose up -d redis storage-init server console
 wait_healthy redis 45
 wait_healthy server 90
-wait_healthy gateway 30
+wait_healthy console 30
 printf '%s\n' "恢复完成，应用与独立 key 归档均已验证"

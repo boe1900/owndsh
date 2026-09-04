@@ -27,15 +27,10 @@ const COMMIT_PATTERN = /^[0-9a-f]{40}$/
 
 const PRODUCT_SOURCES = [
   {
-    lockFile: 'ruoyi-vue-plus.lock.json',
-    target: 'backend',
+    lockFile: 'server-framework.lock.json',
+    target: 'server',
     requiredFile: 'pom.xml',
     executableFiles: ['mvnw'],
-  },
-  {
-    lockFile: 'plus-ui.lock.json',
-    target: 'admin-web',
-    requiredFile: 'package.json',
   },
 ]
 

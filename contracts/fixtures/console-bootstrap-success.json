@@ -2,13 +2,19 @@
   "data": {
     "member": {
       "id": "1761100000000000001",
+      "username": "candidate.admin",
       "displayName": "Candidate Admin",
-      "avatarUrl": null
+      "email": "candidate.admin@example.org",
+      "avatarUrl": null,
+      "loginMethods": [
+        {"sourceName": "本地", "sourceType": "LOCAL"},
+        {"sourceName": "Corporate LDAP", "sourceType": "LDAP"}
+      ]
     },
     "roles": ["enterprise_admin"],
     "permissions": ["ent:model:read", "ent:model:write"],
     "deployment": {
-      "name": "Enterprise Agent Platform"
+      "name": "OwnDsh"
     }
   },
   "requestId": "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"

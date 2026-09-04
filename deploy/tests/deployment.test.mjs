@@ -25,7 +25,7 @@ function read(relative) {
 }
 
 function composeConfig(includeBootstrap = false, baseImageRegistry = undefined) {
-  const state = mkdtempSync(join(tmpdir(), 'eap-compose-'))
+  const state = mkdtempSync(join(tmpdir(), 'owndsh-compose-'))
   const secrets = join(state, 'secrets')
   const tls = join(state, 'tls')
   const database = join(state, 'releases', 'test', 'database')
@@ -36,41 +36,41 @@ function composeConfig(includeBootstrap = false, baseImageRegistry = undefined) 
   ]) writeFileSync(join(secrets, file), 'fixture')
   writeFileSync(join(tls, 'tls.crt'), 'fixture')
   writeFileSync(join(tls, 'tls.key'), 'fixture')
-  writeFileSync(join(database, 'postgres_ry_vue.sql'), 'select 1;')
+  writeFileSync(join(database, 'postgres_owndsh.sql'), 'select 1;')
   writeFileSync(join(state, 'bootstrap.secret'), 'fixture')
   const args = ['compose', '-f', COMPOSE]
   if (includeBootstrap) args.push('-f', BOOTSTRAP)
   args.push('config', '--format', 'json')
   const env = {
     ...process.env,
-    EAP_STATE_DIR: state,
-    EAP_SERVER_IMAGE: 'enterprise-agent/server:test',
-    EAP_GATEWAY_IMAGE: 'enterprise-agent/gateway:test',
-    EAP_RELEASE_VERSION: 'test',
-    ...(baseImageRegistry ? { EAP_BASE_IMAGE_REGISTRY: baseImageRegistry } : {}),
+    OWNDSH_STATE_DIR: state,
+    OWNDSH_SERVER_IMAGE: 'owndsh/server:test',
+    OWNDSH_CONSOLE_IMAGE: 'owndsh/console:test',
+    OWNDSH_RELEASE_VERSION: 'test',
+    ...(baseImageRegistry ? { OWNDSH_BASE_IMAGE_REGISTRY: baseImageRegistry } : {}),
     ENT_PUBLIC_BASE_URL: 'https://platform.example.test',
     ENT_ADMIN_REDIRECT_URI: 'https://platform.example.test/enterprise/auth/callback',
     ENT_BOOTSTRAP_ADMIN_USERNAME: 'platform.admin',
-    EAP_BOOTSTRAP_PASSWORD_FILE: join(state, 'bootstrap.secret'),
+    OWNDSH_BOOTSTRAP_PASSWORD_FILE: join(state, 'bootstrap.secret'),
   }
   return JSON.parse(execFileSync('docker', args, { env, encoding: 'utf8' }))
 }
 
-test('compose publishes only Gateway TLS and pins all third-party images', () => {
+test('compose publishes only Console TLS and pins all third-party images', () => {
   const config = composeConfig()
-  assert.deepEqual(Object.keys(config.services).sort(), ['gateway', 'postgres', 'redis', 'server', 'storage-init'])
+  assert.deepEqual(Object.keys(config.services).sort(), ['console', 'postgres', 'redis', 'server', 'storage-init'])
   assert.equal(config.services.postgres.ports, undefined)
   assert.equal(config.services.redis.ports, undefined)
   assert.equal(config.services.server.ports, undefined)
-  assert.equal(config.services.gateway.ports.length, 1)
-  assert.equal(config.services.gateway.ports[0].target, 443)
+  assert.equal(config.services.console.ports.length, 1)
+  assert.equal(config.services.console.ports[0].target, 443)
   assert.ok(config.services.postgres.configs.some(config =>
-    config.source === 'postgres_baseline' && config.target === '/docker-entrypoint-initdb.d/00-ruoyi-baseline.sql'
+    config.source === 'postgres_baseline' && config.target === '/docker-entrypoint-initdb.d/00-owndsh-baseline.sql'
   ))
   assert.match(config.services.postgres.image, /postgres:17\.6-alpine3\.22@sha256:[a-f0-9]{64}$/)
   assert.match(config.services.redis.image, /redis:7\.4\.5-alpine3\.21@sha256:[a-f0-9]{64}$/)
   assert.equal(config.services.server.platform, 'linux/amd64')
-  assert.equal(config.services.gateway.platform, 'linux/amd64')
+  assert.equal(config.services.console.platform, 'linux/amd64')
   assert.equal(config.services.server.environment.ENT_ALLOW_INSECURE_OIDC, 'false')
   assert.equal(config.services.server.environment.XDG_CACHE_HOME, '/tmp')
   assert.ok(config.services.server.tmpfs.some(mount =>
@@ -132,15 +132,15 @@ test('gateway overwrites forwarding headers and keeps model SSE unbuffered', () 
   ]) {
     assert.match(nginx, new RegExp(`${directive} /tmp/${directory};`))
   }
-  const gateway = composeConfig().services.gateway
-  assert.equal(gateway.read_only, true)
-  assert.ok(gateway.tmpfs.some(mount =>
+  const console = composeConfig().services.console
+  assert.equal(console.read_only, true)
+  assert.ok(console.tmpfs.some(mount =>
     typeof mount === 'string' ? mount.split(':')[0] === '/tmp' : mount.target === '/tmp'
   ))
 })
 
 test('deploy profile consumes configtree secrets and exposes only health', () => {
-  const deploy = read('backend/ruoyi-admin/src/main/resources/application-deploy.yml')
+  const deploy = read('server/owndsh-server/src/main/resources/application-deploy.yml')
   assert.match(deploy, /configtree:\/run\/secrets\//)
   assert.match(deploy, /jwt-secret-key: \$\{sa_token_jwt_secret_key\}/)
   assert.match(deploy, /include: health/)
@@ -159,8 +159,8 @@ test('operations scripts parse, keep Harness bundles aligned, and rollback canno
   assert.doesNotMatch(executableRollback, /down\s+(?:[^\n]*\s)?-v/)
   assert.doesNotMatch(executableRollback, /pg_restore|redis\.rdb|enterprise-keys\.tar/)
   assert.match(rollback, /key_fingerprint/)
-  assert.match(rollback, /old_release=\$\(env_value EAP_ROLLBACK_FROM_RELEASE/)
-  assert.match(rollback, /replace_env EAP_RELEASE_VERSION "\$old_release"/)
+  assert.match(rollback, /old_release=\$\(env_value OWNDSH_ROLLBACK_FROM_RELEASE/)
+  assert.match(rollback, /replace_env OWNDSH_RELEASE_VERSION "\$old_release"/)
   assert.match(rollback, /releases\/\$old_release\/harness\/\$old_harness_bundle/)
   assert.doesNotMatch(rollback, /cordis\.patch\.yml/)
   const upgrade = read('deploy/scripts/upgrade.sh')
@@ -176,25 +176,25 @@ test('operations scripts parse, keep Harness bundles aligned, and rollback canno
   assert.match(restore, /CONFIG SET appendonly yes/)
   assert.match(restore, /appendonly\.aof\.manifest/)
   const release = read('deploy/scripts/build-release.sh')
-  assert.match(release, /bundle="\$source_root\/artifacts\/enterprise-agent-dsh-bundle-0\.1\.0\.tgz"/)
-  assert.match(release, /backend\/script\/sql\/postgres\/postgres_ry_vue\.sql/)
-  assert.match(release, /EAP_USE_LOCAL_BASE_IMAGES/)
+  assert.match(release, /bundle="\$source_root\/artifacts\/owndsh-plugin-0\.1\.0\.tgz"/)
+  assert.match(release, /server\/script\/sql\/postgres\/postgres_owndsh\.sql/)
+  assert.match(release, /OWNDSH_USE_LOCAL_BASE_IMAGES/)
   assert.match(release, /docker image ls --digests/)
   assert.match(release, /DOCKER_BUILDKIT=0 docker build/)
   assert.match(release, /harness_lock="\$source_root\/upstream\/deepseek-harness\.lock\.json"/)
-  assert.match(release, /EAP_HARNESS_VERSION=\$harness_version/)
-  assert.match(release, /EAP_HARNESS_COMMIT=\$harness_commit/)
-  assert.match(release, /console-web\/BEAUTIFUL_UI_LICENSE/)
-  assert.doesNotMatch(release, /EAP_HARNESS_VERSION=\d/)
+  assert.match(release, /OWNDSH_HARNESS_VERSION=\$harness_version/)
+  assert.match(release, /OWNDSH_HARNESS_COMMIT=\$harness_commit/)
+  assert.match(release, /console\/BEAUTIFUL_UI_LICENSE/)
+  assert.doesNotMatch(release, /OWNDSH_HARNESS_VERSION=\d/)
   assert.doesNotMatch(release, /admin-web\/LICENSE/)
-  assert.doesNotMatch(release, /harness-plugin\/artifacts/)
+  assert.doesNotMatch(release, /plugin\/artifacts/)
   for (const script of scripts.filter(file => file !== 'common.sh')) {
     assert.doesNotMatch(read(`deploy/scripts/${script}`), /\bsha256sum\b/)
   }
 })
 
 test('portable SHA-256 helper emits and verifies standard manifests', () => {
-  const state = mkdtempSync(join(tmpdir(), 'eap-sha256-'))
+  const state = mkdtempSync(join(tmpdir(), 'owndsh-sha256-'))
   const payload = join(state, 'payload.txt')
   const common = join(DEPLOY_ROOT, 'scripts', 'common.sh')
   writeFileSync(payload, 'portable-release-checksum\n')
@@ -213,13 +213,13 @@ test('portable SHA-256 helper emits and verifies standard manifests', () => {
 test('installer rejects runtime.env injection and invalid published ports before mutation', () => {
   const install = join(DEPLOY_ROOT, 'scripts', 'install.sh')
   const sharedArgs = [
-    '--state-dir', join(tmpdir(), 'eap-install-input'),
+    '--state-dir', join(tmpdir(), 'owndsh-install-input'),
     '--bootstrap-admin', 'platform.admin',
     '--bootstrap-password-file', '/not-read',
     '--tls-cert', '/not-read',
     '--tls-key', '/not-read',
   ]
-  const injectedAuthority = 'https://platform.example.test\nEAP_SERVER_IMAGE=attacker'
+  const injectedAuthority = 'https://platform.example.test\nOWNDSH_SERVER_IMAGE=attacker'
   const injected = spawnSync('sh', [
     install,
     '--public-base-url', injectedAuthority,
@@ -255,37 +255,37 @@ test('installer rejects runtime.env injection and invalid published ports before
     '--public-base-url', 'https://platform.example.test',
     '--admin-redirect-uri', 'https://platform.example.test/enterprise/auth/callback',
     ...sharedArgs,
-  ], { encoding: 'utf8', env: { ...process.env, EAP_COMPOSE_PROJECT_NAME: 'unsafe project' } })
+  ], { encoding: 'utf8', env: { ...process.env, OWNDSH_COMPOSE_PROJECT_NAME: 'unsafe project' } })
   assert.notEqual(invalidProject.status, 0)
-  assert.match(invalidProject.stderr, /EAP_COMPOSE_PROJECT_NAME 格式不安全/)
+  assert.match(invalidProject.stderr, /OWNDSH_COMPOSE_PROJECT_NAME 格式不安全/)
 })
 
 test('Docker build contexts lock every build and runtime base by digest', () => {
-  for (const file of ['deploy/compose/Dockerfile.server', 'deploy/compose/Dockerfile.gateway']) {
+  for (const file of ['deploy/compose/Dockerfile.server', 'deploy/compose/Dockerfile.console']) {
     const dockerfile = read(file)
-    assert.match(dockerfile, /ARG EAP_BASE_IMAGE_REGISTRY=docker\.io\/library/)
-    const imageArgs = dockerfile.split('\n').filter(line => /^ARG EAP_(?:MAVEN|JRE|NODE|NGINX)_IMAGE=/.test(line))
+    assert.match(dockerfile, /ARG OWNDSH_BASE_IMAGE_REGISTRY=docker\.io\/library/)
+    const imageArgs = dockerfile.split('\n').filter(line => /^ARG OWNDSH_(?:MAVEN|JRE|NODE|NGINX)_IMAGE=/.test(line))
     assert.equal(imageArgs.length, 2)
     for (const line of imageArgs) {
-      assert.match(line, /=\$\{EAP_BASE_IMAGE_REGISTRY\}\//)
+      assert.match(line, /=\$\{OWNDSH_BASE_IMAGE_REGISTRY\}\//)
       assert.match(line, /@sha256:[a-f0-9]{64}$/)
     }
     const from = dockerfile.split('\n').filter(line => line.startsWith('FROM '))
     assert.ok(from.length >= 2)
     for (const line of from) {
-      assert.match(line, /^FROM \$\{EAP_(?:MAVEN|JRE|NODE|NGINX)_IMAGE\}(?:\s+AS\s+\w+)?$/)
+      assert.match(line, /^FROM \$\{OWNDSH_(?:MAVEN|JRE|NODE|NGINX)_IMAGE\}(?:\s+AS\s+\w+)?$/)
     }
   }
   assert.match(
     read('deploy/compose/Dockerfile.server'),
     /eclipse-temurin:21\.0\.8_9-jre-jammy@sha256:[a-f0-9]{64}/
   )
-  const gateway = read('deploy/compose/Dockerfile.gateway')
-  assert.match(gateway, /WORKDIR \/workspace\/console-web/)
-  assert.match(gateway, /pnpm@11\.24\.0/)
-  assert.match(gateway, /COPY contracts\/ \/workspace\/contracts\//)
-  assert.match(gateway, /COPY --from=build \/workspace\/console-web\/dist\//)
-  assert.doesNotMatch(gateway, /admin-web/)
+  const console = read('deploy/compose/Dockerfile.console')
+  assert.match(console, /WORKDIR \/workspace\/console/)
+  assert.match(console, /pnpm@11\.24\.0/)
+  assert.match(console, /COPY contracts\/ \/workspace\/contracts\//)
+  assert.match(console, /COPY --from=build \/workspace\/console\/dist\//)
+  assert.doesNotMatch(console, /admin-web/)
   assert.match(read('.dockerignore'), /deploy\/secrets/)
 })
 
@@ -293,8 +293,8 @@ test('local demo starts one real Harness without candidate automation', () => {
   const localDemo = read('scripts/local-demo.sh')
   assert.match(localDemo, /plugin --profile web add --ignore-scripts/)
   assert.match(localDemo, /dsh --profile web --port "\$harness_port"/)
-  assert.match(localDemo, /EAP_LOCAL_HARNESS_ROOT=.*PATH="\$harness_bin:\$PATH"/)
-  assert.match(localDemo, /exec corepack pnpm@11\.7\.0 --dir "\$EAP_LOCAL_HARNESS_ROOT" dsh "\$@"/)
+  assert.match(localDemo, /OWNDSH_LOCAL_HARNESS_ROOT=.*PATH="\$harness_bin:\$PATH"/)
+  assert.match(localDemo, /exec corepack pnpm@11\.7\.0 --dir "\$OWNDSH_LOCAL_HARNESS_ROOT" dsh "\$@"/)
   assert.match(localDemo, /NODE_EXTRA_CA_CERTS=/)
   assert.equal(localDemo.match(/-days 365/g)?.length, 2)
   assert.doesNotMatch(localDemo, /-days 2(?:\s|$)/)

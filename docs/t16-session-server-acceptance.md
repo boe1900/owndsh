@@ -63,7 +63,7 @@ Server 全 reactor 门禁：
 cd backend
 JAVA_HOME=/usr/local/opt/openjdk@21 \
 PATH=/usr/local/opt/openjdk@21/bin:$PATH \
-./mvnw -B -ntp -pl ruoyi-modules/ruoyi-enterprise -am \
+./mvnw -B -ntp -pl ruoyi-modules/owndsh-enterprise -am \
   -Dmaven.test.skip=false -DskipTests=false test
 ```
 
@@ -75,11 +75,11 @@ T16 定向门禁包含 2 项精确字节 parser、1 项真实 PostgreSQL 纵向�
 协议生成与 TypeScript 门禁：
 
 ```sh
-cd harness-plugin
-corepack pnpm@11.7.0 --filter @enterprise-agent/dsh-contracts generate
-corepack pnpm@11.7.0 --filter @enterprise-agent/dsh-contracts check:generated
-corepack pnpm@11.7.0 --filter @enterprise-agent/dsh-contracts typecheck
-corepack pnpm@11.7.0 --filter @enterprise-agent/dsh-contracts test
+cd plugin
+corepack pnpm@11.7.0 --filter @owndsh/contracts generate
+corepack pnpm@11.7.0 --filter @owndsh/contracts check:generated
+corepack pnpm@11.7.0 --filter @owndsh/contracts typecheck
+corepack pnpm@11.7.0 --filter @owndsh/contracts test
 corepack pnpm@11.7.0 run check
 ```
 

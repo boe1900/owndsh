@@ -18,7 +18,12 @@
           "name",
           "scope",
           "subjectId",
+          "resourceType",
+          "resourceId",
+          "resourceName",
+          "fiveHours",
           "daily",
+          "weekly",
           "monthly",
           "rpm",
           "concurrency"
@@ -51,7 +56,116 @@
               }
             ]
           },
+          "resourceType": {
+            "type": "string",
+            "description": "PROVIDER 仅可用于 ORGANIZATION 主体的 RATE 策略；TOKEN 不接受该资源范围。",
+            "enum": [
+              "ALL_MODELS",
+              "MODEL_SET",
+              "MODEL",
+              "PROVIDER"
+            ]
+          },
+          "resourceId": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^[1-9][0-9]{0,18}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resourceName": {
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fiveHours": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "limit",
+                  "usedTokens",
+                  "reservedTokens",
+                  "resetsAt"
+                ],
+                "properties": {
+                  "limit": {
+                    "type": "integer",
+                    "format": "int64",
+                    "minimum": 1
+                  },
+                  "usedTokens": {
+                    "type": "integer",
+                    "format": "int64",
+                    "minimum": 0
+                  },
+                  "reservedTokens": {
+                    "type": "integer",
+                    "format": "int64",
+                    "minimum": 0
+                  },
+                  "resetsAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "daily": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "limit",
+                  "usedTokens",
+                  "reservedTokens",
+                  "resetsAt"
+                ],
+                "properties": {
+                  "limit": {
+                    "type": "integer",
+                    "format": "int64",
+                    "minimum": 1
+                  },
+                  "usedTokens": {
+                    "type": "integer",
+                    "format": "int64",
+                    "minimum": 0
+                  },
+                  "reservedTokens": {
+                    "type": "integer",
+                    "format": "int64",
+                    "minimum": 0
+                  },
+                  "resetsAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "weekly": {
             "oneOf": [
               {
                 "type": "object",

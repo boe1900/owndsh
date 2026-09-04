@@ -13,4 +13,4 @@ services:
 
 secrets:
   bootstrap_admin_password:
-    file: ${EAP_BOOTSTRAP_PASSWORD_FILE:?EAP_BOOTSTRAP_PASSWORD_FILE must be set}
+    file: ${OWNDSH_BOOTSTRAP_PASSWORD_FILE:?OWNDSH_BOOTSTRAP_PASSWORD_FILE must be set}

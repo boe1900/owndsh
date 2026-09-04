@@ -1,5 +1,5 @@
 #!/bin/sh
-# [INPUT]: 依赖 Linux amd64 Docker、OpenSSL、Node/pnpm、锁定 release 与同级干净 Harness；可选复用 EAP_LOCAL_RELEASE_TARBALL。
+# [INPUT]: 依赖 Linux amd64 Docker、OpenSSL、Node/pnpm、锁定 release 与同级干净 Harness；可选复用 OWNDSH_LOCAL_RELEASE_TARBALL。
 # [OUTPUT]: 在全新临时状态中启动正式后端、签发一年期本机证书、安装企业 bundle，并以源码 CLI shim 启动真实浏览器 Harness，持续到 Ctrl+C。
 # [POS]: 人工功能验收的唯一启动入口，不运行 Playwright、候选 fixture、多设备控制面、截图或自动业务操作。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -14,7 +14,7 @@ state_directory="$temporary_root/state"
 release_output="$temporary_root/release"
 harness_log="$temporary_root/harness.log"
 harness_bin="$temporary_root/bin"
-release_project="eap-local-$(date +%s)-$$"
+release_project="owndsh-local-$(date +%s)-$$"
 harness_pid=
 release_root=
 
@@ -60,11 +60,11 @@ for command in curl docker node corepack openssl tar; do require_command "$comma
 mkdir -p "$temporary_root/certificates" "$release_output" "$harness_bin"
 printf '%s\n' \
   '#!/bin/sh' \
-  'exec corepack pnpm@11.7.0 --dir "$EAP_LOCAL_HARNESS_ROOT" dsh "$@"' \
+  'exec corepack pnpm@11.7.0 --dir "$OWNDSH_LOCAL_HARNESS_ROOT" dsh "$@"' \
   > "$harness_bin/dsh"
 chmod 700 "$harness_bin/dsh"
-https_port=${EAP_LOCAL_HTTPS_PORT:-$(free_port)}
-harness_port=${EAP_LOCAL_HARNESS_PORT:-$(free_port)}
+https_port=${OWNDSH_LOCAL_HTTPS_PORT:-$(free_port)}
+harness_port=${OWNDSH_LOCAL_HARNESS_PORT:-$(free_port)}
 for port in "$https_port" "$harness_port"; do
   case "$port" in ''|*[!0-9]*) fail "本地端口必须是数字" ;; esac
   [ "$port" -ge 1024 ] && [ "$port" -le 65535 ] || fail "本地端口必须在 1024..65535"
@@ -85,23 +85,23 @@ openssl x509 -req -days 365 -sha256 -in "$temporary_root/certificates/tls.csr" \
   -extfile "$temporary_root/certificates/tls.ext" -out "$temporary_root/certificates/tls.crt" >/dev/null 2>&1
 chmod 600 "$temporary_root/certificates"/*.key
 
-admin_initial_password=${EAP_LOCAL_ADMIN_INITIAL_PASSWORD:-CandidateBootstrap!42}
-admin_password=${EAP_LOCAL_ADMIN_PASSWORD:-CandidateAdminReady!42}
+admin_initial_password=${OWNDSH_LOCAL_ADMIN_INITIAL_PASSWORD:-CandidateBootstrap!42}
+admin_password=${OWNDSH_LOCAL_ADMIN_PASSWORD:-CandidateAdminReady!42}
 printf '%s\n' "$admin_initial_password" > "$temporary_root/bootstrap-password"
 chmod 600 "$temporary_root/bootstrap-password"
 
-release_tarball=${EAP_LOCAL_RELEASE_TARBALL:-}
+release_tarball=${OWNDSH_LOCAL_RELEASE_TARBALL:-}
 if [ -z "$release_tarball" ]; then
   "$project_root/deploy/scripts/build-release.sh" --version 0.1.0-local --output "$release_output"
-  release_tarball="$release_output/enterprise-agent-platform-0.1.0-local-linux-amd64.tgz"
+  release_tarball="$release_output/owndsh-0.1.0-local-linux-amd64.tgz"
 fi
 [ -f "$release_tarball" ] || fail "release tarball 不存在: $release_tarball"
 tar -xzf "$release_tarball" -C "$release_output"
 release_root=$(find "$release_output" -mindepth 1 -maxdepth 1 -type d \
-  -name 'enterprise-agent-platform-*-linux-amd64' | head -n 1)
+  -name 'owndsh-*-linux-amd64' | head -n 1)
 [ -n "$release_root" ] || fail "release 根目录不存在"
 
-COMPOSE_PROGRESS=quiet EAP_COMPOSE_PROJECT_NAME="$release_project" "$release_root/scripts/install.sh" \
+COMPOSE_PROGRESS=quiet OWNDSH_COMPOSE_PROJECT_NAME="$release_project" "$release_root/scripts/install.sh" \
   --state-dir "$state_directory" \
   --public-base-url "$platform_origin" \
   --admin-redirect-uri "$platform_origin/enterprise/auth/callback" \
@@ -121,7 +121,7 @@ cp "$state_directory/harness/cordis.patch.yml" "$dsh_home/profiles/web/cordis.pa
 chmod 600 "$dsh_home/profiles/web/cordis.patch.yml"
 
 NODE_EXTRA_CA_CERTS="$temporary_root/certificates/ca.crt" DSH_HOME="$dsh_home" \
-  EAP_LOCAL_HARNESS_ROOT="$harness_root" PATH="$harness_bin:$PATH" \
+  OWNDSH_LOCAL_HARNESS_ROOT="$harness_root" PATH="$harness_bin:$PATH" \
   corepack pnpm@11.7.0 --dir "$harness_root" dsh --profile web --port "$harness_port" \
   > "$harness_log" 2>&1 &
 harness_pid=$!

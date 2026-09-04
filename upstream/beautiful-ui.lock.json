@@ -3,7 +3,7 @@
   "ref": "main",
   "commit": "3ea4c18114de3d4bc9b63b8e3ea6f533b1a562bd",
   "license": "MIT",
-  "licenseFile": "../console-web/BEAUTIFUL_UI_LICENSE",
+  "licenseFile": "../console/BEAUTIFUL_UI_LICENSE",
   "adaptations": [
     "Next.js runtime replaced by Vite and TanStack Router",
     "Central Icons replaced by lucide-react",

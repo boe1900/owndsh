@@ -2,8 +2,9 @@
   "data": [
     {
       "id": "1900800000000000201",
-      "modelId": "1900800000000000101",
-      "modelAlias": "deepseek-chat",
+      "resourceType": "MODEL",
+      "resourceId": "1900800000000000101",
+      "resourceName": "deepseek-chat",
       "subjectType": "MEMBER",
       "subjectId": "1761100000000000003",
       "subjectName": "Alice",

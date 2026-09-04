@@ -5,13 +5,14 @@
 openapi: 3.1.0
 jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
 info:
-  title: Enterprise Agent Platform API
+  title: OwnDsh API
   version: 0.1.0
   description: >-
     Shared protocol components. Business operations are added only by the
     vertical task that also implements and protects the matching Controller.
 security:
   - EnterpriseBearer: []
+  - EnterpriseAdminCookie: []
 
 paths:
   /enterprise/auth/v1/authorize:
@@ -26,10 +27,14 @@ paths:
     $ref: './paths/auth.yaml#/OidcCallback'
   /enterprise/auth/v1/token:
     $ref: './paths/auth.yaml#/Token'
+  /enterprise/auth/v1/browser-session:
+    $ref: './paths/auth.yaml#/BrowserSession'
   /enterprise/auth/v1/logout:
     $ref: './paths/auth.yaml#/Logout'
   /enterprise/admin/v1/bootstrap:
     $ref: './paths/auth.yaml#/ConsoleBootstrap'
+  /enterprise/admin/v1/account/password:
+    $ref: './paths/auth.yaml#/CurrentAccountPassword'
   /enterprise/admin/v1/members:
     $ref: './paths/member.yaml#/MemberCollection'
   /enterprise/admin/v1/members/{userId}:
@@ -62,10 +67,20 @@ paths:
     $ref: './paths/identity.yaml#/~1enterprise~1admin~1v1~1identity-sources~1{sourceId}~1actions~1enable'
   /enterprise/admin/v1/identity-sources/{sourceId}/actions/disable:
     $ref: './paths/identity.yaml#/~1enterprise~1admin~1v1~1identity-sources~1{sourceId}~1actions~1disable'
+  /enterprise/admin/v1/identity-sources/{sourceId}/ldap/users:
+    $ref: './paths/identity.yaml#/~1enterprise~1admin~1v1~1identity-sources~1{sourceId}~1ldap~1users'
+  /enterprise/admin/v1/identity-sources/{sourceId}/ldap/users/actions/import:
+    $ref: './paths/identity.yaml#/~1enterprise~1admin~1v1~1identity-sources~1{sourceId}~1ldap~1users~1actions~1import'
+  /enterprise/admin/v1/identity-sources/{sourceId}/ldap/groups:
+    $ref: './paths/identity.yaml#/~1enterprise~1admin~1v1~1identity-sources~1{sourceId}~1ldap~1groups'
   /enterprise/admin/v1/group-mappings:
     $ref: './paths/identity.yaml#/~1enterprise~1admin~1v1~1group-mappings'
   /enterprise/admin/v1/group-mappings/{mappingId}:
     $ref: './paths/identity.yaml#/~1enterprise~1admin~1v1~1group-mappings~1{mappingId}'
+  /enterprise/admin/v1/access-groups:
+    $ref: './paths/identity.yaml#/~1enterprise~1admin~1v1~1access-groups'
+  /enterprise/admin/v1/access-groups/{accessGroupId}:
+    $ref: './paths/identity.yaml#/~1enterprise~1admin~1v1~1access-groups~1{accessGroupId}'
   /enterprise/admin/v1/users/{userId}/identity-summary:
     $ref: './paths/identity.yaml#/~1enterprise~1admin~1v1~1users~1{userId}~1identity-summary'
   /enterprise/admin/v1/providers:
@@ -86,6 +101,10 @@ paths:
     $ref: './paths/model.yaml#/ModelEnable'
   /enterprise/admin/v1/models/{modelId}/actions/disable:
     $ref: './paths/model.yaml#/ModelDisable'
+  /enterprise/admin/v1/model-sets:
+    $ref: './paths/model.yaml#/ModelSetCollection'
+  /enterprise/admin/v1/model-sets/{modelSetId}:
+    $ref: './paths/model.yaml#/ModelSetItem'
   /enterprise/admin/v1/model-grants:
     $ref: './paths/model.yaml#/GrantCollection'
   /enterprise/admin/v1/model-grants/batch:
@@ -188,10 +207,14 @@ x-enterprise-error-statuses:
     - ENT_PLUGIN_ARCHIVE_TOO_LARGE
     - ENT_SESSION_BATCH_TOO_LARGE
   '429':
+    - ENT_QUOTA_FIVE_HOURS_EXCEEDED
     - ENT_QUOTA_DAILY_EXCEEDED
+    - ENT_QUOTA_WEEKLY_EXCEEDED
     - ENT_QUOTA_MONTHLY_EXCEEDED
     - ENT_QUOTA_RPM_EXCEEDED
     - ENT_QUOTA_CONCURRENCY_EXCEEDED
+    - ENT_UPSTREAM_RATE_LIMITED
+    - ENT_UPSTREAM_QUOTA_EXCEEDED
   '502':
     - ENT_UPSTREAM_AUTH_FAILED
     - ENT_UPSTREAM_INVALID_RESPONSE
@@ -232,8 +255,20 @@ x-enterprise-fixtures:
   - file: fixtures/identity-source-test-success.json
     schema: IdentitySourceTestResponse
     valid: true
+  - file: fixtures/ldap-user-search-success.json
+    schema: LdapDirectoryUserSearchResponse
+    valid: true
+  - file: fixtures/ldap-group-search-success.json
+    schema: LdapDirectoryGroupSearchResponse
+    valid: true
+  - file: fixtures/ldap-member-import-success.json
+    schema: LdapMemberImportResponse
+    valid: true
   - file: fixtures/group-mapping-list-success.json
     schema: GroupMappingListResponse
+    valid: true
+  - file: fixtures/access-group-success.json
+    schema: AccessGroupResponse
     valid: true
   - file: fixtures/deleted-resource-success.json
     schema: DeletedResourceResponse
@@ -279,6 +314,9 @@ x-enterprise-fixtures:
     valid: true
   - file: fixtures/model-list-success.json
     schema: ManagedModelListResponse
+    valid: true
+  - file: fixtures/model-set-success.json
+    schema: ModelSetResponse
     valid: true
   - file: fixtures/model-grant-success.json
     schema: ModelGrantResponse
@@ -344,6 +382,10 @@ components:
       type: http
       scheme: bearer
       bearerFormat: Sa-Token
+    EnterpriseAdminCookie:
+      type: apiKey
+      in: cookie
+      name: __Host-enterprise-admin
 
   parameters:
     AuthClientId:
@@ -419,6 +461,12 @@ components:
       required: true
       schema:
         $ref: '#/components/schemas/GroupMappingId'
+    AccessGroupIdPath:
+      name: accessGroupId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/AccessGroupId'
     EnterpriseUserIdPath:
       name: userId
       in: path
@@ -437,6 +485,12 @@ components:
       required: true
       schema:
         $ref: '#/components/schemas/ManagedModelId'
+    ModelSetIdPath:
+      name: modelSetId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/ModelSetId'
     ModelGrantIdPath:
       name: grantId
       in: path
@@ -634,9 +688,24 @@ components:
     IdentitySourceListResponse: {$ref: './components/identity.yaml#/IdentitySourceListResponse'}
     IdentitySourceConnection: {$ref: './components/identity.yaml#/IdentitySourceConnection'}
     IdentitySourceTestResponse: {$ref: './components/identity.yaml#/IdentitySourceTestResponse'}
+    LdapDirectoryUser: {$ref: './components/identity.yaml#/LdapDirectoryUser'}
+    LdapDirectoryUserSearch: {$ref: './components/identity.yaml#/LdapDirectoryUserSearch'}
+    LdapDirectoryUserSearchResponse: {$ref: './components/identity.yaml#/LdapDirectoryUserSearchResponse'}
+    LdapDirectoryGroup: {$ref: './components/identity.yaml#/LdapDirectoryGroup'}
+    LdapDirectoryGroupSearch: {$ref: './components/identity.yaml#/LdapDirectoryGroupSearch'}
+    LdapDirectoryGroupSearchResponse: {$ref: './components/identity.yaml#/LdapDirectoryGroupSearchResponse'}
+    LdapMemberImportRequest: {$ref: './components/identity.yaml#/LdapMemberImportRequest'}
+    LdapMemberImport: {$ref: './components/identity.yaml#/LdapMemberImport'}
+    LdapMemberImportResponse: {$ref: './components/identity.yaml#/LdapMemberImportResponse'}
     GroupMappingCreateRequest: {$ref: './components/identity.yaml#/GroupMappingCreateRequest'}
     GroupMapping: {$ref: './components/identity.yaml#/GroupMapping'}
     GroupMappingResponse: {$ref: './components/identity.yaml#/GroupMappingResponse'}
+    AccessGroupId: {$ref: './components/identity.yaml#/AccessGroupId'}
+    AccessGroupWriteRequest: {$ref: './components/identity.yaml#/AccessGroupWriteRequest'}
+    AccessGroup: {$ref: './components/identity.yaml#/AccessGroup'}
+    AccessGroupResponse: {$ref: './components/identity.yaml#/AccessGroupResponse'}
+    AccessGroupPageData: {$ref: './components/identity.yaml#/AccessGroupPageData'}
+    AccessGroupListResponse: {$ref: './components/identity.yaml#/AccessGroupListResponse'}
     GroupMappingPageData: {$ref: './components/identity.yaml#/GroupMappingPageData'}
     GroupMappingListResponse: {$ref: './components/identity.yaml#/GroupMappingListResponse'}
     ExternalIdentitySummary: {$ref: './components/identity.yaml#/ExternalIdentitySummary'}
@@ -656,9 +725,13 @@ components:
     PasswordCredentialRequest: {$ref: './components/auth.yaml#/PasswordCredentialRequest'}
     PasswordChangeChallenge: {$ref: './components/auth.yaml#/PasswordChangeChallenge'}
     InitialPasswordChangeRequest: {$ref: './components/auth.yaml#/InitialPasswordChangeRequest'}
+    CurrentPasswordChangeRequest: {$ref: './components/auth.yaml#/CurrentPasswordChangeRequest'}
+    PasswordChangedData: {$ref: './components/auth.yaml#/PasswordChangedData'}
+    PasswordChangedResponse: {$ref: './components/auth.yaml#/PasswordChangedResponse'}
     PasswordStepData: {$ref: './components/auth.yaml#/PasswordStepData'}
     PasswordStepResponse: {$ref: './components/auth.yaml#/PasswordStepResponse'}
     TokenRequest: {$ref: './components/auth.yaml#/TokenRequest'}
+    BrowserSessionRequest: {$ref: './components/auth.yaml#/BrowserSessionRequest'}
     TokenData: {$ref: './components/auth.yaml#/TokenData'}
     TokenResponse: {$ref: './components/auth.yaml#/TokenResponse'}
     LogoutData: {$ref: './components/auth.yaml#/LogoutData'}
@@ -676,6 +749,7 @@ components:
     MemberSessionSummary: {$ref: './components/member.yaml#/MemberSessionSummary'}
     MemberDetail: {$ref: './components/member.yaml#/MemberDetail'}
     MemberDetailResponse: {$ref: './components/member.yaml#/MemberDetailResponse'}
+    LocalMemberCreateRequest: {$ref: './components/member.yaml#/LocalMemberCreateRequest'}
     MemberStatusUpdateRequest: {$ref: './components/member.yaml#/MemberStatusUpdateRequest'}
     MemberRoleReplaceRequest: {$ref: './components/member.yaml#/MemberRoleReplaceRequest'}
     IdentityLinkStartRequest: {$ref: './components/member.yaml#/IdentityLinkStartRequest'}
@@ -692,11 +766,13 @@ components:
     DeviceListResponse: {$ref: './components/device.yaml#/DeviceListResponse'}
     ModelProviderId: {$ref: './components/model.yaml#/ModelProviderId'}
     ModelGrantId: {$ref: './components/model.yaml#/ModelGrantId'}
+    ModelSetId: {$ref: './components/model.yaml#/ModelSetId'}
     ProviderType: {$ref: './components/model.yaml#/ProviderType'}
     ProviderKey: {$ref: './components/model.yaml#/ProviderKey'}
     ProviderApiProtocol: {$ref: './components/model.yaml#/ProviderApiProtocol'}
     ModelStatus: {$ref: './components/model.yaml#/ModelStatus'}
     GrantSubjectType: {$ref: './components/model.yaml#/GrantSubjectType'}
+    GrantResourceType: {$ref: './components/model.yaml#/GrantResourceType'}
     ProviderCreateRequest: {$ref: './components/model.yaml#/ProviderCreateRequest'}
     ProviderUpdateRequest: {$ref: './components/model.yaml#/ProviderUpdateRequest'}
     ProviderProbeRequest: {$ref: './components/model.yaml#/ProviderProbeRequest'}
@@ -713,6 +789,11 @@ components:
     ManagedModelResponse: {$ref: './components/model.yaml#/ManagedModelResponse'}
     ManagedModelPageData: {$ref: './components/model.yaml#/ManagedModelPageData'}
     ManagedModelListResponse: {$ref: './components/model.yaml#/ManagedModelListResponse'}
+    ModelSetWriteRequest: {$ref: './components/model.yaml#/ModelSetWriteRequest'}
+    ModelSet: {$ref: './components/model.yaml#/ModelSet'}
+    ModelSetResponse: {$ref: './components/model.yaml#/ModelSetResponse'}
+    ModelSetPageData: {$ref: './components/model.yaml#/ModelSetPageData'}
+    ModelSetListResponse: {$ref: './components/model.yaml#/ModelSetListResponse'}
     ModelGrantWriteRequest: {$ref: './components/model.yaml#/ModelGrantWriteRequest'}
     ModelGrantBatchRequest: {$ref: './components/model.yaml#/ModelGrantBatchRequest'}
     ModelGrant: {$ref: './components/model.yaml#/ModelGrant'}
@@ -771,9 +852,11 @@ components:
     AuditEventPageData: {$ref: './components/audit.yaml#/AuditEventPageData'}
     AuditEventListResponse: {$ref: './components/audit.yaml#/AuditEventListResponse'}
     QuotaPolicyId: {$ref: './components/quota.yaml#/QuotaPolicyId'}
+    QuotaPolicyType: {$ref: './components/quota.yaml#/QuotaPolicyType'}
     QuotaWindowId: {$ref: './components/quota.yaml#/QuotaWindowId'}
     UsageLedgerId: {$ref: './components/quota.yaml#/UsageLedgerId'}
     QuotaSubjectType: {$ref: './components/quota.yaml#/QuotaSubjectType'}
+    QuotaResourceType: {$ref: './components/quota.yaml#/QuotaResourceType'}
     QuotaStatus: {$ref: './components/quota.yaml#/QuotaStatus'}
     QuotaWindowType: {$ref: './components/quota.yaml#/QuotaWindowType'}
     UsageResult: {$ref: './components/quota.yaml#/UsageResult'}
@@ -910,10 +993,14 @@ components:
         - ENT_REQUEST_TOO_LARGE
         - ENT_PLUGIN_ARCHIVE_TOO_LARGE
         - ENT_SESSION_BATCH_TOO_LARGE
+        - ENT_QUOTA_FIVE_HOURS_EXCEEDED
         - ENT_QUOTA_DAILY_EXCEEDED
+        - ENT_QUOTA_WEEKLY_EXCEEDED
         - ENT_QUOTA_MONTHLY_EXCEEDED
         - ENT_QUOTA_RPM_EXCEEDED
         - ENT_QUOTA_CONCURRENCY_EXCEEDED
+        - ENT_UPSTREAM_RATE_LIMITED
+        - ENT_UPSTREAM_QUOTA_EXCEEDED
         - ENT_UPSTREAM_AUTH_FAILED
         - ENT_UPSTREAM_INVALID_RESPONSE
         - ENT_PLATFORM_UNAVAILABLE

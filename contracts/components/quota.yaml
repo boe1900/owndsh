@@ -1,6 +1,6 @@
 # [INPUT]: 依赖根协议的资源 ID、revision、cursor、requestId 与严格成功 envelope
-# [OUTPUT]: 提供 T09 quota policy/window、bootstrap quota、本人用量与脱敏 ledger schema
-# [POS]: contracts/components 的配额真源，保留未配置 limit 的 null 语义且不承载 prompt 或上游秘密
+# [OUTPUT]: 提供 TOKEN/RATE 互斥策略、供应商速率范围、四类 Token 窗口、bootstrap/本人用量及脱敏 ledger schema
+# [POS]: contracts/components 的配额与速率真源；PROVIDER 只允许组织级 RATE，且不承载计费
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 QuotaPolicyId:
@@ -15,12 +15,19 @@ UsageLedgerId:
 QuotaSubjectType:
   type: string
   enum: [ORGANIZATION, MEMBER]
+QuotaPolicyType:
+  type: string
+  enum: [TOKEN, RATE]
+QuotaResourceType:
+  type: string
+  description: PROVIDER 仅可用于 ORGANIZATION 主体的 RATE 策略；TOKEN 不接受该资源范围。
+  enum: [ALL_MODELS, MODEL_SET, MODEL, PROVIDER]
 QuotaStatus:
   type: string
   enum: [ACTIVE, DISABLED]
 QuotaWindowType:
   type: string
-  enum: [DAY, MONTH]
+  enum: [FIVE_HOURS, DAY, WEEK, MONTH]
 UsageResult:
   type: string
   enum: [SETTLED, CHARGED_MAX]
@@ -43,12 +50,18 @@ NullableResourceId:
 
 QuotaPolicyWriteRequest:
   type: object
+  description: TOKEN 与 RATE 限制字段互斥；PROVIDER 仅允许与 RATE、ORGANIZATION 和非空 resourceId 组合。
   additionalProperties: false
   required:
     - name
+    - policyType
     - subjectType
     - subjectId
+    - resourceType
+    - resourceId
+    - fiveHourTokenLimit
     - dailyTokenLimit
+    - weeklyTokenLimit
     - monthlyTokenLimit
     - rpm
     - concurrency
@@ -58,9 +71,14 @@ QuotaPolicyWriteRequest:
       type: string
       minLength: 1
       maxLength: 120
+    policyType: {$ref: '#/QuotaPolicyType'}
     subjectType: {$ref: '#/QuotaSubjectType'}
     subjectId: {$ref: '#/NullableResourceId'}
+    resourceType: {$ref: '#/QuotaResourceType'}
+    resourceId: {$ref: '#/NullableResourceId'}
+    fiveHourTokenLimit: {$ref: '#/NullablePositiveLong'}
     dailyTokenLimit: {$ref: '#/NullablePositiveLong'}
+    weeklyTokenLimit: {$ref: '#/NullablePositiveLong'}
     monthlyTokenLimit: {$ref: '#/NullablePositiveLong'}
     rpm: {$ref: '#/NullablePositiveInteger'}
     concurrency: {$ref: '#/NullablePositiveInteger'}
@@ -71,10 +89,16 @@ QuotaPolicy:
   required:
     - id
     - name
+    - policyType
     - subjectType
     - subjectId
     - subjectName
+    - resourceType
+    - resourceId
+    - resourceName
+    - fiveHourTokenLimit
     - dailyTokenLimit
+    - weeklyTokenLimit
     - monthlyTokenLimit
     - rpm
     - concurrency
@@ -86,6 +110,7 @@ QuotaPolicy:
       type: string
       minLength: 1
       maxLength: 120
+    policyType: {$ref: '#/QuotaPolicyType'}
     subjectType: {$ref: '#/QuotaSubjectType'}
     subjectId: {$ref: '#/NullableResourceId'}
     subjectName:
@@ -94,7 +119,17 @@ QuotaPolicy:
           minLength: 1
           maxLength: 120
         - type: 'null'
+    resourceType: {$ref: '#/QuotaResourceType'}
+    resourceId: {$ref: '#/NullableResourceId'}
+    resourceName:
+      oneOf:
+        - type: string
+          minLength: 1
+          maxLength: 120
+        - type: 'null'
+    fiveHourTokenLimit: {$ref: '#/NullablePositiveLong'}
     dailyTokenLimit: {$ref: '#/NullablePositiveLong'}
+    weeklyTokenLimit: {$ref: '#/NullablePositiveLong'}
     monthlyTokenLimit: {$ref: '#/NullablePositiveLong'}
     rpm: {$ref: '#/NullablePositiveInteger'}
     concurrency: {$ref: '#/NullablePositiveInteger'}
@@ -160,7 +195,7 @@ QuotaWindowListResponse:
   properties:
     data:
       type: array
-      maxItems: 2
+      maxItems: 4
       items: {$ref: '#/QuotaWindow'}
     requestId:
       $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
@@ -168,11 +203,17 @@ QuotaWindowListResponse:
 BootstrapQuota:
   type: object
   additionalProperties: false
-  required: [policyId, scope, dailyTokenLimit, monthlyTokenLimit, rpm, concurrency]
+  required:
+    [policyId, scope, resourceType, resourceId, fiveHourTokenLimit, dailyTokenLimit,
+     weeklyTokenLimit, monthlyTokenLimit, rpm, concurrency]
   properties:
     policyId: {$ref: '#/QuotaPolicyId'}
     scope: {$ref: '#/QuotaSubjectType'}
+    resourceType: {$ref: '#/QuotaResourceType'}
+    resourceId: {$ref: '#/NullableResourceId'}
+    fiveHourTokenLimit: {$ref: '#/NullablePositiveLong'}
     dailyTokenLimit: {$ref: '#/NullablePositiveLong'}
+    weeklyTokenLimit: {$ref: '#/NullablePositiveLong'}
     monthlyTokenLimit: {$ref: '#/NullablePositiveLong'}
     rpm: {$ref: '#/NullablePositiveInteger'}
     concurrency: {$ref: '#/NullablePositiveInteger'}
@@ -237,7 +278,9 @@ NullableConcurrencyUsage:
 QuotaUsagePolicy:
   type: object
   additionalProperties: false
-  required: [policyId, name, scope, subjectId, daily, monthly, rpm, concurrency]
+  required:
+    [policyId, name, scope, subjectId, resourceType, resourceId, resourceName,
+     fiveHours, daily, weekly, monthly, rpm, concurrency]
   properties:
     policyId: {$ref: '#/QuotaPolicyId'}
     name:
@@ -246,7 +289,17 @@ QuotaUsagePolicy:
       maxLength: 120
     scope: {$ref: '#/QuotaSubjectType'}
     subjectId: {$ref: '#/NullableResourceId'}
+    resourceType: {$ref: '#/QuotaResourceType'}
+    resourceId: {$ref: '#/NullableResourceId'}
+    resourceName:
+      oneOf:
+        - type: string
+          minLength: 1
+          maxLength: 120
+        - type: 'null'
+    fiveHours: {$ref: '#/NullableTokenWindowUsage'}
     daily: {$ref: '#/NullableTokenWindowUsage'}
+    weekly: {$ref: '#/NullableTokenWindowUsage'}
     monthly: {$ref: '#/NullableTokenWindowUsage'}
     rpm: {$ref: '#/NullableRateUsage'}
     concurrency: {$ref: '#/NullableConcurrencyUsage'}

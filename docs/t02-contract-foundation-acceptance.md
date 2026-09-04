@@ -32,9 +32,9 @@ contracts 包仍继承 workspace 的 `strict`、`noUncheckedIndexedAccess` 等�
 
 ```sh
 corepack pnpm@11.7.0 install --frozen-lockfile
-corepack pnpm@11.7.0 --filter @enterprise-agent/dsh-contracts check:generated
-corepack pnpm@11.7.0 --filter @enterprise-agent/dsh-contracts typecheck
-corepack pnpm@11.7.0 --filter @enterprise-agent/dsh-contracts test
+corepack pnpm@11.7.0 --filter @owndsh/contracts check:generated
+corepack pnpm@11.7.0 --filter @owndsh/contracts typecheck
+corepack pnpm@11.7.0 --filter @owndsh/contracts test
 corepack pnpm@11.7.0 run check
 corepack pnpm@11.7.0 run pack:contracts
 corepack pnpm@11.7.0 run smoke:contracts
@@ -47,7 +47,7 @@ corepack pnpm@11.7.0 run smoke:contracts
 ```sh
 corepack pnpm@11.7.0 run pack:bundle
 node scripts/t01-harness-smoke.mjs \
-  --tgz ../artifacts/enterprise-agent-dsh-bundle-0.1.0.tgz
+  --tgz ../artifacts/owndsh-plugin-0.1.0.tgz
 ```
 
 结果：真实 bundle package consumer、锁定 Harness `web` profile、Client bundle、本地 status API 和 Session seed 全部通过，组合输出仍锁定 Harness commit `47f943859bef60e4160492346772ded9b24f765a`。
@@ -57,7 +57,7 @@ node scripts/t01-harness-smoke.mjs \
 ```sh
 JAVA_HOME=/usr/local/opt/openjdk@21 \
 PATH=/usr/local/opt/openjdk@21/bin:$PATH \
-./mvnw -B -ntp -pl ruoyi-admin -am \
+./mvnw -B -ntp -pl owndsh-server -am \
   -Dmaven.test.skip=false -DskipTests=false \
   -Dtest=EnterpriseContractSchemaTest \
   -Dsurefire.failIfNoSpecifiedTests=false test

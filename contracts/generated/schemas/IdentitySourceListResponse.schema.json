@@ -183,6 +183,21 @@
                     "minLength": 1,
                     "maxLength": 128
                   },
+                  "groupBaseDn": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  },
+                  "groupFilter": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 512
+                  },
+                  "groupNameAttribute": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
                   "startTls": {
                     "type": "boolean"
                   }

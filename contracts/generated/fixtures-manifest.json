@@ -61,10 +61,34 @@
       "zodExport": "zIdentitySourceTestResponse"
     },
     {
+      "file": "fixtures/ldap-user-search-success.json",
+      "schema": "LdapDirectoryUserSearchResponse",
+      "valid": true,
+      "zodExport": "zLdapDirectoryUserSearchResponse"
+    },
+    {
+      "file": "fixtures/ldap-group-search-success.json",
+      "schema": "LdapDirectoryGroupSearchResponse",
+      "valid": true,
+      "zodExport": "zLdapDirectoryGroupSearchResponse"
+    },
+    {
+      "file": "fixtures/ldap-member-import-success.json",
+      "schema": "LdapMemberImportResponse",
+      "valid": true,
+      "zodExport": "zLdapMemberImportResponse"
+    },
+    {
       "file": "fixtures/group-mapping-list-success.json",
       "schema": "GroupMappingListResponse",
       "valid": true,
       "zodExport": "zGroupMappingListResponse"
+    },
+    {
+      "file": "fixtures/access-group-success.json",
+      "schema": "AccessGroupResponse",
+      "valid": true,
+      "zodExport": "zAccessGroupResponse"
     },
     {
       "file": "fixtures/deleted-resource-success.json",
@@ -155,6 +179,12 @@
       "schema": "ManagedModelListResponse",
       "valid": true,
       "zodExport": "zManagedModelListResponse"
+    },
+    {
+      "file": "fixtures/model-set-success.json",
+      "schema": "ModelSetResponse",
+      "valid": true,
+      "zodExport": "zModelSetResponse"
     },
     {
       "file": "fixtures/model-grant-success.json",
@@ -271,5 +301,5 @@
       "zodExport": "zAuditEventListResponse"
     }
   ],
-  "protocolSha256": "d259136f4240b988b39a2d06ae4448f32aa61ab1548716a997536ba90df29a80"
+  "protocolSha256": "b7c5276c7ffb60411926f59744f41bf03fb930bf39af9e35d2d1ed9055a39fed"
 }

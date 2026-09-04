@@ -40,8 +40,8 @@
 ## 自动验收
 
 ```sh
-corepack pnpm@11.7.0 --dir harness-plugin run typecheck
-corepack pnpm@11.7.0 --dir harness-plugin --filter @enterprise-agent/dsh-llm-gateway test
+corepack pnpm@11.7.0 --dir plugin run typecheck
+corepack pnpm@11.7.0 --dir plugin --filter @owndsh/llm-gateway test
 ```
 
 最小回归覆盖三协议 profile、default/reasoningEfforts、透明 relay、平台 SSE 标记和本机认证隔离。
@@ -49,9 +49,9 @@ corepack pnpm@11.7.0 --dir harness-plugin --filter @enterprise-agent/dsh-llm-gat
 真实 bundle 组合验收：
 
 ```sh
-corepack pnpm@11.7.0 --dir harness-plugin run pack:bundle
-corepack pnpm@11.7.0 --dir harness-plugin run accept:t11-model -- \
-  --tgz ../artifacts/enterprise-agent-dsh-bundle-0.1.0.tgz
+corepack pnpm@11.7.0 --dir plugin run pack:bundle
+corepack pnpm@11.7.0 --dir plugin run accept:t11-model -- \
+  --tgz ../artifacts/owndsh-plugin-0.1.0.tgz
 ```
 
 `scripts/t11-harness-model-smoke.mjs` 使用未修改的锁定 Harness `web` profile，验证：

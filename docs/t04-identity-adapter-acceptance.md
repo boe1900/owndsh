@@ -6,7 +6,7 @@
 
 ## 结论
 
-T04 已完成，且没有进入 T05。`ruoyi-enterprise` 已建立统一 `IdentityAdapter` 边界，并实现
+T04 已完成，且没有进入 T05。`owndsh-enterprise` 已建立统一 `IdentityAdapter` 边界，并实现
 OIDC、LDAP、LOCAL 三类真实身份适配器；外部身份只依据身份源、issuer 与稳定 subject 解析，
 不会按 username 或 email 隐式合并账号。显式绑定冲突、首次用户同步、外部组到部门的显式映射、
 身份源与组映射管理 API 均已落地。
@@ -64,7 +64,7 @@ OIDC client secret 与 LDAP manager password 只以 AES-GCM 密文进入数据�
 ```sh
 JAVA_HOME=/usr/local/opt/openjdk@21 \
 PATH=/usr/local/opt/openjdk@21/bin:$PATH \
-./mvnw -B -ntp -pl ruoyi-modules/ruoyi-enterprise -am \
+./mvnw -B -ntp -pl ruoyi-modules/owndsh-enterprise -am \
   -Dmaven.test.skip=false test
 ```
 
@@ -80,15 +80,15 @@ PATH=/usr/local/opt/openjdk@21/bin:$PATH \
 ./mvnw -B -ntp -Dmaven.test.skip=false test
 ```
 
-结果：Maven 41 个 reactor 模块全部成功；`ruoyi-enterprise` 39 个测试、`ruoyi-admin` 3 个测试
+结果：Maven 41 个 reactor 模块全部成功；`owndsh-enterprise` 39 个测试、`owndsh-server` 3 个测试
 均通过。后者包含从 OpenAPI 生成 schema 对 T04 身份 fixture 的同源校验。
 
-契约门禁从 pnpm workspace 根 `harness-plugin/` 实际执行：
+契约门禁从 pnpm workspace 根 `plugin/` 实际执行：
 
 ```sh
-pnpm --filter @enterprise-agent/dsh-contracts check:generated
-pnpm --filter @enterprise-agent/dsh-contracts typecheck
-pnpm --filter @enterprise-agent/dsh-contracts test
+pnpm --filter @owndsh/contracts check:generated
+pnpm --filter @owndsh/contracts typecheck
+pnpm --filter @owndsh/contracts test
 ```
 
 结果：生成漂移检查和 TypeScript 类型检查通过，Vitest 4 个测试全部通过。
@@ -101,7 +101,7 @@ node scripts/upstream-baseline.mjs verify
 git diff --check
 ```
 
-三项均通过；秘密哨兵在 `ruoyi-enterprise` 与 `ruoyi-admin` Surefire 报告中的扫描结果为零。
+三项均通过；秘密哨兵在 `owndsh-enterprise` 与 `owndsh-server` Surefire 报告中的扫描结果为零。
 同级 `deepseek-harness` 保持提交 `47f943859bef60e4160492346772ded9b24f765a` 且工作区干净，
 T04 没有修改任何 Harness 文件。OpenAPI 根文件 774 行、最大生成 TypeScript 文件 794 行，新增
 业务、测试与文档文件均低于 800 行。

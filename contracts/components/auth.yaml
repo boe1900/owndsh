@@ -1,6 +1,6 @@
 # [INPUT]: 依赖根协议的 RequestId 与统一 envelope 约定，以及详细设计第 6 节固定 public client/PKCE 边界
-# [OUTPUT]: 提供登录事务、公开身份源、LOCAL 两阶段改密 challenge、授权码 Token、注销与产品控制台 bootstrap schema
-# [POS]: contracts/components 的认证协议分片，首次改密不重放账号/初始密码/验证码且不增加密码重置旁路
+# [OUTPUT]: 提供登录事务、LOCAL 改密、公开身份源、Desktop Token、浏览器 Cookie exchange、注销与 console bootstrap schema
+# [POS]: contracts/components 的认证协议分片，隔离两类客户端会话输出且不增加密码重置旁路
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 PlatformClient:
@@ -113,13 +113,13 @@ PasswordCredentialRequest:
       type: string
       minLength: 1
       maxLength: 128
-      description: Required for LOCAL only when the existing RuoYi captcha switch is enabled.
+      description: Required for LOCAL only when the host captcha switch is enabled.
     captchaCode:
       type: string
       minLength: 1
       maxLength: 16
       writeOnly: true
-      description: Required for LOCAL only when the existing RuoYi captcha switch is enabled.
+      description: Required for LOCAL only when the host captcha switch is enabled.
 
 PasswordChangeChallenge:
   type: string
@@ -148,6 +148,41 @@ InitialPasswordChangeRequest:
       minLength: 14
       maxLength: 128
       writeOnly: true
+
+CurrentPasswordChangeRequest:
+  type: object
+  additionalProperties: false
+  required: [currentPassword, newPassword]
+  properties:
+    currentPassword:
+      type: string
+      minLength: 1
+      maxLength: 256
+      writeOnly: true
+    newPassword:
+      type: string
+      minLength: 14
+      maxLength: 128
+      writeOnly: true
+
+PasswordChangedData:
+  type: object
+  additionalProperties: false
+  required: [changed]
+  properties:
+    changed:
+      type: boolean
+      const: true
+
+PasswordChangedResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data:
+      $ref: '#/PasswordChangedData'
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
 
 PasswordStepData:
   type: object
@@ -202,6 +237,21 @@ TokenRequest:
         - $ref: '#/InstallationId'
         - type: 'null'
 
+BrowserSessionRequest:
+  type: object
+  additionalProperties: false
+  required: [code, redirectUri, codeVerifier]
+  properties:
+    code:
+      $ref: '#/AuthorizationCode'
+    redirectUri:
+      type: string
+      format: uri
+      minLength: 1
+      maxLength: 2048
+    codeVerifier:
+      $ref: '#/PkceCodeVerifier'
+
 TokenData:
   type: object
   additionalProperties: false
@@ -254,21 +304,46 @@ BuiltInRole:
   type: string
   enum: [enterprise_admin, model_admin, plugin_admin, auditor, employee]
 
+ConsoleLoginMethod:
+  type: object
+  additionalProperties: false
+  required: [sourceName, sourceType]
+  properties:
+    sourceName:
+      type: string
+      minLength: 1
+      maxLength: 100
+    sourceType:
+      $ref: './identity.yaml#/IdentitySourceType'
+
 ConsoleMember:
   type: object
   additionalProperties: false
-  required: [id, displayName, avatarUrl]
+  required: [id, username, displayName, email, avatarUrl, loginMethods]
   properties:
     id:
       $ref: '../enterprise-openapi.yaml#/components/schemas/EnterpriseUserId'
+    username:
+      type: string
+      minLength: 1
+      maxLength: 30
     displayName:
       type: string
       minLength: 1
       maxLength: 120
+    email:
+      type: [string, 'null']
+      format: email
+      maxLength: 50
     avatarUrl:
       type: [string, 'null']
       format: uri
       maxLength: 2048
+    loginMethods:
+      type: array
+      maxItems: 20
+      items:
+        $ref: '#/ConsoleLoginMethod'
 
 ConsoleDeployment:
   type: object

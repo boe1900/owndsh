@@ -56,13 +56,13 @@ node --test scripts/scan-sensitive-logs.test.mjs
 cd backend
 JAVA_HOME=/usr/local/opt/openjdk@21 \
 PATH=/usr/local/opt/openjdk@21/bin:$PATH \
-./mvnw -B -ntp -pl ruoyi-modules/ruoyi-enterprise -am \
+./mvnw -B -ntp -pl ruoyi-modules/owndsh-enterprise -am \
   -Dmaven.test.skip=false -DskipTests=false \
   -Dtest=IdentityPersistenceIntegrationTest,ModelManagementIntegrationTest,ModelGatewayTransactionIntegrationTest,QuotaManagementIntegrationTest,PluginServerIntegrationTest \
   -Dsurefire.failIfNoSpecifiedTests=false test
 ```
 
-完整 Backend 41 模块 reactor 随后通过，`ruoyi-enterprise` 138 项、`ruoyi-admin` 8 项均为零失败，总耗时 2 分 31 秒：
+完整 Backend 41 模块 reactor 随后通过，`owndsh-enterprise` 138 项、`owndsh-server` 8 项均为零失败，总耗时 2 分 31 秒：
 
 ```sh
 cd backend
@@ -85,19 +85,19 @@ corepack pnpm@10.34.5 build:prod
 ## Harness 与协议
 
 ```sh
-cd harness-plugin
+cd plugin
 corepack pnpm@11.7.0 typecheck
 corepack pnpm@11.7.0 test
 corepack pnpm@11.7.0 build
 corepack pnpm@11.7.0 pack:bundle
-corepack pnpm@11.7.0 --filter @enterprise-agent/dsh-contracts check:generated
+corepack pnpm@11.7.0 --filter @owndsh/contracts check:generated
 ```
 
-七个产品 package typecheck/build 通过，83 项 Vitest 与 4 项 workspace 边界测试通过；bundle 重新打包为 `artifacts/enterprise-agent-dsh-bundle-0.1.0.tgz`。生成协议无漂移，产品源码仍不导入同级 Harness 或 Typert Remote shim。
+七个产品 package typecheck/build 通过，83 项 Vitest 与 4 项 workspace 边界测试通过；bundle 重新打包为 `artifacts/owndsh-plugin-0.1.0.tgz`。生成协议无漂移，产品源码仍不导入同级 Harness 或 Typert Remote shim。
 
 ## 全新安装证据
 
-全新状态目录：`/tmp/eap-t21-state-fixed.owpNNs`。使用本地测试证书、`https://localhost:18443` authority 和镜像 digest mirror 完整执行安装，结果如下：
+全新状态目录：`/tmp/owndsh-t21-state-fixed.owpNNs`。使用本地测试证书、`https://localhost:18443` authority 和镜像 digest mirror 完整执行安装，结果如下：
 
 - Gateway 是唯一宿主发布端口，`GET /healthz` 返回 `{"groups":["liveness","readiness"],"status":"UP"}`。
 - PostgreSQL、Redis、Server、Gateway 全部 healthy；Server/Gateway 镜像均为 `linux/amd64` 交付物。
@@ -112,8 +112,8 @@ corepack pnpm@11.7.0 --filter @enterprise-agent/dsh-contracts check:generated
 实际备份：
 
 ```text
-data: /tmp/eap-t21-data-backup.PEzcdC/20260820T092550Z
-keys: /tmp/eap-t21-key-backup.h8GweE/20260820T092550Z
+data: /tmp/owndsh-t21-data-backup.PEzcdC/20260820T092550Z
+keys: /tmp/owndsh-t21-key-backup.h8GweE/20260820T092550Z
 ```
 
 普通数据备份含 `postgres.dump`、`redis.rdb`、`artifacts.tar.gz`、`runtime.env`、`backup.env` 和独立 SHA-256 清单，不含 key。key 备份只有 `enterprise-keys.tar.gz` 与自己的清单。
@@ -125,12 +125,12 @@ keys: /tmp/eap-t21-key-backup.h8GweE/20260820T092550Z
 升级候选：
 
 ```text
-/tmp/eap-t21-release-011.kN9czW/enterprise-agent-platform-0.1.1-linux-amd64.tgz
+/tmp/owndsh-t21-release-011.kN9czW/owndsh-0.1.1-linux-amd64.tgz
 SHA-256: 255860c3edae72f3b259b040b7c4f89856e4b3b0d2ee58a6aedd2d797809f204
 size: 321 MiB
 ```
 
-`0.1.0 -> 0.1.1` 升级成功，随后应用回滚成功。回滚后 `EAP_RELEASE_VERSION=0.1.1` 保留新 release 元数据，Server/Gateway 镜像回到 `0.1.0`；PostgreSQL、Redis、artifact 卷名不变，key 指纹不变，Flyway 保持 V12，部署继续在 `18443` 健康服务。这个行为明确区分“应用回滚”和“数据灾难恢复”。
+`0.1.0 -> 0.1.1` 升级成功，随后应用回滚成功。回滚后 `OWNDSH_RELEASE_VERSION=0.1.1` 保留新 release 元数据，Server/Gateway 镜像回到 `0.1.0`；PostgreSQL、Redis、artifact 卷名不变，key 指纹不变，Flyway 保持 V12，部署继续在 `18443` 健康服务。这个行为明确区分“应用回滚”和“数据灾难恢复”。
 
 ## 上游与仓库边界
 

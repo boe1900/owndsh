@@ -1,0 +1,33 @@
+# @owndsh/contracts
+
+Generated and runtime contracts for the enterprise Harness packages. The
+logical wire source is rooted at `../../../contracts/enterprise-openapi.yaml`
+and includes its checked-in `components/` references.
+`src/generated/` and `../../../contracts/generated/` are replaced together by
+the generator and must not be edited manually. The protocol SHA-256 covers the
+Swagger Parser bundle, so changing a referenced component cannot evade drift.
+
+The public package exposes strict Zod schemas, stable HTTP error decoding, and
+validated branded IDs. The generator maps `additionalProperties: false` to
+Zod `.strict()` so unknown wire fields fail instead of being stripped. Raw
+generated ID aliases are deliberately not exported: business packages must
+construct IDs through the matching `parse*Id()` helper.
+
+The public surface also exports the T08 provider, managed-model, and grant DTOs,
+the T09 bootstrap quota, policy/window, active-device usage, and prompt-free
+ledger DTOs, the T10/T11 gateway request with its validated reasoning pair, and
+the T16 format-v0 Session batch/list/export/tombstone DTOs and strict schemas.
+Provider credentials remain write-only; provider routes and credentials are
+intentionally absent from every client-controlled gateway field and runtime
+response type.
+
+The package inherits the workspace strict TypeScript baseline but disables
+`exactOptionalPropertyTypes` locally because Hey API 0.99.0's generated Fetch
+runtime passes explicit `undefined` for optional Web API fields. This exception
+does not weaken the OpenAPI/Zod runtime boundary or any sibling package.
+
+```sh
+pnpm generate
+pnpm check:generated
+pnpm test
+```

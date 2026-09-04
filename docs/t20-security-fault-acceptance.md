@@ -45,7 +45,7 @@ T20 已完成，且没有进入 T21。平台现在以默认拒绝跨域、强制
 cd backend
 JAVA_HOME=/usr/local/opt/openjdk@21 \
 PATH=/usr/local/opt/openjdk@21/bin:$PATH \
-./mvnw -B -ntp -pl ruoyi-admin -am \
+./mvnw -B -ntp -pl owndsh-server -am \
   -Dmaven.test.skip=false -DskipTests=false \
   -Dtest=ResourcesConfigCorsTest,GracefulShutdownIntegrationTest,EnterpriseSafetyDefaultsTest,SaTokenSecretLoggingTest,EnterpriseSessionPropertiesTest,EnterpriseJsonBodyLimitFilterTest,T20FaultBoundaryTest,PluginArtifactSecurityTest \
   -Dsurefire.failIfNoSpecifiedTests=false test
@@ -64,13 +64,13 @@ node --test scripts/scan-sensitive-logs.test.mjs
 cd backend
 JAVA_HOME=/usr/local/opt/openjdk@21 \
 PATH=/usr/local/opt/openjdk@21/bin:$PATH \
-./mvnw -B -ntp -pl ruoyi-admin -am -Dmaven.test.skip=false -DskipTests=false test
+./mvnw -B -ntp -pl owndsh-server -am -Dmaven.test.skip=false -DskipTests=false test
 
 cd ../admin-web
 corepack pnpm lint
 corepack pnpm build:prod
 
-cd ../harness-plugin
+cd ../plugin
 corepack pnpm typecheck
 corepack pnpm test
 corepack pnpm build
@@ -103,9 +103,9 @@ T20 恢复演练通过: PostgreSQL=1 Redis=2 artifact=1 keys=2 kill/restart=2 di
 首次对现存真实 Server 日志扫描发现 622 个历史 Bearer/JWT 形状命中。其中 SSE query `Authorization` 由 T19 前的旧访问日志产生，当前 `PlusWebInvokeTimeInterceptor` 已有大小写无关清洗回归；但 Sa-Token 全局异常处理仍把携带 raw JWT 的 `NotLoginException.message` 写日志。T20 因此新增 `SaTokenSecretLoggingTest` 并修改处理器，这个发现不被当作旧日志噪声忽略。
 
 扫描器命中只输出文件、行号与 pattern 名，最多输出 50 条诊断，不回显 Token 或受控明文。修复后的全新定向测试日志作为 CI 输入重新扫描，常见秘密形状与受控 JWT 都为 0 命中。
-旧日志均为 `.gitignore` 覆盖的本地运行产物；停止遗留的 T19 验收进程后，六个 `backend/logs`
-文件与 `/tmp/eap-t19-server.log` 已精确删除。最终全量执行没有重新生成 Server 日志，扫描
-`backend/target/t20` 与空的 `backend/logs` 共读取 3 个新日志文件，结果仍为 0 命中。
+旧日志均为 `.gitignore` 覆盖的本地运行产物；停止遗留的 T19 验收进程后，六个 `server/logs`
+文件与 `/tmp/owndsh-t19-server.log` 已精确删除。最终全量执行没有重新生成 Server 日志，扫描
+`server/target/t20` 与空的 `server/logs` 共读取 3 个新日志文件，结果仍为 0 命中。
 
 ## 上游与仓库边界
 

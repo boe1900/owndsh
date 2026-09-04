@@ -12,20 +12,20 @@ usage() {
   printf '%s\n' "用法: $0 --state-dir DIR --data-output DIR --key-output DIR"
 }
 
-EAP_STATE_DIR=
+OWNDSH_STATE_DIR=
 data_output=
 key_output=
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --state-dir) EAP_STATE_DIR=${2:-}; shift 2 ;;
+    --state-dir) OWNDSH_STATE_DIR=${2:-}; shift 2 ;;
     --data-output) data_output=${2:-}; shift 2 ;;
     --key-output) key_output=${2:-}; shift 2 ;;
     *) usage >&2; exit 2 ;;
   esac
 done
 
-require_safe_path "$EAP_STATE_DIR"
-require_file "$EAP_STATE_DIR/runtime.env"
+require_safe_path "$OWNDSH_STATE_DIR"
+require_file "$OWNDSH_STATE_DIR/runtime.env"
 [ -n "$data_output" ] && [ -n "$key_output" ] || fail "必须分别提供 data/key 输出目录"
 data_output=$(mkdir -p "$data_output" && CDPATH= cd -- "$data_output" && pwd)
 key_output=$(mkdir -p "$key_output" && CDPATH= cd -- "$key_output" && pwd)
@@ -33,7 +33,7 @@ key_output=$(mkdir -p "$key_output" && CDPATH= cd -- "$key_output" && pwd)
 require_command docker
 require_sha256
 require_command tar
-if [ "${EAP_OPERATION_LOCK_HELD:-0}" != 1 ]; then
+if [ "${OWNDSH_OPERATION_LOCK_HELD:-0}" != 1 ]; then
   acquire_operation_lock
 fi
 
@@ -49,23 +49,23 @@ redis_container=$(compose ps -q redis)
 docker cp "$redis_container:/data/dump.rdb" "$data_backup/redis.rdb"
 
 artifact_volume=$(volume_for server /var/lib/enterprise/artifacts)
-server_image=$(env_value EAP_SERVER_IMAGE "$(runtime_file)")
+server_image=$(env_value OWNDSH_SERVER_IMAGE "$(runtime_file)")
 docker run --rm --platform linux/amd64 --user 0:0 \
   -v "$artifact_volume:/source:ro" -v "$data_backup:/backup" \
   --entrypoint sh "$server_image" -ec 'tar -C /source -czf /backup/artifacts.tar.gz .'
 
 cp "$(runtime_file)" "$data_backup/runtime.env"
 cat > "$data_backup/backup.env" <<EOF
-EAP_BACKUP_FORMAT=1
-EAP_BACKUP_CREATED_AT=$timestamp
-EAP_RELEASE_VERSION=$(env_value EAP_RELEASE_VERSION "$(runtime_file)")
+OWNDSH_BACKUP_FORMAT=1
+OWNDSH_BACKUP_CREATED_AT=$timestamp
+OWNDSH_RELEASE_VERSION=$(env_value OWNDSH_RELEASE_VERSION "$(runtime_file)")
 EOF
 (
   cd "$data_backup"
   sha256sum_compat postgres.dump redis.rdb artifacts.tar.gz runtime.env backup.env > SHA256SUMS
 )
 
-tar -C "$EAP_STATE_DIR/secrets" -czf "$key_backup/enterprise-keys.tar.gz" \
+tar -C "$OWNDSH_STATE_DIR/secrets" -czf "$key_backup/enterprise-keys.tar.gz" \
   enterprise_master_key plugin_signing_private_key plugin_signing_public_key
 (
   cd "$key_backup"

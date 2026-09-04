@@ -56,10 +56,10 @@ shell 在移动宽度下的布局不属于 T07，也没有为未公开的移动�
 受影响 package 定点门禁：
 
 ```sh
-corepack pnpm@11.7.0 --filter @enterprise-agent/dsh-ui test
-corepack pnpm@11.7.0 --filter @enterprise-agent/dsh-ui typecheck
-corepack pnpm@11.7.0 --filter @enterprise-agent/dsh-platform-client test
-corepack pnpm@11.7.0 --filter @enterprise-agent/dsh-bundle test
+corepack pnpm@11.7.0 --filter @owndsh/ui test
+corepack pnpm@11.7.0 --filter @owndsh/ui typecheck
+corepack pnpm@11.7.0 --filter @owndsh/platform-client test
+corepack pnpm@11.7.0 --filter owndsh-plugin test
 ```
 
 结果：UI 3 个文件 7 项、platform-client 4 个文件 18 项、bundle 3 项全部通过。测试覆盖十态严格
@@ -83,9 +83,9 @@ corepack pnpm@11.7.0 run pack:platform-client
 corepack pnpm@11.7.0 run smoke:platform-client
 corepack pnpm@11.7.0 run pack:bundle
 node scripts/t01-harness-smoke.mjs \
-  --tgz ../artifacts/enterprise-agent-dsh-bundle-0.1.0.tgz
+  --tgz ../artifacts/owndsh-plugin-0.1.0.tgz
 corepack pnpm@11.7.0 run accept:t07-browser -- \
-  --tgz ../artifacts/enterprise-agent-dsh-bundle-0.1.0.tgz
+  --tgz ../artifacts/owndsh-plugin-0.1.0.tgz
 ```
 
 真实 Client factory 从 Harness 官方 seed 解析 `react` 与 `react/jsx-runtime`，发现 Settings、sidebar、

@@ -17,8 +17,9 @@
         "additionalProperties": false,
         "required": [
           "id",
-          "modelId",
-          "modelAlias",
+          "resourceType",
+          "resourceId",
+          "resourceName",
           "subjectType",
           "subjectId",
           "subjectName",
@@ -30,21 +31,27 @@
             "type": "string",
             "pattern": "^[1-9][0-9]{0,18}$"
           },
-          "modelId": {
+          "resourceType": {
             "type": "string",
-            "pattern": "^[1-9][0-9]{0,18}$",
-            "description": "Managed model snowflake ID serialized as a string."
+            "enum": [
+              "MODEL_SET",
+              "MODEL"
+            ]
           },
-          "modelAlias": {
+          "resourceId": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "resourceName": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 120,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+            "maxLength": 120
           },
           "subjectType": {
             "type": "string",
             "enum": [
               "ALL_MEMBERS",
+              "ACCESS_GROUP",
               "MEMBER"
             ]
           },

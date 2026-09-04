@@ -1,12 +1,12 @@
 # [INPUT]: 依赖根协议的参数、响应与 auth schema，依赖 T05 公开认证 Controller 的实际 redirect/status 行为
-# [OUTPUT]: 提供 authorize/sources/两阶段 password/OIDC/token/logout 与产品控制台 bootstrap 八个 Path Item，区分页面步骤与 JSON 错误
-# [POS]: contracts/paths 的固定 public client 登录协议分片，使根 OpenAPI 保持导航职责
+# [OUTPUT]: 提供 authorize 的 HTML/同源 JSON 启动、sources/password/OIDC、Desktop token、管理端 Cookie、logout、当前用户改密与 bootstrap Path Item。
+# [POS]: contracts/paths 的固定 public client 登录协议分片，隔离 Desktop 跳转/Bearer 与管理端第一方页面/Cookie 会话
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 Authorize:
   get:
     operationId: authorizePlatformClient
-    summary: Validate one fixed public client request and create a five-minute login transaction.
+    summary: Create a five-minute login transaction; the first-party admin UI may request its sources as JSON.
     security: []
     parameters:
       - $ref: '../enterprise-openapi.yaml#/components/parameters/AuthClientId'
@@ -16,8 +16,14 @@ Authorize:
       - $ref: '../enterprise-openapi.yaml#/components/parameters/PkceChallengeMethod'
       - $ref: '../enterprise-openapi.yaml#/components/parameters/InstallationIdQuery'
     responses:
+      '200':
+        description: First-party enterprise-admin login transaction and active identity sources.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/AuthSourcesResponse'
       '303':
-        description: Continue in the public identity-source selection page.
+        description: Continue Desktop authentication in the public identity-source selection page.
         headers:
           Location:
             required: true
@@ -142,7 +148,7 @@ OidcCallback:
 Token:
   post:
     operationId: exchangeAuthorizationCode
-    summary: Atomically consume one platform authorization code after exact PKCE/client binding checks.
+    summary: Atomically consume one Desktop authorization code after exact PKCE/client binding checks.
     security: []
     requestBody:
       required: true
@@ -162,10 +168,34 @@ Token:
       '401':
         $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
 
+BrowserSession:
+  post:
+    operationId: exchangeBrowserAuthorizationCode
+    summary: Consume one enterprise-admin authorization code into a host-only HttpOnly browser session.
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../enterprise-openapi.yaml#/components/schemas/BrowserSessionRequest'
+    responses:
+      '204':
+        description: Browser session established without exposing the opaque token to JavaScript.
+        headers:
+          Set-Cookie:
+            required: true
+            schema:
+              type: string
+      '400':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error400'
+      '401':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+
 Logout:
   post:
     operationId: logoutPlatformSession
-    summary: Audit and revoke only the current platform token.
+    summary: Audit and revoke only the current platform token, then clear the browser session cookie when present.
     responses:
       '200':
         description: Current token revoked.
@@ -189,3 +219,23 @@ ConsoleBootstrap:
               $ref: '../enterprise-openapi.yaml#/components/schemas/ConsoleBootstrapResponse'
       '401':
         $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+
+CurrentAccountPassword:
+  put:
+    operationId: changeCurrentAccountPassword
+    summary: Change the current member's LOCAL password after verifying the current password, then revoke all sessions.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../enterprise-openapi.yaml#/components/schemas/CurrentPasswordChangeRequest'
+    responses:
+      '200':
+        description: Password changed and all sessions for the current member revoked.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/PasswordChangedResponse'
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}

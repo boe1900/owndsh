@@ -1,0 +1,35 @@
+# [INPUT]: 依赖 osixia/openldap 自带 dc=example,dc=org 与 admin DN。
+# [OUTPUT]: 提供有组 Alice、无组 Bob、groupOfNames 目录组和 OpenLDAP 自动 entryUUID。
+# [POS]: T04 LDAP Testcontainer 的固定目录数据，不含任何生产身份或秘密。
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+dn: ou=people,dc=example,dc=org
+objectClass: organizationalUnit
+ou: people
+
+dn: uid=alice,ou=people,dc=example,dc=org
+objectClass: inetOrgPerson
+uid: alice
+cn: Alice LDAP
+sn: LDAP
+mail: alice.ldap@example.org
+ou: engineering
+seeAlso: cn=engineering,ou=groups,dc=example,dc=org
+userPassword: ldap-password-73
+
+dn: uid=bob,ou=people,dc=example,dc=org
+objectClass: inetOrgPerson
+uid: bob
+cn: Bob LDAP
+sn: LDAP
+mail: bob.ldap@example.org
+userPassword: ldap-password-74
+
+dn: ou=groups,dc=example,dc=org
+objectClass: organizationalUnit
+ou: groups
+
+dn: cn=engineering,ou=groups,dc=example,dc=org
+objectClass: groupOfNames
+cn: engineering
+member: uid=alice,ou=people,dc=example,dc=org

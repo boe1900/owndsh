@@ -40,7 +40,7 @@ hash 或 header 不一致都不会留下半成品。T18 的管理 Session 页面
 workspace 与定向单元门禁：
 
 ```sh
-cd harness-plugin
+cd plugin
 pnpm install --frozen-lockfile
 pnpm check
 ```
@@ -53,7 +53,7 @@ append、逐 Session 单 worker、断点续传、退避终态、全页验证和�
 树外 package consumer：
 
 ```sh
-cd harness-plugin
+cd plugin
 pnpm run pack:session-sync
 pnpm run smoke:session-sync
 ```
@@ -73,7 +73,7 @@ cursorFile: atomic-non-content
 锁定 Harness 组合门禁：
 
 ```sh
-cd harness-plugin
+cd plugin
 pnpm run pack:bundle
 pnpm run accept:t17-session
 ```

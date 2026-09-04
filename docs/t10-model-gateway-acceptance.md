@@ -50,7 +50,7 @@ OpenAPI 使用公共 `NativeGatewayRequest`：只约束企业治理字段，并�
 
 ```sh
 JAVA_HOME=/usr/local/opt/openjdk@21 \
-./mvnw -pl ruoyi-modules/ruoyi-enterprise -am \
+./mvnw -pl ruoyi-modules/owndsh-enterprise -am \
   -Dmaven.test.skip=false -DskipTests=false \
   -Dtest=GatewayChatRequestParserTest,ModelGatewayServiceTest,T10GatewayApiContractTest,DeepSeekUpstreamClientTest,EnterpriseJsonBodyLimitFilterTest \
   -Dsurefire.failIfNoSpecifiedTests=false test
@@ -63,7 +63,7 @@ JAVA_HOME=/usr/local/opt/openjdk@21 \
 PostgreSQL 证明 2xx 前失败为 `RELEASED`、无 ledger、零 Token，2xx 后取消仍为 `CHARGED_MAX`。
 
 ```sh
-corepack pnpm@11.7.0 --dir harness-plugin --filter @enterprise-agent/dsh-contracts test
+corepack pnpm@11.7.0 --dir plugin --filter @owndsh/contracts test
 node --test deploy/tests/deployment.test.mjs
 ```
 

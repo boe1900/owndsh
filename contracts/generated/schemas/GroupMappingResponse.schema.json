@@ -15,7 +15,7 @@
         "id",
         "sourceId",
         "externalGroup",
-        "departmentId",
+        "accessGroupId",
         "revision"
       ],
       "properties": {
@@ -34,10 +34,10 @@
           "minLength": 1,
           "maxLength": 512
         },
-        "departmentId": {
+        "accessGroupId": {
           "type": "string",
           "pattern": "^[1-9][0-9]{0,18}$",
-          "description": "RuoYi department snowflake ID serialized as a string."
+          "description": "Product access group snowflake ID serialized as a string."
         },
         "revision": {
           "type": "integer",

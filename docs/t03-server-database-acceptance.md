@@ -6,7 +6,7 @@
 
 ## 结论
 
-T03 已完成，且没有进入 T04。`ruoyi-enterprise` 已作为独立 Maven 业务模块接入聚合根和 `ruoyi-admin`；数据库只支持 PostgreSQL，Flyway `V1` 至 `V5` 在仓库自带的完整 RuoYi PostgreSQL 基线上同时通过一次性迁移和逐版本升级。
+T03 已完成，且没有进入 T04。`owndsh-enterprise` 已作为独立 Maven 业务模块接入聚合根和 `owndsh-server`；数据库只支持 PostgreSQL，Flyway `V1` 至 `V5` 在仓库自带的完整 RuoYi PostgreSQL 基线上同时通过一次性迁移和逐版本升级。
 
 本任务建立的是后续纵向能力共享的硬边界：20 张 `ent_` 表、五个固定角色、14 个详细设计冻结权限码、三用途秘密加密、`BOOTSTRAP` revision CAS，以及只暴露 append 的审计端口和同事务编排。没有创建身份适配器、Controller、管理页面、provider CRUD、配额结算、插件分发或 Session 同步实现。
 
@@ -22,7 +22,7 @@ T03 已完成，且没有进入 T04。`ruoyi-enterprise` 已作为独立 Maven �
 
 `enterprise_admin` 获得全部企业权限；`model_admin`、`plugin_admin`、`auditor` 只获得详细设计列出的最小集合；`employee` 不依赖角色权限访问本人接口，因此固定角色没有管理权限码。数据库拒绝固定角色改名、软删和权限集合变化，但不阻断 `sys_user_role` 的用户分配。
 
-测试没有使用 H2。共享 Testcontainers 2.0.5 启动 `postgres:17-alpine`，每个测试组创建独立数据库，通过容器内 `psql -v ON_ERROR_STOP=1` 加载 `backend/script/sql/postgres/postgres_ry_vue.sql`，然后以 Flyway baseline version `0` 执行企业 migration。
+测试没有使用 H2。共享 Testcontainers 2.0.5 启动 `postgres:17-alpine`，每个测试组创建独立数据库，通过容器内 `psql -v ON_ERROR_STOP=1` 加载 `server/script/sql/postgres/postgres_owndsh.sql`，然后以 Flyway baseline version `0` 执行企业 migration。
 
 ## 加密、Revision 与审计
 
@@ -41,7 +41,7 @@ T03 已完成，且没有进入 T04。`ruoyi-enterprise` 已作为独立 Maven �
 ```sh
 JAVA_HOME=/usr/local/opt/openjdk@21 \
 PATH=/usr/local/opt/openjdk@21/bin:$PATH \
-./mvnw -B -ntp -pl ruoyi-modules/ruoyi-enterprise -am \
+./mvnw -B -ntp -pl ruoyi-modules/owndsh-enterprise -am \
   -Dmaven.test.skip=false test
 ```
 

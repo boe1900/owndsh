@@ -6,7 +6,7 @@
 
 ## 结论
 
-T06 已完成，且没有进入 T07。`@enterprise-agent/dsh-platform-client` 已从 T01 技术原语提升为
+T06 已完成，且没有进入 T07。`@owndsh/platform-client` 已从 T01 技术原语提升为
 Cordis `ctx.enterprisePlatform` Service，公开面固定为 `startLogin()`、`logout()`、`status()`、
 `bootstrap()`、`request()` 和 `dispose()`。bundle 继续使用 Harness 官方 `apply(ctx)`、
 `dsh.bundle`、`dsh.client` 和 `ctx.webServer.register()` 路线，没有引入自定义 Typert Remote。
@@ -37,9 +37,9 @@ T08 尚未提供真实 Server bootstrap Controller。T06 没有在发行代码�
 受影响包定点门禁：
 
 ```sh
-corepack pnpm@11.7.0 --filter @enterprise-agent/dsh-platform-client test
-corepack pnpm@11.7.0 --filter @enterprise-agent/dsh-platform-client typecheck
-corepack pnpm@11.7.0 --filter @enterprise-agent/dsh-platform-client build
+corepack pnpm@11.7.0 --filter @owndsh/platform-client test
+corepack pnpm@11.7.0 --filter @owndsh/platform-client typecheck
+corepack pnpm@11.7.0 --filter @owndsh/platform-client build
 ```
 
 结果：4 个 Vitest 文件、18 项测试全部通过。测试覆盖 HTTPS origin 负例、回环/state/伪造 state/取消/超时、并发 installation、
@@ -72,14 +72,14 @@ bundle 构建后安装到未修改的锁定 Harness `web` profile：
 ```sh
 corepack pnpm@11.7.0 run pack:bundle
 node scripts/t01-harness-smoke.mjs \
-  --tgz ../artifacts/enterprise-agent-dsh-bundle-0.1.0.tgz
+  --tgz ../artifacts/owndsh-plugin-0.1.0.tgz
 ```
 
 真实组合输出：
 
 ```json
 {
-  "clientBundle": "/plugins/@enterprise-agent/dsh-bundle/client.js?rev=87fe23ea2f33",
+  "clientBundle": "/plugins/owndsh-plugin/client.js?rev=87fe23ea2f33",
   "harnessCommit": "47f943859bef60e4160492346772ded9b24f765a",
   "installationFile": "non-secret",
   "localEvents": "passed",

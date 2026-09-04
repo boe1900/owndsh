@@ -70,7 +70,7 @@ T09 定向服务端门禁：
 ```sh
 JAVA_HOME=/usr/local/opt/openjdk@21 \
 PATH=/usr/local/opt/openjdk@21/bin:$PATH \
-./mvnw -B -ntp -pl ruoyi-modules/ruoyi-enterprise -am \
+./mvnw -B -ntp -pl ruoyi-modules/owndsh-enterprise -am \
   -Dmaven.test.skip=false \
   -Dtest=QuotaOrderingTest,QuotaWindowCalculatorTest,RedisQuotaRateLimiterTest,QuotaManagementIntegrationTest,T09ApiContractTest \
   -Dsurefire.failIfNoSpecifiedTests=false test
@@ -86,7 +86,7 @@ SENT、SETTLED、CHARGED_MAX、两类幂等冲突、过期恢复、ledger 聚合
 ```sh
 JAVA_HOME=/usr/local/opt/openjdk@21 \
 PATH=/usr/local/opt/openjdk@21/bin:$PATH \
-./mvnw -B -ntp -pl ruoyi-modules/ruoyi-enterprise -am \
+./mvnw -B -ntp -pl ruoyi-modules/owndsh-enterprise -am \
   -Dmaven.test.skip=false test
 ```
 
@@ -96,8 +96,8 @@ OpenLDAP、WireMock、身份、PKCE、设备、模型、revision、审计和配�
 跨端协议与插件 workspace 门禁：
 
 ```sh
-pnpm --filter @enterprise-agent/dsh-contracts generate
-pnpm --filter @enterprise-agent/dsh-contracts check:generated
+pnpm --filter @owndsh/contracts generate
+pnpm --filter @owndsh/contracts check:generated
 pnpm run check
 ```
 

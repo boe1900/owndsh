@@ -48,7 +48,7 @@ Server catalog 在同一 package 投影中返回 versions 与 assignments；既�
 cd backend
 JAVA_HOME=/usr/local/opt/openjdk@21 \
 PATH=/usr/local/opt/openjdk@21/bin:$PATH \
-./mvnw -B -ntp -pl ruoyi-modules/ruoyi-enterprise -am \
+./mvnw -B -ntp -pl ruoyi-modules/owndsh-enterprise -am \
   -Dmaven.test.skip=false -DskipTests=false test
 
 cd ../admin-web
@@ -57,8 +57,8 @@ corepack pnpm@10.34.5 lint
 corepack pnpm@10.34.5 build
 ENT_E2E_BASE_URL=https://localhost corepack pnpm@10.34.5 test:e2e
 
-cd ../harness-plugin
-corepack pnpm@11.7.0 --filter @enterprise-agent/dsh-contracts check:generated
+cd ../plugin
+corepack pnpm@11.7.0 --filter @owndsh/contracts check:generated
 corepack pnpm@11.7.0 run check
 corepack pnpm@11.7.0 run pack:bundle
 corepack pnpm@11.7.0 run accept:t15-browser
@@ -85,8 +85,8 @@ ACTIVE 设备 inventory。E2E 只通过管理 API 和员工 API 创建数据，�
 真实 Harness 浏览器流程执行：
 
 ```sh
-cd harness-plugin
-corepack pnpm@11.7.0 --filter @enterprise-agent/dsh-bundle build
+cd plugin
+corepack pnpm@11.7.0 --filter owndsh-plugin build
 corepack pnpm@11.7.0 run pack:bundle
 corepack pnpm@11.7.0 run accept:t15-browser
 ```

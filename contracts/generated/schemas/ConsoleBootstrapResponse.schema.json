@@ -23,8 +23,11 @@
           "additionalProperties": false,
           "required": [
             "id",
+            "username",
             "displayName",
-            "avatarUrl"
+            "email",
+            "avatarUrl",
+            "loginMethods"
           ],
           "properties": {
             "id": {
@@ -32,10 +35,23 @@
               "pattern": "^[1-9][0-9]{0,18}$",
               "description": "Enterprise user snowflake ID serialized as a string."
             },
+            "username": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 30
+            },
             "displayName": {
               "type": "string",
               "minLength": 1,
               "maxLength": 120
+            },
+            "email": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "email",
+              "maxLength": 50
             },
             "avatarUrl": {
               "type": [
@@ -44,6 +60,33 @@
               ],
               "format": "uri",
               "maxLength": 2048
+            },
+            "loginMethods": {
+              "type": "array",
+              "maxItems": 20,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "sourceName",
+                  "sourceType"
+                ],
+                "properties": {
+                  "sourceName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "sourceType": {
+                    "type": "string",
+                    "enum": [
+                      "OIDC",
+                      "LDAP",
+                      "LOCAL"
+                    ]
+                  }
+                }
+              }
             }
           }
         },

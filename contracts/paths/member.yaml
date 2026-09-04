@@ -1,6 +1,6 @@
 # [INPUT]: 依赖 member.yaml 产品 DTO 与根协议的 cursor、limit 和统一错误响应。
-# [OUTPUT]: 提供产品成员 cursor 列表、详情、状态/角色、一次性身份绑定发起和外部身份解除 operation。
-# [POS]: contracts/paths 的成员治理分片，以聚合响应和 revision CAS 替代 RuoYi 用户/部门/权限树 API。
+# [OUTPUT]: 提供 LOCAL 成员创建、产品成员 cursor 列表、详情、状态/角色、一次性身份绑定发起和外部身份解除 operation。
+# [POS]: contracts/paths 的成员治理分片，以聚合响应和 revision CAS 替代 Host 用户/部门/权限树 API。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 MemberCollection:
@@ -16,6 +16,26 @@ MemberCollection:
           application/json:
             schema:
               $ref: '../enterprise-openapi.yaml#/components/schemas/MemberListResponse'
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+  post:
+    operationId: createLocalMember
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../enterprise-openapi.yaml#/components/schemas/LocalMemberCreateRequest'
+    responses:
+      '201':
+        description: Active LOCAL member with the employee role and a required first-login password change.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/MemberDetailResponse'
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
       '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
       '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
 

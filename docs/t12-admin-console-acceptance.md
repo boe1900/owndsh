@@ -53,7 +53,7 @@ Server 全 reactor 门禁：
 cd backend
 JAVA_HOME=/usr/local/opt/openjdk@21 \
 PATH=/usr/local/opt/openjdk@21/bin:$PATH \
-./mvnw -B -ntp -pl ruoyi-modules/ruoyi-enterprise -am \
+./mvnw -B -ntp -pl ruoyi-modules/owndsh-enterprise -am \
   -Dmaven.test.skip=false -DskipTests=false test
 ```
 
@@ -76,9 +76,9 @@ corepack pnpm@10.34.5 build
 协议与 Harness 回归门禁：
 
 ```sh
-cd harness-plugin
-corepack pnpm@11.7.0 --filter @enterprise-agent/dsh-contracts generate
-corepack pnpm@11.7.0 --filter @enterprise-agent/dsh-contracts check:generated
+cd plugin
+corepack pnpm@11.7.0 --filter @owndsh/contracts generate
+corepack pnpm@11.7.0 --filter @owndsh/contracts check:generated
 corepack pnpm@11.7.0 run check
 ```
 

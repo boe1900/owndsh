@@ -10,7 +10,6 @@
 **/.DS_Store
 **/.env
 **/.env.*
-!admin-web/.env.production
 **/node_modules
 **/dist
 **/target

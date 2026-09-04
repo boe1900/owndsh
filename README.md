@@ -1,15 +1,16 @@
-# Enterprise Agent Platform
+# OwnDsh
 
-Enterprise Agent Platform 是基于 DeepSeek Harness 构建的企业 Agent 管理平台。员工在本机运行 Harness，中心平台负责企业身份、受管模型、配额、插件分发、会话副本和审计，不远程执行员工工具，也不挂载员工工作区。
+OwnDsh 是基于 DeepSeek Harness 构建的企业 Agent 管理平台。员工在本机运行 Harness，中心平台负责企业身份、受管模型、配额、插件分发和审计，不远程执行员工工具，也不挂载员工工作区；V1 保留现有 Session 服务端代码和数据，但客户端不执行 Session 同步。
 
 本仓库只保存企业产品自行开发的后台、管理端、Harness 企业插件、部署配置和文档，不复制或 fork DSH Desktop/DeepSeek Harness 源码。DSH Desktop 是发行基线，Harness 版本从其 gitlink 派生；精确 commit 分别记录在 [`upstream/dsh-desktop.lock.json`](upstream/dsh-desktop.lock.json) 和 [`upstream/deepseek-harness.lock.json`](upstream/deepseek-harness.lock.json)。
 
 ## 当前阶段
 
-T00 至 T21 已完成：仓库包含锁定产品源码、Harness 官方插件 workspace、Java/TypeScript 同源 OpenAPI 3.1 协议、PostgreSQL/Redis 企业模块、桌面管理控制台、插件分发闭环、Session 端到端复制、审计闭环、安全/故障基线和 Linux `amd64` 单机交付。T22 正在使用单后端、单 Harness 本地环境逐功能人工验收；第二阶段 P2-00 至 P2-07 已完成独立 Vite/TanStack 产品控制台、Beautiful UI 产品壳、登录/静态角色、模型/访问、插件、成员/身份、活动记录与设置，P2-08 正在执行真实 Harness/Desktop、配额、插件和发布切换验收。当前清单见 [`docs/t22-manual-acceptance.md`](docs/t22-manual-acceptance.md)，第二阶段见 [`docs/phase-2-product-console-design.md`](docs/phase-2-product-console-design.md)。
+T00 至 T21 已完成：仓库包含锁定产品源码、Harness 官方插件 workspace、Java/TypeScript 同源 OpenAPI 3.1 协议、PostgreSQL/Redis 企业模块、桌面管理控制台、插件分发闭环、Session 端到端复制、审计闭环、安全/故障基线和 Linux `amd64` 单机交付。T22 正在使用单后端、单 Harness 本地环境逐功能人工验收；第二阶段 P2-00 至 P2-07 已完成独立 Vite/TanStack 产品控制台、Beautiful UI 产品壳、登录/静态角色、模型/访问、插件、成员/身份接入与活动记录，P2-08 正在执行真实 Harness/Desktop、配额、插件和发布切换验收。V1 产品范围见 [`docs/v1-product-feature-catalog.md`](docs/v1-product-feature-catalog.md)，当前人工清单见 [`docs/t22-manual-acceptance.md`](docs/t22-manual-acceptance.md)。
 
 ## 文档
 
+- [V1 产品功能清单](docs/v1-product-feature-catalog.md)：平台功能、当前状态、关键产品语义、发布门禁和明确非目标的范围真源。
 - [企业 Agent 工作平台预研](docs/enterprise-agent-work-platform.md)：产品形态、可行性、边界和长期方向。
 - [企业 Agent 治理平台 MVP 可执行详细设计](docs/enterprise-agent-governance-mvp-design.md)：冻结的技术决策、模块、接口、数据表、状态机、测试、T00-T23 实施顺序和验收标准。
 - [第二阶段产品控制台与成员身份收敛详细设计](docs/phase-2-product-console-design.md)：冻结 TanStack/Beautiful UI 新前端、产品功能裁剪、静态角色路由、多身份成员及授权/限额模型。
@@ -42,18 +43,17 @@ T00 至 T21 已完成：仓库包含锁定产品源码、Harness 官方插件 wo
 ## 计划目录
 
 ```text
-enterprise-agent-platform/
-  backend/                     # RuoYi-Vue-Plus 后台与 ruoyi-enterprise 模块
-  admin-web/                   # plus-ui 6.X-React 管理端
-  console-web/                 # 第二阶段独立 Vite/TanStack 产品控制台
-  harness-plugin/              # 独立构建的 Harness 企业插件与 bundle
+owndsh/
+  server/                     # OwnDsh 后台与 owndsh-enterprise 模块
+  console/                     # Vite/TanStack 产品控制台
+  plugin/                      # Harness 企业插件与 bundle
   contracts/                   # OpenAPI 协议真源
   deploy/                      # Compose、Nginx、安装和运维脚本
   docs/                        # 产品预研、详细设计和交付文档
   upstream/                    # 第三方仓库地址、版本和许可证记录，不存第三方源码
 ```
 
-Harness 企业插件位于本仓库的 `harness-plugin/`，构建为预编译 `.tgz` bundle。普通 Web 通过 `dsh plugin --profile web add <bundle.tgz>` 安装；Desktop 通过其公开 profile/plugin command 服务管理当前 profile。插件只能依赖公开扩展点，不把修改后的第三方源码复制进本仓库。
+Harness 企业插件位于本仓库的 `plugin/`，构建为预编译 `.tgz` bundle。普通 Web 通过 `dsh plugin --profile web add <bundle.tgz>` 安装；Desktop 通过其公开 profile/plugin command 服务管理当前 profile。插件只能依赖公开扩展点，不把修改后的第三方源码复制进本仓库。
 
 ## 上游关系
 
@@ -69,7 +69,7 @@ DeepSeek Harness 官方仓库：<https://github.com/deepseek-ai/deepseek-harness
 agent-platform-workspace/
   dsh-desktop/                  # 官方 Desktop 发行 commit 与 Harness submodule
   deepseek-harness/             # 官方仓库的锁定 commit
-  enterprise-agent-platform/    # 本仓库
+  owndsh/    # 本仓库
 ```
 
 首次准备 Desktop 发行基线运行：
@@ -97,7 +97,7 @@ node scripts/upstream-baseline.mjs verify-locks
 node scripts/upstream-baseline.mjs import
 ```
 
-`import` 只允许目标目录不存在时执行，绝不覆盖已进入产品开发的 `backend/` 或 `admin-web/`。日常校验使用 `node scripts/upstream-baseline.mjs verify`；T00 的实际环境、命令和退出证据记录在 [`docs/t00-baseline-acceptance.md`](docs/t00-baseline-acceptance.md)。
+`import` 只允许 `server/` 不存在时执行，绝不覆盖已进入产品开发的后端。日常校验使用 `node scripts/upstream-baseline.mjs verify`；T00 的实际环境、命令和退出证据记录在 [`docs/t00-baseline-acceptance.md`](docs/t00-baseline-acceptance.md)。
 
 本项目不自动跟随上游默认分支。升级时先选择 Desktop 发行 commit，再从其 gitlink 派生 Harness 锁；随后运行企业登录、模型网关、插件安装、Session 同步和 Web/Desktop 组合测试。全部通过后，版本锁变更与必要适配在同一个 PR 提交。
 

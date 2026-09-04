@@ -63,7 +63,7 @@ T08 定向服务端门禁：
 ```sh
 JAVA_HOME=/usr/local/opt/openjdk@21 \
 PATH=/usr/local/opt/openjdk@21/bin:$PATH \
-./mvnw -pl ruoyi-modules/ruoyi-enterprise -am \
+./mvnw -pl ruoyi-modules/owndsh-enterprise -am \
   -Dmaven.test.skip=false \
   -Dsurefire.failIfNoSpecifiedTests=false \
   -Dtest=EffectiveModelResolverTest,ProviderProbeTest,T08ApiContractTest,ModelManagementIntegrationTest test
@@ -78,7 +78,7 @@ ACTIVE bootstrap、设备撤销和审计秘密扫描；WireMock probe 覆盖 Bea
 ```sh
 JAVA_HOME=/usr/local/opt/openjdk@21 \
 PATH=/usr/local/opt/openjdk@21/bin:$PATH \
-./mvnw -B -ntp -pl ruoyi-modules/ruoyi-enterprise -am \
+./mvnw -B -ntp -pl ruoyi-modules/owndsh-enterprise -am \
   -Dmaven.test.skip=false test
 ```
 
@@ -88,7 +88,7 @@ revision、审计和 T08 模型纵向回归。
 跨端协议与插件 workspace 门禁：
 
 ```sh
-corepack pnpm@11.7.0 --filter @enterprise-agent/dsh-contracts generate
+corepack pnpm@11.7.0 --filter @owndsh/contracts generate
 corepack pnpm@11.7.0 run check
 ```
 

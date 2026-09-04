@@ -22,7 +22,7 @@ T01 已按 DeepSeek Harness 官方支持的插件路线通过。产品不再把�
 2026-08-17 的试验确实稳定复现过：树外 package 直接消费已安装的 `@deepseek-ai/dsh-typert-protocol` 时，生成器不能把 ESM 声明识别为 workspace 内的 Remote 元符号，并报错：
 
 ```text
-TypertAnalysisError: typert(host): @enterprise-agent/dsh-platform-client publishes Remote artifacts but has no Remote methods
+TypertAnalysisError: typert(host): @owndsh/platform-client publishes Remote artifacts but has no Remote methods
 ```
 
 这个结果说明“树外自行生成 Typert Remote”路线不成立，但不说明 Harness 官方插件机制失效。原设计把该内部生成路线误当成企业插件必经路线，现已修订详细设计第 3、4、8、16、18、19、20 和 22 节。产品仍拒绝 ambient protocol shim、跨仓库源码 project reference、复制上游源码、手写 Remote contribution 和修改 `@deepseek-ai/dsh-api-remotes`；这些绕过既无必要，也不能形成真实发布证据。
@@ -36,9 +36,9 @@ TypertAnalysisError: typert(host): @enterprise-agent/dsh-platform-client publish
 | `packages/session-sync` | `ctx.sessions.create(newId, { seed, meta })` 创建新副本、lineage 元数据和 `ctx.sessions.flush()` 持久化检查点。 |
 | `packages/ui` | `dsh.client` Client half、同源状态 fetch、Lucide 图标和 `sidebar.footer.action` 注册。 |
 | `packages/bundle` | 自包含 Host ESM、官方 lazy-CJS Client factory、`dsh.bundle`、`dsh.client` 和 `cordis.patch.yml`。 |
-| `ruoyi-admin` test | Sa-Token `deviceType=harness`、不同 `deviceId`、`is-share=false` 和单 Token 注销隔离。 |
+| `owndsh-server` test | Sa-Token `deviceType=harness`、不同 `deviceId`、`is-share=false` 和单 Token 注销隔离。 |
 
-所有新增 TypeScript/Java 业务与测试文件均有 L3 契约；`harness-plugin/packages/`、各正式 package、组合脚本和后端测试目录均有 L2 地图，根 L1 已同步当前阶段。
+所有新增 TypeScript/Java 业务与测试文件均有 L3 契约；`plugin/packages/`、各正式 package、组合脚本和后端测试目录均有 L2 地图，根 L1 已同步当前阶段。
 
 ## 自动验收
 
@@ -49,16 +49,16 @@ corepack pnpm@11.7.0 install --frozen-lockfile
 corepack pnpm@11.7.0 run check
 corepack pnpm@11.7.0 run pack:bundle
 node scripts/t01-harness-smoke.mjs \
-  --tgz ../artifacts/enterprise-agent-dsh-bundle-0.1.0.tgz
+  --tgz ../artifacts/owndsh-plugin-0.1.0.tgz
 ```
 
-结果：20 个 package Vitest、4 个 workspace 不变量、TypeScript typecheck/build 全部通过。组合脚本先在全新临时 consumer 中安装 `.tgz` 并直接 `import('@enterprise-agent/dsh-bundle')`，再通过官方 CLI 安装到临时 Harness `web` profile；consumer 和 bundle 均不包含 ambient shim 或同级 Harness 源码路径。
+结果：20 个 package Vitest、4 个 workspace 不变量、TypeScript typecheck/build 全部通过。组合脚本先在全新临时 consumer 中安装 `.tgz` 并直接 `import('owndsh-plugin')`，再通过官方 CLI 安装到临时 Harness `web` profile；consumer 和 bundle 均不包含 ambient shim 或同级 Harness 源码路径。
 
 真实组合 smoke 输出：
 
 ```json
 {
-  "clientBundle": "/plugins/@enterprise-agent/dsh-bundle/client.js?rev=87fe23ea2f33",
+  "clientBundle": "/plugins/owndsh-plugin/client.js?rev=87fe23ea2f33",
   "harnessCommit": "47f943859bef60e4160492346772ded9b24f765a",
   "packageConsumer": "passed",
   "profile": "web",
@@ -72,7 +72,7 @@ node scripts/t01-harness-smoke.mjs \
 ```sh
 JAVA_HOME=/usr/local/opt/openjdk@21 \
 PATH=/usr/local/opt/openjdk@21/bin:$PATH \
-./mvnw -B -ntp -pl ruoyi-admin -am \
+./mvnw -B -ntp -pl owndsh-server -am \
   -Dmaven.test.skip=false -DskipTests=false \
   -Dtest=SaTokenDeviceSessionTest \
   -Dsurefire.failIfNoSpecifiedTests=false test

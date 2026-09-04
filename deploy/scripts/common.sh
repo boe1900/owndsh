@@ -92,14 +92,14 @@ verify_release() {
 }
 
 runtime_file() {
-  printf '%s/runtime.env\n' "$EAP_STATE_DIR"
+  printf '%s/runtime.env\n' "$OWNDSH_STATE_DIR"
 }
 
 compose_file() {
   runtime=$(runtime_file)
-  release=$(env_value EAP_RELEASE_VERSION "$runtime")
-  [ -n "$release" ] || fail "runtime.env 缺少 EAP_RELEASE_VERSION"
-  printf '%s/releases/%s/compose/compose.yml\n' "$EAP_STATE_DIR" "$release"
+  release=$(env_value OWNDSH_RELEASE_VERSION "$runtime")
+  [ -n "$release" ] || fail "runtime.env 缺少 OWNDSH_RELEASE_VERSION"
+  printf '%s/releases/%s/compose/compose.yml\n' "$OWNDSH_STATE_DIR" "$release"
 }
 
 compose() {
@@ -108,7 +108,7 @@ compose() {
 }
 
 acquire_operation_lock() {
-  lock_directory="$EAP_STATE_DIR/.operation.lock"
+  lock_directory="$OWNDSH_STATE_DIR/.operation.lock"
   mkdir "$lock_directory" 2>/dev/null || fail "另一个部署操作正在执行"
   trap 'rmdir "$lock_directory" 2>/dev/null || true' EXIT HUP INT TERM
 }
@@ -148,7 +148,7 @@ volume_for() {
 
 key_fingerprint() {
   (
-    cd "$EAP_STATE_DIR/secrets"
+    cd "$OWNDSH_STATE_DIR/secrets"
     sha256sum_compat enterprise_master_key plugin_signing_private_key plugin_signing_public_key
   ) | sha256sum_compat | awk '{print $1}'
 }

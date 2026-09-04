@@ -1,13 +1,13 @@
 # [INPUT]: 依赖 release manifest/runtime.env、上游 PostgreSQL 基线、安装 secret、四个持久卷、可写临时目录与锁定 Linux amd64 镜像。
-# [OUTPUT]: 提供首次装载 RuoYi 基线、只发布 443 的 Gateway、具备 Fontconfig 临时缓存的单 Server、PostgreSQL 17.6 和 Redis 7.4.5 拓扑。
+# [OUTPUT]: 提供首次装载上游基线、只发布 443 的 Console、具备 Fontconfig 临时缓存的单 Server、PostgreSQL 17.6 和 Redis 7.4.5 拓扑。
 # [POS]: T21 部署唯一运行时事实源；空数据库先由官方 initdb 装载 version 0，已有卷不重放，Flyway 接管后续版本。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
-name: ${EAP_COMPOSE_PROJECT_NAME:-enterprise-agent-platform}
+name: ${OWNDSH_COMPOSE_PROJECT_NAME:-owndsh}
 
 services:
   postgres:
-    image: ${EAP_BASE_IMAGE_REGISTRY:-docker.io/library}/postgres:17.6-alpine3.22@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
+    image: ${OWNDSH_BASE_IMAGE_REGISTRY:-docker.io/library}/postgres:17.6-alpine3.22@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
     platform: linux/amd64
     restart: unless-stopped
     environment:
@@ -19,7 +19,7 @@ services:
       - postgres_password
     configs:
       - source: postgres_baseline
-        target: /docker-entrypoint-initdb.d/00-ruoyi-baseline.sql
+        target: /docker-entrypoint-initdb.d/00-owndsh-baseline.sql
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -32,7 +32,7 @@ services:
     security_opt: [no-new-privileges:true]
 
   redis:
-    image: ${EAP_BASE_IMAGE_REGISTRY:-docker.io/library}/redis:7.4.5-alpine3.21@sha256:bb186d083732f669da90be8b0f975a37812b15e913465bb14d845db72a4e3e08
+    image: ${OWNDSH_BASE_IMAGE_REGISTRY:-docker.io/library}/redis:7.4.5-alpine3.21@sha256:bb186d083732f669da90be8b0f975a37812b15e913465bb14d845db72a4e3e08
     platform: linux/amd64
     restart: unless-stopped
     command:
@@ -53,7 +53,7 @@ services:
     security_opt: [no-new-privileges:true]
 
   storage-init:
-    image: ${EAP_SERVER_IMAGE:?EAP_SERVER_IMAGE must be set}
+    image: ${OWNDSH_SERVER_IMAGE:?OWNDSH_SERVER_IMAGE must be set}
     platform: linux/amd64
     user: "0:0"
     command: ["sh", "-ec", "chown -R 10001:10001 /var/lib/enterprise /app/logs"]
@@ -67,7 +67,7 @@ services:
     security_opt: [no-new-privileges:true]
 
   server:
-    image: ${EAP_SERVER_IMAGE:?EAP_SERVER_IMAGE must be set}
+    image: ${OWNDSH_SERVER_IMAGE:?OWNDSH_SERVER_IMAGE must be set}
     platform: linux/amd64
     restart: unless-stopped
     environment:
@@ -82,7 +82,7 @@ services:
       ENT_PLUGIN_SIGNING_PRIVATE_KEY_FILE: /run/secrets/plugin_signing_private_key
       ENT_ARTIFACT_ROOT: /var/lib/enterprise/artifacts
       XDG_CACHE_HOME: /tmp
-      JAVA_TOOL_OPTIONS: ${EAP_JAVA_TOOL_OPTIONS:--XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError}
+      JAVA_TOOL_OPTIONS: ${OWNDSH_JAVA_TOOL_OPTIONS:--XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError}
       TZ: ${ENT_DEPLOYMENT_TIME_ZONE:-Asia/Shanghai}
     secrets:
       - source: postgres_password
@@ -115,13 +115,13 @@ services:
     security_opt: [no-new-privileges:true]
     stop_grace_period: 40s
 
-  gateway:
-    image: ${EAP_GATEWAY_IMAGE:?EAP_GATEWAY_IMAGE must be set}
+  console:
+    image: ${OWNDSH_CONSOLE_IMAGE:?OWNDSH_CONSOLE_IMAGE must be set}
     platform: linux/amd64
     user: "101:101"
     restart: unless-stopped
     ports:
-      - "${EAP_HTTPS_BIND:-0.0.0.0}:${EAP_HTTPS_PORT:-443}:443"
+      - "${OWNDSH_HTTPS_BIND:-0.0.0.0}:${OWNDSH_HTTPS_PORT:-443}:443"
     secrets:
       - source: tls_certificate
         target: tls.crt
@@ -155,20 +155,20 @@ volumes:
 
 secrets:
   postgres_password:
-    file: ${EAP_STATE_DIR:?EAP_STATE_DIR must be set}/secrets/postgres_password
+    file: ${OWNDSH_STATE_DIR:?OWNDSH_STATE_DIR must be set}/secrets/postgres_password
   redis_password:
-    file: ${EAP_STATE_DIR:?EAP_STATE_DIR must be set}/secrets/redis_password
+    file: ${OWNDSH_STATE_DIR:?OWNDSH_STATE_DIR must be set}/secrets/redis_password
   sa_token_jwt_secret_key:
-    file: ${EAP_STATE_DIR:?EAP_STATE_DIR must be set}/secrets/sa_token_jwt_secret_key
+    file: ${OWNDSH_STATE_DIR:?OWNDSH_STATE_DIR must be set}/secrets/sa_token_jwt_secret_key
   enterprise_master_key:
-    file: ${EAP_STATE_DIR:?EAP_STATE_DIR must be set}/secrets/enterprise_master_key
+    file: ${OWNDSH_STATE_DIR:?OWNDSH_STATE_DIR must be set}/secrets/enterprise_master_key
   plugin_signing_private_key:
-    file: ${EAP_STATE_DIR:?EAP_STATE_DIR must be set}/secrets/plugin_signing_private_key
+    file: ${OWNDSH_STATE_DIR:?OWNDSH_STATE_DIR must be set}/secrets/plugin_signing_private_key
   tls_certificate:
-    file: ${EAP_STATE_DIR:?EAP_STATE_DIR must be set}/tls/tls.crt
+    file: ${OWNDSH_STATE_DIR:?OWNDSH_STATE_DIR must be set}/tls/tls.crt
   tls_private_key:
-    file: ${EAP_STATE_DIR:?EAP_STATE_DIR must be set}/tls/tls.key
+    file: ${OWNDSH_STATE_DIR:?OWNDSH_STATE_DIR must be set}/tls/tls.key
 
 configs:
   postgres_baseline:
-    file: ${EAP_STATE_DIR:?EAP_STATE_DIR must be set}/releases/${EAP_RELEASE_VERSION:?EAP_RELEASE_VERSION must be set}/database/postgres_ry_vue.sql
+    file: ${OWNDSH_STATE_DIR:?OWNDSH_STATE_DIR must be set}/releases/${OWNDSH_RELEASE_VERSION:?OWNDSH_RELEASE_VERSION must be set}/database/postgres_owndsh.sql

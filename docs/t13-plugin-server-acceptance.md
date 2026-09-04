@@ -59,7 +59,7 @@ Server 全 reactor 门禁：
 cd backend
 JAVA_HOME=/usr/local/opt/openjdk@21 \
 PATH=/usr/local/opt/openjdk@21/bin:$PATH \
-./mvnw -B -ntp -pl ruoyi-modules/ruoyi-enterprise -am \
+./mvnw -B -ntp -pl ruoyi-modules/owndsh-enterprise -am \
   -Dmaven.test.skip=false -DskipTests=false test
 ```
 
@@ -70,11 +70,11 @@ Redis 8、OpenLDAP、WireMock、V1-V8 migration、身份、设备、模型、配
 协议生成与独立门禁：
 
 ```sh
-cd harness-plugin
-corepack pnpm@11.7.0 --filter @enterprise-agent/dsh-contracts generate
-corepack pnpm@11.7.0 --filter @enterprise-agent/dsh-contracts check:generated
-corepack pnpm@11.7.0 --filter @enterprise-agent/dsh-contracts typecheck
-corepack pnpm@11.7.0 --filter @enterprise-agent/dsh-contracts test
+cd plugin
+corepack pnpm@11.7.0 --filter @owndsh/contracts generate
+corepack pnpm@11.7.0 --filter @owndsh/contracts check:generated
+corepack pnpm@11.7.0 --filter @owndsh/contracts typecheck
+corepack pnpm@11.7.0 --filter @owndsh/contracts test
 ```
 
 结果：OpenAPI、自包含 JSON、JSON Schema、fixture manifest 与 TypeScript/Zod 无漂移，contracts 7 项
@@ -83,7 +83,7 @@ corepack pnpm@11.7.0 --filter @enterprise-agent/dsh-contracts test
 Harness 产品 workspace 全量回归：
 
 ```sh
-cd harness-plugin
+cd plugin
 corepack pnpm@11.7.0 run check
 ```
 

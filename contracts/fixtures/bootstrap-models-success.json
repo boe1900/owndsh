@@ -26,7 +26,11 @@
       {
         "policyId": "1900100000000000002",
         "scope": "ORGANIZATION",
+        "resourceType": "ALL_MODELS",
+        "resourceId": null,
+        "fiveHourTokenLimit": null,
         "dailyTokenLimit": null,
+        "weeklyTokenLimit": null,
         "monthlyTokenLimit": null,
         "rpm": 20,
         "concurrency": 2
@@ -37,7 +41,7 @@
       "assignments": []
     },
     "sessionPolicy": {
-      "enabled": true,
+      "enabled": false,
       "retentionDays": 90,
       "maxBatchBytes": 1048576
     }

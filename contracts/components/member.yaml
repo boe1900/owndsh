@@ -1,6 +1,6 @@
 # [INPUT]: 依赖 auth 固定角色/身份类型与根协议的 UserId、cursor、requestId。
-# [OUTPUT]: 提供产品成员列表/详情、角色/状态、身份绑定发起和脱敏身份/设备/Session 摘要 schemas。
-# [POS]: contracts/components 的成员治理真源，不暴露 RuoYi 部门、岗位、权限树、groups、claims 或凭据。
+# [OUTPUT]: 提供 LOCAL 成员创建、产品成员列表/详情、角色/状态、身份绑定发起和脱敏身份/设备/Session 摘要 schemas。
+# [POS]: contracts/components 的成员治理真源，不暴露 Host 部门、岗位、权限树、groups、claims 或凭据。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 MemberStatus:
@@ -42,7 +42,7 @@ MemberSummary:
     displayName:
       type: string
       minLength: 1
-      maxLength: 120
+      maxLength: 30
     status:
       $ref: '#/MemberStatus'
     roles:
@@ -169,6 +169,30 @@ MemberDetailResponse:
       $ref: '#/MemberDetail'
     requestId:
       $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+
+LocalMemberCreateRequest:
+  type: object
+  additionalProperties: false
+  required: [username, displayName, initialPassword]
+  properties:
+    username:
+      type: string
+      minLength: 3
+      maxLength: 30
+      pattern: '^[A-Za-z][A-Za-z0-9._-]{2,29}$'
+    displayName:
+      type: string
+      minLength: 1
+      maxLength: 120
+    email:
+      type: string
+      format: email
+      maxLength: 50
+    initialPassword:
+      type: string
+      minLength: 14
+      maxLength: 128
+      writeOnly: true
 
 MemberStatusUpdateRequest:
   type: object

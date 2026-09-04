@@ -1,0 +1,11 @@
+{
+  "data": {
+    "items": [
+      {
+        "externalGroup": "cn=engineering,ou=groups,dc=example,dc=org",
+        "displayName": "engineering"
+      }
+    ]
+  },
+  "requestId": "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+}

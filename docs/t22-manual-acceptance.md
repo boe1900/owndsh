@@ -19,7 +19,7 @@ T22 不再维护三设备控制面、假浏览器 opener、候选 OIDC/LDAP/Deep
 已有 release 时可跳过重新构建：
 
 ```sh
-EAP_LOCAL_RELEASE_TARBALL=/absolute/path/enterprise-agent-platform-0.1.0-linux-amd64.tgz \
+OWNDSH_LOCAL_RELEASE_TARBALL=/absolute/path/owndsh-0.1.0-linux-amd64.tgz \
   ./scripts/local-demo.sh
 ```
 

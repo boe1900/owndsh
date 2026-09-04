@@ -36,9 +36,9 @@
 | 门禁 | 结果 |
 |---|---|
 | `node --test scripts/upstream-baseline.test.mjs` | `8/8` 通过，覆盖 Desktop/Harness 锁对齐。 |
-| `node --test harness-plugin/workspace.test.mjs` | `4/4` 通过，两个 Harness checkout 与 Desktop commit 精确匹配机器锁。 |
+| `node --test plugin/workspace.test.mjs` | `4/4` 通过，两个 Harness checkout 与 Desktop commit 精确匹配机器锁。 |
 | `pnpm typecheck` | 全 workspace 通过，rc.2 公开 Host API 无类型断裂。 |
-| `pnpm --filter @enterprise-agent/dsh-plugin-distribution test` | `12/12` 通过，含 Desktop command port 与普通 Web subprocess。 |
+| `pnpm --filter @owndsh/plugin-distribution test` | `12/12` 通过，含 Desktop command port 与普通 Web subprocess。 |
 | `pnpm smoke:plugin-distribution` | 树外 consumer 通过，无 ambient shim，JCS 与无秘密原子状态成立。 |
 | `pnpm smoke:session-sync` | 树外 consumer 通过，官方 `jsonl-rc.2` 完成 flush/readFrom/ack 与新 ID 恢复。 |
 | DSH Desktop `yarn typecheck` / `yarn build` | 均通过，官方 Desktop Host/Client 完整构建成立。 |

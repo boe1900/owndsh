@@ -84,7 +84,7 @@ PATH=/usr/local/opt/openjdk@21/bin:$PATH \
 ./mvnw -B -ntp -Dmaven.test.skip=false test
 ```
 
-结果：Maven 41 个 reactor 模块全部成功；`ruoyi-enterprise` 53 个测试、`ruoyi-admin` 5 个测试
+结果：Maven 41 个 reactor 模块全部成功；`owndsh-enterprise` 53 个测试、`owndsh-server` 5 个测试
 全部通过。T05 覆盖真实 Redis TTL/GETDEL/并发消费、PKCE 绕过与 code 失效矩阵、LOCAL 验证码、
 Sa-Token 非共享 terminal、伪造 header、真实 PostgreSQL 设备事务和 MockMvc/OpenAPI contract。
 

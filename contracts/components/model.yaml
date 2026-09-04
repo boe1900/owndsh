@@ -9,6 +9,9 @@ ModelProviderId:
 ModelGrantId:
   type: string
   pattern: '^[1-9][0-9]{0,18}$'
+ModelSetId:
+  type: string
+  pattern: '^[1-9][0-9]{0,18}$'
 ProviderType:
   type: string
   enum: [DEEPSEEK_OFFICIAL, CUSTOM]
@@ -25,7 +28,10 @@ ModelStatus:
   enum: [ACTIVE, DISABLED]
 GrantSubjectType:
   type: string
-  enum: [ALL_MEMBERS, MEMBER]
+  enum: [ALL_MEMBERS, ACCESS_GROUP, MEMBER]
+GrantResourceType:
+  type: string
+  enum: [MODEL_SET, MODEL]
 ReasoningEffortLevel:
   type: string
   enum: [off, minimal, low, medium, high, xhigh, max]
@@ -330,13 +336,80 @@ ManagedModelListResponse:
     requestId:
       $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
 
+ModelSetWriteRequest:
+  type: object
+  additionalProperties: false
+  required: [name, modelIds]
+  properties:
+    name:
+      type: string
+      minLength: 1
+      maxLength: 120
+    modelIds:
+      type: array
+      uniqueItems: true
+      maxItems: 200
+      items:
+        $ref: '../enterprise-openapi.yaml#/components/schemas/ManagedModelId'
+ModelSet:
+  type: object
+  additionalProperties: false
+  required: [id, name, modelIds, modelCount, revision]
+  properties:
+    id: {$ref: '#/ModelSetId'}
+    name:
+      type: string
+      minLength: 1
+      maxLength: 120
+    modelIds:
+      type: array
+      uniqueItems: true
+      maxItems: 200
+      items:
+        $ref: '../enterprise-openapi.yaml#/components/schemas/ManagedModelId'
+    modelCount:
+      type: integer
+      minimum: 0
+      maximum: 200
+    revision:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/Revision'
+ModelSetResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/ModelSet'}
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+ModelSetPageData:
+  type: object
+  additionalProperties: false
+  required: [items, page]
+  properties:
+    items:
+      type: array
+      maxItems: 200
+      items: {$ref: '#/ModelSet'}
+    page:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/CursorPage'
+ModelSetListResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/ModelSetPageData'}
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+
 ModelGrantWriteRequest:
   type: object
   additionalProperties: false
-  required: [modelId, subjectType, subjectId, status]
+  required: [resourceType, resourceId, subjectType, subjectId, status]
   properties:
-    modelId:
-      $ref: '../enterprise-openapi.yaml#/components/schemas/ManagedModelId'
+    resourceType: {$ref: '#/GrantResourceType'}
+    resourceId:
+      type: string
+      pattern: '^[1-9][0-9]{0,18}$'
     subjectType: {$ref: '#/GrantSubjectType'}
     subjectId:
       oneOf:
@@ -359,8 +432,9 @@ ModelGrant:
   additionalProperties: false
   required:
     - id
-    - modelId
-    - modelAlias
+    - resourceType
+    - resourceId
+    - resourceName
     - subjectType
     - subjectId
     - subjectName
@@ -368,9 +442,14 @@ ModelGrant:
     - revision
   properties:
     id: {$ref: '#/ModelGrantId'}
-    modelId:
-      $ref: '../enterprise-openapi.yaml#/components/schemas/ManagedModelId'
-    modelAlias: {$ref: '#/ModelAlias'}
+    resourceType: {$ref: '#/GrantResourceType'}
+    resourceId:
+      type: string
+      pattern: '^[1-9][0-9]{0,18}$'
+    resourceName:
+      type: string
+      minLength: 1
+      maxLength: 120
     subjectType: {$ref: '#/GrantSubjectType'}
     subjectId:
       oneOf:

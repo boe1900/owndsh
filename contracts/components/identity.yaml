@@ -1,5 +1,5 @@
 # [INPUT]: 依赖 enterprise-openapi.yaml 的 RequestId、Revision 与 CursorPage 公共协议
-# [OUTPUT]: 提供身份源、JIT/LINK_ONLY、OIDC/LDAP 配置、组映射和删除确认 schemas
+# [OUTPUT]: 提供身份源、LDAP 目录发现/导入、JIT/LINK_ONLY、扁平用户组、外部组映射和删除确认 schemas
 # [POS]: OpenAPI 逻辑真源的身份治理 schema 分片，保持认证、provisioning 与授权语义分离
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 IdentitySourceId:
@@ -10,10 +10,14 @@ GroupMappingId:
   type: string
   pattern: '^[1-9][0-9]{0,18}$'
   description: External group mapping snowflake ID serialized as a string.
+AccessGroupId:
+  type: string
+  pattern: '^[1-9][0-9]{0,18}$'
+  description: Product access group snowflake ID serialized as a string.
 DepartmentId:
   type: string
   pattern: '^[1-9][0-9]{0,18}$'
-  description: RuoYi department snowflake ID serialized as a string.
+  description: Host department snowflake ID serialized as a string.
 IdentitySourceType:
   type: string
   enum: [OIDC, LDAP, LOCAL]
@@ -109,6 +113,18 @@ LdapSettings:
       minLength: 1
       maxLength: 128
     groupAttribute:
+      type: string
+      minLength: 1
+      maxLength: 128
+    groupBaseDn:
+      type: string
+      minLength: 1
+      maxLength: 512
+    groupFilter:
+      type: string
+      minLength: 3
+      maxLength: 512
+    groupNameAttribute:
       type: string
       minLength: 1
       maxLength: 128
@@ -283,10 +299,150 @@ IdentitySourceTestResponse:
       $ref: '#/IdentitySourceConnection'
     requestId:
       $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+LdapDirectoryUser:
+  type: object
+  additionalProperties: false
+  required: [dn, externalSubject, username, displayName, email]
+  properties:
+    dn: {type: string, minLength: 1, maxLength: 1024}
+    externalSubject: {type: string, minLength: 1, maxLength: 512}
+    username: {type: string, minLength: 1, maxLength: 128}
+    displayName: {type: string, minLength: 1, maxLength: 256}
+    email:
+      oneOf:
+        - {type: string, maxLength: 320}
+        - {type: 'null'}
+LdapDirectoryUserSearch:
+  type: object
+  additionalProperties: false
+  required: [items]
+  properties:
+    items:
+      type: array
+      maxItems: 50
+      items: {$ref: '#/LdapDirectoryUser'}
+LdapDirectoryUserSearchResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/LdapDirectoryUserSearch'}
+    requestId: {$ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'}
+LdapDirectoryGroup:
+  type: object
+  additionalProperties: false
+  required: [externalGroup, displayName]
+  properties:
+    externalGroup:
+      type: string
+      minLength: 1
+      maxLength: 1024
+      description: Group DN used as the explicit mapping key.
+    displayName: {type: string, minLength: 1, maxLength: 256}
+LdapDirectoryGroupSearch:
+  type: object
+  additionalProperties: false
+  required: [items]
+  properties:
+    items:
+      type: array
+      maxItems: 50
+      items: {$ref: '#/LdapDirectoryGroup'}
+LdapDirectoryGroupSearchResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/LdapDirectoryGroupSearch'}
+    requestId: {$ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'}
+LdapMemberImportRequest:
+  type: object
+  additionalProperties: false
+  required: [dn]
+  properties:
+    dn: {type: string, minLength: 1, maxLength: 1024}
+LdapMemberImport:
+  type: object
+  additionalProperties: false
+  required: [userId, created]
+  properties:
+    userId: {$ref: '../enterprise-openapi.yaml#/components/schemas/EnterpriseUserId'}
+    created: {type: boolean}
+LdapMemberImportResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/LdapMemberImport'}
+    requestId: {$ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'}
+AccessGroupWriteRequest:
+  type: object
+  additionalProperties: false
+  required: [name, memberIds]
+  properties:
+    name:
+      type: string
+      minLength: 1
+      maxLength: 120
+    memberIds:
+      type: array
+      uniqueItems: true
+      maxItems: 200
+      items:
+        $ref: '../enterprise-openapi.yaml#/components/schemas/EnterpriseUserId'
+AccessGroup:
+  type: object
+  additionalProperties: false
+  required: [id, name, manualMemberIds, memberCount, revision]
+  properties:
+    id: {$ref: '#/AccessGroupId'}
+    name:
+      type: string
+      minLength: 1
+      maxLength: 120
+    manualMemberIds:
+      type: array
+      uniqueItems: true
+      maxItems: 200
+      items:
+        $ref: '../enterprise-openapi.yaml#/components/schemas/EnterpriseUserId'
+    memberCount:
+      type: integer
+      minimum: 0
+    revision:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/Revision'
+AccessGroupResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/AccessGroup'}
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+AccessGroupPageData:
+  type: object
+  additionalProperties: false
+  required: [items, page]
+  properties:
+    items:
+      type: array
+      maxItems: 200
+      items: {$ref: '#/AccessGroup'}
+    page:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/CursorPage'
+AccessGroupListResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/AccessGroupPageData'}
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+
 GroupMappingCreateRequest:
   type: object
   additionalProperties: false
-  required: [sourceId, externalGroup, departmentId]
+  required: [sourceId, externalGroup, accessGroupId]
   properties:
     sourceId:
       $ref: '#/IdentitySourceId'
@@ -294,12 +450,12 @@ GroupMappingCreateRequest:
       type: string
       minLength: 1
       maxLength: 512
-    departmentId:
-      $ref: '#/DepartmentId'
+    accessGroupId:
+      $ref: '#/AccessGroupId'
 GroupMapping:
   type: object
   additionalProperties: false
-  required: [id, sourceId, externalGroup, departmentId, revision]
+  required: [id, sourceId, externalGroup, accessGroupId, revision]
   properties:
     id:
       $ref: '#/GroupMappingId'
@@ -309,8 +465,8 @@ GroupMapping:
       type: string
       minLength: 1
       maxLength: 512
-    departmentId:
-      $ref: '#/DepartmentId'
+    accessGroupId:
+      $ref: '#/AccessGroupId'
     revision:
       $ref: '../enterprise-openapi.yaml#/components/schemas/Revision'
 GroupMappingResponse:

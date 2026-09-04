@@ -1,5 +1,5 @@
 # [INPUT]: 依赖 model.yaml 管理 DTO、bootstrap DTO 与根协议通用参数/错误响应
-# [OUTPUT]: 提供 T08 provider/model/grant 全部管理 Path Item 和 runtime bootstrap Path Item
+# [OUTPUT]: 提供 provider/model/model-set/grant 管理 Path Item 和 runtime bootstrap Path Item
 # [POS]: contracts/paths 的受管模型纵向分片，管理写入统一使用幂等键/If-Match 且 runtime 只接受当前设备会话
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -234,6 +234,88 @@ ModelDisable:
         content:
           application/json:
             schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ManagedModelResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+
+ModelSetCollection:
+  get:
+    operationId: listModelSets
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Cursor'
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Limit'
+    responses:
+      '200':
+        description: Model set page.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ModelSetListResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+  post:
+    operationId: createModelSet
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ModelSetWriteRequest'}
+    responses:
+      '201':
+        description: Model set created.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ModelSetResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+ModelSetItem:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/ModelSetIdPath'
+  get:
+    operationId: getModelSet
+    responses:
+      '200':
+        description: Model set details.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ModelSetResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+  put:
+    operationId: updateModelSet
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ModelSetWriteRequest'}
+    responses:
+      '200':
+        description: Model set updated.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ModelSetResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+  delete:
+    operationId: deleteModelSet
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    responses:
+      '200':
+        description: Model set deleted.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/DeletedResourceResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
       '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
       '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
       '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}

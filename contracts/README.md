@@ -1,4 +1,4 @@
-# Enterprise HTTP Contracts
+# OwnDsh HTTP Contracts
 
 `enterprise-openapi.yaml` is the logical HTTP protocol root for the enterprise
 Server, admin client, and Harness packages. Vertical schema groups live below
@@ -39,9 +39,9 @@ and deletion tombstones. Admin metadata schemas deliberately omit title, header,
 payload, and ciphertext; only the content operation can project decrypted bytes.
 
 ```sh
-cd harness-plugin
-pnpm --filter @enterprise-agent/dsh-contracts generate
-pnpm --filter @enterprise-agent/dsh-contracts check:generated
+cd plugin
+pnpm --filter @owndsh/contracts generate
+pnpm --filter @owndsh/contracts check:generated
 ```
 
 Both TypeScript and Java tests load the same fixture list declared by the

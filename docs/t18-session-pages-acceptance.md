@@ -41,7 +41,7 @@ node_modules/.bin/playwright test e2e/session-pages.spec.ts --reporter=list
 cd backend
 JAVA_HOME=/usr/local/opt/openjdk@21 \
 PATH=/usr/local/opt/openjdk@21/bin:$PATH \
-./mvnw -B -ntp -pl ruoyi-modules/ruoyi-enterprise -am \
+./mvnw -B -ntp -pl ruoyi-modules/owndsh-enterprise -am \
   -Dmaven.test.skip=false -DskipTests=false \
   -Dtest=SessionServerIntegrationTest \
   -Dsurefire.failIfNoSpecifiedTests=false test
@@ -52,7 +52,7 @@ PATH=/usr/local/opt/openjdk@21/bin:$PATH \
 ## Harness 真实浏览器验收
 
 ```sh
-cd harness-plugin
+cd plugin
 pnpm run pack:bundle
 pnpm run accept:t18-browser
 ```
@@ -95,10 +95,10 @@ Vitest 的 8 个文件、20 项全部通过；Oxlint、OpenAPI 生成、Umi setu
 Harness workspace 与制品：
 
 ```sh
-cd harness-plugin
+cd plugin
 pnpm check
-pnpm --filter @enterprise-agent/dsh-contracts generate
-pnpm --filter @enterprise-agent/dsh-contracts check:generated
+pnpm --filter @owndsh/contracts generate
+pnpm --filter @owndsh/contracts check:generated
 pnpm run pack:bundle
 node scripts/t01-harness-smoke.mjs
 ```

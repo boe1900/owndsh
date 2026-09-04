@@ -4,9 +4,11 @@
 
 成员清单
 
+v1-product-feature-catalog.md: V1 产品功能真源，汇总身份、LDAP 用户/组目录接入、模型、授权、配额、限流、插件、设备与审计的交付状态、关键语义、发布门禁和明确非目标。
+v1-e2e-acceptance.md: V1 发布验收执行真源，以真实部署、LDAP/OIDC、锁定 Harness/Desktop 和浏览器场景覆盖全部冻结能力，并记录隔离、恢复与逐项证据。
 enterprise-agent-work-platform.md: 产品预研，定义企业工作平台形态、能力边界、演进阶段与商业方向。
 enterprise-agent-governance-mvp-design.md: MVP 实施真源，定义冻结决策、模块、API、数据表、测试、T00-T23 顺序和验收标准。
-phase-2-product-console-design.md: 第二阶段产品化实施真源，冻结 TanStack/Beautiful UI 新控制台、后台能力裁剪、静态角色路由、成员多身份与授权/限额收敛方案。
+phase-2-product-console-design.md: 第二阶段产品化实施真源，冻结 TanStack/Beautiful UI 控制台、成员多身份、LDAP 目录组映射、集合授权，以及 TOKEN 多窗口、组织级供应商与其他资源 RATE 瞬时限流结构。
 desktop-2.0.3-harness-rc2-migration.md: 当前 Desktop 发行基线迁移证据，记录 Desktop→Harness 派生锁、上游变化、企业适配、行为风险与 Web/Desktop 门禁结果。
 t00-baseline-acceptance.md: T00 独立验收证据，记录初始导入与 rc.7 重新基线的环境、命令、真实 consumer 和退出结论。
 t01-technical-spike-acceptance.md: T01 独立验收证据，保留 Typert 路线误判分析并记录官方插件路线、正式模块、测试与真实 Harness Web 结果。

@@ -1,0 +1,10 @@
+{
+  "data": {
+    "id": "1900600000000000101",
+    "name": "Engineering",
+    "manualMemberIds": ["1900600000000900001"],
+    "memberCount": 2,
+    "revision": 1
+  },
+  "requestId": "req_01K2W3V4X5Y6Z7A8B9C0D1E2F3"
+}

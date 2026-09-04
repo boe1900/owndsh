@@ -2,8 +2,6 @@
 .env
 .env.*
 !.env.example
-!admin-web/.env.development
-!admin-web/.env.production
 secrets/
 deploy/secrets/
 
@@ -16,7 +14,7 @@ node_modules/
 dist/
 coverage/
 *.tsbuildinfo
-harness-plugin/packages/*/lib/
+plugin/packages/*/lib/
 /artifacts/
 
 # Editors and operating systems

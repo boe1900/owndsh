@@ -1,0 +1,14 @@
+{
+  "data": {
+    "items": [
+      {
+        "dn": "uid=alice,ou=people,dc=example,dc=org",
+        "externalSubject": "stable-alice",
+        "username": "alice",
+        "displayName": "Alice LDAP",
+        "email": "alice@example.org"
+      }
+    ]
+  },
+  "requestId": "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+}

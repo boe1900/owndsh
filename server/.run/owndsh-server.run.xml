@@ -1,0 +1,18 @@
+<!--
+  [INPUT]: 依赖 owndsh-server/Dockerfile 与本机 IntelliJ Docker 运行环境。
+  [OUTPUT]: 提供 owndsh/server:latest 的仅构建运行配置。
+  [POS]: server 开发工具入口，不参与生产部署编排。
+  [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+-->
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="OwnDsh Server" type="docker-deploy" factoryName="dockerfile" server-name="Docker">
+    <deployment type="dockerfile">
+      <settings>
+        <option name="imageTag" value="owndsh/server:latest" />
+        <option name="buildOnly" value="true" />
+        <option name="sourceFilePath" value="owndsh-server/Dockerfile" />
+      </settings>
+    </deployment>
+    <method v="2" />
+  </configuration>
+</component>
