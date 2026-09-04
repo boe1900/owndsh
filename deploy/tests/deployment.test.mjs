@@ -31,7 +31,6 @@ function composeConfig(baseImageRegistry = undefined) {
     OWNDSH_CONSOLE_IMAGE: 'owndsh/console:test',
     ...(baseImageRegistry ? { OWNDSH_BASE_IMAGE_REGISTRY: baseImageRegistry } : {}),
     ENT_PUBLIC_BASE_URL: 'https://platform.example.test',
-    ENT_ADMIN_REDIRECT_URI: 'https://platform.example.test/enterprise/auth/callback',
     ENT_POSTGRES_PASSWORD: 'postgres-fixture',
     ENT_REDIS_PASSWORD: 'redis-fixture',
     SA_TOKEN_JWT_SECRET_KEY: 'jwt-fixture',
@@ -82,6 +81,8 @@ test('root Compose has GHCR images and overridable test defaults', () => {
     'ENT_MASTER_KEY', 'ENT_PLUGIN_SIGNING_PRIVATE_KEY', 'ENT_BOOTSTRAP_ADMIN_USERNAME',
     'ENT_BOOTSTRAP_ADMIN_PASSWORD',
   ]) assert.match(compose, new RegExp(`\\$\\{${variable}:-`))
+  assert.doesNotMatch(compose, /ENT_ADMIN_REDIRECT_URI/)
+  assert.doesNotMatch(environment, /ENT_ADMIN_REDIRECT_URI/)
   assert.match(environment, /OWNDSH_POSTGRES_BASELINE=\$\{PWD\}\/server\/script\/sql\/postgres\/postgres_owndsh\.sql/)
   assert.doesNotMatch(environment, /OWNDSH_STATE_DIR/)
   assert.match(environment, /^ENT_BOOTSTRAP_ADMIN_USERNAME=admin$/m)
@@ -98,15 +99,11 @@ test('root Compose has GHCR images and overridable test defaults', () => {
 test('root Compose starts without .env and derives public URLs from the published port', () => {
   const env = { ...process.env, OWNDSH_HTTP_PORT: '19090' }
   delete env.ENT_PUBLIC_BASE_URL
-  delete env.ENT_ADMIN_REDIRECT_URI
   const config = JSON.parse(execFileSync('docker', [
     'compose', '--env-file', '/dev/null', '-f', COMPOSE, 'config', '--format', 'json',
   ], { env, encoding: 'utf8' }))
   assert.equal(config.services.server.environment.ENT_PUBLIC_BASE_URL, 'http://localhost:19090')
-  assert.equal(
-    config.services.server.environment.ENT_ADMIN_REDIRECT_URI,
-    'http://localhost:19090/enterprise/auth/callback'
-  )
+  assert.equal(config.services.server.environment.ENT_ADMIN_REDIRECT_URI, undefined)
   assert.equal(config.services.server.environment.ENT_BOOTSTRAP_ADMIN_USERNAME, 'admin')
   assert.equal(config.services.server.environment.ENT_BOOTSTRAP_ADMIN_PASSWORD, 'owndsh')
 })
@@ -208,6 +205,7 @@ test('server has one environment-driven application configuration', () => {
     'SA_TOKEN_JWT_SECRET_KEY', 'ENT_MASTER_KEY', 'ENT_PLUGIN_SIGNING_PRIVATE_KEY',
     'ENT_BOOTSTRAP_ADMIN_USERNAME', 'ENT_BOOTSTRAP_ADMIN_PASSWORD',
   ]) assert.match(application, new RegExp(`\\$\\{${variable}`))
+  assert.doesNotMatch(application, /ENT_ADMIN_REDIRECT_URI|admin-redirect-uri/)
   assert.match(application, /include: \$\{MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE:health\}/)
   assert.match(application, /show-details: \$\{MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS:never\}/)
   assert.match(application, /api-docs:\n\s+#.*\n\s+enabled: \$\{SPRINGDOC_API_DOCS_ENABLED:false\}/)
@@ -285,7 +283,6 @@ test('installer rejects runtime.env injection and invalid published ports before
   const injected = spawnSync('sh', [
     install,
     '--public-base-url', injectedAuthority,
-    '--admin-redirect-uri', `${injectedAuthority}/enterprise/auth/callback`,
     ...sharedArgs,
   ], {
     encoding: 'utf8',
@@ -296,7 +293,6 @@ test('installer rejects runtime.env injection and invalid published ports before
   const invalidPort = spawnSync('sh', [
     install,
     '--public-base-url', 'https://platform.example.test',
-    '--admin-redirect-uri', 'https://platform.example.test/enterprise/auth/callback',
     ...sharedArgs,
     '--http-port', '65536',
   ], { encoding: 'utf8' })
@@ -306,7 +302,6 @@ test('installer rejects runtime.env injection and invalid published ports before
   const unsupportedScheme = spawnSync('sh', [
     install,
     '--public-base-url', 'ftp://platform.example.test',
-    '--admin-redirect-uri', 'ftp://platform.example.test/enterprise/auth/callback',
     ...sharedArgs,
   ], { encoding: 'utf8' })
   assert.notEqual(unsupportedScheme.status, 0)
@@ -315,17 +310,15 @@ test('installer rejects runtime.env injection and invalid published ports before
   const httpAccepted = spawnSync('sh', [
     install,
     '--public-base-url', 'http://platform.example.test:8080',
-    '--admin-redirect-uri', 'http://platform.example.test:8080/enterprise/auth/callback',
     ...sharedArgs,
   ], { encoding: 'utf8' })
   assert.notEqual(httpAccepted.status, 0)
   assert.match(httpAccepted.stderr, /缺少文件: \/not-read/)
-  assert.doesNotMatch(httpAccepted.stderr, /public base URL|管理回调|HTTP 端口/)
+  assert.doesNotMatch(httpAccepted.stderr, /public base URL|HTTP 端口/)
 
   const invalidProject = spawnSync('sh', [
     install,
     '--public-base-url', 'https://platform.example.test',
-    '--admin-redirect-uri', 'https://platform.example.test/enterprise/auth/callback',
     ...sharedArgs,
   ], { encoding: 'utf8', env: { ...process.env, OWNDSH_COMPOSE_PROJECT_NAME: 'unsafe project' } })
   assert.notEqual(invalidProject.status, 0)

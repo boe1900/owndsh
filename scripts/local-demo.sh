@@ -90,7 +90,6 @@ release_root=$(find "$release_output" -mindepth 1 -maxdepth 1 -type d \
 COMPOSE_PROGRESS=quiet OWNDSH_COMPOSE_PROJECT_NAME="$release_project" "$release_root/scripts/install.sh" \
   --state-dir "$state_directory" \
   --public-base-url "$platform_origin" \
-  --admin-redirect-uri "$platform_origin/enterprise/auth/callback" \
   --bootstrap-admin candidate.admin \
   --bootstrap-password-file "$temporary_root/bootstrap-password" \
   --time-zone Asia/Shanghai \

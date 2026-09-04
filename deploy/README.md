@@ -39,7 +39,7 @@ OWNDSH_USE_LOCAL_BASE_IMAGES=1 \
 
 目标机需要 Docker Engine + Compose v2、OpenSSL、curl、tar、gzip，以及 GNU `sha256sum` 或 macOS 自带的 `shasum`。准备：
 
-- 唯一、无路径的 ASCII `http://` 或 `https://` 外部 authority，以及精确位于其下的 `/enterprise/auth/callback` 管理回调。
+- 唯一、无路径的 ASCII `http://` 或 `https://` 外部 authority；管理回调固定从它派生。
 - Console 在宿主机发布的 HTTP 端口，默认 `8080`。
 - 3-30 位初始管理员名，以及内容非空的临时密码文件；正式密码策略在首次登录改密时执行。
 - IANA 配额时区；首次 migration 后不可修改。
@@ -50,14 +50,13 @@ OWNDSH_USE_LOCAL_BASE_IMAGES=1 \
 ./scripts/install.sh \
   --state-dir /opt/owndsh \
   --public-base-url http://agent.internal:8080 \
-  --admin-redirect-uri http://agent.internal:8080/enterprise/auth/callback \
   --bootstrap-admin admin \
   --bootstrap-password-file /secure-input/bootstrap-password \
   --http-port 8080 \
   --time-zone Asia/Shanghai
 ```
 
-若外部网关提供 `https://agent.example.com`，把 `public-base-url` 和管理回调改成该 HTTPS 地址即可，Console 仍在内部使用 HTTP `8080`。外部网关应转发原始 `Host`、`X-Forwarded-Proto` 和 `X-Forwarded-Port`。
+若外部网关提供 `https://agent.example.com`，只把 `public-base-url` 改成该 HTTPS 地址即可，Console 仍在内部使用 HTTP `8080`。管理回调自动派生为 `https://agent.example.com/enterprise/auth/callback`。外部网关应转发原始 `Host`、`X-Forwarded-Proto` 和 `X-Forwarded-Port`。
 
 目标机需要 mirror 时，把环境变量放在安装命令之前；安装器会将通过字符校验的 registry 前缀写入 `runtime.env`，供后续重启、升级和恢复复用。
 

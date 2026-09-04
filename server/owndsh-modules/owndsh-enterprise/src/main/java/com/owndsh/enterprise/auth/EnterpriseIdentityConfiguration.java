@@ -318,8 +318,7 @@ public class EnterpriseIdentityConfiguration {
             new TransactionTemplate(transactionManager),
             auditSink,
             ids,
-            requirePublicBaseUrl(properties.getPublicBaseUrl()),
-            requireAdminRedirectUri(properties.getAdminRedirectUri())
+            requirePublicBaseUrl(properties.getPublicBaseUrl())
         );
     }
 
@@ -334,17 +333,6 @@ public class EnterpriseIdentityConfiguration {
             || value.getRawQuery() != null
             || value.getRawFragment() != null) {
             throw new IllegalStateException("enterprise.public-base-url 必须是可选合法端口且无路径、查询和 fragment 的 HTTP(S) 根地址");
-        }
-        return value;
-    }
-
-    private static URI requireAdminRedirectUri(URI value) {
-        if (value == null
-            || !("http".equals(value.getScheme()) || "https".equals(value.getScheme()))
-            || value.getHost() == null
-            || value.getUserInfo() != null
-            || value.getRawFragment() != null) {
-            throw new IllegalStateException("enterprise.admin-redirect-uri 必须是精确 HTTP(S) URI");
         }
         return value;
     }

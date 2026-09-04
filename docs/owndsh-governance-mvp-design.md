@@ -970,8 +970,7 @@ Client 包通过 `settings.section` 注册一个 `enterprise` 设置页，通过
 
 | 配置 | 说明 |
 |---|---|
-| `ENT_PUBLIC_BASE_URL` | 唯一外部 HTTP(S) 根地址 |
-| `ENT_ADMIN_REDIRECT_URI` | 管理端 PKCE 精确回调 |
+| `ENT_PUBLIC_BASE_URL` | 唯一外部 HTTP(S) 根地址；管理端 PKCE 回调固定派生为其 `/enterprise/auth/callback` |
 | `ENT_MASTER_KEY_FILE` | 32 字节 master key 的 secret 文件 |
 | `ENT_PLUGIN_SIGNING_PRIVATE_KEY_FILE` | Ed25519 私钥 secret 文件 |
 | `ENT_PLUGIN_SIGNING_PUBLIC_KEY_FILE` | 对应公钥，供安装包生成 bundle 配置 |

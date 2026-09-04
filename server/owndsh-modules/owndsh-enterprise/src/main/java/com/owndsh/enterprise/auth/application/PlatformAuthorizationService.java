@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 Redis 登录/challenge/OIDC/code 短期状态、身份源/adapter/验证码/绑定服务、Access/Refresh 会话、审计与 CSPRNG。
  * [OUTPUT]: 提供 authorize/sources/password 两阶段改密/OIDC/code exchange/refresh/logout/cancel，以及复用新鲜认证的一次性成员身份绑定。
- * [POS]: auth application 的状态机，初始凭据只验证一次，登录/绑定/code/refresh 均绑定 client 与 installation。
+ * [POS]: auth application 的状态机，管理回调由唯一 public base 派生，登录/绑定/code/refresh 均绑定 client 与 installation。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.auth.application;
@@ -69,7 +69,6 @@ public final class PlatformAuthorizationService {
     private final AuditSink auditSink;
     private final LongSupplier ids;
     private final URI publicBaseUrl;
-    private final URI adminRedirectUri;
     private final SecureRandom random;
     private final Clock clock;
 
@@ -88,13 +87,12 @@ public final class PlatformAuthorizationService {
         TransactionOperations databaseTransactions,
         AuditSink auditSink,
         LongSupplier ids,
-        URI publicBaseUrl,
-        URI adminRedirectUri
+        URI publicBaseUrl
     ) {
         this(
             transactions, passwordChanges, codes, oidcStates, sources, adapters, oidcAdapter, captchaVerifier,
             identities, sessions, refreshSessions,
-            databaseTransactions, auditSink, ids, publicBaseUrl, adminRedirectUri,
+            databaseTransactions, auditSink, ids, publicBaseUrl,
             new SecureRandom(), Clock.systemUTC()
         );
     }
@@ -115,7 +113,6 @@ public final class PlatformAuthorizationService {
         AuditSink auditSink,
         LongSupplier ids,
         URI publicBaseUrl,
-        URI adminRedirectUri,
         SecureRandom random,
         Clock clock
     ) {
@@ -134,7 +131,6 @@ public final class PlatformAuthorizationService {
         this.auditSink = Objects.requireNonNull(auditSink, "auditSink");
         this.ids = Objects.requireNonNull(ids, "ids");
         this.publicBaseUrl = Objects.requireNonNull(publicBaseUrl, "publicBaseUrl");
-        this.adminRedirectUri = Objects.requireNonNull(adminRedirectUri, "adminRedirectUri");
         this.random = Objects.requireNonNull(random, "random");
         this.clock = Objects.requireNonNull(clock, "clock");
     }
@@ -152,7 +148,11 @@ public final class PlatformAuthorizationService {
         }
         requireClientState(clientState);
         try {
-            client.validate(redirectUri, installationId, adminRedirectUri);
+            client.validate(
+                redirectUri,
+                installationId,
+                publicBaseUrl.resolve("/enterprise/auth/callback")
+            );
         } catch (IllegalArgumentException exception) {
             throw new AuthFlowException("ENT_INVALID_REDIRECT_URI");
         }

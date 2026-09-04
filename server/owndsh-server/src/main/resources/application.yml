@@ -54,7 +54,6 @@ user:
 enterprise:
   tenant-id: ${ENT_TENANT_ID:000000}
   public-base-url: ${ENT_PUBLIC_BASE_URL:}
-  admin-redirect-uri: ${ENT_ADMIN_REDIRECT_URI:}
   crypto:
     master-key: ${ENT_MASTER_KEY:}
   plugin:

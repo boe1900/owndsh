@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 PlatformAuthorizationService、真实 Redis store、PKCE/client policy 与 mock 身份/Access/Refresh 会话边界。
- * [OUTPUT]: 验证 PKCE 绕过、参数混用、一次性 code/事务，以及身份绑定只能使用指定源且不签发会话。
+ * [OUTPUT]: 验证 PKCE 绕过、public base 派生管理回调、参数混用、一次性 code/事务，以及身份绑定只能使用指定源且不签发会话。
  * [POS]: Authorization Code 与身份绑定共用状态机的安全门禁，所有一次性状态消费后都不能重放。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -72,7 +72,7 @@ class PlatformAuthorizationSecurityTest {
     private static final String CHALLENGE = Pkce.challenge(VERIFIER);
     private static final UUID INSTALLATION = UUID.fromString("123e4567-e89b-42d3-a456-426614174000");
     private static final URI REDIRECT = URI.create("http://127.0.0.1:18080/callback");
-    private static final URI ADMIN_REDIRECT = URI.create("https://admin.example/auth/callback");
+    private static final URI ADMIN_REDIRECT = URI.create("https://platform.example/enterprise/auth/callback");
     private static final RedissonClient REDIS = RedisTestServer.client();
 
     private RedisAuthStateStore store;
@@ -127,8 +127,7 @@ class PlatformAuthorizationSecurityTest {
             TransactionOperations.withoutTransaction(),
             mock(AuditSink.class),
             new AtomicLong(10_000)::incrementAndGet,
-            URI.create("https://platform.example"),
-            ADMIN_REDIRECT
+            URI.create("https://platform.example")
         );
     }
 
@@ -181,6 +180,29 @@ class PlatformAuthorizationSecurityTest {
                 "S256",
                 CHALLENGE,
                 INSTALLATION
+            ),
+            "ENT_INVALID_REDIRECT_URI"
+        );
+    }
+
+    @Test
+    void derivesTheAdminCallbackFromThePublicBaseUrl() {
+        assertThat(service.authorize(
+            PlatformClient.ENTERPRISE_ADMIN,
+            ADMIN_REDIRECT,
+            "client-state-0001",
+            "S256",
+            CHALLENGE,
+            null
+        )).startsWith("tx_");
+        assertCode(
+            () -> service.authorize(
+                PlatformClient.ENTERPRISE_ADMIN,
+                URI.create("https://admin.example/enterprise/auth/callback"),
+                "client-state-0001",
+                "S256",
+                CHALLENGE,
+                null
             ),
             "ENT_INVALID_REDIRECT_URI"
         );

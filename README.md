@@ -50,14 +50,15 @@ docker compose up -d --wait
 cp .env.example .env
 ```
 
-至少把下面两个地址中的 `localhost` 改成员工设备能够访问的域名或 IP：
+OwnDsh 只有一个公开地址配置。默认由 Compose 生成为 `http://localhost:8080`；需要让局域网设备访问时，把它改成部署机的实际 IP 和发布端口，例如：
 
 ```dotenv
-ENT_PUBLIC_BASE_URL=http://owndsh.example.com:8080
-ENT_ADMIN_REDIRECT_URI=http://owndsh.example.com:8080/enterprise/auth/callback
+ENT_PUBLIC_BASE_URL=http://192.168.1.50:8080
 ```
 
-生产环境应由现有 Nginx、Ingress 或负载均衡提供可信 HTTPS，并把这两个值一起改成外部 HTTPS 地址。OwnDsh Compose 只开放 Console 的 HTTP 端口，不直接管理证书。`.env.example` 中的数据库、Redis、JWT、master key 和签名私钥是开箱测试默认值；公网部署必须通过同名环境变量覆盖。
+其中 `192.168.1.50` 替换为运行 Docker Compose 的机器 IP；若修改 `OWNDSH_HTTP_PORT`，这里使用相同端口。管理端回调会自动派生为 `<ENT_PUBLIC_BASE_URL>/enterprise/auth/callback`，不需要单独配置。
+
+生产环境应由现有 Nginx、Ingress 或负载均衡提供可信 HTTPS，并把这个值改成外部 HTTPS 地址。OwnDsh Compose 只开放 Console 的 HTTP 端口，不直接管理证书。`.env.example` 中的数据库、Redis、JWT、master key 和签名私钥是开箱测试默认值；公网部署必须通过同名环境变量覆盖。
 
 ### 2. 可选：设置初始密码
 

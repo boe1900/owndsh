@@ -28,7 +28,7 @@ IdentitySourceService.java: 身份源 keyset、JIT/LINK_ONLY、秘密加密、�
 IdentitySourceSpec.java: 不含 client secret/manager password 且明确 provisioning mode 的身份源写规格。
 IssuedPlatformSession.java: Sa-Token adapter 返回的 opaque Token 与绝对有效秒数。
 PasswordChangeRequiredException.java: 携带轮换的一次性 challenge，要求页面进入无初始凭据的 LOCAL 改密步骤。
-PlatformAuthorizationService.java: authorize/password/OIDC/code exchange/refresh/logout 与成员身份绑定的共用状态机，Desktop code 成功后签发 Refresh Session。
+PlatformAuthorizationService.java: authorize/password/OIDC/code exchange/refresh/logout 与成员身份绑定的共用状态机，从 public base 派生唯一管理回调并在 Desktop code 成功后签发 Refresh Session。
 PlatformSession.java: 从服务端 Token/terminal 读取的可信 user/client/device 请求事实。
 PlatformSessionGateway.java: 12 小时非共享 Sa-Token Access Session 签发、当前会话与单 installation/user 撤销端口。
 PlatformSessionRevokedException.java: adapter 已确认 Token 因设备撤销失效的无敏感字段信号，由设备 Web 边界决定协议映射。

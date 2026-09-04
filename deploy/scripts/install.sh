@@ -9,12 +9,11 @@ script_directory=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 . "$script_directory/common.sh"
 
 usage() {
-  printf '%s\n' "用法: $0 --state-dir DIR --public-base-url HTTP_OR_HTTPS_URL --admin-redirect-uri URL --bootstrap-admin USER --bootstrap-password-file FILE [--time-zone ZONE] [--http-port PORT]"
+  printf '%s\n' "用法: $0 --state-dir DIR --public-base-url HTTP_OR_HTTPS_URL --bootstrap-admin USER --bootstrap-password-file FILE [--time-zone ZONE] [--http-port PORT]"
 }
 
 OWNDSH_STATE_DIR=
 public_base_url=
-admin_redirect_uri=
 bootstrap_admin=
 bootstrap_password_file=
 time_zone=Asia/Shanghai
@@ -23,7 +22,6 @@ while [ "$#" -gt 0 ]; do
   case "$1" in
     --state-dir) OWNDSH_STATE_DIR=${2:-}; shift 2 ;;
     --public-base-url) public_base_url=${2:-}; shift 2 ;;
-    --admin-redirect-uri) admin_redirect_uri=${2:-}; shift 2 ;;
     --bootstrap-admin) bootstrap_admin=${2:-}; shift 2 ;;
     --bootstrap-password-file) bootstrap_password_file=${2:-}; shift 2 ;;
     --time-zone) time_zone=${2:-}; shift 2 ;;
@@ -34,7 +32,6 @@ done
 
 require_safe_path "$OWNDSH_STATE_DIR"
 require_single_line "$public_base_url" "public base URL"
-require_single_line "$admin_redirect_uri" "admin redirect URI"
 require_single_line "$bootstrap_admin" "bootstrap 用户名"
 require_single_line "$time_zone" "部署时区"
 require_single_line "$http_port" "HTTP 端口"
@@ -47,8 +44,6 @@ case "$public_authority" in
     [ "$public_port" -ge 1 ] && [ "$public_port" -le 65535 ] || fail "public base URL 端口必须在 1..65535"
     ;;
 esac
-[ "$admin_redirect_uri" = "$public_base_url/enterprise/auth/callback" ] \
-  || fail "管理回调必须是 public base URL 下的 /enterprise/auth/callback"
 printf '%s' "$bootstrap_admin" | grep -Eq '^[A-Za-z][A-Za-z0-9._-]{2,29}$' || fail "bootstrap 用户名格式不合法"
 printf '%s' "$time_zone" | grep -Eq '^[A-Za-z_+-]+(/[A-Za-z_+-]+)+$|^UTC$' || fail "部署时区格式不合法"
 printf '%s' "$http_port" | grep -Eq '^[0-9]{1,5}$' || fail "HTTP 端口格式不合法"
@@ -99,7 +94,6 @@ OWNDSH_COMPOSE_PROJECT_NAME=$compose_project_name
 OWNDSH_HTTP_BIND=0.0.0.0
 OWNDSH_HTTP_PORT=$http_port
 ENT_PUBLIC_BASE_URL=$public_base_url
-ENT_ADMIN_REDIRECT_URI=$admin_redirect_uri
 ENT_DEPLOYMENT_TIME_ZONE=$time_zone
 ENT_POSTGRES_DATABASE=owndsh
 ENT_POSTGRES_USERNAME=owndsh
