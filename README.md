@@ -1,11 +1,13 @@
 <!--
-[INPUT]: 依赖公开 GHCR next 镜像、根 Docker Compose、npm next 插件、Harness 官方 profile 与 OwnDsh 当前产品边界。
-[OUTPUT]: 提供开源项目定位、Compose 自托管、管理员初始化、员工插件安装、更新与排障入口。
+[INPUT]: 依赖控制台共享 APNG 品牌图标、公开 GHCR next 镜像、根 Docker Compose、npm next 插件、Harness 官方 profile 与 OwnDsh 当前产品边界。
+[OUTPUT]: 提供品牌展示、开源项目定位、Compose 自托管、管理员初始化、员工插件安装、更新与排障入口。
 [POS]: 项目公开用户入口；优先让管理员启动 OwnDsh，让员工连接既有 DeepSeek Harness。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
 
 <div align="center">
+
+<img src="console/public/owndsh-whale-mono-m2-animated.png" alt="OwnDsh 动态小鲸鱼图标" width="128" height="128">
 
 <h1>OwnDsh</h1>
 <h2>OwnDsh · Truly Own Your DeepSeek-Harness.</h2>
