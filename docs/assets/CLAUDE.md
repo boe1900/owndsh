@@ -4,6 +4,10 @@
 
 成员清单
 
+community-console-login.png: 维护者提供的控制台登录页原图，用于社区项目介绍，保留原始画面。
+community-plugin-login.png: 维护者提供的 DSH Desktop 内 OwnDsh 插件登录原图，展示实际宿主集成。
+community-desktop-chat.png: 维护者提供的 DSH Desktop 对话原图，展示接入后的使用界面。
+community-console-models.png: 维护者提供的控制台模型管理原图，展示团队受管模型目录。
 t05-auth-flow.gif: T05 公开登录页的真实浏览器流程。
 t07-01-signed-out.png: T07 Harness 企业账号未登录状态。
 t07-02-authorizing.png: T07 Harness 企业账号等待授权状态。
