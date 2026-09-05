@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖真实 parser/crypto、fake DeepSeek exchange 与 mock quota/route ports。
- * [OUTPUT]: 验证估算只用于配额预留，以及三协议终态/usage、2xx 后 SENT、建连失败释放、流内异常计费与双审计关联。
+ * [OUTPUT]: 验证三协议输出限额在预留前生效、缺省补值及上游/预留一致性，以及终态/usage、失败计费与双审计关联。
  * [POS]: 模型网关治理生命周期单测，证明透明 relay 不依赖统一 DONE 终止并保持敏感数据隔离。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -24,6 +24,7 @@ import com.owndsh.enterprise.model.domain.ModelStatus;
 import com.owndsh.enterprise.model.domain.ProviderApiProtocol;
 import com.owndsh.enterprise.model.domain.ProviderType;
 import com.owndsh.enterprise.quota.application.QuotaRateLimiter;
+import com.owndsh.enterprise.quota.application.QuotaReservationCommand;
 import com.owndsh.enterprise.quota.application.QuotaReservationService;
 import com.owndsh.enterprise.quota.application.UsageTokens;
 import com.owndsh.enterprise.quota.domain.ReservationState;
@@ -33,6 +34,9 @@ import com.owndsh.enterprise.quota.domain.UsageResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.mockito.ArgumentCaptor;
 import org.springframework.transaction.support.TransactionOperations;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -130,6 +134,63 @@ class ModelGatewayServiceTest {
         );
 
         verify(quotas).reserve(any());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "OPENAI_COMPLETIONS,max_tokens,1", "OPENAI_COMPLETIONS,max_completion_tokens,1024",
+        "OPENAI_RESPONSES,max_output_tokens,256", "ANTHROPIC_MESSAGES,max_tokens,512"
+    })
+    void forwardsAndReservesTheSameExplicitOutputLimit(ProviderApiProtocol protocol, String field, int limit) {
+        route = route(protocol);
+        GatewayChatRequest request = request(protocol, field, limit);
+        FakeUpstream upstream = new FakeUpstream(List.of(), null, -1);
+
+        service(upstream).open(context(), request, protocol, Map.of(), IDEMPOTENCY);
+
+        assertThat(json.readTree(upstream.requestBody).path(field).intValue()).isEqualTo(limit);
+        ArgumentCaptor<QuotaReservationCommand> command = ArgumentCaptor.forClass(QuotaReservationCommand.class);
+        verify(quotas).reserve(command.capture());
+        assertThat(command.getValue().estimatedTokens()).isEqualTo((request.visibleUtf8Bytes() + 2L) / 3L + limit);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "OPENAI_COMPLETIONS,max_tokens,false", "OPENAI_COMPLETIONS,max_tokens,true",
+        "OPENAI_RESPONSES,max_output_tokens,false", "OPENAI_RESPONSES,max_output_tokens,true",
+        "ANTHROPIC_MESSAGES,max_tokens,false", "ANTHROPIC_MESSAGES,max_tokens,true"
+    })
+    void fillsMissingOrNullOutputLimitsWithTheReservedModelLimit(
+        ProviderApiProtocol protocol, String field, boolean explicitNull
+    ) {
+        route = route(protocol);
+        GatewayChatRequest request = request(protocol, explicitNull ? field : null, null);
+        FakeUpstream upstream = new FakeUpstream(List.of(), null, -1);
+
+        service(upstream).open(context(), request, protocol, Map.of(), IDEMPOTENCY);
+
+        assertThat(json.readTree(upstream.requestBody).path(field).intValue()).isEqualTo(1024);
+        ArgumentCaptor<QuotaReservationCommand> command = ArgumentCaptor.forClass(QuotaReservationCommand.class);
+        verify(quotas).reserve(command.capture());
+        assertThat(command.getValue().estimatedTokens()).isEqualTo((request.visibleUtf8Bytes() + 2L) / 3L + 1024);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "OPENAI_COMPLETIONS,max_tokens", "OPENAI_COMPLETIONS,max_completion_tokens",
+        "OPENAI_RESPONSES,max_output_tokens", "ANTHROPIC_MESSAGES,max_tokens"
+    })
+    void rejectsOverLimitRequestsBeforeQuotaReservationOrUpstreamConnection(ProviderApiProtocol protocol, String field) {
+        route = route(protocol);
+        FakeUpstream upstream = new FakeUpstream(List.of(), null, -1);
+
+        assertThatThrownBy(() -> service(upstream).open(
+            context(), request(protocol, field, 1025), protocol, Map.of(), IDEMPOTENCY
+        )).isInstanceOf(IllegalArgumentException.class);
+
+        verify(quotas, never()).reserve(any());
+        assertThat(upstream.openCalls).isZero();
+        assertThat(audits).isEmpty();
     }
 
     @Test
@@ -271,10 +332,14 @@ class ModelGatewayServiceTest {
     }
 
     private GatewayChatRequest request(ProviderApiProtocol protocol) {
-        return new GatewayChatRequestParser(json).parse("""
-            {"model":"enterprise/default","messages":[{"role":"user","content":"private prompt"}],
-             "max_tokens":512,"stream":true}
-            """.getBytes(StandardCharsets.UTF_8), protocol);
+        return request(protocol, protocol == ProviderApiProtocol.OPENAI_RESPONSES ? "max_output_tokens" : "max_tokens", 512);
+    }
+
+    private GatewayChatRequest request(ProviderApiProtocol protocol, String field, Integer limit) {
+        var body = json.createObjectNode().put("model", "enterprise/default").put("stream", true);
+        body.putArray("messages").addObject().put("role", "user").put("content", "private prompt");
+        if (field != null) body.put(field, limit);
+        return new GatewayChatRequestParser(json).parse(json.writeValueAsBytes(body), protocol);
     }
 
     private DeviceCallContext context() {

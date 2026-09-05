@@ -1,12 +1,18 @@
 /**
- * [INPUT]: 依赖账号视图的固定连接/受管插件状态投影与协议类型
- * [OUTPUT]: 验证全局门禁只放行可用会话、每个插件状态都有稳定文案，并锁定重启与失败提示语义
+ * [INPUT]: 依赖账号视图的固定连接/受管插件状态投影、统一确认登出动作与协议类型
+ * [OUTPUT]: 验证全局门禁、确认登出、插件状态文案，并锁定重启与失败提示语义
  * [POS]: dsh-ui 插件 tab 的产品词汇门禁，真实 DOM 与视觉由 Harness snapshot 覆盖
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
-import { describe, expect, it } from 'vitest'
-import { enterpriseAccessBlocked, enterprisePluginStatePresentation } from '../src/account-view.js'
+import { describe, expect, it, vi } from 'vitest'
+import type { EnterpriseAccountStore } from '../src/account-store.js'
+import {
+  enterpriseAccessBlocked,
+  enterprisePluginStatePresentation,
+  enterpriseStatePresentation,
+  requestEnterpriseLogout,
+} from '../src/account-view.js'
 import { ENTERPRISE_CONNECTION_STATES, MANAGED_PLUGIN_STATES } from '../src/local-api.js'
 
 describe('enterprise plugin state presentation', () => {
@@ -15,6 +21,26 @@ describe('enterprise plugin state presentation', () => {
     for (const state of ENTERPRISE_CONNECTION_STATES) {
       expect(enterpriseAccessBlocked(state)).toBe(state !== 'READY' && state !== 'REFRESHING')
     }
+  })
+
+  it('presents a usable account session as logged in', () => {
+    expect(enterpriseStatePresentation('READY').title).toBe('已登录')
+  })
+
+  it('requires confirmation before signing out from either account surface', () => {
+    const logout = vi.fn(async () => undefined)
+    const store = { logout } as unknown as EnterpriseAccountStore
+    const confirm = vi.fn(() => false)
+    vi.stubGlobal('confirm', confirm)
+
+    requestEnterpriseLogout(store)
+    expect(logout).not.toHaveBeenCalled()
+
+    confirm.mockReturnValue(true)
+    requestEnterpriseLogout(store)
+    expect(logout).toHaveBeenCalledOnce()
+    expect(confirm).toHaveBeenLastCalledWith('确定退出 OwnDsh 账号吗？')
+    vi.unstubAllGlobals()
   })
 
   it('covers all managed states with stable employee-facing language', () => {

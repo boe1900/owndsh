@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Web Crypto、sessionStorage、enterprise-admin 同源授权启动/HttpOnly 会话交换与当前控制台 origin。
- * [OUTPUT]: 提供第一方登录页所需身份源和不向 JavaScript 暴露 Token 的一次性 PKCE 回调交换。
+ * [OUTPUT]: 提供第一方登录页所需身份源、经 URL 同源校验的返回路径和不向 JavaScript 暴露 Token 的一次性 PKCE 回调交换。
  * [POS]: auth 的浏览器登录状态机，管理端不离开自身登录页，OIDC 才发生外部跳转，会话所有权留在服务端 Cookie。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -36,8 +36,13 @@ async function challengeOf(verifier: string) {
 }
 
 export function normalizeReturnTo(value?: string | null) {
-  if (!value?.startsWith('/') || value.startsWith('//') || value.startsWith('/login')) return '/';
-  return value;
+  if (!value?.startsWith('/') || value.startsWith('//')) return '/';
+  try {
+    const target = new URL(value, window.location.origin);
+    return target.origin === window.location.origin && !target.pathname.startsWith('/login') ? value : '/';
+  } catch {
+    return '/';
+  }
 }
 
 export async function startEnterpriseAdminLogin(returnTo?: string | null): Promise<AuthSourcesData> {

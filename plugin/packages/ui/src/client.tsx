@@ -1,20 +1,21 @@
 /**
- * [INPUT]: 依赖官方 Client `slots`、EnterpriseAccountStore 与账号/插件 Settings 及全局访问门禁
- * [OUTPUT]: 对外提供 Client apply，并注册企业 Settings、sidebar 状态和 shell.overlay 登录门禁
+ * [INPUT]: 依赖官方 Client `slots`、EnterpriseAccountStore 与 OwnDsh 账号入口、Settings 及全局访问门禁
+ * [OUTPUT]: 对外提供 Client apply，并注册 OwnDsh Settings、sidebar 账户行和 shell.overlay 登录门禁
  * [POS]: dsh-ui 的浏览器组合根，只向 React 注入共享脱敏 store，不传递 Host Context
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import type { ReactNode } from 'react'
+import { EnterpriseFooterAction } from './account-footer.js'
 import { EnterpriseAccountStore } from './account-store.js'
 import {
   EnterpriseAccessGate,
-  EnterpriseFooterAction,
   EnterpriseSettingsSection,
 } from './account-view.js'
 import { createEnterpriseLocalApi } from './local-api.js'
 
 export * from './account-store.js'
+export * from './account-footer.js'
 export * from './account-view.js'
 export * from './local-api.js'
 
@@ -37,8 +38,8 @@ export function apply(ctx: SlotContextPort): void {
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section',
     id: 'enterprise',
-    order: 5,
-    label: '企业',
+    order: 25,
+    label: 'OwnDsh 设置',
     inject: () => ({ store }),
   }, EnterpriseSettingsSection as (props: never) => ReactNode))
   ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({

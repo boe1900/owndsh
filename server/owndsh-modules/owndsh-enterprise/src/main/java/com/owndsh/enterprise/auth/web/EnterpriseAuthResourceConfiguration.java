@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Spring MVC ResourceHandlerRegistry 与 owndsh-enterprise 内置认证静态资源
- * [OUTPUT]: 提供 login.html/login.css/login.js 三个公开认证资源的显式 classpath 映射
+ * [OUTPUT]: 提供 login.html/login.css/login.js 与品牌 PNG 的显式 classpath 映射
  * [POS]: auth/web 的浏览器资源边界，确保依赖 jar 内的登录页在 Boot 应用中可达且不扩大公开目录
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -19,7 +19,8 @@ public class EnterpriseAuthResourceConfiguration implements WebMvcConfigurer {
         registry.addResourceHandler(
             "/enterprise/auth/*.html",
             "/enterprise/auth/*.css",
-            "/enterprise/auth/*.js"
+            "/enterprise/auth/*.js",
+            "/enterprise/auth/*.png"
         ).addResourceLocations(RESOURCE_LOCATION);
     }
 }

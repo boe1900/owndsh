@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 zod、生成契约、installation 与本地 API 端口，约束 bootstrap 输入及 Service 配置边界
- * [OUTPUT]: 对外提供 BootstrapSnapshot、平台状态/错误、Service 配置与运行时 schema
+ * [OUTPUT]: 对外提供 BootstrapSnapshot、平台状态/错误、无验收探针的 Service 配置与运行时 schema
  * [POS]: platform-client 的公共契约层，隔离中心 HTTP 输入、Host 运行参数与无秘密界面状态
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -8,11 +8,7 @@
 import { z } from 'zod'
 import { zBootstrapQuota, zRequestId, zRevision, type EnterpriseErrorCode } from '@owndsh/contracts'
 import type { InstallationOptions } from './installation.js'
-import type {
-  EnterpriseLocalSessionPort,
-  SessionCopyProbeInput,
-  SessionCopyProbeResult,
-} from './local-api.js'
+import type { EnterpriseLocalSessionPort } from './local-api.js'
 
 /** 不携带响应主体或凭据的稳定 Service 失败，并保留经过 Fetch 校验的 Retry-After。 */
 export class EnterprisePlatformError extends Error {
@@ -40,8 +36,6 @@ export interface EnterprisePlatformConfig {
   readonly callbackTimeoutMs?: number
   readonly dshHome?: string
   readonly installationName?: string
-  readonly enableTechnicalProbe?: boolean
-  readonly restoreSessionCopy?: (input: SessionCopyProbeInput) => Promise<SessionCopyProbeResult>
 }
 
 /** 不进入可序列化 bundle Config 的测试与 carrier seam。 */

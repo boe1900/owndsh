@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖上游完整 beautiful-ui.css、Tailwind preflight 与本地 Inter/JetBrains Mono 字体变量。
- * [OUTPUT]: 提供 Vite 根尺寸、examples 页面滚动和产品要求的零字距覆盖。
- * [POS]: styles 的宿主覆盖层，不复制或改写上游 token、primitive 样式与动效。
+ * [OUTPUT]: 提供 Vite 根尺寸、examples 页面滚动、登录品牌背景动效和产品要求的零字距覆盖。
+ * [POS]: styles 的宿主覆盖层，以独立登录品牌动效补充且不改写上游 token、primitive 样式。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -35,6 +35,29 @@ h2,
 h3,
 p {
   letter-spacing: 0;
+}
+
+.login-brand-art {
+  transform-origin: 65% 70%;
+  animation: login-brand-drift 14s ease-in-out infinite alternate;
+  will-change: transform, opacity;
+}
+
+.login-brand-grid {
+  background-image: radial-gradient(circle, rgb(255 255 255 / 16%) 0 1px, transparent 1.2px);
+  background-size: 24px 24px;
+  animation: login-brand-grid 20s linear infinite;
+  will-change: background-position, opacity;
+}
+
+@keyframes login-brand-drift {
+  from { opacity: 0.14; transform: scale(1.04) translate3d(-1.5%, 1%, 0); }
+  to { opacity: 0.24; transform: scale(1.12) translate3d(2.5%, -1.5%, 0); }
+}
+
+@keyframes login-brand-grid {
+  0%, 100% { background-position: 0 0; opacity: 0.1; }
+  50% { background-position: 48px -48px; opacity: 0.28; }
 }
 
 @media (prefers-reduced-motion: reduce) {

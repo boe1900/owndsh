@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 transaction/source/login_error 查询、enterprise 两阶段认证 API、宿主验证码与 login DOM。
- * [OUTPUT]: 提供身份源加载、页面内凭据认证、一次性 challenge 改密、错误留页、凭据清理和 OIDC 导航。
- * [POS]: 公开认证页面控制器，初始凭据提交后立即清空，第二步只持有短时 challenge 与新密码。
+ * [INPUT]: 依赖 transaction/source/login_error 查询、enterprise 两阶段认证 API、宿主验证码与含密码源 Tab/OIDC 区域的 login DOM。
+ * [OUTPUT]: 提供密码身份源 Tab 切换、默认源选择、页面内凭据认证、一次性 challenge 改密、错误留页、凭据清理和 OIDC 导航。
+ * [POS]: 公开认证页面控制器，以既有 chooseSource 状态机承载 Tab，初始凭据提交后立即清空且第二步只持有短时 challenge 与新密码。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -10,8 +10,8 @@ const transactionId = params.get('transaction_id')
 const requestedSourceId = params.get('source_id')
 const loginFailed = params.get('login_error') === '1'
 const sourceList = document.querySelector('#source-list')
+const oidcList = document.querySelector('#oidc-list')
 const passwordForm = document.querySelector('#password-form')
-const selectedSource = document.querySelector('#selected-source')
 const panelTitle = document.querySelector('#panel-title')
 const status = document.querySelector('#status')
 const captchaGroup = document.querySelector('#captcha-group')
@@ -28,22 +28,9 @@ const confirmPassword = document.querySelector('#confirm-password')
 const submitButton = document.querySelector('#submit-button')
 
 let csrfToken = null
-let currentSource = null
 
 function fail() {
   status.textContent = '登录失败，请重试。'
-}
-
-function showSources() {
-  currentSource = null
-  passwordForm.hidden = true
-  sourceList.hidden = false
-  username.value = ''
-  password.value = ''
-  resetPasswordChange()
-  hideCaptcha()
-  panelTitle.textContent = '选择身份源'
-  status.textContent = ''
 }
 
 function hidePasswordChange() {
@@ -63,6 +50,8 @@ function resetPasswordChange() {
   password.required = true
   submitButton.textContent = '登录'
   hidePasswordChange()
+  sourceList.hidden = sourceList.childElementCount < 2
+  oidcList.hidden = false
 }
 
 function showPasswordChange(challenge, rejected) {
@@ -75,6 +64,8 @@ function showPasswordChange(challenge, rejected) {
   username.value = ''
   password.value = ''
   hideCaptcha()
+  sourceList.hidden = true
+  oidcList.hidden = true
   passwordChangeFields.hidden = false
   newPassword.required = true
   confirmPassword.required = true
@@ -132,14 +123,15 @@ async function chooseSource(source) {
     )
     return
   }
-  currentSource = source
   document.querySelector('#transaction-id').value = transactionId
   document.querySelector('#source-id').value = source.id
   document.querySelector('#csrf-token').value = csrfToken
-  sourceList.hidden = true
   passwordForm.hidden = false
   panelTitle.textContent = '输入企业账号'
-  selectedSource.textContent = source.name
+  for (const tab of sourceList.children) {
+    const active = tab.dataset.sourceId === String(source.id)
+    tab.setAttribute('aria-pressed', String(active))
+  }
   resetPasswordChange()
   if (source.type === 'LOCAL') {
     await refreshCaptcha()
@@ -164,31 +156,45 @@ async function loadSources() {
     if (!response.ok) throw new Error('sources unavailable')
     const payload = await response.json()
     csrfToken = payload.data.csrfToken
+    const passwordSources = []
     let requestedSource = null
     for (const source of payload.data.sources) {
       const button = document.createElement('button')
       button.type = 'button'
-      button.className = 'source-button'
       const name = document.createElement('span')
-      name.textContent = source.name
-      const type = document.createElement('span')
-      type.className = 'source-type'
-      type.textContent = source.type
-      button.append(name, type)
+      if (source.type === 'OIDC') {
+        button.className = 'oidc-button'
+        name.textContent = `使用 ${source.name} 登录`
+        button.append(name)
+        oidcList.append(button)
+      } else {
+        passwordSources.push(source)
+        button.className = 'source-button'
+        button.dataset.sourceId = String(source.id)
+        button.setAttribute('aria-pressed', 'false')
+        name.textContent = source.name
+        button.append(name)
+        sourceList.append(button)
+      }
       button.addEventListener('click', () => void chooseSource(source))
-      sourceList.append(button)
       const retryPassword = loginFailed && source.type !== 'OIDC'
       if (retryPassword && String(source.id) === requestedSourceId) {
         requestedSource = source
       }
     }
-    if (requestedSource) await chooseSource(requestedSource)
+    if (oidcList.childElementCount > 0 && passwordSources.length > 0) {
+      const divider = document.createElement('div')
+      divider.className = 'oidc-divider'
+      divider.textContent = '其他登录方式'
+      oidcList.prepend(divider)
+    }
+    const initialSource = requestedSource ?? passwordSources[0]
+    if (initialSource) await chooseSource(initialSource)
   } catch {
     fail()
   }
 }
 
-document.querySelector('#back-button').addEventListener('click', showSources)
 document.querySelector('#captcha-refresh').addEventListener('click', () => void refreshCaptcha())
 passwordForm.addEventListener('submit', async (event) => {
   event.preventDefault()

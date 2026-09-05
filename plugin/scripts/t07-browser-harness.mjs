@@ -241,7 +241,6 @@ try {
     '  config:',
     '    bootstrapIntervalMs: 700',
     '    requestTimeoutMs: 2000',
-    '    enableTechnicalProbe: true',
     '',
   ].join('\n'))
 

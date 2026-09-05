@@ -1,12 +1,12 @@
 /**
- * [INPUT]: 依赖上游 SidebarNav/ThemeToggle、静态控制台路由、TanStack navigation 与 Beautiful UI Harness tab bar 结构。
- * [OUTPUT]: 提供角色过滤产品侧栏、工作区用户中心导航/Sign out、深浅主题、可关闭页面 tab、移动抽屉和内容窗口。
- * [POS]: app 的产品外壳；DOM、尺寸和交互直接由 Beautiful UI Harness 3ea4c181 迁移，业务只注入路由数据。
+ * [INPUT]: 依赖上游 SidebarNav/ThemeToggle、OwnDsh 鲸鱼品牌资源、静态控制台路由、TanStack navigation 与 Beautiful UI Harness tab bar 结构。
+ * [OUTPUT]: 提供 OwnDsh 品牌工作区入口、角色过滤产品侧栏、用户中心导航/Sign out、深浅主题、可关闭页面 tab、移动抽屉和内容窗口。
+ * [POS]: app 的产品外壳；DOM、尺寸和交互直接由 Beautiful UI Harness 3ea4c181 迁移，工作区菜单只提供产品动作。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { Outlet, useNavigate, useRouteContext, useRouterState } from '@tanstack/react-router';
-import { CircleUserRound, FlaskConical, LogOut, Menu, UserPlus, X } from 'lucide-react';
+import { CircleUserRound, LogOut, Menu, UserPlus, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { logoutCurrentSession } from '@/auth/session';
 import SidebarNav, {
@@ -42,7 +42,6 @@ export function ConsoleShell() {
     workspaceActions.push({ label: '邀请成员', icon: <UserPlus size={16} />, onClick: () => go('/members') });
   }
   workspaceActions.push(
-    { label: '组件示例', icon: <FlaskConical size={16} />, onClick: () => void navigate({ to: '/examples' }) },
     { label: '用户中心', icon: <CircleUserRound size={16} />, onClick: () => go('/account') },
     {
       label: 'Sign out',
@@ -80,7 +79,12 @@ export function ConsoleShell() {
         if (mobile) closeMobileNav();
       }}
       primaryAction={null}
-      workspace={{ key: 'enterprise', name: 'Agent Platform', monogram: 'A' }}
+      workspace={{
+        key: 'enterprise',
+        name: 'OwnDsh',
+        monogram: 'O',
+        icon: <img src="/owndsh-whale-mono-m2-animated.png" alt="" className="size-full object-cover" />
+      }}
       workspaceActions={workspaceActions}
     />
   );

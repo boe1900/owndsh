@@ -9,7 +9,7 @@ _console.tsx: 不改变 URL 的产品认证布局边界，直接以 HttpOnly Coo
 _console.account.tsx: 工作区菜单进入的独立用户中心父布局，不出现在主侧栏，以分区导航承载账号子页面。
 _console.account.index.tsx: `/account` 基本信息子页面，展示 bootstrap 当前账号、角色和多登录来源。
 _console.account.security.tsx: `/account/security` 安全设置子页面，承载本人 LOCAL 密码修改。
-login.tsx: 采用 shadcn authentication 双栏构图与 Beautiful UI tokens 的管理端登录页，在同页承载 LOCAL/LDAP Tab、验证码和首次改密，并为每个 OIDC 身份源提供独立跳转按钮。
+login.tsx: 采用 shadcn authentication 双栏构图、动态海军蓝鲸鱼背景与中英品牌宣言的管理端登录页，以完整输入提示承载 LOCAL/LDAP Tab、验证码和首次改密，并为每个 OIDC 身份源提供独立跳转按钮。
 enterprise.auth.callback.tsx: 一次性消费 PKCE code/state 建立 HttpOnly Cookie，并以 replace 安全恢复内部目标路由。
 403.tsx: employee 或无任何控制台角色的固定拒绝页，提供服务端确认的 Sign out。
 _console.index.tsx: 根路径模型路由，薄转发到 features/models 的 Provider、受管模型和模型集目录页面。

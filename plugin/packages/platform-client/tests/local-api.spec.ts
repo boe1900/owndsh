@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 platform-client 本地 API 注册器与 Node 原生 HTTP server/fetch
- * [OUTPUT]: 验证方法/content-type/体积/DTO、平台/插件/Session 状态、复合 SSE、探针与 disposer
+ * [OUTPUT]: 验证方法/content-type/体积/DTO、平台/插件/Session 状态、复合 SSE、探针退役与 disposer
  * [POS]: platform-client Host/Client 协作回归测试，以真实 HTTP 锁定官方 webServer 契约
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -263,44 +263,16 @@ describe('enterprise local API', () => {
     dispose()
   })
 
-  it('gates and validates the real Session-copy acceptance seam', async () => {
-    const restoreSessionCopy = vi.fn(async input => ({
-      sessionId: 'restored-1',
-      sourceSessionId: input.sourceSessionId,
-      seedLength: input.events.length,
-    }))
-    registerEnterpriseLocalApi(webServer, {
-      platform, pluginStatus, enableTechnicalProbe: true, restoreSessionCopy,
-    })
-    const response = await fetch(`${baseUrl}/enterprise/api/v1/local/session-copies`, {
-      body: JSON.stringify({
-        sourceSessionId: 'remote-1',
-        targetCwd: '/tmp/work',
-        events: [{ type: 'enterprise/probe', seq: 0, time: 1, data: {}, ignorable: true }],
-      }),
-      headers: { 'content-type': 'application/json' },
-      method: 'POST',
-    })
-    expect(response.status).toBe(201)
-    await expect(response.json()).resolves.toEqual({
-      data: { sessionId: 'restored-1', sourceSessionId: 'remote-1', seedLength: 1 },
-    })
-    expect(restoreSessionCopy).toHaveBeenCalledOnce()
-  })
-
-  it('rejects invalid and oversized probe DTOs and removes every route', async () => {
-    const dispose = registerEnterpriseLocalApi(webServer, {
-      platform,
-      pluginStatus,
-      enableTechnicalProbe: true,
-      restoreSessionCopy: vi.fn(),
-    })
-    const invalid = await fetch(`${baseUrl}/enterprise/api/v1/local/session-copies`, {
-      body: '{"sourceSessionId":"x"}',
+  it('rejects invalid and oversized Server DTOs, omits the retired probe, and removes every route', async () => {
+    const dispose = registerEnterpriseLocalApi(webServer, { platform, pluginStatus })
+    const probe = await fetch(`${baseUrl}/enterprise/api/v1/local/session-copies`, { method: 'POST' })
+    expect(probe.status).toBe(404)
+    const invalid = await fetch(`${baseUrl}/enterprise/api/v1/local/server`, {
+      body: '{"unexpected":"x"}',
       headers: { 'content-type': 'application/json' }, method: 'POST',
     })
     expect(invalid.status).toBe(400)
-    const oversized = await fetch(`${baseUrl}/enterprise/api/v1/local/session-copies`, {
+    const oversized = await fetch(`${baseUrl}/enterprise/api/v1/local/server`, {
       body: JSON.stringify({ padding: 'x'.repeat(256 * 1024) }),
       headers: { 'content-type': 'application/json' }, method: 'POST',
     })

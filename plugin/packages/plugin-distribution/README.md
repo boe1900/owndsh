@@ -1,6 +1,6 @@
 <!--
 [INPUT]: 依赖受管插件调和、制品验证、官方命令边界和显式整包卸载实现。
-[OUTPUT]: 提供下载验签、安装/回滚/移除、库存确认与缺失信任根行为说明。
+[OUTPUT]: 提供下载验签、安装/回滚/移除、新旧 Harness 库存兼容与缺失信任根行为说明。
 [POS]: @owndsh/plugin-distribution 的公开语义入口，界定中心期望与本地 Loader 事实。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
@@ -11,6 +11,8 @@ Harness Host 的受管插件调和 Service。它只消费 `ctx.enterprisePlatfor
 普通 Web 使用兼容 Harness 的 `ctx.subprocess`/`ctx.pluginInventory`，Desktop 使用公开
 `desktopProfiles.current`/`desktopPnpm.runPlugin()`；本服务不会扫描或上传个人插件、配置、
 源码和本地路径。
+库存读取统一等待 `pluginInventory.list()`，同时支持 `0.1.1-rc.2` 的同步快照与
+`0.1.2-rc.1` 的异步快照；重启确认、移除、库存上报和整包卸载均使用同一读取边界。
 
 每个中心 revision 串行执行以下闭环：
 
@@ -32,6 +34,7 @@ OwnDsh 登录和模型代理，但任何受管插件安装都会以 `ENT_PLUGIN_
 bundle、platform client、distribution 自身以及 contracts、LLM、Session、UI 等企业核心传递包。
 版本回滚与升级使用同一个验签和 exact tgz 安装路径，任一步失败都保持 `FAILED`，绝不标记 active。
 OwnDsh 本体按 Harness caret peer 范围运行；第三方受管制品仍坚持独立的精确 commit 白名单。宿主版本尚未映射到已验证 commit 时，仅该制品安装以 `ENT_PLUGIN_INCOMPATIBLE` 失败，不能伪装成旧基线放行。
+本地状态文件无法校验时，调和器进入稳定的 `ENT_PLUGIN_STATE_INVALID` 终态并丢弃后续 pending revision，避免 Host 忙循环；修复状态后需重启 Harness 重新载入。
 
 员工可从企业界面显式卸载：Service 先通过同一官方命令边界移除当前已安装的受管包，清空受管状态，
 最后移除 `owndsh-plugin`。调用层只在成功响应写回后请求 Desktop 官方重启；普通 Web 不管理宿主进程。

@@ -1,12 +1,12 @@
 /**
- * [INPUT]: 依赖 shadcn authentication 双栏外壳、Beautiful UI tokens、公开身份源和 enterprise-admin Cookie 登录状态机。
- * [OUTPUT]: 提供 LOCAL/LDAP Tab、OIDC 按钮、验证码及首次改密均留在产品内的管理端登录页。
+ * [INPUT]: 依赖 shadcn authentication 双栏外壳、Beautiful UI tokens、OwnDsh 鲸鱼品牌资源、公开身份源和 enterprise-admin Cookie 登录状态机。
+ * [OUTPUT]: 提供动态沉浸式鲸鱼品牌宣言、LOCAL/LDAP Tab、OIDC 按钮、验证码及首次改密均留在产品内的管理端登录页。
  * [POS]: routes 的公开第一方登录入口，只有 OIDC 离开当前页面，登录结果只建立服务端 HttpOnly Cookie。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { createFileRoute } from '@tanstack/react-router';
-import { Command, Eye, EyeOff, KeyRound, LoaderCircle, LogIn, RefreshCw } from 'lucide-react';
+import { Eye, EyeOff, KeyRound, LoaderCircle, LogIn, RefreshCw } from 'lucide-react';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { completePasswordLogin } from '@/api/generated/sdk.gen';
 import type { AuthSourcesData, PasswordStepData, PublicIdentitySource } from '@/api/generated/types.gen';
@@ -183,14 +183,32 @@ function LoginPage() {
 
   return (
     <main className="grid min-h-[100dvh] bg-page text-ink lg:grid-cols-2">
-      <section className="relative hidden flex-col overflow-hidden bg-canvas p-10 lg:flex">
+      <section className="relative hidden flex-col overflow-hidden bg-[#081523] p-10 text-white lg:flex">
+        <img
+          src="/owndsh-whale-bg-navy.png"
+          alt=""
+          className="login-brand-art pointer-events-none absolute inset-0 size-full object-cover object-center"
+        />
+        <div aria-hidden className="login-brand-grid pointer-events-none absolute inset-0" />
         <div className="relative z-10 flex items-center gap-2 text-[15px] font-semibold">
-          <Command size={22} strokeWidth={2} />
+          <img src="/owndsh-whale-mono-m2-animated.png" alt="" className="size-[22px] rounded-[6px] object-cover ring-1 ring-white/10" />
           OwnDsh
         </div>
-        <div className="relative z-10 mt-auto">
-          <p className="text-[13px] font-medium text-ink-3">Agent Platform</p>
-          <p className="mt-1 text-[16px] font-medium text-ink-2">企业工作区</p>
+        <div className="relative z-10 my-auto max-w-[560px]">
+          <h2 className="text-balance text-[34px] font-semibold leading-[1.18]">
+            OwnDsh · Truly Own Your DeepSeek-Harness.
+          </h2>
+          <p className="mt-5 text-[15px] italic leading-6 text-white/65">
+            The Self-Hosted Control Plane for DeepSeek-Harness.
+          </p>
+          <div className="mt-8 space-y-1 text-[17px] leading-7 text-white/85">
+            <p>真正拥有属于你的 DeepSeek-Harness。</p>
+            <p>DeepSeek-Harness 的私有化控制面。</p>
+          </div>
+        </div>
+        <div className="relative z-10 text-white/55">
+          <p className="text-[13px] font-medium">OwnDsh Console</p>
+          <p className="mt-1 text-[16px] font-medium text-white/75">企业工作区</p>
         </div>
       </section>
 
@@ -198,13 +216,11 @@ function LoginPage() {
         <div className="absolute right-5 top-5"><ThemeToggle /></div>
         <div className="flex w-full max-w-[410px] flex-col">
           <div className="mb-8 flex items-center justify-center gap-2 text-[14px] font-semibold lg:hidden">
-            <Command size={20} strokeWidth={2} />
+            <img src="/owndsh-whale-mono-m2-animated.png" alt="" className="size-5 rounded-[6px] object-cover" />
             OwnDsh
           </div>
           <div className="text-center">
-            <div className="mx-auto flex size-11 items-center justify-center rounded-[10px] bg-ink text-canvas shadow-btn">
-              <Command size={22} strokeWidth={2.2} />
-            </div>
+            <img src="/owndsh-whale-mono-m2-animated.png" alt="" className="mx-auto size-11 rounded-[10px] object-cover shadow-btn" />
             <h1 className="mt-5 text-[24px] font-semibold leading-tight">登录管理控制台</h1>
           </div>
 
@@ -246,6 +262,7 @@ function LoginPage() {
                     新密码
                     <input
                       required type="password" autoComplete="new-password" minLength={14} maxLength={128}
+                      placeholder="请输入新密码"
                       value={newPassword} onChange={(event) => setNewPassword(event.target.value)}
                       className="mt-2 h-10 w-full rounded-[8px] border border-line-strong bg-field px-3 text-[14px] outline-none shadow-inset-field transition-colors focus:border-accent"
                     />
@@ -254,6 +271,7 @@ function LoginPage() {
                     确认新密码
                     <input
                       required type="password" autoComplete="new-password" minLength={14} maxLength={128}
+                      placeholder="请再次输入新密码"
                       value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)}
                       className="mt-2 h-10 w-full rounded-[8px] border border-line-strong bg-field px-3 text-[14px] outline-none shadow-inset-field transition-colors focus:border-accent"
                     />
@@ -265,6 +283,7 @@ function LoginPage() {
                     用户名
                     <input
                       required autoFocus autoComplete="username" maxLength={100}
+                      placeholder="请输入企业账号"
                       value={username} onChange={(event) => setUsername(event.target.value)}
                       className="mt-2 h-10 w-full rounded-[8px] border border-line-strong bg-field px-3 text-[14px] outline-none shadow-inset-field transition-colors focus:border-accent"
                     />
@@ -274,6 +293,7 @@ function LoginPage() {
                     <span className="relative mt-2 block">
                       <input
                         required type={showPassword ? 'text' : 'password'} autoComplete="current-password" maxLength={256}
+                        placeholder="请输入登录密码"
                         value={password} onChange={(event) => setPassword(event.target.value)}
                         className="h-10 w-full rounded-[8px] border border-line-strong bg-field px-3 pr-10 text-[14px] outline-none shadow-inset-field transition-colors focus:border-accent"
                       />
@@ -292,6 +312,7 @@ function LoginPage() {
                         验证码
                         <input
                           required autoComplete="off" maxLength={16}
+                          placeholder="请输入验证码"
                           value={captchaCode} onChange={(event) => setCaptchaCode(event.target.value)}
                           className="mt-2 h-10 w-full rounded-[8px] border border-line-strong bg-field px-3 text-[14px] outline-none shadow-inset-field transition-colors focus:border-accent"
                         />

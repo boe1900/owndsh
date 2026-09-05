@@ -495,7 +495,6 @@ try {
     '    sessionRetryInitialMs: 20',
     '    sessionRetryMaxMs: 100',
     '    sessionMaxBatchEvents: 200',
-    '    enableTechnicalProbe: true',
     '',
   ].join('\n'))
 

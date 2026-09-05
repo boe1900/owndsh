@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖请求级 route、原生协议请求、quota 状态机、透明上游 SSE、SecretCipher、事务与 audit。
- * [OUTPUT]: 对外提供三协议透明 relay、仅用于配额预留的保守估算、同步 2xx SSE 建连、流内故障原生结束、脱敏失败日志与可靠终态结算。
+ * [OUTPUT]: 对外提供三协议透明 relay、上游与配额预留共用的有效输出上限、同步 2xx SSE 建连、流内故障原生结束、脱敏失败日志与可靠终态结算。
  * [POS]: model/gateway 的治理核心；只解析 usage/终态，不转换消息、工具、推理、回放或流事件。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -111,11 +111,13 @@ public final class ModelGatewayService {
     ) {
         GatewayRouteResolver.GatewayRoute route = routes.resolve(context, request.modelAlias());
         if (route.provider().apiProtocol() != protocol) throw new IllegalArgumentException("模型 API 协议不匹配");
+        int modelMaxTokens = route.model().resolvedMaxTokens();
+        int effectiveMaxTokens = request.maxTokens() == null ? modelMaxTokens : request.maxTokens();
         long estimated = QuotaTokenEstimator.estimate(
-            request.visibleUtf8Bytes(), request.maxTokens(), route.model().resolvedMaxTokens()
+            request.visibleUtf8Bytes(), effectiveMaxTokens, modelMaxTokens
         );
         Map<String, String> upstreamHeaders = Map.copyOf(headers);
-        ObjectNode upstreamBody = request.upstreamBody(route.model().modelId(), protocol);
+        ObjectNode upstreamBody = request.upstreamBody(route.model().modelId(), protocol, effectiveMaxTokens);
         QuotaReservationService.ActiveReservation active = quotas.reserve(new QuotaReservationCommand(
             context.tenantId(), route.user().id(), route.user().departmentId(), route.device().id(),
             route.model().id(), idempotencyKey, context.requestId(), estimated,

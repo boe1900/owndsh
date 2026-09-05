@@ -17,7 +17,7 @@ CurrentAccountController.java: 当前控制台成员凭旧 LOCAL 密码自助改
 AdminSessionCookie.java: 根据外部地址在 HTTPS `__Host-enterprise-admin` 与 HTTP `enterprise-admin` 间选择，固定 HttpOnly/SameSite=Strict/host-only 与 4 KiB 值边界，并拒绝显式跨源写请求。
 DeletedResourceView.java: CAS 删除成功的 id/deleted 白名单 DTO。
 EnterpriseRequestContext.java: 服务端固定 tenant、Sa-Token actor 与脱敏请求关联信息。
-EnterpriseAuthResourceConfiguration.java: 显式映射依赖 jar 内 login.html/css/js，授权跳转只公开三项认证资源而不暴露目录。
+EnterpriseAuthResourceConfiguration.java: 显式映射依赖 jar 内 login.html/css/js 与品牌 PNG，授权跳转只公开认证资源类型而不暴露目录。
 ExternalIdentitySummaryView.java: source/name/type、稳定 subject 和最后登录的管理协议白名单 DTO。
 GroupMappingCreateRequest.java: 字符串 snowflake ID 输入解析和外部组写 DTO。
 GroupMappingView.java: 外部组映射公开管理字段投影。

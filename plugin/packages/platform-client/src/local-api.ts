@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Harness `ctx.webServer.register()` route port、平台操作端口及插件/Session 只读反转端口
- * [OUTPUT]: 对外提供 registerEnterpriseLocalApi、Server 地址更新、整包卸载、严格 JSON action、远端 Session 分页/恢复/删除与复合 SSE
+ * [OUTPUT]: 对外提供 Server 地址更新、整包卸载、严格 JSON action、远端 Session 操作与复合 SSE 的产品路由注册器，不挂载验收探针
  * [POS]: platform-client 的 Host/Client 同源协作边界，只序列化脱敏 DTO 并把认证 HTTP 留在 Host Service
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -38,19 +38,6 @@ export interface EnterpriseLocalPlatformPort {
   subscribe(listener: (status: EnterprisePlatformStatus) => void): () => void
 }
 
-/** 仅由验收 overlay 开启的技术恢复 seam。 */
-export interface SessionCopyProbeInput {
-  readonly sourceSessionId: string
-  readonly targetCwd: string
-  readonly events: readonly Record<string, unknown>[]
-}
-
-export interface SessionCopyProbeResult {
-  readonly sessionId: string
-  readonly sourceSessionId: string
-  readonly seedLength: number
-}
-
 /** platform-client 反向消费的 Session Service 最小面，避免包依赖环。 */
 export interface EnterpriseLocalSessionPort {
   status(): unknown
@@ -71,8 +58,6 @@ export interface EnterpriseLocalApiOptions {
   readonly uninstallPlugin?: () => Promise<{ readonly restart?: () => void }>
   /** 由组合层延迟绑定 session-sync，保持认证 Service 先于其消费者构造。 */
   readonly sessionSync?: () => EnterpriseLocalSessionPort | undefined
-  readonly enableTechnicalProbe?: boolean
-  readonly restoreSessionCopy?: (input: SessionCopyProbeInput) => Promise<SessionCopyProbeResult>
 }
 
 function writeJson(response: ServerResponse, status: number, value: unknown): void {
@@ -131,25 +116,6 @@ async function requireEmptyObject(request: IncomingMessage): Promise<void> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)
     || Object.keys(value as Record<string, unknown>).length !== 0) {
     throw new TypeError('action body must be an empty object')
-  }
-}
-
-function parseSessionCopyInput(value: unknown): SessionCopyProbeInput {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new TypeError('session copy body must be an object')
-  }
-  const body = value as Record<string, unknown>
-  if (Object.keys(body).sort().join(',') !== 'events,sourceSessionId,targetCwd'
-    || typeof body['sourceSessionId'] !== 'string' || body['sourceSessionId'].length === 0
-    || typeof body['targetCwd'] !== 'string' || body['targetCwd'].length === 0
-    || !Array.isArray(body['events'])
-    || body['events'].some(event => typeof event !== 'object' || event === null || Array.isArray(event))) {
-    throw new TypeError('session copy body is invalid')
-  }
-  return {
-    sourceSessionId: body['sourceSessionId'],
-    targetCwd: body['targetCwd'],
-    events: body['events'] as Record<string, unknown>[],
   }
 }
 
@@ -448,27 +414,6 @@ export function registerEnterpriseLocalApi(
       },
     }))
 
-    if (options.enableTechnicalProbe === true && options.restoreSessionCopy !== undefined) {
-      disposers.push(webServer.register({
-        kind: 'exact',
-        path: `${LOCAL_API_PREFIX}/session-copies`,
-        handler: async (request, response) => {
-          if (request.method !== 'POST') {
-            methodNotAllowed(response, 'POST')
-            return
-          }
-          try {
-            const input = parseSessionCopyInput(await readJson(request))
-            writeJson(response, 201, { data: await options.restoreSessionCopy?.(input) })
-          } catch (error) {
-            const status = error instanceof RangeError ? 413 : 400
-            writeJson(response, status, {
-              error: { code: status === 413 ? 'ENT_REQUEST_TOO_LARGE' : 'ENT_INVALID_REQUEST' },
-            })
-          }
-        },
-      }))
-    }
   } catch (error) {
     for (const dispose of disposers.reverse()) dispose()
     throw error

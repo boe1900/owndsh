@@ -61,5 +61,5 @@ POST action 必须使用 `application/json`；登录、取消、退出和卸载�
 更新只接受 `{ "serverUrl": "http://..." }` 或 `{ "serverUrl": "https://..." }`。本地 API 不配置 CORS。Session 恢复 action 的 body 只接受 `{ "targetCwd": "..." }`，成功返回 `201`；列表 limit
 范围为 1 至 200。Session 删除只接受路径 ID，成功返回不含正文的 tombstone；路由不接受任意平台 URL。插件与 Session 状态都由 bundle 通过最小反转端口接入，platform-client 不反向依赖
 distribution 或 session-sync 包；复合 SSE 分别发送 `status` 和 `session-sync` event，返回值不含
-tgz 路径、公钥、CLI 输出、Session 正文或 Token。T01 Session-copy 技术 seam 仅在验收 overlay 显式
-开启，发行 patch 默认关闭。
+tgz 路径、公钥、CLI 输出、Session 正文或 Token。Session-copy 技术探针已退役；V1 bundle
+不挂载 Session Service，保留的 Session 路由在未接入 Service 时返回不可用，不触发同步或恢复。

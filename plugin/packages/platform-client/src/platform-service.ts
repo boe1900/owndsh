@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Cordis Service/WebServer/settings/credentials、T02 contracts、PKCE/installation/browser 原语与 Node fetch
- * [OUTPUT]: 对外提供 ctx.enterprisePlatform、Server 地址、Host GrantRecord、内存 Access Token、可退避静默恢复/轮换、控制面请求与完整停稳
+ * [OUTPUT]: 对外提供 ctx.enterprisePlatform、Server 地址、Host GrantRecord、内存 Access Token、可退避静默恢复/轮换、完整响应生命周期与停稳
  * [POS]: platform-client 的 Host 业务核心，跨 Web/Desktop 复用官方凭据平面且不向 Client UI 暴露任何 Token
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -27,8 +27,6 @@ import {
 import {
   registerEnterpriseLocalApi,
   type EnterpriseLocalSessionPort,
-  type SessionCopyProbeInput,
-  type SessionCopyProbeResult,
   type WebServerRoutePort,
 } from './local-api.js'
 import { createPkceS256, PkceLoopbackError, startLoopbackCallback, type LoopbackCallback } from './pkce.js'
@@ -72,8 +70,6 @@ interface ResolvedConfig {
   readonly callbackTimeoutMs: number
   readonly dshHome?: string
   readonly installationName?: string
-  readonly enableTechnicalProbe?: boolean
-  readonly restoreSessionCopy?: (input: SessionCopyProbeInput) => Promise<SessionCopyProbeResult>
 }
 
 interface LoginTransaction {
@@ -116,8 +112,6 @@ function resolveConfig(config: EnterprisePlatformConfig): ResolvedConfig {
     callbackTimeoutMs: positiveInteger(config.callbackTimeoutMs, 5 * 60_000, 'callbackTimeoutMs'),
     ...(config.dshHome === undefined ? {} : { dshHome: config.dshHome }),
     ...(config.installationName === undefined ? {} : { installationName: config.installationName }),
-    ...(config.enableTechnicalProbe === undefined ? {} : { enableTechnicalProbe: config.enableTechnicalProbe }),
-    ...(config.restoreSessionCopy === undefined ? {} : { restoreSessionCopy: config.restoreSessionCopy }),
   }
 }
 
@@ -230,12 +224,6 @@ export class EnterprisePlatformService extends Service {
       pluginStatus: internals.pluginStatus ?? (() => ({ assignmentRevision: 0, plugins: [] })),
       ...(internals.uninstallPlugin === undefined ? {} : { uninstallPlugin: internals.uninstallPlugin }),
       ...(internals.sessionSync === undefined ? {} : { sessionSync: internals.sessionSync }),
-      ...(this.config.enableTechnicalProbe === undefined
-        ? {}
-        : { enableTechnicalProbe: this.config.enableTechnicalProbe }),
-      ...(this.config.restoreSessionCopy === undefined
-        ? {}
-        : { restoreSessionCopy: this.config.restoreSessionCopy }),
     })
     ctx.inject(['settings'], (settingsContext) => {
       const scope = settingsContext.settings.register(SETTINGS_NAMESPACE, CONNECTION_SETTINGS, {
@@ -302,7 +290,7 @@ export class EnterprisePlatformService extends Service {
     let failure: unknown
     if (this.currentStatus.state !== 'SIGNED_OUT' && this.currentStatus.state !== 'UNCONFIGURED') {
       try {
-        await this.request(`${AUTH_PATH}/logout`, { method: 'POST' })
+        await (await this.request(`${AUTH_PATH}/logout`, { method: 'POST' })).body?.cancel()
       } catch (error) {
         if (!(error instanceof EnterprisePlatformError)
           || (error.code !== 'ENT_AUTH_REQUIRED' && error.code !== 'ENT_AUTH_SESSION_EXPIRED')) failure = error

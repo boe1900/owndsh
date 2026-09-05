@@ -500,7 +500,6 @@ try {
     "    trustedPluginPublicKey: 'MCowBQYDK2VwAyEAgl6STzO84FyXlwmeHinWGgY/TgbGBUUBLF1xPT7SvT8='",
     '    bootstrapIntervalMs: 200',
     '    requestTimeoutMs: 2000',
-    '    enableTechnicalProbe: true',
     '- insert:',
     '    - id: enterprise-t11-acceptance-probe',
     `      name: ${JSON.stringify(probePath)}`,

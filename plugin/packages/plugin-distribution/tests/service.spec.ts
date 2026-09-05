@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Cordis Context、真实临时状态/制品文件、签名 assignment 与 fake platform/subprocess/inventory
- * [OUTPUT]: 验证 argv、Cordis 代理、无信任根关闭、失败不激活、跨进程确认、ABSENT、回滚、整包卸载、库存和核心保护
+ * [OUTPUT]: 验证同步/异步库存兼容、argv、Cordis 代理、状态损坏停稳、无信任根关闭、跨进程确认、ABSENT、回滚、整包卸载和核心保护
  * [POS]: plugin-distribution 的完整状态机验收，模拟中心 revision 而不修改或替身化 Harness 源码
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -148,6 +148,7 @@ async function environment(options: {
   readonly runMarker?: string
   readonly commandPort?: DshPluginCommandPort
   readonly trustedPluginPublicKey?: string | null
+  readonly store?: ManagedPluginStore
 }): Promise<{
   readonly context: PluginDistributionContext
   readonly home: string
@@ -173,6 +174,7 @@ async function environment(options: {
     dshHome: home,
   }, {
     ...(options.commandPort === undefined ? {} : { commandPort: options.commandPort }),
+    ...(options.store === undefined ? {} : { store: options.store }),
     runMarker: options.runMarker ?? 'test-run',
   })
   let closed = false
@@ -192,6 +194,70 @@ async function environment(options: {
 const testKey = generateKeyPairSync('ed25519')
 
 describe('EnterprisePluginDistributionService', () => {
+  it('reconciles, reports and uninstalls with an asynchronous Harness inventory', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'enterprise-plugin-async-inventory-'))
+    cleanups.push(() => rm(home, { force: true, recursive: true }))
+    const desired = assignment(testKey, Buffer.from('installed managed bundle'))
+    const store = new ManagedPluginStore(home)
+    await store.write({
+      formatVersion: 1,
+      assignmentRevision: 1,
+      plugins: [{
+        packageName: desired.packageName, version: desired.version, sha256: desired.sha256,
+        desiredRevision: 1, desiredState: 'INSTALLED', state: 'RESTART_REQUIRED',
+        lastErrorCode: null, restartMarker: 'previous-run',
+      }],
+    })
+    const activeInventory = inventory([{
+      moduleName: desired.packageName, enabled: true, fiberPhase: 'active',
+    }])
+    const asyncInventory: PluginInventoryPort = { list: async () => activeInventory.list() }
+    const platform = new FakePlatform(bootstrap(2, [desired]), new Map())
+    const env = await environment({ platform, dshHome: home, store, inventory: asyncInventory })
+
+    await env.service.settled()
+
+    expect(env.service.status().fatalErrorCode).toBeUndefined()
+    expect(env.service.status().plugins[0]).toMatchObject({ state: 'ACTIVE', desiredRevision: 2 })
+    expect(platform.reports.at(-1)).toMatchObject({
+      items: [expect.objectContaining({ state: 'ACTIVE', loaderPhase: 'active' })],
+    })
+    expect(env.subprocess.specs).toHaveLength(0)
+
+    platform.publish(bootstrap(3, [{ ...desired, desiredState: 'ABSENT', downloadUrl: null }]))
+    await env.service.settled()
+    expect(env.service.status().plugins[0]?.state).toBe('RESTART_REQUIRED')
+    expect(env.subprocess.specs.at(-1)?.argv.slice(-2)).toEqual(['remove', desired.packageName])
+    await env.close()
+
+    const restarted = await environment({
+      platform: new FakePlatform(bootstrap(3, []), new Map()), dshHome: home, store,
+      inventory: asyncInventory, runMarker: 'next-run',
+    })
+    await restarted.service.settled()
+    expect(restarted.service.status().plugins[0]?.state).toBe('FAILED')
+    await restarted.service.uninstall()
+    expect(restarted.subprocess.specs.map(spec => spec.argv.slice(-2))).toEqual([
+      ['remove', desired.packageName], ['remove', 'owndsh-plugin'],
+    ])
+  })
+
+  it('stops cleanly when managed state cannot be loaded', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'enterprise-plugin-invalid-state-'))
+    cleanups.push(() => rm(home, { force: true, recursive: true }))
+    const store = new ManagedPluginStore(home)
+    vi.spyOn(store, 'read').mockRejectedValueOnce(new Error('invalid state'))
+    const platform = new FakePlatform(bootstrap(1, []), new Map())
+    const env = await environment({ platform, dshHome: home, store })
+
+    await env.service.settled()
+    platform.publish(bootstrap(2, []))
+    await env.service.settled()
+
+    expect(env.service.status()).toMatchObject({ fatalErrorCode: 'ENT_PLUGIN_STATE_INVALID' })
+    expect(platform.reports).toEqual([])
+  })
+
   it('keeps managed installation fail-closed when no trust root was packaged', async () => {
     const content = Buffer.from('unsigned deployment bundle')
     const desired = assignment(testKey, content)

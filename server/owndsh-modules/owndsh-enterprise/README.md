@@ -84,7 +84,11 @@ master key 的独立 `API_CURSOR` 用途进行 AES-GCM 认证，并绑定 tenant
 
 - `/enterprise/gateway/v1/chat/completions`、`/responses`、`/messages` 分别承接 Harness 官方
   Completions、Responses 与 Anthropic Messages 请求，只统一要求 UUID v4 幂等键、`stream=true` 和
-  受管 alias/`enterprise/default`；其余原生协议字段透明保留并交给官方客户端与上游定义。
+  受管 alias/`enterprise/default`，并校验输出上限；其余原生协议字段透明保留并交给官方客户端与上游定义。
+- Completions 接受 `max_tokens` 或 `max_completion_tokens`，Responses 接受 `max_output_tokens`，
+  Messages 接受 `max_tokens`；非空上限字段必须为正整数且不能混用，超过模型上限时在预留和建连前返回
+  `400 ENT_INVALID_REQUEST`。省略或 `null` 时采用模型配置（模型未配置时为 32768），将同一有效值写入
+  上游请求并用于额度预留；Completions 未指定有效字段时使用 `max_tokens`。
 - 每个请求重新验证 ACTIVE `dsh-desktop` 设备、当前 ACTIVE 用户、grant、model 和 provider；客户端
   bootstrap 快照不是授权事实，上游模型名、base URL、协议和 credential 只来自服务端配置。
 - 网络期间不持有数据库事务。SENT 与 accepted 审计在同一短事务，SETTLED/CHARGED_MAX 与 finished

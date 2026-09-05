@@ -1,125 +1,186 @@
 /*
- * [INPUT]: 依赖 login.html 的 auth-shell/brand/panel/source/两阶段 form/captcha 结构。
- * [OUTPUT]: 提供响应式、可聚焦且稳定尺寸的凭据认证、challenge 改密与验证码视觉层。
- * [POS]: T05 登录页面的唯一样式表，保持企业操作界面安静、清晰和可扫描。
+ * [INPUT]: 依赖 login.html 的居中 auth-card、鲸鱼品牌、身份源 Tab、两阶段 form/captcha 结构与 Console Beautiful UI token。
+ * [OUTPUT]: 提供单列认证卡片、左上品牌、响应式 Tab、冷灰控件、焦点状态与稳定验证码尺寸。
+ * [POS]: enterprise 公开登录页的唯一样式层，与管理控制台共享产品语言而不复制其双栏构图或前端运行时。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 :root {
-  color: #17211b;
-  background: #f4f6f2;
+  color-scheme: light;
+  --canvas: oklch(0.961 0.002 247.84);
+  --surface: oklch(1 0 0);
+  --inset: oklch(0.979 0.002 247.839);
+  --hover: oklch(0.97 0.002 247.839);
+  --ink: oklch(0.247 0.006 258.361);
+  --ink-2: oklch(0.506 0.01 264.477);
+  --ink-3: oklch(0.695 0.009 264.505);
+  --line: oklch(0.946 0.003 264.542);
+  --line-strong: oklch(0.912 0.005 258.326);
+  --field: oklch(0.961 0.001 286.375);
+  --accent: oklch(0.626 0.205 254.947);
+  --accent-tint: oklch(0.96 0.019 252.878);
+  --red: oklch(0.621 0.192 23.042);
+  --shadow-button: 0 0 0 1px var(--line-strong), 0 1px 2px rgb(0 0 0 / 8%);
+  --shadow-field: inset 0 1px 2px rgb(0 0 0 / 12%);
+  color: var(--ink);
+  background: var(--canvas);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   letter-spacing: 0;
 }
 
 * { box-sizing: border-box; }
 
+html {
+  min-width: 320px;
+  min-height: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
-  background: linear-gradient(180deg, #f8faf7 0, #eef1ec 100%);
+  min-height: 100dvh;
+  overflow-x: hidden;
+  background: var(--canvas);
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 button,
-input { font: inherit; }
+input {
+  font: inherit;
+  letter-spacing: 0;
+}
+
+button:not(:disabled) { cursor: pointer; }
+
+::selection {
+  background: var(--accent-tint);
+  color: var(--ink);
+}
 
 .auth-shell {
-  width: min(calc(100% - 40px), 460px);
-  margin: 0 auto;
-  padding: max(56px, 10vh) 0 48px;
+  position: relative;
+  display: grid;
+  min-height: 100vh;
+  min-height: 100dvh;
+  place-items: center;
+  padding: 88px 24px 48px;
+}
+
+.auth-card {
+  width: min(100%, 440px);
+  padding: 44px 36px 36px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 8%);
 }
 
 .brand-block {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 32px;
-}
-
-.brand-mark {
-  display: grid;
-  width: 44px;
-  height: 44px;
-  place-items: center;
-  border-radius: 8px;
-  background: #173f2b;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 760;
+  margin-bottom: 28px;
+  text-align: center;
 }
 
 .brand-name {
-  margin: 0 0 4px;
-  color: #5b665f;
-  font-size: 13px;
-  font-weight: 650;
+  position: fixed;
+  top: 28px;
+  left: 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.brand-name img {
+  display: block;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
 }
 
 h1,
-h2 { letter-spacing: 0; }
+h2 {
+  letter-spacing: 0;
+  text-wrap: balance;
+}
 
 h1 {
   margin: 0;
   font-size: 24px;
+  font-weight: 600;
   line-height: 1.25;
 }
 
-.auth-panel {
-  padding-top: 24px;
-  border-top: 1px solid #cfd6ce;
-}
+.auth-panel { min-width: 0; }
 
 h2 {
-  margin: 0 0 18px;
-  font-size: 16px;
-  line-height: 1.4;
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+  text-align: center;
 }
 
 .source-list {
-  display: grid;
-  gap: 10px;
+  display: flex;
+  margin-top: 24px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--line);
+  scrollbar-width: none;
 }
 
-.source-list[hidden] { display: none; }
+.source-list::-webkit-scrollbar { display: none; }
+
+.source-list[hidden],
+.password-form[hidden],
+.credential-fields[hidden],
+.password-change-fields[hidden],
+.captcha-group[hidden],
+.oidc-list[hidden],
+.oidc-list:empty { display: none; }
 
 .source-button {
-  display: flex;
-  width: 100%;
-  min-height: 50px;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 15px;
-  border: 1px solid #c8d0c8;
-  border-radius: 6px;
-  background: #fff;
-  color: #17211b;
-  cursor: pointer;
-  text-align: left;
+  position: relative;
+  min-width: 112px;
+  flex: 1;
+  padding: 0 12px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: center;
+  transition: color 150ms ease;
 }
 
-.source-button:hover { border-color: #5d7969; }
-
-.source-button:focus-visible,
-.primary-button:focus-visible,
-.back-button:focus-visible,
-.captcha-refresh:focus-visible,
-input:focus-visible {
-  outline: 3px solid #b9d8c4;
-  outline-offset: 2px;
+.source-button::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: transparent;
+  content: "";
 }
 
-.source-type {
-  color: #667069;
-  font-size: 12px;
-  font-weight: 650;
-}
+.source-button:hover { color: var(--ink-2); }
+
+.source-button[aria-pressed="true"] { color: var(--ink); }
+
+.source-button[aria-pressed="true"]::after { background: var(--accent); }
 
 .password-form {
   display: grid;
   gap: 16px;
+  margin-top: 24px;
 }
-
-.password-form[hidden] { display: none; }
 
 .credential-fields {
   display: grid;
@@ -130,23 +191,20 @@ input:focus-visible {
   gap: 16px;
 }
 
-.credential-fields[hidden] { display: none; }
-
 .password-change-fields {
   display: grid;
   gap: 16px;
-  padding: 14px;
-  border-left: 3px solid #557766;
-  background: #eef3ef;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--inset);
 }
-
-.password-change-fields[hidden] { display: none; }
 
 .password-change-fields p {
   margin: 0;
-  color: #405047;
+  color: var(--ink-2);
   font-size: 12px;
-  line-height: 1.6;
+  line-height: 1.65;
 }
 
 .captcha-group {
@@ -156,18 +214,18 @@ input:focus-visible {
   gap: 10px;
 }
 
-.captcha-group[hidden] { display: none; }
-
 .captcha-refresh {
   width: 132px;
-  height: 44px;
+  height: 40px;
   padding: 0;
   overflow: hidden;
-  border: 1px solid #bdc7be;
-  border-radius: 5px;
-  background: #fff;
-  cursor: pointer;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  transition: background-color 150ms ease;
 }
+
+.captcha-refresh:hover { background: var(--hover); }
 
 .captcha-refresh img {
   display: block;
@@ -176,65 +234,132 @@ input:focus-visible {
   object-fit: cover;
 }
 
-.selected-source {
-  margin: -42px 0 14px 38px;
-  min-height: 28px;
-  color: #405047;
-  font-size: 14px;
-  font-weight: 650;
-}
-
-.back-button {
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: #264b36;
-  cursor: pointer;
-  font-size: 21px;
-}
-
 label {
   display: grid;
-  gap: 7px;
-  color: #37443c;
+  gap: 8px;
+  color: var(--ink);
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 500;
 }
 
 input {
   width: 100%;
-  height: 44px;
+  height: 40px;
   padding: 0 12px;
-  border: 1px solid #bdc7be;
-  border-radius: 5px;
-  background: #fff;
-  color: #17211b;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  outline: none;
+  background: var(--field);
+  box-shadow: var(--shadow-field);
+  color: var(--ink);
+  font-size: 14px;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+input:hover { background: var(--surface); }
+
+input::placeholder { color: var(--ink-3); }
+
+input:focus-visible {
+  border-color: var(--accent);
+  background: var(--field);
+}
+
+.source-button:focus-visible,
+.primary-button:focus-visible,
+.oidc-button:focus-visible,
+.captcha-refresh:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .primary-button {
-  min-height: 44px;
-  border: 1px solid #173f2b;
-  border-radius: 5px;
-  background: #173f2b;
-  color: #fff;
-  cursor: pointer;
-  font-weight: 700;
+  min-height: 40px;
+  margin-top: 4px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--ink);
+  box-shadow: var(--shadow-button);
+  color: var(--canvas);
+  font-size: 13px;
+  font-weight: 500;
+  transition: opacity 150ms ease, transform 150ms ease;
 }
 
-.primary-button:disabled { opacity: 0.55; cursor: wait; }
+.primary-button:hover { opacity: 0.9; }
+.primary-button:active { transform: scale(0.99); }
+.primary-button:disabled { cursor: wait; opacity: 0.5; }
+
+.oidc-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.oidc-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+  color: var(--ink-3);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.oidc-divider::before,
+.oidc-divider::after {
+  height: 1px;
+  flex: 1;
+  background: var(--line);
+  content: "";
+}
+
+.oidc-button {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 13px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow-button);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 500;
+  transition: background-color 150ms ease;
+}
+
+.oidc-button:hover { background: var(--hover); }
 
 .status {
   min-height: 20px;
   margin: 16px 0 0;
-  color: #9a3129;
+  color: var(--red);
   font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
 }
 
 @media (max-width: 520px) {
   .auth-shell {
-    width: min(calc(100% - 28px), 460px);
-    padding-top: 34px;
+    place-items: start center;
+    padding: 80px 16px 24px;
   }
+
+  .auth-card { padding: 36px 24px 28px; }
+
+  .brand-name {
+    top: 20px;
+    left: 20px;
+  }
+
+  .captcha-group { grid-template-columns: minmax(0, 1fr) 116px; }
+
+  .captcha-refresh { width: 116px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after { transition-duration: 0.01ms !important; }
 }

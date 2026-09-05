@@ -365,7 +365,6 @@ try {
     '    sessionRetryInitialMs: 20',
     '    sessionRetryMaxMs: 100',
     '    sessionMaxBatchEvents: 200',
-    '    enableTechnicalProbe: true',
     '- insert:',
     '    - id: enterprise-t17-acceptance-probe',
     `      name: ${JSON.stringify(probePath)}`,

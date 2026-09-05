@@ -646,6 +646,8 @@ describe('product console access', () => {
   it('sends an unauthenticated product URL to login', async () => {
     renderRoute('/members');
     expect(await screen.findByRole('heading', { name: '登录管理控制台' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'OwnDsh · Truly Own Your DeepSeek-Harness.' })).toBeTruthy();
+    expect(document.querySelectorAll('img[src="/owndsh-whale-mono-m2-animated.png"]')).toHaveLength(3);
   });
 
   it('sends an employee to the fixed forbidden page', async () => {
@@ -1160,7 +1162,7 @@ describe('product console session', () => {
         });
       }
       if (pathname.endsWith('/auth/code')) {
-        return json({ data: { captchaEnabled: false, uuid: null, img: null } });
+        return json({ data: { captchaEnabled: true, uuid: 'captcha-1', img: 'captcha-image' } });
       }
       if (pathname.endsWith('/enterprise/auth/v1/password')) {
         passwordRequests.push(request.clone());
@@ -1181,6 +1183,9 @@ describe('product console session', () => {
     );
 
     expect(await screen.findByRole('tab', { name: '本地账户' })).toBeTruthy();
+    expect(screen.getByPlaceholderText('请输入企业账号')).toBeTruthy();
+    expect(screen.getByPlaceholderText('请输入登录密码')).toBeTruthy();
+    expect(await screen.findByPlaceholderText('请输入验证码')).toBeTruthy();
     fireEvent.click(screen.getByRole('tab', { name: 'Corporate LDAP' }));
     expect(screen.getByRole('button', { name: '使用 Company Keycloak 登录' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '使用 Partner Entra ID 登录' })).toBeTruthy();
@@ -1200,7 +1205,8 @@ describe('product console session', () => {
     const writes = renderRoute('/', 'enterprise_admin');
     expect(await screen.findByRole('heading', { name: '模型' })).toBeTruthy();
 
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Agent Platform' }))[0]!);
+    expect(document.querySelector('img[src="/owndsh-whale-mono-m2-animated.png"]')).toBeTruthy();
+    fireEvent.click((await screen.findAllByRole('button', { name: 'OwnDsh' }))[0]!);
     const menu = document.querySelector('[data-workspace-menu]')!;
     const buttons = menu.querySelectorAll('button');
     expect(buttons.item(buttons.length - 2).textContent).toContain('用户中心');
@@ -1232,7 +1238,7 @@ describe('product console session', () => {
     renderRoute('/', 'enterprise_admin');
     expect(await screen.findByRole('heading', { name: '模型' })).toBeTruthy();
 
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Agent Platform' }))[0]!);
+    fireEvent.click((await screen.findAllByRole('button', { name: 'OwnDsh' }))[0]!);
     const menu = document.querySelector('[data-workspace-menu]')!;
     const buttons = menu.querySelectorAll('button');
     expect(buttons.item(buttons.length - 1).textContent).toContain('Sign out');
@@ -1244,7 +1250,7 @@ describe('product console session', () => {
   it('keeps the current page when the current password is rejected', async () => {
     renderRoute('/', 'enterprise_admin');
     expect(await screen.findByRole('heading', { name: '模型' })).toBeTruthy();
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Agent Platform' }))[0]!);
+    fireEvent.click((await screen.findAllByRole('button', { name: 'OwnDsh' }))[0]!);
     fireEvent.click(screen.getByRole('button', { name: '用户中心' }));
 
     expect(await screen.findByRole('heading', { name: '用户中心' })).toBeTruthy();
@@ -1262,7 +1268,7 @@ describe('product console session', () => {
   it('keeps the console when Server logout fails', async () => {
     renderRoute('/', 'enterprise_admin', 500);
     expect(await screen.findByRole('heading', { name: '模型' })).toBeTruthy();
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Agent Platform' }))[0]!);
+    fireEvent.click((await screen.findAllByRole('button', { name: 'OwnDsh' }))[0]!);
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
 
     expect((await screen.findByRole('alert')).textContent).toContain('会话仍然有效');

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Cordis/Schemastery、Harness credentials/LLM/subprocess/inventory、官方运行时身份与企业业务模块
- * [OUTPUT]: 对外提供 Web/Desktop 共用 bundle apply、Host 凭据持久化、官方 pi-ai profile 桥、整包卸载组合与 Config schema
+ * [OUTPUT]: 对外提供 Web/Desktop 共用 bundle apply、Host 凭据持久化、官方 pi-ai profile 桥、整包卸载组合与无验收探针的 Config schema
  * [POS]: bundle 的唯一 Host Loader 入口，组合平台认证、官方企业模型与环境原生插件调和；V1 不启动 Session 同步
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -40,8 +40,6 @@ export interface Config {
   readonly disposeTimeoutMs: number
   readonly profile: string
   readonly dshCommand: string
-  /** 仅供 T01/T07 回环假平台验收；发行层省略或关闭。 */
-  readonly enableTechnicalProbe: boolean
 }
 
 export const Config: z<Config> = z.object({
@@ -52,7 +50,6 @@ export const Config: z<Config> = z.object({
   disposeTimeoutMs: z.number().step(1).min(1).default(3_000),
   profile: z.string().default('web'),
   dshCommand: z.string().default('dsh'),
-  enableTechnicalProbe: z.boolean().default(false),
 })
 
 interface EnterpriseHostContext extends Context {
@@ -107,7 +104,6 @@ export function apply(ctx: EnterpriseHostContext, config: Config): void {
     bootstrapIntervalMs: config.bootstrapIntervalMs,
     requestTimeoutMs: config.requestTimeoutMs,
     disposeTimeoutMs: config.disposeTimeoutMs,
-    enableTechnicalProbe: config.enableTechnicalProbe,
   }, {
     pluginStatus: () => pluginDistribution?.status() ?? { assignmentRevision: 0, plugins: [] },
     uninstallPlugin: async () => {

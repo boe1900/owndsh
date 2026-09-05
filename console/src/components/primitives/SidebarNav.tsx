@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 React portal/state、Lucide 免费图标、GlideMenu 与可选工作区/导航数据。
- * [OUTPUT]: 对外提供保留上游默认行为且可注入产品导航的 SidebarNav、SidebarNavItem、SidebarWorkspace 类型。
+ * [INPUT]: 依赖 React portal/state、Lucide 免费图标、GlideMenu 与可选工作区品牌/导航数据。
+ * [OUTPUT]: 对外提供保留上游默认行为且可注入产品导航和工作区图标的 SidebarNav、SidebarNavItem、SidebarWorkspace 类型。
  * [POS]: components/primitives 的共享 Harness 侧栏；examples 使用上游默认值，产品壳只注入业务数据和动作。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -19,7 +19,7 @@ import GlideMenu from "@/components/primitives/GlideMenu";
  * chat history, and a collapse that preserves icon alignment.
  * ───────────────────────────────────────────────────────── */
 
-export type SidebarWorkspace = { key: string; name: string; monogram: string };
+export type SidebarWorkspace = { key: string; name: string; monogram: string; icon?: ReactNode };
 export type SidebarNavItem = { key: string; label: string; icon: ReactNode; count?: string };
 export type SidebarWorkspaceAction = { label: string; icon: ReactNode; onClick?: () => void; separated?: boolean };
 
@@ -181,8 +181,8 @@ function WorkspaceMenu({
           onClick={onClose}
           className="relative z-10 flex h-10 w-full items-center gap-1.5 rounded-[8px] px-2 text-left"
         >
-          <span className="flex size-6 shrink-0 items-center justify-center rounded-[7px] bg-ink text-[11px] font-semibold text-surface">
-            {workspace.monogram}
+          <span className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-[7px] bg-ink text-[11px] font-semibold text-surface">
+            {workspace.icon ?? workspace.monogram}
           </span>
           <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-ink">{workspace.name}</span>
           <span className="shrink-0 text-ink"><Check size={18} /></span>
@@ -307,8 +307,8 @@ export default function SidebarNav({
             }}
             className="sidebar-workspace-control absolute left-2 top-1 flex h-8 w-[164px] items-center rounded-[8px] px-2 text-left transition-[background-color,transform] duration-100 hover:bg-hover-2 active:scale-[0.99]"
           >
-            <span className="sidebar-logo flex size-5 shrink-0 items-center justify-center text-ink">
-              <Sparkles size={18} />
+            <span className="sidebar-logo flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-[6px] text-ink">
+              {workspace.icon ?? <Sparkles size={18} />}
             </span>
             <span className="sidebar-copy ml-1.5 min-w-0 flex-1 truncate text-[14px] font-medium text-ink-2">
               {workspace.name}

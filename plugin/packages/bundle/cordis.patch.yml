@@ -19,5 +19,3 @@
 - insert:
     - id: owndsh
       name: 'owndsh-plugin'
-      config:
-        enableTechnicalProbe: false

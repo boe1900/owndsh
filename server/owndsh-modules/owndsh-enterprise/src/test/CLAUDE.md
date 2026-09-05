@@ -12,10 +12,10 @@ java/com/owndsh/enterprise/model/ProviderProbeTest.java: 使用 WireMock 验证 
 java/com/owndsh/enterprise/model/EffectiveModelResolverTest.java: 纯单元验证全员/成员候选的排序首项默认、重复模型去重与空候选边界。
 java/com/owndsh/enterprise/model/T08ApiContractTest.java: 以 MockMvc/JSON Schema 验证 Provider、模型、模型集、授权及 bootstrap operation 的成功/失败协议、权限码与密钥不回显。
 java/com/owndsh/enterprise/model/ModelManagementIntegrationTest.java: 以显式活动用户和真实 PostgreSQL 验证 Harness route ID、三协议投影、官方保留路由、reasoning 三态、密文/CAS/回滚、用户组/模型集授权展开、删除引用保护、停用与 ACTIVE bootstrap。
-java/com/owndsh/enterprise/model/gateway/GatewayChatRequestParserTest.java: 验证三协议最小治理字段、原生正文透明保留与受管 route 强制替换。
+java/com/owndsh/enterprise/model/gateway/GatewayChatRequestParserTest.java: 验证三协议输出上限类型、溢出、字段互斥与协议混用拒绝，以及原生正文透明保留与受管 route 强制替换。
 java/com/owndsh/enterprise/model/gateway/GatewayRouteResolverTest.java: 验证 alias/default、ACTIVE 设备/用户与当前 model/provider/grant 的每请求裁决。
 java/com/owndsh/enterprise/model/gateway/DeepSeekUpstreamClientTest.java: 使用 WireMock 验证三协议 endpoint/auth、SSE、单次请求、状态/脱敏阶段分类、timeout 与 no-redirect。
-java/com/owndsh/enterprise/model/gateway/ModelGatewayServiceTest.java: 验证配额估算不裁决模型上下文，以及三协议原生终态/usage、2xx 后 SENT、建连失败释放、流内 settle/CHARGED_MAX、取消与双审计关联。
+java/com/owndsh/enterprise/model/gateway/ModelGatewayServiceTest.java: 验证三协议输出上限在预留前拒绝超限、缺省补值及上游/预留一致性；保持上下文估算不裁决请求，并覆盖原生终态/usage、2xx 后 SENT、失败计费与双审计关联。
 java/com/owndsh/enterprise/model/gateway/ModelGatewayTransactionIntegrationTest.java: 以显式活动用户和真实 PostgreSQL 验证 2xx 后 SENT/accepted、建连失败 RELEASED 零账本及 ledger/finished 原子提交；结算审计失败回滚且不向已开始的 SSE 伪造协议错误帧。
 java/com/owndsh/enterprise/model/gateway/T10GatewayApiContractTest.java: 以 MockMvc/JSON Schema 验证 gateway SSE/JSON 内容协商、严格输入、体积和全部首字节前错误映射。
 java/com/owndsh/enterprise/quota/QuotaWindowCalculatorTest.java: 验证策略锚点连续 5 小时、冻结部署时区自然日/周/月边界和 UTF-8 字节除三向上估算。

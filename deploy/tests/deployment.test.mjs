@@ -162,7 +162,7 @@ test('HTTP gateway preserves an upstream HTTP(S) origin and keeps model SSE unbu
   assert.doesNotMatch(nginx, /proxy_set_header (?:Host|X-Forwarded-Host) \$host;/)
   assert.doesNotMatch(nginx, /\$server_port/)
   assert.doesNotMatch(nginx, /\$proxy_add_x_forwarded_for/)
-  assert.match(nginx, /location ~ \^\/prod-api\/enterprise\/gateway\/v1\/\(\?:chat\/completions\|responses\|messages\)\$/)
+  assert.doesNotMatch(nginx, /\/prod-api/)
   assert.match(nginx, /location ~ \^\/enterprise\/gateway\/v1\/\(\?:chat\/completions\|responses\|messages\)\$/)
   assert.match(nginx, /enterprise\/gateway\/v1\/[\s\S]*?proxy_buffering off;/)
   assert.doesNotMatch(nginx, /ssl_certificate|ssl_protocols|Strict-Transport-Security/)

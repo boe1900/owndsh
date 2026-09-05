@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 platform-client bootstrap/request、兼容 Harness subprocess/pluginInventory、可选 Desktop command port、制品校验与原子状态文件
- * [OUTPUT]: 对外提供 EnterprisePluginDistributionService、核心保护集合、串行调和、显式整包卸载与库存状态
+ * [INPUT]: 依赖 platform-client bootstrap/request、Harness subprocess/同步或异步 pluginInventory、可选 Desktop command port、制品校验与原子状态文件
+ * [OUTPUT]: 对外提供 EnterprisePluginDistributionService、核心保护集合、fatal-safe 串行调和、显式整包卸载与库存状态
  * [POS]: plugin-distribution 的 Cordis shadow-compatible 生命周期所有者，把中心期望收敛为 Loader 可证事实
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -212,7 +212,10 @@ export class EnterprisePluginDistributionService extends Service {
 
   private async drain(): Promise<void> {
     await this.startup
-    if (this.fatalErrorCode !== undefined) return
+    if (this.fatalErrorCode !== undefined) {
+      this.pending = undefined
+      return
+    }
     while (this.pending !== undefined && !this.disposed) {
       const snapshot = this.pending
       this.pending = undefined
@@ -244,7 +247,7 @@ export class EnterprisePluginDistributionService extends Service {
   private async confirmRestartedState(): Promise<void> {
     let changed = false
     for (const record of [...this.records.values()]) {
-      const entry = this.loaderEntry(record.packageName)
+      const entry = await this.loaderEntry(record.packageName)
       const active = entry?.enabled === true && entry.fiberPhase === 'active'
       if (record.state === 'RESTART_REQUIRED') {
         if (record.restartMarker === this.runMarker) continue
@@ -302,7 +305,7 @@ export class EnterprisePluginDistributionService extends Service {
     }
     const current = this.records.get(assignment.packageName)
     if (sameArtifact(current, assignment)) {
-      if (current?.state === 'ACTIVE' && this.loaderActive(assignment.packageName)) {
+      if (current?.state === 'ACTIVE' && await this.loaderActive(assignment.packageName)) {
         await this.refreshDesiredRevision(assignment, current)
         return
       }
@@ -343,7 +346,7 @@ export class EnterprisePluginDistributionService extends Service {
 
   private async reconcileAbsent(assignment: RuntimePluginAssignment): Promise<void> {
     const current = this.records.get(assignment.packageName)
-    const entry = this.loaderEntry(assignment.packageName)
+    const entry = await this.loaderEntry(assignment.packageName)
     const profileMayContainPlugin = current?.desiredState === 'INSTALLED' || entry !== undefined
     if (!profileMayContainPlugin) {
       if (current !== undefined) {
@@ -375,10 +378,13 @@ export class EnterprisePluginDistributionService extends Service {
     if (this.fatalErrorCode !== undefined) {
       throw new PluginDistributionError('ENT_PLUGIN_STATE_INVALID', 'managed plugin state is unavailable')
     }
-    const installed = [...this.records.values()]
-      .filter(record => record.desiredState === 'INSTALLED' || record.state === 'FAILED' && this.loaderEntry(record.packageName) !== undefined)
-      .sort((left, right) => left.packageName.localeCompare(right.packageName))
-    for (const record of installed) await removeManagedPlugin(this.commandOptions(), record.packageName)
+    const records = [...this.records.values()].sort((left, right) => left.packageName.localeCompare(right.packageName))
+    for (const record of records) {
+      if (record.desiredState === 'INSTALLED'
+        || record.state === 'FAILED' && await this.loaderEntry(record.packageName) !== undefined) {
+        await removeManagedPlugin(this.commandOptions(), record.packageName)
+      }
+    }
     this.records.clear()
     await this.persist()
     await removeManagedPlugin(this.commandOptions(), OWNDSH_PACKAGE)
@@ -416,19 +422,20 @@ export class EnterprisePluginDistributionService extends Service {
     })
   }
 
-  private loaderEntry(packageName: string): ReturnType<PluginDistributionContext['pluginInventory']['list']>['entries'][number] | undefined {
-    const entries = this.pluginContext.pluginInventory.list().entries.filter(entry => entry.moduleName === packageName)
+  private async loaderEntry(packageName: string): Promise<Awaited<ReturnType<PluginDistributionContext['pluginInventory']['list']>>['entries'][number] | undefined> {
+    const inventory = await this.pluginContext.pluginInventory.list()
+    const entries = inventory.entries.filter(entry => entry.moduleName === packageName)
     return entries.find(entry => entry.enabled && entry.fiberPhase === 'active') ?? entries[0]
   }
 
-  private loaderActive(packageName: string): boolean {
-    const entry = this.loaderEntry(packageName)
+  private async loaderActive(packageName: string): Promise<boolean> {
+    const entry = await this.loaderEntry(packageName)
     return entry?.enabled === true && entry.fiberPhase === 'active'
   }
 
   private async reportInventory(): Promise<void> {
-    const items = [...this.records.values()].map(record => {
-      const entry = this.loaderEntry(record.packageName)
+    const items = await Promise.all([...this.records.values()].map(async record => {
+      const entry = await this.loaderEntry(record.packageName)
       return {
         packageName: record.packageName,
         version: record.version,
@@ -439,7 +446,7 @@ export class EnterprisePluginDistributionService extends Service {
         lastErrorCode: record.lastErrorCode,
         observedAt: this.now().toISOString(),
       }
-    })
+    }))
     try {
       const response = await this.pluginContext.enterprisePlatform.request('/enterprise/api/v1/plugins/inventory', {
         method: 'PUT',

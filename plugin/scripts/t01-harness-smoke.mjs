@@ -128,14 +128,6 @@ try {
   assert.match(dump.stdout, /# == owndsh-plugin/)
   assert.match(dump.stdout, /patched by owndsh-plugin/)
 
-  const profilePatch = resolve(home, 'profiles', 'web', 'cordis.patch.yml')
-  await writeFile(profilePatch, [
-    '- id: owndsh',
-    '  config:',
-    '    enableTechnicalProbe: true',
-    '',
-  ].join('\n'))
-
   web = spawn('corepack', [
     'pnpm@11.7.0', '--dir', harnessRoot, 'dsh', '--profile', 'web', '--port', '0',
   ], {

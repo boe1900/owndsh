@@ -8,8 +8,8 @@
 # @owndsh/ui
 
 Browser-side employee account and managed-plugin surface for the locked Harness Client runtime.
-It registers the `enterprise` page through the official `settings.section`
-slot, a compact connection indicator through `sidebar.footer.action`, and the
+It registers the `OwnDsh 设置` page through the official `settings.section`
+slot, an account entry through `sidebar.footer.action`, and the
 required access gate through `shell.overlay`. OwnDsh does not own or fork the
 surrounding Web/Desktop UI.
 
@@ -24,9 +24,12 @@ navigation cannot reach the official shell underneath. Its brand, single-line
 Server editor, connection strip, and version use Host theme tokens; Desktop
 chrome and theme controls remain owned by the surrounding official shell.
 
-The Enterprise Settings section contains Account and Plugins tabs aligned with
-the native DSH Plugins tab rhythm and keyboard navigation. The sidebar footer
-keeps a fixed enterprise glyph and shows connection state as trailing text.
+The OwnDsh Settings section contains Account and Plugins tabs aligned with the
+native DSH Plugins tab rhythm and keyboard navigation. The sidebar footer uses
+the embedded OwnDsh whale at the native Settings icon size, matches its row
+height and hover, shows the employee display name, and provides a muted direct
+sign-out control. Both this control and the Account tab require the same native
+confirmation before clearing the session.
 The Plugins tab reads only the fixed same-origin `/enterprise/api/v1/local/plugins`
 projection and shows package, local version, desired revision/state, lifecycle,
 restart requirement, and stable failure codes. SHA-256, restart markers, tgz
@@ -45,5 +48,6 @@ status fields, including Token-shaped additions. Host Context and platform
 credentials never enter React.
 
 Harness deliberately does not expose a public API for a footer action to open
-an arbitrary settings section. The footer therefore refreshes status; the
-normal Settings navigation owns the Enterprise page.
+an arbitrary settings section. The account row therefore does not imitate a
+Settings shortcut through DOM access; the normal Settings navigation owns the
+OwnDsh page.

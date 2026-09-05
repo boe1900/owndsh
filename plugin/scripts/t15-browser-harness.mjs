@@ -308,7 +308,6 @@ try {
     '    disposeTimeoutMs: 10000',
     "    profile: 'web'",
     `    dshCommand: '${resolve(harnessRoot, 'apps', 'cli', 'lib', 'bin.js')}'`,
-    '    enableTechnicalProbe: true',
     '',
   ].join('\n'))
 
