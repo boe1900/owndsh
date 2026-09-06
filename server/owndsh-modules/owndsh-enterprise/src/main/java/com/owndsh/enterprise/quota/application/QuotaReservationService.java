@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖事务、有效策略、窗口/reservation/ledger stores、Redis rate limiter、审计与 ID generators。
- * [OUTPUT]: 对外提供 reserve、SENT、renew、release、settle、chargeMax 与过期 recovery 状态机。
- * [POS]: quota/application 的计费核心；窗口统一按 policy/type 加锁，任何终态最多一条 ledger。
+ * [OUTPUT]: 对外提供发送前 SENT、全生命周期续租、明确拒绝释放、usage 独立快照与可恢复结算。
+ * [POS]: quota/application 的计费核心；实测用量与扣额分离，窗口统一锁序，Redis 清理不影响账本提交。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.quota.application;
@@ -25,6 +25,7 @@ import com.owndsh.enterprise.quota.persistence.UsageLedgerStore;
 import com.owndsh.enterprise.quota.persistence.UsageReservationStore;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.support.TransactionOperations;
+import lombok.extern.slf4j.Slf4j;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -37,6 +38,7 @@ import java.util.UUID;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
+@Slf4j
 public final class QuotaReservationService {
     private static final Duration RESERVATION_TTL = Duration.ofMinutes(15);
 
@@ -142,13 +144,13 @@ public final class QuotaReservationService {
         rateLimiter.renew(active.rateLease(), now);
         boolean changed = Boolean.TRUE.equals(transactions.execute(status -> {
             UsageReservation current = reservations.lock(active.reservation().id());
-            requireState(current, ReservationState.SENT);
+            if (current.state().terminal()) throw new IllegalStateException("终态 reservation 不能续租");
             return reservations.transition(
-                current.id(), ReservationState.SENT, ReservationState.SENT, now.plus(RESERVATION_TTL)
+                current.id(), current.state(), current.state(), now.plus(RESERVATION_TTL)
             );
         }));
         if (!changed) {
-            rateLimiter.release(active.rateLease());
+            releaseRateLease(active);
             throw new IllegalStateException("reservation 续期状态迁移失败");
         }
         return new ActiveReservation(requireReservation(active.reservation().id()), active.rateLease());
@@ -158,20 +160,46 @@ public final class QuotaReservationService {
         try {
             releaseDatabase(active.reservation().id());
         } finally {
-            rateLimiter.release(active.rateLease());
+            releaseRateLease(active);
         }
+    }
+
+    public void releaseRejected(ActiveReservation active) {
+        try {
+            transactions.executeWithoutResult(status -> {
+                UsageReservation current = reservations.lock(active.reservation().id());
+                requireState(current, ReservationState.SENT);
+                if (reservations.findUsage(current.id()).isPresent()) {
+                    throw new IllegalStateException("已有实测 usage 的请求不能释放");
+                }
+                releaseLocked(current);
+            });
+        } finally {
+            releaseRateLease(active);
+        }
+    }
+
+    public void recordUsage(ActiveReservation active, UsageTokens usage, String upstreamRequestId) {
+        Objects.requireNonNull(usage, "usage");
+        independentTransactions.executeWithoutResult(status -> {
+            UsageReservation current = reservations.lock(active.reservation().id());
+            if (current.state().terminal()) return;
+            requireState(current, ReservationState.SENT);
+            reservations.saveUsage(current.id(), usage, normalizeUpstreamId(upstreamRequestId));
+        });
     }
 
     public UsageLedger settle(ActiveReservation active, UsageTokens usage, String upstreamRequestId) {
         Objects.requireNonNull(usage, "usage");
         try {
+            recordUsage(active, usage, upstreamRequestId);
             UsageLedger ledger = transactions.execute(status -> settleLocked(
                 reservations.lock(active.reservation().id()), usage, UsageResult.SETTLED, upstreamRequestId
             ));
             if (ledger == null) throw new IllegalStateException("settlement 事务未返回 ledger");
             return ledger;
         } finally {
-            rateLimiter.release(active.rateLease());
+            releaseRateLease(active);
         }
     }
 
@@ -181,7 +209,7 @@ public final class QuotaReservationService {
                 UsageReservation current = reservations.lock(active.reservation().id());
                 return settleLocked(
                     current,
-                    new UsageTokens(0, current.estimatedTokens(), 0),
+                    new UsageTokens(0, 0, 0),
                     UsageResult.CHARGED_MAX,
                     null
                 );
@@ -189,7 +217,7 @@ public final class QuotaReservationService {
             if (ledger == null) throw new IllegalStateException("charge-max 事务未返回 ledger");
             return ledger;
         } finally {
-            rateLimiter.release(active.rateLease());
+            releaseRateLease(active);
         }
     }
 
@@ -268,17 +296,26 @@ public final class QuotaReservationService {
         UsageLedger existing = ledgers.findByReservation(reservation.id()).orElse(null);
         if (existing != null) return existing;
         requireState(reservation, ReservationState.SENT);
+        if (result == UsageResult.CHARGED_MAX) {
+            var observed = reservations.findUsage(reservation.id()).orElse(null);
+            if (observed != null) {
+                usage = observed.tokens();
+                upstreamRequestId = observed.upstreamRequestId();
+                result = UsageResult.SETTLED;
+            }
+        }
+        long chargedTokens = result == UsageResult.SETTLED ? usage.totalTokens() : reservation.estimatedTokens();
         List<ReservedWindow> snapshots = orderedWindows(reservation.reservedWindows());
         for (ReservedWindow snapshot : snapshots) {
             QuotaWindow window = windows.lockById(snapshot.windowId());
             requireSnapshot(reservation, snapshot, window);
-            windows.adjust(window.id(), -snapshot.reservedTokens(), usage.totalTokens());
+            windows.adjust(window.id(), -snapshot.reservedTokens(), chargedTokens);
         }
         Instant now = Instant.now(clock);
         UsageLedger ledger = new UsageLedger(
             ids.getAsLong(), reservation.tenantId(), reservation.id(), reservation.userId(), reservation.modelId(),
             reservation.requestId(), usage.inputTokens(), usage.outputTokens(), usage.cacheTokens(),
-            usage.totalTokens(), result, normalizeUpstreamId(upstreamRequestId), now
+            usage.totalTokens(), chargedTokens, result, normalizeUpstreamId(upstreamRequestId), now
         );
         ledgers.insert(ledger);
         ReservationState target = result == UsageResult.SETTLED
@@ -291,18 +328,22 @@ public final class QuotaReservationService {
     }
 
     private void releaseDatabase(UUID reservationId) {
-        transactions.executeWithoutResult(status -> releaseLocked(reservations.lock(reservationId)));
+        transactions.executeWithoutResult(status -> {
+            UsageReservation current = reservations.lock(reservationId);
+            requireState(current, ReservationState.RESERVED);
+            releaseLocked(current);
+        });
     }
 
     private void releaseLocked(UsageReservation reservation) {
-        requireState(reservation, ReservationState.RESERVED);
+        if (reservation.state().terminal()) throw new IllegalStateException("终态 reservation 不能释放");
         for (ReservedWindow snapshot : orderedWindows(reservation.reservedWindows())) {
             QuotaWindow window = windows.lockById(snapshot.windowId());
             requireSnapshot(reservation, snapshot, window);
             windows.adjust(window.id(), -snapshot.reservedTokens(), 0);
         }
         if (!reservations.transition(
-            reservation.id(), ReservationState.RESERVED, ReservationState.RELEASED, reservation.expiresAt()
+            reservation.id(), reservation.state(), ReservationState.RELEASED, reservation.expiresAt()
         )) {
             throw new IllegalStateException("reservation RELEASED 状态迁移失败");
         }
@@ -315,13 +356,8 @@ public final class QuotaReservationService {
             releaseLocked(reservation);
             recovered = ReservationState.RELEASED;
         } else if (previous == ReservationState.SENT) {
-            settleLocked(
-                reservation,
-                new UsageTokens(0, reservation.estimatedTokens(), 0),
-                UsageResult.CHARGED_MAX,
-                null
-            );
-            recovered = ReservationState.CHARGED_MAX;
+            UsageLedger ledger = settleLocked(reservation, new UsageTokens(0, 0, 0), UsageResult.CHARGED_MAX, null);
+            recovered = ReservationState.valueOf(ledger.result().name());
         } else {
             throw new IllegalStateException("恢复任务领取了终态 reservation");
         }
@@ -331,6 +367,15 @@ public final class QuotaReservationService {
             reservation.id().toString(), AuditResult.SUCCESS, null, reservation.requestId(), null, null,
             new ReservationRecoveredMetadata(previous, recovered)
         ));
+    }
+
+    private void releaseRateLease(ActiveReservation active) {
+        try {
+            rateLimiter.release(active.rateLease());
+        } catch (RuntimeException exception) {
+            log.warn("配额并发租约释放失败，等待 TTL 回收 reservationId={} type={}",
+                active.reservation().id(), exception.getClass().getSimpleName());
+        }
     }
 
     private void auditRejection(QuotaReservationCommand command, QuotaExceededException exception) {

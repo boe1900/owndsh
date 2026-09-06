@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖真实 parser/crypto、fake DeepSeek exchange 与 mock quota/route ports。
- * [OUTPUT]: 验证三协议输出限额在预留前生效、缺省补值及上游/预留一致性，以及终态/usage、失败计费与双审计关联。
+ * [OUTPUT]: 验证输出限额、发送前状态、响应头/探活期间续租、静默上游取消、usage 保留及原协议错误传播。
  * [POS]: 模型网关治理生命周期单测，证明透明 relay 不依赖统一 DONE 终止并保持敏感数据隔离。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -46,11 +46,17 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -91,7 +97,7 @@ class ModelGatewayServiceTest {
             UsageTokens usage = invocation.getArgument(1);
             return ledger(usage, UsageResult.SETTLED);
         });
-        when(quotas.chargeMax(sent)).thenReturn(ledger(new UsageTokens(0, 640, 0), UsageResult.CHARGED_MAX));
+        when(quotas.chargeMax(sent)).thenReturn(ledger(new UsageTokens(0, 0, 0), UsageResult.CHARGED_MAX));
     }
 
     @Test
@@ -131,7 +137,7 @@ class ModelGatewayServiceTest {
 
         service(new FakeUpstream(List.of(), null, -1)).open(
             context(), request(), ProviderApiProtocol.OPENAI_COMPLETIONS, Map.of(), IDEMPOTENCY
-        );
+        ).close();
 
         verify(quotas).reserve(any());
     }
@@ -146,7 +152,7 @@ class ModelGatewayServiceTest {
         GatewayChatRequest request = request(protocol, field, limit);
         FakeUpstream upstream = new FakeUpstream(List.of(), null, -1);
 
-        service(upstream).open(context(), request, protocol, Map.of(), IDEMPOTENCY);
+        service(upstream).open(context(), request, protocol, Map.of(), IDEMPOTENCY).close();
 
         assertThat(json.readTree(upstream.requestBody).path(field).intValue()).isEqualTo(limit);
         ArgumentCaptor<QuotaReservationCommand> command = ArgumentCaptor.forClass(QuotaReservationCommand.class);
@@ -167,7 +173,7 @@ class ModelGatewayServiceTest {
         GatewayChatRequest request = request(protocol, explicitNull ? field : null, null);
         FakeUpstream upstream = new FakeUpstream(List.of(), null, -1);
 
-        service(upstream).open(context(), request, protocol, Map.of(), IDEMPOTENCY);
+        service(upstream).open(context(), request, protocol, Map.of(), IDEMPOTENCY).close();
 
         assertThat(json.readTree(upstream.requestBody).path(field).intValue()).isEqualTo(1024);
         ArgumentCaptor<QuotaReservationCommand> command = ArgumentCaptor.forClass(QuotaReservationCommand.class);
@@ -255,7 +261,7 @@ class ModelGatewayServiceTest {
     }
 
     @Test
-    void chargesMaxWithoutForgingProtocolErrorAfterStreamBreak() throws Exception {
+    void reportsSanitizedProtocolErrorAfterStreamBreak() throws Exception {
         FakeUpstream upstream = new FakeUpstream(
             List.of(event("{\"choices\":[{\"delta\":{\"content\":\"partial\"}}]}")),
             new GatewayException(GatewayException.Kind.UPSTREAM_TIMEOUT), 1
@@ -268,7 +274,7 @@ class ModelGatewayServiceTest {
         verify(quotas).chargeMax(sent);
         assertThat(output.toString(StandardCharsets.UTF_8))
             .contains("partial")
-            .doesNotContain("ENT_UPSTREAM_TIMEOUT")
+            .contains("\"error\"").contains("ENT_UPSTREAM_TIMEOUT")
             .doesNotContain("enterprise_gateway_error")
             .doesNotContain("[DONE]")
             .doesNotContain(SECRET);
@@ -305,7 +311,8 @@ class ModelGatewayServiceTest {
         FakeUpstream upstream = new FakeUpstream(
             List.of(), null, -1
         );
-        upstream.openFailure = new GatewayException(GatewayException.Kind.UPSTREAM_AUTH_FAILED);
+        upstream.openFailure = new GatewayException(GatewayException.Kind.UPSTREAM_AUTH_FAILED,
+            GatewayException.Detail.HTTP_STATUS, 401, null);
         assertThatThrownBy(() -> service(upstream).open(
             context(), request(), ProviderApiProtocol.OPENAI_COMPLETIONS, Map.of(), IDEMPOTENCY
         )).isInstanceOfSatisfying(GatewayException.class,
@@ -314,10 +321,227 @@ class ModelGatewayServiceTest {
         assertThat(upstream.openCalls).isOne();
         assertThat(upstream.nextCalls).isZero();
         verify(quotas, never()).chargeMax(any());
-        verify(quotas).release(reserved);
-        verify(quotas, never()).chargeMax(any());
+        verify(quotas).releaseRejected(sent);
         verify(quotas, never()).settle(any(), any(), any());
-        assertThat(audits).isEmpty();
+        assertThat(finishedMetadata().outcome()).isEqualTo(GatewayFinishedMetadata.Outcome.RELEASED);
+    }
+
+    @Test
+    void preservesFinalUsageWhenDoneIsLost() throws Exception {
+        FakeUpstream upstream = new FakeUpstream(List.of(event(
+            "{\"choices\":[],\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":5}}"
+        )), new GatewayException(GatewayException.Kind.UPSTREAM_TIMEOUT), 1);
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        service(upstream).open(context(), request(), ProviderApiProtocol.OPENAI_COMPLETIONS, Map.of(), IDEMPOTENCY)
+            .writeTo(output);
+        verify(quotas).recordUsage(sent, new UsageTokens(10, 5, 0), "upstream-1");
+        verify(quotas).settle(sent, new UsageTokens(10, 5, 0), "upstream-1");
+        verify(quotas, never()).chargeMax(any());
+        assertThat(output.toString(StandardCharsets.UTF_8)).contains("ENT_UPSTREAM_TIMEOUT");
+        assertThat(finishedMetadata().outcome()).isEqualTo(GatewayFinishedMetadata.Outcome.SETTLED);
+        assertThat(finishedMetadata().failure()).isEqualTo(GatewayFinishedMetadata.Failure.UPSTREAM_TIMEOUT);
+    }
+
+    @Test
+    void closesUpstreamWhenTheFirstClientWriteFails() {
+        FakeUpstream upstream = new FakeUpstream(List.of(), null, -1);
+        OutputStream cancelled = new OutputStream() {
+            @Override public void write(int value) throws IOException { throw new IOException("cancelled"); }
+        };
+        assertThatThrownBy(() -> service(upstream)
+            .open(context(), request(), ProviderApiProtocol.OPENAI_COMPLETIONS, Map.of(), IDEMPOTENCY)
+            .writeTo(cancelled)).isInstanceOf(IOException.class);
+        assertThat(upstream.closeCalls).isOne();
+        verify(quotas).chargeMax(sent);
+    }
+
+    @Test
+    void settlesFinalUsageWhenTheClientCancelsBeforeReceivingIt() {
+        FakeUpstream upstream = new FakeUpstream(List.of(event(
+            "{\"choices\":[],\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":5}}"
+        )), null, -1);
+        OutputStream cancelled = new ByteArrayOutputStream() {
+            @Override
+            public void write(byte[] bytes) throws IOException {
+                if (new String(bytes, StandardCharsets.UTF_8).contains("usage")) {
+                    throw new IOException("client cancelled");
+                }
+                super.write(bytes);
+            }
+        };
+        assertThatThrownBy(() -> service(upstream)
+            .open(context(), request(), ProviderApiProtocol.OPENAI_COMPLETIONS, Map.of(), IDEMPOTENCY)
+            .writeTo(cancelled)).isInstanceOf(IOException.class);
+        verify(quotas).recordUsage(sent, new UsageTokens(10, 5, 0), "upstream-1");
+        verify(quotas).settle(sent, new UsageTokens(10, 5, 0), "upstream-1");
+        verify(quotas, never()).chargeMax(any());
+        assertThat(upstream.closeCalls).isOne();
+        assertThat(finishedMetadata().outcome()).isEqualTo(GatewayFinishedMetadata.Outcome.SETTLED);
+        assertThat(finishedMetadata().failure()).isEqualTo(GatewayFinishedMetadata.Failure.CLIENT_CANCELLED);
+    }
+
+    @Test
+    void auditsThePersistedLedgerOutcomeWhenFallbackFindsMeasuredUsage() throws Exception {
+        when(quotas.chargeMax(sent)).thenReturn(ledger(new UsageTokens(10, 5, 0), UsageResult.SETTLED));
+        FakeUpstream upstream = new FakeUpstream(List.of(), new GatewayException(GatewayException.Kind.UPSTREAM_TIMEOUT), 0);
+        service(upstream).open(context(), request(), ProviderApiProtocol.OPENAI_COMPLETIONS, Map.of(), IDEMPOTENCY)
+            .writeTo(new ByteArrayOutputStream());
+        assertThat(finishedMetadata().outcome()).isEqualTo(GatewayFinishedMetadata.Outcome.SETTLED);
+        assertThat(finishedMetadata().chargedTokens()).isEqualTo(15);
+    }
+
+    @Test
+    void recordsSendIntentBeforeAnAmbiguousConnectionFailure() {
+        FakeUpstream upstream = new FakeUpstream(List.of(), null, -1);
+        upstream.onOpen = () -> verify(quotas).markSent(reserved);
+        upstream.openFailure = new GatewayException(GatewayException.Kind.UPSTREAM_TIMEOUT);
+        assertThatThrownBy(() -> service(upstream).open(
+            context(), request(), ProviderApiProtocol.OPENAI_COMPLETIONS, Map.of(), IDEMPOTENCY
+        )).isInstanceOf(GatewayException.class);
+        verify(quotas).chargeMax(sent);
+        verify(quotas, never()).release(any());
+        verify(quotas, never()).releaseRejected(any());
+    }
+
+    @Test
+    void renewsTheLeaseWhileWaitingForUpstreamHeaders() {
+        CountDownLatch renewed = new CountDownLatch(1);
+        when(quotas.renew(any())).thenAnswer(invocation -> {
+            renewed.countDown();
+            return invocation.getArgument(0);
+        });
+        FakeUpstream upstream = new FakeUpstream(List.of(), null, -1);
+        upstream.onOpen = () -> {
+            try { assertThat(renewed.await(2, TimeUnit.SECONDS)).isTrue(); }
+            catch (InterruptedException exception) { throw new AssertionError(exception); }
+        };
+        ModelGatewayService service = new ModelGatewayService(
+            TransactionOperations.withoutTransaction(), routes, quotas, upstream, cipher, audits::add,
+            new AtomicLong(9000)::incrementAndGet, json, Clock.systemUTC(), Duration.ofMillis(10)
+        );
+        service.open(context(), request(), ProviderApiProtocol.OPENAI_COMPLETIONS, Map.of(), IDEMPOTENCY).close();
+        assertThat(upstream.closeCalls).isOne();
+    }
+
+    @Test
+    void interruptsHeaderWaitWhenTheLeaseCannotBeRenewed() {
+        CountDownLatch connecting = new CountDownLatch(1);
+        when(quotas.renew(any())).thenAnswer(invocation -> {
+            if (connecting.getCount() != 0) return invocation.getArgument(0);
+            throw new IllegalStateException("lease lost");
+        });
+        FakeUpstream upstream = new FakeUpstream(List.of(), null, -1);
+        upstream.onOpen = () -> {
+            connecting.countDown();
+            try {
+                if (!new CountDownLatch(1).await(2, TimeUnit.SECONDS)) {
+                    throw new AssertionError("header wait was not interrupted");
+                }
+            } catch (InterruptedException exception) {
+                throw new GatewayException(GatewayException.Kind.PLATFORM_UNAVAILABLE, exception);
+            }
+        };
+        var service = new ModelGatewayService(
+            TransactionOperations.withoutTransaction(), routes, quotas, upstream, cipher, audits::add,
+            new AtomicLong(9000)::incrementAndGet, json, Clock.systemUTC(), Duration.ofMillis(10)
+        );
+        try {
+            assertThatThrownBy(() -> service.open(context(), request(), ProviderApiProtocol.OPENAI_COMPLETIONS,
+                Map.of(), IDEMPOTENCY)).isInstanceOf(GatewayException.class);
+        } finally {
+            Thread.interrupted();
+        }
+        verify(quotas).chargeMax(sent);
+        verify(quotas, never()).release(any());
+    }
+
+    @Test
+    void closesBlockedUpstreamBeforeCancellationSettlementAndOnlyFinishesOnce() throws Exception {
+        CountDownLatch reading = new CountDownLatch(1);
+        CountDownLatch closed = new CountDownLatch(1);
+        FakeUpstream upstream = new FakeUpstream(List.of(), null, -1);
+        upstream.onNext = () -> {
+            reading.countDown();
+            try { assertThat(closed.await(10, TimeUnit.SECONDS)).isTrue(); }
+            catch (InterruptedException exception) { throw new AssertionError(exception); }
+            throw new GatewayException(GatewayException.Kind.UPSTREAM_UNAVAILABLE);
+        };
+        upstream.onClose = closed::countDown;
+        when(quotas.chargeMax(sent)).thenAnswer(invocation -> {
+            assertThat(closed.getCount()).isZero();
+            return ledger(new UsageTokens(0, 0, 0), UsageResult.CHARGED_MAX);
+        });
+        try (var stream = service(upstream).open(context(), request(),
+            ProviderApiProtocol.OPENAI_COMPLETIONS, Map.of(), IDEMPOTENCY)) {
+            FutureTask<Void> writer = new FutureTask<>(() -> {
+                assertThatThrownBy(() -> stream.writeTo(new ByteArrayOutputStream()))
+                    .isInstanceOf(IOException.class);
+                return null;
+            });
+            Thread.ofVirtual().start(writer);
+            assertThat(reading.await(2, TimeUnit.SECONDS)).isTrue();
+            stream.close();
+            writer.get(2, TimeUnit.SECONDS);
+            stream.close();
+        }
+        assertThat(upstream.closeCalls).isOne();
+        verify(quotas).chargeMax(sent);
+        assertThat(audits).filteredOn(value -> value.action() == AuditAction.MODEL_REQUEST_FINISHED).hasSize(1);
+        assertThat(finishedMetadata().failure()).isEqualTo(GatewayFinishedMetadata.Failure.CLIENT_CANCELLED);
+    }
+
+    @Test
+    void detectsCancellationDuringUpstreamSilenceWithoutBlockingLeaseRenewal() throws Exception {
+        AtomicBoolean probing = new AtomicBoolean();
+        CountDownLatch renewedDuringProbe = new CountDownLatch(1);
+        FakeUpstream upstream = new FakeUpstream(List.of(), null, -1);
+        upstream.onNext = () -> {
+            try { new CountDownLatch(1).await(); }
+            catch (InterruptedException exception) {
+                throw new GatewayException(GatewayException.Kind.UPSTREAM_UNAVAILABLE, exception);
+            }
+        };
+        when(quotas.renew(any())).thenAnswer(invocation -> {
+            if (probing.get()) renewedDuringProbe.countDown();
+            return invocation.getArgument(0);
+        });
+        OutputStream output = new ByteArrayOutputStream() {
+            private int writes;
+            @Override public void write(byte[] bytes) throws IOException {
+                if (++writes == 1) { super.write(bytes); return; }
+                assertThat(new String(bytes, StandardCharsets.UTF_8)).isEqualTo(": enterprise-gateway\n\n");
+                probing.set(true);
+                try { assertThat(renewedDuringProbe.await(2, TimeUnit.SECONDS)).isTrue(); }
+                catch (InterruptedException exception) { throw new IOException(exception); }
+                throw new IOException("client cancelled during upstream silence");
+            }
+        };
+        var service = new ModelGatewayService(TransactionOperations.withoutTransaction(), routes, quotas,
+            upstream, cipher, audits::add, new AtomicLong(9000)::incrementAndGet, json,
+            Clock.systemUTC(), Duration.ofMillis(50));
+        long started = System.nanoTime();
+        assertThatThrownBy(() -> service.open(context(), request(), ProviderApiProtocol.OPENAI_COMPLETIONS,
+            Map.of(), IDEMPOTENCY).writeTo(output)).isInstanceOf(IOException.class);
+        assertThat(Duration.ofNanos(System.nanoTime() - started)).isLessThan(Duration.ofSeconds(10));
+        assertThat(upstream.closeCalls).isOne();
+        verify(quotas).chargeMax(sent);
+        assertThat(finishedMetadata().failure()).isEqualTo(GatewayFinishedMetadata.Failure.CLIENT_CANCELLED);
+    }
+
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(ProviderApiProtocol.class)
+    void emitsNativeSanitizedErrorsEvenWhenTheFirstEventFails(ProviderApiProtocol protocol) throws Exception {
+        route = route(protocol);
+        FakeUpstream upstream = new FakeUpstream(List.of(event(
+            "{\"type\":\"error\",\"error\":{\"message\":\"private upstream body\"}}"
+        )), null, -1);
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        service(upstream).open(context(), request(protocol), protocol, Map.of(), IDEMPOTENCY).writeTo(output);
+        String wire = output.toString(StandardCharsets.UTF_8);
+        assertThat(wire).contains("\"error\"").contains("ENT_UPSTREAM_INVALID_RESPONSE")
+            .doesNotContain("private upstream body").doesNotContain("[DONE]");
+        if (protocol != ProviderApiProtocol.OPENAI_COMPLETIONS) assertThat(wire).contains("event: error\n");
+        assertThat(upstream.closeCalls).isOne();
     }
 
     private ModelGatewayService service(FakeUpstream upstream) {
@@ -395,7 +619,8 @@ class ModelGatewayServiceTest {
     private UsageLedger ledger(UsageTokens usage, UsageResult result) {
         return new UsageLedger(
             7001, TENANT, RESERVATION_ID, 101, 501, REQUEST_ID,
-            usage.inputTokens(), usage.outputTokens(), usage.cacheTokens(), usage.totalTokens(), result,
+            usage.inputTokens(), usage.outputTokens(), usage.cacheTokens(), usage.totalTokens(),
+            result == UsageResult.SETTLED ? usage.totalTokens() : 640, result,
             result == UsageResult.SETTLED ? "upstream-1" : null, NOW
         );
     }
@@ -421,6 +646,10 @@ class ModelGatewayServiceTest {
         private RuntimeException openFailure;
         private int openCalls;
         private int nextCalls;
+        private int closeCalls;
+        private Runnable onOpen = () -> {};
+        private Runnable onNext = () -> {};
+        private Runnable onClose = () -> {};
 
         private FakeUpstream(List<SseEvent> events, RuntimeException failure, int failureIndex) {
             this.events = List.copyOf(events);
@@ -435,6 +664,7 @@ class ModelGatewayServiceTest {
             int connectTimeoutMs, int readTimeoutMs
         ) {
             openCalls++;
+            onOpen.run();
             if (openFailure != null) throw openFailure;
             this.requestBody = requestBody.clone();
             this.credential = credential.clone();
@@ -444,6 +674,7 @@ class ModelGatewayServiceTest {
                 @Override
                 public SseEvent next() {
                     nextCalls++;
+                    onNext.run();
                     if (failure != null && index == failureIndex) throw failure;
                     return events.get(index++);
                 }
@@ -455,6 +686,8 @@ class ModelGatewayServiceTest {
 
                 @Override
                 public void close() {
+                    closeCalls++;
+                    onClose.run();
                 }
             };
         }

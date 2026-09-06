@@ -15,13 +15,14 @@ java/com/owndsh/enterprise/model/ModelManagementIntegrationTest.java: 以显式�
 java/com/owndsh/enterprise/model/gateway/GatewayChatRequestParserTest.java: 验证三协议输出上限类型、溢出、字段互斥与协议混用拒绝，以及原生正文透明保留与受管 route 强制替换。
 java/com/owndsh/enterprise/model/gateway/GatewayRouteResolverTest.java: 验证 alias/default、ACTIVE 设备/用户与当前 model/provider/grant 的每请求裁决。
 java/com/owndsh/enterprise/model/gateway/DeepSeekUpstreamClientTest.java: 使用 WireMock 验证三协议 endpoint/auth、SSE、单次请求、状态/脱敏阶段分类、timeout 与 no-redirect。
-java/com/owndsh/enterprise/model/gateway/ModelGatewayServiceTest.java: 验证三协议输出上限在预留前拒绝超限、缺省补值及上游/预留一致性；保持上下文估算不裁决请求，并覆盖原生终态/usage、2xx 后 SENT、失败计费与双审计关联。
-java/com/owndsh/enterprise/model/gateway/ModelGatewayTransactionIntegrationTest.java: 以显式活动用户和真实 PostgreSQL 验证 2xx 后 SENT/accepted、建连失败 RELEASED 零账本及 ledger/finished 原子提交；结算审计失败回滚且不向已开始的 SSE 伪造协议错误帧。
+java/com/owndsh/enterprise/model/gateway/GatewayUsageInspectorTest.java: 验证缓存别名去重、缓存写入、最终 usage 提前确认、Anthropic 稀疏更新与非法计数拒绝。
+java/com/owndsh/enterprise/model/gateway/ModelGatewayServiceTest.java: 验证输出上限、发送前意图、响应头及阻塞心跳期间续租、静默上游取消的关闭顺序与幂等、usage 保留及三协议错误。
+java/com/owndsh/enterprise/model/gateway/ModelGatewayTransactionIntegrationTest.java: 真实 PostgreSQL 验证结算/usage 快照恢复；Jetty/MVC 与 JDK HTTP 重现静默上游，验证 SSE 心跳、断开/超时 10 秒内关闭与唯一结算。
 java/com/owndsh/enterprise/model/gateway/T10GatewayApiContractTest.java: 以 MockMvc/JSON Schema 验证 gateway SSE/JSON 内容协商、严格输入、体积和全部首字节前错误映射。
 java/com/owndsh/enterprise/quota/QuotaWindowCalculatorTest.java: 验证策略锚点连续 5 小时、冻结部署时区自然日/周/月边界和 UTF-8 字节除三向上估算。
 java/com/owndsh/enterprise/quota/application/QuotaOrderingTest.java: 验证有效策略和预留/结算窗口共享 policy/type 固定锁序，阻止历史 window ID 造成反向加锁。
 java/com/owndsh/enterprise/quota/RedisQuotaRateLimiterTest.java: 使用真实 Redis 8 验证多策略 Lua 全成全败、RPM、并发续租与 TTL 回收。
-java/com/owndsh/enterprise/quota/QuotaManagementIntegrationTest.java: 以显式活动用户和真实 PostgreSQL 验证 TOKEN/RATE 双层互斥、组织级供应商速率、多资源叠加、四窗口/CAS/bootstrap、并发防超卖、状态机、结算与恢复。
+java/com/owndsh/enterprise/quota/QuotaManagementIntegrationTest.java: 真实 PostgreSQL 验证 TOKEN/RATE、策略叠加、四窗口/CAS、并发预留及恢复；已获准请求超额按实测结算，拒绝后续请求且不截断其他在途结算。
 java/com/owndsh/enterprise/quota/T09ApiContractTest.java: 以 MockMvc/JSON Schema 验证带策略类型的配额/用量 operation、四窗口与资源范围、ACTIVE 设备/用户边界及 ledger 脱敏。
 java/com/owndsh/enterprise/plugin/PluginArtifactSecurityTest.java: 以不落地解压的恶意 tgz 验证路径、链接、设备、原生模块、metadata、归档上限、CAS、同 hash 互斥与磁盘 fail-closed。
 java/com/owndsh/enterprise/plugin/PluginManifestSignerTest.java: 以 RFC 8785 已知向量和真实 PKCS#8 key 验证 JCS/Ed25519 签名声明及环境文本私钥边界。
@@ -33,7 +34,7 @@ java/com/owndsh/enterprise/audit/: 31-action metadata 白名单、requestId 关�
 java/com/owndsh/enterprise/common/api/: T20 有界 JSON 请求、稳定 413/503 与故障日志秘密隔离门禁；局部地图见 common/api/CLAUDE.md。
 java/com/owndsh/enterprise/test/OpenLdapTestServer.java: 共享 OpenLDAP Testcontainer 与测试专用 TLS trust，集中管理 LDAP 集成环境。
 java/com/owndsh/enterprise/test/RedisTestServer.java: 共享 Redis 8 Testcontainer，并为每项认证测试清理隔离 keyspace。
-java/com/owndsh/enterprise/database/EnterpriseMigrationTest.java: 从真实 Host PostgreSQL 基线验证 V1-V28 逐版本升级及 Refresh Session 约束。
+java/com/owndsh/enterprise/database/EnterpriseMigrationTest.java: 验证 V1-V29 逐版本升级、历史估算扣额保留与实测分类清理、usage 快照完整性约束。
 java/com/owndsh/enterprise/deployment/DeploymentBootstrapServiceTest.java: 以真实 PostgreSQL 验证缺配置失败、事务回滚、幂等管理员/角色/marker，以及分步认证和 JDBC 条件首次改密。
 java/com/owndsh/enterprise/database/RbacSeedTest.java: 验证五个 built-in 角色、16 个冻结权限码、最小权限集合与数据库不可变 trigger。
 java/com/owndsh/enterprise/revision/RevisionAuditIntegrationTest.java: 验证 BOOTSTRAP CAS、稳定冲突码、显式 metadata、只追加审计及同事务回滚。

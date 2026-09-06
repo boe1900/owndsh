@@ -334,14 +334,14 @@ class T09ApiContractTest {
     private static QuotaUsageQueryService.UsagePage usagePage() {
         UsageLedger ledger = new UsageLedger(
             LEDGER_ID, TENANT, UUID.fromString("123e4567-e89b-42d3-a456-426614174001"),
-            USER_ID, MODEL_ID, ORIGINAL_REQUEST_ID, 100, 50, 25, 175, UsageResult.SETTLED,
+            USER_ID, MODEL_ID, ORIGINAL_REQUEST_ID, 100, 50, 25, 175, 175, UsageResult.SETTLED,
             null, Instant.parse("2026-08-18T10:59:00Z")
         );
         return new QuotaUsageQueryService.UsagePage(
             List.of(new UsageLedgerMetadata(
                 ledger, "alice", "Alice", DEPARTMENT_ID, "Research", "deepseek-chat", "DeepSeek Chat"
             )),
-            new UsageLedgerStore.UsageTotals(1, 100, 50, 25, 175)
+            new UsageLedgerStore.UsageTotals(1, 100, 50, 25, 175, 175, 0)
         );
     }
 

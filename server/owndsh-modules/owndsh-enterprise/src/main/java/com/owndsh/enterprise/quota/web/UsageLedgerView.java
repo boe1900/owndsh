@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 投影 prompt-free UsageLedgerMetadata 账本事实与当前用户/部门/模型显示语义。
- * [OUTPUT]: 对外提供管理端用量主体、模型、分类、result、requestId 和时间 DTO。
+ * [OUTPUT]: 提供管理端实测 Token 分类、独立 chargedTokens 及标识 usage 是否已知的 result。
  * [POS]: quota/web 的 ledger 输出边界，明确不含 prompt、messages、provider 或 credential。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -28,6 +28,7 @@ public record UsageLedgerView(
     long outputTokens,
     long cacheTokens,
     long totalTokens,
+    long chargedTokens,
     UsageResult result,
     String upstreamRequestId,
     Instant createdAt
@@ -39,7 +40,7 @@ public record UsageLedgerView(
             metadata.username(), metadata.userDisplayName(), id(metadata.departmentId()), metadata.departmentName(),
             Long.toString(value.modelId()), metadata.modelAlias(), metadata.modelDisplayName(),
             value.requestId(), value.inputTokens(), value.outputTokens(),
-            value.cacheTokens(), value.totalTokens(), value.result(), value.upstreamRequestId(), value.createdAt()
+            value.cacheTokens(), value.totalTokens(), value.chargedTokens(), value.result(), value.upstreamRequestId(), value.createdAt()
         );
     }
 

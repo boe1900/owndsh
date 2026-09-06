@@ -1,12 +1,13 @@
 /**
- * [INPUT]: 依赖可信 DeviceRequestContextResolver、最小 request parser、ModelGatewayService 与 byte 上限配置。
- * [OUTPUT]: 提供三种 Harness 原生 wire POST 路径、建连前 JSON 错误和原协议 SSE 响应。
- * [POS]: model/gateway 的唯一 HTTP 入口，限制正文并只转发协议所需的非凭据 header。
+ * [INPUT]: 依赖可信设备 context、request parser、ModelGatewayService、Servlet 可刷出响应流与 byte 上限配置。
+ * [OUTPUT]: 提供三种 Harness wire POST、建连前 JSON/流内原协议错误，以及异步错误、超时和完成时的上游清理。
+ * [POS]: model/gateway 的唯一 HTTP 入口；SSE 绕过 Spring 通用响应流的非 flush 包装，保留 Servlet 异步生命周期。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.model.gateway;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import com.owndsh.enterprise.common.api.EnterpriseApiValidation;
 import com.owndsh.enterprise.common.api.EnterpriseRequestIds;
 import com.owndsh.enterprise.device.application.DeviceCallContext;
@@ -21,6 +22,9 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+import org.springframework.web.context.request.NativeWebRequest;
+import org.springframework.web.context.request.async.CallableProcessingInterceptor;
+import org.springframework.web.context.request.async.WebAsyncUtils;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -30,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 
 @RestController
 @RequestMapping("/enterprise/gateway/v1")
@@ -61,29 +66,33 @@ public final class ModelGatewayController {
     @PostMapping(path = "/chat/completions", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public ResponseEntity<StreamingResponseBody> completions(
         HttpServletRequest request,
+        HttpServletResponse response,
         @RequestHeader("Idempotency-Key") UUID idempotencyKey
     ) {
-        return stream(request, idempotencyKey, ProviderApiProtocol.OPENAI_COMPLETIONS);
+        return stream(request, response, idempotencyKey, ProviderApiProtocol.OPENAI_COMPLETIONS);
     }
 
     @PostMapping(path = "/responses", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public ResponseEntity<StreamingResponseBody> responses(
         HttpServletRequest request,
+        HttpServletResponse response,
         @RequestHeader("Idempotency-Key") UUID idempotencyKey
     ) {
-        return stream(request, idempotencyKey, ProviderApiProtocol.OPENAI_RESPONSES);
+        return stream(request, response, idempotencyKey, ProviderApiProtocol.OPENAI_RESPONSES);
     }
 
     @PostMapping(path = "/messages", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public ResponseEntity<StreamingResponseBody> messages(
         HttpServletRequest request,
+        HttpServletResponse response,
         @RequestHeader("Idempotency-Key") UUID idempotencyKey
     ) {
-        return stream(request, idempotencyKey, ProviderApiProtocol.ANTHROPIC_MESSAGES);
+        return stream(request, response, idempotencyKey, ProviderApiProtocol.ANTHROPIC_MESSAGES);
     }
 
     private ResponseEntity<StreamingResponseBody> stream(
         HttpServletRequest servletRequest,
+        HttpServletResponse servletResponse,
         UUID idempotencyKey,
         ProviderApiProtocol protocol
     ) {
@@ -93,7 +102,26 @@ public final class ModelGatewayController {
         ModelGatewayService.GatewayStream stream = gateway.open(
             context, request, protocol, forwardedHeaders(servletRequest), idempotencyKey
         );
-        StreamingResponseBody body = stream::writeTo;
+        WebAsyncUtils.getAsyncManager(servletRequest).registerCallableInterceptor(stream, new CallableProcessingInterceptor() {
+            @Override
+            public <T> Object handleTimeout(NativeWebRequest request, Callable<T> task) {
+                stream.close();
+                return RESULT_NONE;
+            }
+
+            @Override
+            public <T> Object handleError(NativeWebRequest request, Callable<T> task, Throwable error) {
+                stream.close();
+                return RESULT_NONE;
+            }
+
+            @Override
+            public <T> void afterCompletion(NativeWebRequest request, Callable<T> task) {
+                stream.close();
+            }
+        });
+        // Spring 的通用响应流默认屏蔽 flush；SSE 必须逐事件刷出才能探测下游断开。
+        StreamingResponseBody body = ignored -> stream.writeTo(servletResponse.getOutputStream());
         return ResponseEntity.ok()
             .contentType(EVENT_STREAM)
             .cacheControl(CacheControl.noStore())

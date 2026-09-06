@@ -15,13 +15,13 @@ QuotaTokenEstimator.java: 可见 system/messages/tools UTF-8 字节除三向上�
 QuotaRateLimiter.java: 全部适用 policy 的 Redis RPM/并发原子 lease 端口。
 QuotaExceededException.java: 5 小时/日/周/月/RPM/并发 429 稳定错误与 policy/reset 事实。
 QuotaRejectionMetadata.java: QUOTA_REJECTED 审计的类别、policy 和估算量白名单。
-ReservationRecoveredMetadata.java: RESERVATION_RECOVERED 审计的原状态与恢复终态白名单。
+ReservationRecoveredMetadata.java: 恢复审计白名单；SENT 有最终 usage 快照时 SETTLED，否则 CHARGED_MAX。
 RequestInProgressException.java: 幂等键命中非终态 reservation 的 409 领域异常。
 RequestAlreadyCompletedException.java: 幂等键命中终态 reservation 的 409 领域异常。
 QuotaReservationCommand.java: T10 到预留服务的可信请求/资源/估算 command。
 UsageTokens.java: 上游 usage 的 input/output/cache 非负分类值。
-QuotaReservationService.java: TOKEN 策略进入 PostgreSQL 窗口预留、RATE 策略进入 Redis lease，并统一编排 SENT、结算、释放、续租和恢复状态机。
+QuotaReservationService.java: PostgreSQL 预留与 Redis lease 编排；发送意图先落库，usage 在独立事务保存，实测量与扣额分离，兜底与恢复统一优先使用快照且 Redis 清理不回滚账本。
 QuotaUsageQueryService.java: 按策略类型读取四类窗口或 RPM/并发快照，并组合本人有效策略和管理员 ledger 查询。
-QuotaRecoveryJob.java: 每分钟领取过期 reservation 并执行 RELEASED/CHARGED_MAX 恢复。
+QuotaRecoveryJob.java: 每分钟领取过期 reservation，按是否发送及是否已有 usage 快照恢复为 RELEASED/SETTLED/CHARGED_MAX。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

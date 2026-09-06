@@ -487,7 +487,8 @@
                         "type": "string",
                         "enum": [
                           "SETTLED",
-                          "CHARGED_MAX"
+                          "CHARGED_MAX",
+                          "RELEASED"
                         ]
                       },
                       "chargedTokens": {
@@ -594,7 +595,8 @@
                         "type": "string",
                         "enum": [
                           "RELEASED",
-                          "CHARGED_MAX"
+                          "CHARGED_MAX",
+                          "SETTLED"
                         ]
                       }
                     }

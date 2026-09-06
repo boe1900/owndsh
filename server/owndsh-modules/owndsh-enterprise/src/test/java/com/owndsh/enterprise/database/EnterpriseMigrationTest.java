@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 PostgresTestDatabase 装载真实 Host 基线与 V1-V28 classpath migration。
- * [OUTPUT]: 验证空 schema、逐版本升级、产品治理迁移及 Refresh Session 约束。
+ * [INPUT]: 依赖 PostgresTestDatabase 装载真实 Host 基线与 V1-V29 migration。
+ * [OUTPUT]: 验证空 schema、逐版本升级、历史估算扣额保留与实测分类迁移，以及数据库计量约束。
  * [POS]: database 的持续 migration 门禁，防止后续任务只验证最终 schema 而遗漏中间版本不可升级。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -27,7 +27,7 @@ class EnterpriseMigrationTest {
 
         Flyway flyway = PostgresTestDatabase.migrate(database, null);
 
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("28");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("29");
         Integer tableCount = database.jdbc().queryForObject("""
             select count(*) from information_schema.tables
             where table_schema = 'public' and table_name like 'ent_%'
@@ -429,6 +429,37 @@ class EnterpriseMigrationTest {
         assertThat(database.jdbc().queryForObject(
             "select to_regclass('ent_refresh_session') is not null", Boolean.class
         )).isTrue();
+        for (String result : new String[]{"SETTLED", "CHARGED_MAX"}) {
+            java.util.UUID reservation = java.util.UUID.randomUUID();
+            boolean measured = "SETTLED".equals(result);
+            database.jdbc().update("""
+                insert into ent_usage_reservation(id,tenant_id,user_id,device_id,model_id,idempotency_key,
+                    request_id,state,estimated_tokens,reserved_windows_json,expires_at)
+                values (?,'000000',?,1913000000000000301,1913000000000000601,?,?,?,640,'[]',now())
+                """, reservation, userId, reservation.toString(), "migration-usage-" + result, result);
+            database.jdbc().update("""
+                insert into ent_usage_ledger(id,tenant_id,reservation_id,user_id,model_id,request_id,
+                    input_tokens,output_tokens,cache_tokens,total_tokens,result)
+                values (?,'000000',?,?,1913000000000000601,?,?,?,0,?,?)
+                """, measured ? 1913000000000000901L : 1913000000000000902L,
+                reservation, userId, "migration-usage-" + result, measured ? 10 : 0,
+                measured ? 5 : 640, measured ? 15 : 640, result);
+        }
+        Flyway versionTwentyNine = PostgresTestDatabase.migrate(database, "29");
+        assertThat(versionTwentyNine.info().current().getVersion().getVersion()).isEqualTo("29");
+        assertThat(database.jdbc().queryForMap("""
+            select input_tokens,output_tokens,total_tokens,charged_tokens from ent_usage_ledger
+             where request_id='migration-usage-CHARGED_MAX'
+            """)).containsEntry("input_tokens", 0L).containsEntry("output_tokens", 0L)
+            .containsEntry("total_tokens", 0L).containsEntry("charged_tokens", 640L);
+        assertThat(database.jdbc().queryForMap("""
+            select input_tokens,output_tokens,total_tokens,charged_tokens from ent_usage_ledger
+             where request_id='migration-usage-SETTLED'
+            """)).containsEntry("input_tokens", 10L).containsEntry("output_tokens", 5L)
+            .containsEntry("total_tokens", 15L).containsEntry("charged_tokens", 15L);
+        assertThatThrownBy(() -> database.jdbc().update("""
+            update ent_usage_reservation set usage_input_tokens=1 where request_id='migration-usage-SETTLED'
+            """)).isInstanceOf(RuntimeException.class);
     }
 
     @Test
@@ -445,7 +476,7 @@ class EnterpriseMigrationTest {
             .run(context -> {
                 assertThat(context).hasSingleBean(Flyway.class);
                 assertThat(context.getBean(Flyway.class).info().current().getVersion().getVersion())
-                    .isEqualTo("28");
+                    .isEqualTo("29");
             });
     }
 }

@@ -12,6 +12,6 @@ src/profiles.ts: 将 bootstrap 模型事实和短生命期代理 bearer 按三�
 src/proxy.ts: 自有随机端口与 bearer 的 Host 私有 loopback 代理，透明 relay 原生 JSON/SSE 与 Retry-After，并把非重试 429 标记为官方 pi-ai 可识别的终态 quota 错误。
 src/registration.ts: 启停 Host 私有代理并挂载官方 dsh-llm-pi-ai，按 bootstrap profile 指纹动态更新其 Cordis fiber。
 tests/profiles.spec.ts: 验证三协议 route、SDK base URL、default sentinel、容量、reasoningEfforts 纯投影与官方重试默认值继承。
-tests/proxy.spec.ts: 验证未授权本机请求被拒绝、透明 relay、终态 quota 分类、平台 SSE/JSON 双媒体声明和伪认证隔离。
+tests/proxy.spec.ts: 验证认证、relay、quota/Retry-After，并通过锁定官方三协议客户端验证首事件错误不会变成成功 EOF。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

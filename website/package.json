@@ -1,0 +1,12 @@
+{
+  "name": "owndsh-website",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test site.test.mjs"
+  }
+}

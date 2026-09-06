@@ -11,7 +11,7 @@ public record UsageTokens(long inputTokens, long outputTokens, long cacheTokens)
         if (inputTokens < 0 || outputTokens < 0 || cacheTokens < 0) {
             throw new IllegalArgumentException("usage Token 不能为负数");
         }
-        totalTokens();
+        Math.addExact(Math.addExact(inputTokens, outputTokens), cacheTokens);
     }
 
     public long totalTokens() {

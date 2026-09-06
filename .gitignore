@@ -18,6 +18,9 @@ coverage/
 plugin/packages/*/lib/
 /artifacts/
 
+# Cloudflare deployment cache
+.wrangler/
+
 # Editors and operating systems
 .idea/
 .vscode/

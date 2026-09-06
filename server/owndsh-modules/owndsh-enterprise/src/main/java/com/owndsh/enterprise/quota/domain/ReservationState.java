@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖详细设计第 10.3 节预留状态图。
- * [OUTPUT]: 对外提供 RESERVED、SENT 与 RELEASED/SETTLED/CHARGED_MAX 状态。
+ * [INPUT]: 依赖发送前持久化意图、上游明确拒绝和实测 usage 的状态裁决。
+ * [OUTPUT]: 提供 RESERVED、发送尝试 SENT 与 RELEASED/SETTLED/CHARGED_MAX；SENT 不代表已收到上游响应。
  * [POS]: quota/domain 的计费状态机真源，终态不可再次迁移或生成第二条 ledger。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */

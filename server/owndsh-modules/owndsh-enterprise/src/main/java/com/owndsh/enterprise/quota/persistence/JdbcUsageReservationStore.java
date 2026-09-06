@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 JdbcOperations、Jackson JsonMapper 与 V6 request_id reservation schema。
- * [OUTPUT]: 对外提供严格窗口快照序列化、唯一幂等、状态 CAS 与恢复行锁。
+ * [INPUT]: 依赖 JdbcOperations、Jackson JsonMapper 与 V29 reservation usage 快照。
+ * [OUTPUT]: 对外提供严格窗口快照序列化、实测 usage 持久化、唯一幂等、状态 CAS 与恢复行锁。
  * [POS]: quota/persistence 的 reservation adapter，不从当前策略重建历史预留窗口。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -9,6 +9,7 @@ package com.owndsh.enterprise.quota.persistence;
 import com.owndsh.enterprise.quota.domain.ReservationState;
 import com.owndsh.enterprise.quota.domain.ReservedWindow;
 import com.owndsh.enterprise.quota.domain.UsageReservation;
+import com.owndsh.enterprise.quota.application.UsageTokens;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.RowMapper;
 import tools.jackson.databind.json.JsonMapper;
@@ -90,6 +91,26 @@ public final class JdbcUsageReservationStore implements UsageReservationStore {
              for update skip locked
              limit ?
             """, mapper, Timestamp.from(before), limit);
+    }
+
+    @Override
+    public void saveUsage(UUID id, UsageTokens tokens, String upstreamRequestId) {
+        jdbc.update("""
+            update ent_usage_reservation
+               set usage_input_tokens = ?, usage_output_tokens = ?, usage_cache_tokens = ?, upstream_request_id = ?
+             where id = ?
+            """, tokens.inputTokens(), tokens.outputTokens(), tokens.cacheTokens(), upstreamRequestId, id);
+    }
+
+    @Override
+    public Optional<ObservedUsage> findUsage(UUID id) {
+        return jdbc.query("""
+            select usage_input_tokens, usage_output_tokens, usage_cache_tokens, upstream_request_id
+              from ent_usage_reservation where id = ? and usage_input_tokens is not null
+            """, (rs, rowNum) -> new ObservedUsage(
+                new UsageTokens(rs.getLong("usage_input_tokens"), rs.getLong("usage_output_tokens"),
+                    rs.getLong("usage_cache_tokens")), rs.getString("upstream_request_id")
+            ), id).stream().findFirst();
     }
 
     private String writeWindows(List<ReservedWindow> windows) {

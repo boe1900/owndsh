@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖用量、审计、插件库存 operation，console 权限、TanStack Query 与产品表格。
- * [OUTPUT]: 提供按 ent:* 权限裁剪的 V1 用量、审计和插件运行异常分段。
+ * [OUTPUT]: 提供按 ent:* 权限裁剪的活动分段；实测 Token、配额扣额和未知用量独立展示。
  * [POS]: features/activity 的产品观测工作台；V1 只呈现用量、审计和插件运行异常。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -66,6 +66,10 @@ function tokens(value: number) {
   return new Intl.NumberFormat('zh-CN').format(value);
 }
 
+export function measuredTokens(value: number, result: QuotaUsageLedgerItem['result']) {
+  return result === 'SETTLED' ? tokens(value) : '-';
+}
+
 async function loadUsage(cursor?: string) {
   return unwrapData<QuotaUsageLedgerPageData>(await listUsageLedger({ query: { cursor, limit: 100 } }), '用量读取失败');
 }
@@ -91,13 +95,14 @@ const usageColumns: ReadonlyArray<ProductTableColumn<QuotaUsageLedgerItem>> = [
     cell: ({ row }) => <div className="min-w-0"><div className="truncate">{row.original.modelDisplayName}</div><div className="truncate font-mono text-[11px] text-ink-3">{row.original.modelAlias}</div></div>,
     meta: { label: '模型', className: 'w-[190px]', cellClassName: 'w-[190px]' }
   },
-  { accessorKey: 'inputTokens', header: '输入', cell: ({ getValue }) => tokens(Number(getValue())), meta: { label: '输入', className: 'w-[90px]', cellClassName: 'w-[90px]' } },
-  { accessorKey: 'outputTokens', header: '输出', cell: ({ getValue }) => tokens(Number(getValue())), meta: { label: '输出', className: 'w-[90px]', cellClassName: 'w-[90px]' } },
-  { accessorKey: 'cacheTokens', header: '缓存', cell: ({ getValue }) => tokens(Number(getValue())), meta: { label: '缓存', className: 'w-[90px]', cellClassName: 'w-[90px]' } },
-  { accessorKey: 'totalTokens', header: '总计', cell: ({ getValue }) => tokens(Number(getValue())), meta: { label: '总计', className: 'w-[100px]', cellClassName: 'w-[100px]' } },
+  { accessorKey: 'inputTokens', header: '输入', cell: ({ row }) => measuredTokens(row.original.inputTokens, row.original.result), meta: { label: '输入', className: 'w-[90px]', cellClassName: 'w-[90px]' } },
+  { accessorKey: 'outputTokens', header: '输出', cell: ({ row }) => measuredTokens(row.original.outputTokens, row.original.result), meta: { label: '输出', className: 'w-[90px]', cellClassName: 'w-[90px]' } },
+  { accessorKey: 'cacheTokens', header: '缓存', cell: ({ row }) => measuredTokens(row.original.cacheTokens, row.original.result), meta: { label: '缓存', className: 'w-[90px]', cellClassName: 'w-[90px]' } },
+  { accessorKey: 'totalTokens', header: '实测总计', cell: ({ row }) => measuredTokens(row.original.totalTokens, row.original.result), meta: { label: '实测总计', className: 'w-[100px]', cellClassName: 'w-[100px]' } },
+  { accessorKey: 'chargedTokens', header: '配额扣额', cell: ({ getValue }) => tokens(Number(getValue())), meta: { label: '配额扣额', className: 'w-[100px]', cellClassName: 'w-[100px]' } },
   {
     accessorKey: 'result', header: '结算', filterFn: 'equalsString',
-    cell: ({ getValue }) => <StatusPill tone={getValue() === 'SETTLED' ? 'green' : 'orange'}>{getValue() === 'SETTLED' ? '已结算' : '按上限'}</StatusPill>,
+    cell: ({ getValue }) => <StatusPill tone={getValue() === 'SETTLED' ? 'green' : 'orange'}>{getValue() === 'SETTLED' ? '已实测' : '用量未知'}</StatusPill>,
     meta: { label: '结算', className: 'w-[110px]', cellClassName: 'w-[110px]' }
   },
   { id: 'createdAt', accessorFn: (row) => dateTime(row.createdAt), header: '时间', meta: { label: '时间', className: 'w-[170px]', cellClassName: 'w-[170px]' } }
@@ -143,7 +148,7 @@ export function ActivityPage() {
     .filter((item) => item.state === 'FAILED' || item.lastErrorCode !== null) ?? [], [runtimeErrors.data]);
   const summary = usage.data?.pages[0]?.summary;
 
-  const table = section === '用量' ? <ProductDataTable ariaLabel="模型用量" columns={usageColumns} data={usageRows} emptyText="暂无模型用量" error={usage.error} filter={{ columnId: 'result', label: '全部结算状态', options: [{ label: '已结算', value: 'SETTLED' }, { label: '按上限', value: 'CHARGED_MAX' }] }} getRowId={(row) => row.id} hasMore={usage.hasNextPage} isLoading={usage.isLoading} isLoadingMore={usage.isFetchingNextPage} onLoadMore={() => void usage.fetchNextPage()} onRetry={() => void usage.refetch()} searchPlaceholder="搜索成员、模型或 Request ID" toolbarAction={summary ? <span className="text-[11px] text-ink-3">{tokens(summary.requests)} 次 · {tokens(summary.totalTokens)} tokens</span> : undefined} />
+  const table = section === '用量' ? <ProductDataTable ariaLabel="模型用量" columns={usageColumns} data={usageRows} emptyText="暂无模型用量" error={usage.error} filter={{ columnId: 'result', label: '全部结算状态', options: [{ label: '已实测', value: 'SETTLED' }, { label: '用量未知', value: 'CHARGED_MAX' }] }} getRowId={(row) => row.id} hasMore={usage.hasNextPage} isLoading={usage.isLoading} isLoadingMore={usage.isFetchingNextPage} onLoadMore={() => void usage.fetchNextPage()} onRetry={() => void usage.refetch()} searchPlaceholder="搜索成员、模型或 Request ID" toolbarAction={summary ? <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-ink-3"><span>{tokens(summary.requests)} 次</span><span>实测 {tokens(summary.totalTokens)} tokens</span><span>配额扣额 {tokens(summary.chargedTokens)}</span><span>用量未知 {tokens(summary.unmeasuredRequests)} 次</span></div> : undefined} />
     : section === '审计' ? <ProductDataTable ariaLabel="审计事件" columns={auditColumns} data={auditRows} emptyText="暂无审计事件" error={audit.error} filter={{ columnId: 'result', label: '全部结果', options: [{ label: '成功', value: 'SUCCESS' }, { label: '失败', value: 'FAILURE' }] }} getRowId={(row) => row.id} hasMore={audit.hasNextPage} isLoading={audit.isLoading} isLoadingMore={audit.isFetchingNextPage} onLoadMore={() => void audit.fetchNextPage()} onRetry={() => void audit.refetch()} searchPlaceholder="搜索动作、资源、原因或 Request ID" />
       : <ProductDataTable ariaLabel="关键运行异常" columns={runtimeErrorColumns} data={runtimeErrorRows} emptyText="暂无关键运行异常" error={runtimeErrors.error} getRowId={(row) => `${row.deviceId}:${row.packageName}`} hasMore={runtimeErrors.hasNextPage} isLoading={runtimeErrors.isLoading} isLoadingMore={runtimeErrors.isFetchingNextPage} onLoadMore={() => void runtimeErrors.fetchNextPage()} onRetry={() => void runtimeErrors.refetch()} searchPlaceholder="搜索成员、插件或错误码" />;
 

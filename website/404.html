@@ -1,0 +1,25 @@
+<!doctype html>
+<!--
+[INPUT]: 依赖官网共享样式与品牌静态资源。
+[OUTPUT]: 提供未知 URL 的真实 404 页面与返回首页入口。
+[POS]: Cloudflare Pages 错误路由，避免静态官网落入 SPA fallback。
+[PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+-->
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>页面未找到 · OwnDsh</title>
+    <link rel="icon" href="/assets/favicon.png" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="not-found">
+    <main>
+      <img src="/assets/favicon.png" alt="OwnDsh" width="64" height="64" />
+      <h1>404</h1>
+      <p>这里还没有内容，回首页继续探索。</p>
+      <a class="button button-dark" href="/">返回 OwnDsh 首页</a>
+    </main>
+  </body>
+</html>

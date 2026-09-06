@@ -72,10 +72,15 @@ master key 的独立 `API_CURSOR` 用途进行 AES-GCM 认证，并绑定 tenant
   `ent_quota_runtime_config`，后续配置漂移会拒绝启动，不能通过重启改变累计边界。
 - Token 预留在 PostgreSQL 短事务内锁定全部窗口并写 reservation；所有预留、结算、释放和恢复
   统一按 policy/type 加锁。50 并发由数据库约束和行锁防超卖，不依赖 JVM 本地锁。
+- Token 采用预留准入、实测结算：通过预留检查的请求允许完成，实际消耗即使超过窗口额度也全额记账，
+  后续请求在准入时被拒绝。已获准的并发请求仍可完成，因此超额可能来自多笔在途请求；
+  供应商额外输入不一定在本地预估内，此规则不承诺固定的超额比例或金额上限。
 - RPM 与并发使用单个 Redis Lua 对全部适用策略全成全败；并发 lease 为 120 秒，可续租、显式
   释放并由 TTL 回收。Redis 获取失败会释放数据库预留。
 - reservation 固化 requestId 与窗口快照，状态只允许 RESERVED、SENT、RELEASED、SETTLED、
-  CHARGED_MAX。过期 RESERVED 释放，过期 SENT 按估算上限计费，恢复使用 `SKIP LOCKED`。
+  CHARGED_MAX。过期 RESERVED 释放；过期 SENT 优先按已保存 usage 结算，缺失时按预留上限扣额，
+  恢复使用 `SKIP LOCKED`。V29 将实测 `totalTokens` 与配额扣额 `chargedTokens` 分开；
+  CHARGED_MAX 不进入实测总计，页面标记用量未知，历史估算扣额保留但不再伪装成输出 Token。
 - 管理配额与 ledger 分别位于 `/enterprise/admin/v1/quotas`、`/enterprise/admin/v1/usage`；ACTIVE
   `dsh-desktop` owner 通过 `/enterprise/api/v1/usage/me` 查询本人实时计数。ledger 不包含 prompt、
   messages、provider route 或 credential。
@@ -91,11 +96,19 @@ master key 的独立 `API_CURSOR` 用途进行 AES-GCM 认证，并绑定 tenant
   上游请求并用于额度预留；Completions 未指定有效字段时使用 `max_tokens`。
 - 每个请求重新验证 ACTIVE `dsh-desktop` 设备、当前 ACTIVE 用户、grant、model 和 provider；客户端
   bootstrap 快照不是授权事实，上游模型名、base URL、协议和 credential 只来自服务端配置。
-- 网络期间不持有数据库事务。SENT 与 accepted 审计在同一短事务，SETTLED/CHARGED_MAX 与 finished
-  审计在另一短事务；流期间每 30 秒续租，断流、超时、取消或缺失 usage 按预留上限计费。
+- 网络期间不持有数据库事务。发送前在同一短事务提交 SENT 与 accepted 审计；明确 4xx 拒绝
+  （不含 408）释放，响应丢失或发送结果不明时保留未知用量扣额。等待响应头和转发期间每 30 秒续租，
+  续租失败中止上游，首包写入失败及所有退出路径都关闭连接。
+- 等待上游事件时每 5 秒发送 SSE 注释心跳，心跳与正文由同一线程写出，不影响独立续租。
+  网关使用 Servlet 可刷出的响应流，避免 Spring 通用响应流默认屏蔽 `flush()` 导致正文和心跳缓冲。
+  HTTP 异步错误、超时或下游写失败时先关闭上游并停续租，再按已有 usage 幂等结算和释放并发名额；
+  用量观察与结算串行，取消不会覆盖已经确认的实测量。心跳探测依赖网络错误可见性，不保证供应商停止计费。
+- 最终 usage 在转发该事件前写入独立事务快照。断流、超时或取消仍保留已确认用量；终态与 finished
+  审计共同提交，失败可重试或由恢复任务按快照结算。Redis lease 清理失败由 TTL 回收，不回滚账本。
 - JDK HttpClient 按 provider 协议固定请求 `/chat/completions`、`/responses` 或 `/messages`，选择 Bearer
   或 `x-api-key` 认证并禁止重定向。Server 只观察各协议 usage 和原生终态用于可信结算，不改写消息、
-  tools、reasoning、replay 或 SSE；Responses/Anthropic 不要求虚构 `[DONE]`。
+  tools、reasoning 或 replay；正常 SSE 透明转发，错误转换为脱敏的原协议错误事件，确保官方客户端
+  报告失败；Responses/Anthropic 不要求虚构 `[DONE]`。缓存别名择一计数，独立缓存读写分别纳入总量。
 - Harness 的消息、tool、reasoning effort、Responses replay、取消和错误语义由官方
   `@deepseek-ai/dsh-llm-pi-ai` 负责，企业后端不得复制同一协议层。
 - provider credential 仅在建连局部解密并清零临时 byte/char 容器；请求正文、原始上游错误、URL、

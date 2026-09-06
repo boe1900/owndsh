@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖过期 reservation 的原状态与恢复终态。
  * [OUTPUT]: 对外提供 RESERVATION_RECOVERED 审计允许的固定字段。
- * [POS]: quota/application 的恢复审计白名单，证明 RESERVED 释放或 SENT 最大计费。
+ * [POS]: quota/application 的恢复审计白名单，证明未发送释放、已有快照实测结算或未知用量扣额。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.quota.application;
@@ -16,7 +16,8 @@ public record ReservationRecoveredMetadata(
 ) implements AuditMetadata {
     public ReservationRecoveredMetadata {
         boolean valid = previousState == ReservationState.RESERVED && recoveredState == ReservationState.RELEASED
-            || previousState == ReservationState.SENT && recoveredState == ReservationState.CHARGED_MAX;
+            || previousState == ReservationState.SENT
+                && (recoveredState == ReservationState.CHARGED_MAX || recoveredState == ReservationState.SETTLED);
         if (!valid) throw new IllegalArgumentException("reservation 恢复状态非法");
     }
 

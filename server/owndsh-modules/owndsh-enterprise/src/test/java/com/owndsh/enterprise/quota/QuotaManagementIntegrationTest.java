@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖真实 PostgreSQL 17、完整 migrations、显式活动用户 fixture、quota JDBC adapters、事务、审计与并发连接。
- * [OUTPUT]: 验证 TOKEN/RATE 互斥、供应商级速率、策略/CAS/bootstrap、多资源叠加、四窗口、并发防超卖、结算恢复和用量查询。
+ * [OUTPUT]: 验证 TOKEN/RATE 互斥、策略叠加、并发预留、在途超额全额结算后拒绝新请求、恢复和用量查询。
  * [POS]: T09 主要数据库验收；Redis 原子/TTL 由独立真实 Redis 测试覆盖，T10 网关不在此实现。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -220,7 +220,8 @@ class QuotaManagementIntegrationTest {
         );
         assertThat(reservationService.chargeMax(charged)).satisfies(value -> {
             assertThat(value.result()).isEqualTo(UsageResult.CHARGED_MAX);
-            assertThat(value.totalTokens()).isEqualTo(30);
+            assertThat(value.totalTokens()).isZero();
+            assertThat(value.chargedTokens()).isEqualTo(30);
         });
 
         QuotaReservationService.ActiveReservation expiredReserved = reservationService.reserve(command(35, "0FAE"));
@@ -238,8 +239,8 @@ class QuotaManagementIntegrationTest {
         assertThat(reservationStore.find(expiredSent.reservation().id()).orElseThrow().state())
             .isEqualTo(ReservationState.CHARGED_MAX);
         assertThat(ledgerStore.findByReservation(expiredSent.reservation().id())).get()
-            .extracting("requestId", "totalTokens", "result")
-            .containsExactly(expiredSent.reservation().requestId(), 40L, UsageResult.CHARGED_MAX);
+            .extracting("requestId", "totalTokens", "chargedTokens", "result")
+            .containsExactly(expiredSent.reservation().requestId(), 0L, 40L, UsageResult.CHARGED_MAX);
 
         assertThat(usageQuery.myUsage(TENANT, USER_ID)).singleElement().satisfies(value -> {
             assertThat(value.daily().usedTokens()).isEqualTo(87);
@@ -259,6 +260,12 @@ class QuotaManagementIntegrationTest {
             assertThat(value.modelDisplayName()).isEqualTo("T09 Model");
         });
         assertThat(filtered.summary().totalTokens()).isEqualTo(17);
+        var summary = ledgerStore.summarize(TENANT,
+            new UsageLedgerStore.UsageLedgerFilter(USER_ID, null, MODEL_ID, null, null, null));
+        assertThat(summary.totalTokens()).isEqualTo(17);
+        assertThat(summary.outputTokens()).isEqualTo(5);
+        assertThat(summary.chargedTokens()).isEqualTo(87);
+        assertThat(summary.unmeasuredRequests()).isEqualTo(2);
         assertThat(database.jdbc().queryForObject(
             "select count(*) from ent_audit_event where action = 'RESERVATION_RECOVERED'",
             Long.class
@@ -294,6 +301,28 @@ class QuotaManagementIntegrationTest {
             );
         assertThat(organizationPolicy.status()).isEqualTo(QuotaStatus.DISABLED);
         assertThat(memberRate.status()).isEqualTo(QuotaStatus.DISABLED);
+
+        user = policyService.update(mutation, user.id(), user.revision(), tokenSpec(
+            user.name(), QuotaSubjectType.MEMBER, USER_ID, 110L, 2_000_000L
+        ));
+        var last = reservationService.markSent(reservationService.reserve(command(10, "0FB0")));
+        var inFlight = reservationService.markSent(reservationService.reserve(command(10, "0FB1")));
+        var overage = reservationService.settle(last, new UsageTokens(20, 5, 0), "upstream-overage");
+        assertThat(overage.result()).isEqualTo(UsageResult.SETTLED);
+        assertThat(overage.chargedTokens()).isEqualTo(25);
+        assertThatThrownBy(() -> reservationService.reserve(command(1, "0FB2")))
+            .isInstanceOfSatisfying(QuotaExceededException.class,
+                error -> assertThat(error.kind()).isEqualTo(QuotaExceededException.Kind.DAILY));
+        assertThat(reservationService.settle(inFlight, new UsageTokens(25, 5, 0), null).chargedTokens())
+            .isEqualTo(30);
+        assertThat(reservationService.settle(last, new UsageTokens(20, 5, 0), "upstream-overage").id())
+            .isEqualTo(overage.id());
+        assertThat(database.jdbc().queryForMap("""
+            select used_tokens, reserved_tokens from ent_quota_window
+             where policy_id = ? and window_type = 'DAY'
+            """, user.id())).containsEntry("used_tokens", 142L).containsEntry("reserved_tokens", 0L);
+        assertThatThrownBy(() -> reservationService.reserve(command(1, "0FB3")))
+            .isInstanceOf(QuotaExceededException.class);
     }
 
     @Test

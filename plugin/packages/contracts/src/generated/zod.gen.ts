@@ -240,7 +240,11 @@ export const zGatewayAcceptedAuditMetadata = z.object({
 export const zGatewayFinishedAuditMetadata = z.object({
     modelId: z.int().gte(1),
     reservationId: z.uuid(),
-    outcome: z.enum(['SETTLED', 'CHARGED_MAX']),
+    outcome: z.enum([
+        'SETTLED',
+        'CHARGED_MAX',
+        'RELEASED'
+    ]),
     chargedTokens: z.int().gte(0),
     durationMs: z.int().gte(0),
     failure: z.enum([
@@ -356,7 +360,11 @@ export const zQuotaRejectionAuditMetadata = z.object({
 
 export const zReservationRecoveredAuditMetadata = z.object({
     previousState: z.enum(['RESERVED', 'SENT']),
-    recoveredState: z.enum(['RELEASED', 'CHARGED_MAX'])
+    recoveredState: z.enum([
+        'RELEASED',
+        'CHARGED_MAX',
+        'SETTLED'
+    ])
 }).strict();
 
 export const zRevisionChangedAuditMetadata = z.object({
@@ -2075,6 +2083,7 @@ export const zQuotaUsageLedgerItem = z.object({
     outputTokens: z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
     cacheTokens: z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
     totalTokens: z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
+    chargedTokens: z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
     result: zQuotaUsageResult,
     upstreamRequestId: z.string().min(1).max(255).nullable(),
     createdAt: z.iso.datetime({ offset: true })
@@ -2087,7 +2096,9 @@ export const zQuotaUsageSummary = z.object({
     inputTokens: z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
     outputTokens: z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
     cacheTokens: z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
-    totalTokens: z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' })
+    totalTokens: z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
+    chargedTokens: z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
+    unmeasuredRequests: z.coerce.bigint().gte(BigInt(0)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' })
 }).strict();
 
 export const zUsageSummary = zQuotaUsageSummary;

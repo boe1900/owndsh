@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 接收模型请求终态、计费 Token、耗时与封闭失败类别。
+ * [INPUT]: 接收模型计量终态、配额扣额、耗时与独立的传输失败类别。
  * [OUTPUT]: 对外提供 MODEL_REQUEST_FINISHED 审计的显式白名单 metadata。
  * [POS]: model/gateway 到 audit 的 finished 接缝，失败只保留分类而不保留异常或上游正文。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -27,13 +27,14 @@ public record GatewayFinishedMetadata(
         Objects.requireNonNull(reservationId, "reservationId");
         Objects.requireNonNull(outcome, "outcome");
         Objects.requireNonNull(failure, "failure");
-        if ((outcome == Outcome.SETTLED) != (failure == Failure.NONE)) {
-            throw new IllegalArgumentException("settled 与 failure 必须一致");
+        if (outcome != Outcome.SETTLED && failure == Failure.NONE) {
+            throw new IllegalArgumentException("未实测结算必须声明原因");
         }
     }
 
     public enum Outcome {
         SETTLED,
+        RELEASED,
         CHARGED_MAX
     }
 

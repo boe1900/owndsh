@@ -1,0 +1,10 @@
+# [INPUT]: Cloudflare Pages 静态响应头规则。
+# [OUTPUT]: 官网同源资源、安全嵌入与内容类型策略。
+# [POS]: 发布层配置，不承担 OwnDsh 产品服务的认证或代理。
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()

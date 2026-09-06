@@ -1,6 +1,6 @@
 <!--
 [INPUT]: 依赖控制台共享 APNG 品牌图标、公开 GHCR next 镜像、根 Docker Compose、npm next 插件、Harness 官方 profile 与 OwnDsh 当前产品边界。
-[OUTPUT]: 提供品牌展示、开源项目定位、Compose 自托管、管理员初始化、员工插件安装、更新与排障入口。
+[OUTPUT]: 提供品牌展示、开源项目定位、Compose 自托管、管理员初始化、员工插件安装、更新、排障与静态官网发布入口。
 [POS]: 项目公开用户入口；优先让管理员启动 OwnDsh，让员工连接既有 DeepSeek Harness。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
@@ -166,6 +166,7 @@ dsh plugin --profile web add --ignore-scripts owndsh-plugin@next
 
 ## 运维与开发
 
+- [官网与 Cloudflare Pages 部署](website/README.md)
 - [离线发布包、备份、恢复、升级与回滚](deploy/README.md)
 - [插件 workspace 与真实 Harness 验收](plugin/README.md)
 - [V1 产品功能清单](docs/v1-product-feature-catalog.md)

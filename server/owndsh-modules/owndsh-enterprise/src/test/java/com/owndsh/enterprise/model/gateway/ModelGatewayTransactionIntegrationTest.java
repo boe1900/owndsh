@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖真实 PostgreSQL 17/V1-V13、显式活动用户 fixture、quota JDBC 状态机、JdbcAuditSink、事务与 fake DeepSeek SSE。
- * [OUTPUT]: 验证不借用默认账号的 2xx 后 accepted/SENT、建连失败 RELEASED、settled/finished 原子提交及审计失败回滚不伪造协议错误帧。
+ * [INPUT]: 依赖真实 PostgreSQL 17/V29、Jetty/MVC、JDK HTTP/SSE、quota JDBC 状态机与审计。
+ * [OUTPUT]: 验证发送前意图、usage 恢复，以及真实 HTTP 静默上游下的心跳、断开/超时及时清理和唯一结算。
  * [POS]: T10 数据库事务验收，Redis lease 原子/TTL 继续由 T09 真实 Redis 专项测试证明。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -27,29 +27,56 @@ import com.owndsh.enterprise.model.domain.ProviderType;
 import com.owndsh.enterprise.quota.application.EffectiveQuotaResolver;
 import com.owndsh.enterprise.quota.application.QuotaRateLimiter;
 import com.owndsh.enterprise.quota.application.QuotaReservationService;
+import com.owndsh.enterprise.quota.application.QuotaReservationCommand;
 import com.owndsh.enterprise.quota.application.QuotaWindowCalculator;
+import com.owndsh.enterprise.quota.application.UsageTokens;
+import com.owndsh.enterprise.quota.domain.UsageResult;
 import com.owndsh.enterprise.quota.persistence.JdbcQuotaPolicyStore;
 import com.owndsh.enterprise.quota.persistence.JdbcQuotaWindowStore;
 import com.owndsh.enterprise.quota.persistence.JdbcUsageLedgerStore;
 import com.owndsh.enterprise.quota.persistence.JdbcUsageReservationStore;
 import com.owndsh.enterprise.test.PostgresTestDatabase;
+import com.sun.net.httpserver.HttpServer;
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.ee11.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee11.servlet.ServletHolder;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.context.support.AnnotationConfigWebApplicationContext;
+import org.springframework.web.servlet.DispatcherServlet;
+import org.springframework.web.servlet.config.annotation.AsyncSupportConfigurer;
+import org.springframework.web.servlet.config.annotation.EnableWebMvc;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.io.ByteArrayOutputStream;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.Duration;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -76,6 +103,8 @@ class ModelGatewayTransactionIntegrationTest {
     private static JdbcAuditSink jdbcAudit;
     private static SecretCipher cipher;
     private static GatewayRouteResolver.GatewayRoute route;
+    private static boolean failLeaseRelease;
+    private static final Set<UUID> rateLeases = ConcurrentHashMap.newKeySet();
 
     @BeforeAll
     static void setUp() {
@@ -146,7 +175,7 @@ class ModelGatewayTransactionIntegrationTest {
     }
 
     @Test
-    void rollsBackLedgerAndSettlementWhenFinishedAuditFails() throws Exception {
+    void recoversMeasuredUsageAfterTheFinishedTransactionRollsBack() throws Exception {
         String requestId = "req_01ARZ3NDEKTSV4RRFFQ69G5FAW";
         AuditSink failingFinished = event -> {
             if (event.action() == AuditAction.MODEL_REQUEST_FINISHED) throw new IllegalStateException("audit unavailable");
@@ -163,7 +192,7 @@ class ModelGatewayTransactionIntegrationTest {
 
         assertThat(output.toString(StandardCharsets.UTF_8))
             .contains("\"content\":\"ok\"")
-            .doesNotContain("ENT_PLATFORM_UNAVAILABLE")
+            .contains("ENT_PLATFORM_UNAVAILABLE")
             .doesNotContain("enterprise_gateway_error")
             .doesNotContain("[DONE]");
         assertThat(database.jdbc().queryForObject(
@@ -175,6 +204,17 @@ class ModelGatewayTransactionIntegrationTest {
         assertThat(database.jdbc().queryForList(
             "select action from ent_audit_event where request_id = ?", String.class, requestId
         )).containsExactly("MODEL_REQUEST_ACCEPTED");
+        assertThat(database.jdbc().queryForObject(
+            "select usage_input_tokens + usage_output_tokens + usage_cache_tokens from ent_usage_reservation where request_id = ?",
+            Long.class, requestId
+        )).isEqualTo(15);
+        database.jdbc().update("update ent_usage_reservation set expires_at = now() - interval '1 minute' where request_id = ?",
+            requestId);
+        assertThat(quotas.recoverExpired(100)).isOne();
+        assertThat(database.jdbc().queryForMap(
+            "select total_tokens, charged_tokens, result from ent_usage_ledger where request_id = ?", requestId
+        )).containsEntry("total_tokens", 15L).containsEntry("charged_tokens", 15L).containsEntry("result", "SETTLED");
+        assertThat(quotas.recoverExpired(100)).isZero();
     }
 
     @Test
@@ -203,8 +243,205 @@ class ModelGatewayTransactionIntegrationTest {
         )).isZero();
         assertThat(database.jdbc().queryForList(
             "select action from ent_audit_event where request_id = ?", String.class, requestId
-        )).isEmpty();
+        )).containsExactly("MODEL_REQUEST_ACCEPTED", "MODEL_REQUEST_FINISHED");
     }
+
+    @Test
+    void persistsSendIntentBeforeHeadersAndRecordsUnknownUsageOnTimeout() {
+        String requestId = "req_01ARZ3NDEKTSV4RRFFQ69G5FAY";
+        DeepSeekUpstreamClient lostHeaders = (baseUrl, protocol, credential, headers, requestBody, connect, read) -> {
+            assertThat(database.jdbc().queryForObject(
+                "select state from ent_usage_reservation where request_id = ?", String.class, requestId
+            )).isEqualTo("SENT");
+            throw new GatewayException(GatewayException.Kind.UPSTREAM_TIMEOUT);
+        };
+        assertThatThrownBy(() -> service(jdbcAudit, lostHeaders).open(
+            context(requestId), request(), ProviderApiProtocol.OPENAI_COMPLETIONS, Map.of(), UUID.randomUUID()
+        )).isInstanceOf(GatewayException.class);
+        assertThat(database.jdbc().queryForMap(
+            "select total_tokens, output_tokens, result from ent_usage_ledger where request_id = ?", requestId
+        )).containsEntry("total_tokens", 0L).containsEntry("output_tokens", 0L).containsEntry("result", "CHARGED_MAX");
+        assertThat(database.jdbc().queryForObject(
+            "select charged_tokens from ent_usage_ledger where request_id = ?", Long.class, requestId
+        )).isPositive();
+    }
+
+    @Test
+    void redisCleanupFailureCannotRollBackMeasuredSettlement() throws Exception {
+        String requestId = "req_01ARZ3NDEKTSV4RRFFQ69G5FAZ";
+        failLeaseRelease = true;
+        try {
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            service(jdbcAudit).open(context(requestId), request(), ProviderApiProtocol.OPENAI_COMPLETIONS,
+                Map.of(), UUID.randomUUID()).writeTo(output);
+            assertThat(output.toString(StandardCharsets.UTF_8)).contains("[DONE]");
+            assertThat(database.jdbc().queryForMap(
+                "select total_tokens, charged_tokens, result from ent_usage_ledger where request_id = ?", requestId
+            )).containsEntry("total_tokens", 15L).containsEntry("charged_tokens", 15L).containsEntry("result", "SETTLED");
+        } finally {
+            failLeaseRelease = false;
+        }
+    }
+
+    @Test
+    void fallbackSettlementUsesPersistedUsageAndRemainsIdempotent() {
+        var active = quotas.markSent(quotas.reserve(new QuotaReservationCommand(
+            TENANT, USER_ID, DEPARTMENT_ID, DEVICE_ID, MODEL_ID, UUID.randomUUID(),
+            "req_01ARZ3NDEKTSV4RRFFQ69G5FB0", 64, "127.0.0.1", new byte[32]
+        )));
+        quotas.recordUsage(active, new UsageTokens(8, 5, 2), "upstream-snapshot");
+
+        var ledger = quotas.chargeMax(active);
+
+        assertThat(ledger.result()).isEqualTo(UsageResult.SETTLED);
+        assertThat(ledger.totalTokens()).isEqualTo(15);
+        assertThat(ledger.chargedTokens()).isEqualTo(15);
+        assertThat(ledger.upstreamRequestId()).isEqualTo("upstream-snapshot");
+        assertThat(quotas.chargeMax(active).id()).isEqualTo(ledger.id());
+    }
+
+    @Test
+    void retriesFailedTerminalTransactionWithoutLosingUsageOrDoubleCharging() throws Exception {
+        String requestId = "req_01ARZ3NDEKTSV4RRFFQ69G5FB1";
+        AtomicInteger attempts = new AtomicInteger();
+        AuditSink transientFailure = event -> {
+            if (event.action() == AuditAction.MODEL_REQUEST_FINISHED && attempts.incrementAndGet() == 1) {
+                throw new IllegalStateException("temporary audit failure");
+            }
+            jdbcAudit.append(event);
+        };
+        try (var stream = service(transientFailure).open(context(requestId), request(),
+            ProviderApiProtocol.OPENAI_COMPLETIONS, Map.of(), UUID.randomUUID())) {
+            stream.writeTo(new ByteArrayOutputStream());
+        }
+
+        assertThat(attempts).hasValue(2);
+        assertThat(database.jdbc().queryForMap(
+            "select total_tokens, charged_tokens, result from ent_usage_ledger where request_id = ?", requestId
+        )).containsEntry("total_tokens", 15L).containsEntry("charged_tokens", 15L).containsEntry("result", "SETTLED");
+        assertThat(database.jdbc().queryForObject(
+            "select count(*) from ent_audit_event where request_id = ? and action = 'MODEL_REQUEST_FINISHED'",
+            Long.class, requestId
+        )).isOne();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void cleansUpSilentUpstreamOnHttpDisconnectOrAsyncTimeout(boolean timeout) throws Exception {
+        String requestId = timeout ? "req_01ARZ3NDEKTSV4RRFFQ69G5FC0" : "req_01ARZ3NDEKTSV4RRFFQ69G5FC1";
+        CountDownLatch upstreamClosed = new CountDownLatch(1);
+        CountDownLatch settled = new CountDownLatch(1);
+        CountDownLatch releaseUpstream = new CountDownLatch(1);
+        AtomicInteger closeCalls = new AtomicInteger();
+        HttpServer upstreamServer = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        var upstreamExecutor = Executors.newVirtualThreadPerTaskExecutor();
+        upstreamServer.setExecutor(upstreamExecutor);
+        upstreamServer.createContext("/chat/completions", response -> {
+            try (response) {
+                response.getRequestBody().readAllBytes();
+                response.getResponseHeaders().set("Content-Type", "text/event-stream");
+                response.sendResponseHeaders(200, 0);
+                response.getResponseBody().write(("data: {\"choices\":[],\"usage\":{"
+                    + "\"prompt_tokens\":10,\"completion_tokens\":5}}\n\n").getBytes(StandardCharsets.UTF_8));
+                response.getResponseBody().flush();
+                try { releaseUpstream.await(30, TimeUnit.SECONDS); }
+                catch (InterruptedException exception) { Thread.currentThread().interrupt(); }
+            }
+        });
+        upstreamServer.start();
+        DeepSeekUpstreamClient upstream = (url, protocol, credential, headers, body, connectMs, readMs) -> {
+            var exchange = new JdkDeepSeekUpstreamClient(1024).open(
+                URI.create("http://127.0.0.1:" + upstreamServer.getAddress().getPort()), protocol,
+                credential, headers, body, 1000, 60_000);
+            return new DeepSeekUpstreamClient.UpstreamExchange() {
+                public DeepSeekUpstreamClient.SseEvent next() { return exchange.next(); }
+                public String upstreamRequestId() { return exchange.upstreamRequestId(); }
+                public void close() {
+                    closeCalls.incrementAndGet();
+                    exchange.close();
+                    upstreamClosed.countDown();
+                }
+            };
+        };
+        AuditSink audit = event -> {
+            if (event.action() == AuditAction.MODEL_REQUEST_FINISHED) {
+                assertThat(upstreamClosed.getCount()).isZero();
+                org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                    new org.springframework.transaction.support.TransactionSynchronization() {
+                        @Override public void afterCommit() { settled.countDown(); }
+                    });
+            }
+            jdbcAudit.append(event);
+        };
+        ModelGatewayController controller = new ModelGatewayController(
+            request -> context(requestId), new GatewayChatRequestParser(JSON), service(audit, upstream),
+            new EnterpriseGatewayProperties());
+        var web = new AnnotationConfigWebApplicationContext();
+        web.register(StreamingHttpConfiguration.class);
+        web.addBeanFactoryPostProcessor(factory -> {
+            factory.registerSingleton("gatewayController", controller);
+            factory.registerSingleton("asyncConfig", new WebMvcConfigurer() {
+                @Override public void configureAsyncSupport(AsyncSupportConfigurer configurer) {
+                    configurer.setDefaultTimeout(timeout ? 1500L : 60_000L);
+                }
+            });
+        });
+        Server server = new Server(new InetSocketAddress("127.0.0.1", 0));
+        ServletContextHandler handler = new ServletContextHandler();
+        handler.setContextPath("/");
+        ServletHolder servlet = new ServletHolder(new DispatcherServlet(web));
+        servlet.setAsyncSupported(true);
+        handler.addServlet(servlet, "/");
+        server.setHandler(handler);
+        try {
+            server.start();
+            int port = ((ServerConnector) server.getConnectors()[0]).getLocalPort();
+            long cancelledAt;
+            try (Socket socket = new Socket("127.0.0.1", port)) {
+                socket.setSoTimeout(8000);
+                String body = "{\"model\":\"t10-model\",\"stream\":true,\"max_tokens\":64}";
+                socket.getOutputStream().write(("POST /enterprise/gateway/v1/chat/completions HTTP/1.1\r\n"
+                    + "Host: localhost\r\nContent-Type: application/json\r\nIdempotency-Key: " + UUID.randomUUID()
+                    + "\r\nContent-Length: " + body.length() + "\r\n\r\n" + body).getBytes(StandardCharsets.UTF_8));
+                socket.getOutputStream().flush();
+                BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+                assertThat(input.readLine()).contains("200");
+                String line;
+                do { line = input.readLine(); assertThat(line).isNotNull(); } while (!line.startsWith("data:"));
+                assertThat(line).contains("prompt_tokens");
+                if (!timeout) {
+                    do { line = input.readLine(); assertThat(line).isNotNull(); } while (!line.startsWith(": enterprise-gateway"));
+                    socket.setSoLinger(true, 0);
+                }
+                cancelledAt = System.nanoTime();
+                if (timeout) assertThat(settled.await(10, TimeUnit.SECONDS)).isTrue();
+            }
+            assertThat(upstreamClosed.await(10, TimeUnit.SECONDS)).isTrue();
+            assertThat(settled.await(2, TimeUnit.SECONDS)).isTrue();
+            assertThat(Duration.ofNanos(System.nanoTime() - cancelledAt)).isLessThan(Duration.ofSeconds(10));
+            assertThat(closeCalls.get()).isOne();
+            UUID reservationId = database.jdbc().queryForObject(
+                "select id from ent_usage_reservation where request_id = ?", UUID.class, requestId);
+            assertThat(rateLeases).doesNotContain(reservationId);
+            assertThat(database.jdbc().queryForMap(
+                "select result, total_tokens, charged_tokens from ent_usage_ledger where request_id = ?", requestId))
+                .containsEntry("result", "SETTLED").containsEntry("total_tokens", 15L).containsEntry("charged_tokens", 15L);
+            assertThat(database.jdbc().queryForObject("""
+                select count(*) from ent_audit_event
+                 where request_id = ? and action = 'MODEL_REQUEST_FINISHED' and reason_code = 'CLIENT_CANCELLED'
+                """, Long.class, requestId)).isOne();
+        } finally {
+            releaseUpstream.countDown();
+            server.stop();
+            web.close();
+            upstreamServer.stop(0);
+            upstreamExecutor.shutdownNow();
+        }
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    @EnableWebMvc
+    static class StreamingHttpConfiguration { }
 
     private static ModelGatewayService service(AuditSink audit) {
         return service(audit, new SuccessfulUpstream());
@@ -283,10 +520,14 @@ class ModelGatewayTransactionIntegrationTest {
 
     private static final class NoopRateLimiter implements QuotaRateLimiter {
         public RateLease acquire(UUID reservationId, List<RatePolicy> policies, Instant now) {
+            rateLeases.add(reservationId);
             return new RateLease(reservationId, List.of());
         }
         public void renew(RateLease lease, Instant now) { }
-        public void release(RateLease lease) { }
+        public void release(RateLease lease) {
+            if (failLeaseRelease) throw new IllegalStateException("Redis unavailable");
+            rateLeases.remove(lease.reservationId());
+        }
         public Map<Long, RateSnapshot> snapshot(List<Long> policyIds, Instant now) { return Map.of(); }
     }
 }

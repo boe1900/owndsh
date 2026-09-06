@@ -38,7 +38,7 @@ fixtures/quota-policy-success.json: P2-08A 成员/模型集 TOKEN policy 与 nul
 fixtures/quota-policy-list-success.json: T09 quota policy 空 cursor page 成功样例。
 fixtures/quota-window-list-success.json: T09 当前自然日窗口计数与 reset time 成功样例。
 fixtures/quota-usage-me-success.json: P2-08A 员工生效 TOKEN 策略的资源范围与四窗口实时计数样例。
-fixtures/usage-ledger-list-success.json: T09 管理端 prompt-free ledger、cursor 与聚合成功样例。
+fixtures/usage-ledger-list-success.json: prompt-free ledger 与分页样例，分开表达实测 Token、配额扣额和未知用量请求数。
 fixtures/gateway-request-success.json: T10/T11 default sentinel 与官方 adapter 原生字段透明传输成功请求样例。
 fixtures/plugin-version-success.json: T13 VALIDATED 插件版本、签名和 compatibility 成功响应样例。
 fixtures/plugin-assignments-success.json: T13 USER/DEPT/ALL 裁决后的 runtime 插件分配成功响应样例。

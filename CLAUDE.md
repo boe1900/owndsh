@@ -6,6 +6,7 @@ Java 21 + Spring Boot 4.1 + Sa-Token + PostgreSQL + React 19 + TypeScript + Deep
 .github/ - GitHub Actions 自动验证并发布 GHCR 前后端测试镜像、可下载插件包与 npm next 插件
 server/ - OwnDsh 后端锁定源码，T03 起承载 owndsh-enterprise 模块
 console/ - 第二阶段独立 Vite/TanStack 产品控制台，使用静态路由与 OpenAPI Fetch client，不依赖旧 Umi 管理端
+website/ - 独立零依赖静态官网，复用品牌与真实产品截图，以 Node 白名单构建发布到 Cloudflare Pages，不依赖控制台或后端运行时
 contracts/ - OpenAPI 3.1 协议真源、跨语言 schema 和 fixture 验收
 deploy/ - Linux amd64 单机 release、HTTP Compose、一次性初始化与备份/恢复/升级/回滚交付；TLS 由部署方终止
 docs/ - 产品预研、MVP 实施规格与逐任务验收证据
@@ -27,6 +28,8 @@ docker-compose.yml - 根目录零配置 Compose 入口，复用 deploy/compose �
 T00 建立上游源码与插件工作区，T01 验证官方插件扩展面，T02 建立跨端协议真源，T03 建立 PostgreSQL/密码学/revision/审计基础，T04 建立身份适配器与治理 API，T05 建立 PKCE/Sa-Token/设备生命周期，T06 建立 Harness 内存 Access Token、Host Refresh Grant、installation、bootstrap 刷新与同源控制面，T07 通过官方 Settings/sidebar/shell.overlay slot 交付 Server 配置与登录门禁，T08 建立 provider/model/grant 管理与 bootstrap 模型目录，T09 建立叠加配额、PostgreSQL reservation、Redis lease、结算恢复和用量查询，T10 建立请求级模型授权、三协议透明 upstream、计费终态和双审计，T11 直接挂载官方 rc.2 `dsh-llm-pi-ai`，建立 reasoningEfforts 动态目录、default sentinel、三协议模型流和本机认证代理，T12 建立 enterprise-admin PKCE、动态权限路由及身份/设备/模型/授权/配额/用量管理控制台，T13 建立受控 tgz 验包、JCS/Ed25519 签名、CAS 制品、发布/分配、逐请求下载授权与设备库存服务端，T14 通过官方 rc.2 subprocess/inventory 与 Desktop `desktopPnpm` 建立受管插件下载验签、CLI 调和、重启确认、库存与回滚客户端，T15 建立管理端插件纵向工作台与桌面员工插件状态 tab，T16 建立官方 format v0 精确 JSONL/hash、AES-GCM、并发远端副本、正文权限、tombstone 与 retention 服务端，T17 建立基于官方 rc.2 Session/Persistence 的 dirty queue、确认游标、断点退避、远端列表与新 ID 耐久恢复客户端。当前开发与发布验证基线为 DSH Desktop 2.0.3，其 Harness gitlink 为 0.1.1-rc.2；该版本不是插件运行时硬锁，发布包按 Harness 自身的 caret peer 规则接受兼容版本并从官方运行时身份读取实际版本。同级 `dsh-desktop/` 与 `deepseek-harness/` 都是只读开发依赖，普通 `dsh web` 仍是兼容运行面。
 
 模型协议法则：`@deepseek-ai/dsh-llm-pi-ai` 是客户端唯一协议实现，拥有消息、tools、reasoning、replay、SSE、通用重试与 provider 兼容语义；企业层只负责认证代理、授权、配额、审计、受管模型 ID 覆盖和上游密钥注入，不增加 provider 特定重试。后续模型能力优先升级锁定 Harness/官方依赖，禁止在企业代码中复制协议 adapter 或引入第二套 AI 抽象。
+
+转发计量法则：V29 将实测 Token 与配额扣额分开，未知 usage 不进入实测总计。发送前提交 SENT/accepted 意图，明确 4xx 拒绝（不含 408）释放，响应丢失按未知用量记录；最终 usage 先写独立快照，终态事务失败后恢复任务按该快照结算。租约覆盖等待响应头与整个流，静默上游期间串行发送 SSE 心跳，取消先关闭上游再幂等结算。Token 允许已获准请求超额全额结算，额度耗尽后拒绝新请求；并发在途请求均可完成，不承诺固定超额上限。
 
 T18 在 T16/T17 Session 纵向边界上交付管理 metadata/正文/删除页和桌面同步/恢复/删除 tab，并以耐久 `DELETED` 游标阻止 Harness 重启后自动重传。T19 建立封闭 action metadata 白名单、tenant 隔离审计查询、365 天有界 retention、用户治理事务接缝和 heartbeat 防洪。T20 建立默认同源 CORS、无已知 JWT secret、分层请求体上限、graceful drain、未知故障日志隔离、CI 秘密扫描和 PostgreSQL/Redis/artifact/key 恢复演练。T21 建立锁定 Linux amd64 release、HTTP Compose、一次性管理员、secret、健康检查、备份恢复、升级与仅应用回滚；TLS 交给部署方现有网关。T22 退役跨模块自动总编排，改由单后端、单 Harness 的无时限本地环境逐功能人工验收；T23 在 T22 人工确认完成前不启动。
 

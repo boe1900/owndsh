@@ -32,5 +32,6 @@ V25__separate_token_and_rate_policies.sql: 为共享策略持久化边界增加 
 V26__provider_rate_limits.sql: 扩展资源范围为组织级供应商 RATE，拒绝成员级或 Token 供应商策略。
 V27__one_rate_limit_per_provider.sql: 以局部唯一索引保证每个供应商至多一条共享 RATE 容量策略，支持提供商表单单值投影。
 V28__refresh_sessions.sql: 建立只存 SHA-256 摘要、绑定用户/client/installation、绝对 30 天且保留轮换重放证据的 Refresh Session family。
+V29__gateway_usage_accounting.sql: 保留历史配额扣额、清除估算伪装的实测分类，并给 reservation 增加最终 usage 快照用于结算恢复。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

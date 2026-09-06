@@ -137,7 +137,7 @@ GatewayFinishedAuditMetadata:
   properties:
     modelId: {type: integer, minimum: 1}
     reservationId: {type: string, format: uuid}
-    outcome: {type: string, enum: [SETTLED, CHARGED_MAX]}
+    outcome: {type: string, enum: [SETTLED, CHARGED_MAX, RELEASED]}
     chargedTokens: {type: integer, minimum: 0}
     durationMs: {type: integer, minimum: 0}
     failure:
@@ -166,7 +166,7 @@ ReservationRecoveredAuditMetadata:
   required: [previousState, recoveredState]
   properties:
     previousState: {type: string, enum: [RESERVED, SENT]}
-    recoveredState: {type: string, enum: [RELEASED, CHARGED_MAX]}
+    recoveredState: {type: string, enum: [RELEASED, CHARGED_MAX, SETTLED]}
 PluginAuditMetadata:
   type: object
   additionalProperties: false

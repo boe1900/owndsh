@@ -69005,6 +69005,7 @@
                               "outputTokens",
                               "cacheTokens",
                               "totalTokens",
+                              "chargedTokens",
                               "result",
                               "upstreamRequestId",
                               "createdAt"
@@ -69100,6 +69101,12 @@
                                 "format": "int64",
                                 "minimum": 0
                               },
+                              "chargedTokens": {
+                                "description": "配额实际扣额；CHARGED_MAX 时为估算量，实测 Token 分类均为零且表示未知。",
+                                "type": "integer",
+                                "format": "int64",
+                                "minimum": 0
+                              },
                               "result": {
                                 "type": "string",
                                 "enum": [
@@ -69168,7 +69175,9 @@
                             "inputTokens",
                             "outputTokens",
                             "cacheTokens",
-                            "totalTokens"
+                            "totalTokens",
+                            "chargedTokens",
+                            "unmeasuredRequests"
                           ],
                           "properties": {
                             "requests": {
@@ -69192,6 +69201,18 @@
                               "minimum": 0
                             },
                             "totalTokens": {
+                              "type": "integer",
+                              "format": "int64",
+                              "minimum": 0
+                            },
+                            "chargedTokens": {
+                              "description": "全部请求的配额扣额，不等同于实测 Token 总数。",
+                              "type": "integer",
+                              "format": "int64",
+                              "minimum": 0
+                            },
+                            "unmeasuredRequests": {
+                              "description": "没有获得最终上游 usage 的请求数，不包含在实测 Token 总数中。",
                               "type": "integer",
                               "format": "int64",
                               "minimum": 0
@@ -92088,7 +92109,8 @@
                                         "type": "string",
                                         "enum": [
                                           "SETTLED",
-                                          "CHARGED_MAX"
+                                          "CHARGED_MAX",
+                                          "RELEASED"
                                         ]
                                       },
                                       "chargedTokens": {
@@ -92195,7 +92217,8 @@
                                         "type": "string",
                                         "enum": [
                                           "RELEASED",
-                                          "CHARGED_MAX"
+                                          "CHARGED_MAX",
+                                          "SETTLED"
                                         ]
                                       }
                                     }
@@ -109817,7 +109840,8 @@
                 "type": "string",
                 "enum": [
                   "SETTLED",
-                  "CHARGED_MAX"
+                  "CHARGED_MAX",
+                  "RELEASED"
                 ]
               },
               "chargedTokens": {
@@ -109924,7 +109948,8 @@
                 "type": "string",
                 "enum": [
                   "RELEASED",
-                  "CHARGED_MAX"
+                  "CHARGED_MAX",
+                  "SETTLED"
                 ]
               }
             }
@@ -110572,7 +110597,8 @@
                     "type": "string",
                     "enum": [
                       "SETTLED",
-                      "CHARGED_MAX"
+                      "CHARGED_MAX",
+                      "RELEASED"
                     ]
                   },
                   "chargedTokens": {
@@ -110679,7 +110705,8 @@
                     "type": "string",
                     "enum": [
                       "RELEASED",
-                      "CHARGED_MAX"
+                      "CHARGED_MAX",
+                      "SETTLED"
                     ]
                   }
                 }
@@ -111340,7 +111367,8 @@
                           "type": "string",
                           "enum": [
                             "SETTLED",
-                            "CHARGED_MAX"
+                            "CHARGED_MAX",
+                            "RELEASED"
                           ]
                         },
                         "chargedTokens": {
@@ -111447,7 +111475,8 @@
                           "type": "string",
                           "enum": [
                             "RELEASED",
-                            "CHARGED_MAX"
+                            "CHARGED_MAX",
+                            "SETTLED"
                           ]
                         }
                       }
@@ -112153,7 +112182,8 @@
                               "type": "string",
                               "enum": [
                                 "SETTLED",
-                                "CHARGED_MAX"
+                                "CHARGED_MAX",
+                                "RELEASED"
                               ]
                             },
                             "chargedTokens": {
@@ -112260,7 +112290,8 @@
                               "type": "string",
                               "enum": [
                                 "RELEASED",
-                                "CHARGED_MAX"
+                                "CHARGED_MAX",
+                                "SETTLED"
                               ]
                             }
                           }
@@ -114520,6 +114551,7 @@
           "outputTokens",
           "cacheTokens",
           "totalTokens",
+          "chargedTokens",
           "result",
           "upstreamRequestId",
           "createdAt"
@@ -114615,6 +114647,12 @@
             "format": "int64",
             "minimum": 0
           },
+          "chargedTokens": {
+            "description": "配额实际扣额；CHARGED_MAX 时为估算量，实测 Token 分类均为零且表示未知。",
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
           "result": {
             "type": "string",
             "enum": [
@@ -114648,7 +114686,9 @@
           "inputTokens",
           "outputTokens",
           "cacheTokens",
-          "totalTokens"
+          "totalTokens",
+          "chargedTokens",
+          "unmeasuredRequests"
         ],
         "properties": {
           "requests": {
@@ -114672,6 +114712,18 @@
             "minimum": 0
           },
           "totalTokens": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "chargedTokens": {
+            "description": "全部请求的配额扣额，不等同于实测 Token 总数。",
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "unmeasuredRequests": {
+            "description": "没有获得最终上游 usage 的请求数，不包含在实测 Token 总数中。",
             "type": "integer",
             "format": "int64",
             "minimum": 0
@@ -114708,6 +114760,7 @@
                 "outputTokens",
                 "cacheTokens",
                 "totalTokens",
+                "chargedTokens",
                 "result",
                 "upstreamRequestId",
                 "createdAt"
@@ -114803,6 +114856,12 @@
                   "format": "int64",
                   "minimum": 0
                 },
+                "chargedTokens": {
+                  "description": "配额实际扣额；CHARGED_MAX 时为估算量，实测 Token 分类均为零且表示未知。",
+                  "type": "integer",
+                  "format": "int64",
+                  "minimum": 0
+                },
                 "result": {
                   "type": "string",
                   "enum": [
@@ -114871,7 +114930,9 @@
               "inputTokens",
               "outputTokens",
               "cacheTokens",
-              "totalTokens"
+              "totalTokens",
+              "chargedTokens",
+              "unmeasuredRequests"
             ],
             "properties": {
               "requests": {
@@ -114895,6 +114956,18 @@
                 "minimum": 0
               },
               "totalTokens": {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 0
+              },
+              "chargedTokens": {
+                "description": "全部请求的配额扣额，不等同于实测 Token 总数。",
+                "type": "integer",
+                "format": "int64",
+                "minimum": 0
+              },
+              "unmeasuredRequests": {
+                "description": "没有获得最终上游 usage 的请求数，不包含在实测 Token 总数中。",
                 "type": "integer",
                 "format": "int64",
                 "minimum": 0
@@ -114941,6 +115014,7 @@
                     "outputTokens",
                     "cacheTokens",
                     "totalTokens",
+                    "chargedTokens",
                     "result",
                     "upstreamRequestId",
                     "createdAt"
@@ -115036,6 +115110,12 @@
                       "format": "int64",
                       "minimum": 0
                     },
+                    "chargedTokens": {
+                      "description": "配额实际扣额；CHARGED_MAX 时为估算量，实测 Token 分类均为零且表示未知。",
+                      "type": "integer",
+                      "format": "int64",
+                      "minimum": 0
+                    },
                     "result": {
                       "type": "string",
                       "enum": [
@@ -115104,7 +115184,9 @@
                   "inputTokens",
                   "outputTokens",
                   "cacheTokens",
-                  "totalTokens"
+                  "totalTokens",
+                  "chargedTokens",
+                  "unmeasuredRequests"
                 ],
                 "properties": {
                   "requests": {
@@ -115128,6 +115210,18 @@
                     "minimum": 0
                   },
                   "totalTokens": {
+                    "type": "integer",
+                    "format": "int64",
+                    "minimum": 0
+                  },
+                  "chargedTokens": {
+                    "description": "全部请求的配额扣额，不等同于实测 Token 总数。",
+                    "type": "integer",
+                    "format": "int64",
+                    "minimum": 0
+                  },
+                  "unmeasuredRequests": {
+                    "description": "没有获得最终上游 usage 的请求数，不包含在实测 Token 总数中。",
                     "type": "integer",
                     "format": "int64",
                     "minimum": 0

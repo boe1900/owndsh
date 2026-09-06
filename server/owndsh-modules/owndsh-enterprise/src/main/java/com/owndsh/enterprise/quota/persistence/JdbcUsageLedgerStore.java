@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 JdbcOperations 与 ent_usage_ledger/sys_user/sys_dept/ent_managed_model 的索引和外键。
- * [OUTPUT]: 对外提供唯一 ledger 插入、显示语义 join、动态参数化筛选、keyset 分页与 Token 聚合。
+ * [OUTPUT]: 对外提供唯一 ledger 插入、显示语义 join、keyset 分页与实测 Token/配额扣额/未知请求独立聚合。
  * [POS]: quota/persistence 的 prompt-free 用量 adapter，显示 join 和筛选字段白名单固定且不拼接用户输入。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -24,7 +24,7 @@ public final class JdbcUsageLedgerStore implements UsageLedgerStore {
         rs.getLong("id"), rs.getString("tenant_id"), rs.getObject("reservation_id", UUID.class),
         rs.getLong("user_id"), rs.getLong("model_id"), rs.getString("request_id"),
         rs.getLong("input_tokens"), rs.getLong("output_tokens"), rs.getLong("cache_tokens"),
-        rs.getLong("total_tokens"), UsageResult.valueOf(rs.getString("result")),
+        rs.getLong("total_tokens"), rs.getLong("charged_tokens"), UsageResult.valueOf(rs.getString("result")),
         rs.getString("upstream_request_id"), rs.getTimestamp("created_at").toInstant()
     );
     private static final RowMapper<UsageLedgerMetadata> METADATA_MAPPER = (rs, rowNum) ->
@@ -61,13 +61,13 @@ public final class JdbcUsageLedgerStore implements UsageLedgerStore {
         jdbc.update("""
             insert into ent_usage_ledger (
                 id, tenant_id, reservation_id, user_id, model_id, request_id,
-                input_tokens, output_tokens, cache_tokens, total_tokens, result,
+                input_tokens, output_tokens, cache_tokens, total_tokens, charged_tokens, result,
                 upstream_request_id, created_at
-            ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             ledger.id(), ledger.tenantId(), ledger.reservationId(), ledger.userId(), ledger.modelId(),
             ledger.requestId(), ledger.inputTokens(), ledger.outputTokens(), ledger.cacheTokens(),
-            ledger.totalTokens(), ledger.result().name(), ledger.upstreamRequestId(),
+            ledger.totalTokens(), ledger.chargedTokens(), ledger.result().name(), ledger.upstreamRequestId(),
             Timestamp.from(ledger.createdAt())
         );
     }
@@ -95,14 +95,17 @@ public final class JdbcUsageLedgerStore implements UsageLedgerStore {
                    coalesce(sum(l.input_tokens), 0) as input_tokens,
                    coalesce(sum(l.output_tokens), 0) as output_tokens,
                    coalesce(sum(l.cache_tokens), 0) as cache_tokens,
-                   coalesce(sum(l.total_tokens), 0) as total_tokens
+                   coalesce(sum(l.total_tokens), 0) as total_tokens,
+                   coalesce(sum(l.charged_tokens), 0) as charged_tokens,
+                   count(*) filter (where l.result = 'CHARGED_MAX') as unmeasured_requests
               from ent_usage_ledger l
             """ + query.where;
         return Objects.requireNonNull(jdbc.queryForObject(
             sql,
             (rs, rowNum) -> new UsageTotals(
                 rs.getLong("requests"), rs.getLong("input_tokens"), rs.getLong("output_tokens"),
-                rs.getLong("cache_tokens"), rs.getLong("total_tokens")
+                rs.getLong("cache_tokens"), rs.getLong("total_tokens"),
+                rs.getLong("charged_tokens"), rs.getLong("unmeasured_requests")
             ),
             query.arguments.toArray()
         ));

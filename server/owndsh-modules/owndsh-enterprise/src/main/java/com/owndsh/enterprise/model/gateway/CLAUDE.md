@@ -13,8 +13,9 @@ DeepSeekUpstreamClient.java: 三种 Harness wire API 的 SSE 建连端口与脱�
 JdkDeepSeekUpstreamClient.java: JDK HttpClient 无重定向实现，按协议选择 endpoint/auth、限制建连/event 读取，以安全 code/type 区分 429 瞬时限流与硬额度并保留合法 Retry-After，重试策略由 Harness 持有。
 GatewayAcceptedMetadata.java: MODEL_REQUEST_ACCEPTED 审计的 model/reservation/estimate 白名单。
 GatewayFinishedMetadata.java: MODEL_REQUEST_FINISHED 审计的终态、usage、耗时与稳定失败码白名单。
-ModelGatewayService.java: 在预留前裁决模型输出上限，缺省采用模型配置并让上游转发与额度估算共用该值；编排三协议 relay、usage/终态、故障日志与续租，2xx SSE 后才提交 SENT/accepted，建连失败释放，流内失败保留 CHARGED_MAX 且不伪造协议错误帧。
-ModelGatewayController.java: 三个 Harness 原生 wire 路径的限量读取、协议选择、UUID v4 幂等键与建连前 JSON/建连后 SSE 错误边界。
+GatewayUsageInspector.java: 三协议最终 usage/终态观察器，缓存别名优先取值、读写量独立相加，最终 usage 可在结束帧抵达前保存。
+ModelGatewayService.java: 统一输出上限、发送前意图与全程续租；静默上游期间每 5 秒由正文写线程发送 SSE 心跳，取消先停上游再幂等结算，usage 快照与取消串行且传输失败不抹去实测量。
+ModelGatewayController.java: 三协议限量读取与 JSON/SSE 边界；使用 Servlet 可刷出响应流避免 Spring 非 flush 包装阻塞 SSE，异步错误/超时/完成统一关闭并幂等结算。
 EnterpriseModelGatewayConfiguration.java: 网关 composition root，连接模型、设备、配额、crypto、audit 与事务端口。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

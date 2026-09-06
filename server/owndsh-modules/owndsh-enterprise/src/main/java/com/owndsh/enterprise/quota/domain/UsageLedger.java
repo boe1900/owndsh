@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖终态 reservation、服务端 requestId 与上游 usage 分类计数。
- * [OUTPUT]: 对外提供 prompt-free、总数自校验的 UsageLedger。
+ * [OUTPUT]: 对外提供 prompt-free、实测分类与配额扣额分离的 UsageLedger；未知 usage 的分类数为零，由 result 明示未知。
  * [POS]: quota/domain 的不可重复计费事实，不包含 messages、provider route 或 credential。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -21,6 +21,7 @@ public record UsageLedger(
     long outputTokens,
     long cacheTokens,
     long totalTokens,
+    long chargedTokens,
     UsageResult result,
     String upstreamRequestId,
     Instant createdAt
@@ -35,6 +36,10 @@ public record UsageLedger(
         if (inputTokens < 0 || outputTokens < 0 || cacheTokens < 0
             || totalTokens != Math.addExact(Math.addExact(inputTokens, outputTokens), cacheTokens)) {
             throw new IllegalArgumentException("ledger Token 分类与总数不一致");
+        }
+        if (chargedTokens < 0 || (result == UsageResult.SETTLED && chargedTokens != totalTokens)
+            || (result == UsageResult.CHARGED_MAX && totalTokens != 0)) {
+            throw new IllegalArgumentException("ledger 实测用量与配额扣额不一致");
         }
     }
 }

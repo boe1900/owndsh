@@ -593,7 +593,7 @@ export type GatewayAcceptedAuditMetadata = {
 export type GatewayFinishedAuditMetadata = {
     modelId: number;
     reservationId: string;
-    outcome: 'SETTLED' | 'CHARGED_MAX';
+    outcome: 'SETTLED' | 'CHARGED_MAX' | 'RELEASED';
     chargedTokens: number;
     durationMs: number;
     failure: 'NONE' | 'USAGE_MISSING' | 'CLIENT_CANCELLED' | 'UPSTREAM_AUTH_FAILED' | 'UPSTREAM_INVALID_RESPONSE' | 'UPSTREAM_UNAVAILABLE' | 'UPSTREAM_TIMEOUT' | 'PLATFORM_FAILURE';
@@ -667,7 +667,7 @@ export type QuotaRejectionAuditMetadata = {
 
 export type ReservationRecoveredAuditMetadata = {
     previousState: 'RESERVED' | 'SENT';
-    recoveredState: 'RELEASED' | 'CHARGED_MAX';
+    recoveredState: 'RELEASED' | 'CHARGED_MAX' | 'SETTLED';
 };
 
 export type RevisionChangedAuditMetadata = {
@@ -1888,6 +1888,10 @@ export type QuotaUsageLedgerItem = {
     outputTokens: number;
     cacheTokens: number;
     totalTokens: number;
+    /**
+     * 配额实际扣额；CHARGED_MAX 时为估算量，实测 Token 分类均为零且表示未知。
+     */
+    chargedTokens: number;
     result: QuotaUsageResult;
     upstreamRequestId: string | null;
     createdAt: string;
@@ -1912,6 +1916,14 @@ export type QuotaUsageSummary = {
     outputTokens: number;
     cacheTokens: number;
     totalTokens: number;
+    /**
+     * 全部请求的配额扣额，不等同于实测 Token 总数。
+     */
+    chargedTokens: number;
+    /**
+     * 没有获得最终上游 usage 的请求数，不包含在实测 Token 总数中。
+     */
+    unmeasuredRequests: number;
 };
 
 export type SessionAdminSession = {

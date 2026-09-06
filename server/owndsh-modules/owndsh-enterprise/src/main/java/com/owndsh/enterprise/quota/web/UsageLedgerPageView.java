@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 聚合 ledger 视图、统一 cursor page 与全筛选 UsageTotals。
- * [OUTPUT]: 对外提供 OpenAPI UsageLedgerPageData。
+ * [OUTPUT]: 提供 OpenAPI UsageLedgerPageData，汇总实测用量、配额扣额与未知用量请求数。
  * [POS]: quota/web 的管理员列表 data 边界，分页 items 与整体 aggregate 语义分离。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -21,11 +21,14 @@ public record UsageLedgerPageView(
         long inputTokens,
         long outputTokens,
         long cacheTokens,
-        long totalTokens
+        long totalTokens,
+        long chargedTokens,
+        long unmeasuredRequests
     ) {
         static Summary from(UsageLedgerStore.UsageTotals value) {
             return new Summary(
-                value.requests(), value.inputTokens(), value.outputTokens(), value.cacheTokens(), value.totalTokens()
+                value.requests(), value.inputTokens(), value.outputTokens(), value.cacheTokens(), value.totalTokens(),
+                value.chargedTokens(), value.unmeasuredRequests()
             );
         }
     }
