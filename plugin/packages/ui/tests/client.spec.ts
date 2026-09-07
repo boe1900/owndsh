@@ -13,6 +13,8 @@ import {
   EnterpriseSettingsSection,
 } from '../src/client.js'
 
+vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({ Modal: vi.fn(), Button: vi.fn() }))
+
 describe('enterprise Client plugin', () => {
   it('registers the account section, footer status, and access gate through official slots', () => {
     const registrations: { options: Record<string, unknown>; component: unknown }[] = []

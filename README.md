@@ -1,6 +1,6 @@
 <!--
 [INPUT]: 依赖控制台共享 APNG 品牌图标、公开 GHCR next 镜像、根 Docker Compose、npm next 插件、Harness 官方 profile 与 OwnDsh 当前产品边界。
-[OUTPUT]: 提供品牌展示、开源项目定位、Compose 自托管、管理员初始化、员工插件安装、更新、排障与静态官网发布入口。
+[OUTPUT]: 提供品牌展示、Compose 自托管、管理员初始化、员工插件和 Pake 客户端、更新、排障与静态官网发布入口。
 [POS]: 项目公开用户入口；优先让管理员启动 OwnDsh，让员工连接既有 DeepSeek Harness。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
@@ -18,7 +18,7 @@
 
 OwnDsh 是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的自托管团队控制面。管理员统一管理身份、模型、API Key、访问权限、配额、插件、设备和审计；员工继续在自己的 DSH Desktop 或 Harness Web 中工作。
 
-OwnDsh 不 fork 官方 Web/Desktop UI，不接管员工工作区，也不远程执行员工工具。员工侧只安装标准 Harness 插件 `owndsh-plugin`。
+OwnDsh 不 fork 官方 Harness Web UI，不接管员工工作区，也不远程执行员工工具。员工可以安装标准 Harness 插件 `owndsh-plugin`，或使用预装插件和运行环境的 [OwnDsh macOS 客户端](desktop/README.md)。
 
 > 当前处于预发布阶段。Docker 镜像只发布 `next`，npm 插件只发布 `next`，不会更新 `latest`。
 
@@ -93,6 +93,8 @@ docker compose ps
 员工设备不会得到供应商 API Key；每次模型请求都由 OwnDsh 网关重新校验身份、授权和额度。
 
 ## 安装员工插件
+
+使用本仓库构建的 OwnDsh macOS 客户端时，直接打开应用并填写 Server 地址即可，无需另装 Node、pnpm 或插件。下面的命令用于已有 Harness/社区 Desktop 的设备。
 
 先确保 `pnpm` 是 PATH 中可直接执行的命令。Harness 当前基线使用 pnpm `11.7.0`：
 

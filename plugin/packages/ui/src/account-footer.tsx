@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 React、Lucide、account-view 的 OwnDsh 品牌/确认登出动作与 EnterpriseAccountStore 的脱敏账号状态
+ * [INPUT]: 依赖 React、Lucide、account-view 的 OwnDsh 品牌/页面登出确认组件与 EnterpriseAccountStore 的脱敏账号状态
  * [OUTPUT]: 对外提供 EnterpriseFooterAction，以宿主同高的鲸鱼身份行和灰色按钮确认退出登录
  * [POS]: dsh-ui 的 sidebar 账户入口，仅使用官方 footer slot，不读取或劫持宿主 Settings 私有状态
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -8,7 +8,7 @@
 import { LogOut } from 'lucide-react'
 import { useSyncExternalStore, type CSSProperties, type ReactNode } from 'react'
 import { EnterpriseAccountStore } from './account-store.js'
-import { OWNDSH_ICON, requestEnterpriseLogout } from './account-view.js'
+import { OWNDSH_ICON, LogoutConfirmation } from './account-view.js'
 
 export interface EnterpriseFooterActionProps {
   readonly store: EnterpriseAccountStore
@@ -35,11 +35,10 @@ export function EnterpriseFooterAction(props: EnterpriseFooterActionProps): Reac
   const user = snapshot.bootstrap?.user ?? status?.user
   const name = user?.displayName || user?.username || 'OwnDsh'
   const connected = status?.state === 'READY' || status?.state === 'REFRESHING'
-  const logout = (): void => { requestEnterpriseLogout(props.store) }
   const disabled = !connected || snapshot.busy !== undefined
   const avatar = (size: number): ReactNode => <img alt="" aria-hidden src={OWNDSH_ICON} style={{ borderRadius: 4, flex: 'none', height: size, width: size }} />
 
-  if (!props.wide) return <button
+  return <LogoutConfirmation store={props.store} disabled={disabled}>{logout => !props.wide ? <button
     aria-label={`${name}，退出登录`}
     data-enterprise-state={status?.state ?? snapshot.phase}
     disabled={disabled}
@@ -49,9 +48,7 @@ export function EnterpriseFooterAction(props: EnterpriseFooterActionProps): Reac
     style={{ ...control, borderRadius: '50%', height: 36, justifyContent: 'center', margin: '8px 0 10px', padding: 0, width: 36 }}
     title="退出登录"
     type="button"
-  >{avatar(18)}</button>
-
-  return <div
+  >{avatar(18)}</button> : <div
     data-enterprise-state={status?.state ?? snapshot.phase}
     onMouseEnter={event => { event.currentTarget.style.background = 'var(--dsw-alias-interactive-bg-hover, #eef0f3)' }}
     onMouseLeave={event => { event.currentTarget.style.background = 'transparent' }}
@@ -69,5 +66,5 @@ export function EnterpriseFooterAction(props: EnterpriseFooterActionProps): Reac
     >
       <LogOut aria-hidden size={16} />
     </button>
-  </div>
+  </div>}</LogoutConfirmation>
 }

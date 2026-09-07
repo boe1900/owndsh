@@ -22,19 +22,18 @@ describe('enterprise bundle', () => {
     expect(manifest.dsh.bundle.patch).toBe('./cordis.patch.yml')
     expect(manifest.dsh.client).toMatchObject({ platform: 'web' })
     expect(manifest.dsh.client.inject).toEqual([
-      '@deepseek-ai/dsh-client-runtime',
       '@deepseek-ai/dsh-client-ui-layout',
       '@deepseek-ai/dsh-client-ui-sidebar',
       '@deepseek-ai/dsh-client-ui-settings-general',
     ])
     expect(manifest.dependencies).toBeUndefined()
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-llm']).toBe('^0.1.1-rc.2')
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-credentials']).toBe('^0.1.1-rc.2')
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-llm-pi-ai']).toBe('^0.1.1-rc.2')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-llm']).toBe('^0.1.1-rc.2 || ^0.1.2-rc.1')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-credentials']).toBe('^0.1.1-rc.2 || ^0.1.2-rc.1')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-llm-pi-ai']).toBe('^0.1.1-rc.2 || ^0.1.2-rc.1')
     expect(manifest.peerDependencies['@deepseek-ai/dsh-session']).toBeUndefined()
     expect(manifest.peerDependencies['@deepseek-ai/dsh-session-persistence']).toBeUndefined()
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-subprocess']).toBe('^0.1.1-rc.2')
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-host-plugin-inventory']).toBe('^0.1.1-rc.2')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-subprocess']).toBe('^0.1.1-rc.2 || ^0.1.2-rc.1')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-host-plugin-inventory']).toBe('^0.1.1-rc.2 || ^0.1.2-rc.1')
     expect(manifest.peerDependencies['@deepseek-ai/schemastery']).toBe('^3.18.1')
     expect(inject).toEqual([
       'webServer', 'credentials', 'llm', 'subprocess', 'pluginInventory',
@@ -81,6 +80,7 @@ describe('enterprise bundle', () => {
     const client = factory?.((id) => {
       if (id === 'react') return React
       if (id === 'react/jsx-runtime') return ReactJsxRuntime
+      if (id === '@deepseek-ai/dsh-client-ui-primitives') return { Modal: vi.fn(), Button: vi.fn() }
       throw new Error(`unexpected Client external: ${id}`)
     }) as { apply?: (ctx: unknown) => void } | undefined
     expect(client?.apply).toBeTypeOf('function')
@@ -108,5 +108,7 @@ describe('enterprise bundle', () => {
     expect(combined).toContain('enterprisePluginDistribution')
     expect(combined).not.toContain('enterpriseSessionSync')
     expect(combined).toContain('ENT_PLUGIN_CORE_PROTECTED')
+    expect(combined).toContain('require("@deepseek-ai/dsh-client-ui-primitives")')
+    expect(combined).not.toContain('globalThis.confirm(')
   })
 })

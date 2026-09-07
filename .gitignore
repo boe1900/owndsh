@@ -32,3 +32,6 @@ Thumbs.db
 *.pid
 tmp/
 .tmp/
+
+# Desktop build cache
+desktop/.build/

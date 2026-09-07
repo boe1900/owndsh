@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 Cordis Service/WebServer/settings/credentials、T02 contracts、PKCE/installation/browser 原语与 Node fetch
+ * [INPUT]: 依赖 Cordis Service/WebServer/settings.register/credentials、T02 contracts、PKCE/installation/browser 原语与 Node fetch
  * [OUTPUT]: 对外提供 ctx.enterprisePlatform、Server 地址、Host GrantRecord、内存 Access Token、可退避静默恢复/轮换、完整响应生命周期与停稳
  * [POS]: platform-client 的 Host 业务核心，跨 Web/Desktop 复用官方凭据平面且不向 Client UI 暴露任何 Token
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -9,7 +9,7 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { platform as hostPlatform } from 'node:os'
 import { Context, Service } from '@deepseek-ai/cordis'
 import type { CredentialProvider } from '@deepseek-ai/dsh-credentials'
-import { settingsNamespace, type SettingsScope } from '@deepseek-ai/dsh-settings'
+import type { SettingsNamespace, SettingsScope } from '@deepseek-ai/dsh-settings'
 import z from '@deepseek-ai/schemastery'
 import {
   decodeEnterpriseError,
@@ -44,7 +44,8 @@ import {
 const AUTH_PATH = '/enterprise/auth/v1'
 const API_PATH = '/enterprise/api/v1'
 const ACCESS_REFRESH_MARGIN_MS = 60_000
-const SETTINGS_NAMESPACE = settingsNamespace('owndsh')
+// 固定合法命名兼容 rc.2 的 branded 类型与新版 register 的字符串校验。
+const SETTINGS_NAMESPACE = 'owndsh' as SettingsNamespace
 interface EnterpriseConnectionSettings { readonly serverUrl: string }
 const CONNECTION_SETTINGS: z<EnterpriseConnectionSettings> = z.object({
   serverUrl: z.string().default(''),

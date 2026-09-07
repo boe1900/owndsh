@@ -28,8 +28,13 @@ The OwnDsh Settings section contains Account and Plugins tabs aligned with the
 native DSH Plugins tab rhythm and keyboard navigation. The sidebar footer uses
 the embedded OwnDsh whale at the native Settings icon size, matches its row
 height and hover, shows the employee display name, and provides a muted direct
-sign-out control. Both this control and the Account tab require the same native
-confirmation before clearing the session.
+sign-out control. Both this control and the Account tab require the same in-page
+Harness `Modal` and `Button` confirmation before clearing the session. Uninstall uses the same component;
+Cancel and Escape leave the account and plugins unchanged. The dialog uses Host
+theme and traps focus while open, without relying on a desktop
+bridge for `window.confirm()`.
+When the account becomes blocked, the OwnDsh Settings section uses the official
+slot's `close` callback so the login gate remains the active surface.
 The Plugins tab reads only the fixed same-origin `/enterprise/api/v1/local/plugins`
 projection and shows package, local version, desired revision/state, lifecycle,
 restart requirement, and stable failure codes. SHA-256, restart markers, tgz

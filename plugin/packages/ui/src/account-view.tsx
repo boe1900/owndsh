@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 React、Lucide 图标、内嵌 OwnDsh 静态/动态品牌鲸图与 EnterpriseAccountStore 的脱敏账号/插件 snapshot 和动作
- * [OUTPUT]: 对外提供账号/插件 settings tabs、统一确认登出动作、OwnDsh 品牌资源，以及 Server 编辑与键盘封闭的全局访问门禁
+ * [INPUT]: 依赖 React、Lucide、ConfirmAction、官方 Settings close 回调、OwnDsh 品牌鲸图与 EnterpriseAccountStore 的脱敏 snapshot 和动作
+ * [OUTPUT]: 对外提供账号/插件 settings tabs、共享登出确认组件、OwnDsh 品牌资源，以及 Server 编辑与键盘封闭的全局访问门禁
  * [POS]: dsh-ui 的账号设置与门禁呈现层，和 account-footer 复用品牌资源且不接触 Host Context、Token 或执行细节
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -36,6 +36,7 @@ import {
 } from 'react'
 import type { EnterpriseAccountSnapshot } from './account-store.js'
 import { EnterpriseAccountStore } from './account-store.js'
+import { ConfirmAction } from './confirm-action.js'
 import type {
   EnterpriseConnectionState,
   ManagedPluginState,
@@ -396,9 +397,14 @@ export function enterpriseAccessBlocked(state?: EnterpriseConnectionState): bool
   return state !== 'READY' && state !== 'REFRESHING'
 }
 
-/** 两个账号入口共享同一确认文案，取消时不触发任何认证状态变更。 */
-export function requestEnterpriseLogout(store: Pick<EnterpriseAccountStore, 'logout'>): void {
-  if (globalThis.confirm('确定退出 OwnDsh 账号吗？')) void store.logout()
+/** 两个账号入口共享页面确认，取消时不触发任何认证状态变更。 */
+export function LogoutConfirmation({ store, disabled, children }: {
+  store: Pick<EnterpriseAccountStore, 'logout'>
+  disabled: boolean
+  children: (open: () => void) => ReactNode
+}): ReactNode {
+  return <ConfirmAction title="退出 OwnDsh 账号" description="确定退出 OwnDsh 账号吗？" confirmLabel="退出登录"
+    disabled={disabled} onConfirm={() => { void store.logout() }}>{children}</ConfirmAction>
 }
 
 function StateIcon({ presentation, size = 20 }: { presentation: StatePresentation; size?: number }): ReactNode {
@@ -422,9 +428,9 @@ function LoginActions({ store, snapshot }: { store: EnterpriseAccountStore; snap
     </button>
   }
   if (connected) {
-    return <button type="button" style={secondaryButton} disabled={disabled} onClick={() => { requestEnterpriseLogout(store) }}>
+    return <LogoutConfirmation store={store} disabled={disabled}>{open => <button type="button" style={secondaryButton} disabled={disabled} onClick={open}>
       <LogOut aria-hidden size={15} />{snapshot.busy === 'logout' ? '正在退出' : '退出登录'}
-    </button>
+    </button>}</LogoutConfirmation>
   }
   return <button type="button" style={primaryButton} disabled={disabled} onClick={() => { void store.startLogin() }}>
     <LogIn aria-hidden size={15} />{snapshot.busy === 'login' ? '正在启动' : '登录企业账号'}
@@ -432,17 +438,15 @@ function LoginActions({ store, snapshot }: { store: EnterpriseAccountStore; snap
 }
 
 function UninstallAction({ store, snapshot }: { store: EnterpriseAccountStore; snapshot: EnterpriseAccountSnapshot }): ReactNode {
-  return <button
+  return <ConfirmAction title="卸载 OwnDsh" description="将移除 OwnDsh 和全部受管插件。确定继续吗？" confirmLabel="确认卸载"
+    disabled={snapshot.busy !== undefined} onConfirm={() => { void store.uninstall() }}>{open => <button
     type="button"
     style={{ ...secondaryButton, color: 'var(--dsw-alias-status-error, #c4320a)' }}
     disabled={snapshot.busy !== undefined}
-    onClick={() => {
-      if (!globalThis.confirm('将移除 OwnDsh 和全部受管插件。确定继续吗？')) return
-      void store.uninstall()
-    }}
+    onClick={open}
   >
     <Trash2 aria-hidden size={15} />{snapshot.busy === 'uninstall' ? '正在卸载' : '卸载 OwnDsh'}
-  </button>
+  </button>}</ConfirmAction>
 }
 
 function Detail({ icon, label, value }: { icon: ReactNode; label: string; value: string }): ReactNode {
@@ -623,6 +627,10 @@ function EnterprisePluginContent({ store }: EnterpriseStoreInjected): ReactNode 
 
 /** 官方 `settings.section` 内的 OwnDsh 账号与插件 tabs。 */
 export function EnterpriseSettingsSection(props: EnterpriseSettingsSectionProps): ReactNode {
+  const state = useAccount(props.store).status?.state
+  useEffect(() => {
+    if (state !== undefined && enterpriseAccessBlocked(state)) props.close()
+  }, [state, props.close])
   const headingId = useId()
   const tabsId = useId()
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
@@ -694,6 +702,7 @@ export function EnterpriseAccessGate(props: EnterpriseAccessGateProps): ReactNod
     if (root === null) return
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : undefined
     const keepInside = (event: FocusEvent) => {
+      if (event.target instanceof HTMLElement && event.target.closest('[data-enterprise-confirmation]')) return
       if (event.target instanceof Node && !root.contains(event.target)) {
         const first = gateFocusables(root)[0] ?? root
         first.focus()

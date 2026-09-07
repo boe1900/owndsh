@@ -1,16 +1,17 @@
 # OwnDsh - 企业 Agent 管理与本地 Harness 集成平台
 
-Java 21 + Spring Boot 4.1 + Sa-Token + PostgreSQL + React 19 + TypeScript + DeepSeek Harness 插件
+Java 21 + Spring Boot 4.1 + Sa-Token + PostgreSQL + React 19 + TypeScript + DeepSeek Harness 插件 + Pake/Tauri macOS
 
 <directory>
 .github/ - GitHub Actions 自动验证并发布 GHCR 前后端测试镜像、可下载插件包与 npm next 插件
 server/ - OwnDsh 后端锁定源码，T03 起承载 owndsh-enterprise 模块
 console/ - 第二阶段独立 Vite/TanStack 产品控制台，使用静态路由与 OpenAPI Fetch client，不依赖旧 Umi 管理端
+desktop/ - Pake macOS 客户端，内置独立 Node/Harness 运行环境与标准 OwnDsh 插件，只管理本地服务和窗口生命周期
 website/ - 独立零依赖静态官网，复用品牌与真实产品截图，以 Node 白名单构建发布到 Cloudflare Pages，不依赖控制台或后端运行时
 contracts/ - OpenAPI 3.1 协议真源、跨语言 schema 和 fixture 验收
 deploy/ - Linux amd64 单机 release、HTTP Compose、一次性初始化与备份/恢复/升级/回滚交付；TLS 由部署方终止
 docs/ - 产品预研、MVP 实施规格与逐任务验收证据
-plugin/ - 独立 pnpm workspace，构建员工侧唯一交付物 `owndsh-plugin`；只使用官方扩展点，不维护 Web/Desktop UI 分叉
+plugin/ - 独立 pnpm workspace，构建标准 `owndsh-plugin`；独立安装或预置于 desktop，只使用官方扩展点，不维护 Harness Web UI 分叉
 scripts/ - 开发环境初始化脚本（PowerShell、POSIX shell）
 upstream/ - 以 DSH Desktop 为发行真源的第三方源码地址与精确派生版本锁，不保存第三方源码
 </directory>
@@ -21,7 +22,7 @@ README.md - 面向管理员与员工的开源入口，提供产品定位、自�
 docker-compose.yml - 根目录零配置 Compose 入口，复用 deploy/compose 拓扑并加载 .env.example 默认环境
 .env.example - GHCR next 镜像、`admin/owndsh` 与其他运行参数的可选环境变量覆盖模板
 .gitignore - 密钥、依赖、构建产物和本机文件排除规则
-.dockerignore - Server/Console 共用构建上下文边界，排除本机状态、密钥、缓存与制品
+.dockerignore - Server/Console 共用构建上下文边界，排除独立 desktop 模块、本机状态、密钥、缓存与制品
 .gitattributes - 跨平台文本与换行约定
 </config>
 
@@ -37,6 +38,6 @@ T18 在 T16/T17 Session 纵向边界上交付管理 metadata/正文/删除页和
 
 P2-08C 将产品控制台会话收敛为服务端 Sa-Token 与 HttpOnly/SameSite=Strict host-only Cookie；HTTPS 使用 `__Host-enterprise-admin` 与 Secure，HTTP 使用 `enterprise-admin`。管理端以 shadcn authentication 双栏骨架和产品 tokens 原生承载 LOCAL/LDAP 登录，多个 OIDC 仍按身份源独立跳转。浏览器 JavaScript 不读取或保存 Token，管理 API Filter 在 MVC 权限注解前桥接协议对应 Cookie，新标签直接复用会话；注销和本人改密由服务端撤销会话并清 Cookie，其他标签在下次请求或刷新时返回登录。Desktop/Harness Host 使用内存 Bearer Access Token 与官方 credentials Refresh Grant。
 
-员工客户端发行规则：OwnDsh 不维护官方 Harness Web/Desktop UI，只发布标准 `owndsh-plugin`。插件零业务配置可安装，首次启动以官方 `shell.overlay` 全屏要求填写 HTTP(S) Server 地址并登录，地址写入 Harness 官方 settings；协议安全由部署方决定，插件只校验 origin 结构。Access Token 只在 Host 内存，30 天单次轮换 Refresh Token 只进入官方 credentials provider；Desktop/CLI/Web profile 重启后静默恢复并对暂时不可达退避。登录过期/设备撤销重新阻断。显式卸载通过官方插件命令移除 OwnDsh 与受管包，Desktop 只调用官方重启能力。
+员工客户端发行规则：标准 `owndsh-plugin` 继续独立发布；可选 Pake 客户端只封装官方 Web，内置 Node 24.14.1、Harness 0.1.2-rc.1、pnpm 11.7.0 与当前插件，不依赖社区 Desktop。桌面 profile 独立存放于应用数据目录，不预填 Server，不随包携带用户配置。插件零业务配置可安装，首次启动以官方 `shell.overlay` 全屏要求填写 HTTP(S) Server 地址并登录，地址写入 Harness 官方 settings；协议安全由部署方决定，插件只校验 origin 结构。Access Token 只在 Host 内存，30 天单次轮换 Refresh Token 只进入官方 credentials provider；Desktop/CLI/Web profile 重启后静默恢复并对暂时不可达退避。登录过期/设备撤销重新阻断。显式卸载通过官方插件命令移除 OwnDsh 与受管包。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
