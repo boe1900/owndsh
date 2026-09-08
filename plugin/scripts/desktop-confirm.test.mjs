@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖内置 Harness/插件运行树与 Playwright，使用临时 profile 并拦截账号动作 API
  * [OUTPUT]: 验证紧凑账号行/省略与操作、设置页内插件管理、含半像素位置的桌面/窄屏主题布局和详情/确认弹窗焦点
- * [POS]: desktop 的 WebView 兼容回归，不访问真实企业账号或卸载实际插件
+ * [POS]: 插件的 WebView 兼容回归，外部 runtime 显式传入，不访问真实企业账号或卸载实际插件
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -15,7 +15,8 @@ import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
 
 const root = dirname(fileURLToPath(import.meta.url))
-const runtime = process.env.OWNDSH_TEST_RUNTIME ?? join(root, '.build/pake/runtime')
+const runtime = process.env.OWNDSH_TEST_RUNTIME
+assert.ok(runtime, 'Set OWNDSH_TEST_RUNTIME to a prepared OwnDsh Desktop runtime containing the plugin under test')
 const { chromium, webkit } = await import(process.env.OWNDSH_PLAYWRIGHT_MODULE ?? 'playwright')
 
 test('packaged plugin uses Harness confirmation modals without native confirm', { timeout: 150000 }, async () => {

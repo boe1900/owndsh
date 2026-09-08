@@ -1,5 +1,5 @@
 # [INPUT]: 依赖仓库源码树与 Docker BuildKit context 规则。
-# [OUTPUT]: 仅向生产镜像构建发送可复现源码，排除独立桌面模块、密钥、缓存、产物和 Git 元数据。
+# [OUTPUT]: 仅向生产镜像构建发送可复现源码，排除已迁出桌面的本地缓存、密钥、产物和 Git 元数据。
 # [POS]: T21 两个多阶段 Dockerfile 共用的仓库根构建边界。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 

@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 真实内置 Harness、OwnDsh 插件、Chromium 与临时 HTTP 授权/模型服务
  * [OUTPUT]: 从登录、真实聊天请求到凭证失效门禁及重新登录恢复的 E2E，验证闲置零请求和网络故障保留会话
- * [POS]: desktop 的认证闭环验收，凭证/服务/profile 全部隔离，不访问真实企业或模型
+ * [POS]: 插件的桌面认证闭环验收，外部 runtime 显式传入；凭证/服务/profile 全部隔离
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -18,7 +18,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { test } from 'node:test'
 
 const root = dirname(fileURLToPath(import.meta.url))
-const runtime = process.env.OWNDSH_TEST_RUNTIME ?? join(root, '.build/pake/runtime')
+const runtime = process.env.OWNDSH_TEST_RUNTIME
+assert.ok(runtime, 'Set OWNDSH_TEST_RUNTIME to a prepared OwnDsh Desktop runtime containing the plugin under test')
 const { chromium } = await import(process.env.OWNDSH_PLAYWRIGHT_MODULE ?? 'playwright')
 const requestId = `req_${'0'.repeat(26)}`
 const json = (response, status, value) => {

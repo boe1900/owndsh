@@ -26,7 +26,8 @@
     "accept:t15-browser": "node scripts/t15-browser-harness.mjs",
     "accept:t17-session": "node scripts/t17-harness-session-smoke.mjs",
     "accept:t18-browser": "node scripts/t18-browser-harness.mjs",
-    "check": "pnpm run typecheck && pnpm run test"
+    "check": "pnpm run typecheck && pnpm run test",
+    "test:desktop": "node --test scripts/desktop-auth.test.mjs scripts/desktop-confirm.test.mjs"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.1",

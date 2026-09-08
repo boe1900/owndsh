@@ -33,5 +33,6 @@ Thumbs.db
 tmp/
 .tmp/
 
-# Desktop build cache
-desktop/.build/
+# 已迁出独立仓库的本地桌面缓存
+/desktop/
+plugin/scripts/.build/
