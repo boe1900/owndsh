@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 React、共享 MemberSelect、ProductDialog、插件 DTO 与浏览器原生表单控件。
- * [OUTPUT]: 提供插件 tgz 上传、ALL/USER 分配编辑和版本退休确认对话框。
+ * [OUTPUT]: 提供插件 tgz 上传、ALL/USER 企业可见范围编辑和版本退休确认对话框；发布不强制安装。
  * [POS]: features/plugins 的写入表单层，只收集产品语义，不解析 tgz、不签名也不持有 mutation。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -18,7 +18,7 @@ import { Button } from '@/components/atoms/Button';
 import { ProductDialog } from '@/components/product/Dialog';
 import { MemberSelect } from '@/features/member-select';
 
-const LOCKED_HARNESS_COMMIT = 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e';
+const SUPPORTED_HARNESS_COMMITS = 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e\na66e4702047846cdaa10c66c9d3df3951f5ea70d';
 const MAX_ARTIFACT_BYTES = 50 * 1024 * 1024;
 const OPERATING_SYSTEMS: ReadonlyArray<{ label: string; value: PluginOperatingSystem }> = [
   { label: 'macOS', value: 'darwin' },
@@ -50,7 +50,7 @@ function editableAssignments(pluginPackage: PluginPackage): ProductAssignment[] 
       subjectType: assignment.subjectType as ProductAssignment['subjectType'],
       subjectId: assignment.subjectId,
       desiredState: assignment.desiredState,
-      required: assignment.required
+      required: false
     }));
 }
 
@@ -70,7 +70,7 @@ export function UploadPluginVersionDialog({
   saving: boolean;
 }) {
   const [artifact, setArtifact] = useState<File>();
-  const [harnessCommits, setHarnessCommits] = useState(LOCKED_HARNESS_COMMIT);
+  const [harnessCommits, setHarnessCommits] = useState(SUPPORTED_HARNESS_COMMITS);
   const [enterpriseBundleRange, setEnterpriseBundleRange] = useState('>=0.1.0 <0.2.0');
   const [operatingSystems, setOperatingSystems] = useState<PluginOperatingSystem[]>(['darwin', 'linux', 'win32']);
   const [validationError, setValidationError] = useState<string>();
@@ -224,13 +224,13 @@ export function PluginAssignmentDialog({
       items: items.map((item) => ({
         ...item,
         subjectId: item.subjectType === 'ALL' ? null : item.subjectId,
-        required: item.desiredState === 'ABSENT' ? false : item.required
+        required: false
       }))
     });
   };
 
   return (
-    <ProductDialog title="配置插件分配" onClose={onClose}>
+    <ProductDialog title="配置可见范围" onClose={onClose}>
       <div className="grid gap-4 p-5">
         <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
           插件
@@ -252,7 +252,7 @@ export function PluginAssignmentDialog({
                 </select>
               </label>
               <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
-                分配对象
+                可见成员
                 <select
                   className={inputClass}
                   value={item.subjectType}
@@ -272,7 +272,7 @@ export function PluginAssignmentDialog({
                 </label>
               ) : <div />}
               <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
-                期望状态
+                可用状态
                 <select
                   className={inputClass}
                   value={item.desiredState}
@@ -281,18 +281,9 @@ export function PluginAssignmentDialog({
                     updateItem(index, { desiredState, ...(desiredState === 'ABSENT' ? { required: false } : {}) });
                   }}
                 >
-                  <option value="INSTALLED">安装</option>
-                  <option value="ABSENT">移除</option>
+                  <option value="INSTALLED">可见，用户自主安装</option>
+                  <option value="ABSENT">撤回并移除已安装插件</option>
                 </select>
-              </label>
-              <label className="flex items-center gap-2 text-[12.5px] font-medium text-ink-2">
-                <input
-                  type="checkbox"
-                  checked={item.required}
-                  disabled={item.desiredState === 'ABSENT'}
-                  onChange={(event) => updateItem(index, { required: event.target.checked })}
-                />
-                强制安装
               </label>
               <div className="flex items-end justify-end">
                 <Button type="button" variant="quiet" size="xs" className="size-8 rounded-md p-0 text-red" aria-label={`删除分配 ${index + 1}`} title="删除" onClick={() => setItems((current) => current.filter((_, itemIndex) => itemIndex !== index))}>
@@ -303,14 +294,14 @@ export function PluginAssignmentDialog({
           ))}
           <Button type="button" size="sm" disabled={!pluginPackage || items.length >= 200} onClick={addItem}>
             <Plus aria-hidden className="size-3.5" />
-            添加分配
+            添加范围
           </Button>
         </div>
         {validationError || error ? <p role="alert" className="m-0 text-[12.5px] text-red">{validationError ?? error}</p> : null}
       </div>
       <footer className="flex justify-end gap-2 border-t border-line px-5 py-4">
         <Button type="button" size="sm" onClick={onClose}>取消</Button>
-        <Button type="button" variant="primary" size="sm" disabled={saving || !pluginPackage} onClick={submit}>{saving ? '保存中' : '保存分配'}</Button>
+        <Button type="button" variant="primary" size="sm" disabled={saving || !pluginPackage} onClick={submit}>{saving ? '保存中' : '保存范围'}</Button>
       </footer>
     </ProductDialog>
   );

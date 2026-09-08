@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖已构建 bundle tgz、同级锁定 Harness checkout、Corepack pnpm 与临时 DSH_HOME
- * [OUTPUT]: 提供零业务配置安装、官方 settings 地址写入、真实 Web/API/SSE/Client、插件状态与 installation smoke
+ * [OUTPUT]: 提供零业务配置安装、官方 settings 地址写入、真实 Web/API/Client 与 SSE 退役、插件状态与 installation smoke
  * [POS]: plugin 的 T01/T06 组合验收入口，只写临时目录并断言同级 Harness 跟踪工作区始终干净
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -179,13 +179,8 @@ try {
   })
 
   const events = await fetch(`${ready.url}/enterprise/api/v1/local/events`)
-  assert.equal(events.headers.get('content-type'), 'text/event-stream; charset=utf-8')
-  const eventReader = events.body.getReader()
-  const firstEvent = new TextDecoder().decode((await eventReader.read()).value)
-  assert.match(firstEvent, /event: status/)
-  assert.match(firstEvent, /SIGNED_OUT/)
-  assert.doesNotMatch(firstEvent, /token|authorization/i)
-  await eventReader.cancel()
+  assert.equal(events.status, 404)
+  await events.body?.cancel()
 
   let deviceText
   for (let attempt = 0; attempt < 50; attempt += 1) {

@@ -38,6 +38,8 @@ T18 在 T16/T17 Session 纵向边界上交付管理 metadata/正文/删除页和
 
 P2-08C 将产品控制台会话收敛为服务端 Sa-Token 与 HttpOnly/SameSite=Strict host-only Cookie；HTTPS 使用 `__Host-enterprise-admin` 与 Secure，HTTP 使用 `enterprise-admin`。管理端以 shadcn authentication 双栏骨架和产品 tokens 原生承载 LOCAL/LDAP 登录，多个 OIDC 仍按身份源独立跳转。浏览器 JavaScript 不读取或保存 Token，管理 API Filter 在 MVC 权限注解前桥接协议对应 Cookie，新标签直接复用会话；注销和本人改密由服务端撤销会话并清 Cookie，其他标签在下次请求或刷新时返回登录。Desktop/Harness Host 使用内存 Bearer Access Token 与官方 credentials Refresh Grant。
 
-员工客户端发行规则：标准 `owndsh-plugin` 继续独立发布；可选 Pake 客户端只封装官方 Web，内置 Node 24.14.1、Harness 0.1.2-rc.1、pnpm 11.7.0 与当前插件，不依赖社区 Desktop。桌面 profile 独立存放于应用数据目录，不预填 Server，不随包携带用户配置。插件零业务配置可安装，首次启动以官方 `shell.overlay` 全屏要求填写 HTTP(S) Server 地址并登录，地址写入 Harness 官方 settings；协议安全由部署方决定，插件只校验 origin 结构。Access Token 只在 Host 内存，30 天单次轮换 Refresh Token 只进入官方 credentials provider；Desktop/CLI/Web profile 重启后静默恢复并对暂时不可达退避。登录过期/设备撤销重新阻断。显式卸载通过官方插件命令移除 OwnDsh 与受管包。
+员工客户端发行规则：标准 `owndsh-plugin` 继续独立发布；可选 Pake 客户端只封装官方 Web，内置 Node 24.14.1、Harness 0.1.2-rc.1、pnpm 11.7.0 与当前插件，不依赖社区 Desktop。桌面 profile 独立存放于应用数据目录，不预填 Server，不随包携带用户配置。插件零业务配置可安装，首次启动以官方 `shell.overlay` 全屏要求填写 HTTP(S) Server 地址并登录，地址写入 Harness 官方 settings；协议安全由部署方决定，插件只校验 origin 结构。Access Token 只在 Host 内存，30 天单次轮换 Refresh Token 只进入官方 credentials provider；Desktop/CLI/Web profile 重启后进行一次静默恢复；闲置时无企业 SSE、状态轮询或提前续期。请求时按需轮换 Access Token，服务端 401 最多续期重放一次；网络错误保留 Grant，用户重试恢复。UI 复用宿主模型/凭据/设置事件读取本地状态，登录期间只作有截止时间的临时查询。登录过期/设备撤销重新阻断。显式卸载通过官方插件命令移除 OwnDsh 与受管包。
+
+企业插件市场：后端上传、发布与 ALL/USER 可见范围管理复用现有插件模块；员工在「OwnDsh 设置 → 插件」内搜索、查看详情并自主安装/切换版本/卸载，不另设侧栏入口或独立市场弹层。revision 不再触发安装，历史 required 也不强制；删除范围或退休只停止新安装，显式 ABSENT 才撤回已有受管包。签名、兼容性、逐请求授权与库存边界保留。部署时必须升级员工插件，旧客户端不会仅因后台变更自动转为自选模式。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

@@ -8,7 +8,8 @@
   "scripts": {
     "prepare:runtime": "node build.mjs --prepare-only",
     "build": "node build.mjs",
-    "test": "node --test launcher.test.mjs"
+    "test": "node --test launcher.test.mjs",
+    "test:e2e": "node --test auth.test.mjs confirm.test.mjs"
   },
   "devDependencies": {
     "pake-cli": "3.16.1"

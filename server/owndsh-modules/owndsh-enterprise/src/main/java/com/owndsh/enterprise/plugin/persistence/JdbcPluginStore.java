@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Spring JdbcOperations、Jackson 3 与 V2/V8 插件表、sys_user/sys_dept 主体事实。
- * [OUTPUT]: 实现 catalog/version CAS、自然键幂等、窗口函数优先级、assignment replace 和 inventory upsert。
+ * [OUTPUT]: 实现 catalog/version CAS、幂等、可见范围优先级与库存；退休版本阻止新下载且不回退到低优先级范围。
  * [POS]: plugin/persistence 的 PostgreSQL adapter，所有业务查询同时限定 tenant 与 package ownership。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -90,7 +90,7 @@ public final class JdbcPluginStore implements PluginStore {
     private static final String EFFECTIVE_ASSIGNMENTS = """
         with ranked as (
             select v.id as plugin_version_id, p.package_name, v.version, v.size_bytes,
-                   v.sha256, v.signature, v.compatibility_json, a.required, a.desired_state,
+                   v.sha256, v.signature, v.compatibility_json, a.required, a.desired_state, v.status as version_status,
                    row_number() over (
                        partition by a.package_id
                        order by case a.subject_type when 'USER' then 1 when 'DEPT' then 2 else 3 end, a.id
@@ -108,7 +108,7 @@ public final class JdbcPluginStore implements PluginStore {
         )
         select plugin_version_id, package_name, version, size_bytes, sha256, signature,
                compatibility_json, required, desired_state
-        from ranked where priority=1 order by package_name
+        from ranked where priority=1 and (version_status='PUBLISHED' or desired_state='ABSENT') order by package_name
         """;
     private static final String DELETE_INVENTORY =
         "delete from ent_device_plugin where tenant_id=? and device_id=?";

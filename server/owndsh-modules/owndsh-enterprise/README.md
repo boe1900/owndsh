@@ -122,8 +122,8 @@ master key 的独立 `API_CURSOR` 用途进行 AES-GCM 认证，并绑定 tenant
   避免并发失败删除其他 tenant 已引用制品。签名声明使用 RFC 8785 JCS 与 Ed25519 PKCS#8 私钥。
 - 版本只允许 `UPLOADED -> VALIDATED -> PUBLISHED -> RETIRED`，只有 PUBLISHED 可新分配；相同
   package/version 或 tenant 内相同 SHA-256 返回已有版本，不复制事实。
-- assignment 原子替换并按 USER、当前 DEPT、ALL 裁决，`ABSENT` 可以覆盖较低优先级安装期望。
-  下载每次重验 ACTIVE 设备、当前用户和当前 assignment；assignment 已引用的退休版本仍可回滚下载。
+- assignment 原子替换并按 USER、当前 DEPT、ALL 裁决，`INSTALLED` 表示对员工可见并允许自主安装，保存时统一 `required=false`；`ABSENT` 表示撤回已有受管包。
+  下载每次重验 ACTIVE 设备、当前用户和当前 assignment；退休版本停止新安装和下载，且不回退到低优先级范围。删除可见范围或退休不自动卸载，员工可自行移除。
 - runtime 下载支持完整或单一 bytes Range，并固定 gzip、长度、ETag、attachment 与 `nosniff`；
   inventory 是当前设备最多 500 条 package 唯一的全量替换，数据库和审计同事务。
 
@@ -179,7 +179,7 @@ PATH=/usr/local/opt/openjdk@21/bin:$PATH \
 模拟 PostgreSQL 约束。身份/设备/网关测试还会启动 WireMock OIDC/DeepSeek、OpenLDAP StartTLS、
 Redis 8 和 PostgreSQL 17 Testcontainers，并使用 OpenAPI 派生 JSON Schema 验证认证、设备、模型、
 配额、bootstrap、用量、模型流、插件与 Session 接口的成功/失败响应。插件测试还覆盖恶意归档、
-JCS/Ed25519、并发幂等上传、assignment 优先级、越权下载、退休回滚、库存原子替换和文件补偿；Session
+JCS/Ed25519、并发幂等上传、assignment 优先级、自选安装范围、越权/退休下载拒绝、库存原子替换和文件补偿；Session
 测试覆盖精确字节 hash、连续/重复/gap/diverge/跨设备/并发、密文、正文权限、删除与 retention。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

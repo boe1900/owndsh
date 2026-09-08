@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 React、Lucide、ConfirmAction、官方 Settings close 回调、OwnDsh 品牌鲸图与 EnterpriseAccountStore 的脱敏 snapshot 和动作
- * [OUTPUT]: 对外提供账号/插件 settings tabs、共享登出确认组件、OwnDsh 品牌资源，以及 Server 编辑与键盘封闭的全局访问门禁
+ * [INPUT]: 依赖 React、Lucide、Harness Button/Settings close、ConfirmAction、OwnDsh 品牌鲸图与 EnterpriseAccountStore 的脱敏 snapshot 和动作
+ * [OUTPUT]: 提供账号/登录状态合并摘要、带图标的分组信息与底部显式配置刷新、插件 settings tabs、共享登出确认、品牌资源及全局访问门禁
  * [POS]: dsh-ui 的账号设置与门禁呈现层，和 account-footer 复用品牌资源且不接触 Host Context、Token 或执行细节
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -9,13 +9,12 @@ import {
   Building2,
   CircleAlert,
   CircleCheck,
-  Clock3,
   Laptop,
   LoaderCircle,
   LogIn,
   LogOut,
-  Pencil,
   Package,
+  Pencil,
   RefreshCw,
   Save,
   Server,
@@ -34,12 +33,14 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react'
+import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { EnterpriseAccountSnapshot } from './account-store.js'
 import { EnterpriseAccountStore } from './account-store.js'
 import { ConfirmAction } from './confirm-action.js'
+import { EnterprisePluginMarket } from './plugin-market.js'
+export { enterprisePluginStatePresentation } from './plugin-market.js'
 import type {
   EnterpriseConnectionState,
-  ManagedPluginState,
 } from './local-api.js'
 
 export const OWNDSH_ICON = 'data:image/png;base64,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'
@@ -97,7 +98,7 @@ const CONNECTION_PRESENTATION: Record<EnterpriseConnectionState, StatePresentati
   READY: {
     title: '已登录',
     description: '企业账号和设备会话均可用',
-    color: 'var(--dsw-alias-status-success, #16803c)',
+    color: 'var(--dsw-alias-state-success-primary, #16803c)',
     icon: 'success',
   },
   CANCELLED: {
@@ -132,20 +133,6 @@ const CONNECTION_PRESENTATION: Record<EnterpriseConnectionState, StatePresentati
   },
 }
 
-const PLUGIN_PRESENTATION: Record<ManagedPluginState, StatePresentation> = {
-  EXPECTED: { title: '等待同步', description: '已接收企业分配', color: '#667085', icon: 'building' },
-  DOWNLOAD_PENDING: { title: '等待下载', description: '制品下载即将开始', color: '#2563eb', icon: 'progress' },
-  DOWNLOADING: { title: '正在下载', description: '正在获取受管制品', color: '#2563eb', icon: 'progress' },
-  VERIFIED: { title: '校验通过', description: '制品签名与兼容性有效', color: '#2563eb', icon: 'progress' },
-  INSTALLING: { title: '正在安装', description: '正在更新企业 profile', color: '#2563eb', icon: 'progress' },
-  RESTART_REQUIRED: { title: '等待重启', description: '重启 Harness 后生效', color: '#b54708', icon: 'warning' },
-  ACTIVE: { title: '已启用', description: 'Harness Loader 已确认生效', color: '#16803c', icon: 'success' },
-  REMOVE_PENDING: { title: '等待移除', description: '移除操作即将开始', color: '#b54708', icon: 'progress' },
-  REMOVING: { title: '正在移除', description: '正在更新企业 profile', color: '#b54708', icon: 'progress' },
-  FAILED: { title: '处理失败', description: '保留上一可用状态', color: '#c4320a', icon: 'error' },
-  ROLLBACK: { title: '正在回滚', description: '正在切换到企业指定版本', color: '#b54708', icon: 'progress' },
-}
-
 const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   ENT_INVALID_REQUEST: '请输入有效的 HTTP 或 HTTPS Server 地址。',
   ENT_AUTH_CANCELLED: '登录已取消。',
@@ -155,13 +142,14 @@ const ERROR_MESSAGES: Readonly<Record<string, string>> = {
   ENT_DEVICE_REVOKED: '此设备已被管理员撤销。',
   ENT_LOCAL_RESPONSE_INVALID: '本地企业服务返回了无效数据。',
   ENT_PLATFORM_UNAVAILABLE: '暂时无法连接企业服务。',
+  ENT_LOCAL_UNAVAILABLE: '暂时无法连接本机 Harness，请重试。',
 }
 
 const page: CSSProperties = {
   color: 'var(--dsw-alias-label-primary, #101828)',
   display: 'flex',
   flexDirection: 'column',
-  gap: 20,
+  gap: 16,
   letterSpacing: 0,
   maxWidth: 680,
   minWidth: 0,
@@ -170,11 +158,11 @@ const page: CSSProperties = {
 const panel: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
-  gap: 20,
+  gap: 0,
   minWidth: 0,
 }
 
-const heading: CSSProperties = { fontSize: 20, fontWeight: 600, lineHeight: '28px', margin: 0 }
+const heading: CSSProperties = { fontSize: 18, fontWeight: 600, lineHeight: '26px', margin: 0 }
 
 const tabs: CSSProperties = {
   alignItems: 'flex-end',
@@ -205,32 +193,25 @@ function tabStyle(active: boolean): CSSProperties {
   } : { ...tab, borderBottomColor: 'transparent' }
 }
 
-const statusBand: CSSProperties = {
-  alignItems: 'flex-start',
-  background: 'var(--dsw-alias-bg-layer-1, #f8fafc)',
-  borderLeft: '3px solid currentColor',
-  boxSizing: 'border-box',
-  display: 'flex',
-  gap: 12,
-  minHeight: 72,
-  padding: '14px 16px',
-}
-
 const detailList: CSSProperties = {
-  borderBottom: '1px solid var(--dsw-alias-stroke-border-2, #e4e7ec)',
-  borderTop: '1px solid var(--dsw-alias-stroke-border-2, #e4e7ec)',
+  // 宿主超椭圆边角需要实体底色，避免半透明边框在透明层上画出直角残影。
+  background: 'var(--dsw-alias-bg-layer-1, #fff)',
+  border: '1px solid var(--dsw-alias-border-l2, #e4e7ec)',
+  borderRadius: 10,
   display: 'flex',
   flexDirection: 'column',
+  marginTop: 14,
+  overflow: 'hidden',
 }
 
 const detailRow: CSSProperties = {
-  alignItems: 'flex-start',
+  alignItems: 'center',
   boxSizing: 'border-box',
   display: 'grid',
   gap: 12,
-  gridTemplateColumns: 'minmax(110px, 150px) minmax(0, 1fr)',
-  minHeight: 42,
-  padding: '10px 0',
+  gridTemplateColumns: 'clamp(76px, 22%, 110px) minmax(0, 1fr)',
+  minHeight: 50,
+  padding: '10px 12px',
 }
 
 const detailLabel: CSSProperties = {
@@ -240,46 +221,20 @@ const detailLabel: CSSProperties = {
   fontSize: 13,
   gap: 8,
   lineHeight: '20px',
+  whiteSpace: 'nowrap',
 }
 
 const detailValue: CSSProperties = {
-  fontSize: 13,
+  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+  fontSize: 12,
   lineHeight: '20px',
   minWidth: 0,
-  overflowWrap: 'anywhere',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
 }
 
-const actions: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 8, minHeight: 34 }
-
-const pluginList: CSSProperties = {
-  borderBottom: '1px solid var(--dsw-alias-stroke-border-2, #e4e7ec)',
-  borderTop: '1px solid var(--dsw-alias-stroke-border-2, #e4e7ec)',
-  display: 'flex',
-  flexDirection: 'column',
-}
-
-const pluginRow: CSSProperties = {
-  alignItems: 'start',
-  borderBottom: '1px solid var(--dsw-alias-stroke-border-2, #e4e7ec)',
-  display: 'grid',
-  gap: 12,
-  gridTemplateColumns: 'minmax(0, 1.35fr) minmax(0, 0.7fr) minmax(0, 0.75fr) minmax(0, 1fr)',
-  minHeight: 72,
-  padding: '12px 0',
-}
-
-const pluginCellLabel: CSSProperties = {
-  color: 'var(--dsw-alias-label-tertiary, #667085)',
-  fontSize: 11,
-  lineHeight: '16px',
-}
-
-const pluginCellValue: CSSProperties = {
-  fontSize: 13,
-  lineHeight: '20px',
-  marginTop: 2,
-  overflowWrap: 'anywhere',
-}
+const actions: CSSProperties = { alignItems: 'center', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8, paddingTop: 16 }
 
 const baseButton: CSSProperties = {
   alignItems: 'center',
@@ -385,10 +340,6 @@ export function enterpriseStatePresentation(state: EnterpriseConnectionState): S
   return CONNECTION_PRESENTATION[state]
 }
 
-export function enterprisePluginStatePresentation(state: ManagedPluginState): StatePresentation {
-  return PLUGIN_PRESENTATION[state]
-}
-
 export function enterpriseErrorMessage(code: string): string {
   return ERROR_MESSAGES[code] ?? '企业服务操作失败。'
 }
@@ -428,31 +379,37 @@ function LoginActions({ store, snapshot }: { store: EnterpriseAccountStore; snap
     </button>
   }
   if (connected) {
-    return <LogoutConfirmation store={store} disabled={disabled}>{open => <button type="button" style={secondaryButton} disabled={disabled} onClick={open}>
-      <LogOut aria-hidden size={15} />{snapshot.busy === 'logout' ? '正在退出' : '退出登录'}
-    </button>}</LogoutConfirmation>
+    return <LogoutConfirmation store={store} disabled={disabled}>{open => <Button variant="outline" size="sm"
+      icon={<LogOut aria-hidden size={14} />} disabled={disabled} onClick={open}>
+      {snapshot.busy === 'logout' ? '正在退出' : '退出登录'}
+    </Button>}</LogoutConfirmation>
   }
   return <button type="button" style={primaryButton} disabled={disabled} onClick={() => { void store.startLogin() }}>
     <LogIn aria-hidden size={15} />{snapshot.busy === 'login' ? '正在启动' : '登录企业账号'}
   </button>
 }
 
-function UninstallAction({ store, snapshot }: { store: EnterpriseAccountStore; snapshot: EnterpriseAccountSnapshot }): ReactNode {
+function UninstallAction({ store, snapshot, quiet = false }: { store: EnterpriseAccountStore; snapshot: EnterpriseAccountSnapshot; quiet?: boolean }): ReactNode {
   return <ConfirmAction title="卸载 OwnDsh" description="将移除 OwnDsh 和全部受管插件。确定继续吗？" confirmLabel="确认卸载"
-    disabled={snapshot.busy !== undefined} onConfirm={() => { void store.uninstall() }}>{open => <button
-    type="button"
-    style={{ ...secondaryButton, color: 'var(--dsw-alias-status-error, #c4320a)' }}
+    disabled={snapshot.busy !== undefined} onConfirm={() => { void store.uninstall() }}>{open => <Button
+    variant={quiet ? 'ghost' : 'outline'} size={quiet ? 'sm' : 'md'}
+    className={quiet ? 'own-account-uninstall' : undefined}
+    style={quiet ? undefined : { color: 'var(--dsw-alias-state-error-primary, #c4320a)' }}
+    icon={<Trash2 aria-hidden size={14} />}
     disabled={snapshot.busy !== undefined}
     onClick={open}
   >
-    <Trash2 aria-hidden size={15} />{snapshot.busy === 'uninstall' ? '正在卸载' : '卸载 OwnDsh'}
-  </button>}</ConfirmAction>
+    {snapshot.busy === 'uninstall' ? '正在卸载' : '卸载 OwnDsh'}
+  </Button>}</ConfirmAction>
 }
 
-function Detail({ icon, label, value }: { icon: ReactNode; label: string; value: string }): ReactNode {
-  return <div style={detailRow}>
-    <div style={detailLabel}>{icon}<span>{label}</span></div>
-    <div style={detailValue} title={value}>{value}</div>
+function Detail({ icon, label, value, action }: { icon: ReactNode; label: string; value: string; action?: ReactNode }): ReactNode {
+  return <div style={detailRow} className="own-account-row">
+    <div style={detailLabel}>{icon}{label}</div>
+    <div style={{ alignItems: 'center', display: 'flex', gap: 8, minWidth: 0 }}>
+      <div style={detailValue} title={value}>{value}</div>
+      {action}
+    </div>
   </div>
 }
 
@@ -504,47 +461,48 @@ function EnterpriseAccountContent({ store }: EnterpriseStoreInjected): ReactNode
     : enterpriseStatePresentation(status.state)
   const bootstrap = snapshot.bootstrap
   const user = bootstrap?.user ?? status?.user
+  const username = user === undefined ? '企业账号' : user.displayName === user.username ? user.displayName : `${user.displayName} (${user.username})`
   const error = snapshot.errorCode ?? status?.errorCode
 
-  return <div style={panel}>
-    <div style={{ ...statusBand, color: presentation.color }} data-enterprise-state={status?.state ?? snapshot.phase}>
-      <StateIcon presentation={presentation} size={22} />
-      <div style={{ minWidth: 0 }}>
-        <div style={{ color: 'var(--dsw-alias-label-primary, #101828)', fontSize: 15, fontWeight: 600, lineHeight: '22px' }}>
-          {presentation.title}
-        </div>
-        <div style={{ color: 'var(--dsw-alias-label-secondary, #475467)', fontSize: 13, lineHeight: '20px', marginTop: 2 }}>
-          {presentation.description}
-        </div>
-      </div>
-    </div>
-    {error === undefined ? null : <div role="alert" style={{ color: 'var(--dsw-alias-status-error, #c4320a)', fontSize: 13, lineHeight: '20px' }}>
+  return <div style={panel} className="own-account">
+    {error === undefined ? null : <div role="alert" style={{ color: 'var(--dsw-alias-status-error, #c4320a)', fontSize: 13, lineHeight: '20px', paddingBottom: 12 }}>
       {enterpriseErrorMessage(error)} <code>{error}</code>
     </div>}
+    <div className="own-account-summary" style={{ alignItems: 'center', background: 'var(--dsw-alias-bg-layer-1, #f8fafc)', border: '1px solid var(--dsw-alias-border-l2, #e4e7ec)', borderRadius: 10, display: 'flex', gap: 10, padding: 12 }}>
+      <div style={{ alignItems: 'center', background: 'var(--dsw-alias-bg-layer-2, #f2f4f7)', borderRadius: '50%', color: 'var(--dsw-alias-label-secondary, #475467)', display: 'flex', flexShrink: 0, height: 34, justifyContent: 'center', width: 34 }}>
+        <UserRound aria-hidden size={18} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div title={username} style={{ ...detailValue, fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>{username}</div>
+        <div title={presentation.description} style={{ ...detailValue, color: 'var(--dsw-alias-label-tertiary, #667085)', fontFamily: 'inherit', fontSize: 11 }}>{presentation.description}</div>
+      </div>
+      <span role="status" title={presentation.description} data-enterprise-state={status?.state ?? snapshot.phase}
+        style={{ alignItems: 'center', background: 'var(--dsw-alias-bg-layer-2, #fff)', border: '1px solid var(--dsw-alias-border-l2, #e4e7ec)', borderRadius: 999, color: 'var(--dsw-alias-label-secondary, #475467)', display: 'inline-flex', flexShrink: 0, gap: 4, fontSize: 11, lineHeight: '18px', padding: '3px 8px', whiteSpace: 'nowrap' }}>
+        <StateIcon presentation={presentation} size={13} />{presentation.title}
+      </span>
+    </div>
     <div style={detailList}>
-      <Detail icon={<UserRound aria-hidden size={15} />} label="用户" value={user === undefined ? '登录后可用' : `${user.displayName} (${user.username})`} />
-      <Detail icon={<Laptop aria-hidden size={15} />} label="设备" value={bootstrap === undefined ? '登录后可用' : `${bootstrap.device.id} · ${bootstrap.device.installationId}`} />
-      <Detail icon={<Server aria-hidden size={15} />} label="平台地址" value={status?.platformUrl ?? '未配置'} />
-      <Detail icon={<Building2 aria-hidden size={15} />} label="Bundle 版本" value={status?.bundleVersion ?? '正在读取'} />
-      <Detail icon={<Clock3 aria-hidden size={15} />} label="连接时间" value={status?.connectedAt ?? '尚未连接'} />
+      <Detail icon={<Server aria-hidden size={14} />} label="平台地址" value={status?.platformUrl ?? '未配置'} action={status === undefined || status.state === 'UNCONFIGURED' || editingServer ? null : <Button
+        variant="ghost" size="sm" aria-label="修改 Server 地址" title="修改 Server 地址"
+        style={{ flexShrink: 0, width: 28, padding: 0, color: 'var(--dsw-alias-label-tertiary, #667085)' }}
+        disabled={snapshot.busy !== undefined} onClick={() => { setEditingServer(true) }}><Pencil aria-hidden size={14} /></Button>} />
+      <Detail icon={<Laptop aria-hidden size={14} />} label="设备" value={bootstrap === undefined ? '登录后可用' : `${bootstrap.device.id} · ${bootstrap.device.installationId}`} />
+      <Detail icon={<Package aria-hidden size={14} />} label="插件版本" value={status?.bundleVersion ?? '正在读取'} />
     </div>
     {status?.state === 'UNCONFIGURED' || editingServer
-      ? <ServerUrlEditor store={store} snapshot={snapshot} onSaved={() => { setEditingServer(false) }} />
+      ? <div style={{ alignItems: 'center', display: 'flex', gap: 8, paddingTop: 12 }}>
+        <ServerUrlEditor store={store} snapshot={snapshot} onSaved={() => { setEditingServer(false) }} />
+        {status?.state === 'UNCONFIGURED' ? null : <Button variant="ghost" size="sm" style={{ flexShrink: 0 }}
+          disabled={snapshot.busy !== undefined} onClick={() => { setEditingServer(false) }}>取消</Button>}
+      </div>
       : null}
     <div style={actions}>
-      <LoginActions store={store} snapshot={snapshot} />
-      {status === undefined || status.state === 'UNCONFIGURED' || editingServer ? null : <button
-        type="button"
-        style={secondaryButton}
-        disabled={snapshot.busy !== undefined}
-        onClick={() => { setEditingServer(true) }}
-      >
-        <Pencil aria-hidden size={15} />修改 Server 地址
-      </button>}
-      <button type="button" style={secondaryButton} disabled={snapshot.busy !== undefined} onClick={() => { void store.refresh() }}>
-        <RefreshCw aria-hidden size={15} />刷新状态
-      </button>
-      <UninstallAction store={store} snapshot={snapshot} />
+      <div style={{ alignItems: 'center', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        <Button variant="outline" size="sm" title="获取最新账号、设备和企业配置" icon={<RefreshCw aria-hidden size={14} />}
+          disabled={snapshot.busy !== undefined} onClick={() => { void store.refresh(true) }}>刷新配置</Button>
+        <LoginActions store={store} snapshot={snapshot} />
+      </div>
+      <UninstallAction store={store} snapshot={snapshot} quiet />
     </div>
     {snapshot.uninstallRestartRequested === false ? <div role="status" style={{ color: 'var(--dsw-alias-status-warning, #b54708)', fontSize: 13 }}>
       OwnDsh 已卸载，请手动重启 Harness。
@@ -552,81 +510,9 @@ function EnterpriseAccountContent({ store }: EnterpriseStoreInjected): ReactNode
   </div>
 }
 
-function EnterprisePluginContent({ store }: EnterpriseStoreInjected): ReactNode {
-  const snapshot = useAccount(store)
-  const connected = snapshot.status?.state === 'READY' || snapshot.status?.state === 'REFRESHING'
-  const pluginStatus = snapshot.pluginStatus
-  const summary = !connected
-    ? '登录企业账号后可用'
-    : snapshot.pluginsLoading === true && pluginStatus === undefined
-      ? '正在读取本地插件状态'
-      : `Assignment revision ${pluginStatus?.assignmentRevision ?? 0}`
-
-  return <div style={panel}>
-    <div style={{ ...statusBand, color: connected ? '#2563eb' : '#667085' }} data-enterprise-plugin-summary={connected ? 'connected' : 'signed-out'}>
-      <Package aria-hidden color="currentColor" size={22} strokeWidth={2} />
-      <div style={{ minWidth: 0 }}>
-        <div style={{ color: 'var(--dsw-alias-label-primary, #101828)', fontSize: 15, fontWeight: 600, lineHeight: '22px' }}>
-          受管插件
-        </div>
-        <div style={{ color: 'var(--dsw-alias-label-secondary, #475467)', fontSize: 13, lineHeight: '20px', marginTop: 2 }}>
-          {summary}
-        </div>
-      </div>
-    </div>
-    {snapshot.pluginErrorCode === undefined ? null : <div role="alert" style={{ color: 'var(--dsw-alias-status-error, #c4320a)', fontSize: 13 }}>
-      本地插件状态读取失败 <code>{snapshot.pluginErrorCode}</code>
-    </div>}
-    {pluginStatus?.fatalErrorCode === undefined ? null : <div role="alert" style={{ color: 'var(--dsw-alias-status-error, #c4320a)', fontSize: 13 }}>
-      插件状态文件不可用 <code>{pluginStatus.fatalErrorCode}</code>
-    </div>}
-    {pluginStatus?.lastReportErrorCode === undefined ? null : <div role="status" style={{ color: 'var(--dsw-alias-status-warning, #b54708)', fontSize: 13 }}>
-      设备状态上报失败 <code>{pluginStatus.lastReportErrorCode}</code>
-    </div>}
-    <div style={pluginList}>
-      {pluginStatus === undefined || pluginStatus.plugins.length === 0
-        ? <div style={{ color: 'var(--dsw-alias-label-secondary, #475467)', fontSize: 13, padding: '18px 0' }}>暂无受管插件</div>
-        : pluginStatus.plugins.map((plugin) => {
-          const presentation = enterprisePluginStatePresentation(plugin.state)
-          return <div key={plugin.packageName} style={pluginRow} data-enterprise-plugin-state={plugin.state}>
-            <div>
-              <div style={pluginCellLabel}>Package</div>
-              <div style={{ ...pluginCellValue, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>{plugin.packageName}</div>
-            </div>
-            <div>
-              <div style={pluginCellLabel}>本地版本</div>
-              <div style={pluginCellValue}>{plugin.version ?? '未安装'}</div>
-            </div>
-            <div>
-              <div style={pluginCellLabel}>期望</div>
-              <div style={pluginCellValue}>{plugin.desiredState === 'INSTALLED' ? '安装' : '移除'} · r{plugin.desiredRevision}</div>
-            </div>
-            <div style={{ alignItems: 'flex-start', color: presentation.color, display: 'flex', gap: 8, minWidth: 0 }}>
-              <StateIcon presentation={presentation} size={18} />
-              <div>
-                <div style={{ color: 'var(--dsw-alias-label-primary, #101828)', fontSize: 13, fontWeight: 500, lineHeight: '20px' }}>{presentation.title}</div>
-                <div style={{ color: 'var(--dsw-alias-label-secondary, #475467)', fontSize: 12, lineHeight: '18px' }}>{presentation.description}</div>
-                {plugin.lastErrorCode === null ? null : <code style={{ color: 'var(--dsw-alias-status-error, #c4320a)', fontSize: 11 }}>{plugin.lastErrorCode}</code>}
-              </div>
-            </div>
-          </div>
-        })}
-    </div>
-    <div style={actions}>
-      <button
-        type="button"
-        style={secondaryButton}
-        disabled={!connected || snapshot.pluginsLoading === true}
-        onClick={() => { void store.refreshPlugins() }}
-      >
-        <RefreshCw aria-hidden size={15} />{snapshot.pluginsLoading === true ? '正在刷新' : '刷新状态'}
-      </button>
-    </div>
-  </div>
-}
-
 /** 官方 `settings.section` 内的 OwnDsh 账号与插件 tabs。 */
 export function EnterpriseSettingsSection(props: EnterpriseSettingsSectionProps): ReactNode {
+  useEffect(() => { void props.store.refresh(true) }, [props.store])
   const state = useAccount(props.store).status?.state
   useEffect(() => {
     if (state !== undefined && enterpriseAccessBlocked(state)) props.close()
@@ -639,9 +525,24 @@ export function EnterpriseSettingsSection(props: EnterpriseSettingsSectionProps)
     { id: 'account', label: '账号' },
     { id: 'plugins', label: '插件' },
   ] as const
-  return <section style={page} aria-labelledby={headingId}>
+  return <section className="own-settings" style={page} aria-labelledby={headingId}>
+    <style>{`
+      .own-account button:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary, #4d6bfe); outline-offset: 2px; }
+      .own-account-row + .own-account-row { border-top: 1px solid var(--dsw-alias-border-l2, #e4e7ec); }
+      .own-account .own-account-uninstall { color: var(--dsw-alias-label-tertiary, #667085); }
+      .own-account .own-account-uninstall:hover:not(:disabled) { color: var(--dsw-alias-state-error-primary, #c4320a); }
+      @media (max-width: 600px) {
+        [role="dialog"]:has(.own-settings) { flex-direction: column; width: calc(100vw - 24px); max-width: calc(100vw - 24px); }
+        [role="dialog"]:has(.own-settings) > nav { width: 100%; padding: 12px 12px 0; gap: 8px; }
+        [role="dialog"]:has(.own-settings) > nav > div:last-child { flex-direction: row; overflow-x: auto; }
+        [role="dialog"]:has(.own-settings) > nav button { flex: none; }
+        [role="dialog"]:has(.own-settings) > nav + div { min-height: 0; }
+        [role="dialog"]:has(.own-settings) > nav + div > div:first-child { height: 36px; padding: 4px 12px; }
+        [role="dialog"]:has(.own-settings) > nav + div > div:last-child { padding: 0 16px 16px; }
+      }
+    `}</style>
     <h2 id={headingId} style={{ ...heading, alignItems: 'center', display: 'flex', gap: 9 }}>
-      <img alt="" aria-hidden src={OWNDSH_ICON} style={{ borderRadius: 6, height: 28, width: 28 }} />
+      <img alt="" aria-hidden src={OWNDSH_ICON} style={{ borderRadius: 6, height: 24, width: 24 }} />
       OwnDsh 设置
     </h2>
     <div role="tablist" aria-label="OwnDsh 设置" style={tabs}>
@@ -684,7 +585,7 @@ export function EnterpriseSettingsSection(props: EnterpriseSettingsSectionProps)
       <EnterpriseAccountContent store={props.store} />
     </div>
     <div id={`${tabsId}-panel-plugins`} role="tabpanel" aria-labelledby={`${tabsId}-tab-plugins`} hidden={activeTab !== 'plugins'}>
-      <EnterprisePluginContent store={props.store} />
+      {activeTab === 'plugins' ? <EnterprisePluginMarket store={props.store} /> : null}
     </div>
   </section>
 }

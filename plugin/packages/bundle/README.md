@@ -45,6 +45,8 @@ Server 地址由 Harness 官方 settings 服务保存；轮换 Refresh Token 由
 
 主动退出、设备撤销、成员停用、改密或 30 天有效期结束后需要重新登录。
 
+闲置时没有企业 SSE、定时配置请求或提前续期。请求遇到 Access Token 到期才续期，并合并并发续期；服务端认证 401 最多续期重试一次。Refresh Token 失效时显示登录门禁，网络故障保留凭据供下次请求重试。打开 OwnDsh 设置或点击刷新时更新目录；页面复用 Harness 已有通知读取本机状态，登录中仅作有截止时间的临时查询。
+
 ## 更新与卸载
 
 ```sh
@@ -58,6 +60,8 @@ dsh plugin --profile web add --ignore-scripts owndsh-plugin@next
 
 当前验证基线是 DSH Desktop `2.0.3` / DeepSeek Harness `0.1.1-rc.2`。OwnDsh 不替换官方 Web/Desktop UI，不访问员工工作区，也不实现第二套模型协议。
 
-登录和企业模型只需安装本包。平台下发第三方受管插件时，管理员还需通过 profile 配置部署专属 Ed25519 公钥；没有信任根时该能力会安全关闭。
+登录和企业模型只需安装本包。管理员上传、发布并配置可见范围后，员工在「OwnDsh 设置 → 插件」内自主安装、更新或卸载。不会自动安装，其他设备独立选择。安装或卸载后需完全退出并重新打开客户端。
+
+管理员仍需通过 profile 配置部署专属 Ed25519 公钥，并在上传时选择目标系统和对应 Harness commit；没有信任根时市场显示阻断原因。已识别 Harness `0.1.1-rc.2` 和 `0.1.2-rc.1`。旧版 OwnDsh 仍会自动调和插件，切换为自选市场需要先升级员工插件。
 
 项目与完整部署说明：[github.com/boe1900/owndsh](https://github.com/boe1900/owndsh)

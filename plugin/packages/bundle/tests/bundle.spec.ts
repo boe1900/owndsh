@@ -44,7 +44,6 @@ describe('enterprise bundle', () => {
     })).toMatchObject({
       profile: 'web',
       dshCommand: 'dsh',
-      bootstrapIntervalMs: 60_000,
       requestTimeoutMs: 30_000,
       disposeTimeoutMs: 3_000,
     })
@@ -85,7 +84,7 @@ describe('enterprise bundle', () => {
     }) as { apply?: (ctx: unknown) => void } | undefined
     expect(client?.apply).toBeTypeOf('function')
     const register = vi.fn(() => () => undefined)
-    client?.apply?.({ slots: { inject: (_name: string, callback: () => unknown) => callback(), register } })
+    client?.apply?.({ effect: () => undefined, slots: { inject: (_name: string, callback: () => unknown) => callback(), register } })
     expect(register).toHaveBeenCalledTimes(3)
   })
 

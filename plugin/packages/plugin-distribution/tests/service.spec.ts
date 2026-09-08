@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Cordis Context、真实临时状态/制品文件、签名 assignment 与 fake platform/subprocess/inventory
- * [OUTPUT]: 验证同步/异步库存兼容、argv、Cordis 代理、状态损坏停稳、无信任根关闭、跨进程确认、ABSENT、回滚、整包卸载和核心保护
+ * [OUTPUT]: 验证目录零自动安装、显式版本操作/卸载耐久、授权复查、串行互斥、签名、重启确认、撤回和核心保护
  * [POS]: plugin-distribution 的完整状态机验收，模拟中心 revision 而不修改或替身化 Harness 源码
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -101,6 +101,9 @@ class FakePlatform implements EnterprisePlatformPort {
   }
   async request(input: string | URL, init: RequestInit = {}): Promise<Response> {
     const path = input.toString()
+    if (path === '/enterprise/api/v1/plugins/assignments') {
+      return Response.json({ data: this.snapshot.plugins, requestId: REQUEST_ID })
+    }
     if (path === '/enterprise/api/v1/plugins/inventory') {
       const body = JSON.parse(String(init.body)) as Record<string, unknown>
       this.reports.push(body)
@@ -265,7 +268,7 @@ describe('EnterprisePluginDistributionService', () => {
     const env = await environment({ platform, trustedPluginPublicKey: null })
 
     await env.service.settled()
-
+    await expect(env.service.install(desired.packageName, desired.pluginVersionId)).rejects.toMatchObject({ code: 'ENT_PLUGIN_SIGNATURE_INVALID' })
     expect(env.service.status().plugins[0]).toMatchObject({
       state: 'FAILED', lastErrorCode: 'ENT_PLUGIN_SIGNATURE_INVALID',
     })
@@ -280,6 +283,7 @@ describe('EnterprisePluginDistributionService', () => {
     const env = await environment({ platform, commandPort: { run } })
 
     await env.service.settled()
+    await env.service.install(desired.packageName, desired.pluginVersionId)
 
     expect(run).toHaveBeenCalledWith([
       'add', '--ignore-scripts', '--save-exact',
@@ -294,6 +298,9 @@ describe('EnterprisePluginDistributionService', () => {
     const platform = new FakePlatform(bootstrap(7, [desired]), new Map([[desired.downloadUrl!, content]]))
     const first = await environment({ platform, runMarker: 'run-one' })
     await first.service.settled()
+    expect(first.subprocess.specs).toHaveLength(0)
+    expect(first.service.status().catalog[0]).toMatchObject({ packageName: desired.packageName })
+    await first.service.install(desired.packageName, desired.pluginVersionId)
 
     expect(first.subprocess.specs).toHaveLength(1)
     expect(first.subprocess.specs[0]).toMatchObject({
@@ -344,6 +351,7 @@ describe('EnterprisePluginDistributionService', () => {
     const platform = new FakePlatform(bootstrap(1, [bad]), new Map([[bad.downloadUrl!, content]]))
     const env = await environment({ platform })
     await env.service.settled()
+    await expect(env.service.install(bad.packageName, bad.pluginVersionId)).rejects.toMatchObject({ code: 'ENT_PLUGIN_HASH_MISMATCH' })
     expect(env.service.status().plugins[0]).toMatchObject({
       state: 'FAILED', lastErrorCode: 'ENT_PLUGIN_HASH_MISMATCH',
     })
@@ -354,9 +362,8 @@ describe('EnterprisePluginDistributionService', () => {
     })
     platform.publish(bootstrap(2, [core]))
     await env.service.settled()
-    expect(env.service.status().plugins.find(item => item.packageName === core.packageName)).toMatchObject({
-      state: 'FAILED', lastErrorCode: 'ENT_PLUGIN_CORE_PROTECTED',
-    })
+    await expect(env.service.install(core.packageName, core.pluginVersionId)).rejects.toMatchObject({ code: 'ENT_PLUGIN_CORE_PROTECTED' })
+    expect(env.service.status().catalog).toEqual([])
     expect(env.subprocess.specs).toHaveLength(0)
   })
 
@@ -364,7 +371,9 @@ describe('EnterprisePluginDistributionService', () => {
     const content = Buffer.from('managed bundle after restart')
     const desired = assignment(testKey, content)
     const platform = new FakePlatform(bootstrap(1, [desired]), new Map())
-    platform.request = vi.fn(async (_input: string | URL, init: RequestInit = {}) => new Promise<Response>(
+    const originalRequest = platform.request.bind(platform)
+    platform.request = vi.fn(async (input: string | URL, init: RequestInit = {}) => input !== desired.downloadUrl
+      ? originalRequest(input, init) : new Promise<Response>(
       (_resolve, reject) => {
         const signal = init.signal
         if (signal?.aborted === true) {
@@ -375,10 +384,13 @@ describe('EnterprisePluginDistributionService', () => {
       },
     ))
     const interrupted = await environment({ platform, runMarker: 'interrupted-run' })
+    await interrupted.service.settled()
+    const installing = interrupted.service.install(desired.packageName, desired.pluginVersionId).catch(() => undefined)
     await vi.waitFor(() => {
       expect(interrupted.service.status().plugins[0]?.state).toBe('DOWNLOADING')
     })
     await interrupted.close()
+    await installing
     expect(interrupted.service.status().plugins[0]?.state).toBe('DOWNLOADING')
 
     const restartedPlatform = new FakePlatform(
@@ -390,6 +402,8 @@ describe('EnterprisePluginDistributionService', () => {
       runMarker: 'retry-run',
     })
     await restarted.service.settled()
+    expect(restarted.subprocess.specs).toHaveLength(0)
+    await restarted.service.install(desired.packageName, desired.pluginVersionId)
     expect(restarted.subprocess.specs).toHaveLength(1)
     expect(restarted.service.status().plugins[0]).toMatchObject({
       state: 'RESTART_REQUIRED', restartMarker: 'retry-run',
@@ -425,6 +439,9 @@ describe('EnterprisePluginDistributionService', () => {
       inventory: inventory([{ moduleName: v1.packageName, enabled: true, fiberPhase: 'active' }]),
     })
     await env.service.settled()
+    expect(env.subprocess.specs).toHaveLength(0)
+    expect(env.service.status().plugins[0]?.version).toBe('2.0.0')
+    await env.service.install(v1.packageName, v1.pluginVersionId)
     expect(env.subprocess.specs[0]?.argv).toEqual([
       '/opt/dsh/bin/dsh', 'plugin', '--profile', 'enterprise', 'add', '--ignore-scripts', '--save-exact',
       join(home, 'enterprise', 'artifacts', `${v1.sha256}.tgz`),
@@ -461,6 +478,7 @@ describe('EnterprisePluginDistributionService', () => {
     const platform = new FakePlatform(bootstrap(1, [desired]), new Map([[desired.downloadUrl!, content]]))
     const env = await environment({ platform })
     await env.service.settled()
+    await env.service.install(desired.packageName, desired.pluginVersionId)
 
     await env.service.uninstall()
 
@@ -472,5 +490,51 @@ describe('EnterprisePluginDistributionService', () => {
     expect(env.service.status().plugins).toEqual([])
     expect(JSON.parse(await readFile(join(env.home, 'enterprise', 'managed-plugins.json'), 'utf8')))
       .toMatchObject({ plugins: [] })
+  })
+
+  it('keeps publication, updates, polling and restart free of automatic installation and remembers removal', async () => {
+    const content = Buffer.from('optional enterprise plugin')
+    const desired = assignment(testKey, content)
+    const platform = new FakePlatform(bootstrap(1, [desired]), new Map([[desired.downloadUrl!, content]]))
+    const env = await environment({ platform })
+    await env.service.settled()
+    platform.publish(bootstrap(2, [{ ...desired, required: false }]))
+    await env.service.settled()
+    expect(env.subprocess.specs).toEqual([])
+    expect(env.service.status().plugins).toEqual([])
+    await env.service.install(desired.packageName, desired.pluginVersionId)
+    const updated = assignment(testKey, Buffer.from('next version'), { id: '999', version: '2.0.0' })
+    platform.publish(bootstrap(3, [updated]))
+    await env.service.settled()
+    expect(env.subprocess.specs).toHaveLength(1)
+    expect(env.service.status().plugins[0]?.version).toBe('1.2.0')
+    await env.service.remove(desired.packageName)
+    platform.publish(bootstrap(4, [updated]))
+    await env.service.settled()
+    expect(env.subprocess.specs).toHaveLength(2)
+    await env.close()
+    const restarted = await environment({ platform, dshHome: env.home, runMarker: 'after-user-removal' })
+    await restarted.service.settled()
+    expect(restarted.service.status().plugins).toEqual([])
+    expect(restarted.subprocess.specs).toEqual([])
+    expect(restarted.service.status().catalog[0]?.version).toBe('2.0.0')
+  })
+
+  it('rejects stale selection, revoked cached artifacts, concurrent actions and signed-out installation', async () => {
+    const content = Buffer.from('authorized artifact')
+    const desired = assignment(testKey, content)
+    const platform = new FakePlatform(bootstrap(1, [desired]), new Map([[desired.downloadUrl!, content]]))
+    const env = await environment({ platform })
+    await env.service.settled()
+    await expect(env.service.install(desired.packageName, '999')).rejects.toMatchObject({ code: 'ENT_PERMISSION_DENIED' })
+    const installing = env.service.install(desired.packageName, desired.pluginVersionId)
+    await expect(env.service.remove(desired.packageName)).rejects.toMatchObject({ code: 'ENT_PLUGIN_BUSY' })
+    await installing
+    platform.snapshot = bootstrap(2, [])
+    await expect(env.service.install(desired.packageName, desired.pluginVersionId)).rejects.toMatchObject({ code: 'ENT_PERMISSION_DENIED' })
+    expect(env.subprocess.specs).toHaveLength(1)
+    platform.statusValue = { ...platform.statusValue, state: 'SIGNED_OUT' }
+    expect(env.service.status().catalog).toEqual([])
+    await expect(env.service.install(desired.packageName, desired.pluginVersionId)).rejects.toMatchObject({ code: 'ENT_AUTH_REQUIRED' })
   })
 })

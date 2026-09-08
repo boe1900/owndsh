@@ -8,7 +8,7 @@
 import { z } from 'zod'
 import { zBootstrapQuota, zRequestId, zRevision, type EnterpriseErrorCode } from '@owndsh/contracts'
 import type { InstallationOptions } from './installation.js'
-import type { EnterpriseLocalSessionPort } from './local-api.js'
+import type { EnterpriseLocalApiOptions, EnterpriseLocalSessionPort } from './local-api.js'
 
 /** 不携带响应主体或凭据的稳定 Service 失败，并保留经过 Fetch 校验的 Retry-After。 */
 export class EnterprisePlatformError extends Error {
@@ -30,7 +30,6 @@ export interface EnterprisePlatformConfig {
   readonly baseUrl?: string
   readonly harnessVersion: string
   readonly bundleVersion: string
-  readonly bootstrapIntervalMs?: number
   readonly requestTimeoutMs?: number
   readonly disposeTimeoutMs?: number
   readonly callbackTimeoutMs?: number
@@ -46,9 +45,8 @@ export interface EnterprisePlatformInternals {
   readonly createFlowId?: () => string
   readonly createState?: () => string
   readonly installation?: Omit<InstallationOptions, 'dshHome' | 'name'>
-  readonly refreshRetryInitialMs?: number
-  readonly refreshRetryMaxMs?: number
   readonly pluginStatus?: () => unknown
+  readonly pluginAction?: EnterpriseLocalApiOptions['pluginAction']
   readonly uninstallPlugin?: () => Promise<{ readonly restart?: () => void }>
   readonly sessionSync?: () => EnterpriseLocalSessionPort | undefined
 }

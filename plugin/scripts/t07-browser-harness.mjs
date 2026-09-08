@@ -239,7 +239,6 @@ try {
   await writeFile(resolve(temporaryDshHome, 'profiles', 'web', 'cordis.patch.yml'), [
     '- id: owndsh',
     '  config:',
-    '    bootstrapIntervalMs: 700',
     '    requestTimeoutMs: 2000',
     '',
   ].join('\n'))

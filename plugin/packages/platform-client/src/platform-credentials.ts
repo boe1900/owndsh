@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Harness CredentialProvider、installation、T02 Token 契约、时钟与 Refresh Token 交换函数
- * [OUTPUT]: 提供 Host GrantRecord 持久化、内存 Access Token、跨进程单次轮换与凭据任务停稳
+ * [OUTPUT]: 提供 Host GrantRecord、按需单次轮换及会话代次隔离，阻止退出后旧异步任务复活凭据
  * [POS]: platform-client 的认证凭据内核，Service 只观察 Access Token，不接触持久化记录格式
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -54,6 +54,7 @@ export class PlatformCredentialManager {
   private accessTokenValue: string | undefined
   private accessExpiresAtValue = 0
   private refreshTask: Promise<boolean> | undefined
+  private generation = 0
   private readonly tasks = new Set<Promise<unknown>>()
 
   constructor(
@@ -74,15 +75,8 @@ export class PlatformCredentialManager {
       || this.now().getTime() >= this.accessExpiresAtValue - marginMs
   }
 
-  refreshDelay(requestedDelayMs: number, marginMs: number): number {
-    if (this.accessExpiresAtValue === 0) return requestedDelayMs
-    return Math.min(
-      requestedDelayMs,
-      Math.max(1, this.accessExpiresAtValue - this.now().getTime() - marginMs),
-    )
-  }
-
   clearAccess(): void {
+    this.generation++
     this.accessTokenValue = undefined
     this.accessExpiresAtValue = 0
   }
@@ -92,15 +86,17 @@ export class PlatformCredentialManager {
   }
 
   async store(token: PlatformTokenData, serverUrl: string): Promise<void> {
+    const generation = this.generation
     const installation = await this.installation
-    await this.track(this.credentials.modifyRecord(PLATFORM_GRANT_KEY, async () => platformGrant({
+    await this.track(this.credentials.modifyRecord(PLATFORM_GRANT_KEY, async () =>
+      generation !== this.generation || !this.canApply(serverUrl) ? undefined : platformGrant({
       version: 1,
       serverUrl,
       installationId: installation.installationId,
       refreshToken: token.refreshToken,
       refreshExpiresAt: this.now().getTime() + token.refreshExpiresIn * 1_000,
     })))
-    if (this.canApply(serverUrl)) this.apply(token)
+    if (generation === this.generation && this.canApply(serverUrl)) this.apply(token)
   }
 
   refresh(baseUrl: URL, signal: AbortSignal): Promise<boolean> {
@@ -125,11 +121,12 @@ export class PlatformCredentialManager {
   }
 
   private async rotate(baseUrl: URL, signal: AbortSignal): Promise<boolean> {
+    const generation = this.generation
     const installation = await this.installation
     let refreshed: PlatformTokenData | undefined
     await this.credentials.modifyRecord(PLATFORM_GRANT_KEY, async (current) => {
       const grant = readPlatformGrant(current)
-      if (grant === undefined
+      if (generation !== this.generation || !this.canApply(baseUrl.origin) || grant === undefined
         || grant.serverUrl !== baseUrl.origin
         || grant.installationId !== installation.installationId
         || grant.refreshExpiresAt <= this.now().getTime()) return undefined
@@ -139,6 +136,7 @@ export class PlatformCredentialManager {
         clientId: 'dsh-desktop',
         installationId: installation.installationId,
       }, signal)
+      if (generation !== this.generation || !this.canApply(baseUrl.origin)) return undefined
       return platformGrant({
         version: 1,
         serverUrl: baseUrl.origin,
@@ -148,7 +146,7 @@ export class PlatformCredentialManager {
       })
     })
     const token = refreshed as PlatformTokenData | undefined
-    if (token === undefined || !this.canApply(baseUrl.origin)) return false
+    if (token === undefined || generation !== this.generation || !this.canApply(baseUrl.origin)) return false
     this.apply(token)
     return true
   }

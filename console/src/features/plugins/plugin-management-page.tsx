@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖生成的插件管理 operation、浏览器原生 multipart、成员目录、console 权限事实、TanStack Query、ProductDataTable 与插件编辑器。
- * [OUTPUT]: 提供插件 JSON part serializer、版本/ALL/USER 分配/设备状态三视图，以及上传、发布、退休与原子分配管理动作。
+ * [OUTPUT]: 提供企业插件 JSON part serializer、版本/可见范围/设备状态三视图，以及上传、发布、退休与原子范围管理动作。
  * [POS]: features/plugins 的产品插件工作台；服务端负责验包、签名、状态机、分配裁决和设备事实。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -39,7 +39,7 @@ import {
   type PluginUploadValue
 } from './plugin-editors';
 
-const SECTIONS = ['插件版本', '分配策略', '设备状态'] as const;
+const SECTIONS = ['插件版本', '可见范围', '设备状态'] as const;
 
 type PluginVersionRow = PluginVersion & {
   displayName: string;
@@ -228,20 +228,14 @@ const assignmentColumns: ReadonlyArray<ProductTableColumn<PluginAssignmentRow>> 
   { accessorKey: 'version', header: '版本', meta: { label: '版本', className: 'w-[110px]', cellClassName: 'w-[110px]' } },
   {
     accessorKey: 'subjectName',
-    header: '分配对象',
-    meta: { label: '分配对象', className: 'w-[220px]', cellClassName: 'w-[220px]' }
+    header: '可见成员',
+    meta: { label: '可见成员', className: 'w-[220px]', cellClassName: 'w-[220px]' }
   },
   {
     id: 'desiredState',
-    accessorFn: (row) => row.desiredState === 'INSTALLED' ? '安装' : '移除',
-    header: '期望状态',
-    meta: { label: '期望状态', className: 'w-[120px]', cellClassName: 'w-[120px]' }
-  },
-  {
-    id: 'required',
-    accessorFn: (row) => row.required ? '强制' : '可选',
-    header: '策略',
-    meta: { label: '策略', className: 'w-[100px]', cellClassName: 'w-[100px]' }
+    accessorFn: (row) => row.desiredState === 'INSTALLED' ? '可选安装' : '已撤回',
+    header: '可用状态',
+    meta: { label: '可用状态', className: 'w-[120px]', cellClassName: 'w-[120px]' }
   },
   {
     accessorKey: 'status',
@@ -310,7 +304,7 @@ export function PluginManagementPage() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [assignmentOpen, setAssignmentOpen] = useState(false);
   const [retireTarget, setRetireTarget] = useState<PluginVersion>();
-  const members = useMembers(section === '分配策略' || assignmentOpen);
+  const members = useMembers(section === '可见范围' || assignmentOpen);
   const packages = useInfiniteQuery({
     queryKey: ['plugins', 'packages'],
     queryFn: ({ pageParam }) => loadPackages(pageParam),
@@ -415,12 +409,12 @@ export function PluginManagementPage() {
         </Button>
       ) : undefined}
     />
-  ) : section === '分配策略' ? (
+  ) : section === '可见范围' ? (
     <ProductDataTable
-      ariaLabel="插件分配策略"
+      ariaLabel="插件可见范围"
       columns={assignmentColumns}
       data={assignmentRows}
-      emptyText="暂无插件分配策略"
+      emptyText="暂无可见范围"
       error={packages.error}
       filter={{ columnId: 'status', label: '全部状态', options: [{ label: '启用', value: 'ACTIVE' }, { label: '停用', value: 'DISABLED' }] }}
       getRowId={(row) => row.id}
@@ -433,7 +427,7 @@ export function PluginManagementPage() {
       toolbarAction={canWrite ? (
         <Button variant="primary" size="xs" disabled={packageRows.length === 0} onClick={() => { saveAssignments.reset(); setAssignmentOpen(true); }}>
           <Settings2 aria-hidden className="size-3.5" />
-          配置分配
+          配置范围
         </Button>
       ) : undefined}
     />
@@ -459,7 +453,7 @@ export function PluginManagementPage() {
     <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto flex min-h-full w-full max-w-[1320px] flex-col gap-5 px-5 py-7 sm:px-8 sm:py-9">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-5">
-          <h1 className="m-0 text-[22px] font-semibold leading-tight text-ink">插件</h1>
+          <h1 className="m-0 text-[22px] font-semibold leading-tight text-ink">企业插件</h1>
           <SegmentedControl options={SECTIONS} value={section} onChange={setSection} />
         </header>
         {changeVersion.error && !retireTarget ? <p role="alert" className="m-0 text-[12.5px] text-red">{changeVersion.error.message}</p> : null}

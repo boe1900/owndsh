@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖当前企业 bundle tgz、同级锁定 Harness、Corepack pnpm 与 Node 回环签名假平台
- * [OUTPUT]: 启动可重启、可收口清理的真实 Harness Web profile，供 T15 插件 RESTART_REQUIRED/ACTIVE 浏览器验收
+ * [OUTPUT]: 启动可重启、可收口的真实 Harness Web profile，目录供用户显式安装并验证 RESTART_REQUIRED/ACTIVE
  * [POS]: T15 无密钥浏览器组合载体，只写临时 DSH_HOME 并以真实 CLI/Loader 证明插件状态迁移
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -159,7 +159,7 @@ const assignmentBase = {
     operatingSystems: ['darwin', 'linux', 'win32'],
   },
   downloadUrl: '/enterprise/api/v1/plugins/versions/1901500000000000101/download',
-  required: true,
+  required: false,
   desiredState: 'INSTALLED',
 }
 const assignment = {
@@ -265,6 +265,10 @@ const platformServer = createServer(async (request, response) => {
     })
     return
   }
+  if (url.pathname === '/enterprise/api/v1/plugins/assignments' && request.method === 'GET') {
+    json(response, 200, { data: { revision: 7, assignments: [assignment] }, requestId: REQUEST_ID })
+    return
+  }
   if (url.pathname === assignment.downloadUrl && request.method === 'GET') {
     response.writeHead(200, {
       'cache-control': 'no-store',
@@ -303,7 +307,6 @@ try {
     '  config:',
     `    baseUrl: '${platformUrl}'`,
     `    trustedPluginPublicKey: '${trustedPluginPublicKey}'`,
-    '    bootstrapIntervalMs: 700',
     '    requestTimeoutMs: 5000',
     '    disposeTimeoutMs: 10000',
     "    profile: 'web'",

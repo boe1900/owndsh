@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 platform-client bootstrap、contracts 受管状态与兼容 Harness subprocess/inventory 公共类型
- * [OUTPUT]: 对外提供分发 Config、状态快照及 enterprisePlatform/subprocess/同步或异步 pluginInventory 窄 port
+ * [OUTPUT]: 对外提供分发 Config、企业目录/本机安装快照及 enterprisePlatform/subprocess/同步或异步 pluginInventory 窄 port
  * [POS]: plugin-distribution 的依赖倒置层，使业务状态机只依赖官方能力契约而不耦合实现
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -53,6 +53,14 @@ export interface ManagedPluginsFile {
 export interface PluginDistributionStatus {
   readonly assignmentRevision: number
   readonly plugins: readonly ManagedPluginRecord[]
+  readonly catalog: readonly {
+    readonly pluginVersionId: string
+    readonly packageName: string
+    readonly version: string
+    readonly sizeBytes: number
+    readonly operatingSystems: readonly string[]
+    readonly installErrorCode?: string
+  }[]
   readonly fatalErrorCode?: string
   readonly lastReportErrorCode?: string
 }

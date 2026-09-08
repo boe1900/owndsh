@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖事务、PluginStore、带 hash 互斥的 tgz inspector/CAS store、JCS Ed25519 signer、revision、审计与 ID。
- * [OUTPUT]: 提供含完整 assignments 的 catalog list、幂等上传、发布/退休和 package assignment 原子替换用例。
+ * [OUTPUT]: 提供企业目录、幂等上传、发布/退休与可见范围原子替换；保留 required 协议字段但写入统一为可选安装。
  * [POS]: plugin/application 的管理状态编排，文件系统补偿与数据库事务边界在此唯一协调。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -219,7 +219,7 @@ public final class PluginCatalogService {
                 }
                 return new PluginAssignment(
                     positiveId(), context.tenantId(), packageId, spec.pluginVersionId(), spec.subjectType(),
-                    spec.subjectId(), spec.desiredState(), spec.required(), PluginAssignment.Status.ACTIVE, 0
+                    spec.subjectId(), spec.desiredState(), false, PluginAssignment.Status.ACTIVE, 0
                 );
             }).toList();
             plugins.deleteAssignments(context.tenantId(), packageId);

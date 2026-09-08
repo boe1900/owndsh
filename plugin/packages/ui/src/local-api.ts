@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖浏览器 fetch/EventSource 与 platform-client 的同源 `/enterprise/api/v1/local/*` 脱敏协议
- * [OUTPUT]: 对外提供严格账号/插件/Session 状态解码、Server 地址/登录/整包卸载/恢复/删除动作和复合事件订阅端口
+ * [INPUT]: 依赖浏览器 fetch 与 platform-client 的按需同源 JSON 协议
+ * [OUTPUT]: 对外提供严格账号/插件/Session 状态解码、Server 地址/登录/整包卸载/恢复/删除动作和显式刷新端口
  * [POS]: dsh-ui 的浏览器网络边界，只投影 Settings 所需事实并拒绝秘密、正文与本地执行细节
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -95,8 +95,18 @@ export interface EnterprisePluginItem {
 export interface EnterprisePluginStatus {
   readonly assignmentRevision: number
   readonly plugins: readonly EnterprisePluginItem[]
+  readonly catalog?: readonly EnterprisePluginCatalogItem[]
   readonly fatalErrorCode?: string
   readonly lastReportErrorCode?: string
+}
+
+export interface EnterprisePluginCatalogItem {
+  readonly pluginVersionId: string
+  readonly packageName: string
+  readonly version: string
+  readonly sizeBytes: number
+  readonly operatingSystems: readonly string[]
+  readonly installErrorCode?: string
 }
 
 export interface EnterpriseSessionCursor {
@@ -151,15 +161,14 @@ export interface EnterpriseSessionDeleteResult {
   readonly deletedAt: string
 }
 
-export interface EnterpriseStatusStream {
-  close(): void
-}
-
 export interface EnterpriseLocalApi {
   status(signal: AbortSignal): Promise<EnterpriseLocalStatus>
+  refresh(signal: AbortSignal): Promise<EnterpriseLocalStatus>
   setServerUrl(serverUrl: string, signal: AbortSignal): Promise<{ readonly serverUrl: string }>
   bootstrap(signal: AbortSignal): Promise<EnterpriseAccountBootstrap | undefined>
   plugins(signal: AbortSignal): Promise<EnterprisePluginStatus>
+  installPlugin(packageName: string, pluginVersionId: string, signal: AbortSignal): Promise<EnterprisePluginStatus>
+  removePlugin(packageName: string, signal: AbortSignal): Promise<EnterprisePluginStatus>
   sessionSync(signal: AbortSignal): Promise<EnterpriseSessionSyncStatus>
   sessions(signal: AbortSignal, cursor?: string, limit?: number): Promise<EnterpriseRemoteSessionPage>
   restoreSession(sessionId: string, targetCwd: string, signal: AbortSignal): Promise<EnterpriseSessionRestoreResult>
@@ -168,11 +177,6 @@ export interface EnterpriseLocalApi {
   cancelLogin(signal: AbortSignal): Promise<{ readonly cancelled: boolean }>
   logout(signal: AbortSignal): Promise<{ readonly loggedOut: true }>
   uninstall(signal: AbortSignal): Promise<{ readonly uninstalled: true; readonly restartRequested: boolean }>
-  events(
-    onStatus: (status: EnterpriseLocalStatus) => void,
-    onSessionSync: (status: EnterpriseSessionSyncStatus) => void,
-    onError: () => void,
-  ): EnterpriseStatusStream
 }
 
 export class EnterpriseLocalApiError extends Error {
@@ -225,7 +229,7 @@ function safePlatformUrl(value: unknown): value is string {
   }
 }
 
-/** 严格解码一条 SSE 或 status response 内的脱敏状态。 */
+/** 严格解码本地 JSON response 内的脱敏状态。 */
 export function decodeEnterpriseLocalStatus(value: unknown): EnterpriseLocalStatus {
   const status = record(value)
   const allowedOptional = ['flowId', 'user', 'revision', 'connectedAt', 'errorCode']
@@ -343,7 +347,7 @@ function decodePluginItem(value: unknown): EnterprisePluginItem | undefined {
 export function decodeEnterprisePluginStatus(value: unknown): EnterprisePluginStatus {
   const source = record(value)
   if (source === undefined
-    || !hasExactKeys(source, ['assignmentRevision', 'plugins'], ['fatalErrorCode', 'lastReportErrorCode'])
+    || !hasExactKeys(source, ['assignmentRevision', 'plugins'], ['catalog', 'fatalErrorCode', 'lastReportErrorCode'])
     || !Number.isSafeInteger(source['assignmentRevision']) || Number(source['assignmentRevision']) < 0
     || !Array.isArray(source['plugins']) || source['plugins'].length > 500
     || (source['fatalErrorCode'] !== undefined && !nonEmptyString(source['fatalErrorCode']))
@@ -352,9 +356,25 @@ export function decodeEnterprisePluginStatus(value: unknown): EnterprisePluginSt
   }
   const plugins = source['plugins'].map(decodePluginItem)
   if (plugins.some(item => item === undefined)) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+  const catalog = source['catalog'] ?? []
+  if (!Array.isArray(catalog) || catalog.length > 500) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+  const entries = catalog.map(value => {
+    const item = record(value)
+    if (item === undefined || !hasExactKeys(item,
+      ['pluginVersionId', 'packageName', 'version', 'sizeBytes', 'operatingSystems'], ['installErrorCode'])
+      || !enterpriseId(item['pluginVersionId']) || !nonEmptyString(item['packageName'])
+      || !nonEmptyString(item['version']) || !Number.isSafeInteger(item['sizeBytes']) || Number(item['sizeBytes']) <= 0
+      || !Array.isArray(item['operatingSystems']) || item['operatingSystems'].some(os => !['darwin', 'linux', 'win32'].includes(os))
+      || item['installErrorCode'] !== undefined && !nonEmptyString(item['installErrorCode'])) {
+      throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+    }
+    return item as unknown as EnterprisePluginCatalogItem
+  })
+  if (new Set(entries.map(item => item.packageName)).size !== entries.length) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
   return {
     assignmentRevision: Number(source['assignmentRevision']),
     plugins: plugins as EnterprisePluginItem[],
+    ...(source['catalog'] === undefined ? {} : { catalog: entries }),
     ...(source['fatalErrorCode'] === undefined ? {} : { fatalErrorCode: source['fatalErrorCode'] as string }),
     ...(source['lastReportErrorCode'] === undefined
       ? {}
@@ -527,10 +547,11 @@ function encodedSessionId(value: string): string {
 /** 创建只访问同源固定路径的浏览器 API；调用方无法注入平台 origin 或 Authorization。 */
 export function createEnterpriseLocalApi(
   fetcher: typeof fetch = fetch,
-  eventSourceFactory: (url: string) => EventSource = url => new EventSource(url),
+
 ): EnterpriseLocalApi {
   return {
     status: async signal => decodeEnterpriseLocalStatus(await requestJson('/status', getInit(signal), fetcher)),
+    refresh: async signal => decodeEnterpriseLocalStatus(await requestJson('/refresh', jsonInit('POST', {}, signal), fetcher)),
     setServerUrl: async (serverUrl, signal) => {
       const data = record(await requestJson('/server', jsonInit('POST', { serverUrl }, signal), fetcher))
       if (data === undefined || !hasExactKeys(data, ['serverUrl']) || !safePlatformUrl(data['serverUrl'])) {
@@ -540,6 +561,12 @@ export function createEnterpriseLocalApi(
     },
     bootstrap: async signal => decodeBootstrap(await requestJson('/bootstrap', getInit(signal), fetcher)),
     plugins: async signal => decodeEnterprisePluginStatus(await requestJson('/plugins', getInit(signal), fetcher)),
+    installPlugin: async (packageName, pluginVersionId, signal) => decodeEnterprisePluginStatus(
+      await requestJson('/plugins/install', jsonInit('POST', { packageName, pluginVersionId }, signal), fetcher),
+    ),
+    removePlugin: async (packageName, signal) => decodeEnterprisePluginStatus(
+      await requestJson('/plugins/remove', jsonInit('POST', { packageName }, signal), fetcher),
+    ),
     sessionSync: async signal => decodeEnterpriseSessionSyncStatus(
       await requestJson('/sessions/sync', getInit(signal), fetcher),
     ),
@@ -595,25 +622,6 @@ export function createEnterpriseLocalApi(
         throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
       }
       return { uninstalled: true, restartRequested: data['restartRequested'] }
-    },
-    events: (onStatus, onSessionSync, onError) => {
-      const source = eventSourceFactory(`${LOCAL_API_PREFIX}/events`)
-      source.addEventListener('status', (event) => {
-        try {
-          onStatus(decodeEnterpriseLocalStatus(JSON.parse((event as MessageEvent<string>).data)))
-        } catch {
-          onError()
-        }
-      })
-      source.addEventListener('session-sync', (event) => {
-        try {
-          onSessionSync(decodeEnterpriseSessionSyncStatus(JSON.parse((event as MessageEvent<string>).data)))
-        } catch {
-          onError()
-        }
-      })
-      source.addEventListener('error', onError)
-      return { close: () => { source.close() } }
     },
   }
 }

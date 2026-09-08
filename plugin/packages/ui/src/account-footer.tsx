@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 React、Lucide、account-view 的 OwnDsh 品牌/页面登出确认组件与 EnterpriseAccountStore 的脱敏账号状态
- * [OUTPUT]: 对外提供 EnterpriseFooterAction，以宿主同高的鲸鱼身份行和灰色按钮确认退出登录
- * [POS]: dsh-ui 的 sidebar 账户入口，仅使用官方 footer slot，不读取或劫持宿主 Settings 私有状态
+ * [INPUT]: 依赖 React、Lucide、账号品牌/登出确认与 EnterpriseAccountStore 的脱敏状态
+ * [OUTPUT]: 对外提供 EnterpriseFooterAction，以账号行展示当前身份并确认退出登录
+ * [POS]: dsh-ui 的 sidebar 账户入口，不读取宿主 Settings 私有状态；插件管理由设置页拥有
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 

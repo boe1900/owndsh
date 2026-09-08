@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Cordis/Schemastery、Harness credentials/LLM/subprocess/inventory、官方运行时身份与企业业务模块
- * [OUTPUT]: 对外提供 Web/Desktop 共用 bundle apply、Host 凭据持久化、官方 pi-ai profile 桥、整包卸载组合与无验收探针的 Config schema
+ * [OUTPUT]: 对外提供 Web/Desktop 共用 bundle apply、Host 凭据持久化、官方 pi-ai profile 桥、企业插件手动安装/卸载与整包卸载组合
  * [POS]: bundle 的唯一 Host Loader 入口，组合平台认证、官方企业模型与环境原生插件调和；V1 不启动 Session 同步
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -26,6 +26,7 @@ export const inject = ['webServer', 'credentials', 'llm', 'subprocess', 'pluginI
 
 const VERIFIED_HARNESS_COMMITS: Readonly<Record<string, string>> = {
   '0.1.1-rc.2': 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e',
+  '0.1.2-rc.1': 'a66e4702047846cdaa10c66c9d3df3951f5ea70d',
 }
 const HARNESS_VERSION = APP_IDENTITY.version
 const { version: BUNDLE_VERSION } = createRequire(import.meta.url)('../package.json') as { version: string }
@@ -35,7 +36,6 @@ export interface Config {
   readonly baseUrl?: string
   /** 最初安装包写入的 Ed25519 SPKI PEM 或 DER Base64；bootstrap 无权替换。 */
   readonly trustedPluginPublicKey?: string
-  readonly bootstrapIntervalMs: number
   readonly requestTimeoutMs: number
   readonly disposeTimeoutMs: number
   readonly profile: string
@@ -45,7 +45,6 @@ export interface Config {
 export const Config: z<Config> = z.object({
   baseUrl: z.string().default(''),
   trustedPluginPublicKey: z.string().default(''),
-  bootstrapIntervalMs: z.number().step(1).min(1).default(60_000),
   requestTimeoutMs: z.number().step(1).min(1).default(30_000),
   disposeTimeoutMs: z.number().step(1).min(1).default(3_000),
   profile: z.string().default('web'),
@@ -101,11 +100,15 @@ export function apply(ctx: EnterpriseHostContext, config: Config): void {
     ...(config.baseUrl === undefined ? {} : { baseUrl: config.baseUrl }),
     harnessVersion: HARNESS_VERSION,
     bundleVersion: BUNDLE_VERSION,
-    bootstrapIntervalMs: config.bootstrapIntervalMs,
     requestTimeoutMs: config.requestTimeoutMs,
     disposeTimeoutMs: config.disposeTimeoutMs,
   }, {
     pluginStatus: () => pluginDistribution?.status() ?? { assignmentRevision: 0, plugins: [] },
+    pluginAction: async (action, packageName, pluginVersionId) => {
+      if (pluginDistribution === undefined) throw new Error('OwnDsh plugin distribution is unavailable')
+      if (action === 'install') await pluginDistribution.install(packageName, pluginVersionId!)
+      else await pluginDistribution.remove(packageName)
+    },
     uninstallPlugin: async () => {
       if (pluginDistribution === undefined) throw new Error('OwnDsh plugin distribution is unavailable')
       await pluginDistribution.uninstall()

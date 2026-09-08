@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖真实 PostgreSQL 17/Flyway V1-V13、三个显式活动用户 fixture、CAS 文件、Ed25519、设备与插件 JDBC/application 服务。
- * [OUTPUT]: 验证不借用默认账号的并发幂等上传、catalog assignment 读回、状态/CAS、下载授权、库存、审计和文件补偿。
+ * [OUTPUT]: 验证并发上传、可选可见范围、退休下架/禁止优先级回退、下载授权、库存、审计和文件补偿。
  * [POS]: T13 服务端纵向验收，跨越 artifact、domain、persistence 与 application 的真实事务边界。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -160,6 +160,7 @@ class PluginServerIntegrationTest {
             )
         );
         assertThat(assignments).hasSize(3);
+        assertThat(assignments).allMatch(value -> !value.required());
         assertThat(revisions.current(TENANT)).isEqualTo(revisionBeforeAssignments + 1);
         assertThat(catalog.list(TENANT, 0, 10)).singleElement().satisfies(item -> {
             assertThat(item.pluginPackage().revision()).isEqualTo(4);
@@ -182,7 +183,10 @@ class PluginServerIntegrationTest {
 
         PluginVersion retiredTwo = catalog.retire(mutation, publishedTwo.id(), publishedTwo.revision());
         assertThat(retiredTwo.status()).isEqualTo(PluginVersion.Status.RETIRED);
-        assertThat(runtime.authorizeDownload(peerContext, retiredTwo.id()).path()).isEqualTo(initialDownload.path());
+        assertThat(resolver.resolve(TENANT, PEER_USER, ADMIN_DEPT).assignments()).isEmpty();
+        assertThatThrownBy(() -> runtime.authorizeDownload(peerContext, retiredTwo.id()))
+            .isInstanceOf(PluginAccessException.class);
+        assertResolved(resolver.resolve(TENANT, OTHER_USER, OTHER_DEPT), publishedOne.id(), "INSTALLED");
         assertThat(catalog.list(TENANT, 0, 10).getFirst().pluginPackage().revision()).isEqualTo(5);
 
         List<PluginRuntimeService.InventoryObservation> firstInventory = List.of(
@@ -217,7 +221,7 @@ class PluginServerIntegrationTest {
         )).isEqualTo(1);
         assertThat(jdbc.queryForObject(
             "select count(*) from ent_audit_event where action='PLUGIN_DOWNLOADED'", Long.class
-        )).isEqualTo(2);
+        )).isEqualTo(1);
         assertThat(jdbc.queryForObject(
             "select count(*) from ent_audit_event where action='PLUGIN_INVENTORY_REPORTED'", Long.class
         )).isEqualTo(2);

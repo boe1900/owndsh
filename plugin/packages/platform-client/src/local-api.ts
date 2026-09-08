@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 Harness `ctx.webServer.register()` route port、平台操作端口及插件/Session 只读反转端口
- * [OUTPUT]: 对外提供 Server 地址更新、整包卸载、严格 JSON action、远端 Session 操作与复合 SSE 的产品路由注册器，不挂载验收探针
+ * [INPUT]: 依赖 Harness `ctx.webServer.register()` route port、平台操作端口及组合层注入的插件/Session 查询与动作端口
+ * [OUTPUT]: 提供账号/配置按需刷新、插件与 Session 操作的严格同源 JSON 路由，无常驻状态连接
  * [POS]: platform-client 的 Host/Client 同源协作边界，只序列化脱敏 DTO 并把认证 HTTP 留在 Host Service
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -30,18 +30,19 @@ export interface WebServerRoutePort {
 /** 挂载到本地同源 API 的脱敏 Service 操作端口。 */
 export interface EnterpriseLocalPlatformPort {
   status(): EnterprisePlatformStatus
+  refresh(): Promise<EnterprisePlatformStatus>
   setServerUrl(serverUrl: string): Promise<{ readonly serverUrl: string }>
   startLogin(): Promise<EnterpriseLoginFlow>
   cancelLogin(): boolean
   logout(): Promise<void>
   bootstrap(): BootstrapSnapshot | undefined
-  subscribe(listener: (status: EnterprisePlatformStatus) => void): () => void
+
 }
 
 /** platform-client 反向消费的 Session Service 最小面，避免包依赖环。 */
 export interface EnterpriseLocalSessionPort {
   status(): unknown
-  subscribe(listener: (status: unknown) => void): () => void
+
   listRemote(cursor?: string, limit?: number): Promise<unknown>
   restoreRemote(input: {
     readonly sourceSessionId: string
@@ -54,6 +55,7 @@ export interface EnterpriseLocalApiOptions {
   readonly platform: EnterpriseLocalPlatformPort
   /** 由组合层绑定 distribution，避免 platform-client 反向依赖具体插件包。 */
   readonly pluginStatus: () => unknown
+  readonly pluginAction?: (action: 'install' | 'remove', packageName: string, pluginVersionId?: string) => Promise<void>
   /** 由组合层绑定整包卸载；返回的重启动作必须在 HTTP 成功响应写出后才执行。 */
   readonly uninstallPlugin?: () => Promise<{ readonly restart?: () => void }>
   /** 由组合层延迟绑定 session-sync，保持认证 Service 先于其消费者构造。 */
@@ -87,6 +89,7 @@ function actionErrorStatus(error: unknown): number {
   if (error instanceof SyntaxError || error instanceof TypeError) return 400
   const code = errorCode(error)
   if (code === 'ENT_INVALID_REQUEST') return 400
+  if (code === 'ENT_PLUGIN_BUSY') return 409
   if (code === 'ENT_SESSION_FORMAT_UNSUPPORTED') return 400
   if (code === 'ENT_AUTH_REQUIRED' || code === 'ENT_AUTH_SESSION_EXPIRED') return 401
   if (code === 'ENT_DEVICE_REVOKED' || code === 'ENT_PERMISSION_DENIED') return 403
@@ -208,9 +211,9 @@ export function registerEnterpriseLocalApi(
   options: EnterpriseLocalApiOptions,
 ): () => void {
   const disposers: (() => void)[] = []
-  const eventResponses = new Set<ServerResponse>()
-  const eventCleanups = new Map<ServerResponse, () => void>()
+
   try {
+    disposers.push(registerJsonAction(webServer, '/refresh', () => options.platform.refresh()))
     disposers.push(webServer.register({
       kind: 'exact',
       path: `${LOCAL_API_PREFIX}/status`,
@@ -364,6 +367,35 @@ export function registerEnterpriseLocalApi(
       },
     }))
 
+    for (const action of ['install', 'remove'] as const) {
+      disposers.push(webServer.register({
+        kind: 'exact',
+        path: `${LOCAL_API_PREFIX}/plugins/${action}`,
+        handler: async (request, response) => {
+          if (request.method !== 'POST') { methodNotAllowed(response, 'POST'); return }
+          try {
+            const value = await readJson(request)
+            if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new TypeError('invalid plugin action')
+            const body = value as Record<string, unknown>
+            if (Object.keys(body).sort().join(',') !== (action === 'install' ? 'packageName,pluginVersionId' : 'packageName')
+              || typeof body['packageName'] !== 'string' || body['packageName'].length > 214
+              || !/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/.test(body['packageName'])
+              || action === 'install' && (typeof body['pluginVersionId'] !== 'string' || !/^[1-9][0-9]{0,18}$/.test(body['pluginVersionId']))) {
+              throw new TypeError('invalid plugin action')
+            }
+            if (options.pluginAction === undefined) throw new Error('plugin distribution is unavailable')
+            await options.pluginAction(action, body['packageName'], body['pluginVersionId'] as string | undefined)
+            writeJson(response, 200, { data: options.pluginStatus() })
+          } catch (error) {
+            const status = actionErrorStatus(error)
+            writeJson(response, status, { error: {
+              code: status === 413 ? 'ENT_REQUEST_TOO_LARGE' : status === 400 ? 'ENT_INVALID_REQUEST' : errorCode(error),
+            } })
+          }
+        },
+      }))
+    }
+
     disposers.push(webServer.register({
       kind: 'exact',
       path: `${LOCAL_API_PREFIX}/plugins`,
@@ -376,55 +408,11 @@ export function registerEnterpriseLocalApi(
       },
     }))
 
-    disposers.push(webServer.register({
-      kind: 'exact',
-      path: `${LOCAL_API_PREFIX}/events`,
-      handler: (request, response) => {
-        if (request.method !== 'GET') {
-          methodNotAllowed(response, 'GET')
-          return
-        }
-        response.writeHead(200, {
-          'cache-control': 'no-cache, no-store',
-          connection: 'keep-alive',
-          'content-type': 'text/event-stream; charset=utf-8',
-          'x-accel-buffering': 'no',
-          'x-content-type-options': 'nosniff',
-        })
-        eventResponses.add(response)
-        const publish = (status: EnterprisePlatformStatus): void => {
-          response.write(`event: status\ndata: ${JSON.stringify(status)}\n\n`)
-        }
-        publish(options.platform.status())
-        const unsubscribePlatform = options.platform.subscribe(publish)
-        const session = options.sessionSync?.()
-        const publishSession = (status: unknown): void => {
-          response.write(`event: session-sync\ndata: ${JSON.stringify(status)}\n\n`)
-        }
-        if (session !== undefined) publishSession(session.status())
-        const unsubscribeSession = session?.subscribe(publishSession) ?? (() => undefined)
-        const cleanup = (): void => {
-          eventResponses.delete(response)
-          eventCleanups.delete(response)
-          unsubscribePlatform()
-          unsubscribeSession()
-        }
-        eventCleanups.set(response, cleanup)
-        request.once('close', cleanup)
-      },
-    }))
-
   } catch (error) {
     for (const dispose of disposers.reverse()) dispose()
     throw error
   }
   return () => {
-    for (const response of eventResponses) {
-      eventCleanups.get(response)?.()
-      response.end()
-    }
-    eventResponses.clear()
-    eventCleanups.clear()
     for (const dispose of disposers.reverse()) dispose()
   }
 }

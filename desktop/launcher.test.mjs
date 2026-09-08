@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖准备后的真实内置 Node/Harness/OwnDsh 与临时用户目录，不依赖开发机的 dsh/pnpm
- * [OUTPUT]: 验证离线播种、WebSocket、Server 持久化、父进程断开清理与用户卸载不复活
+ * [OUTPUT]: 验证离线播种、WebSocket、Server 持久化/单次恢复收敛、父进程断开清理与用户卸载不复活
  * [POS]: desktop 的最小真实进程回归，可同样指向安装包中的 runtime
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -102,7 +102,9 @@ test('packaged runtime boots without system Node/pnpm and preserves user choices
     await stop(instance, home)
     instance = undefined
     instance = await start(home)
-    const restored = await (await fetch(`${instance.url}${apiPrefix}/status`)).json()
+    const restored = await (await fetch(`${instance.url}${apiPrefix}/refresh`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}',
+    })).json()
     assert.equal(restored.data.platformUrl, 'http://127.0.0.1:9')
     assert.equal(restored.data.state, 'SIGNED_OUT')
     await stop(instance, home)

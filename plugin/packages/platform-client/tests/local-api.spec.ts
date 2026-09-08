@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 platform-client 本地 API 注册器与 Node 原生 HTTP server/fetch
- * [OUTPUT]: 验证方法/content-type/体积/DTO、平台/插件/Session 状态、复合 SSE、探针退役与 disposer
+ * [OUTPUT]: 验证方法/content-type/体积/DTO、平台/插件/Session 状态、显式刷新、无常驻 SSE、探针退役与 disposer
  * [POS]: platform-client Host/Client 协作回归测试，以真实 HTTP 锁定官方 webServer 契约
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -21,13 +21,11 @@ describe('enterprise local API', () => {
   let routes: Map<string, Parameters<WebServerRoutePort['register']>[0]>
   let webServer: WebServerRoutePort
   let currentStatus: EnterprisePlatformStatus
-  let listeners: Set<(status: EnterprisePlatformStatus) => void>
   let platform: EnterpriseLocalPlatformPort
   let pluginStatus: ReturnType<typeof vi.fn>
 
   beforeEach(async () => {
     routes = new Map()
-    listeners = new Set()
     currentStatus = {
       state: 'SIGNED_OUT',
       bundleVersion: '0.1.0',
@@ -36,15 +34,12 @@ describe('enterprise local API', () => {
     }
     platform = {
       status: () => structuredClone(currentStatus),
+      refresh: vi.fn(async () => structuredClone(currentStatus)),
       setServerUrl: vi.fn(async serverUrl => ({ serverUrl })),
       startLogin: vi.fn(async () => ({ flowId: 'flow-1' })),
       cancelLogin: vi.fn(() => true),
       logout: vi.fn(async () => undefined),
       bootstrap: vi.fn(() => undefined),
-      subscribe: (listener) => {
-        listeners.add(listener)
-        return () => { listeners.delete(listener) }
-      },
     }
     pluginStatus = vi.fn(() => ({
       assignmentRevision: 7,
@@ -136,6 +131,26 @@ describe('enterprise local API', () => {
     expect(unknownField.status).toBe(400)
   })
 
+  it('accepts only explicit package/version actions and rejects executable or unknown fields', async () => {
+    const pluginAction = vi.fn(async () => undefined)
+    registerEnterpriseLocalApi(webServer, { platform, pluginStatus, pluginAction })
+    const post = (action: string, body: unknown) => fetch(`${baseUrl}/enterprise/api/v1/local/plugins/${action}`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+    })
+    for (const body of [
+      {}, { packageName: '--eval', pluginVersionId: '880' },
+      { packageName: '@example/tools', pluginVersionId: '880', command: 'dsh' },
+      { packageName: '@example/tools', pluginVersionId: '../880' },
+    ]) expect((await post('install', body)).status).toBe(400)
+    expect(pluginAction).not.toHaveBeenCalled()
+    expect((await post('install', { packageName: '@example/tools', pluginVersionId: '880' })).status).toBe(200)
+    expect(pluginAction).toHaveBeenCalledWith('install', '@example/tools', '880')
+    expect((await post('remove', { packageName: '@example/tools' })).status).toBe(200)
+    expect(pluginAction).toHaveBeenCalledWith('remove', '@example/tools', undefined)
+    pluginAction.mockRejectedValueOnce(Object.assign(new Error('busy'), { code: 'ENT_PLUGIN_BUSY' }))
+    expect((await post('remove', { packageName: '@example/tools' })).status).toBe(409)
+  })
+
   it('updates the Server origin and responds before invoking the optional restart after uninstall', async () => {
     const calls: string[] = []
     registerEnterpriseLocalApi(webServer, {
@@ -160,34 +175,20 @@ describe('enterprise local API', () => {
     expect(calls).toEqual(['restart'])
   })
 
-  it('streams initial and changed status through local SSE and unsubscribes on close', async () => {
+  it('refreshes on demand and has no resident SSE endpoint', async () => {
     const dispose = registerEnterpriseLocalApi(webServer, { platform, pluginStatus })
-    const response = await fetch(`${baseUrl}/enterprise/api/v1/local/events`)
-    expect(response.headers.get('content-type')).toBe('text/event-stream; charset=utf-8')
-    const reader = response.body?.getReader()
-    if (reader === undefined) throw new Error('missing SSE body')
-    const decoder = new TextDecoder()
-    const initial = decoder.decode((await reader.read()).value)
-    expect(initial).toContain('event: status')
-    expect(initial).toContain('SIGNED_OUT')
-    expect(listeners).toHaveLength(1)
-
-    currentStatus = {
-      state: 'AUTHORIZING',
-      flowId: 'flow-1',
-      bundleVersion: '0.1.0',
-      platformUrl: 'https://enterprise.example.com',
-      transport: 'webServer.register',
-    }
-    for (const listener of listeners) listener(currentStatus)
-    expect(decoder.decode((await reader.read()).value)).toContain('AUTHORIZING')
-    await reader.cancel()
-    await vi.waitFor(() => { expect(listeners).toHaveLength(0) })
+    expect((await fetch(`${baseUrl}/enterprise/api/v1/local/events`)).status).toBe(404)
+    expect(platform.refresh).not.toHaveBeenCalled()
+    const response = await fetch(`${baseUrl}/enterprise/api/v1/local/refresh`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}',
+    })
+    await expect(response.json()).resolves.toEqual({ data: currentStatus })
+    expect(platform.refresh).toHaveBeenCalledOnce()
     dispose()
+    expect(routes.size).toBe(0)
   })
 
-  it('serves Session sync status, remote cursor pages, restore/delete actions, and SSE without content leakage', async () => {
-    const syncListeners = new Set<(status: unknown) => void>()
+  it('serves Session sync status, remote cursor pages, restore/delete actions without content leakage', async () => {
     const syncStatus = {
       backlog: 1,
       lastSuccessfulSyncAt: null,
@@ -200,10 +201,6 @@ describe('enterprise local API', () => {
     }
     const sessionSync: EnterpriseLocalSessionPort = {
       status: () => structuredClone(syncStatus),
-      subscribe: (listener) => {
-        syncListeners.add(listener)
-        return () => { syncListeners.delete(listener) }
-      },
       listRemote: vi.fn(async () => ({
         items: [{ id: 'remote-1', title: 'Remote session' }],
         page: { nextCursor: null, hasMore: false },
@@ -248,18 +245,6 @@ describe('enterprise local API', () => {
     expect((await fetch(`${baseUrl}/enterprise/api/v1/local/sessions/remote-1`, { method: 'POST' })).status).toBe(405)
     expect((await fetch(`${baseUrl}/enterprise/api/v1/local/sessions?limit=20&limit=30`)).status).toBe(400)
 
-    const response = await fetch(`${baseUrl}/enterprise/api/v1/local/events`)
-    const reader = response.body?.getReader()
-    if (reader === undefined) throw new Error('missing SSE body')
-    const decoder = new TextDecoder()
-    const initial = decoder.decode((await reader.read()).value)
-    expect(initial).toContain('event: session-sync')
-    expect(initial).not.toMatch(/token|authorization|header|events/i)
-    expect(syncListeners).toHaveLength(1)
-    for (const listener of syncListeners) listener({ ...syncStatus, backlog: 0 })
-    expect(decoder.decode((await reader.read()).value)).toContain('"backlog":0')
-    await reader.cancel()
-    await vi.waitFor(() => { expect(syncListeners).toHaveLength(0) })
     dispose()
   })
 

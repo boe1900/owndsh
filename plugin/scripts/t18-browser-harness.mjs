@@ -488,7 +488,6 @@ try {
     '  config:',
     `    baseUrl: ${JSON.stringify(platformUrl)}`,
     "    trustedPluginPublicKey: 'MCowBQYDK2VwAyEAgl6STzO84FyXlwmeHinWGgY/TgbGBUUBLF1xPT7SvT8='",
-    '    bootstrapIntervalMs: 60000',
     '    requestTimeoutMs: 3000',
     '    disposeTimeoutMs: 3000',
     '    sessionDebounceMs: 20',

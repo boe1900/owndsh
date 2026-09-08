@@ -60,6 +60,8 @@ npm test
 
 `OWNDSH_PLAYWRIGHT_MODULE=/absolute/path/to/playwright/index.mjs node --test confirm.test.mjs` 使用已有 Playwright/Chromium 验证插件页面确认；可设置 `OWNDSH_BROWSER=webkit` 使用已安装的 WebKit。该测试加载真实 Harness 与插件，只在临时 profile 中拦截账号 API，不登出真实用户或卸载实际插件。
 
+`OWNDSH_PLAYWRIGHT_MODULE=/absolute/path/to/playwright/index.mjs npm run test:e2e` 追加真实认证闭环：临时 HTTP 企业授权/模型服务验证 PKCE，Chromium 使用发行 Harness 登录并发送聊天；测试推进隔离 Host 时钟，覆盖闲置零请求、请求续期、网络故障后重试、Refresh Token 失效回登录门禁、重新登录恢复对话和设备撤销。认证路径不拦截本地状态 API、不修改真实用户凭据；`.build/auth-e2e-result.json` 与 `.build/auth-expired.png` 留存结果，失败时输出脱敏诊断。
+
 2026-09-07 确认弹窗修复验证：复用官方工作区删除所用的共享 Modal/Button；UI 14 项、bundle 3 项与运行环境回归通过。真实发行 Web 在 1400×900 和 375×720 下验证侧栏/设置页登出、门禁卸载、取消零请求、确认单次请求、焦点循环和登出后关闭设置页；已安装 macOS WKWebView 实测确认框显示、取消与 Escape 后账号仍为 READY。更新后的 app 签名和 DMG 校验通过。
 
 本次在 Intel / macOS 14.8.4 上验证了安装包内运行环境、原生窗口、单实例、应用位置变化和正常退出回收；圆角透明边距与托盘模板 alpha 检查通过，原生实测关闭窗口保留 Host、左键托盘恢复、右键退出回收 Host。Playwright 验证首次空地址、保存和刷新，无页面异常。旧基线平台插件 24 项测试、bundle 3 项测试通过。未连接真实 OwnDsh Server 做企业登录和模型调用验收，也未验证 ARM、Windows 或 Linux 发行。

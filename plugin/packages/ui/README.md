@@ -33,21 +33,42 @@ Harness `Modal` and `Button` confirmation before clearing the session. Uninstall
 Cancel and Escape leave the account and plugins unchanged. The dialog uses Host
 theme and traps focus while open, without relying on a desktop
 bridge for `window.confirm()`.
+Account settings combine the user and login status in a compact summary above grouped,
+left-aligned Server/device/version rows with small label icons. Host theme tokens and native
+tabs/buttons keep this layout consistent with Harness. Server editing stays beside its address; an explicitly labeled
+configuration refresh shares a quiet footer with sign-out/uninstall. Account values
+stay on one line, truncate with an ellipsis, and expose the full
+value on hover; the connection timestamp is omitted because authentication runs on demand.
+Grouped surfaces pair Host background and border tokens to avoid transparent superellipse border artifacts.
 When the account becomes blocked, the OwnDsh Settings section uses the official
 slot's `close` callback so the login gate remains the active surface.
-The Plugins tab reads only the fixed same-origin `/enterprise/api/v1/local/plugins`
-projection and shows package, local version, desired revision/state, lifecycle,
-restart requirement, and stable failure codes. SHA-256, restart markers, tgz
+The Settings Plugins tab directly contains search, package cards, an installed filter,
+version details, explicit install/update actions, and confirmed uninstall. There is no
+separate sidebar launcher or market overlay. On narrow screens, styles scoped to the
+active OwnDsh section place the Host settings navigation in a horizontal row so content
+remains usable. Detail and confirmation dialogs keep keyboard focus inside and restore
+focus when closed; Escape leaves the surrounding Settings page open. Data and execution
+belong to OwnDsh.
+The fixed same-origin `/enterprise/api/v1/local/plugins` projection separates the catalog
+from local installation facts. `/plugins/install` binds a package and version ID;
+`/plugins/remove` removes a locally managed package. Opening or refreshing never installs
+anything. New versions require a click, and uninstall survives refresh and restart.
+Missing trust configuration and incompatible runtimes disable installation.
+SHA-256, restart markers, tgz
 paths, trust keys, CLI output, and platform credentials are validated or removed
 before the snapshot reaches React.
 
 V1 does not expose or automatically call Session synchronization. Its strict
 browser decoders and presentation source remain dormant for a later release.
 
-All three official slot surfaces share one `EnterpriseAccountStore`. Its browser API uses
+All three official slot registrations share one `EnterpriseAccountStore`. Its browser API uses
 only fixed same-origin `/enterprise/api/v1/local/*` paths, sends strict JSON for
-Server, login, cancel, logout, and uninstall actions, and follows status changes
-through the Host's SSE route. It reloads account and plugin facts only on the first connected state or
+Server, login, cancel, logout, uninstall, and explicit refresh actions. It reuses official
+Host adapter/credential/settings events and connection reset notifications to read local
+state; it creates no transport connection. A one-second status query runs only during
+login/startup transitions, stops at a terminal state or unmount, and has a 330-second ceiling.
+Opening Settings or pressing Refresh explicitly reloads bootstrap from the enterprise server.
+Idle clients neither poll the enterprise server nor proactively renew credentials. It reloads account and plugin facts only on the first connected state or
 a bootstrap revision change. Runtime decoders project only account/device facts and reject unknown
 status fields, including Token-shaped additions. Host Context and platform
 credentials never enter React.

@@ -498,7 +498,6 @@ try {
     '  config:',
     `    baseUrl: ${JSON.stringify(platformUrl)}`,
     "    trustedPluginPublicKey: 'MCowBQYDK2VwAyEAgl6STzO84FyXlwmeHinWGgY/TgbGBUUBLF1xPT7SvT8='",
-    '    bootstrapIntervalMs: 200',
     '    requestTimeoutMs: 2000',
     '- insert:',
     '    - id: enterprise-t11-acceptance-probe',
@@ -579,6 +578,11 @@ try {
   const nextModel = model('managed-completions-next', 'Managed Completions Next', 'openai-completions', false)
   models = [completionModel, nextModel, initialModel, anthropicModel]
   bootstrapRevision += 1
+  const refresh = await fetch(`${harnessUrl}/enterprise/api/v1/local/refresh`, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}',
+  })
+  assert.equal(refresh.status, 200)
+  await refresh.body?.cancel()
   const refreshedCatalog = await waitFor(async () => {
     const response = await fetch(`${harnessUrl}/enterprise/t11/catalog`)
     if (!response.ok) return undefined

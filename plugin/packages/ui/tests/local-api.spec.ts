@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 dsh-ui 同源 local-api、标准 Response 与 EventSource test double
- * [OUTPUT]: 验证账号/插件/Session 严格解码、地址/卸载固定路径、恢复/删除、脱敏投影、复合 SSE 与秘密字段拒绝
+ * [OUTPUT]: 验证账号/插件/Session 严格解码、地址/卸载固定路径、恢复/删除、脱敏投影、显式刷新与秘密字段拒绝
  * [POS]: dsh-ui 浏览器网络边界测试，确保浏览器只能消费 Host 脱敏 DTO
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -128,6 +128,26 @@ describe('enterprise local browser API', () => {
     )
   })
 
+  it('keeps catalog metadata separate from installation facts and sends explicit version-bound commands', async () => {
+    const item = { pluginVersionId: '880', packageName: '@example/tools', version: '1.0.0', sizeBytes: 100, operatingSystems: ['darwin'] }
+    const status = { assignmentRevision: 7, catalog: [item], plugins: [] }
+    expect(decodeEnterprisePluginStatus(status)).toEqual(status)
+    for (const catalog of [[{ ...item, accessToken: 'secret' }], [{ ...item, downloadUrl: 'https://invalid' }], [item, item], [{ ...item, sizeBytes: -1 }]]) {
+      expect(() => decodeEnterprisePluginStatus({ ...status, catalog })).toThrow('ENT_LOCAL_RESPONSE_INVALID')
+    }
+    const fetcher = vi.fn(async () => ok(status))
+    const api = createEnterpriseLocalApi(fetcher)
+    const signal = new AbortController().signal
+    await api.installPlugin(item.packageName, item.pluginVersionId, signal)
+    expect(fetcher).toHaveBeenLastCalledWith('/enterprise/api/v1/local/plugins/install', expect.objectContaining({
+      method: 'POST', body: JSON.stringify({ packageName: item.packageName, pluginVersionId: '880' }), signal,
+    }))
+    await api.removePlugin(item.packageName, signal)
+    expect(fetcher).toHaveBeenLastCalledWith('/enterprise/api/v1/local/plugins/remove', expect.objectContaining({
+      method: 'POST', body: JSON.stringify({ packageName: item.packageName }), signal,
+    }))
+  })
+
   it('strictly projects Session sync/list DTOs without hashes, source IDs, or content bytes', () => {
     for (const state of SESSION_SYNC_STATES) {
       expect(decodeEnterpriseSessionSyncStatus({
@@ -239,22 +259,16 @@ describe('enterprise local browser API', () => {
     })
   })
 
-  it('decodes status events and closes the browser stream', () => {
-    const listeners = new Map<string, EventListener>()
-    const close = vi.fn()
-    const factory = vi.fn((_url: string) => ({
-      addEventListener: (name: string, listener: EventListener) => { listeners.set(name, listener) },
-      close,
-    }) as unknown as EventSource)
-    const onStatus = vi.fn()
-    const onSessionSync = vi.fn()
-    const onError = vi.fn()
-    const stream = createEnterpriseLocalApi(fetch, factory).events(onStatus, onSessionSync, onError)
-    listeners.get('status')?.(new MessageEvent('status', { data: JSON.stringify({ ...STATUS, state: 'READY' }) }))
-    expect(onStatus).toHaveBeenCalledWith({ ...STATUS, state: 'READY' })
-    listeners.get('session-sync')?.(new MessageEvent('session-sync', { data: JSON.stringify(SESSION_SYNC) }))
-    expect(onSessionSync).toHaveBeenCalledWith(decodeEnterpriseSessionSyncStatus(SESSION_SYNC))
-    stream.close()
-    expect(close).toHaveBeenCalledOnce()
+  it('refreshes account state with one JSON request', async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ data: STATUS }), {
+      headers: { 'content-type': 'application/json' },
+    }))
+    const api = createEnterpriseLocalApi(fetcher)
+    await expect(api.refresh(new AbortController().signal)).resolves.toEqual(STATUS)
+    expect(fetcher).toHaveBeenCalledWith('/enterprise/api/v1/local/refresh', expect.objectContaining({
+      method: 'POST', body: '{}',
+    }))
+    expect('events' in api).toBe(false)
   })
+
 })

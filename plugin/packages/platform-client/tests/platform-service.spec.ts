@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 EnterprisePlatformService、Cordis Context、Host CredentialProvider、真实 Node HTTP 假平台与临时 DSH_HOME
- * [OUTPUT]: 验证 PKCE、GrantRecord、Access/Refresh 轮换、重启离线退避恢复、控制面限时、取消与 installation 停稳
+ * [OUTPUT]: 验证 PKCE、GrantRecord、Access/Refresh 轮换、重启离线按需恢复、控制面限时、取消与 installation 停稳
  * [POS]: platform-client 核心生命周期测试，跨真实 socket 与 Context 重启证明 Token 只进入 Host 凭据边界
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -111,10 +111,7 @@ describe('EnterprisePlatformService', () => {
   })
 
   async function environment(options: {
-    readonly bootstrapIntervalMs?: number
     readonly requestTimeoutMs?: number
-    readonly refreshRetryInitialMs?: number
-    readonly refreshRetryMaxMs?: number
     readonly now?: () => Date
     readonly forgedCallbackState?: boolean
     readonly withSettings?: boolean
@@ -260,6 +257,12 @@ describe('EnterprisePlatformService', () => {
         json(response, 200, { data: { authorized: request.headers.authorization === 'Bearer platform-token-never-local' } })
         return
       }
+      if (path === '/enterprise/api/v1/early-expiry' || path === '/enterprise/api/v1/always-unauthorized') {
+        if (path.endsWith('/always-unauthorized') || refreshSequence === 1) {
+          json(response, 401, { error: { code: 'ENT_AUTH_REQUIRED', message: 'expired access', requestId: REQUEST_ID, retryable: false } })
+        } else json(response, 200, { data: { recovered: true } })
+        return
+      }
       if (path === '/enterprise/api/v1/rejected') {
         response.setHeader('retry-after', '7')
         json(response, 429, {
@@ -320,7 +323,6 @@ describe('EnterprisePlatformService', () => {
         ...(options.startUnconfigured === true ? {} : { baseUrl: platformUrl }),
         harnessVersion: '0.1.0-rc.7',
         bundleVersion: '0.1.0',
-        bootstrapIntervalMs: options.bootstrapIntervalMs ?? 60_000,
         requestTimeoutMs: options.requestTimeoutMs ?? 1_000,
         disposeTimeoutMs: 1_000,
         callbackTimeoutMs: 1_000,
@@ -328,8 +330,6 @@ describe('EnterprisePlatformService', () => {
         installationName: 'Acceptance Workstation',
       },
       {
-        refreshRetryInitialMs: options.refreshRetryInitialMs ?? 10,
-        refreshRetryMaxMs: options.refreshRetryMaxMs ?? 40,
         ...(options.now === undefined ? {} : { now: options.now }),
         openBrowser: async (rawUrl) => {
           const url = new URL(rawUrl)
@@ -419,19 +419,19 @@ describe('EnterprisePlatformService', () => {
     expect(env.service.status()).toMatchObject({ state: 'UNCONFIGURED', platformUrl: null })
 
     await env.service.setServerUrl(env.platformUrl)
-    expect(env.service.status()).toMatchObject({ state: 'SIGNED_OUT', platformUrl: env.platformUrl })
+    await vi.waitFor(() => expect(env.service.status()).toMatchObject({ state: 'SIGNED_OUT', platformUrl: env.platformUrl }))
     expect(env.settings?.document).toEqual({ owndsh: { serverUrl: env.platformUrl } })
 
     await login(env)
     await env.service.setServerUrl(env.localUrl)
-    expect(env.service.status()).toMatchObject({ state: 'SIGNED_OUT', platformUrl: env.localUrl })
+    await vi.waitFor(() => expect(env.service.status()).toMatchObject({ state: 'SIGNED_OUT', platformUrl: env.localUrl }))
     expect(env.service.bootstrap()).toBeUndefined()
     await expect(env.service.request('/enterprise/api/v1/probe')).rejects.toMatchObject({
       code: 'ENT_AUTH_REQUIRED',
     })
   })
 
-  it('does not apply a refresh result after its Server origin becomes stale', async () => {
+  it.each(['server switch', 'logout'])('does not apply a pending refresh after %s', async reason => {
     const credentials = new MemoryCredentials()
     const installation = Promise.resolve({
       installationId: '11111111-1111-4111-8111-111111111111',
@@ -460,11 +460,13 @@ describe('EnterprisePlatformService', () => {
 
     const refresh = manager.refresh(new URL(currentOrigin), new AbortController().signal)
     await started
-    currentOrigin = 'https://new.example'
+    if (reason === 'server switch') currentOrigin = 'https://new.example'
+    else { manager.clearAccess(); await manager.delete() }
     resolveRefresh(token('stale-access', `dshr_${'b'.repeat(43)}`))
 
     await expect(refresh).resolves.toBe(false)
     expect(manager.accessToken()).toBeUndefined()
+    if (reason === 'logout') expect(credentials.record).toBeUndefined()
   })
 
   it('completes PKCE, enroll and bootstrap while keeping Token in Host memory only', async () => {
@@ -546,7 +548,7 @@ describe('EnterprisePlatformService', () => {
     expect(JSON.stringify(warnings)).not.toContain('secret-payload')
   })
 
-  it('rotates an elapsed access token and retries silent restoration after a Host restart', async () => {
+  it('rotates an elapsed access token and retries an offline restart only on demand', async () => {
     let now = Date.parse('2026-08-18T00:00:00.000Z')
     const env = await environment({ now: () => new Date(now) })
     await login(env)
@@ -579,8 +581,6 @@ describe('EnterprisePlatformService', () => {
       },
       {
         now: () => new Date(now),
-        refreshRetryInitialMs: 10,
-        refreshRetryMaxMs: 40,
         fetch: async (input, init) => {
           if (failFirstRestore) {
             failFirstRestore = false
@@ -590,7 +590,9 @@ describe('EnterprisePlatformService', () => {
         },
       },
     )
-    await vi.waitFor(() => expect(restarted.status().state).toBe('READY'))
+    await vi.waitFor(() => expect(restarted.status().state).toBe('REFRESHING'))
+    await restarted.refresh()
+    expect(restarted.status().state).toBe('READY')
     expect(restarted.bootstrap()?.user.username).toBe('zhangsan')
     await expect(restarted.request('/enterprise/api/v1/probe').then(response => response.json()))
       .resolves.toEqual({ data: { authorized: true } })
@@ -660,40 +662,55 @@ describe('EnterprisePlatformService', () => {
     await expect(pending).rejects.toBeInstanceOf(DOMException)
   })
 
-  it('refreshes revisions with exponential retry, recovers, and terminally handles revocation', async () => {
-    const env = await environment({ bootstrapIntervalMs: 20, refreshRetryInitialMs: 10, refreshRetryMaxMs: 40 })
-    const states: EnterprisePlatformStatus['state'][] = []
-    env.service.subscribe(status => { states.push(status.state) })
+  it('keeps idle traffic at zero, refreshes on demand, and handles revocation', async () => {
+    const env = await environment()
     await login(env)
-    const initialBootstrapCalls = env.platformRequests.filter(request => request.path.endsWith('/bootstrap')).length
-    await vi.waitFor(() => {
-      expect(env.platformRequests.filter(request => request.path.endsWith('/bootstrap')).length)
-        .toBeGreaterThan(initialBootstrapCalls)
-    })
-    expect(env.service.status().state).toBe('READY')
-    expect(states).not.toContain('REFRESHING')
+    const calls = env.platformRequests.length
+    vi.useFakeTimers()
+    try {
+      await vi.advanceTimersByTimeAsync(5 * 60_000)
+      expect(env.platformRequests).toHaveLength(calls)
+    } finally { vi.useRealTimers() }
     env.setBootstrap('unavailable')
-    await vi.waitFor(() => {
-      const calls = env.platformRequests.filter(request => request.bootstrapMode === 'unavailable')
-      expect(calls.length).toBeGreaterThanOrEqual(3)
-      expect(env.service.status()).toMatchObject({ state: 'REFRESHING', errorCode: 'ENT_PLATFORM_UNAVAILABLE' })
-    }, { timeout: 2_000 })
-    const calls = env.platformRequests.filter(request => request.bootstrapMode === 'unavailable')
-    const firstRetry = (calls[1]?.at ?? 0) - (calls[0]?.at ?? 0)
-    const secondRetry = (calls[2]?.at ?? 0) - (calls[1]?.at ?? 0)
-    expect(firstRetry).toBeGreaterThanOrEqual(7)
-    expect(secondRetry).toBeGreaterThan(firstRetry)
-    await expect(env.service.request('/enterprise/api/v1/probe').then(response => response.json()))
-      .resolves.toEqual({ data: { authorized: true } })
-
+    await env.service.refresh()
+    expect(env.service.status()).toMatchObject({ state: 'REFRESHING', errorCode: 'ENT_PLATFORM_UNAVAILABLE' })
+    expect(env.credentials.record).toBeDefined()
     env.setBootstrap('ok', 2)
-    await vi.waitFor(() => {
-      expect(env.service.status()).toMatchObject({ state: 'READY', revision: 2 })
-    }, { timeout: 2_000 })
+    await env.service.refresh()
+    expect(env.service.status()).toMatchObject({ state: 'READY', revision: 2 })
     env.setBootstrap('revoked')
-    await vi.waitFor(() => {
-      expect(env.service.status()).toMatchObject({ state: 'DEVICE_REVOKED', errorCode: 'ENT_DEVICE_REVOKED' })
-    }, { timeout: 2_000 })
+    await env.service.refresh()
+    expect(env.service.status()).toMatchObject({ state: 'DEVICE_REVOKED', errorCode: 'ENT_DEVICE_REVOKED' })
     await expect(env.service.request('/enterprise/api/v1/probe')).rejects.toMatchObject({ code: 'ENT_AUTH_REQUIRED' })
   })
+
+  it('renews a server-rejected Access Token once and bounds unauthorized retries', async () => {
+    const env = await environment()
+    await login(env)
+    await expect(env.service.request('/enterprise/api/v1/early-expiry').then(response => response.json()))
+      .resolves.toEqual({ data: { recovered: true } })
+    expect(env.tokenGrantTypes).toEqual(['authorization_code', 'refresh_token'])
+    await expect(env.service.request('/enterprise/api/v1/always-unauthorized'))
+      .rejects.toMatchObject({ code: 'ENT_AUTH_REQUIRED' })
+    expect(env.tokenGrantTypes).toHaveLength(3)
+    expect(env.service.status().state).toBe('AUTH_EXPIRED')
+    expect(env.platformRequests.filter(request => request.path.endsWith('/always-unauthorized'))).toHaveLength(2)
+  })
+
+  it('coalesces concurrent token refresh and stops requests when the refresh grant expires', async () => {
+    let now = Date.parse('2026-08-18T00:00:00Z')
+    const env = await environment({ now: () => new Date(now) })
+    await login(env)
+    const before = env.tokenGrantTypes.length
+    now += 13 * 60 * 60_000
+    await Promise.all([env.service.request('/enterprise/api/v1/probe'), env.service.request('/enterprise/api/v1/probe')])
+    expect(env.tokenGrantTypes.length - before).toBe(1)
+    now += 31 * 24 * 60 * 60_000
+    const calls = env.platformRequests.length
+    await expect(env.service.request('/enterprise/api/v1/probe')).rejects.toMatchObject({ code: 'ENT_AUTH_SESSION_EXPIRED' })
+    expect(env.platformRequests).toHaveLength(calls)
+    expect(env.service.status().state).toBe('AUTH_EXPIRED')
+    expect(env.service.bootstrap()).toBeUndefined()
+  })
+
 })

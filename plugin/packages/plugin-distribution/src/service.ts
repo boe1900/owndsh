@@ -1,13 +1,13 @@
 /**
  * [INPUT]: 依赖 platform-client bootstrap/request、Harness subprocess/同步或异步 pluginInventory、可选 Desktop command port、制品校验与原子状态文件
- * [OUTPUT]: 对外提供 EnterprisePluginDistributionService、核心保护集合、fatal-safe 串行调和、显式整包卸载与库存状态
- * [POS]: plugin-distribution 的 Cordis shadow-compatible 生命周期所有者，把中心期望收敛为 Loader 可证事实
+ * [OUTPUT]: 对外提供企业可选目录、显式安装/版本切换/卸载、撤回调和、核心保护与库存状态
+ * [POS]: plugin-distribution 的串行生命周期所有者，中心决定可用范围，用户决定本机安装，Loader 确认重启结果
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { randomUUID } from 'node:crypto'
 import { Service } from '@deepseek-ai/cordis'
-import { zPluginInventoryResponse, type ManagedPluginState } from '@owndsh/contracts'
+import { zPluginInventoryResponse, zRuntimePluginAssignmentsResponse, type ManagedPluginState } from '@owndsh/contracts'
 import { resolveEnterpriseDshHome, type BootstrapSnapshot } from '@owndsh/platform-client'
 import {
   installManagedPlugin,
@@ -24,7 +24,7 @@ import type {
   PluginDistributionStatus,
   RuntimePluginAssignment,
 } from './types.js'
-import { downloadAndVerifyArtifact, parseTrustedPluginPublicKey } from './verification.js'
+import { downloadAndVerifyArtifact, parseTrustedPluginPublicKey, verifyAssignmentMetadata } from './verification.js'
 
 /** 企业安装包拥有、通用分发绝不能更新或卸载的完整产品代码集合。 */
 export const PROTECTED_ENTERPRISE_PACKAGES = new Set([
@@ -114,6 +114,7 @@ export class EnterprisePluginDistributionService extends Service {
   private lastReconciledRevision = -1
   private pending: BootstrapSnapshot | undefined
   private worker: Promise<void> | undefined
+  private pluginActionTask: Promise<void> | undefined
   private uninstallTask: Promise<void> | undefined
   private fatalErrorCode: string | undefined
   private lastReportErrorCode: string | undefined
@@ -147,8 +148,30 @@ export class EnterprisePluginDistributionService extends Service {
 
   /** 返回状态文件事实的副本，不包含 tgz 路径、公钥、CLI 输出或平台凭据。 */
   status(): PluginDistributionStatus {
+    const platform = this.pluginContext.enterprisePlatform
+    const connected = !this.disposed && ['READY', 'REFRESHING'].includes(platform.status().state)
     return {
       assignmentRevision: this.assignmentRevision,
+      catalog: (connected ? platform.bootstrap()?.plugins.assignments ?? [] : [])
+        .filter(item => item.desiredState === 'INSTALLED' && !PROTECTED_ENTERPRISE_PACKAGES.has(item.packageName))
+        .map(item => {
+          let installErrorCode: string | undefined
+          try {
+            if (this.config.trustedPublicKey === undefined) throw new PluginDistributionError(
+              'ENT_PLUGIN_SIGNATURE_INVALID', 'managed plugin trust root is not configured',
+            )
+            verifyAssignmentMetadata(item, this.config.trustedPublicKey, {
+              ...this.config, operatingSystem: this.operatingSystem,
+            })
+          } catch (error) {
+            installErrorCode = distributionError(error, 'ENT_PLUGIN_INCOMPATIBLE', 'plugin is unavailable').code
+          }
+          return {
+            pluginVersionId: item.pluginVersionId, packageName: item.packageName, version: item.version,
+            sizeBytes: item.sizeBytes, operatingSystems: [...item.compatibility.operatingSystems],
+            ...(installErrorCode === undefined ? {} : { installErrorCode }),
+          }
+        }),
       plugins: [...this.records.values()].sort((left, right) => left.packageName.localeCompare(right.packageName))
         .map(cloneRecord),
       ...(this.fatalErrorCode === undefined ? {} : { fatalErrorCode: this.fatalErrorCode }),
@@ -159,7 +182,100 @@ export class EnterprisePluginDistributionService extends Service {
   /** 测试与有界关闭使用：等待当前已排队 revision 完全停稳。 */
   async settled(): Promise<void> {
     await this.startup
-    while (this.worker !== undefined) await this.worker
+    while (this.worker !== undefined || this.pluginActionTask !== undefined) {
+      await (this.worker ?? this.pluginActionTask)?.catch(() => undefined)
+    }
+  }
+
+  /** 版本 ID 绑定用户看见的版本；重新请求中心授权，即使 tgz 已缓存也不能绕过撤回。 */
+  install(packageName: string, pluginVersionId: string): Promise<void> {
+    return this.changePlugin(async () => {
+      const platform = this.pluginContext.enterprisePlatform
+      const identity = this.currentIdentity()
+      const response = await platform.request('/enterprise/api/v1/plugins/assignments', { signal: this.abort.signal })
+      if (!response.ok) throw new PluginDistributionError('ENT_PERMISSION_DENIED', 'plugin catalog is unavailable')
+      const catalog = zRuntimePluginAssignmentsResponse.parse(await response.json()).data
+      const candidate = catalog.assignments.find(item => item.packageName === packageName
+        && item.pluginVersionId === pluginVersionId && item.desiredState === 'INSTALLED')
+      if (candidate === undefined || identity !== this.currentIdentity()) {
+        throw new PluginDistributionError('ENT_PERMISSION_DENIED', 'plugin is no longer available')
+      }
+      const assignment = { ...candidate, sizeBytes: Number(candidate.sizeBytes) }
+      if (!Number.isSafeInteger(assignment.sizeBytes)) throw new PluginDistributionError(
+        'ENT_PLUGIN_SIZE_MISMATCH', 'plugin size exceeds the supported range',
+      )
+      this.requireUnprotected(packageName)
+      this.assignmentRevision = catalog.revision
+      try {
+        await this.reconcileInstalled(assignment, identity)
+      } catch (error) {
+        if (!this.disposed) await this.fail(assignment, error)
+        throw error
+      }
+    })
+  }
+
+  /** 本机卸载不依赖目录中仍有该插件，也不改变其他设备的选择。 */
+  remove(packageName: string): Promise<void> {
+    return this.changePlugin(async () => {
+      this.requireUnprotected(packageName)
+      const current = this.records.get(packageName)
+      if (current === undefined) throw new PluginDistributionError('ENT_PERMISSION_DENIED', 'plugin is not managed')
+      if (current.desiredState === 'ABSENT' && current.state === 'RESTART_REQUIRED') return
+      this.records.set(packageName, { ...current, desiredState: 'ABSENT', state: 'REMOVING' })
+      await this.persist()
+      try {
+        await removeManagedPlugin(this.commandOptions(), packageName)
+        this.records.set(packageName, {
+          ...current, desiredState: 'ABSENT', state: 'RESTART_REQUIRED', lastErrorCode: null, restartMarker: this.runMarker,
+        })
+      } catch (error) {
+        this.records.set(packageName, {
+          ...current, state: 'FAILED', lastErrorCode: 'ENT_PLUGIN_CLI_FAILED', restartMarker: null,
+        })
+        throw error
+      } finally {
+        await this.persist()
+      }
+    })
+  }
+
+  private currentIdentity(): string {
+    const platform = this.pluginContext.enterprisePlatform
+    const snapshot = platform.bootstrap()
+    if (!['READY', 'REFRESHING'].includes(platform.status().state) || snapshot === undefined) {
+      throw new PluginDistributionError('ENT_AUTH_REQUIRED', 'enterprise login is required')
+    }
+    return JSON.stringify([platform.status().platformUrl, snapshot.user.id, snapshot.device.id])
+  }
+
+  private requireUnprotected(packageName: string): void {
+    if (PROTECTED_ENTERPRISE_PACKAGES.has(packageName)) throw new PluginDistributionError(
+      'ENT_PLUGIN_CORE_PROTECTED', 'enterprise core packages are installation-owned',
+    )
+  }
+
+  private changePlugin(operation: () => Promise<void>): Promise<void> {
+    if (this.pluginActionTask !== undefined || this.uninstalling || this.disposed) {
+      return Promise.reject(new PluginDistributionError('ENT_PLUGIN_BUSY', 'another plugin operation is in progress'))
+    }
+    const worker = this.worker
+    const task = (async () => {
+      await this.startup
+      await worker
+      if (this.disposed) throw new PluginDistributionError('ENT_PLUGIN_BUSY', 'plugin service is disposed')
+      this.currentIdentity()
+      if (this.fatalErrorCode !== undefined) throw new PluginDistributionError(
+        'ENT_PLUGIN_STATE_INVALID', 'managed plugin state is unavailable',
+      )
+      await operation()
+      await this.reportInventory()
+    })().finally(() => {
+      if (this.pluginActionTask === task) this.pluginActionTask = undefined
+      if (this.pending !== undefined && !this.disposed) this.schedule(this.pending)
+    })
+    this.pluginActionTask = task
+    return task
   }
 
   /** 显式移除全部已安装受管包和 OwnDsh 自身；调用方在响应成功后负责请求宿主重启。 */
@@ -192,13 +308,16 @@ export class EnterprisePluginDistributionService extends Service {
   private async loadState(): Promise<void> {
     const state = await this.store.read()
     this.assignmentRevision = state.assignmentRevision
-    for (const record of state.plugins) this.records.set(record.packageName, record)
+    for (const record of state.plugins) {
+      this.records.set(record.packageName, ['ACTIVE', 'FAILED', 'RESTART_REQUIRED'].includes(record.state)
+        ? record : { ...record, state: 'FAILED', lastErrorCode: 'ENT_PLUGIN_CLI_FAILED', restartMarker: null })
+    }
   }
 
   private schedule(snapshot: BootstrapSnapshot | undefined): void {
     if (snapshot === undefined || this.disposed || this.uninstalling) return
     this.pending = snapshot
-    if (this.worker !== undefined) return
+    if (this.worker !== undefined || this.pluginActionTask !== undefined) return
     const worker = this.drain().catch((error: unknown) => {
       this.fatalErrorCode = distributionError(
         error, 'ENT_PLUGIN_STATE_INVALID', 'plugin reconciliation failed unexpectedly',
@@ -236,7 +355,12 @@ export class EnterprisePluginDistributionService extends Service {
           continue
         }
         seen.add(assignment.packageName)
-        await this.reconcileAssignment(assignment)
+        const current = this.records.get(assignment.packageName)
+        if (assignment.desiredState === 'ABSENT' && current !== undefined) {
+          await this.reconcileWithdrawal(assignment)
+        } else if (sameArtifact(current, assignment) && current !== undefined) {
+          await this.refreshDesiredRevision(assignment, current)
+        }
       }
       this.lastReconciledRevision = snapshot.plugins.revision
       await this.persist()
@@ -281,22 +405,17 @@ export class EnterprisePluginDistributionService extends Service {
     if (changed) await this.persist()
   }
 
-  private async reconcileAssignment(assignment: RuntimePluginAssignment): Promise<void> {
+  private async reconcileWithdrawal(assignment: RuntimePluginAssignment): Promise<void> {
     try {
-      if (PROTECTED_ENTERPRISE_PACKAGES.has(assignment.packageName)) {
-        throw new PluginDistributionError(
-          'ENT_PLUGIN_CORE_PROTECTED', 'enterprise core packages are installation-owned',
-        )
-      }
-      if (assignment.desiredState === 'ABSENT') await this.reconcileAbsent(assignment)
-      else await this.reconcileInstalled(assignment)
+      this.requireUnprotected(assignment.packageName)
+      await this.reconcileAbsent(assignment)
     } catch (error) {
       if (this.disposed && this.abort.signal.aborted) return
       await this.fail(assignment, error)
     }
   }
 
-  private async reconcileInstalled(assignment: RuntimePluginAssignment): Promise<void> {
+  private async reconcileInstalled(assignment: RuntimePluginAssignment, identity: string): Promise<void> {
     const trustedPublicKey = this.config.trustedPublicKey
     if (trustedPublicKey === undefined) {
       throw new PluginDistributionError(
@@ -313,7 +432,6 @@ export class EnterprisePluginDistributionService extends Service {
         await this.refreshDesiredRevision(assignment, current)
         return
       }
-      if (current?.state === 'FAILED' && current.desiredRevision === this.assignmentRevision) return
     }
     if (current?.state === 'ACTIVE' && current.version !== assignment.version) {
       await this.put(assignment, 'ROLLBACK')
@@ -330,9 +448,16 @@ export class EnterprisePluginDistributionService extends Service {
       operatingSystem: this.operatingSystem,
       signal: this.abort.signal,
     })
+    if (identity !== this.currentIdentity()) throw new PluginDistributionError(
+      'ENT_PERMISSION_DENIED', 'enterprise account changed during installation',
+    )
     await this.put(assignment, 'VERIFIED')
     await this.put(assignment, 'INSTALLING')
-    await installManagedPlugin(this.commandOptions(), artifactPath)
+    try {
+      await installManagedPlugin(this.commandOptions(), artifactPath)
+    } catch (error) {
+      throw distributionError(error, 'ENT_PLUGIN_CLI_FAILED', 'plugin installation failed')
+    }
     await this.put(assignment, 'RESTART_REQUIRED', null, this.runMarker)
   }
 
@@ -346,6 +471,7 @@ export class EnterprisePluginDistributionService extends Service {
 
   private async reconcileAbsent(assignment: RuntimePluginAssignment): Promise<void> {
     const current = this.records.get(assignment.packageName)
+    if (current?.desiredState === 'ABSENT' && current.state === 'RESTART_REQUIRED') return
     const entry = await this.loaderEntry(assignment.packageName)
     const profileMayContainPlugin = current?.desiredState === 'INSTALLED' || entry !== undefined
     if (!profileMayContainPlugin) {
@@ -396,10 +522,11 @@ export class EnterprisePluginDistributionService extends Service {
     lastErrorCode: string | null = null,
     restartMarker: string | null = null,
   ): Promise<void> {
+    const current = this.records.get(assignment.packageName)
     this.records.set(assignment.packageName, {
       packageName: assignment.packageName,
-      version: assignment.version,
-      sha256: assignment.sha256,
+      version: state === 'RESTART_REQUIRED' ? assignment.version : current?.version ?? null,
+      sha256: state === 'RESTART_REQUIRED' ? assignment.sha256 : current?.sha256 ?? null,
       desiredRevision: this.assignmentRevision,
       desiredState: assignment.desiredState,
       state,

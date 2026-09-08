@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 dsh-ui Client apply、三个官方 slot 组件与结构化 slots test double
+ * [INPUT]: 依赖 dsh-ui Client apply、账号/市场 slot 组件与结构化 slots test double
  * [OUTPUT]: 验证 settings/sidebar/shell.overlay 注册身份、顺序和共享 store 注入
  * [POS]: dsh-ui Client 组合回归测试，锁定官方扩展路线且不把 Host Context 传入 React
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -23,7 +23,14 @@ describe('enterprise Client plugin', () => {
       return () => undefined
     })
     const inject = vi.fn((_name, callback: () => unknown) => callback())
-    apply({ slots: { inject, register } })
+    const remoteEvents: string[] = []
+    apply({
+      slots: { inject, register },
+      remote: { $on: (event) => { remoteEvents.push(event); return () => undefined } },
+      on: vi.fn(() => () => undefined),
+      effect: effect => { effect() },
+    })
+    expect(remoteEvents).toContain('llm/adapters-updated')
 
     expect(inject.mock.calls.map(call => call[0])).toEqual([
       'settings.section',

@@ -6,6 +6,9 @@
  */
 
 export type PluginDistributionErrorCode =
+  | 'ENT_AUTH_REQUIRED'
+  | 'ENT_PERMISSION_DENIED'
+  | 'ENT_PLUGIN_BUSY'
   | 'ENT_PLUGIN_CORE_PROTECTED'
   | 'ENT_PLUGIN_DOWNLOAD_FAILED'
   | 'ENT_PLUGIN_SIZE_MISMATCH'
