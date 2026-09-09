@@ -60,7 +60,7 @@ ENT_PUBLIC_BASE_URL=http://192.168.1.50:8080
 
 其中 `192.168.1.50` 替换为运行 Docker Compose 的机器 IP；若修改 `OWNDSH_HTTP_PORT`，这里使用相同端口。管理端回调会自动派生为 `<ENT_PUBLIC_BASE_URL>/enterprise/auth/callback`，不需要单独配置。
 
-生产环境应由现有 Nginx、Ingress 或负载均衡提供可信 HTTPS，并把这个值改成外部 HTTPS 地址。OwnDsh Compose 只开放 Console 的 HTTP 端口，不直接管理证书。`.env.example` 中的数据库、Redis、JWT、master key 和签名私钥是开箱测试默认值；公网部署必须通过同名环境变量覆盖。
+生产环境应由现有 Nginx、Ingress 或负载均衡提供可信 HTTPS，并把这个值改成外部 HTTPS 地址。OwnDsh Compose 只开放 Console 的 HTTP 端口，不直接管理证书。`.env.example` 中的数据库、Redis、JWT、master key 是开箱测试默认值；公网部署必须通过同名环境变量覆盖。
 
 ### 2. 可选：设置初始密码
 
@@ -78,7 +78,10 @@ ENT_BOOTSTRAP_ADMIN_PASSWORD=owndsh
 ```sh
 docker compose up -d --wait
 docker compose ps
+docker compose logs -f server
 ```
+
+Server 日志仅输出到 stdout/stderr，由 Docker/K8s 与日志平台采集和轮转，不需要应用日志卷。
 
 打开 `ENT_PUBLIC_BASE_URL` 配置的地址，以配置的初始账号和密码登录。数据库 marker 保证初始化只执行一次；首次改密后，默认初始密码立即失效。
 
@@ -127,7 +130,7 @@ pnpm --dir /path/to/deepseek-harness dsh \
 
 Server 地址和 Refresh Token 由 Harness Host 的官方 settings/credentials 服务持久化。Access Token 只存在 Host 内存，浏览器页面不会读取或保存 Token；正常重启会静默恢复登录。主动退出、设备撤销、成员停用、改密或 30 天有效期结束后需要重新登录。
 
-「OwnDsh 设置 → 插件」展示管理员发布且对本人可见的插件，支持搜索、详情、自主安装、更新和卸载。打开设置或刷新不会安装插件；其他设备独立选择。企业插件安装仍需管理员配置部署专属签名公钥，详见[信任配置](plugin/packages/plugin-distribution/README.md)。从旧版迁移时必须更新员工 OwnDsh 插件，仅更新后台无法阻止旧客户端自动安装。
+「OwnDsh 设置 → 插件」展示管理员发布且对本人可见的插件，支持搜索、详情、自主安装、更新和卸载。打开设置或刷新不会安装插件；其他设备独立选择。服务端签名（`ENT_PLUGIN_SIGNING_ENABLED=false`）和客户端验签（`verifyPluginSignatures=false`）默认关闭，无需配置公私钥；大小、SHA-256、兼容性和下载权限仍会校验。需要验签时可开启 `verifyPluginSignatures` 并配置部署专属公钥，详见[信任配置](plugin/packages/plugin-distribution/README.md)。从旧版迁移时必须更新员工 OwnDsh 插件，仅更新后台无法改变旧客户端的公钥要求或自动安装行为。
 
 OwnDsh 闲置时不建立企业 SSE、不定时拉配置或提前续期。用户请求时按需续期，服务端认证 401 最多续期重试一次；Refresh Token 失效或设备撤销时显示登录门禁，重新登录后可继续对话。网络暂不可达保留凭据，可再次发起请求或在 OwnDsh 设置点击刷新；模型与插件目录在打开设置或主动刷新时更新。
 

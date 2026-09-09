@@ -1,5 +1,5 @@
 rem [INPUT]: 依赖同目录 owndsh-server.jar 与系统 Java/JPS/taskkill 命令。
-rem [OUTPUT]: 提供 OwnDsh Server 的启动、停止、重启和状态检查入口。
+rem [OUTPUT]: 提供 OwnDsh Server 的独立控制台窗口启动、停止、重启和状态检查入口，保留标准流日志。
 rem [POS]: server 手工部署的 Windows 启停脚本，与 POSIX owndsh.sh 对应。
 rem [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 rem 使用者应根据自身平台编码自行转换 防止乱码 例如 win使用gbk编码
@@ -9,7 +9,7 @@ rem jar平级目录
 set AppName=owndsh-server.jar
 
 rem JVM参数
-set JVM_OPTS="-Dname=%AppName%  -Duser.timezone=Asia/Shanghai -Xms512m -Xmx1024m -XX:MetaspaceSize=128m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -XX:+UseZGC"
+set "JVM_OPTS=-Dname=%AppName%  -Duser.timezone=Asia/Shanghai -Xms512m -Xmx1024m -XX:MetaspaceSize=128m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -XX:+UseZGC"
 
 
 ECHO.
@@ -38,7 +38,7 @@ PAUSE
 		PAUSE
 	)
 
-start javaw %JVM_OPTS% -jar %AppName%
+start "OwnDsh Server" java %JVM_OPTS% -jar %AppName%
 
 echo  starting……
 echo  Start %AppName% success...

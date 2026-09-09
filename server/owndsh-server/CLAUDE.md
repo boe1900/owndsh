@@ -5,7 +5,7 @@
 成员清单
 
 .flattened-pom.xml: Maven flatten 生成的发布 POM 快照，随上游基线保留，不作为手工依赖真源。
-Dockerfile: Spring Boot 应用容器构建入口，T21 再接入企业部署镜像。
+Dockerfile: 通用 Spring Boot 容器入口，仅创建临时目录，日志写入标准流；正式离线制品由 deploy/compose/Dockerfile.server 构建。
 pom.xml: 应用装配 Maven 清单，只聚合企业运行所需的 Host system/API、认证辅助与 owndsh-enterprise，排除 Generator、Demo、Workflow、Host AI、Job、MCP、MySQL 和未启用监控客户端，并提供 Spring Boot 与 Draft 2020-12 JSON Schema 测试运行时。
 src/main/: Spring Boot 启动、Web 与环境装配；加载 owndsh-enterprise/Flyway，以 OwnDshLoginFailurePolicy 复用 LOCAL 锁定策略，并由 Spring 管理有界 graceful drain。
 src/main/resources/: 应用配置、enterprise 环境变量、模型流资源/无总时长边界与公开认证白名单；局部地图见 src/main/resources/CLAUDE.md。

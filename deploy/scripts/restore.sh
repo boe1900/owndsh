@@ -1,6 +1,6 @@
 #!/bin/sh
 # [INPUT]: 依赖已安装但可停机的目标、完整数据备份与独立 key 备份。
-# [OUTPUT]: 恢复 PostgreSQL、Redis、artifact、master/signing key，把 Redis RDB 转为完整 AOF 后重新等待应用健康。
+# [OUTPUT]: 恢复 PostgreSQL、Redis、artifact、master key 及归档中已有的 signing key，把 Redis RDB 转为完整 AOF 后重新等待应用健康。
 # [POS]: T21 灾难恢复入口；以 Redis 自身完成持久化格式转换，不恢复或更换目标域名的 TLS。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -41,12 +41,17 @@ require_command tar
 ) || fail "key 备份校验失败"
 acquire_operation_lock
 
-compose stop console server redis
 temporary_keys=$(mktemp -d "${TMPDIR:-/tmp}/owndsh-keys.XXXXXX")
 trap 'rm -rf "$temporary_keys"; rmdir "$OWNDSH_STATE_DIR/.operation.lock" 2>/dev/null || true' EXIT HUP INT TERM
 tar -C "$temporary_keys" -xzf "$key_backup/enterprise-keys.tar.gz"
+require_file "$temporary_keys/enterprise_master_key"
+if [ "$(env_value ENT_PLUGIN_SIGNING_ENABLED "$(runtime_file)")" = true ] \
+  || [ "$(env_value ENT_PLUGIN_SIGNING_ENABLED "$data_backup/runtime.env")" = true ]; then
+  require_file "$temporary_keys/plugin_signing_private_key"
+fi
+compose stop console server redis
 for key_file in enterprise_master_key plugin_signing_private_key plugin_signing_public_key; do
-  require_file "$temporary_keys/$key_file"
+  [ -f "$temporary_keys/$key_file" ] || continue
   cp "$temporary_keys/$key_file" "$OWNDSH_STATE_DIR/secrets/$key_file"
   chmod 600 "$OWNDSH_STATE_DIR/secrets/$key_file"
 done

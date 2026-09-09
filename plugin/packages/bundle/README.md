@@ -1,6 +1,6 @@
 <!--
 [INPUT]: 依赖 npm next 包、Harness 官方 plugin/profile/settings/credentials 扩展点与 OwnDsh Server。
-[OUTPUT]: 提供员工安装、连接、登录、更新和卸载 owndsh-plugin 的 npm 用户说明。
+[OUTPUT]: 提供员工安装、连接、登录、默认免公钥的插件安装、更新和卸载说明。
 [POS]: npm 包详情页与插件内置 README；面向员工，不承载 workspace 开发细节。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
@@ -62,6 +62,8 @@ dsh plugin --profile web add --ignore-scripts owndsh-plugin@next
 
 登录和企业模型只需安装本包。管理员上传、发布并配置可见范围后，员工在「OwnDsh 设置 → 插件」内自主安装、更新或卸载。不会自动安装，其他设备独立选择。安装或卸载后需完全退出并重新打开客户端。
 
-管理员仍需通过 profile 配置部署专属 Ed25519 公钥，并在上传时选择目标系统和对应 Harness commit；没有信任根时市场显示阻断原因。已识别 Harness `0.1.1-rc.2` 和 `0.1.2-rc.1`。旧版 OwnDsh 仍会自动调和插件，切换为自选市场需要先升级员工插件。
+插件签名校验 `verifyPluginSignatures` 默认关闭，员工无需配置公钥；文件大小、SHA-256、目标系统和 Harness 兼容性仍会校验。需要验签的部署可在 profile 的 `owndsh.config` 中设置 `verifyPluginSignatures: true` 和部署专属 `trustedPluginPublicKey`，开启后缺公钥或签名错误会阻止安装。
+
+管理员上传时仍需选择目标系统和对应 Harness commit。已识别 Harness `0.1.1-rc.2` 和 `0.1.2-rc.1`。旧版 OwnDsh 可能仍强制要求公钥或自动调和插件，需要先升级员工插件才能使用当前行为。
 
 项目与完整部署说明：[github.com/boe1900/owndsh](https://github.com/boe1900/owndsh)

@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖当前企业 bundle tgz、同级锁定 Harness、Corepack pnpm 与 Node 回环签名假平台
+ * [INPUT]: 依赖当前企业 bundle tgz、显式开启的验签、同级锁定 Harness、Corepack pnpm 与 Node 回环签名假平台
  * [OUTPUT]: 启动可重启、可收口的真实 Harness Web profile，目录供用户显式安装并验证 RESTART_REQUIRED/ACTIVE
  * [POS]: T15 无密钥浏览器组合载体，只写临时 DSH_HOME 并以真实 CLI/Loader 证明插件状态迁移
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -306,6 +306,7 @@ try {
     '- id: owndsh',
     '  config:',
     `    baseUrl: '${platformUrl}'`,
+    '    verifyPluginSignatures: true',
     `    trustedPluginPublicKey: '${trustedPluginPublicKey}'`,
     '    requestTimeoutMs: 5000',
     '    disposeTimeoutMs: 10000',

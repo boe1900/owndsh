@@ -1771,7 +1771,10 @@ export const zPluginPluginVersion = z.object({
     version: zPluginSemanticVersion,
     sizeBytes: z.coerce.bigint().gte(BigInt(1)).lte(BigInt(52428800)),
     sha256: zPluginSha256,
-    signatureBase64: z.string().min(86).max(88).regex(/^[A-Za-z0-9+\/]{86}==$/),
+    signatureBase64: z.union([
+        z.enum(['']),
+        z.string().length(88).regex(/^[A-Za-z0-9+\/]{86}==$/)
+    ]),
     compatibility: zPluginPluginCompatibility,
     status: zPluginVersionStatus,
     createdAt: z.iso.datetime({ offset: true }),
@@ -1819,7 +1822,10 @@ export const zRuntimePluginAssignment = z.object({
     version: zPluginSemanticVersion,
     sizeBytes: z.coerce.bigint().gte(BigInt(1)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
     sha256: zPluginSha256,
-    signatureBase64: z.string().min(86).max(88).regex(/^[A-Za-z0-9+\/]{86}==$/),
+    signatureBase64: z.union([
+        z.enum(['']),
+        z.string().length(88).regex(/^[A-Za-z0-9+\/]{86}==$/)
+    ]),
     compatibility: zPluginPluginCompatibility,
     downloadUrl: z.string().min(1).max(2048).nullable(),
     required: z.boolean(),

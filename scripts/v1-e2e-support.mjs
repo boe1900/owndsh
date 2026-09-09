@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Node HTTP/Crypto/Child Process 标准库、真实 OwnDsh HTTP(S) 入口与运行中的 Compose 服务。
- * [OUTPUT]: 提供 V1 E2E 的 PKCE 登录、Cookie/Bearer 请求、断言记录和 PostgreSQL/Redis 查询原语。
+ * [OUTPUT]: 提供 V1 E2E 的真实验证码提交（从隔离 Redis 读取答案）、PKCE 登录、Cookie/Bearer 请求、断言记录和 PostgreSQL/Redis 查询原语。
  * [POS]: scripts 的 E2E 传输支撑层，只封装协议机械细节，不包含产品场景或测试数据决策。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -128,6 +128,18 @@ export async function beginAuthorization({
   return { ...proof, clientId, redirectUri, installationId, ...sources };
 }
 
+// ---------- 只读测试 Redis 获取验证码答案，生成和一次性消费仍走真实 Host API ----------
+export async function captchaProof(origin = ORIGIN) {
+  const response = await fetch(`${origin}/auth/code`);
+  assert.equal(response.status, 200, 'captcha endpoint must succeed');
+  const { data } = await response.json();
+  if (!data.captchaEnabled) return {};
+  assert.match(data.uuid, /^[a-f0-9]{32}$/);
+  const answer = JSON.parse(redis('GET', `global:captcha_codes:${data.uuid}`));
+  assert.equal(typeof answer, 'string');
+  return { captchaId: data.uuid, captchaCode: answer };
+}
+
 export async function submitPassword(flow, { sourceId, username, password, newPassword, challenge } = {}) {
   const form = new URLSearchParams({
     transactionId: flow.transactionId,
@@ -137,6 +149,9 @@ export async function submitPassword(flow, { sourceId, username, password, newPa
   if (challenge === undefined) {
     form.set('username', username);
     form.set('password', password);
+    if (flow.sources.find(source => source.id === String(sourceId))?.type === 'LOCAL') {
+      for (const [key, value] of Object.entries(await captchaProof())) form.set(key, value);
+    }
   } else {
     form.set('passwordChangeChallenge', challenge);
     form.set('newPassword', newPassword);

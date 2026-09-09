@@ -5,6 +5,7 @@
 成员清单
 
 v1-product-feature-catalog.md: V1 产品功能真源，汇总身份、LDAP 用户/组目录接入、模型、授权、配额、限流、插件、设备与审计的交付状态、关键语义、发布门禁和明确非目标。
+plugin-signing-e2e-20260909.md: 默认免公私钥与显式验签的真实 HTTP/Harness 生命周期、损坏制品/签名拒绝、离线安装和四类持久数据备份恢复的验收记录与复现入口。
 v1-e2e-acceptance.md: V1 发布验收执行真源，以真实部署、LDAP/OIDC、锁定 Harness/Desktop 和浏览器场景覆盖全部冻结能力，并记录隔离、恢复与逐项证据。
 owndsh-work-platform.md: 产品预研，定义企业工作平台形态、能力边界、演进阶段与商业方向。
 owndsh-governance-mvp-design.md: MVP 实施真源，定义冻结决策、模块、API、数据表、测试、T00-T23 顺序和验收标准。

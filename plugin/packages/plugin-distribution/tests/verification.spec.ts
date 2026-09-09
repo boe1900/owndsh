@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Node Ed25519/临时文件、可控 Response 流与 plugin-distribution 制品边界
- * [OUTPUT]: 验证 JCS 向量、流式成功、中断清理、hash、签名、已知/未知 Harness compatibility 和缓存再验签
+ * [OUTPUT]: 验证默认无签名免公钥、开启验签后的缓存复查、强制大小/hash/兼容性、中断清理与 JCS 向量
  * [POS]: plugin-distribution 的零 CLI 信任回归测试，确保失败制品永远停在激活边界之外
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -79,6 +79,39 @@ function signedAssignment(
 }
 
 describe('plugin artifact verification', () => {
+  it('downloads and reuses cache without a public key, then enforces enabled signature checks on that cache', async () => {
+    const content = Buffer.from('intranet artifact')
+    const { assignment, publicKey } = signedAssignment(content, { signature: Buffer.alloc(0) })
+    const fake = platform(() => new Response(content))
+    const options = {
+      platform: fake, assignment, dshHome: await home(),
+      harnessCommit: HARNESS_COMMIT, bundleVersion: '0.1.0',
+    }
+    const path = await downloadAndVerifyArtifact(options)
+    await expect(readFile(path)).resolves.toEqual(content)
+    await expect(downloadAndVerifyArtifact(options)).resolves.toBe(path)
+    await expect(downloadAndVerifyArtifact({ ...options, verifyPluginSignatures: true }))
+      .rejects.toMatchObject({ code: 'ENT_PLUGIN_SIGNATURE_INVALID' })
+    await expect(downloadAndVerifyArtifact({
+      ...options, verifyPluginSignatures: true, trustedPublicKey: parseTrustedPluginPublicKey(publicKey),
+    })).rejects.toMatchObject({ code: 'ENT_PLUGIN_SIGNATURE_INVALID' })
+    expect(fake.request).toHaveBeenCalledOnce()
+  })
+
+  it.each<[string, Partial<RuntimePluginAssignment>, string]>([
+    ['hash', { sha256: 'f'.repeat(64) }, 'ENT_PLUGIN_HASH_MISMATCH'],
+    ['size', { sizeBytes: 1 }, 'ENT_PLUGIN_SIZE_MISMATCH'],
+    ['compatibility', { compatibility: { harnessCommits: [], operatingSystems: ['linux'], enterpriseBundleRange: '*' } }, 'ENT_PLUGIN_INCOMPATIBLE'],
+  ])('still rejects invalid %s with signature verification disabled', async (_name, change, code) => {
+    const content = Buffer.from('intranet artifact')
+    const { assignment } = signedAssignment(content)
+    await expect(downloadAndVerifyArtifact({
+      platform: platform(() => new Response(content)),
+      assignment: { ...assignment, ...change }, dshHome: await home(),
+      harnessCommit: HARNESS_COMMIT, bundleVersion: '0.1.0',
+    })).rejects.toMatchObject({ code })
+  })
+
   it('orders object keys by UTF-16 code units instead of locale collation', () => {
     expect(canonicalizeJson({ a: 2, Z: 1, '\u{1F600}': 4, '\uFFFD': 3 })).toBe(
       '{"Z":1,"a":2,"😀":4,"�":3}',
@@ -111,6 +144,7 @@ describe('plugin artifact verification', () => {
       platform: fake,
       assignment,
       dshHome,
+      verifyPluginSignatures: true,
       trustedPublicKey: parseTrustedPluginPublicKey(publicKey),
       harnessCommit: HARNESS_COMMIT,
       bundleVersion: '0.1.0',
@@ -136,6 +170,7 @@ describe('plugin artifact verification', () => {
       platform: platform(() => new Response(content)),
       assignment,
       dshHome,
+      verifyPluginSignatures: true,
       trustedPublicKey: parseTrustedPluginPublicKey(publicKey),
       harnessCommit: HARNESS_COMMIT,
       bundleVersion: '0.1.0',
@@ -153,6 +188,7 @@ describe('plugin artifact verification', () => {
       platform: platform(() => new Response(content)),
       assignment,
       dshHome,
+      verifyPluginSignatures: true,
       trustedPublicKey: parseTrustedPluginPublicKey(publicKey),
       bundleVersion: '0.1.0',
       operatingSystem: process.platform,
@@ -173,6 +209,7 @@ describe('plugin artifact verification', () => {
       platform: platform(() => new Response(interrupted)),
       assignment,
       dshHome,
+      verifyPluginSignatures: true,
       trustedPublicKey: parseTrustedPluginPublicKey(publicKey),
       harnessCommit: HARNESS_COMMIT,
       bundleVersion: '0.1.0',

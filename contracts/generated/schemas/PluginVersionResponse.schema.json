@@ -56,10 +56,21 @@
           "pattern": "^[0-9a-f]{64}$"
         },
         "signatureBase64": {
-          "type": "string",
-          "minLength": 86,
-          "maxLength": 88,
-          "pattern": "^[A-Za-z0-9+/]{86}==$"
+          "description": "空字符串表示未签名；非空值为 Ed25519 签名的 Base64。",
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                ""
+              ]
+            },
+            {
+              "type": "string",
+              "minLength": 88,
+              "maxLength": 88,
+              "pattern": "^[A-Za-z0-9+/]{86}==$"
+            }
+          ]
         },
         "compatibility": {
           "type": "object",

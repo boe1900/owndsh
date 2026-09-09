@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 Node Web Response 流、crypto/fs、公钥信任根、semver 与中心 RuntimePluginAssignment
- * [OUTPUT]: 对外提供流式下载、双重 hash/Ed25519 校验、compatibility 判定与冻结 JCS 声明
- * [POS]: plugin-distribution 的制品信任边界，只有完整验证的 tgz 才能原子进入 artifacts CAS
+ * [INPUT]: 依赖 Node Web Response 流、crypto/fs、安装层验签开关与可选公钥、semver 和中心 RuntimePluginAssignment
+ * [OUTPUT]: 对外提供强制大小/hash/兼容性校验、默认关闭的 Ed25519 验签与冻结 JCS 声明
+ * [POS]: plugin-distribution 的制品校验边界，下载与缓存共用同一验签策略，通过后才进入安装流程
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -23,7 +23,8 @@ export interface DownloadArtifactOptions extends ArtifactCompatibilityContext {
   readonly platform: EnterprisePlatformPort
   readonly assignment: RuntimePluginAssignment
   readonly dshHome: string
-  readonly trustedPublicKey: KeyObject
+  readonly verifyPluginSignatures?: boolean
+  readonly trustedPublicKey?: KeyObject
   readonly signal?: AbortSignal
 }
 
@@ -78,8 +79,9 @@ export function parseTrustedPluginPublicKey(value: string): KeyObject {
 
 export function verifyAssignmentMetadata(
   assignment: RuntimePluginAssignment,
-  trustedPublicKey: KeyObject,
+  trustedPublicKey: KeyObject | undefined,
   context: ArtifactCompatibilityContext,
+  verifyPluginSignatures = false,
 ): void {
   const compatibility = assignment.compatibility
   const operatingSystem = context.operatingSystem ?? process.platform
@@ -88,6 +90,10 @@ export function verifyAssignmentMetadata(
     || !compatibility.operatingSystems.includes(operatingSystem as 'darwin' | 'linux' | 'win32')
     || !satisfies(context.bundleVersion, compatibility.enterpriseBundleRange, { includePrerelease: true })) {
     throw new PluginDistributionError('ENT_PLUGIN_INCOMPATIBLE', 'plugin assignment is incompatible with this runtime')
+  }
+  if (!verifyPluginSignatures) return
+  if (trustedPublicKey === undefined) {
+    throw new PluginDistributionError('ENT_PLUGIN_SIGNATURE_INVALID', 'managed plugin trust root is not configured')
   }
   const signature = Buffer.from(assignment.signatureBase64, 'base64')
   const canonical = Buffer.from(canonicalizeJson(signatureManifest(assignment)), 'utf8')
@@ -127,7 +133,7 @@ export async function downloadAndVerifyArtifact(options: DownloadArtifactOptions
   const partPath = `${finalPath}.part`
   await mkdir(directory, { recursive: true, mode: 0o700 })
   if (await existingArtifact(finalPath, assignment)) {
-    verifyAssignmentMetadata(assignment, options.trustedPublicKey, options)
+    verifyAssignmentMetadata(assignment, options.trustedPublicKey, options, options.verifyPluginSignatures)
     return finalPath
   }
   await rm(finalPath, { force: true })
@@ -176,7 +182,7 @@ export async function downloadAndVerifyArtifact(options: DownloadArtifactOptions
     if (hash.digest('hex') !== assignment.sha256) {
       throw new PluginDistributionError('ENT_PLUGIN_HASH_MISMATCH', 'plugin download hash does not match assignment')
     }
-    verifyAssignmentMetadata(assignment, options.trustedPublicKey, options)
+    verifyAssignmentMetadata(assignment, options.trustedPublicKey, options, options.verifyPluginSignatures)
     await rename(partPath, finalPath)
     return finalPath
   } catch (error) {

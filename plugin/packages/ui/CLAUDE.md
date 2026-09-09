@@ -11,7 +11,7 @@ src/account-store.ts: 官方 slot 共享的状态控制器，串行处理 Server
 src/account-footer.tsx: 官方 sidebar footer slot 的 OwnDsh 账户行，使用品牌图标、显示名和灰色确认退出按钮；插件管理归设置页，不劫持 Settings 私有状态。
 src/account-view.tsx: 复用宿主 Button/tokens 呈现账号摘要、只读地址/设备/版本和刷新/退出/卸载；Server 编辑只出现在无活动会话的门禁，保存成功才收起；保留插件 tab、官方 close 门禁联动和窄屏导航适配。
 src/confirm-action.tsx: 复用 Harness 共享 Modal/Button 的页面确认，封闭焦点并隔离外层 Escape，只有明确确认才调用业务动作，供账号与卸载入口共用。
-src/plugin-market.tsx: OwnDsh 设置内的插件管理视图，分离企业目录和本机库存，以搜索、卡片、详情和已安装筛选承载显式安装/版本切换/确认卸载；详情弹窗管理焦点并隔离外层 Settings 的 Escape。
+src/plugin-market.tsx: OwnDsh 设置内的插件管理视图，分离目录和本机库存并承载显式安装/卸载；校验状态统一描述完整性与兼容性，适配可选验签；详情弹窗管理焦点并隔离外层 Settings 的 Escape。
 src/assets.d.ts: 声明官方 ui-primitives 类型入口的 KaTeX CSS 副作用导入，保持依赖严格类型检查，不打入运行包。
 src/client.tsx: Client 组合根，通过三个官方 slot 注册账号/插件设置、侧栏账户行和访问门禁，共享脱敏 store；复用官方 remote 事件与连接恢复通知，不建立新连接。
 src/index.ts: 无运行行为的 Host 占位入口，使官方 scanner 从 Loader row 发现 Client half。

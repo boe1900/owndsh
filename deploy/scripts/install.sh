@@ -1,6 +1,6 @@
 #!/bin/sh
 # [INPUT]: 依赖已校验 release、全新绝对状态目录、隔离 Compose project、HTTP(S) 外部地址、HTTP 发布端口与一次性管理员密码文件。
-# [OUTPUT]: 生成运行时 secret，加载镜像，通过环境变量初始化管理员并输出员工 profile 材料。
+# [OUTPUT]: 生成运行时 secret（插件签名默认关闭），加载镜像，通过环境变量初始化管理员并输出员工 profile 材料。
 # [POS]: T21 全新安装事务；已有 runtime.env 时 fail-closed，绝不覆盖既有数据库或 key。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -9,7 +9,7 @@ script_directory=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 . "$script_directory/common.sh"
 
 usage() {
-  printf '%s\n' "用法: $0 --state-dir DIR --public-base-url HTTP_OR_HTTPS_URL --bootstrap-admin USER --bootstrap-password-file FILE [--time-zone ZONE] [--http-port PORT]"
+  printf '%s\n' "用法: $0 --state-dir DIR --public-base-url HTTP_OR_HTTPS_URL --bootstrap-admin USER --bootstrap-password-file FILE [--time-zone ZONE] [--http-port PORT] [--enable-plugin-signing]"
 }
 
 OWNDSH_STATE_DIR=
@@ -18,6 +18,7 @@ bootstrap_admin=
 bootstrap_password_file=
 time_zone=Asia/Shanghai
 http_port=8080
+signing_enabled=false
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --state-dir) OWNDSH_STATE_DIR=${2:-}; shift 2 ;;
@@ -25,6 +26,7 @@ while [ "$#" -gt 0 ]; do
     --bootstrap-admin) bootstrap_admin=${2:-}; shift 2 ;;
     --bootstrap-password-file) bootstrap_password_file=${2:-}; shift 2 ;;
     --time-zone) time_zone=${2:-}; shift 2 ;;
+    --enable-plugin-signing) signing_enabled=true; shift ;;
     --http-port) http_port=${2:-}; shift 2 ;;
     *) usage >&2; exit 2 ;;
   esac
@@ -80,8 +82,10 @@ openssl rand -base64 48 | tr -d '\n' > "$OWNDSH_STATE_DIR/secrets/postgres_passw
 openssl rand -base64 48 | tr -d '\n' > "$OWNDSH_STATE_DIR/secrets/redis_password"
 openssl rand -base64 64 | tr -d '\n' > "$OWNDSH_STATE_DIR/secrets/sa_token_jwt_secret_key"
 openssl rand -base64 24 | tr -d '\n' > "$OWNDSH_STATE_DIR/secrets/enterprise_master_key"
-openssl genpkey -algorithm ED25519 -out "$OWNDSH_STATE_DIR/secrets/plugin_signing_private_key" >/dev/null 2>&1
-openssl pkey -in "$OWNDSH_STATE_DIR/secrets/plugin_signing_private_key" -pubout -out "$OWNDSH_STATE_DIR/secrets/plugin_signing_public_key" >/dev/null 2>&1
+if [ "$signing_enabled" = true ]; then
+  openssl genpkey -algorithm ED25519 -out "$OWNDSH_STATE_DIR/secrets/plugin_signing_private_key" >/dev/null 2>&1
+  openssl pkey -in "$OWNDSH_STATE_DIR/secrets/plugin_signing_private_key" -pubout -out "$OWNDSH_STATE_DIR/secrets/plugin_signing_public_key" >/dev/null 2>&1
+fi
 chmod 600 "$OWNDSH_STATE_DIR"/secrets/*
 
 cat > "$OWNDSH_STATE_DIR/runtime.env" <<EOF
@@ -97,28 +101,25 @@ ENT_PUBLIC_BASE_URL=$public_base_url
 ENT_DEPLOYMENT_TIME_ZONE=$time_zone
 ENT_POSTGRES_DATABASE=owndsh
 ENT_POSTGRES_USERNAME=owndsh
+ENT_PLUGIN_SIGNING_ENABLED=$signing_enabled
 EOF
 chmod 600 "$OWNDSH_STATE_DIR/runtime.env"
 
 bundle=$(env_value OWNDSH_HARNESS_BUNDLE "$release_root/manifest.env")
 cp "$release_root/harness/$bundle" "$OWNDSH_STATE_DIR/harness/$bundle"
 {
-  printf '%s\n' '- id: owndsh' '  config:' "    baseUrl: '$public_base_url'" '    trustedPluginPublicKey: |-'
-  sed 's/^/      /' "$OWNDSH_STATE_DIR/secrets/plugin_signing_public_key"
+  printf '%s\n' '- id: owndsh' '  config:' "    baseUrl: '$public_base_url'"
+  if [ "$signing_enabled" = true ]; then
+    printf '%s\n' '    verifyPluginSignatures: true' '    trustedPluginPublicKey: |-'
+    sed 's/^/      /' "$OWNDSH_STATE_DIR/secrets/plugin_signing_public_key"
+  fi
   printf '%s\n' '    enableTechnicalProbe: false'
 } > "$OWNDSH_STATE_DIR/harness/cordis.patch.yml"
 chmod 644 "$OWNDSH_STATE_DIR/harness/"*
 
-runtime=$(runtime_file)
-base_compose=$(compose_file)
-ENT_POSTGRES_PASSWORD="$(cat "$OWNDSH_STATE_DIR/secrets/postgres_password")" \
-ENT_REDIS_PASSWORD="$(cat "$OWNDSH_STATE_DIR/secrets/redis_password")" \
-SA_TOKEN_JWT_SECRET_KEY="$(cat "$OWNDSH_STATE_DIR/secrets/sa_token_jwt_secret_key")" \
-ENT_MASTER_KEY="$(cat "$OWNDSH_STATE_DIR/secrets/enterprise_master_key")" \
-ENT_PLUGIN_SIGNING_PRIVATE_KEY="$(cat "$OWNDSH_STATE_DIR/secrets/plugin_signing_private_key")" \
 ENT_BOOTSTRAP_ADMIN_USERNAME=$bootstrap_admin \
 ENT_BOOTSTRAP_ADMIN_PASSWORD="$(cat "$bootstrap_password_file")" \
-  docker compose --env-file "$runtime" -f "$base_compose" up -d
+  compose up -d
 wait_healthy server 90
 wait_healthy console 30
 

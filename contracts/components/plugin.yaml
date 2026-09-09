@@ -1,5 +1,5 @@
 # [INPUT]: 依赖根协议的资源 ID、revision、cursor、requestId 与严格成功 envelope
-# [OUTPUT]: 提供插件 compatibility、含完整 assignment 集合的 catalog、下载元数据与设备库存 schemas
+# [OUTPUT]: 提供插件 compatibility、含完整 assignment 集合的 catalog、含空字符串未签名表示的下载元数据与设备库存 schemas
 # [POS]: contracts/components 的插件分发真源，保留 assignment 线协议并以可见范围承载员工自主安装
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -110,10 +110,14 @@ PluginVersion:
       maximum: 52428800
     sha256: {$ref: '#/PluginSha256'}
     signatureBase64:
-      type: string
-      minLength: 86
-      maxLength: 88
-      pattern: '^[A-Za-z0-9+/]{86}==$'
+      description: 空字符串表示未签名；非空值为 Ed25519 签名的 Base64。
+      oneOf:
+        - type: string
+          enum: ['']
+        - type: string
+          minLength: 88
+          maxLength: 88
+          pattern: '^[A-Za-z0-9+/]{86}==$'
     compatibility: {$ref: '#/PluginCompatibility'}
     status: {$ref: '#/PluginVersionStatus'}
     createdAt:
@@ -261,10 +265,14 @@ RuntimePluginAssignment:
       minimum: 1
     sha256: {$ref: '#/PluginSha256'}
     signatureBase64:
-      type: string
-      minLength: 86
-      maxLength: 88
-      pattern: '^[A-Za-z0-9+/]{86}==$'
+      description: 空字符串表示未签名；非空值为 Ed25519 签名的 Base64。
+      oneOf:
+        - type: string
+          enum: ['']
+        - type: string
+          minLength: 88
+          maxLength: 88
+          pattern: '^[A-Za-z0-9+/]{86}==$'
     compatibility: {$ref: '#/PluginCompatibility'}
     downloadUrl:
       oneOf:

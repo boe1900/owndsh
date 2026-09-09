@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Cordis Context、真实临时状态/制品文件、签名 assignment 与 fake platform/subprocess/inventory
- * [OUTPUT]: 验证目录零自动安装、显式版本操作/卸载耐久、授权复查、串行互斥、签名、重启确认、撤回和核心保护
+ * [OUTPUT]: 验证默认无签名免公钥安装、显式验签阻断、版本操作/卸载耐久、授权复查、重启确认、撤回和核心保护
  * [POS]: plugin-distribution 的完整状态机验收，模拟中心 revision 而不修改或替身化 Harness 源码
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -150,6 +150,7 @@ async function environment(options: {
   readonly dshHome?: string
   readonly runMarker?: string
   readonly commandPort?: DshPluginCommandPort
+  readonly verifyPluginSignatures?: boolean
   readonly trustedPluginPublicKey?: string | null
   readonly store?: ManagedPluginStore
 }): Promise<{
@@ -166,6 +167,7 @@ async function environment(options: {
   ctx.reflect.provide('subprocess', subprocess.runtime)
   ctx.reflect.provide('pluginInventory' as never, (options.inventory ?? inventory()) as never)
   const service = new EnterprisePluginDistributionService(ctx as unknown as PluginDistributionContext, {
+    ...(options.verifyPluginSignatures === undefined ? {} : { verifyPluginSignatures: options.verifyPluginSignatures }),
     ...(options.trustedPluginPublicKey === null ? {} : {
       trustedPluginPublicKey: options.trustedPluginPublicKey
         ?? testKey.publicKey.export({ type: 'spki', format: 'der' }).toString('base64'),
@@ -261,18 +263,53 @@ describe('EnterprisePluginDistributionService', () => {
     expect(platform.reports).toEqual([])
   })
 
-  it('keeps managed installation fail-closed when no trust root was packaged', async () => {
+  it.each([null, 'unused-invalid-public-key'])('installs over HTTP without signature configuration or parsing key %s', async key => {
+    const content = Buffer.from('intranet managed bundle')
+    const desired = { ...assignment(testKey, content), signatureBase64: '' }
+    const platform = new FakePlatform(bootstrap(1, [desired]), new Map([[desired.downloadUrl!, content]]))
+    platform.statusValue = { ...platform.statusValue, platformUrl: 'http://enterprise.invalid' }
+    const env = await environment({ platform, trustedPluginPublicKey: key })
+
+    await env.service.settled()
+    expect(env.service.status().catalog[0]?.installErrorCode).toBeUndefined()
+    await env.service.install(desired.packageName, desired.pluginVersionId)
+    expect(env.service.status().plugins[0]?.state).toBe('RESTART_REQUIRED')
+    expect(env.subprocess.specs).toHaveLength(1)
+  })
+
+  it('keeps managed installation fail-closed when verification is enabled without a trust root', async () => {
     const content = Buffer.from('unsigned deployment bundle')
     const desired = assignment(testKey, content)
     const platform = new FakePlatform(bootstrap(1, [desired]), new Map([[desired.downloadUrl!, content]]))
-    const env = await environment({ platform, trustedPluginPublicKey: null })
+    const env = await environment({ platform, verifyPluginSignatures: true, trustedPluginPublicKey: null })
 
     await env.service.settled()
+    expect(env.service.status().catalog[0]?.installErrorCode).toBe('ENT_PLUGIN_SIGNATURE_INVALID')
     await expect(env.service.install(desired.packageName, desired.pluginVersionId)).rejects.toMatchObject({ code: 'ENT_PLUGIN_SIGNATURE_INVALID' })
     expect(env.service.status().plugins[0]).toMatchObject({
       state: 'FAILED', lastErrorCode: 'ENT_PLUGIN_SIGNATURE_INVALID',
     })
     expect(env.subprocess.specs).toHaveLength(0)
+  })
+
+  it.each([true, false])('applies signature policy %s to both catalog and explicit installation', async enabled => {
+    const content = Buffer.from('signature policy bundle')
+    const desired = { ...assignment(testKey, content), signatureBase64: '' }
+    const platform = new FakePlatform(bootstrap(1, [desired]), new Map([[desired.downloadUrl!, content]]))
+    const env = await environment({ platform, verifyPluginSignatures: enabled })
+    await env.service.settled()
+
+    if (enabled) {
+      expect(env.service.status().catalog[0]?.installErrorCode).toBe('ENT_PLUGIN_SIGNATURE_INVALID')
+      await expect(env.service.install(desired.packageName, desired.pluginVersionId))
+        .rejects.toMatchObject({ code: 'ENT_PLUGIN_SIGNATURE_INVALID' })
+      expect(env.subprocess.specs).toHaveLength(0)
+      platform.publish(bootstrap(2, [assignment(testKey, content)]))
+      await env.service.settled()
+    }
+    expect(env.service.status().catalog[0]?.installErrorCode).toBeUndefined()
+    await env.service.install(desired.packageName, desired.pluginVersionId)
+    expect(env.subprocess.specs).toHaveLength(1)
   })
 
   it('uses Desktop plugin argv without resolving an ambient dsh executable', async () => {

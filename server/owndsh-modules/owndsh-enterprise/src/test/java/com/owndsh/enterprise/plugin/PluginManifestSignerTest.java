@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 JDK Ed25519 keypair、RFC 8785 signer 与冻结 compatibility/signature manifest。
- * [OUTPUT]: 验证确定性 canonical bytes、64 字节签名、公钥验签和环境 PKCS#8 加载。
+ * [OUTPUT]: 验证默认免私钥、开启后缺失/非法私钥阻断、确定性 canonical bytes、64 字节签名、公钥验签和环境 PKCS#8 加载。
  * [POS]: T13 服务端与后续 T14 客户端共享签名语义的规范向量门禁。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -20,6 +20,7 @@ import java.util.HexFormat;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @Tag("dev")
 class PluginManifestSignerTest {
@@ -62,6 +63,26 @@ class PluginManifestSignerTest {
             assertThat(verifier.verify(signature)).isTrue();
             assertThat(HexFormat.of().formatHex(signature)).hasSize(128);
         }
+    }
+
+    @Test
+    void defaultsToUnsignedAndRequiresAValidKeyOnlyWhenEnabled() throws Exception {
+        var properties = new EnterprisePluginProperties();
+        var configuration = new EnterprisePluginConfiguration();
+        assertThat(properties.isSigningEnabled()).isFalse();
+        assertThat(configuration.enterprisePluginManifestSigner(JSON, properties).sign(manifest())).isEmpty();
+        properties.setSigningPrivateKey("ignored-invalid-key");
+        assertThat(configuration.enterprisePluginManifestSigner(JSON, properties).sign(manifest())).isEmpty();
+
+        properties.setSigningEnabled(true);
+        assertThatThrownBy(() -> configuration.enterprisePluginManifestSigner(JSON, properties))
+            .isInstanceOf(IllegalStateException.class).hasMessageContaining("PKCS#8");
+        properties.setSigningPrivateKey(null);
+        assertThatThrownBy(() -> configuration.enterprisePluginManifestSigner(JSON, properties))
+            .isInstanceOf(IllegalStateException.class).hasMessageContaining("必须配置");
+        var pair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
+        properties.setSigningPrivateKey(Base64.getEncoder().encodeToString(pair.getPrivate().getEncoded()));
+        assertThat(configuration.enterprisePluginManifestSigner(JSON, properties).sign(manifest())).hasSize(64);
     }
 
     private static PluginManifestSigner.SignatureManifest manifest() {

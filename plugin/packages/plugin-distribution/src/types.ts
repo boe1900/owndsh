@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 platform-client bootstrap、contracts 受管状态与兼容 Harness subprocess/inventory 公共类型
- * [OUTPUT]: 对外提供分发 Config、企业目录/本机安装快照及 enterprisePlatform/subprocess/同步或异步 pluginInventory 窄 port
+ * [OUTPUT]: 对外提供含可选验签开关的分发 Config、企业目录/本机安装快照及平台/官方运行时窄 port
  * [POS]: plugin-distribution 的依赖倒置层，使业务状态机只依赖官方能力契约而不耦合实现
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -65,8 +65,9 @@ export interface PluginDistributionStatus {
   readonly lastReportErrorCode?: string
 }
 
-/** 安装包可注入的固定信任根与官方 CLI 参数；无信任根时受管安装严格关闭。 */
+/** 安装层控制验签策略；默认关闭，开启后缺失信任根会阻止受管安装。 */
 export interface PluginDistributionConfig {
+  readonly verifyPluginSignatures?: boolean
   readonly trustedPluginPublicKey?: string
   /** 可选的已验证 Harness commit；未知运行时保持缺省并拒绝受管制品安装。 */
   readonly harnessCommit?: string

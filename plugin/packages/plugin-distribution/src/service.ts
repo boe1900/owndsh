@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 platform-client bootstrap/request、Harness subprocess/同步或异步 pluginInventory、可选 Desktop command port、制品校验与原子状态文件
+ * [INPUT]: 依赖 platform-client bootstrap/request、安装层验签开关、Harness subprocess/inventory、制品校验与原子状态文件
  * [OUTPUT]: 对外提供企业可选目录、显式安装/版本切换/卸载、撤回调和、核心保护与库存状态
  * [POS]: plugin-distribution 的串行生命周期所有者，中心决定可用范围，用户决定本机安装，Loader 确认重启结果
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -39,6 +39,7 @@ export const PROTECTED_ENTERPRISE_PACKAGES = new Set([
 const OWNDSH_PACKAGE = 'owndsh-plugin'
 
 interface ResolvedConfig {
+  readonly verifyPluginSignatures: boolean
   readonly trustedPublicKey?: ReturnType<typeof parseTrustedPluginPublicKey>
   readonly harnessCommit?: string
   readonly bundleVersion: string
@@ -72,7 +73,8 @@ function resolveConfig(config: PluginDistributionConfig): ResolvedConfig {
     throw new TypeError('subprocessGraceMs must be a positive safe integer')
   }
   return {
-    ...(config.trustedPluginPublicKey === undefined || config.trustedPluginPublicKey.trim() === ''
+    verifyPluginSignatures: config.verifyPluginSignatures ?? false,
+    ...(config.verifyPluginSignatures !== true || config.trustedPluginPublicKey === undefined || config.trustedPluginPublicKey.trim() === ''
       ? {}
       : { trustedPublicKey: parseTrustedPluginPublicKey(config.trustedPluginPublicKey) }),
     ...(config.harnessCommit === undefined ? {} : { harnessCommit: config.harnessCommit }),
@@ -157,12 +159,9 @@ export class EnterprisePluginDistributionService extends Service {
         .map(item => {
           let installErrorCode: string | undefined
           try {
-            if (this.config.trustedPublicKey === undefined) throw new PluginDistributionError(
-              'ENT_PLUGIN_SIGNATURE_INVALID', 'managed plugin trust root is not configured',
-            )
             verifyAssignmentMetadata(item, this.config.trustedPublicKey, {
               ...this.config, operatingSystem: this.operatingSystem,
-            })
+            }, this.config.verifyPluginSignatures)
           } catch (error) {
             installErrorCode = distributionError(error, 'ENT_PLUGIN_INCOMPATIBLE', 'plugin is unavailable').code
           }
@@ -417,11 +416,9 @@ export class EnterprisePluginDistributionService extends Service {
 
   private async reconcileInstalled(assignment: RuntimePluginAssignment, identity: string): Promise<void> {
     const trustedPublicKey = this.config.trustedPublicKey
-    if (trustedPublicKey === undefined) {
-      throw new PluginDistributionError(
-        'ENT_PLUGIN_SIGNATURE_INVALID', 'managed plugin trust root is not configured',
-      )
-    }
+    verifyAssignmentMetadata(assignment, trustedPublicKey, {
+      ...this.config, operatingSystem: this.operatingSystem,
+    }, this.config.verifyPluginSignatures)
     const current = this.records.get(assignment.packageName)
     if (sameArtifact(current, assignment)) {
       if (current?.state === 'ACTIVE' && await this.loaderActive(assignment.packageName)) {
@@ -442,7 +439,8 @@ export class EnterprisePluginDistributionService extends Service {
       platform: this.pluginContext.enterprisePlatform,
       assignment,
       dshHome: this.config.dshHome,
-      trustedPublicKey,
+      verifyPluginSignatures: this.config.verifyPluginSignatures,
+      ...(trustedPublicKey === undefined ? {} : { trustedPublicKey }),
       ...(this.config.harnessCommit === undefined ? {} : { harnessCommit: this.config.harnessCommit }),
       bundleVersion: this.config.bundleVersion,
       operatingSystem: this.operatingSystem,

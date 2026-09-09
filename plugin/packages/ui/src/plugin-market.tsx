@@ -16,7 +16,7 @@ const STATES: Record<ManagedPluginState, { title: string; description: string; c
   EXPECTED: { title: '未安装', description: '可选择安装', color: '#667085' },
   DOWNLOAD_PENDING: { title: '等待下载', description: '制品下载即将开始', color: '#2563eb' },
   DOWNLOADING: { title: '正在下载', description: '正在获取企业插件', color: '#2563eb' },
-  VERIFIED: { title: '校验通过', description: '制品签名与兼容性有效', color: '#2563eb' },
+  VERIFIED: { title: '校验通过', description: '制品完整性与兼容性校验通过', color: '#2563eb' },
   INSTALLING: { title: '正在安装', description: '正在更新本机插件', color: '#2563eb' },
   RESTART_REQUIRED: { title: '等待重启', description: '重启 Harness 后生效', color: '#b54708' },
   ACTIVE: { title: '已安装', description: '插件已启用', color: '#16803c' },

@@ -1,6 +1,6 @@
 #!/bin/sh
 # [INPUT]: 依赖同目录 owndsh-server.jar 与系统 java/ps/awk/kill 命令。
-# [OUTPUT]: 提供 OwnDsh Server 的 start/stop/restart/status 运维入口。
+# [OUTPUT]: 提供 OwnDsh Server 的前台 start/restart 与 stop/status 运维入口，日志交给终端或进程管理器采集。
 # [POS]: server 手工部署的 POSIX 启停脚本，与 Windows owndsh.bat 对应。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 # ./owndsh.sh start 启动 stop 停止 restart 重启 status 状态
@@ -8,8 +8,6 @@ AppName=owndsh-server.jar
 
 # JVM参数
 JVM_OPTS="-Dname=$AppName  -Duser.timezone=Asia/Shanghai -Xms512m -Xmx1024m -XX:MetaspaceSize=128m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -XX:+UseZGC"
-APP_HOME=`pwd`
-LOG_PATH=$APP_HOME/logs/$AppName.log
 
 if [ "$1" = "" ];
 then
@@ -23,19 +21,18 @@ then
     exit 1
 fi
 
-function start()
+start()
 {
     PID=`ps -ef |grep java|grep $AppName|grep -v grep|awk '{print $2}'`
 
     if [ x"$PID" != x"" ]; then
         echo "$AppName is running..."
     else
-        nohup java $JVM_OPTS -jar $AppName > /dev/null 2>&1 &
-        echo "Start $AppName success..."
+        exec java $JVM_OPTS -jar "$AppName"
     fi
 }
 
-function stop()
+stop()
 {
     echo "Stop $AppName"
 
@@ -59,14 +56,14 @@ function stop()
     fi
 }
 
-function restart()
+restart()
 {
     stop
     sleep 2
     start
 }
 
-function status()
+status()
 {
     PID=`ps -ef |grep java|grep $AppName|grep -v grep|wc -l`
     if [ $PID != 0 ];then

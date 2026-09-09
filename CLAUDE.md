@@ -31,7 +31,7 @@ T00 建立上游源码与插件工作区，T01 验证官方插件扩展面，T02
 
 转发计量法则：V29 将实测 Token 与配额扣额分开，未知 usage 不进入实测总计。发送前提交 SENT/accepted 意图，明确 4xx 拒绝（不含 408）释放，响应丢失按未知用量记录；最终 usage 先写独立快照，终态事务失败后恢复任务按该快照结算。租约覆盖等待响应头与整个流，静默上游期间串行发送 SSE 心跳，取消先关闭上游再幂等结算。Token 允许已获准请求超额全额结算，额度耗尽后拒绝新请求；并发在途请求均可完成，不承诺固定超额上限。
 
-T18 在 T16/T17 Session 纵向边界上交付管理 metadata/正文/删除页和桌面同步/恢复/删除 tab，并以耐久 `DELETED` 游标阻止 Harness 重启后自动重传。T19 建立封闭 action metadata 白名单、tenant 隔离审计查询、365 天有界 retention、用户治理事务接缝和 heartbeat 防洪。T20 建立默认同源 CORS、无已知 JWT secret、分层请求体上限、graceful drain、未知故障日志隔离、CI 秘密扫描和 PostgreSQL/Redis/artifact/key 恢复演练。T21 建立锁定 Linux amd64 release、HTTP Compose、一次性管理员、secret、健康检查、备份恢复、升级与仅应用回滚；TLS 交给部署方现有网关。T22 退役跨模块自动总编排，改由单后端、单 Harness 的无时限本地环境逐功能人工验收；T23 在 T22 人工确认完成前不启动。
+T18 在 T16/T17 Session 纵向边界上交付管理 metadata/正文/删除页和桌面同步/恢复/删除 tab，并以耐久 `DELETED` 游标阻止 Harness 重启后自动重传。T19 建立封闭 action metadata 白名单、tenant 隔离审计查询、365 天有界 retention、用户治理事务接缝和 heartbeat 防洪。T20 建立默认同源 CORS、无已知 JWT secret、分层请求体上限、graceful drain、未知故障日志隔离、CI 秘密扫描和 PostgreSQL/Redis/artifact/key 恢复演练。T21 建立锁定 Linux amd64 release、HTTP Compose、一次性管理员、secret、健康检查、备份恢复、升级与仅应用回滚；TLS 交给部署方现有网关，应用日志仅输出 stdout/stderr，采集保留交给运行平台。T22 退役跨模块自动总编排，改由单后端、单 Harness 的无时限本地环境逐功能人工验收；T23 在 T22 人工确认完成前不启动。
 
 第二阶段 P2-00 至 P2-07 已完成设计冻结、独立 `console`、Beautiful UI 产品壳、PKCE/固定角色路由、模型与访问策略、插件、成员与多身份，以及权限裁剪的用量/审计/运行异常和身份接入；控制台固定五个产品入口，身份源归入成员，LDAP 组映射绑定 LDAP 行操作，不提供设置或系统页面。P2-08 已完成真实 Harness/Desktop 模型调用、Organization/Member/RPM/并发、五角色矩阵、身份源、静态资源切换与受管插件安装/升级/回滚/卸载 E2E。P2-08A 已建立扁平用户组/模型集、集合授权，以及 Organization/Member × All Models/Model Set/Model 的 TOKEN/RATE 互斥策略，并允许 Organization × Provider 的共享 RATE 上限；四窗口 Token 走 PostgreSQL 预留，RPM/并发走既有 Redis lease，重叠策略已由锁定 Harness E2E 覆盖。P2-08B 已实现 LDAP 单人导入、组目录有界发现与产品用户组显式映射，不扩展目录镜像或定时同步；V1 Session 客户端已停用，上游 429 在 HTTP 提交前区分瞬时限流与硬额度并保留 `Retry-After`。P2-09 已移除旧管理前端，生产与开发均只保留 `console`。
 
@@ -42,5 +42,7 @@ P2-08C 将产品控制台会话收敛为服务端 Sa-Token 与 HttpOnly/SameSite
 服务地址边界：账号设置只读显示 Server；退出登录后在门禁修改。Host 将运行时修改收敛到无活动会话时的凭据清理与官方 settings 写入，保存与登录互斥；浏览器在服务/账号切换时丢弃旧请求结果。
 
 企业插件市场：后端上传、发布与 ALL/USER 可见范围管理复用现有插件模块；员工在「OwnDsh 设置 → 插件」内搜索、查看详情并自主安装/切换版本/卸载，不另设侧栏入口或独立市场弹层。revision 不再触发安装，历史 required 也不强制；删除范围或退休只停止新安装，显式 ABSENT 才撤回已有受管包。签名、兼容性、逐请求授权与库存边界保留。部署时必须升级员工插件，旧客户端不会仅因后台变更自动转为自选模式。
+
+插件验签策略：客户端 `verifyPluginSignatures` 默认 false，HTTP 内网部署无需员工配置公钥；文件大小、SHA-256、兼容性、逐请求授权与核心包保护始终生效。显式开启后仅信任安装层配置的 Ed25519 公钥，目录、下载和缓存都严格验签，服务端响应无权关闭校验或替换信任根。服务端 `ENT_PLUGIN_SIGNING_ENABLED` 同样默认 false，关闭时不加载私钥、不生成签名；数据库保留非空 bytea，以零长度表示未签名，HTTP `signatureBase64` 对应空字符串，无需迁移。开启签名仅影响新上传版本，不补签旧制品。Docker 与离线安装默认不提供签名密钥；升级时先更新员工插件，旧客户端无法解析无签名版本。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

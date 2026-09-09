@@ -1,6 +1,6 @@
 #!/bin/sh
 # [INPUT]: 依赖健康安装、PostgreSQL/Redis/artifact 持久事实及两个不同的备份目标目录。
-# [OUTPUT]: 生成数据库/Redis/artifact 数据归档和独立 master/signing key 归档，各带 SHA-256 清单。
+# [OUTPUT]: 生成数据库/Redis/artifact 数据归档和独立 master key 及已有 signing key 归档，各带 SHA-256 清单。
 # [POS]: T21 正式备份入口；普通数据备份绝不包含 key，调用方必须把 key 归档异地保管。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -65,8 +65,8 @@ EOF
   sha256sum_compat postgres.dump redis.rdb artifacts.tar.gz runtime.env backup.env > SHA256SUMS
 )
 
-tar -C "$OWNDSH_STATE_DIR/secrets" -czf "$key_backup/enterprise-keys.tar.gz" \
-  enterprise_master_key plugin_signing_private_key plugin_signing_public_key
+key_files=$(backup_key_files)
+tar -C "$OWNDSH_STATE_DIR/secrets" -czf "$key_backup/enterprise-keys.tar.gz" $key_files
 (
   cd "$key_backup"
   sha256sum_compat enterprise-keys.tar.gz > SHA256SUMS

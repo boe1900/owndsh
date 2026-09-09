@@ -119,7 +119,7 @@ master key 的独立 `API_CURSOR` 用途进行 AES-GCM 认证，并绑定 tenant
 - multipart 上传先有界写入 `.part` 并计算整包 SHA-256，再由 Commons Compress 单遍读取；不解压到
   文件系统，拒绝路径逃逸、链接、设备文件、`.node`、安装脚本、非空 dependencies 与非精确 Harness peer。
 - 整包按 SHA-256 内容寻址；同 hash 的终结和事务补偿由进程锁加 artifact root 文件锁串行化，
-  避免并发失败删除其他 tenant 已引用制品。签名声明使用 RFC 8785 JCS 与 Ed25519 PKCS#8 私钥。
+  避免并发失败删除其他 tenant 已引用制品。签名默认关闭（`ENT_PLUGIN_SIGNING_ENABLED=false`），无需私钥；关闭时以空 bytea/`signatureBase64: ""` 表示未签名，不改变表结构。显式开启才加载 `ENT_PLUGIN_SIGNING_PRIVATE_KEY` 并使用 RFC 8785 JCS/Ed25519，缺失或非法私钥阻止启动。开关只影响新上传版本，已有版本（包括幂等重传）不重签；客户端需升级以接受空签名。
 - 版本只允许 `UPLOADED -> VALIDATED -> PUBLISHED -> RETIRED`，只有 PUBLISHED 可新分配；相同
   package/version 或 tenant 内相同 SHA-256 返回已有版本，不复制事实。
 - assignment 原子替换并按 USER、当前 DEPT、ALL 裁决，`INSTALLED` 表示对员工可见并允许自主安装，保存时统一 `required=false`；`ABSENT` 表示撤回已有受管包。

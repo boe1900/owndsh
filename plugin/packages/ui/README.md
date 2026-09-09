@@ -55,7 +55,8 @@ The fixed same-origin `/enterprise/api/v1/local/plugins` projection separates th
 from local installation facts. `/plugins/install` binds a package and version ID;
 `/plugins/remove` removes a locally managed package. Opening or refreshing never installs
 anything. New versions require a click, and uninstall survives refresh and restart.
-Missing trust configuration and incompatible runtimes disable installation.
+Incompatible runtimes disable installation. Signature verification is off by default;
+when explicitly enabled, missing trust configuration or invalid signatures also block installation.
 SHA-256, restart markers, tgz
 paths, trust keys, CLI output, and platform credentials are validated or removed
 before the snapshot reaches React.

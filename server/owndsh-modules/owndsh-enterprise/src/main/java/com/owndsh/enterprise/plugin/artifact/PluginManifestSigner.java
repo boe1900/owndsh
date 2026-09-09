@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 Jackson 3、RFC 8785 JCS 实现与环境注入的 Ed25519 PKCS#8 私钥。
- * [OUTPUT]: 对固定 artifactId/package/version/size/hash/compatibility 声明提供 canonical bytes 与签名。
+ * [INPUT]: 依赖 Jackson 3、RFC 8785 JCS 实现与可选 Ed25519 PKCS#8 私钥；null 仅用于配置层显式关闭签名。
+ * [OUTPUT]: 对固定 artifactId/package/version/size/hash/compatibility 声明提供 canonical bytes 与签名，关闭时返回零长度字节数组。
  * [POS]: plugin/artifact 的唯一签名边界，禁止字段拼接、默认序列化顺序或把私钥写入仓库配置。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -26,8 +26,8 @@ public final class PluginManifestSigner {
 
     public PluginManifestSigner(JsonMapper json, PrivateKey privateKey) {
         this.json = Objects.requireNonNull(json, "json");
-        this.privateKey = Objects.requireNonNull(privateKey, "privateKey");
-        if (!"EdDSA".equals(privateKey.getAlgorithm()) && !"Ed25519".equals(privateKey.getAlgorithm())) {
+        this.privateKey = privateKey;
+        if (privateKey != null && !"EdDSA".equals(privateKey.getAlgorithm()) && !"Ed25519".equals(privateKey.getAlgorithm())) {
             throw new IllegalArgumentException("插件签名私钥必须为 Ed25519");
         }
     }
@@ -53,6 +53,8 @@ public final class PluginManifestSigner {
     }
 
     public byte[] sign(SignatureManifest manifest) {
+        Objects.requireNonNull(manifest, "manifest");
+        if (privateKey == null) return new byte[0];
         try {
             Signature signature = Signature.getInstance("Ed25519");
             signature.initSign(privateKey);

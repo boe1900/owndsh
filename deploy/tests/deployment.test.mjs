@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 deploy Compose/Nginx/脚本、单一 application.yml、Docker Compose v2 与测试环境变量。
- * [OUTPUT]: 验证内部数据服务加 HTTP Console/Server 拓扑、GitHub 插件制品与测试版发布、环境参数、幂等 bootstrap、API/SPA 路由与运维边界。
+ * [OUTPUT]: 验证内部数据服务加 HTTP Console/Server 拓扑、无应用日志卷、GitHub 插件制品与测试版发布、默认免签名密钥与可选 key 归档、环境参数、幂等 bootstrap、API/SPA 路由与运维边界。
  * [POS]: T21/P2-08 部署与本地人工验收静态门禁，先于昂贵镜像构建发现配置漂移。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict'
 import { execFileSync, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -35,6 +35,7 @@ function composeConfig(baseImageRegistry = undefined) {
     ENT_REDIS_PASSWORD: 'redis-fixture',
     SA_TOKEN_JWT_SECRET_KEY: 'jwt-fixture',
     ENT_MASTER_KEY: '0123456789abcdef0123456789abcdef',
+    ENT_PLUGIN_SIGNING_ENABLED: 'true',
     ENT_PLUGIN_SIGNING_PRIVATE_KEY: 'signing-fixture',
     ENT_BOOTSTRAP_ADMIN_USERNAME: 'platform.admin',
     ENT_BOOTSTRAP_ADMIN_PASSWORD: 'FixturePassword1!',
@@ -63,6 +64,16 @@ test('compose publishes only the HTTP Console and pins all third-party images', 
   assert.equal(config.services.console.platform, 'linux/amd64')
   assert.equal(config.services.server.environment.ENT_ALLOW_INSECURE_OIDC, 'false')
   assert.equal(config.services.server.environment.XDG_CACHE_HOME, '/tmp')
+  assert.equal(config.services.server.read_only, true)
+  assert.deepEqual(Object.keys(config.volumes).sort(), ['artifacts', 'postgres_data', 'redis_data'])
+  for (const service of ['server', 'storage-init']) {
+    assert.deepEqual(config.services[service].volumes.map(({ source, target }) => ({ source, target })), [
+      { source: 'artifacts', target: '/var/lib/enterprise/artifacts' },
+    ])
+  }
+  assert.deepEqual(config.services['storage-init'].command, [
+    'sh', '-ec', 'chown -R 10001:10001 /var/lib/enterprise',
+  ])
   assert.ok(config.services.server.tmpfs.some(mount =>
     typeof mount === 'string' ? mount.split(':')[0] === '/tmp' : mount.target === '/tmp'
   ))
@@ -91,7 +102,8 @@ test('root Compose has GHCR images and overridable test defaults', () => {
   assert.match(environment, /^ENT_REDIS_PASSWORD=owndsh$/m)
   assert.match(environment, /^SA_TOKEN_JWT_SECRET_KEY=.+$/m)
   assert.match(environment, /^ENT_MASTER_KEY=.{32}$/m)
-  assert.match(environment, /^ENT_PLUGIN_SIGNING_PRIVATE_KEY=.+$/m)
+  assert.match(environment, /^ENT_PLUGIN_SIGNING_ENABLED=false$/m)
+  assert.match(environment, /^ENT_PLUGIN_SIGNING_PRIVATE_KEY=$/m)
   assert.match(read('.gitignore'), /^\.owndsh\/$/m)
   assert.match(read('.dockerignore'), /^\.owndsh$/m)
 })
@@ -99,10 +111,14 @@ test('root Compose has GHCR images and overridable test defaults', () => {
 test('root Compose starts without .env and derives public URLs from the published port', () => {
   const env = { ...process.env, OWNDSH_HTTP_PORT: '19090' }
   delete env.ENT_PUBLIC_BASE_URL
+  delete env.ENT_PLUGIN_SIGNING_ENABLED
+  delete env.ENT_PLUGIN_SIGNING_PRIVATE_KEY
   const config = JSON.parse(execFileSync('docker', [
     'compose', '--env-file', '/dev/null', '-f', COMPOSE, 'config', '--format', 'json',
   ], { env, encoding: 'utf8' }))
   assert.equal(config.services.server.environment.ENT_PUBLIC_BASE_URL, 'http://localhost:19090')
+  assert.equal(config.services.server.environment.ENT_PLUGIN_SIGNING_ENABLED, 'false')
+  assert.equal(config.services.server.environment.ENT_PLUGIN_SIGNING_PRIVATE_KEY, '')
   assert.equal(config.services.server.environment.ENT_ADMIN_REDIRECT_URI, undefined)
   assert.equal(config.services.server.environment.ENT_BOOTSTRAP_ADMIN_USERNAME, 'admin')
   assert.equal(config.services.server.environment.ENT_BOOTSTRAP_ADMIN_PASSWORD, 'owndsh')
@@ -135,7 +151,7 @@ test('bootstrap credentials and runtime secrets come directly from overridable e
     Object.fromEntries([
       'ENT_BOOTSTRAP_ADMIN_USERNAME', 'ENT_BOOTSTRAP_ADMIN_PASSWORD', 'ENT_POSTGRES_PASSWORD',
       'ENT_REDIS_PASSWORD', 'SA_TOKEN_JWT_SECRET_KEY', 'ENT_MASTER_KEY',
-      'ENT_PLUGIN_SIGNING_PRIVATE_KEY',
+      'ENT_PLUGIN_SIGNING_ENABLED', 'ENT_PLUGIN_SIGNING_PRIVATE_KEY',
     ].map(name => [name, config.services.server.environment[name]])),
     {
       ENT_BOOTSTRAP_ADMIN_USERNAME: 'platform.admin',
@@ -144,6 +160,7 @@ test('bootstrap credentials and runtime secrets come directly from overridable e
       ENT_REDIS_PASSWORD: 'redis-fixture',
       SA_TOKEN_JWT_SECRET_KEY: 'jwt-fixture',
       ENT_MASTER_KEY: '0123456789abcdef0123456789abcdef',
+      ENT_PLUGIN_SIGNING_ENABLED: 'true',
       ENT_PLUGIN_SIGNING_PRIVATE_KEY: 'signing-fixture',
     }
   )
@@ -272,6 +289,41 @@ test('portable SHA-256 helper emits and verifies standard manifests', () => {
   execFileSync('sh', [
     '-c', '. "$1"; sha256sum_compat -c SHA256SUMS >/dev/null', 'sh', common,
   ], { cwd: state })
+})
+
+test('offline operations allow absent signing files and preserve existing signing keys', () => {
+  const state = mkdtempSync(join(tmpdir(), 'owndsh-optional-keys-'))
+  const secrets = join(state, 'secrets')
+  const common = join(DEPLOY_ROOT, 'scripts', 'common.sh')
+  mkdirSync(secrets)
+  for (const file of ['enterprise_master_key', 'postgres_password', 'redis_password', 'sa_token_jwt_secret_key']) {
+    writeFileSync(join(secrets, file), 'fixture-' + file)
+  }
+  writeFileSync(join(state, 'runtime.env'), 'OWNDSH_RELEASE_VERSION=test\n')
+  const run = script => execFileSync('sh', ['-c', '. "$1"; ' + script, 'sh', common], {
+    encoding: 'utf8', stdio: 'pipe', env: { ...process.env, OWNDSH_STATE_DIR: state },
+  }).trim()
+  try {
+    assert.equal(run('backup_key_files'), 'enterprise_master_key')
+    assert.equal(run('docker() { printf "%s" "$ENT_PLUGIN_SIGNING_PRIVATE_KEY"; }; compose config'), '')
+    writeFileSync(join(state, 'runtime.env'), 'OWNDSH_RELEASE_VERSION=test\nENT_PLUGIN_SIGNING_ENABLED=true\n')
+    assert.throws(() => run('backup_key_files'), /缺少文件: .*plugin_signing_private_key/)
+    assert.throws(() => run('key_fingerprint'), /缺少文件: .*plugin_signing_private_key/)
+    writeFileSync(join(state, 'runtime.env'), 'OWNDSH_RELEASE_VERSION=test\n')
+    const unsignedFingerprint = run('key_fingerprint')
+    assert.match(unsignedFingerprint, /^[a-f0-9]{64}$/)
+    for (const file of ['plugin_signing_private_key', 'plugin_signing_public_key']) {
+      writeFileSync(join(secrets, file), 'fixture-' + file)
+    }
+    assert.deepEqual(run('backup_key_files').split('\n'), [
+      'enterprise_master_key', 'plugin_signing_private_key', 'plugin_signing_public_key',
+    ])
+    assert.equal(run('docker() { printf "%s" "$ENT_PLUGIN_SIGNING_PRIVATE_KEY"; }; compose config'),
+      'fixture-plugin_signing_private_key')
+    assert.notEqual(run('key_fingerprint'), unsignedFingerprint)
+  } finally {
+    rmSync(state, { recursive: true, force: true })
+  }
 })
 
 test('installer rejects runtime.env injection and invalid published ports before mutation', () => {

@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 绑定 artifact root、环境注入的 Ed25519 PKCS#8 私钥与压缩/解压/entry 三项部署上限。
+ * [INPUT]: 绑定 artifact root、默认关闭的签名开关、可选 Ed25519 PKCS#8 私钥与压缩/解压/entry 三项部署上限。
  * [OUTPUT]: 对外提供插件 artifact composition root 所需的强类型配置。
  * [POS]: plugin 模块的秘密与资源配置边界，私钥由容器环境注入且不写入配置文件。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -13,6 +13,7 @@ import java.nio.file.Path;
 @ConfigurationProperties(prefix = "enterprise.plugin")
 public final class EnterprisePluginProperties {
     private Path artifactRoot;
+    private boolean signingEnabled;
     private String signingPrivateKey;
     private long maxArchiveBytes = 52_428_800L;
     private long maxExpandedBytes = 209_715_200L;
@@ -24,6 +25,14 @@ public final class EnterprisePluginProperties {
 
     public void setArtifactRoot(Path artifactRoot) {
         this.artifactRoot = artifactRoot;
+    }
+
+    public boolean isSigningEnabled() {
+        return signingEnabled;
+    }
+
+    public void setSigningEnabled(boolean signingEnabled) {
+        this.signingEnabled = signingEnabled;
     }
 
     public String getSigningPrivateKey() {

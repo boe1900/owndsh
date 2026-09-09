@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 OpenAPI 生成的 fixture manifest/Zod schema、错误状态映射和品牌 ID 公共 API
- * [OUTPUT]: 验证全部正反 fixture、38 个错误码、成员身份、gateway/plugin/Session/audit 严格契约、未知字段与品牌类型隔离
+ * [OUTPUT]: 验证全部正反 fixture、38 个错误码、成员身份、gateway/plugin（空签名或 64 字节签名）/Session/audit 严格契约、未知字段与品牌类型隔离
  * [POS]: contracts 的双端协议回归测试之一，与 Java JSON Schema 测试消费相同 fixture 声明
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -206,6 +206,16 @@ describe('generated enterprise contracts', () => {
     for (const [file, schema] of fixtures) {
       const value: unknown = JSON.parse(await readFile(resolve(CONTRACT_ROOT, 'fixtures', file), 'utf8'))
       expect(schema.safeParse(value).success, file).toBe(true)
+    }
+
+    const version = JSON.parse(await readFile(resolve(CONTRACT_ROOT, 'fixtures/plugin-version-success.json'), 'utf8'))
+    const assignments = JSON.parse(await readFile(resolve(CONTRACT_ROOT, 'fixtures/plugin-assignments-success.json'), 'utf8'))
+    for (const signature of ['', `${'A'.repeat(86)}==`, null, '\n', ' ', 'AA==', 'A'.repeat(88)]) {
+      const valid = signature === '' || signature === `${'A'.repeat(86)}==`
+      version.data.signatureBase64 = signature
+      assignments.data.assignments[0].signatureBase64 = signature
+      expect(zPluginVersionResponse.safeParse(version).success).toBe(valid)
+      expect(zRuntimePluginAssignmentsResponse.safeParse(assignments).success).toBe(valid)
     }
 
     const compatibility: PluginCompatibility = {

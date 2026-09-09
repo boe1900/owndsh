@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 bundle manifest/Config/patch、构建产物和 Node vm 中的官方 React lazy-CJS seed 模型
- * [OUTPUT]: 验证 dsh.bundle/dsh.client、credentials/pi-ai/分发注入、V1 Session 停用、兼容 peers 与 Client apply
+ * [OUTPUT]: 验证默认关闭的验签配置、dsh.bundle/dsh.client、credentials/pi-ai/分发注入、兼容 peers 与 Client apply
  * [POS]: bundle 发布不变量测试，拒绝 Typert ambient shim、Harness 源码路径和未打包运行依赖
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -40,14 +40,16 @@ describe('enterprise bundle', () => {
     ])
     expect(Config({
       baseUrl: 'https://enterprise.example.com',
+      verifyPluginSignatures: true,
       trustedPluginPublicKey: 'ed25519-spki',
     })).toMatchObject({
       profile: 'web',
+      verifyPluginSignatures: true,
       dshCommand: 'dsh',
       requestTimeoutMs: 30_000,
       disposeTimeoutMs: 3_000,
     })
-    expect(Config({})).toMatchObject({ baseUrl: '', trustedPluginPublicKey: '' })
+    expect(Config({})).toMatchObject({ baseUrl: '', verifyPluginSignatures: false, trustedPluginPublicKey: '' })
     const patch = await readFile(resolve(ROOT, 'cordis.patch.yml'), 'utf8')
     expect(patch).toContain("name: 'owndsh-plugin'")
     expect(patch).toMatch(/id: agent-default-model[\s\S]*provider: enterprise[\s\S]*model: enterprise\/default/)

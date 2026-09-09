@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 E23-E35 已创建的真实模型、可控上游、锁定 Harness checkout、当前 bundle 与 LOCAL 管理凭据。
- * [OUTPUT]: 执行 E36-E47 的真实 Harness 登录、模型重试、插件调和、设备撤销、审计与 Session 停用验收。
+ * [INPUT]: 依赖 E23-E35 已创建的真实模型、可控上游、锁定 Harness checkout、当前 bundle、服务端签名开关与 LOCAL 管理凭据。
+ * [OUTPUT]: 提供共用登录 opener/进程生命周期工具并执行 E36-E47 的真实 Harness 登录、模型重试、插件调和、设备撤销、审计与 Session 停用验收。
  * [POS]: scripts 的 Harness 纵向验收模块；复用官方 Agent 与插件 CLI，企业 Server 不接管客户端协议语义。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -207,6 +207,7 @@ export function apply(ctx) {
 function openerSource() {
   return `#!/usr/bin/env node
 import { appendFileSync } from 'node:fs'
+import { captchaProof } from ${JSON.stringify(new URL('./v1-e2e-support.mjs', import.meta.url).href)}
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 const mark = value => appendFileSync(process.env.OWNDSH_E2E_OPENER_STATUS_FILE, value + '\\n')
 mark('started')
@@ -225,6 +226,7 @@ const form = new URLSearchParams({
   transactionId, sourceId: source.id, csrfToken: sourceBody.data.csrfToken,
   username: process.env.OWNDSH_E2E_ADMIN_USERNAME, password: process.env.OWNDSH_E2E_ADMIN_PASSWORD,
 })
+for (const [key, value] of Object.entries(await captchaProof(start.origin))) form.set(key, value)
 const password = await fetch(new URL('/enterprise/auth/v1/password', start), {
   method: 'POST', headers: { accept: 'application/json', 'content-type': 'application/x-www-form-urlencoded', origin: start.origin }, body: form,
 })
@@ -297,13 +299,18 @@ export async function runHarnessScenarios({ acceptance, admin, fixture, prefix, 
     const serverEnvironment = JSON.parse(execFileSync('docker', [
       'inspect', SERVER_CONTAINER, '--format', '{{json .Config.Env}}',
     ], { encoding: 'utf8' }));
-    const signingKey = serverEnvironment.find(value => value.startsWith('ENT_PLUGIN_SIGNING_PRIVATE_KEY='))
-      ?.slice('ENT_PLUGIN_SIGNING_PRIVATE_KEY='.length);
-    assert.ok(signingKey);
-    const privateKey = createPrivateKey(signingKey.startsWith('-----BEGIN')
-      ? signingKey
-      : { key: Buffer.from(signingKey, 'base64'), format: 'der', type: 'pkcs8' });
-    const publicKey = createPublicKey(privateKey).export({ format: 'der', type: 'spki' }).toString('base64');
+    const signingEnabled = serverEnvironment.includes('ENT_PLUGIN_SIGNING_ENABLED=true');
+    const signingConfig = [];
+    if (signingEnabled) {
+      const signingKey = serverEnvironment.find(value => value.startsWith('ENT_PLUGIN_SIGNING_PRIVATE_KEY='))
+        ?.slice('ENT_PLUGIN_SIGNING_PRIVATE_KEY='.length);
+      assert.ok(signingKey);
+      const privateKey = createPrivateKey(signingKey.startsWith('-----BEGIN')
+        ? signingKey
+        : { key: Buffer.from(signingKey, 'base64'), format: 'der', type: 'pkcs8' });
+      const publicKey = createPublicKey(privateKey).export({ format: 'der', type: 'spki' }).toString('base64');
+      signingConfig.push('    verifyPluginSignatures: true', `    trustedPluginPublicKey: ${JSON.stringify(publicKey)}`);
+    }
     const profileDir = resolve(temporaryHome, 'profiles', 'web');
     const probePath = resolve(temporaryHome, 'v1-e2e-probe.mjs');
     await writeFile(probePath, probeSource());
@@ -311,7 +318,7 @@ export async function runHarnessScenarios({ acceptance, admin, fixture, prefix, 
       '- id: owndsh',
       '  config:',
       `    baseUrl: ${JSON.stringify(ORIGIN)}`,
-      `    trustedPluginPublicKey: ${JSON.stringify(publicKey)}`,
+      ...signingConfig,
       '    bootstrapIntervalMs: 200',
       '    requestTimeoutMs: 5000',
       `    dshCommand: ${JSON.stringify(resolve(HARNESS_ROOT, 'apps', 'cli', 'lib', 'bin.js'))}`,
@@ -540,6 +547,7 @@ export async function runHarnessScenarios({ acceptance, admin, fixture, prefix, 
     });
 
     const release = await runReleaseScenarios({
+      signingEnabled,
       acceptance,
       admin,
       prefix,
@@ -584,3 +592,5 @@ export async function runHarnessScenarios({ acceptance, admin, fixture, prefix, 
     await rm(temporaryHome, { force: true, recursive: true });
   }
 }
+
+export { openerSource, stopChild, waitForHarness };

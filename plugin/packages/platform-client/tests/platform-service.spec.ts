@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 EnterprisePlatformService、Cordis Context、Host CredentialProvider、真实 Node HTTP 假平台与临时 DSH_HOME
- * [OUTPUT]: 验证 PKCE、GrantRecord、按需轮换与恢复；地址修改必须经过退出，保存与认证互斥且旧账号不可复活
+ * [OUTPUT]: 验证无签名 bootstrap、PKCE、GrantRecord、按需轮换与恢复；地址修改必须经过退出，保存与认证互斥且旧账号不可复活
  * [POS]: platform-client 核心生命周期测试，跨真实 socket 与 Context 重启证明 Token 只进入 Host 凭据边界
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -233,7 +233,7 @@ describe('EnterprisePlatformService', () => {
               revision: 7,
               assignments: [{
                 pluginVersionId: '880', packageName: '@example/dsh-code-review', version: '1.2.0',
-                sizeBytes: 4096, sha256: 'a'.repeat(64), signatureBase64: `${'A'.repeat(86)}==`,
+                sizeBytes: 4096, sha256: 'a'.repeat(64), signatureBase64: '',
                 compatibility: {
                   harnessCommits: ['99f6f02fecdb7dff40c3fbc9470f5907c29f74ca'],
                   enterpriseBundleRange: '>=0.1.0 <0.2.0',

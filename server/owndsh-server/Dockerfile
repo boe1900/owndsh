@@ -1,5 +1,5 @@
 # [INPUT]: 依赖已构建的 owndsh-server.jar 与 BellSoft Java 21 运行时镜像。
-# [OUTPUT]: 提供通用 OwnDsh Server 容器入口；正式离线交付使用 deploy/compose/Dockerfile.server。
+# [OUTPUT]: 提供仅输出标准流日志的通用 OwnDsh Server 容器入口；正式离线交付使用 deploy/compose/Dockerfile.server。
 # [POS]: owndsh-server 模块级便捷镜像定义，不拥有生产 Compose 拓扑。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -10,8 +10,7 @@ FROM bellsoft/liberica-openjdk-rocky:21.0.12-cds
 
 LABEL org.opencontainers.image.title="OwnDsh Server"
 
-RUN mkdir -p /owndsh/server/logs \
-    /owndsh/server/temp
+RUN mkdir -p /owndsh/server/temp
 
 WORKDIR /owndsh/server
 

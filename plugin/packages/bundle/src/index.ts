@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Cordis/Schemastery、Harness credentials/LLM/subprocess/inventory、官方运行时身份与企业业务模块
- * [OUTPUT]: 对外提供 Web/Desktop 共用 bundle apply、Host 凭据持久化、官方 pi-ai profile 桥、企业插件手动安装/卸载与整包卸载组合
+ * [OUTPUT]: 对外提供 Web/Desktop 共用 bundle apply、默认关闭的插件验签开关、Host 凭据持久化与企业插件安装/卸载组合
  * [POS]: bundle 的唯一 Host Loader 入口，组合平台认证、官方企业模型与环境原生插件调和；V1 不启动 Session 同步
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -34,7 +34,9 @@ const { version: BUNDLE_VERSION } = createRequire(import.meta.url)('../package.j
 export interface Config {
   /** 可选安装默认值；用户可在欢迎页写入 Harness 官方 settings。 */
   readonly baseUrl?: string
-  /** 最初安装包写入的 Ed25519 SPKI PEM 或 DER Base64；bootstrap 无权替换。 */
+  /** 默认关闭；开启后使用安装配置的公钥验证企业插件签名。 */
+  readonly verifyPluginSignatures?: boolean
+  /** 仅开启验签时读取的 Ed25519 SPKI PEM 或 DER Base64；bootstrap 无权替换。 */
   readonly trustedPluginPublicKey?: string
   readonly requestTimeoutMs: number
   readonly disposeTimeoutMs: number
@@ -44,6 +46,7 @@ export interface Config {
 
 export const Config: z<Config> = z.object({
   baseUrl: z.string().default(''),
+  verifyPluginSignatures: z.boolean().default(false),
   trustedPluginPublicKey: z.string().default(''),
   requestTimeoutMs: z.number().step(1).min(1).default(30_000),
   disposeTimeoutMs: z.number().step(1).min(1).default(3_000),
@@ -133,6 +136,7 @@ export function apply(ctx: EnterpriseHostContext, config: Config): void {
     commandPort?: DshPluginCommandPort,
   ): void => {
     pluginDistribution = new EnterprisePluginDistributionService(distributionContext, {
+      verifyPluginSignatures: config.verifyPluginSignatures ?? false,
       ...(config.trustedPluginPublicKey === undefined ? {} : {
         trustedPluginPublicKey: config.trustedPluginPublicKey,
       }),

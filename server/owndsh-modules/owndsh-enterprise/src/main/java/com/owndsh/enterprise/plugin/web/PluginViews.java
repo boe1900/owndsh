@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 投影 plugin catalog/version/assignment/runtime/inventory 领域对象。
- * [OUTPUT]: 对外提供字符串化 snowflake、完整 catalog assignments、Base64 Ed25519 与无 artifact 路径的严格 HTTP views。
+ * [OUTPUT]: 对外提供字符串化 snowflake、完整 catalog assignments、Base64 Ed25519（未签名为空字符串）与无 artifact 路径的严格 HTTP views。
  * [POS]: plugin/web 的统一安全投影，管理端和 runtime 共享签名/compatibility 字段语义。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */

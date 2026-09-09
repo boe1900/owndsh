@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖已登录的锁定 Harness、管理/runtime API、标准 tar、插件签名根、设备与审计持久化。
- * [OUTPUT]: 执行 E43-E47 的插件完整生命周期、设备撤销、秘密隔离与 Session 停用验收。
+ * [INPUT]: 依赖已登录的锁定 Harness、管理/runtime API、标准 tar、可选插件签名根、设备与审计持久化。
+ * [OUTPUT]: 提供共用 tgz/发布工具并执行 E43-E47 的插件完整生命周期、设备撤销、秘密隔离与 Session 停用验收。
  * [POS]: scripts 的 V1 运行时发布场景模块；只编排真实产品入口，不复制插件或鉴权实现。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -129,6 +129,7 @@ async function replaceAssignments(admin, plugin, version, items) {
 }
 
 export async function runReleaseScenarios({
+  signingEnabled,
   acceptance,
   admin,
   prefix,
@@ -146,7 +147,7 @@ export async function runReleaseScenarios({
   let pluginV1;
   let pluginV2;
 
-  await acceptance.check('E43', 'unsafe plugins are rejected while a signed package supports ALL and USER assignment', async () => {
+  await acceptance.check('E43', 'unsafe plugins are rejected while a validated package supports ALL and USER assignment', async () => {
     await mkdir(pluginFixtures, { recursive: true });
     for (const variant of ['path', 'link', 'native', 'oversized']) {
       const rejected = await upload(
@@ -173,7 +174,7 @@ export async function runReleaseScenarios({
     managedPlugin = await findPackage(admin, packageName);
     assert.equal(managedPlugin.assignments.length, 2);
     assert.equal(pluginV1.status, 'PUBLISHED');
-    assert.equal(pluginV1.signatureBase64.length, 88);
+    assert.equal(pluginV1.signatureBase64.length, signingEnabled ? 88 : 0);
     assert.doesNotMatch(JSON.stringify(managedPlugin), /artifactRef|privateKey|signing/i);
     return `four unsafe archives and incompatible commit rejected; package=${managedPlugin.id}; assignments=ALL+USER`;
   });
@@ -334,3 +335,5 @@ export async function runReleaseScenarios({
 
   return { packageId: managedPlugin.id, versionIds: [pluginV1.id, pluginV2.id] };
 }
+
+export { artifact, compatibility, findPackage, replaceAssignments, upload };

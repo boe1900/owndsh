@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 zod、生成契约、installation 与本地 API 端口，约束 bootstrap 输入及 Service 配置边界
+ * [INPUT]: 依赖 zod、生成契约、installation 与本地 API 端口，约束含可空签名的 bootstrap 输入及 Service 配置边界
  * [OUTPUT]: 对外提供 BootstrapSnapshot、平台状态/错误、无验收探针的 Service 配置与运行时 schema
  * [POS]: platform-client 的公共契约层，隔离中心 HTTP 输入、Host 运行参数与无秘密界面状态
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -143,7 +143,7 @@ export const zBootstrapSnapshot = z.object({
       version: pluginVersion,
       sizeBytes: z.number().int().positive().safe(),
       sha256: pluginSha256,
-      signatureBase64: z.string().min(86).max(88).regex(/^[A-Za-z0-9+/]{86}==$/),
+      signatureBase64: z.union([z.literal(''), z.string().length(88).regex(/^[A-Za-z0-9+/]{86}==$/)]),
       compatibility: pluginCompatibility,
       downloadUrl: z.string().min(1).max(2048).nullable(),
       required: z.boolean(),

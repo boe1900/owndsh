@@ -33,14 +33,14 @@ fixtures/model-set-success.json: P2-08A 扁平模型集与完整模型成员成�
 fixtures/model-grant-success.json: P2-08A 单条 ACCESS_GROUP 到 MODEL_SET 授权成功样例。
 fixtures/model-grant-list-success.json: T08 模型授权 cursor 列表成功样例。
 fixtures/model-grant-batch-success.json: T08 原子批量授权成功样例。
-fixtures/bootstrap-models-success.json: T22 ACTIVE 设备完整 bootstrap 外壳、有效模型目录与 V1 已停用 Session 策略样例。
+fixtures/bootstrap-models-success.json: T22 ACTIVE 设备完整 bootstrap 外壳、无签名插件、有效模型目录与 V1 已停用 Session 策略样例。
 fixtures/quota-policy-success.json: P2-08A 成员/模型集 TOKEN policy 与 nullable 四窗口 limits 成功样例。
 fixtures/quota-policy-list-success.json: T09 quota policy 空 cursor page 成功样例。
 fixtures/quota-window-list-success.json: T09 当前自然日窗口计数与 reset time 成功样例。
 fixtures/quota-usage-me-success.json: P2-08A 员工生效 TOKEN 策略的资源范围与四窗口实时计数样例。
 fixtures/usage-ledger-list-success.json: prompt-free ledger 与分页样例，分开表达实测 Token、配额扣额和未知用量请求数。
 fixtures/gateway-request-success.json: T10/T11 default sentinel 与官方 adapter 原生字段透明传输成功请求样例。
-fixtures/plugin-version-success.json: T13 VALIDATED 插件版本、签名和 compatibility 成功响应样例。
+fixtures/plugin-version-success.json: T13 VALIDATED 插件版本、默认空签名和 compatibility 成功响应样例。
 fixtures/plugin-assignments-success.json: T13 USER/DEPT/ALL 裁决后的 runtime 插件分配成功响应样例。
 fixtures/plugin-inventory-success.json: T13 ACTIVE 设备原子替换本地插件库存的成功响应样例。
 fixtures/session-batch-success.json: T16 精确事件批次确认序列与 rolling hash 成功响应样例。

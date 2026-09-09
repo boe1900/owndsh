@@ -1,5 +1,5 @@
-# [INPUT]: 依赖带默认值的环境变量、可覆盖的 PostgreSQL 基线、四个持久卷、可写临时目录与锁定 Linux amd64 镜像。
-# [OUTPUT]: 提供默认拉取 GHCR next 镜像、`admin/owndsh` 幂等初始化、HTTP Console、单 Server、PostgreSQL 17.6 和 Redis 7.4.5 拓扑。
+# [INPUT]: 依赖带默认值的环境变量、可覆盖的 PostgreSQL 基线、PostgreSQL、Redis 与插件制品三个持久卷、可写临时目录与锁定 Linux amd64 镜像。
+# [OUTPUT]: 提供默认拉取 GHCR next 镜像、`admin/owndsh` 幂等初始化、默认免签名密钥、应用日志仅写 stdout/stderr、HTTP Console、单 Server、PostgreSQL 17.6 和 Redis 7.4.5 拓扑。
 # [POS]: T21 部署运行时事实源；OwnDsh 不终止 TLS，空数据库先由官方 initdb 装载 version 0，Flyway 接管后续版本。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -54,10 +54,9 @@ services:
     image: ${OWNDSH_SERVER_IMAGE:-ghcr.io/boe1900/owndsh-server:next}
     platform: linux/amd64
     user: "0:0"
-    command: ["sh", "-ec", "chown -R 10001:10001 /var/lib/enterprise /app/logs"]
+    command: ["sh", "-ec", "chown -R 10001:10001 /var/lib/enterprise"]
     volumes:
       - artifacts:/var/lib/enterprise/artifacts
-      - server_logs:/app/logs
     restart: "no"
     networks: [backend]
     cap_drop: [ALL]
@@ -83,7 +82,8 @@ services:
       ENT_REDIS_PASSWORD: ${ENT_REDIS_PASSWORD:-owndsh}
       SA_TOKEN_JWT_SECRET_KEY: ${SA_TOKEN_JWT_SECRET_KEY:-owndsh-jwt-secret-change-me-000000000000000000000000}
       ENT_MASTER_KEY: ${ENT_MASTER_KEY:-0123456789abcdef0123456789abcdef}
-      ENT_PLUGIN_SIGNING_PRIVATE_KEY: ${ENT_PLUGIN_SIGNING_PRIVATE_KEY:-MC4CAQAwBQYDK2VwBCIEILTqRfExQQ2Hw4v8uM2qtYMsd8gPj+OoOGYXCofntEsY}
+      ENT_PLUGIN_SIGNING_ENABLED: ${ENT_PLUGIN_SIGNING_ENABLED:-false}
+      ENT_PLUGIN_SIGNING_PRIVATE_KEY: ${ENT_PLUGIN_SIGNING_PRIVATE_KEY:-}
       ENT_BOOTSTRAP_ADMIN_USERNAME: ${ENT_BOOTSTRAP_ADMIN_USERNAME:-admin}
       ENT_BOOTSTRAP_ADMIN_PASSWORD: ${ENT_BOOTSTRAP_ADMIN_PASSWORD:-owndsh}
       ENT_ARTIFACT_ROOT: /var/lib/enterprise/artifacts
@@ -92,7 +92,6 @@ services:
       TZ: ${ENT_DEPLOYMENT_TIME_ZONE:-Asia/Shanghai}
     volumes:
       - artifacts:/var/lib/enterprise/artifacts
-      - server_logs:/app/logs
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
@@ -142,7 +141,6 @@ volumes:
   postgres_data:
   redis_data:
   artifacts:
-  server_logs:
 
 configs:
   postgres_baseline:

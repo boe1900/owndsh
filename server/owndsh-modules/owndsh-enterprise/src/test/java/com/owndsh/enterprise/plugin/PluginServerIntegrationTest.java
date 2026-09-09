@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖真实 PostgreSQL 17/Flyway V1-V13、三个显式活动用户 fixture、CAS 文件、Ed25519、设备与插件 JDBC/application 服务。
- * [OUTPUT]: 验证并发上传、可选可见范围、退休下架/禁止优先级回退、下载授权、库存、审计和文件补偿。
+ * [OUTPUT]: 验证无签名上传/存储/HTTP 投影与有签名版本并存、并发上传、可选可见范围、退休下架/禁止优先级回退、下载授权、库存、审计和文件补偿。
  * [POS]: T13 服务端纵向验收，跨越 artifact、domain、persistence 与 application 的真实事务边界。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -27,6 +27,7 @@ import com.owndsh.enterprise.plugin.domain.PluginAssignment;
 import com.owndsh.enterprise.plugin.domain.PluginCompatibility;
 import com.owndsh.enterprise.plugin.domain.PluginVersion;
 import com.owndsh.enterprise.plugin.persistence.JdbcPluginStore;
+import com.owndsh.enterprise.plugin.web.PluginViews;
 import com.owndsh.enterprise.revision.JdbcBootstrapRevisionStore;
 import com.owndsh.enterprise.test.PostgresTestDatabase;
 import org.junit.jupiter.api.BeforeAll;
@@ -111,6 +112,11 @@ class PluginServerIntegrationTest {
         PluginCatalogService catalog = new PluginCatalogService(
             transaction, store, artifacts, inspector, signer, revisions, audit, ids
         );
+        PluginCatalogService unsignedCatalog = new PluginCatalogService(
+            transaction, store, artifacts, inspector,
+            new EnterprisePluginConfiguration().enterprisePluginManifestSigner(json, new EnterprisePluginProperties()),
+            revisions, audit, ids
+        );
         EffectivePluginResolver resolver = new EffectivePluginResolver(store, revisions);
         DeviceService devices = new DeviceService(
             transaction, new JdbcDeviceStore(jdbc), audit, mock(PlatformSessionGateway.class), ids
@@ -123,13 +129,19 @@ class PluginServerIntegrationTest {
 
         byte[] versionOneBytes = PluginTestArtifacts.validArchive("@example/t13-tools", "1.0.0");
         List<PluginCatalogService.UploadResult> duplicates = concurrentUploads(
-            catalog, mutation, compatibility, versionOneBytes
+            unsignedCatalog, mutation, compatibility, versionOneBytes
         );
         assertThat(duplicates).filteredOn(PluginCatalogService.UploadResult::created).hasSize(1);
         assertThat(duplicates).extracting(result -> result.version().id()).containsOnly(
             duplicates.getFirst().version().id()
         );
         PluginVersion versionOne = duplicates.getFirst().version();
+        assertThat(versionOne.signature()).isEmpty();
+        assertThat(PluginViews.version(versionOne).signatureBase64()).isEmpty();
+        assertThat(jdbc.queryForObject("select octet_length(signature) from ent_plugin_version where id=?",
+            Integer.class, versionOne.id())).isZero();
+        assertThat(catalog.upload(mutation, UUID.randomUUID(), new ByteArrayInputStream(versionOneBytes), compatibility)
+            .version().signature()).isEmpty();
         assertThat(versionOne.status()).isEqualTo(PluginVersion.Status.VALIDATED);
         assertThat(versionOne.revision()).isEqualTo(1);
         assertThat(jdbc.queryForObject("select count(*) from ent_plugin_version", Long.class)).isEqualTo(1);
@@ -140,6 +152,7 @@ class PluginServerIntegrationTest {
         PluginVersion versionTwo = catalog.upload(
             mutation, UUID.randomUUID(), new ByteArrayInputStream(versionTwoBytes), compatibility
         ).version();
+        assertThat(versionTwo.signature()).hasSize(64);
         PluginVersion publishedTwo = catalog.publish(mutation, versionTwo.id(), versionTwo.revision());
         long packageId = publishedOne.packageId();
         assertThat(publishedTwo.packageId()).isEqualTo(packageId);
@@ -169,6 +182,11 @@ class PluginServerIntegrationTest {
         assertResolved(resolver.resolve(TENANT, ADMIN_USER, ADMIN_DEPT), publishedOne.id(), "ABSENT");
         assertResolved(resolver.resolve(TENANT, PEER_USER, ADMIN_DEPT), publishedTwo.id(), "INSTALLED");
         assertResolved(resolver.resolve(TENANT, OTHER_USER, OTHER_DEPT), publishedOne.id(), "INSTALLED");
+
+        assertThat(PluginViews.runtime(resolver.resolve(TENANT, OTHER_USER, OTHER_DEPT))
+            .assignments().getFirst().signatureBase64()).isEmpty();
+        assertThat(PluginViews.runtime(resolver.resolve(TENANT, PEER_USER, ADMIN_DEPT))
+            .assignments().getFirst().signatureBase64()).hasSize(88);
 
         DeviceCallContext adminContext = runtimeContext(ADMIN_USER, ADMIN_INSTALLATION);
         DeviceCallContext peerContext = runtimeContext(PEER_USER, PEER_INSTALLATION);

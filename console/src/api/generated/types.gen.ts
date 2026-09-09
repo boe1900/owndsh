@@ -1681,7 +1681,10 @@ export type PluginPluginVersion = {
     version: PluginSemanticVersion;
     sizeBytes: number;
     sha256: PluginSha256;
-    signatureBase64: string;
+    /**
+     * 空字符串表示未签名；非空值为 Ed25519 签名的 Base64。
+     */
+    signatureBase64: '' | string;
     compatibility: PluginPluginCompatibility;
     status: PluginVersionStatus;
     createdAt: string;
@@ -1703,7 +1706,10 @@ export type RuntimePluginAssignment = {
     version: PluginSemanticVersion;
     sizeBytes: number;
     sha256: PluginSha256;
-    signatureBase64: string;
+    /**
+     * 空字符串表示未签名；非空值为 Ed25519 签名的 Base64。
+     */
+    signatureBase64: '' | string;
     compatibility: PluginPluginCompatibility;
     downloadUrl: string | null;
     required: boolean;

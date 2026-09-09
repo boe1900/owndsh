@@ -1,6 +1,6 @@
 <!--
 [INPUT]: 依赖 Linux amd64 release、HTTP Compose、一次性管理员输入与部署方可选外部反向代理。
-[OUTPUT]: 提供 Compose 快速部署入口，以及离线 release 安装、备份恢复、升级回滚和外部 TLS 接入说明。
+[OUTPUT]: 提供 Compose 快速部署入口，以及离线 release 安装、备份恢复、升级回滚、标准流日志采集和外部 TLS 接入说明。
 [POS]: deploy 的详细运维入口；普通用户从根 Compose 开始，离线受控环境使用 release 包。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
@@ -10,6 +10,10 @@
 普通联网环境直接使用根目录 [Docker Compose 快速开始](../README.md#docker-compose-部署)，从 GHCR 拉取 `next` 前后端镜像。本文后续内容面向需要离线制品、完整校验、备份恢复与应用回滚的单机 Linux `amd64` 环境。
 
 两种方式共用同一生产 Compose 拓扑。对外只有 Console 的 HTTP `8080`；Server、PostgreSQL 和 Redis 没有宿主端口。Console 与管理 API 同域。OwnDsh 不管理证书或终止 TLS；需要 HTTPS 时，由部署方现有的 Nginx、Ingress、负载均衡或零信任网关代理到该 HTTP 入口。
+
+插件签名默认关闭，Compose 无需 `ENT_PLUGIN_SIGNING_PRIVATE_KEY`。显式开启时设置 `ENT_PLUGIN_SIGNING_ENABLED=true`、有效的 Ed25519 PKCS#8 私钥，并给客户端安装配置提供对应公钥与 `verifyPluginSignatures: true`。已有离线部署要继续签名，需在 `runtime.env` 显式设置 `ENT_PLUGIN_SIGNING_ENABLED=true`；原有密钥仍保留并随独立 key 归档备份。
+
+升级应先更新员工 `owndsh-plugin` 再上传无签名插件：旧客户端不接受空签名。开关只影响新上传版本；已上传版本不会补签或清除签名，关闭后新增的无签名版本也不能由旧版服务端读取，回滚前需确认目标版本支持空签名。
 
 ## 交付包
 
@@ -60,7 +64,7 @@ OWNDSH_USE_LOCAL_BASE_IMAGES=1 \
 
 目标机需要 mirror 时，把环境变量放在安装命令之前；安装器会将通过字符校验的 registry 前缀写入 `runtime.env`，供后续重启、升级和恢复复用。
 
-离线安装器会生成 PostgreSQL/Redis 密码、Sa-Token JWT secret、32 字节 master key 和 Ed25519 signing key，并在每次 Compose 操作时从独立 key 文件注入容器环境，不写入普通 `runtime.env`。bootstrap 密码从安装命令指定的文件临时注入且不复制进状态目录；数据库写入 `BOOTSTRAP_ADMIN_COMPLETED` 后，后续启动只读取 marker，不再创建管理员。初始管理员第一次 LOCAL 登录必须在同一登录事务中修改密码。
+离线安装器会生成 PostgreSQL/Redis 密码、Sa-Token JWT secret、32 字节 master key，并在每次 Compose 操作时从独立 key 文件注入容器环境，不写入普通 `runtime.env`。bootstrap 密码从安装命令指定的文件临时注入且不复制进状态目录；数据库写入 `BOOTSTRAP_ADMIN_COMPLETED` 后，后续启动只读取 marker，不再创建管理员。初始管理员第一次 LOCAL 登录必须在同一登录事务中修改密码。
 
 安装器不删除调用方传入的密码文件。调用方应在确认安装后按自身密钥流程处置输入文件。
 
@@ -74,7 +78,7 @@ install -m 600 /approved/cordis.patch.yml "$DSH_HOME/profiles/enterprise/cordis.
 dsh --profile enterprise --dump-config
 ```
 
-profile overlay 完整重述 `owndsh` row 的 `baseUrl`、安装专属 Ed25519 公钥和关闭的技术刺探开关。不要把 signing 私钥、master key 或平台 Token复制到员工设备。
+默认关闭服务端签名与客户端验签，不生成公私钥；profile overlay 只包含 `baseUrl` 和关闭的技术刺探开关。需要启用时，安装命令追加 `--enable-plugin-signing`，安装器才会生成 Ed25519 密钥对、设置 `ENT_PLUGIN_SIGNING_ENABLED=true`，并在 overlay 写入 `verifyPluginSignatures: true` 与公钥。不要把 signing 私钥、master key 或平台 Token复制到员工设备。
 
 ## 备份与恢复
 
@@ -87,7 +91,7 @@ profile overlay 完整重述 `owndsh` row 的 `baseUrl`、安装专属 Ed25519 �
   --key-output /key-custody/enterprise-keys
 ```
 
-数据归档包含 PostgreSQL custom dump、Redis RDB、artifact tar 和非 secret runtime 元数据。key 归档只包含 master/signing key，绝不进入普通数据库或 artifact 备份。master key 丢失后 provider secret 与 Session 正文不可恢复；signing key 丢失后不能延续既有插件信任根。
+数据归档包含 PostgreSQL custom dump、Redis RDB、artifact tar 和非 secret runtime 元数据。key 归档包含 master key 和存在的 signing key，默认无签名文件也能备份/恢复，绝不进入普通数据库或 artifact 备份。master key 丢失后 provider secret 与 Session 正文不可恢复；signing key 丢失后不能延续既有插件信任根。
 
 恢复会短暂停止 Console、Server 和 Redis，并覆盖目标安装中的数据库、Redis、artifact 与关键 key。恢复脚本先校验 Redis RDB，再由隔离的 Redis 进程加载 RDB 并生成 AOF，避免开启 AOF 的常规进程忽略独立 RDB：
 
@@ -127,6 +131,12 @@ docker compose \
 curl --fail http://agent.internal:8080/healthz
 ```
 
-Actuator 只暴露不含详情的 health。不要运行 `docker compose down -v`；这会删除 T21 明确保留的 PostgreSQL、Redis、artifact 和日志卷。
+Server 应用日志只写 stdout，JVM 标准错误保留在 stderr，由 Docker/K8s 和日志平台负责采集、轮转与保留。应用不再创建 `/app/logs`、文件日志或 Actuator logfile 端点；Compose 不再声明或挂载 `server_logs`。使用 `docker compose logs -f server` 或 `kubectl logs -f <pod> -c <server-container>` 查看日志。
+
+已有部署需先构建并更新 Server 镜像，再移除 K8s 的日志 `volumeMounts`、专用 `volumes` 和对应权限初始化路径。旧镜像仍依赖文件日志；历史日志卷保留，按既有保留策略另行清理。`storage-init` 继续初始化 `artifacts` 插件卷权限。
+
+手工 JAR 部署时，`server/script/bin/owndsh.sh start` / `restart` 改为前台运行并输出日志，长期后台运行交给 systemd 等进程管理器；Windows 脚本使用独立 Java 控制台窗口显示日志。
+
+Actuator 只暴露不含详情的 health。不要运行 `docker compose down -v`；这会删除 PostgreSQL、Redis 和 artifact 数据卷。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
