@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖同源 JSON API 和宿主事件触发的状态读取，保留未挂载的 Session 手工操作端口
- * [OUTPUT]: 提供按需账号/插件操作与共享 snapshot，仅在登录事务期间有界查询，无常驻连接或闲置轮询
+ * [OUTPUT]: 提供按需账号/插件操作、明确的地址保存结果与共享 snapshot；会话切换取消旧事实请求，仅登录期间有界查询
  * [POS]: dsh-ui 的浏览器状态控制器，在官方 slot 与 Settings tabs 间共享事实且隔离网络细节
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -53,6 +53,7 @@ export class EnterpriseAccountStore {
   readonly #listeners = new Set<() => void>()
   #snapshot: EnterpriseAccountSnapshot = { phase: 'loading' }
   #lifetime: AbortController | undefined
+  #accountRequests = new AbortController()
   #loginTimer: ReturnType<typeof setTimeout> | undefined
   #loginDeadline = 0
   #refreshGeneration = 0
@@ -112,7 +113,7 @@ export class EnterpriseAccountStore {
   ): Promise<void> {
     if (this.#snapshot.pluginBusy !== undefined || this.#snapshot.busy !== undefined
       || this.#snapshot.status === undefined || !connected(this.#snapshot.status)) return
-    const signal = this.#signal()
+    const signal = this.#accountSignal()
     const { pluginErrorCode: _error, ...snapshot } = this.#snapshot
     this.#set({ ...snapshot, pluginBusy: { action, packageName } })
     try {
@@ -123,6 +124,7 @@ export class EnterpriseAccountStore {
     } catch (error) {
       if (signal.aborted) return
       await this.refresh()
+      if (signal.aborted) return
       if (this.#snapshot.status !== undefined && connected(this.#snapshot.status)) await this.#loadPlugins()
       if (!signal.aborted) this.#set({ ...this.#snapshot, pluginErrorCode: failureCode(error) })
     } finally {
@@ -149,6 +151,7 @@ export class EnterpriseAccountStore {
   async restoreSession(sessionId: string, targetCwd: string): Promise<void> {
     await this.#sessionAction('restore', sessionId, async signal => {
       const restored = await this.#api.restoreSession(sessionId, targetCwd, signal)
+      if (signal.aborted) return
       this.#set({ ...this.#snapshot, lastRestoredSessionId: restored.sessionId })
       await this.#loadSessions(undefined, false)
     })
@@ -157,6 +160,7 @@ export class EnterpriseAccountStore {
   async deleteSession(sessionId: string): Promise<void> {
     await this.#sessionAction('delete', sessionId, async signal => {
       await this.#api.deleteSession(sessionId, signal)
+      if (signal.aborted) return
       await this.#loadSessions(undefined, false)
     })
   }
@@ -165,8 +169,8 @@ export class EnterpriseAccountStore {
     await this.#action('login', signal => this.#api.startLogin(signal))
   }
 
-  async setServerUrl(serverUrl: string): Promise<void> {
-    await this.#action('configure', signal => this.#api.setServerUrl(serverUrl, signal))
+  async setServerUrl(serverUrl: string): Promise<boolean> {
+    return this.#action('configure', signal => this.#api.setServerUrl(serverUrl, signal))
   }
 
   async cancelLogin(): Promise<void> {
@@ -192,6 +196,7 @@ export class EnterpriseAccountStore {
   #stop(): void {
     this.#lifetime?.abort()
     this.#lifetime = undefined
+    this.#resetAccountRequests()
     clearTimeout(this.#loginTimer)
     this.#loginTimer = undefined
     this.#loginDeadline = 0
@@ -217,19 +222,32 @@ export class EnterpriseAccountStore {
     return this.#lifetime.signal
   }
 
+  #accountSignal(): AbortSignal {
+    return AbortSignal.any([this.#signal(), this.#accountRequests.signal])
+  }
+
+  #resetAccountRequests(): void {
+    this.#accountRequests.abort()
+    this.#accountRequests = new AbortController()
+    this.#bootstrapLoading = this.#pluginsLoading = this.#sessionsLoading = false
+  }
+
   async #action(
     action: EnterpriseAccountAction,
     operation: (signal: AbortSignal) => Promise<unknown>,
-  ): Promise<void> {
-    if (this.#snapshot.busy !== undefined || this.#snapshot.pluginBusy !== undefined) return
+  ): Promise<boolean> {
+    if (this.#snapshot.busy !== undefined || this.#snapshot.pluginBusy !== undefined) return false
     const signal = this.#signal()
     const { errorCode: _errorCode, ...withoutError } = this.#snapshot
     this.#set({ ...withoutError, busy: action })
     try {
       await operation(signal)
       if (!signal.aborted && action !== 'uninstall') await this.refresh()
+      return !signal.aborted
     } catch (error) {
+      if (!signal.aborted && action === 'logout') await this.refresh()
       if (!signal.aborted) this.#set({ ...this.#snapshot, errorCode: failureCode(error) })
+      return false
     } finally {
       if (!signal.aborted) {
         const { busy: _busy, ...settled } = this.#snapshot
@@ -240,40 +258,42 @@ export class EnterpriseAccountStore {
 
   #acceptStatus(status: EnterpriseLocalStatus): void {
     const previousStatus = this.#snapshot.status
-    const reload = connected(status) && (previousStatus === undefined
-      || !connected(previousStatus)
-      || previousStatus.revision !== status.revision)
+    const accountChanged = previousStatus === undefined || connected(previousStatus) !== connected(status)
+      || previousStatus.platformUrl !== status.platformUrl || previousStatus.user?.id !== status.user?.id
+    if (accountChanged) this.#resetAccountRequests()
+    const retain = connected(status) && !accountChanged
+    const reload = connected(status) && (accountChanged || previousStatus?.revision !== status.revision)
     this.#set({
       phase: 'ready',
       status,
-      ...(connected(status) && this.#snapshot.bootstrap !== undefined
+      ...(retain && this.#snapshot.bootstrap !== undefined
         ? { bootstrap: this.#snapshot.bootstrap }
         : {}),
-      ...(connected(status) && this.#snapshot.pluginStatus !== undefined
+      ...(retain && this.#snapshot.pluginStatus !== undefined
         ? { pluginStatus: this.#snapshot.pluginStatus }
         : {}),
-      ...(connected(status) && this.#snapshot.pluginsLoading === true ? { pluginsLoading: true } : {}),
-      ...(connected(status) && this.#snapshot.pluginErrorCode !== undefined
+      ...(retain && this.#snapshot.pluginsLoading === true ? { pluginsLoading: true } : {}),
+      ...(retain && this.#snapshot.pluginErrorCode !== undefined
         ? { pluginErrorCode: this.#snapshot.pluginErrorCode }
         : {}),
-      ...(this.#snapshot.pluginBusy === undefined ? {} : { pluginBusy: this.#snapshot.pluginBusy }),
-      ...(connected(status) && this.#snapshot.sessionSyncStatus !== undefined
+      ...(retain && this.#snapshot.pluginBusy !== undefined ? { pluginBusy: this.#snapshot.pluginBusy } : {}),
+      ...(retain && this.#snapshot.sessionSyncStatus !== undefined
         ? { sessionSyncStatus: this.#snapshot.sessionSyncStatus }
         : {}),
-      ...(connected(status) && this.#snapshot.remoteSessions !== undefined
+      ...(retain && this.#snapshot.remoteSessions !== undefined
         ? { remoteSessions: this.#snapshot.remoteSessions }
         : {}),
-      ...(connected(status) && this.#snapshot.sessionsNextCursor !== undefined
+      ...(retain && this.#snapshot.sessionsNextCursor !== undefined
         ? { sessionsNextCursor: this.#snapshot.sessionsNextCursor }
         : {}),
-      ...(connected(status) && this.#snapshot.sessionsLoading === true ? { sessionsLoading: true } : {}),
-      ...(connected(status) && this.#snapshot.sessionErrorCode !== undefined
+      ...(retain && this.#snapshot.sessionsLoading === true ? { sessionsLoading: true } : {}),
+      ...(retain && this.#snapshot.sessionErrorCode !== undefined
         ? { sessionErrorCode: this.#snapshot.sessionErrorCode }
         : {}),
-      ...(connected(status) && this.#snapshot.sessionBusy !== undefined
+      ...(retain && this.#snapshot.sessionBusy !== undefined
         ? { sessionBusy: this.#snapshot.sessionBusy }
         : {}),
-      ...(connected(status) && this.#snapshot.lastRestoredSessionId !== undefined
+      ...(retain && this.#snapshot.lastRestoredSessionId !== undefined
         ? { lastRestoredSessionId: this.#snapshot.lastRestoredSessionId }
         : {}),
       ...(this.#snapshot.busy === undefined ? {} : { busy: this.#snapshot.busy }),
@@ -288,7 +308,7 @@ export class EnterpriseAccountStore {
   async #loadBootstrap(): Promise<void> {
     if (this.#bootstrapLoading) return
     this.#bootstrapLoading = true
-    const signal = this.#signal()
+    const signal = this.#accountSignal()
     try {
       const bootstrap = await this.#api.bootstrap(signal)
       if (!signal.aborted && bootstrap !== undefined && this.#snapshot.status !== undefined
@@ -298,14 +318,14 @@ export class EnterpriseAccountStore {
     } catch (error) {
       if (!signal.aborted) this.#set({ ...this.#snapshot, errorCode: failureCode(error) })
     } finally {
-      this.#bootstrapLoading = false
+      if (!signal.aborted) this.#bootstrapLoading = false
     }
   }
 
   async #loadPlugins(): Promise<void> {
     if (this.#pluginsLoading) return
     this.#pluginsLoading = true
-    const signal = this.#signal()
+    const signal = this.#accountSignal()
     const { pluginErrorCode: _pluginErrorCode, ...withoutError } = this.#snapshot
     this.#set({ ...withoutError, pluginsLoading: true })
     try {
@@ -320,14 +340,14 @@ export class EnterpriseAccountStore {
         this.#set({ ...settled, pluginErrorCode: failureCode(error) })
       }
     } finally {
-      this.#pluginsLoading = false
+      if (!signal.aborted) this.#pluginsLoading = false
     }
   }
 
   async #loadSessions(cursor: string | undefined, append: boolean): Promise<void> {
     if (this.#sessionsLoading) return
     this.#sessionsLoading = true
-    const signal = this.#signal()
+    const signal = this.#accountSignal()
     const { sessionErrorCode: _sessionErrorCode, ...withoutError } = this.#snapshot
     this.#set({ ...withoutError, sessionsLoading: true })
     try {
@@ -350,7 +370,7 @@ export class EnterpriseAccountStore {
         this.#set({ ...settled, sessionErrorCode: failureCode(error) })
       }
     } finally {
-      this.#sessionsLoading = false
+      if (!signal.aborted) this.#sessionsLoading = false
     }
   }
 
@@ -360,7 +380,7 @@ export class EnterpriseAccountStore {
     operation: (signal: AbortSignal) => Promise<void>,
   ): Promise<void> {
     if (this.#snapshot.sessionBusy !== undefined) return
-    const signal = this.#signal()
+    const signal = this.#accountSignal()
     const { sessionErrorCode: _sessionErrorCode, lastRestoredSessionId: _lastRestoredSessionId,
       ...withoutResult } = this.#snapshot
     this.#set({ ...withoutResult, sessionBusy: { action, sessionId } })

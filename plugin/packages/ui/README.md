@@ -1,6 +1,6 @@
 <!--
 [INPUT]: 依赖官方 Client slots、平台本地 API 与 EnterpriseAccountStore 的实现边界。
-[OUTPUT]: 提供 Server 配置、访问门禁、账号/插件界面和浏览器安全约束说明。
+[OUTPUT]: 提供只读账号设置、退出后 Server 编辑、访问门禁与跨会话响应隔离说明。
 [POS]: @owndsh/ui 的公开语义入口，明确插件 UI 与官方 Web/Desktop 外壳的所有权边界。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
@@ -35,7 +35,9 @@ theme and traps focus while open, without relying on a desktop
 bridge for `window.confirm()`.
 Account settings combine the user and login status in a compact summary above grouped,
 left-aligned Server/device/version rows with small label icons. Host theme tokens and native
-tabs/buttons keep this layout consistent with Harness. Server editing stays beside its address; an explicitly labeled
+tabs/buttons keep this layout consistent with Harness. The Server address is read-only here;
+sign out before editing it in the login gate. Authorization, enrollment and session restoration
+hide the editor. Failed saves preserve the editor and its input. An explicitly labeled
 configuration refresh shares a quiet footer with sign-out/uninstall. Account values
 stay on one line, truncate with an ellipsis, and expose the full
 value on hover; the connection timestamp is omitted because authentication runs on demand.
@@ -69,7 +71,8 @@ state; it creates no transport connection. A one-second status query runs only d
 login/startup transitions, stops at a terminal state or unmount, and has a 330-second ceiling.
 Opening Settings or pressing Refresh explicitly reloads bootstrap from the enterprise server.
 Idle clients neither poll the enterprise server nor proactively renew credentials. It reloads account and plugin facts only on the first connected state or
-a bootstrap revision change. Runtime decoders project only account/device facts and reject unknown
+a bootstrap revision change. Server/account changes and connected/disconnected transitions cancel
+old account, plugin and Session requests and discard their late results and errors. Runtime decoders project only account/device facts and reject unknown
 status fields, including Token-shaped additions. Host Context and platform
 credentials never enter React.
 

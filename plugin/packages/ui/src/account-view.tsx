@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 React、Lucide、Harness Button/Settings close、ConfirmAction、OwnDsh 品牌鲸图与 EnterpriseAccountStore 的脱敏 snapshot 和动作
- * [OUTPUT]: 提供账号/登录状态合并摘要、带图标的分组信息与底部显式配置刷新、插件 settings tabs、共享登出确认、品牌资源及全局访问门禁
+ * [OUTPUT]: 提供只读账号设置、插件 tabs、共享登出确认与全局门禁；Server 仅在无活动会话的门禁中编辑，保存成功才收起
  * [POS]: dsh-ui 的账号设置与门禁呈现层，和 account-footer 复用品牌资源且不接触 Host Context、Token 或执行细节
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -348,6 +348,10 @@ export function enterpriseAccessBlocked(state?: EnterpriseConnectionState): bool
   return state !== 'READY' && state !== 'REFRESHING'
 }
 
+export function enterpriseServerEditable(state?: EnterpriseConnectionState): boolean {
+  return state !== undefined && ['UNCONFIGURED', 'SIGNED_OUT', 'CANCELLED', 'FAILED', 'AUTH_EXPIRED', 'DEVICE_REVOKED'].includes(state)
+}
+
 /** 两个账号入口共享页面确认，取消时不触发任何认证状态变更。 */
 export function LogoutConfirmation({ store, disabled, children }: {
   store: Pick<EnterpriseAccountStore, 'logout'>
@@ -403,12 +407,11 @@ function UninstallAction({ store, snapshot, quiet = false }: { store: Enterprise
   </Button>}</ConfirmAction>
 }
 
-function Detail({ icon, label, value, action }: { icon: ReactNode; label: string; value: string; action?: ReactNode }): ReactNode {
+function Detail({ icon, label, value }: { icon: ReactNode; label: string; value: string }): ReactNode {
   return <div style={detailRow} className="own-account-row">
     <div style={detailLabel}>{icon}{label}</div>
     <div style={{ alignItems: 'center', display: 'flex', gap: 8, minWidth: 0 }}>
       <div style={detailValue} title={value}>{value}</div>
-      {action}
     </div>
   </div>
 }
@@ -426,7 +429,7 @@ function ServerUrlEditor({
     style={{ display: 'flex', gap: 8, minWidth: 0, width: '100%' }}
     onSubmit={(event) => {
       event.preventDefault()
-      void store.setServerUrl(serverUrl.trim()).then(() => { onSaved?.() })
+      void store.setServerUrl(serverUrl.trim()).then(saved => { if (saved) onSaved?.() })
     }}
   >
     <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
@@ -454,7 +457,6 @@ function ServerUrlEditor({
 
 function EnterpriseAccountContent({ store }: EnterpriseStoreInjected): ReactNode {
   const snapshot = useAccount(store)
-  const [editingServer, setEditingServer] = useState(false)
   const status = snapshot.status
   const presentation = status === undefined
     ? { title: '正在连接', description: '正在读取本地企业服务状态', color: '#667085', icon: 'progress' as const }
@@ -482,20 +484,10 @@ function EnterpriseAccountContent({ store }: EnterpriseStoreInjected): ReactNode
       </span>
     </div>
     <div style={detailList}>
-      <Detail icon={<Server aria-hidden size={14} />} label="平台地址" value={status?.platformUrl ?? '未配置'} action={status === undefined || status.state === 'UNCONFIGURED' || editingServer ? null : <Button
-        variant="ghost" size="sm" aria-label="修改 Server 地址" title="修改 Server 地址"
-        style={{ flexShrink: 0, width: 28, padding: 0, color: 'var(--dsw-alias-label-tertiary, #667085)' }}
-        disabled={snapshot.busy !== undefined} onClick={() => { setEditingServer(true) }}><Pencil aria-hidden size={14} /></Button>} />
+      <Detail icon={<Server aria-hidden size={14} />} label="平台地址" value={status?.platformUrl ?? '未配置'} />
       <Detail icon={<Laptop aria-hidden size={14} />} label="设备" value={bootstrap === undefined ? '登录后可用' : `${bootstrap.device.id} · ${bootstrap.device.installationId}`} />
       <Detail icon={<Package aria-hidden size={14} />} label="插件版本" value={status?.bundleVersion ?? '正在读取'} />
     </div>
-    {status?.state === 'UNCONFIGURED' || editingServer
-      ? <div style={{ alignItems: 'center', display: 'flex', gap: 8, paddingTop: 12 }}>
-        <ServerUrlEditor store={store} snapshot={snapshot} onSaved={() => { setEditingServer(false) }} />
-        {status?.state === 'UNCONFIGURED' ? null : <Button variant="ghost" size="sm" style={{ flexShrink: 0 }}
-          disabled={snapshot.busy !== undefined} onClick={() => { setEditingServer(false) }}>取消</Button>}
-      </div>
-      : null}
     <div style={actions}>
       <div style={{ alignItems: 'center', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         <Button variant="outline" size="sm" title="获取最新账号、设备和企业配置" icon={<RefreshCw aria-hidden size={14} />}
@@ -597,6 +589,8 @@ export function EnterpriseAccessGate(props: EnterpriseAccessGateProps): ReactNod
   const [editingServer, setEditingServer] = useState(false)
   const gateRef = useRef<HTMLElement | null>(null)
   const blocked = enterpriseAccessBlocked(status?.state)
+  const canEditServer = enterpriseServerEditable(status?.state)
+  useEffect(() => { if (!canEditServer) setEditingServer(false) }, [canEditServer])
   useEffect(() => {
     if (!blocked) return
     const root = gateRef.current
@@ -623,7 +617,7 @@ export function EnterpriseAccessGate(props: EnterpriseAccessGateProps): ReactNod
     ? { title: '正在启动', description: '正在读取本地企业服务状态', color: '#667085', icon: 'progress' as const }
     : enterpriseStatePresentation(status.state)
   const error = snapshot.errorCode ?? status?.errorCode
-  const showServerEditor = status?.state === 'UNCONFIGURED' || editingServer
+  const showServerEditor = canEditServer && (status?.state === 'UNCONFIGURED' || editingServer)
 
   return <section ref={gateRef} style={accessGate} role="dialog" aria-modal="true"
     aria-labelledby="enterprise-access-title" tabIndex={-1} onKeyDown={trapGateTab}>
@@ -652,7 +646,7 @@ export function EnterpriseAccessGate(props: EnterpriseAccessGateProps): ReactNod
         {showServerEditor
           ? <ServerUrlEditor store={props.store} snapshot={snapshot} onSaved={() => { setEditingServer(false) }} />
           : <LoginActions store={props.store} snapshot={snapshot} />}
-        {status?.platformUrl === null || showServerEditor ? null : <button
+        {!canEditServer || status?.platformUrl === null || showServerEditor ? null : <button
           type="button"
           disabled={snapshot.busy !== undefined}
           onClick={() => { setEditingServer(true) }}

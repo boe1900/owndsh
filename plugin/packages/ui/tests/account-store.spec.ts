@@ -1,13 +1,13 @@
 /**
  * [INPUT]: 依赖 EnterpriseAccountStore、local-api 端口和可控请求与时钟
- * [OUTPUT]: 验证订阅生命周期、地址/账号/卸载动作、连接 revision 去重加载、V1 Session 停用与错误投影
+ * [OUTPUT]: 验证地址保存成败、退出失败后的状态收敛、跨服务/账号迟到响应隔离与订阅/查询生命周期
  * [POS]: dsh-ui 账号状态控制器测试，覆盖三个官方 slot 共享的行为真源
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { describe, expect, it, vi } from 'vitest'
 import { EnterpriseAccountStore } from '../src/account-store.js'
-import type { EnterpriseLocalApi, EnterpriseLocalStatus } from '../src/local-api.js'
+import type { EnterpriseAccountBootstrap, EnterpriseLocalApi, EnterpriseLocalStatus, EnterprisePluginStatus } from '../src/local-api.js'
 import { EnterpriseLocalApiError } from '../src/local-api.js'
 
 const base = {
@@ -17,6 +17,73 @@ const base = {
 }
 
 describe('EnterpriseAccountStore', () => {
+  it('reports failed and busy saves as unsuccessful, and refreshes local state after a failed logout', async () => {
+    let status: EnterpriseLocalStatus = { ...base, state: 'READY' }
+    const api: EnterpriseLocalApi = {
+      status: vi.fn(async () => status), refresh: vi.fn(), bootstrap: vi.fn(), plugins: vi.fn(),
+      setServerUrl: vi.fn(async () => { throw new EnterpriseLocalApiError('ENT_INVALID_REQUEST', 400) }),
+      logout: vi.fn(async () => { status = { ...base, state: 'SIGNED_OUT' }; throw new EnterpriseLocalApiError('ENT_PLATFORM_UNAVAILABLE', 503) }),
+      startLogin: vi.fn(), cancelLogin: vi.fn(), uninstall: vi.fn(), installPlugin: vi.fn(), removePlugin: vi.fn(),
+      sessionSync: vi.fn(), sessions: vi.fn(), restoreSession: vi.fn(), deleteSession: vi.fn(),
+    }
+    const store = new EnterpriseAccountStore(api)
+    await store.refresh()
+    await store.logout()
+    expect(store.getSnapshot()).toMatchObject({ status: { state: 'SIGNED_OUT' }, errorCode: 'ENT_PLATFORM_UNAVAILABLE' })
+    await expect(store.setServerUrl('https://example.com/path')).resolves.toBe(false)
+    expect(store.getSnapshot().errorCode).toBe('ENT_INVALID_REQUEST')
+    let finish!: (value: { serverUrl: string }) => void
+    vi.mocked(api.setServerUrl).mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+    const saving = store.setServerUrl('https://new.example')
+    await expect(store.setServerUrl('https://other.example')).resolves.toBe(false)
+    finish({ serverUrl: 'https://new.example' })
+    await expect(saving).resolves.toBe(true)
+    expect(store.getSnapshot().errorCode).toBeUndefined()
+    expect(api.setServerUrl).toHaveBeenCalledTimes(2)
+  })
+
+  it.each(['server', 'account', 'sign-out', 'old failure'])(
+    'discards old account and plugin responses after %s, even when revisions match', async change => {
+      const old: EnterpriseAccountBootstrap = {
+        user: { id: '10031', username: 'old', displayName: 'Old', departmentId: null },
+        device: { id: '90018', installationId: '4c96d076-a80a-4b6c-8df6-f0db804b6f0a', status: 'ACTIVE' },
+      }
+      const next = { ...old, user: { ...old.user, id: '10032', username: 'new' } }
+      const nextPlugins = { assignmentRevision: 8, plugins: [] }
+      let status: EnterpriseLocalStatus = { ...base, state: 'READY', revision: 7, user: old.user }
+      let resolveOld!: (value: EnterpriseAccountBootstrap) => void
+      let rejectOld!: (error: Error) => void
+      let resolvePlugins!: (value: EnterprisePluginStatus) => void
+      let oldSignal!: AbortSignal
+      const api: EnterpriseLocalApi = {
+        status: vi.fn(async () => status), refresh: vi.fn(),
+        bootstrap: vi.fn().mockImplementationOnce((signal: AbortSignal) => {
+          oldSignal = signal
+          return new Promise((resolve, reject) => { resolveOld = resolve; rejectOld = reject })
+        }).mockResolvedValue(next),
+        plugins: vi.fn().mockImplementationOnce(() => new Promise(resolve => { resolvePlugins = resolve })).mockResolvedValue(nextPlugins),
+        setServerUrl: vi.fn(), startLogin: vi.fn(), cancelLogin: vi.fn(), logout: vi.fn(), uninstall: vi.fn(),
+        installPlugin: vi.fn(), removePlugin: vi.fn(), sessionSync: vi.fn(), sessions: vi.fn(), restoreSession: vi.fn(), deleteSession: vi.fn(),
+      }
+      const store = new EnterpriseAccountStore(api)
+      await store.refresh()
+      if (change === 'sign-out') { status = { ...status, state: 'SIGNED_OUT' }; await store.refresh() }
+      status = { ...status, state: 'READY', ...(change === 'account' ? { user: next.user } : { platformUrl: 'https://new.example' }) }
+      await store.refresh()
+      await vi.waitFor(() => expect(store.getSnapshot().bootstrap).toEqual(next))
+      expect(oldSignal.aborted).toBe(true)
+      if (change === 'old failure') rejectOld(new EnterpriseLocalApiError('ENT_PLATFORM_UNAVAILABLE', 503))
+      else resolveOld(old)
+      resolvePlugins({ assignmentRevision: 1, plugins: [] })
+      await new Promise(resolve => setTimeout(resolve, 0))
+      expect(store.getSnapshot().bootstrap).toEqual(next)
+      expect(store.getSnapshot().pluginStatus).toEqual(nextPlugins)
+      expect(store.getSnapshot().errorCode).toBeUndefined()
+      expect(api.bootstrap).toHaveBeenCalledTimes(2)
+      expect(api.plugins).toHaveBeenCalledTimes(2)
+    },
+  )
+
   it('only polls during login, stops at the deadline, and ignores superseded or unmounted requests', async () => {
     vi.useFakeTimers()
     const api: EnterpriseLocalApi = {

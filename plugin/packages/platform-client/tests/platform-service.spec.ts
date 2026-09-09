@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 EnterprisePlatformService、Cordis Context、Host CredentialProvider、真实 Node HTTP 假平台与临时 DSH_HOME
- * [OUTPUT]: 验证 PKCE、GrantRecord、Access/Refresh 轮换、重启离线按需恢复、控制面限时、取消与 installation 停稳
+ * [OUTPUT]: 验证 PKCE、GrantRecord、按需轮换与恢复；地址修改必须经过退出，保存与认证互斥且旧账号不可复活
  * [POS]: platform-client 核心生命周期测试，跨真实 socket 与 Context 重启证明 Token 只进入 Host 凭据边界
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -373,6 +373,7 @@ describe('EnterprisePlatformService', () => {
         await rm(home, { force: true, recursive: true })
       },
     }
+    await service.refresh()
     environments.push(result)
     return result
   }
@@ -414,7 +415,7 @@ describe('EnterprisePlatformService', () => {
     }
   })
 
-  it('persists the Server origin through official settings and clears authentication when it changes', async () => {
+  it('requires logout before changing Server through the local API and cannot revive the old account', async () => {
     const env = await environment({ withSettings: true, startUnconfigured: true })
     expect(env.service.status()).toMatchObject({ state: 'UNCONFIGURED', platformUrl: null })
 
@@ -423,12 +424,72 @@ describe('EnterprisePlatformService', () => {
     expect(env.settings?.document).toEqual({ owndsh: { serverUrl: env.platformUrl } })
 
     await login(env)
+    const before = env.service.status()
+    const grant = structuredClone(env.credentials.record)
+    const rejected = await fetch(`${env.localUrl}/enterprise/api/v1/local/server`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ serverUrl: env.localUrl }),
+    })
+    expect(rejected.status).toBe(403)
+    for (const serverUrl of [env.localUrl, '']) {
+      await expect(env.context.settings.update('owndsh' as SettingsNamespace, { serverUrl }))
+        .rejects.toMatchObject({ code: 'ENT_PERMISSION_DENIED' })
+    }
+    expect(env.service.status()).toEqual(before)
+    expect(env.credentials.record).toEqual(grant)
+    expect(env.settings?.document).toEqual({ owndsh: { serverUrl: env.platformUrl } })
+    env.setBootstrap('unavailable')
+    await env.service.refresh()
+    expect(env.service.status().state).toBe('REFRESHING')
+    await expect(env.service.setServerUrl(env.localUrl)).rejects.toMatchObject({ code: 'ENT_PERMISSION_DENIED' })
+    const logout = env.service.logout()
+    await expect(env.service.setServerUrl(env.localUrl)).rejects.toMatchObject({ code: 'ENT_PERMISSION_DENIED' })
+    await logout
+    expect(env.credentials.record).toBeUndefined()
+    expect(env.platformRequests.some(request => request.path.endsWith('/logout'))).toBe(true)
+    // 模拟历史版本或失败登录留下的 Grant，换地址仍须先清理。
+    env.credentials.record = grant
     await env.service.setServerUrl(env.localUrl)
     await vi.waitFor(() => expect(env.service.status()).toMatchObject({ state: 'SIGNED_OUT', platformUrl: env.localUrl }))
+    expect(env.credentials.record).toBeUndefined()
     expect(env.service.bootstrap()).toBeUndefined()
     await expect(env.service.request('/enterprise/api/v1/probe')).rejects.toMatchObject({
       code: 'ENT_AUTH_REQUIRED',
     })
+    env.setBootstrap('ok')
+    await env.service.setServerUrl(env.platformUrl)
+    await vi.waitFor(() => expect(env.service.status().state).toBe('SIGNED_OUT'))
+    expect(env.authorizeUrls).toHaveLength(1)
+    expect(env.tokenGrantTypes).toEqual(['authorization_code'])
+  })
+
+  it('rejects Server changes throughout authorization, enrollment and bootstrap', async () => {
+    const env = await environment({ withSettings: true })
+    const checks: Promise<void>[] = []
+    const states: string[] = []
+    const unsubscribe = env.service.subscribe(status => {
+      if (!['AUTHORIZING', 'ENROLLING', 'BOOTSTRAPPING'].includes(status.state)) return
+      states.push(status.state)
+      checks.push(expect(env.service.setServerUrl(env.localUrl)).rejects.toMatchObject({ code: 'ENT_PERMISSION_DENIED' }))
+    })
+    await login(env)
+    await Promise.all(checks)
+    unsubscribe()
+    expect(states).toEqual(['AUTHORIZING', 'ENROLLING', 'BOOTSTRAPPING'])
+  })
+
+  it('blocks login while saving and leaves the old address intact if credential cleanup fails', async () => {
+    const env = await environment({ withSettings: true })
+    const cleanup = vi.spyOn(env.credentials, 'deleteRecord').mockRejectedValueOnce(new Error('credential store unavailable'))
+    await expect(env.service.setServerUrl(env.localUrl)).rejects.toThrow('credential store unavailable')
+    expect(env.service.status().platformUrl).toBe(env.platformUrl)
+    let release!: () => void
+    cleanup.mockImplementationOnce(() => new Promise(resolve => { release = resolve }))
+    const saving = env.service.setServerUrl(env.localUrl)
+    await expect(env.service.startLogin()).rejects.toMatchObject({ code: 'ENT_AUTH_REQUIRED' })
+    await expect(env.service.setServerUrl(env.platformUrl)).rejects.toMatchObject({ code: 'ENT_PERMISSION_DENIED' })
+    release()
+    await saving
+    await vi.waitFor(() => expect(env.service.status().state).toBe('SIGNED_OUT'))
   })
 
   it.each(['server switch', 'logout'])('does not apply a pending refresh after %s', async reason => {

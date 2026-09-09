@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Cordis Service/WebServer/settings.register/credentials、T02 contracts、PKCE/installation/browser 原语与 Node fetch
- * [OUTPUT]: 提供 ctx.enterprisePlatform、启动恢复、按需配置刷新/Token 轮换及认证失效状态，不进行后台轮询
+ * [OUTPUT]: 提供 ctx.enterprisePlatform、启动恢复、按需刷新/Token 轮换；仅无活动会话时允许清理凭据并修改 Server
  * [POS]: platform-client 的 Host 业务核心，跨 Web/Desktop 复用官方凭据平面且不向 Client UI 暴露任何 Token
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -151,6 +151,7 @@ export class EnterprisePlatformService extends Service {
   private restoreOrigin: string | undefined
   private sessionGeneration = 0
   private loggingOut = false
+  private configuring: string | undefined
   private disposed = false
   private disposeTask: Promise<void> | undefined
 
@@ -222,7 +223,12 @@ export class EnterprisePlatformService extends Service {
     ctx.inject(['settings'], (settingsContext) => {
       const scope = settingsContext.settings.register(SETTINGS_NAMESPACE, CONNECTION_SETTINGS, {
         base: { serverUrl: this.compositionServerUrl },
-        validate: value => { resolveBaseUrl(value.serverUrl) },
+        validate: value => {
+          const next = resolveBaseUrl(value.serverUrl)?.origin
+          if (this.settingsScope !== undefined && next !== this.baseUrl?.origin && (this.configuring === undefined || next !== this.configuring)) {
+            throw new EnterprisePlatformError('ENT_PERMISSION_DENIED', 'use the signed-out Server editor')
+          }
+        },
       })
       this.settingsScope = scope
       this.applyServerUrl(scope.get().serverUrl)
@@ -238,27 +244,37 @@ export class EnterprisePlatformService extends Service {
     this.startSessionRestore()
   }
 
-  /** 校验并写入 Harness 官方 settings；更换 origin 时丢弃旧服务的内存会话。 */
+  /** 无活动会话时清理残留凭据并写入官方 settings；保存期间禁止开始登录。 */
   async setServerUrl(serverUrl: string): Promise<{ readonly serverUrl: string }> {
     this.assertOpen()
+    if (this.configuring !== undefined || this.loggingOut || this.login !== undefined
+      || ['READY', 'REFRESHING', 'BOOTSTRAPPING'].includes(this.currentStatus.state)) {
+      throw new EnterprisePlatformError('ENT_PERMISSION_DENIED', 'logout before changing the server')
+    }
     const resolved = resolveBaseUrl(serverUrl)
     if (resolved === undefined) throw new TypeError('serverUrl is required')
     const scope = this.settingsScope
     if (scope === undefined) {
       throw new EnterprisePlatformError('ENT_PLATFORM_UNAVAILABLE', 'Harness settings are unavailable', true)
     }
-    await scope.update({ serverUrl: resolved.origin })
-    this.applyServerUrl(resolved.origin)
-    return { serverUrl: resolved.origin }
+    this.configuring = resolved.origin
+    try {
+      await this.platformCredentials.delete()
+      await scope.update({ serverUrl: resolved.origin })
+      this.applyServerUrl(resolved.origin)
+      return { serverUrl: resolved.origin }
+    } finally { this.configuring = undefined }
   }
 
   /** 幂等启动一个浏览器 PKCE 流程，并在浏览器完成前返回。 */
   async startLogin(): Promise<EnterpriseLoginFlow> {
     this.assertOpen()
-    if (this.loggingOut) throw new EnterprisePlatformError('ENT_AUTH_REQUIRED', 'logout is in progress')
+    if (this.configuring !== undefined || this.loggingOut) {
+      throw new EnterprisePlatformError('ENT_AUTH_REQUIRED', 'authentication transition is in progress')
+    }
     this.requireBaseUrl()
     if (this.login !== undefined) return { flowId: this.login.flowId }
-    if (this.currentStatus.state === 'READY' || this.currentStatus.state === 'REFRESHING') {
+    if (['READY', 'REFRESHING', 'BOOTSTRAPPING'].includes(this.currentStatus.state)) {
       throw new EnterprisePlatformError('ENT_INVALID_REQUEST', 'logout before starting another login')
     }
     this.clearSession()

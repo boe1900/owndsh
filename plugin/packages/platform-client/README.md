@@ -1,6 +1,6 @@
 <!--
 [INPUT]: 依赖 EnterprisePlatformService、官方 settings/credentials、同源本地 API 和 Host 认证实现。
-[OUTPUT]: 提供 Server 地址、平台方法、Access/Refresh 生命周期与本地路由安全边界说明。
+[OUTPUT]: 提供退出后 Server 修改、平台方法、Access/Refresh 生命周期与本地路由安全边界说明。
 [POS]: @owndsh/platform-client 的公开语义入口，连接 Host 认证核心与浏览器插件调用面。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
@@ -12,7 +12,7 @@ Harness Host 的企业平台控制面。`EnterprisePlatformService` 通过 Cordi
 
 | 方法 | 职责 |
 |---|---|
-| `setServerUrl()` | 校验 Server origin，写入 Harness 官方 settings，并清除旧 Server 的认证状态。 |
+| `setServerUrl()` | 仅无活动会话时校验 Server origin，先清理残留 GrantRecord 再写入官方 settings；保存期间拒绝新登录。 |
 | `startLogin()` | 幂等启动系统浏览器 PKCE，立即返回 flow ID，后台完成 Token/enroll/bootstrap。 |
 | `logout()` | 尝试注销中心会话，并无条件删除本地 GrantRecord 与内存认证状态。 |
 | `status()` | 返回连接状态、平台 origin、脱敏用户、revision、连接时间和稳定错误码。 |
@@ -25,6 +25,9 @@ Harness Host 的企业平台控制面。`EnterprisePlatformService` 通过 Cordi
 `baseUrl` 只是安装层可选默认值。未提供时 Service 进入 `UNCONFIGURED`，员工在全屏门禁中填写
 Server 地址；地址通过 `@deepseek-ai/dsh-settings` 持久化到 `$DSH_HOME/settings.yaml` 的
 `owndsh.serverUrl`。地址必须是不含 user-info、path、query 或 fragment 的 HTTP 或 HTTPS origin；
+账号设置只读显示地址，员工须先退出登录，再在门禁页修改。Host 拒绝已登录、授权、设备注册、
+恢复会话和退出过程中的修改；通用 settings 写入不可绕过此流程。初次配置或登录失败后仍可纠正地址，
+凭据清理失败时不写新地址，切回旧地址不会复活旧账号。运行时修改统一经 `setServerUrl()`；启动时仍读取磁盘配置。
 传输安全由部署方决定，公网和生产部署推荐 HTTPS。普通请求超时 30 秒、dispose 超时 3 秒。
 闲置时不轮询 bootstrap、不提前续期、不建立企业状态 SSE。用户请求发现 Access Token 到期时
 共享一次轮换；服务端先返回认证 401 时，对可重放请求体最多续期重试一次，403 权限拒绝不触发登出。

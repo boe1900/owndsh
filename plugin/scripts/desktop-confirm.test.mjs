@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖内置 Harness/插件运行树与 Playwright，使用临时 profile 并拦截账号动作 API
- * [OUTPUT]: 验证紧凑账号行/省略与操作、设置页内插件管理、含半像素位置的桌面/窄屏主题布局和详情/确认弹窗焦点
+ * [OUTPUT]: 验证只读账号地址、退出后编辑及失败保留、授权中禁止修改，并覆盖市场/确认框和桌面/窄屏布局
  * [POS]: 插件的 WebView 兼容回归，外部 runtime 显式传入，不访问真实企业账号或卸载实际插件
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -54,7 +54,8 @@ test('packaged plugin uses Harness confirmation modals without native confirm', 
       plugins: [{ packageName: '@enterprise/knowledge-base', version: '1.0.0', sha256: 'a'.repeat(64), desiredRevision: 1, desiredState: 'INSTALLED', state: 'ACTIVE', lastErrorCode: null, restartMarker: null }],
     }
     let state = 'READY'
-    const status = () => ({ state, bundleVersion: '0.1.0', platformUrl: 'https://enterprise.example.com', transport: 'webServer.register' })
+    let platformUrl = 'https://enterprise.example.com'
+    const status = () => ({ state, bundleVersion: '0.1.0', platformUrl, transport: 'webServer.register' })
     page.on('pageerror', error => errors.push(error.message))
     await page.addInitScript(() => {
       window.confirm = () => { throw new Error('Native confirm must not be called') }
@@ -90,6 +91,17 @@ test('packaged plugin uses Harness confirmation modals without native confirm', 
         data = pluginStatus
       }
       else if (path === 'logout') { calls.logout++; state = 'SIGNED_OUT'; data = { loggedOut: true } }
+      else if (path === 'server') {
+        const { serverUrl } = route.request().postDataJSON()
+        if (new URL(serverUrl).pathname !== '/') {
+          await route.fulfill({ status: 400, json: { error: { code: 'ENT_INVALID_REQUEST' } } })
+          return
+        }
+        platformUrl = serverUrl
+        data = { serverUrl }
+      }
+      else if (path === 'start') { state = 'AUTHORIZING'; data = { flowId: 'flow-1' } }
+      else if (path === 'cancel') { state = 'CANCELLED'; data = { cancelled: true } }
       else if (path === 'uninstall') { calls.uninstall++; data = { uninstalled: true, restartRequested: false } }
       else throw new Error(`Unexpected enterprise API: ${path}`)
       await route.fulfill({ json: { data } })
@@ -127,10 +139,8 @@ test('packaged plugin uses Harness confirmation modals without native confirm', 
     const refreshBefore = calls.refresh
     await account.getByRole('button', { name: '刷新配置', exact: true }).click()
     assert.equal(calls.refresh, refreshBefore + 1)
-    await account.getByRole('button', { name: '修改 Server 地址', exact: true }).click()
-    await account.getByRole('textbox', { name: 'OwnDsh Server 地址', exact: true }).waitFor()
-    await account.getByRole('button', { name: '取消', exact: true }).click()
-    await account.getByRole('textbox', { name: 'OwnDsh Server 地址', exact: true }).waitFor({ state: 'hidden' })
+    assert.equal(await account.getByRole('button', { name: '修改 Server 地址', exact: true }).count(), 0)
+    assert.equal(await account.getByRole('textbox', { name: 'OwnDsh Server 地址', exact: true }).count(), 0)
     await mkdir(join(root, '.build'), { recursive: true })
     await page.mouse.move(0, 0)
     await page.screenshot({ path: join(root, '.build/account-desktop.png') })
@@ -213,6 +223,23 @@ test('packaged plugin uses Harness confirmation modals without native confirm', 
     await page.getByRole('dialog', { name: 'OwnDsh', exact: true }).getByRole('button', { name: '登录企业账号', exact: true }).waitFor()
     await account.waitFor({ state: 'hidden' })
     assert.equal(calls.logout, 1)
+
+    const gate = page.getByRole('dialog', { name: 'OwnDsh', exact: true })
+    await gate.getByRole('button', { name: '修改 Server 地址', exact: true }).click()
+    const address = gate.getByRole('textbox', { name: 'OwnDsh Server 地址', exact: true })
+    await address.fill('https://next.example.com/path')
+    await gate.getByRole('button', { name: '保存', exact: true }).click()
+    await gate.getByRole('alert').waitFor()
+    assert.equal(await address.inputValue(), 'https://next.example.com/path')
+    await address.fill('https://next.example.com')
+    await gate.getByRole('button', { name: '保存', exact: true }).click()
+    await address.waitFor({ state: 'hidden' })
+    await gate.getByText('https://next.example.com', { exact: true }).waitFor()
+    await gate.getByRole('button', { name: '登录企业账号', exact: true }).click()
+    await gate.getByRole('button', { name: '取消登录', exact: true }).waitFor()
+    assert.equal(await gate.getByRole('button', { name: '修改 Server 地址', exact: true }).count(), 0)
+    await gate.getByRole('button', { name: '取消登录', exact: true }).click()
+    await gate.getByRole('button', { name: '修改 Server 地址', exact: true }).waitFor()
 
     await page.setViewportSize({ width: 375, height: 720 })
     const uninstall = page.getByRole('dialog', { name: 'OwnDsh', exact: true }).getByRole('button', { name: '卸载 OwnDsh', exact: true })

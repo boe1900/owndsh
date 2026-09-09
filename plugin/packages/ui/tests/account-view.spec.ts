@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖账号视图的固定连接/受管插件状态投影与协议类型
- * [OUTPUT]: 验证全局门禁、插件状态文案，并锁定重启与失败提示语义；页面确认由浏览器回归覆盖
+ * [OUTPUT]: 验证全局门禁、Server 编辑时机与插件状态文案；页面确认由浏览器回归覆盖
  * [POS]: dsh-ui 插件 tab 的产品词汇门禁，真实 DOM 与视觉由 Harness snapshot 覆盖
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -9,6 +9,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   enterpriseAccessBlocked,
   enterprisePluginStatePresentation,
+  enterpriseServerEditable,
   enterpriseStatePresentation,
 } from '../src/account-view.js'
 import { ENTERPRISE_CONNECTION_STATES, MANAGED_PLUGIN_STATES } from '../src/local-api.js'
@@ -25,6 +26,16 @@ describe('enterprise plugin state presentation', () => {
 
   it('presents a usable account session as logged in', () => {
     expect(enterpriseStatePresentation('READY').title).toBe('已登录')
+  })
+
+  it('only offers Server editing without a usable session or authentication transition', () => {
+    expect(enterpriseServerEditable()).toBe(false)
+    for (const state of ['READY', 'REFRESHING', 'AUTHORIZING', 'ENROLLING', 'BOOTSTRAPPING'] as const) {
+      expect(enterpriseServerEditable(state)).toBe(false)
+    }
+    for (const state of ['UNCONFIGURED', 'SIGNED_OUT', 'CANCELLED', 'FAILED', 'AUTH_EXPIRED', 'DEVICE_REVOKED'] as const) {
+      expect(enterpriseServerEditable(state)).toBe(true)
+    }
   })
 
   it('covers all managed states with stable employee-facing language', () => {
