@@ -23,7 +23,7 @@
 ./deploy/scripts/build-release.sh --version 0.1.0 --output /srv/releases
 ```
 
-生成的 tarball 包含 `owndsh/server`、`owndsh/console` 镜像归档、PostgreSQL version 0 基线、Compose、运维脚本、预编译 Harness bundle、两份 MIT 许可证和 SHA-256 清单。空数据卷由 PostgreSQL 官方 initdb 只装载一次基线，Flyway 随后迁移；已有数据卷不会重放基线。构建使用固定 Maven 3.9.11、Temurin 21.0.8、Node 24.6.0、Nginx 1.28.0、PostgreSQL 17.6、Redis 7.4.5 标签与 digest。
+生成的 tarball 包含 `owndsh/server`、`owndsh/console` 镜像归档、Compose、运维脚本、预编译 Harness bundle、两份 MIT 许可证和 SHA-256 清单。PostgreSQL 官方入口只创建数据库和数据库账号；Server 镜像包含 Flyway V0 基础建表/种子数据和全部后续迁移，启动时按版本执行，无需挂载或手工导入 SQL。已有 baseline 0 的数据库跳过 V0，按历史记录增量升级；已经发布的迁移 SQL 不改写。构建使用固定 Maven 3.9.11、Temurin 21.0.8、Node 24.6.0、Nginx 1.28.0、PostgreSQL 17.6、Redis 7.4.5 标签与 digest。
 
 默认从 `docker.io/library` 读取基础镜像。构建机或目标机网络受限时可设置 `OWNDSH_BASE_IMAGE_REGISTRY` 指向透明 registry mirror；Dockerfile 与 Compose 仍校验同一不可变 digest，mirror 不能替换镜像内容：
 
@@ -38,6 +38,10 @@ OWNDSH_BASE_IMAGE_REGISTRY=mirror.gcr.io/library \
 OWNDSH_USE_LOCAL_BASE_IMAGES=1 \
   ./deploy/scripts/build-release.sh --version 0.1.0 --output /srv/releases
 ```
+
+在 K8s 等环境单独部署 Server 并连接外部 PostgreSQL 时，DBA 预先创建空数据库和应用账号，并让该账号拥有目标 `public` schema 与应用对象的 DDL 权限；无需授予超级用户权限。给 Server 的 `ENT_POSTGRES_*` 环境变量提供数据库名称、主机和凭据。JDBC 的 `stringtype=unspecified` 接管字符串时间参数的类型推断，不再创建全库隐式 cast。
+
+保留 `baseline-on-migrate=true` 和版本 `0`，用于兼容旧版已完整导入 Host 基线但还没有 Flyway 历史的数据库；这只是登记旧基线，不会检查或补齐任意残缺 schema。首次部署应使用专用空库，已有部署保留 `flyway_schema_history`，不要手工删除迁移记录。
 
 ## 安装输入
 
@@ -64,7 +68,7 @@ OWNDSH_USE_LOCAL_BASE_IMAGES=1 \
 
 目标机需要 mirror 时，把环境变量放在安装命令之前；安装器会将通过字符校验的 registry 前缀写入 `runtime.env`，供后续重启、升级和恢复复用。
 
-离线安装器会生成 PostgreSQL/Redis 密码、Sa-Token JWT secret、32 字节 master key，并在每次 Compose 操作时从独立 key 文件注入容器环境，不写入普通 `runtime.env`。bootstrap 密码从安装命令指定的文件临时注入且不复制进状态目录；数据库写入 `BOOTSTRAP_ADMIN_COMPLETED` 后，后续启动只读取 marker，不再创建管理员。初始管理员第一次 LOCAL 登录必须在同一登录事务中修改密码。
+离线安装器会生成 PostgreSQL/Redis 密码、Sa-Token JWT secret、32 字节 master key，并在每次 Compose 操作时从独立 key 文件注入容器环境，不写入普通 `runtime.env`。bootstrap 密码从安装命令指定的文件临时注入且不复制进状态目录；数据库写入 `BOOTSTRAP_ADMIN_COMPLETED` 后，后续启动只读取 marker，不再创建管理员。Flyway 完成全部迁移后，初始管理员由现有 bootstrap 使用 `ENT_BOOTSTRAP_ADMIN_USERNAME` / `ENT_BOOTSTRAP_ADMIN_PASSWORD` 创建，密码不写入 SQL；首次 LOCAL 登录必须在同一登录事务中修改密码。修改初始密码环境变量不会重置已有密码。
 
 安装器不删除调用方传入的密码文件。调用方应在确认安装后按自身密钥流程处置输入文件。
 

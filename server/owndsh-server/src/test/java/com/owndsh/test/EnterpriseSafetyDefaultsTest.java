@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 owndsh-server 经 Maven 过滤后的 application.yml、Spring YAML loader 与真实 Logback 配置运行时。
- * [OUTPUT]: 验证 graceful drain、请求上限、同源 CORS、单配置环境入口、默认关闭插件签名、无默认 JWT secret 与仅 stdout 日志。
+ * [OUTPUT]: 验证 Flyway 基线与 JDBC 类型推断、graceful drain、请求上限、同源 CORS、单配置环境入口、默认关闭插件签名、无默认 JWT secret 与仅 stdout 日志。
  * [POS]: owndsh-server 的 T20 部署默认值回归，防止配置退化绕过业务层边界。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -53,6 +53,12 @@ class EnterpriseSafetyDefaultsTest {
 
     @Test
     void exposesDatabaseRedisAndEnterpriseSecretsAsEnvironmentOverrides() {
+        assertThat(property("spring.flyway.enabled")).isEqualTo(true);
+        assertThat(property("spring.flyway.baseline-on-migrate")).isEqualTo(true);
+        assertThat(property("spring.flyway.baseline-version")).isEqualTo(0);
+        assertThat(property("spring.flyway.locations")).isEqualTo("classpath:db/migration");
+        assertThat(property("spring.datasource.dynamic.datasource.master.url").toString())
+            .contains("stringtype=unspecified");
         assertThat(property("spring.datasource.dynamic.datasource.master.password"))
             .isEqualTo("${ENT_POSTGRES_PASSWORD:owndsh}");
         assertThat(property("spring.data.redis.password")).isEqualTo("${ENT_REDIS_PASSWORD:owndsh}");

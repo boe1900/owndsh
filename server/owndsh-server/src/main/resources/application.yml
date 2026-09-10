@@ -1,5 +1,5 @@
 # [INPUT]: 依赖环境变量提供的 PostgreSQL、Redis、JWT、enterprise 公网 URI 与 master key、默认关闭的插件签名与可选 signing key
-# [OUTPUT]: 提供 OwnDsh 唯一应用配置、数据库迁移、公开认证白名单、健康检查与 enterprise 强类型装配
+# [OUTPUT]: 提供 OwnDsh 唯一应用配置、数据库迁移、公开认证白名单、健康检查、PostgreSQL 参数类型推断与 enterprise 强类型装配
 # [POS]: owndsh-server 的单一启动真源；开发、容器与生产使用相同配置结构，仅由环境变量覆盖运行值
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -94,7 +94,7 @@ spring:
         master:
           type: ${spring.datasource.type}
           driver-class-name: org.postgresql.Driver
-          url: jdbc:postgresql://${ENT_POSTGRES_HOST:localhost}:${ENT_POSTGRES_PORT:5432}/${ENT_POSTGRES_DATABASE:owndsh}?sslmode=${ENT_POSTGRES_SSL_MODE:disable}&reWriteBatchedInserts=true
+          url: jdbc:postgresql://${ENT_POSTGRES_HOST:localhost}:${ENT_POSTGRES_PORT:5432}/${ENT_POSTGRES_DATABASE:owndsh}?sslmode=${ENT_POSTGRES_SSL_MODE:disable}&reWriteBatchedInserts=true&stringtype=unspecified
           username: ${ENT_POSTGRES_USERNAME:owndsh}
           password: ${ENT_POSTGRES_PASSWORD:owndsh}
       hikari:

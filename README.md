@@ -44,7 +44,7 @@ cd owndsh
 docker compose up -d --wait
 ```
 
-默认访问 [http://localhost:8080](http://localhost:8080)，初始账号 `admin`，密码 `owndsh`。第一次登录会强制设置符合安全策略的正式密码。
+默认访问 [http://localhost:8080](http://localhost:8080)，初始账号 `admin`，密码 `owndsh`。第一次登录会强制设置符合安全策略的正式密码。数据库与账号由 PostgreSQL 创建，全部建表、种子数据和后续升级由 Server 内置 Flyway 自动执行，无需额外 SQL 文件。
 
 需要让其他设备访问或覆盖默认凭据时，再创建 `.env`：
 

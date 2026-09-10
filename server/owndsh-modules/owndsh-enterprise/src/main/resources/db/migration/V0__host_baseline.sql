@@ -1,3 +1,8 @@
+-- [INPUT]: 依赖空 PostgreSQL 数据库与拥有 public schema 的应用账号。
+-- [OUTPUT]: 建立 Host 基础表、字典与历史种子数据，供 V1 起的企业迁移引用；已知默认凭据由 V12 退役。
+-- [POS]: 从原 initdb SQL 迁入的 version 0 基线；旧库的 baseline 0 跳过本文件，管理员仍由应用 bootstrap 创建。
+-- [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
 -- ----------------------------
 -- 第三方平台授权表
 -- ----------------------------
@@ -1272,10 +1277,3 @@ INSERT INTO test_tree VALUES (1762200000000000010, 1762200000000000007, 17610000
 INSERT INTO test_tree VALUES (1762200000000000011, 1762200000000000007, 1761000000000000108, 1761100000000000003, '子节点77', 0, 1761000000000000103, now(), 1761100000000000001, NULL, NULL, 0);
 INSERT INTO test_tree VALUES (1762200000000000012, 1762200000000000010, 1761000000000000108, 1761100000000000003, '子节点88', 0, 1761000000000000103, now(), 1761100000000000001, NULL, NULL, 0);
 INSERT INTO test_tree VALUES (1762200000000000013, 1762200000000000010, 1761000000000000108, 1761100000000000003, '子节点99', 0, 1761000000000000103, now(), 1761100000000000001, NULL, NULL, 0);
-
--- 字符串自动转时间 避免框架时间查询报错问题
-create or replace function cast_varchar_to_timestamp(varchar) returns timestamptz as $$
-select to_timestamp($1, 'yyyy-mm-dd hh24:mi:ss');
-$$ language sql strict ;
-
-create cast (varchar as timestamptz) with function cast_varchar_to_timestamp as IMPLICIT;

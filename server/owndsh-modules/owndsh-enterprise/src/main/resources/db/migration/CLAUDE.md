@@ -4,6 +4,7 @@
 
 成员清单
 
+V0__host_baseline.sql: 原 Host 初始化 SQL 的版本化基线，整体保留基础表/种子数据以兼容 V1 起的历史依赖；取消需超级用户的全库 cast，字符串时间参数由 PostgreSQL JDBC 推断类型，旧 baseline 0 不重放本文件。
 V1__enterprise_core.sql: 建立身份、设备、模型、配额、插件和 Session 核心企业事实表及约束。
 V2__enterprise_plugin.sql: 建立插件制品、版本、分配和设备状态持久化结构。
 V3__enterprise_session.sql: 建立远端 Session replica/event/batch、密文字段和保留状态结构。

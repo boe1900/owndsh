@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 PostgreSQL JDBC/事务、ID supplier 与一次性用户名/非空密码环境变量。
+ * [INPUT]: 依赖 PostgreSQL JDBC/事务、JSON marker 的显式文本类型、ID supplier 与一次性用户名/非空密码环境变量。
  * [OUTPUT]: 提供带 transaction advisory lock 的幂等管理员初始化；初始密码不套用正式策略，完成后只保留无 secret marker。
  * [POS]: deployment 的安全启动核心，角色绑定、用户创建和完成标记全成全败，重启不再读取 bootstrap secret。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -102,7 +102,7 @@ public final class DeploymentBootstrapService {
         jdbc.update("insert into sys_user_role(user_id, role_id) values (?, ?)", userId, roleId);
         jdbc.update("""
             insert into ent_deployment_state(state_key, state_value)
-            values (?, jsonb_build_object('userId', ?, 'username', ?))
+            values (?, jsonb_build_object('userId', ?, 'username', cast(? as text)))
             """, COMPLETED_MARKER, userId, normalizedUsername);
     }
 

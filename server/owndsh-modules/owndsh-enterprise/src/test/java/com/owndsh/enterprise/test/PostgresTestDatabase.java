@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 Docker、postgres:17-alpine、仓库 Host PostgreSQL 基线与 classpath Flyway migration。
- * [OUTPUT]: 为测试提供隔离数据库、真实基线装载、目标版本迁移、JdbcTemplate 与活动用户 fixture。
+ * [INPUT]: 依赖 Docker、postgres:17-alpine、classpath Flyway V0 起的全部 migration。
+ * [OUTPUT]: 为测试提供普通数据库所有者连接的空数据库、目标版本迁移、JdbcTemplate 与活动用户 fixture。
  * [POS]: 集成测试数据库基础设施，集中管理容器生命周期及跨模块共用的最小关系事实。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -11,11 +11,8 @@ import org.flywaydb.core.api.MigrationVersion;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.testcontainers.postgresql.PostgreSQLContainer;
-import org.testcontainers.utility.MountableFile;
 
 import javax.sql.DataSource;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -23,7 +20,7 @@ import java.util.UUID;
  * 共享 PostgreSQL 容器与隔离测试数据库工厂。
  */
 public final class PostgresTestDatabase {
-    private static final String BASELINE_IN_CONTAINER = "/tmp/postgres_owndsh.sql";
+    private static final String APPLICATION_USER = "enterprise_app";
     private static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17-alpine")
         .withDatabaseName("enterprise")
         .withUsername("enterprise")
@@ -31,48 +28,34 @@ public final class PostgresTestDatabase {
 
     static {
         POSTGRES.start();
-        String multiModuleRoot = System.getProperty("maven.multiModuleProjectDirectory");
-        Path serverRoot = multiModuleRoot == null
-            ? Path.of(System.getProperty("basedir")).resolve("../..").normalize()
-            : Path.of(multiModuleRoot);
-        Path baseline = serverRoot.resolve("script/sql/postgres/postgres_owndsh.sql");
-        if (!Files.isRegularFile(baseline)) {
-            throw new IllegalStateException("找不到 Host PostgreSQL 基线: " + baseline);
-        }
-        POSTGRES.copyFileToContainer(MountableFile.forHostPath(baseline), BASELINE_IN_CONTAINER);
+        exec("psql", "--username=" + POSTGRES.getUsername(), "--dbname=" + POSTGRES.getDatabaseName(),
+            "--set=ON_ERROR_STOP=1", "--command=create role enterprise_app login password 'enterprise_app'");
     }
 
     private PostgresTestDatabase() {
     }
 
     /**
-     * 创建新数据库并装载真实 Host 基线。
+     * 创建由非超级用户持有的空数据库，库内对象统一由 Flyway 建立。
      *
      * @param label 用于便于诊断的数据库前缀
      * @return 数据源和 JDBC adapter
      */
     public static Database create(String label) {
         String databaseName = sanitize(label) + "_" + UUID.randomUUID().toString().replace("-", "");
-        exec("createdb", "--username=" + POSTGRES.getUsername(), databaseName);
-        exec(
-            "psql",
-            "--username=" + POSTGRES.getUsername(),
-            "--dbname=" + databaseName,
-            "--set=ON_ERROR_STOP=1",
-            "--file=" + BASELINE_IN_CONTAINER
-        );
+        exec("createdb", "--username=" + POSTGRES.getUsername(), "--owner=" + APPLICATION_USER, databaseName);
         String baseUrl = POSTGRES.getJdbcUrl();
-        String jdbcUrl = baseUrl.substring(0, baseUrl.lastIndexOf('/') + 1) + databaseName;
+        String jdbcUrl = baseUrl.substring(0, baseUrl.lastIndexOf('/') + 1) + databaseName + "?stringtype=unspecified";
         DriverManagerDataSource dataSource = new DriverManagerDataSource(
             jdbcUrl,
-            POSTGRES.getUsername(),
-            POSTGRES.getPassword()
+            APPLICATION_USER,
+            APPLICATION_USER
         );
         return new Database(databaseName, dataSource, new JdbcTemplate(dataSource));
     }
 
     /**
-     * 对非空 Host schema 建立 version 0 baseline 并迁移到目标版本。
+     * 从空库执行 V0 起的迁移，兼容已有 Host schema 的 version 0 baseline。
      *
      * @param database 测试数据库
      * @param target 目标版本；null 表示最新

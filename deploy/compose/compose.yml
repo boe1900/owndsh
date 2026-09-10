@@ -1,6 +1,6 @@
-# [INPUT]: 依赖带默认值的环境变量、可覆盖的 PostgreSQL 基线、PostgreSQL、Redis 与插件制品三个持久卷、可写临时目录与锁定 Linux amd64 镜像。
+# [INPUT]: 依赖带默认值的环境变量、PostgreSQL、Redis 与插件制品三个持久卷、可写临时目录与锁定 Linux amd64 镜像。
 # [OUTPUT]: 提供默认拉取 GHCR next 镜像、`admin/owndsh` 幂等初始化、默认免签名密钥、应用日志仅写 stdout/stderr、HTTP Console、单 Server、PostgreSQL 17.6 和 Redis 7.4.5 拓扑。
-# [POS]: T21 部署运行时事实源；OwnDsh 不终止 TLS，空数据库先由官方 initdb 装载 version 0，Flyway 接管后续版本。
+# [POS]: T21 部署运行时事实源；OwnDsh 不终止 TLS，PostgreSQL 创建数据库与账号，Server 内 Flyway 执行 V0 基础初始化及后续版本。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 name: ${OWNDSH_COMPOSE_PROJECT_NAME:-owndsh}
@@ -15,9 +15,6 @@ services:
       POSTGRES_USER: ${ENT_POSTGRES_USERNAME:-owndsh}
       POSTGRES_PASSWORD: ${ENT_POSTGRES_PASSWORD:-owndsh}
       TZ: UTC
-    configs:
-      - source: postgres_baseline
-        target: /docker-entrypoint-initdb.d/00-owndsh-baseline.sql
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -141,7 +138,3 @@ volumes:
   postgres_data:
   redis_data:
   artifacts:
-
-configs:
-  postgres_baseline:
-    file: ${OWNDSH_POSTGRES_BASELINE:-../database/postgres_owndsh.sql}

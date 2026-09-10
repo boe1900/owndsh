@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖真实 PostgreSQL Host+V1-V13、DeploymentBootstrapService、JdbcLocalAccountStore 与 BCrypt。
+ * [INPUT]: 依赖普通账号从空 PostgreSQL 执行 V0-V29、DeploymentBootstrapService、JdbcLocalAccountStore 与 BCrypt。
  * [OUTPUT]: 验证任意非空初始密码、缺配置失败、原子回滚、唯一管理员/角色/marker、重启忽略输入及首次强制安全改密。
  * [POS]: T21 初始化管理员的数据库验收门禁，证明部署脚本之外仍有并发安全和恢复语义。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -65,7 +65,13 @@ class DeploymentBootstrapServiceTest {
         assertThat(count(database, "select count(*) from ent_deployment_state")).isOne();
 
         assertThatCode(() -> service(database, null, null).initialize()).doesNotThrowAnyException();
+        assertThatCode(() -> service(database, "replacement.admin", "replacement-password").initialize())
+            .doesNotThrowAnyException();
         assertThat(count(database, "select count(*) from sys_user where user_name = 'platform.admin'")).isOne();
+        assertThat(count(database, "select count(*) from sys_user where user_name = 'replacement.admin'")).isZero();
+        assertThat(database.jdbc().queryForObject(
+            "select password from sys_user where user_name = ?", String.class, USERNAME
+        )).isEqualTo(row.get("password"));
     }
 
     @Test

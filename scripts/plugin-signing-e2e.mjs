@@ -41,7 +41,6 @@ const composeEnv = {
   OWNDSH_COMPOSE_PROJECT_NAME: project,
   OWNDSH_SERVER_IMAGE: process.env.OWNDSH_E2E_SERVER_IMAGE ?? 'owndsh-server:signing-e2e-20260909',
   OWNDSH_CONSOLE_IMAGE: process.env.OWNDSH_E2E_CONSOLE_IMAGE ?? 'owndsh-console:signing-e2e-20260909',
-  OWNDSH_POSTGRES_BASELINE: resolve(root, 'server/script/sql/postgres/postgres_owndsh.sql'),
   OWNDSH_HTTP_BIND: '127.0.0.1',
   OWNDSH_HTTP_PORT: String(port),
   ENT_PUBLIC_BASE_URL: ORIGIN,

@@ -1,6 +1,6 @@
 #!/bin/sh
-# [INPUT]: 依赖产品源码、Harness 机器锁、PostgreSQL 上游基线、锁定 digest 的 Linux amd64 Docker base、可选受验本地镜像缓存、pnpm workspace 与许可证。
-# [OUTPUT]: 生成含 Server/Console 镜像、version 0 数据库基线、企业 bundle、Compose、脚本、许可证、Harness 基线和 SHA-256 清单的发布 tarball。
+# [INPUT]: 依赖产品源码、Harness 机器锁、锁定 digest 的 Linux amd64 Docker base、可选受验本地镜像缓存、pnpm workspace 与许可证。
+# [OUTPUT]: 生成含 Server/Console 镜像、随 Server 交付的 Flyway 全量迁移、企业 bundle、Compose、脚本、许可证、Harness 基线和 SHA-256 清单的发布 tarball。
 # [POS]: T21 源码到离线交付包的唯一构建入口，不写入安装状态或生产 secret。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -81,14 +81,13 @@ fi
 bundle="$source_root/artifacts/owndsh-plugin-0.1.0.tgz"
 require_file "$bundle"
 
-mkdir -p "$package_root/images" "$package_root/harness" "$package_root/licenses" "$package_root/database"
+mkdir -p "$package_root/images" "$package_root/harness" "$package_root/licenses"
 cp -R "$source_root/deploy/compose" "$package_root/compose"
 cp -R "$source_root/deploy/nginx" "$package_root/nginx"
 cp -R "$source_root/deploy/scripts" "$package_root/scripts"
 cp "$source_root/deploy/README.md" "$package_root/OPERATIONS.md"
 cp "$source_root/server/LICENSE" "$package_root/licenses/server-MIT.txt"
 cp "$source_root/console/BEAUTIFUL_UI_LICENSE" "$package_root/licenses/console-beautiful-ui-MIT.txt"
-cp "$source_root/server/script/sql/postgres/postgres_owndsh.sql" "$package_root/database/postgres_owndsh.sql"
 cp "$bundle" "$package_root/harness/"
 
 docker image save "$server_image" | gzip -9 > "$package_root/images/server.tar.gz"

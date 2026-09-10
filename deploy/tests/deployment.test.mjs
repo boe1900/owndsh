@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 deploy Compose/Nginx/脚本、单一 application.yml、Docker Compose v2 与测试环境变量。
- * [OUTPUT]: 验证内部数据服务加 HTTP Console/Server 拓扑、无应用日志卷、GitHub 插件制品与测试版发布、默认免签名密钥与可选 key 归档、环境参数、幂等 bootstrap、API/SPA 路由与运维边界。
+ * [OUTPUT]: 验证内部数据服务加 HTTP Console/Server 拓扑、无外部 SQL 挂载与应用日志卷、GitHub 插件制品与测试版发布、默认免签名密钥与可选 key 归档、环境参数、幂等 bootstrap、API/SPA 路由与运维边界。
  * [POS]: T21/P2-08 部署与本地人工验收静态门禁，先于昂贵镜像构建发现配置漂移。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -55,9 +55,11 @@ test('compose publishes only the HTTP Console and pins all third-party images', 
   assert.equal(config.services.console.image, 'owndsh/console:test')
   assert.equal(config.services.console.secrets, undefined)
   assert.equal(config.services.server.secrets, undefined)
-  assert.ok(config.services.postgres.configs.some(config =>
-    config.source === 'postgres_baseline' && config.target === '/docker-entrypoint-initdb.d/00-owndsh-baseline.sql'
-  ))
+  assert.equal(config.services.postgres.configs, undefined)
+  assert.equal(config.configs, undefined)
+  assert.deepEqual(config.services.postgres.volumes.map(({ source, target }) => ({ source, target })), [
+    { source: 'postgres_data', target: '/var/lib/postgresql/data' },
+  ])
   assert.match(config.services.postgres.image, /postgres:17\.6-alpine3\.22@sha256:[a-f0-9]{64}$/)
   assert.match(config.services.redis.image, /redis:7\.4\.5-alpine3\.21@sha256:[a-f0-9]{64}$/)
   assert.equal(config.services.server.platform, 'linux/amd64')
@@ -94,7 +96,8 @@ test('root Compose has GHCR images and overridable test defaults', () => {
   ]) assert.match(compose, new RegExp(`\\$\\{${variable}:-`))
   assert.doesNotMatch(compose, /ENT_ADMIN_REDIRECT_URI/)
   assert.doesNotMatch(environment, /ENT_ADMIN_REDIRECT_URI/)
-  assert.match(environment, /OWNDSH_POSTGRES_BASELINE=\$\{PWD\}\/server\/script\/sql\/postgres\/postgres_owndsh\.sql/)
+  assert.doesNotMatch(environment, /OWNDSH_POSTGRES_BASELINE/)
+  assert.doesNotMatch(compose, /OWNDSH_POSTGRES_BASELINE|docker-entrypoint-initdb\.d/)
   assert.doesNotMatch(environment, /OWNDSH_STATE_DIR/)
   assert.match(environment, /^ENT_BOOTSTRAP_ADMIN_USERNAME=admin$/m)
   assert.match(environment, /^ENT_BOOTSTRAP_ADMIN_PASSWORD=owndsh$/m)
@@ -258,7 +261,7 @@ test('operations scripts parse, keep Harness bundles aligned, and rollback canno
   assert.match(restore, /appendonly\.aof\.manifest/)
   const release = read('deploy/scripts/build-release.sh')
   assert.match(release, /bundle="\$source_root\/artifacts\/owndsh-plugin-0\.1\.0\.tgz"/)
-  assert.match(release, /server\/script\/sql\/postgres\/postgres_owndsh\.sql/)
+  assert.doesNotMatch(release, /postgres_owndsh\.sql|package_root\/database/)
   assert.match(release, /OWNDSH_USE_LOCAL_BASE_IMAGES/)
   assert.match(release, /docker image ls --digests/)
   assert.match(release, /DOCKER_BUILDKIT=0 docker build/)

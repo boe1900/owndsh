@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 PostgresTestDatabase 装载真实 Host 基线与 V1-V29 migration。
- * [OUTPUT]: 验证空 schema、逐版本升级、历史估算扣额保留与实测分类迁移，以及数据库计量约束。
+ * [INPUT]: 依赖普通数据库所有者、空数据库、classpath V0-V29 migration 与旧版 baseline 0 历史。
+ * [OUTPUT]: 验证空库建表、旧库接管/升级、重复启动、字符串时间参数及数据库计量迁移约束。
  * [POS]: database 的持续 migration 门禁，防止后续任务只验证最终 schema 而遗漏中间版本不可升级。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -10,9 +10,13 @@ import com.owndsh.enterprise.test.PostgresTestDatabase;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 
 import javax.sql.DataSource;
 
@@ -22,11 +26,20 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @Tag("dev")
 class EnterpriseMigrationTest {
     @Test
-    void migratesHostBaselineToLatestOnAnEmptyEnterpriseSchema() {
+    void migratesAnEmptyDatabaseToLatestWithoutSuperuserPrivileges() {
         var database = PostgresTestDatabase.create("empty_enterprise");
+        assertThat(database.jdbc().queryForObject(
+            "select count(*) from information_schema.tables where table_schema='public'", Integer.class
+        )).isZero();
+        assertThat(database.jdbc().queryForObject(
+            "select rolsuper from pg_roles where rolname=current_user", Boolean.class
+        )).isFalse();
 
         Flyway flyway = PostgresTestDatabase.migrate(database, null);
 
+        assertThat(database.jdbc().queryForObject(
+            "select type from flyway_schema_history where version='0'", String.class
+        )).isEqualTo("SQL");
         assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("29");
         Integer tableCount = database.jdbc().queryForObject("""
             select count(*) from information_schema.tables
@@ -105,6 +118,55 @@ class EnterpriseMigrationTest {
         assertThat(database.jdbc().queryForList("""
             select role_id from sys_role_menu where menu_id=1900400000000001016 order by role_id
             """, Long.class)).containsExactly(1900300000000000001L);
+    }
+
+    @Test
+    void repeatedMigrationPreservesSeedsAndSupportsTimestampParameters() {
+        var database = PostgresTestDatabase.create("repeat_migrate");
+        Flyway flyway = PostgresTestDatabase.migrate(database, null);
+        var history = database.jdbc().queryForList("select * from flyway_schema_history order by installed_rank");
+        database.jdbc().update("update sys_config set config_value='deployment-specific' where config_id=(select min(config_id) from sys_config)");
+
+        assertThat(flyway.migrate().migrationsExecuted).isZero();
+        assertThat(database.jdbc().queryForList("select * from flyway_schema_history order by installed_rank"))
+            .isEqualTo(history);
+        assertThat(database.jdbc().queryForObject(
+            "select config_value from sys_config order by config_id limit 1", String.class
+        )).isEqualTo("deployment-specific");
+        assertThat(database.jdbc().queryForObject(
+            "select timestamp '2026-09-10 12:00:00' between ? and ?", Boolean.class,
+            "2026-09-10 00:00:00", "2026-09-10 23:59:59"
+        )).isTrue();
+        assertThat(database.jdbc().queryForObject(
+            "select timestamptz '2026-09-10 12:00:00+08' between ? and ?", Boolean.class,
+            "2026-09-10 00:00:00+08", "2026-09-10 23:59:59+08"
+        )).isTrue();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"0", "28", "29"})
+    void adoptsLegacyHostSchemaAndPreservesExistingMigrationHistory(String oldVersion) {
+        var database = PostgresTestDatabase.create("legacy_baseline");
+        // ---------- 模拟旧版由 initdb 装载 Host，再由 Flyway 记录 baseline 0 ----------
+        new ResourceDatabasePopulator(new ClassPathResource("db/migration/V0__host_baseline.sql"))
+            .execute(database.dataSource());
+        if (!"0".equals(oldVersion)) PostgresTestDatabase.migrate(database, oldVersion);
+        database.jdbc().update("update sys_config set config_value='legacy-kept' where config_id=(select min(config_id) from sys_config)");
+        java.util.List<java.util.Map<String, Object>> history = "0".equals(oldVersion) ? java.util.List.of()
+            : database.jdbc().queryForList("select * from flyway_schema_history order by installed_rank");
+
+        Flyway flyway = PostgresTestDatabase.migrate(database, null);
+
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("29");
+        assertThat(database.jdbc().queryForObject(
+            "select type from flyway_schema_history where version='0'", String.class
+        )).isEqualTo("BASELINE");
+        assertThat(database.jdbc().queryForList("select * from flyway_schema_history order by installed_rank"))
+            .containsAll(history);
+        assertThat(database.jdbc().queryForObject(
+            "select config_value from sys_config order by config_id limit 1", String.class
+        )).isEqualTo("legacy-kept");
+        assertThat(flyway.migrate().migrationsExecuted).isZero();
     }
 
     @Test
