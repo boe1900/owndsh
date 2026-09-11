@@ -4,6 +4,6 @@
 
 成员清单
 
-release.yml: PR 验证 Linux amd64 前后端镜像并保留插件 tgz；main 发布 GHCR `next`，预发布标签通过 npm Trusted Publishing 将同一 tgz 发布为 `owndsh-plugin@next`，全程不持有 npm 长期 Token。
+release.yml: PR 验证 Linux amd64 前后端镜像并保留插件 tgz；main 发布 GHCR `next`，版本标签通过 npm Trusted Publishing 将同一 tgz 发布为 stable `latest` 或预发布 `next`，全程不持有 npm 长期 Token。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

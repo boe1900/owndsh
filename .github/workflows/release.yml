@@ -1,5 +1,5 @@
 # [INPUT]: 依赖生产 Dockerfile、插件 pnpm 锁、GitHub Actions artifact、GitHub Container Registry 与 npm Trusted Publishing。
-# [OUTPUT]: 验证 Linux amd64 前后端镜像和插件，保留可下载 tgz；main 发布 GHCR next，v*-* 标签将同一 tgz 发布到 npm next。
+# [OUTPUT]: 验证 Linux amd64 前后端镜像和插件，保留可下载 tgz；main 发布 GHCR next，版本标签将同一 tgz 发布到 npm。
 # [POS]: OwnDsh 唯一公开制品流水线；构建与发布复用同一插件包，测试版不创建 latest 标签，也不使用 npm 长期 Token。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -9,7 +9,7 @@ on:
   pull_request:
   push:
     branches: [main]
-    tags: ['v*-*']
+    tags: ['v*']
 
 jobs:
   images:
@@ -72,7 +72,7 @@ jobs:
         run: |
           corepack enable
           corepack prepare pnpm@11.7.0 --activate
-      - name: Set prerelease version
+      - name: Set package version from tag
         if: startsWith(github.ref, 'refs/tags/v')
         run: npm --prefix plugin/packages/bundle pkg set version="${GITHUB_REF_NAME#v}"
       - name: Install and check plugin
@@ -91,7 +91,7 @@ jobs:
           if-no-files-found: error
 
   plugin-publish:
-    name: Publish plugin next
+    name: Publish plugin npm package
     if: startsWith(github.ref, 'refs/tags/v')
     needs: plugin-check
     runs-on: ubuntu-latest
@@ -107,7 +107,9 @@ jobs:
         with:
           name: owndsh-plugin-package
           path: plugin-package
-      - name: Publish npm next
+      - name: Publish npm package
         run: |
           npm install --global npm@11.11.0
-          npm publish ./plugin-package/*.tgz --tag next --provenance --access public
+          tag=latest
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then tag=next; fi
+          npm publish ./plugin-package/*.tgz --tag "$tag" --provenance --access public

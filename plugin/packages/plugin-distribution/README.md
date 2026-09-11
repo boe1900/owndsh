@@ -12,7 +12,7 @@ Harness Host 的受管插件调和 Service。它只消费 `ctx.enterprisePlatfor
 `desktopProfiles.current`/`desktopPnpm.runPlugin()`；本服务不会扫描或上传个人插件、配置、
 源码和本地路径。
 库存读取统一等待 `pluginInventory.list()`，同时支持 `0.1.1-rc.2` 的同步快照与
-`0.1.2-rc.1` 的异步快照；重启确认、移除、库存上报和整包卸载均使用同一读取边界。
+`0.1.2-rc.1`、`0.1.5-rc.2` 的异步快照；重启确认、移除、库存上报和整包卸载均使用同一读取边界。
 
 管理员发布并配置可见范围后，插件进入员工目录。bootstrap/revision 轮询只刷新目录、确认重启和上报库存，不自动安装、升级或回滚；历史 `required=true` 也不触发安装。用户选择保留在当前设备/profile，其他设备独立选择。删除可见范围或退休版本会停止新安装，已有安装保留；显式 `ABSENT` 撤回会移除本机已受管插件。
 
@@ -48,7 +48,7 @@ ambient credential 与 `DSH_*`，因此本包显式只传回非秘密 `DSH_HOME`
 通用分发拒绝
 bundle、platform client、distribution 自身以及 contracts、LLM、Session、UI 等企业核心传递包。
 版本回滚与升级使用同一个校验策略和 exact tgz 安装路径，任一步失败都保持 `FAILED`，绝不标记 active。
-OwnDsh 本体按 Harness caret peer 范围运行；第三方制品仍坚持独立的精确 commit 白名单。已映射官方 `0.1.1-rc.2` 与 `0.1.2-rc.1`（后者为 `dsh-v0.1.2-rc.1` / `a66e4702047846cdaa10c66c9d3df3951f5ea70d`）；其他未知版本以 `ENT_PLUGIN_INCOMPATIBLE` 拒绝安装。市场在安装前显示信任根/兼容性阻断原因。
+OwnDsh 本体按 Harness caret peer 范围运行；第三方制品仍坚持独立的精确 commit 白名单。已映射官方 `0.1.1-rc.2`、`0.1.2-rc.1`（`a66e4702047846cdaa10c66c9d3df3951f5ea70d`）和 `0.1.5-rc.2`（`fb2c4b9e698e30edb738bca4cf0618587db7d203`）；其他未知版本以 `ENT_PLUGIN_INCOMPATIBLE` 拒绝安装。市场在安装前显示信任根/兼容性阻断原因。
 
 升级部署时必须同时更新员工 `owndsh-plugin`：旧客户端把 `INSTALLED` 当成自动安装指令，仅升级后台或把 `required` 改为 false 无法改变旧客户端行为。本地状态文件保持兼容；空签名响应要求新版客户端，后台新保存的可见范围统一写入 `required=false`。
 本地状态文件无法校验时，调和器进入稳定的 `ENT_PLUGIN_STATE_INVALID` 终态并丢弃后续 pending revision，避免 Host 忙循环；修复状态后需重启 Harness 重新载入。

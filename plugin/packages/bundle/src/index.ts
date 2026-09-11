@@ -27,6 +27,7 @@ export const inject = ['webServer', 'credentials', 'llm', 'subprocess', 'pluginI
 const VERIFIED_HARNESS_COMMITS: Readonly<Record<string, string>> = {
   '0.1.1-rc.2': 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e',
   '0.1.2-rc.1': 'a66e4702047846cdaa10c66c9d3df3951f5ea70d',
+  '0.1.5-rc.2': 'fb2c4b9e698e30edb738bca4cf0618587db7d203',
 }
 const HARNESS_VERSION = APP_IDENTITY.version
 const { version: BUNDLE_VERSION } = createRequire(import.meta.url)('../package.json') as { version: string }
