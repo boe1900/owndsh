@@ -1203,8 +1203,8 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 | T14 | `completed` | 2026-08-19 已实现客户端下载、大小/SHA-256/Ed25519/compatibility 校验、固定 `ctx.subprocess` argv、原子状态文件、跨进程 Loader active 确认、ABSENT、库存与回滚；树外 package consumer 和锁定 rc.7 真实 CLI 证据见 [`t14-plugin-client-acceptance.md`](t14-plugin-client-acceptance.md)。 |
 | T15 | `completed` | 2026-08-19 已交付管理端 tgz 上传/发布/退休、完整 assignment 原子替换与回滚、设备 inventory，以及桌面员工插件 tab；真实 Server Playwright 与 rc.7 Harness 重启/Loader ACTIVE 证据见 [`t15-plugin-pages-acceptance.md`](t15-plugin-pages-acceptance.md)。 |
 | T16 | `completed` | 2026-08-19 已实现官方 format v0 精确 JSONL/SHA-256/rolling hash、ACTIVE 源设备行锁复制、AES-GCM、本人/admin 读取、正文独立权限、tombstone 与 90 天 retention；完整证据见 [`t16-session-server-acceptance.md`](t16-session-server-acceptance.md)。 |
-| T17 | `completed` | 2026-08-19 已实现 dirty queue、flush/readFrom 双边界批次、无正文原子确认游标、READY 断点发现、退避/终态、远端列表与完整验证后的新 ID 耐久恢复；树外 consumer 和锁定 rc.7 真实 Session/Persistence 证据见 [`t17-session-client-acceptance.md`](t17-session-client-acceptance.md)。 |
-| T18 | `completed` | 2026-08-19 已交付管理 Session metadata/正文/删除权限面、员工同步状态/远端列表/恢复/删除 tab；真实 Server Playwright、读取审计、跨设备 rc.7 Harness 恢复与 DELETED 重启不重传证据见 [`t18-session-pages-acceptance.md`](t18-session-pages-acceptance.md)。 |
+| T17 | `removed` | 2026-09-11 客户端 Session 同步实现已删除；服务端 Session 数据/API 保留。 |
+| T18 | `removed` | 2026-09-11 客户端 Session 页面与恢复/删除入口已删除；服务端管理接口保留。 |
 | T19 | `completed` | 2026-08-20 已交付 30-action 显式 metadata 白名单、tenant 隔离审计查询、365 天有界 retention、用户治理事务接缝、heartbeat 防洪和管理员/审计员只读页面；真实 PostgreSQL/Server/Playwright 与敏感模式扫描证据见 [`t19-audit-closure-acceptance.md`](t19-audit-closure-acceptance.md)。 |
 | T20 | `completed` | 2026-08-20 已交付默认同源 CORS、通用 JSON/Session/form/multipart 有界请求、无默认 JWT secret、30 秒 graceful drain、未知故障日志隔离、CI 秘密扫描与 PostgreSQL/Redis/artifact/key 恢复演练，见 [`t20-security-fault-acceptance.md`](t20-security-fault-acceptance.md)。 |
 | T21 | `completed` | 2026-09-04 已将锁定 Linux amd64 release 收敛为只发布 HTTP 8080 的 Compose/Nginx；一次性初始化管理员、secret/health、数据与 key 分离备份恢复、升级和仅应用回滚保持不变。2026-08-20 旧 TLS 拓扑的全量安装历史证据与当前 HTTP 静态回归边界见 [`t21-deployment-delivery-acceptance.md`](t21-deployment-delivery-acceptance.md)。 |

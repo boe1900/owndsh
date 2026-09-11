@@ -27,13 +27,12 @@ describe('enterprise bundle', () => {
       '@deepseek-ai/dsh-client-ui-settings-general',
     ])
     expect(manifest.dependencies).toBeUndefined()
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-llm']).toBe('^0.1.1-rc.2 || ^0.1.2-rc.1')
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-credentials']).toBe('^0.1.1-rc.2 || ^0.1.2-rc.1')
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-llm-pi-ai']).toBe('^0.1.1-rc.2 || ^0.1.2-rc.1')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-llm']).toBe('^0.1.5-rc.2')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-credentials']).toBe('^0.1.5-rc.2')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-llm-pi-ai']).toBe('^0.1.5-rc.2')
     expect(manifest.peerDependencies['@deepseek-ai/dsh-session']).toBeUndefined()
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-session-persistence']).toBeUndefined()
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-subprocess']).toBe('^0.1.1-rc.2 || ^0.1.2-rc.1')
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-host-plugin-inventory']).toBe('^0.1.1-rc.2 || ^0.1.2-rc.1')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-subprocess']).toBe('^0.1.5-rc.2')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-host-plugin-inventory']).toBe('^0.1.5-rc.2')
     expect(manifest.peerDependencies['@deepseek-ai/schemastery']).toBe('^3.18.1')
     expect(inject).toEqual([
       'webServer', 'credentials', 'llm', 'subprocess', 'pluginInventory',
@@ -104,7 +103,6 @@ describe('enterprise bundle', () => {
     expect(combined).toMatch(/from ["']@deepseek-ai\/dsh-credentials["']/)
     expect(combined).toMatch(/from ["']@deepseek-ai\/dsh-llm-pi-ai["']/)
     expect(combined).not.toContain("from '@deepseek-ai/dsh-session'")
-    expect(combined).not.toContain("from '@deepseek-ai/dsh-session-persistence'")
     expect(combined).toContain("from '@deepseek-ai/schemastery'")
     expect(combined).toContain('enterprisePluginDistribution')
     expect(combined).not.toContain('enterpriseSessionSync')

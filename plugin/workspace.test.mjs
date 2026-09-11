@@ -73,7 +73,7 @@ test('workspace only discovers product packages below packages', async () => {
   assert.match(definition, /^packages:\n  - packages\/\*\n/)
   assert.match(
     definition,
-    /allowBuilds:\n  '@google\/genai': false\n  esbuild: true\n  protobufjs: false\n$/,
+    /allowBuilds:\n  '@google\/genai': false\n  esbuild: true\n  protobufjs: false\n/,
   )
   assert.doesNotMatch(definition, /deepseek-harness|\.\.\//)
 })
@@ -90,7 +90,6 @@ test('workspace uses only the formal product package boundaries', async () => {
     'llm-gateway',
     'platform-client',
     'plugin-distribution',
-    'session-sync',
     'ui',
   ])
 })

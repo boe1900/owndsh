@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 platform-client 本地 API 注册器与 Node 原生 HTTP server/fetch
- * [OUTPUT]: 验证方法/content-type/体积/DTO、平台/插件/Session 状态、显式刷新、无常驻 SSE、探针退役与 disposer
+ * [OUTPUT]: 验证方法/content-type/体积/DTO、平台/插件状态、显式刷新、无常驻 SSE、探针退役与 disposer
  * [POS]: platform-client Host/Client 协作回归测试，以真实 HTTP 锁定官方 webServer 契约
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -9,7 +9,6 @@ import { createServer, type Server } from 'node:http'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   registerEnterpriseLocalApi,
-  type EnterpriseLocalSessionPort,
   type EnterpriseLocalPlatformPort,
   type EnterprisePlatformStatus,
   type WebServerRoutePort,
@@ -186,66 +185,6 @@ describe('enterprise local API', () => {
     expect(platform.refresh).toHaveBeenCalledOnce()
     dispose()
     expect(routes.size).toBe(0)
-  })
-
-  it('serves Session sync status, remote cursor pages, restore/delete actions without content leakage', async () => {
-    const syncStatus = {
-      backlog: 1,
-      lastSuccessfulSyncAt: null,
-      cursors: [{
-        sessionId: 'remote-1', sourceDeviceId: '90018', lastAckSeq: 2,
-        rollingHash: `${'A'.repeat(43)}=`, state: 'RETRY_WAIT',
-        lastErrorCode: 'ENT_PLATFORM_UNAVAILABLE', updatedAt: '2026-08-19T00:00:00.000Z',
-        lastSuccessAt: null,
-      }],
-    }
-    const sessionSync: EnterpriseLocalSessionPort = {
-      status: () => structuredClone(syncStatus),
-      listRemote: vi.fn(async () => ({
-        items: [{ id: 'remote-1', title: 'Remote session' }],
-        page: { nextCursor: null, hasMore: false },
-      })),
-      restoreRemote: vi.fn(async input => ({
-        sessionId: 'restored-1', sourceSessionId: input.sourceSessionId, seedLength: 3, durable: true,
-      })),
-      deleteRemote: vi.fn(async sessionId => ({
-        replicaId: '701', sessionId, status: 'DELETED', deletedAt: '2026-08-19T06:00:00.000Z',
-      })),
-    }
-    const dispose = registerEnterpriseLocalApi(webServer, {
-      platform, pluginStatus, sessionSync: () => sessionSync,
-    })
-
-    await expect((await fetch(`${baseUrl}/enterprise/api/v1/local/sessions/sync`)).json())
-      .resolves.toEqual({ data: syncStatus })
-    const remote = await fetch(`${baseUrl}/enterprise/api/v1/local/sessions?cursor=opaque&limit=20`)
-    expect(remote.status).toBe(200)
-    await expect(remote.json()).resolves.toEqual({
-      data: { items: [{ id: 'remote-1', title: 'Remote session' }], page: { nextCursor: null, hasMore: false } },
-    })
-    expect(sessionSync.listRemote).toHaveBeenCalledWith('opaque', 20)
-    const restored = await fetch(`${baseUrl}/enterprise/api/v1/local/sessions/remote-1/copies`, {
-      body: JSON.stringify({ targetCwd: '/tmp/work' }),
-      headers: { 'content-type': 'application/json' }, method: 'POST',
-    })
-    expect(restored.status).toBe(201)
-    await expect(restored.json()).resolves.toEqual({
-      data: { sessionId: 'restored-1', sourceSessionId: 'remote-1', seedLength: 3, durable: true },
-    })
-    expect(sessionSync.restoreRemote).toHaveBeenCalledWith({ sourceSessionId: 'remote-1', targetCwd: '/tmp/work' })
-    const deleted = await fetch(`${baseUrl}/enterprise/api/v1/local/sessions/remote-1`, { method: 'DELETE' })
-    expect(deleted.status).toBe(200)
-    await expect(deleted.json()).resolves.toEqual({
-      data: {
-        replicaId: '701', sessionId: 'remote-1', status: 'DELETED',
-        deletedAt: '2026-08-19T06:00:00.000Z',
-      },
-    })
-    expect(sessionSync.deleteRemote).toHaveBeenCalledWith('remote-1')
-    expect((await fetch(`${baseUrl}/enterprise/api/v1/local/sessions/remote-1`, { method: 'POST' })).status).toBe(405)
-    expect((await fetch(`${baseUrl}/enterprise/api/v1/local/sessions?limit=20&limit=30`)).status).toBe(400)
-
-    dispose()
   })
 
   it('rejects invalid and oversized Server DTOs, omits the retired probe, and removes every route', async () => {

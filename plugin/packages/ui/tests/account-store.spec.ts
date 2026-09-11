@@ -24,7 +24,6 @@ describe('EnterpriseAccountStore', () => {
       setServerUrl: vi.fn(async () => { throw new EnterpriseLocalApiError('ENT_INVALID_REQUEST', 400) }),
       logout: vi.fn(async () => { status = { ...base, state: 'SIGNED_OUT' }; throw new EnterpriseLocalApiError('ENT_PLATFORM_UNAVAILABLE', 503) }),
       startLogin: vi.fn(), cancelLogin: vi.fn(), uninstall: vi.fn(), installPlugin: vi.fn(), removePlugin: vi.fn(),
-      sessionSync: vi.fn(), sessions: vi.fn(), restoreSession: vi.fn(), deleteSession: vi.fn(),
     }
     const store = new EnterpriseAccountStore(api)
     await store.refresh()
@@ -63,7 +62,7 @@ describe('EnterpriseAccountStore', () => {
         }).mockResolvedValue(next),
         plugins: vi.fn().mockImplementationOnce(() => new Promise(resolve => { resolvePlugins = resolve })).mockResolvedValue(nextPlugins),
         setServerUrl: vi.fn(), startLogin: vi.fn(), cancelLogin: vi.fn(), logout: vi.fn(), uninstall: vi.fn(),
-        installPlugin: vi.fn(), removePlugin: vi.fn(), sessionSync: vi.fn(), sessions: vi.fn(), restoreSession: vi.fn(), deleteSession: vi.fn(),
+        installPlugin: vi.fn(), removePlugin: vi.fn(),
       }
       const store = new EnterpriseAccountStore(api)
       await store.refresh()
@@ -89,7 +88,6 @@ describe('EnterpriseAccountStore', () => {
     const api: EnterpriseLocalApi = {
       status: vi.fn(async () => ({ ...base, state: 'AUTHORIZING' as const })), refresh: vi.fn(),
       setServerUrl: vi.fn(), bootstrap: vi.fn(), plugins: vi.fn(), installPlugin: vi.fn(), removePlugin: vi.fn(),
-      sessionSync: vi.fn(), sessions: vi.fn(), restoreSession: vi.fn(), deleteSession: vi.fn(),
       startLogin: vi.fn(), cancelLogin: vi.fn(), logout: vi.fn(), uninstall: vi.fn(),
     }
     const store = new EnterpriseAccountStore(api)
@@ -146,21 +144,6 @@ describe('EnterpriseAccountStore', () => {
       })),
       installPlugin: vi.fn(async () => ({ assignmentRevision: 7, plugins: [] })),
       removePlugin: vi.fn(async () => ({ assignmentRevision: 7, plugins: [] })),
-      sessionSync: vi.fn(async () => ({ backlog: 0, lastSuccessfulSyncAt: null, cursors: [] })),
-      sessions: vi.fn(async () => ({
-        items: [{
-          id: 'remote-1', title: 'Remote Session', sourceDeviceId: '90018', sourceDeviceName: 'Zhang Mac',
-          formatVersion: 0, lastSeq: 2, eventCount: 3, status: 'ACTIVE',
-          createdAt: '2026-08-19T04:00:00.000Z', updatedAt: '2026-08-19T05:00:00.000Z',
-        }],
-        page: { hasMore: false, limit: 50, nextCursor: null },
-      })),
-      restoreSession: vi.fn(async sourceSessionId => ({
-        sessionId: 'restored-1', sourceSessionId, seedLength: 3, durable: true,
-      })),
-      deleteSession: vi.fn(async sessionId => ({
-        replicaId: '701', sessionId, status: 'DELETED', deletedAt: '2026-08-19T06:00:00.000Z',
-      })),
       startLogin: vi.fn(async () => { current = { ...base, state: 'AUTHORIZING', flowId: 'flow-1' }; return { flowId: 'flow-1' } }),
       cancelLogin: vi.fn(async () => { current = { ...base, state: 'CANCELLED', errorCode: 'ENT_AUTH_CANCELLED' }; return { cancelled: true } }),
       logout: vi.fn(async () => { current = { ...base, state: 'SIGNED_OUT' }; return { loggedOut: true } }),
@@ -192,10 +175,6 @@ describe('EnterpriseAccountStore', () => {
     await publish({ ...current, state: 'READY', revision: 8 })
     await vi.waitFor(() => { expect(api.bootstrap).toHaveBeenCalledTimes(2) })
     await vi.waitFor(() => { expect(api.plugins).toHaveBeenCalledTimes(2) })
-    expect(api.sessionSync).not.toHaveBeenCalled()
-    expect(api.sessions).not.toHaveBeenCalled()
-    expect(api.restoreSession).not.toHaveBeenCalled()
-    expect(api.deleteSession).not.toHaveBeenCalled()
     await store.refreshPlugins()
     expect(api.plugins).toHaveBeenCalledTimes(3)
     expect(api.installPlugin).not.toHaveBeenCalled()
@@ -225,10 +204,6 @@ describe('EnterpriseAccountStore', () => {
       plugins: vi.fn(),
       installPlugin: vi.fn(),
       removePlugin: vi.fn(),
-      sessionSync: vi.fn(),
-      sessions: vi.fn(),
-      restoreSession: vi.fn(),
-      deleteSession: vi.fn(),
       startLogin: vi.fn(),
       cancelLogin: vi.fn(),
       logout: vi.fn(),

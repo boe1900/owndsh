@@ -147,7 +147,7 @@ describe('startEnterpriseProxy', () => {
       const { stream } = await import(new URL(`dist/api/${api}.js`, pathToFileURL(packageJson)).href)
       const model = {
         id: 'review-model', name: 'Review', api, provider: 'enterprise', reasoning: false, input: ['text'],
-        baseUrl: api === 'anthropic-messages' ? proxy.baseURL.replace(/\/v1$/, '') : proxy.baseURL,
+        baseUrl: proxy.baseURL,
         contextWindow: 4096, maxTokens: 128, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
       }
       const events = []

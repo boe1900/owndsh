@@ -56,15 +56,7 @@ Session、日志或 installation 文件。Host 重启只尝试一次静默恢复
 - `POST /enterprise/api/v1/local/uninstall`
 - `GET /enterprise/api/v1/local/bootstrap`
 - `GET /enterprise/api/v1/local/plugins`
-- `GET /enterprise/api/v1/local/sessions/sync`
-- `GET /enterprise/api/v1/local/sessions?cursor=&limit=`
-- `POST /enterprise/api/v1/local/sessions/{id}/copies`
-- `DELETE /enterprise/api/v1/local/sessions/{id}`
 
 POST action 必须使用 `application/json`；刷新、登录、取消、退出和卸载使用严格空对象 `{}`，Server
-更新只接受 `{ "serverUrl": "http://..." }` 或 `{ "serverUrl": "https://..." }`。本地 API 不配置 CORS。Session 恢复 action 的 body 只接受 `{ "targetCwd": "..." }`，成功返回 `201`；列表 limit
-范围为 1 至 200。Session 删除只接受路径 ID，成功返回不含正文的 tombstone；路由不接受任意平台 URL。插件与 Session 状态都由 bundle 通过最小反转端口接入，platform-client 不反向依赖
-distribution 或 session-sync 包；`/events` 已移除。UI 复用 Harness 官方模型/凭据/设置事件读取本地状态，
-仅登录事务期间每秒查询一次，终态、卸载订阅或 330 秒截止时停止。返回值不含
-tgz 路径、公钥、CLI 输出、Session 正文或 Token。Session-copy 技术探针已退役；V1 bundle
-不挂载 Session Service，保留的 Session 路由在未接入 Service 时返回不可用，不触发同步或恢复。
+更新只接受 `{ "serverUrl": "http://..." }` 或 `{ "serverUrl": "https://..." }`。本地 API 不配置 CORS。路由不接受任意平台 URL。插件状态由 bundle 通过最小反转端口接入，platform-client 不反向依赖 distribution 包；`/events` 已移除。UI 复用 Harness 官方模型/凭据/设置事件读取本地状态，
+仅登录事务期间每秒查询一次，终态、卸载订阅或 330 秒截止时停止。返回值不含 tgz 路径、公钥、CLI 输出或 Token。

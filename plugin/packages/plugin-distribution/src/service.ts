@@ -33,7 +33,6 @@ export const PROTECTED_ENTERPRISE_PACKAGES = new Set([
   '@owndsh/llm-gateway',
   '@owndsh/platform-client',
   '@owndsh/plugin-distribution',
-  '@owndsh/session-sync',
   '@owndsh/ui',
 ])
 const OWNDSH_PACKAGE = 'owndsh-plugin'

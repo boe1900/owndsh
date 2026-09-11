@@ -40,7 +40,7 @@
 | `pnpm typecheck` | 全 workspace 通过，rc.2 公开 Host API 无类型断裂。 |
 | `pnpm --filter @owndsh/plugin-distribution test` | `12/12` 通过，含 Desktop command port 与普通 Web subprocess。 |
 | `pnpm smoke:plugin-distribution` | 树外 consumer 通过，无 ambient shim，JCS 与无秘密原子状态成立。 |
-| `pnpm smoke:session-sync` | 树外 consumer 通过，官方 `jsonl-rc.2` 完成 flush/readFrom/ack 与新 ID 恢复。 |
+| Session sync 验收 | 已按 V1 范围删除客户端同步实现。 |
 | DSH Desktop `yarn typecheck` / `yarn build` | 均通过，官方 Desktop Host/Client 完整构建成立。 |
 | DSH Desktop `verify:profile` | 通过，完整 profile Loader 提供 `desktopProfiles` 与 `desktopPnpm`。 |
 | `pnpm accept:t11-model` | 通过真实 rc.2 Web Host：三协议、动态目录、`enterprise/default`、`xhigh`、503→`llm/retry`→成功、错误矩阵及无本地上游 Key。 |

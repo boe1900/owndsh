@@ -26,7 +26,6 @@ import {
 } from './installation.js'
 import {
   registerEnterpriseLocalApi,
-  type EnterpriseLocalSessionPort,
   type WebServerRoutePort,
 } from './local-api.js'
 import { createPkceS256, PkceLoopbackError, startLoopbackCallback, type LoopbackCallback } from './pkce.js'
@@ -218,7 +217,6 @@ export class EnterprisePlatformService extends Service {
       pluginStatus: internals.pluginStatus ?? (() => ({ assignmentRevision: 0, plugins: [] })),
       ...(internals.pluginAction === undefined ? {} : { pluginAction: internals.pluginAction }),
       ...(internals.uninstallPlugin === undefined ? {} : { uninstallPlugin: internals.uninstallPlugin }),
-      ...(internals.sessionSync === undefined ? {} : { sessionSync: internals.sessionSync }),
     })
     ctx.inject(['settings'], (settingsContext) => {
       const scope = settingsContext.settings.register(SETTINGS_NAMESPACE, CONNECTION_SETTINGS, {

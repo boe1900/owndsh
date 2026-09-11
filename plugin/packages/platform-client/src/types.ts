@@ -8,7 +8,7 @@
 import { z } from 'zod'
 import { zBootstrapQuota, zRequestId, zRevision, type EnterpriseErrorCode } from '@owndsh/contracts'
 import type { InstallationOptions } from './installation.js'
-import type { EnterpriseLocalApiOptions, EnterpriseLocalSessionPort } from './local-api.js'
+import type { EnterpriseLocalApiOptions } from './local-api.js'
 
 /** 不携带响应主体或凭据的稳定 Service 失败，并保留经过 Fetch 校验的 Retry-After。 */
 export class EnterprisePlatformError extends Error {
@@ -48,7 +48,6 @@ export interface EnterprisePlatformInternals {
   readonly pluginStatus?: () => unknown
   readonly pluginAction?: EnterpriseLocalApiOptions['pluginAction']
   readonly uninstallPlugin?: () => Promise<{ readonly restart?: () => void }>
-  readonly sessionSync?: () => EnterpriseLocalSessionPort | undefined
 }
 
 /** 本地 Client 界面渲染的固定生命周期。 */

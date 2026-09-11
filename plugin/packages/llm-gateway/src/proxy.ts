@@ -143,8 +143,11 @@ async function handleRequest(
     return
   }
   const url = new URL(request.url ?? '/', 'http://enterprise.local')
-  const operation = url.pathname.slice(ENTERPRISE_PROXY_PREFIX.length)
-  if (request.method !== 'POST' || url.search !== '' || !OPERATIONS.has(operation)) {
+  const requestedOperation = url.pathname.slice(ENTERPRISE_PROXY_PREFIX.length)
+  const operation = requestedOperation.startsWith('/v1/')
+    ? requestedOperation.slice(3)
+    : requestedOperation
+  if (request.method !== 'POST' || !OPERATIONS.has(operation)) {
     writeJson(response, 404, { error: { code: 'ENT_RESOURCE_NOT_FOUND', message: 'route not found' } })
     return
   }

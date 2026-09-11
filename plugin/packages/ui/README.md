@@ -61,9 +61,6 @@ SHA-256, restart markers, tgz
 paths, trust keys, CLI output, and platform credentials are validated or removed
 before the snapshot reaches React.
 
-V1 does not expose or automatically call Session synchronization. Its strict
-browser decoders and presentation source remain dormant for a later release.
-
 All three official slot registrations share one `EnterpriseAccountStore`. Its browser API uses
 only fixed same-origin `/enterprise/api/v1/local/*` paths, sends strict JSON for
 Server, login, cancel, logout, uninstall, and explicit refresh actions. It reuses official
@@ -73,7 +70,7 @@ login/startup transitions, stops at a terminal state or unmount, and has a 330-s
 Opening Settings or pressing Refresh explicitly reloads bootstrap from the enterprise server.
 Idle clients neither poll the enterprise server nor proactively renew credentials. It reloads account and plugin facts only on the first connected state or
 a bootstrap revision change. Server/account changes and connected/disconnected transitions cancel
-old account, plugin and Session requests and discard their late results and errors. Runtime decoders project only account/device facts and reject unknown
+old account, plugin requests and discard their late results and errors. Runtime decoders project only account/device facts and reject unknown
 status fields, including Token-shaped additions. Host Context and platform
 credentials never enter React.
 

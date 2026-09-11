@@ -29,8 +29,6 @@ t13-plugin-server-acceptance.md: T13 独立验收证据，记录流式验包、J
 t14-plugin-client-acceptance.md: T14 独立验收证据，记录下载验签、官方 CLI argv、原子状态、重启确认、回滚、树外 consumer 与真实 rc.7 CLI 结果。
 t15-plugin-pages-acceptance.md: T15 独立验收证据，记录管理插件页面、完整 assignment CAS、设备 inventory、员工插件 tab 与真实 rc.7 重启闭环。
 t16-session-server-acceptance.md: T16 独立验收证据，记录官方 format v0、精确 JSONL/hash、源设备并发复制、AES-GCM、正文权限、tombstone 与 retention。
-t17-session-client-acceptance.md: T17 独立验收证据，记录 dirty queue、确认游标、退避终态、树外 consumer 与锁定 rc.7 同步恢复链路。
-t18-session-pages-acceptance.md: T18 独立验收证据，记录管理正文权限/审计/tombstone、员工同步/恢复/删除与 rc.7 重启不重传。
 t19-audit-closure-acceptance.md: T19 独立验收证据，记录 30-action metadata 白名单、requestId 关联、只读权限、retention、用户治理和 heartbeat 防洪。
 t20-security-fault-acceptance.md: T20 独立验收证据，记录分层安全上限、drain、秘密扫描、服务/磁盘故障与四类恢复演练。
 t21-deployment-delivery-acceptance.md: T21 独立验收证据，区分当前 HTTP Compose 静态回归与历史 TLS 全量演练，并记录一次性管理员、secret、健康检查、数据/key 分离恢复、升级与仅应用回滚。

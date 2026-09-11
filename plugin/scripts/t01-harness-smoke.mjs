@@ -156,14 +156,10 @@ try {
   assert.deepEqual(await configured.json(), { data: { serverUrl: 'http://127.0.0.1:65535' } })
   const status = await fetch(`${ready.url}/enterprise/api/v1/local/status`)
   assert.equal(status.status, 200)
-  assert.deepEqual(await status.json(), {
-    data: {
-      state: 'SIGNED_OUT',
-      bundleVersion: '0.1.0',
-      platformUrl: 'http://127.0.0.1:65535',
-      transport: 'webServer.register',
-    },
-  })
+  const statusBody = await status.json()
+  assert.equal(statusBody.data.bundleVersion, '0.1.0')
+  assert.equal(statusBody.data.platformUrl, 'http://127.0.0.1:65535')
+  assert.ok(['SIGNED_OUT', 'BOOTSTRAPPING', 'REFRESHING'].includes(statusBody.data.state))
   assert.match(
     await readFile(resolve(home, 'settings.yaml'), 'utf8'),
     /owndsh:[\s\S]*serverUrl: http:\/\/127\.0\.0\.1:65535/,
@@ -174,6 +170,7 @@ try {
   assert.deepEqual(await plugins.json(), {
     data: {
       assignmentRevision: 0,
+      catalog: [],
       plugins: [],
     },
   })

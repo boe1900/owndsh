@@ -33,8 +33,6 @@ await build({
     '@deepseek-ai/dsh-llm',
     '@deepseek-ai/dsh-llm-pi-ai',
     '@deepseek-ai/dsh-settings',
-    '@deepseek-ai/dsh-session',
-    '@deepseek-ai/dsh-session-persistence',
     '@deepseek-ai/schemastery',
   ],
   format: 'esm',
