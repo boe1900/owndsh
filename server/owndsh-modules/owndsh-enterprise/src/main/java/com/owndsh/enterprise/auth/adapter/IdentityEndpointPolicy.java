@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖部署 allowInsecureOidc 开关与身份源 URI/LDAP StartTLS 配置。
- * [OUTPUT]: 对外提供 OIDC 全端点 HTTPS 和 LDAP LDAPS/StartTLS 的集中校验。
+ * [INPUT]: 依赖部署 allowInsecureOidc 开关与身份源 URI/LDAP 传输配置。
+ * [OUTPUT]: 对外提供 OIDC 全端点 HTTPS 和 LDAP LDAPS/StartTLS/明文模式的集中校验。
  * [POS]: auth adapter 的传输安全策略真源，避免各网络调用分散放宽 scheme。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -35,10 +35,9 @@ public final class IdentityEndpointPolicy {
         URI uri = settings.url();
         requireNetworkUri(uri, "LDAP URL");
         String scheme = uri.getScheme().toLowerCase(Locale.ROOT);
-        boolean secure = ("ldaps".equals(scheme) && !settings.startTls())
-            || ("ldap".equals(scheme) && settings.startTls());
-        if (!secure) {
-            throw new IdentitySourceConfigurationException("LDAP 必须且只能选择 LDAPS 或 StartTLS");
+        if (!("ldap".equals(scheme) || "ldaps".equals(scheme))
+            || ("ldaps".equals(scheme) && settings.startTls())) {
+            throw new IdentitySourceConfigurationException("LDAP URL 必须使用 ldap:// 或 ldaps://，且 ldaps:// 不得开启 StartTLS");
         }
     }
 

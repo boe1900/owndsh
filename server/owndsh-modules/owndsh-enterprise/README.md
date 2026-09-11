@@ -15,7 +15,7 @@ Flyway `V8`、不落地解压的 tgz 验包、RFC 8785 JCS/Ed25519、CAS 制品�
 
 - OIDC 使用 Nimbus 完成 Discovery、Authorization Code + PKCE、声明算法/JWKS、issuer、
   audience 和 nonce 校验；原始 Token 与未映射 claims 不离开 adapter。
-- LDAP 使用 manager search + user bind，要求 LDAPS 或 StartTLS 二选一，过滤值按 RFC 4515
+- LDAP 使用 manager search + user bind；页面以 `ldap://` 和 `ldaps://` 区分明文与 TLS，旧 API 仍支持 StartTLS，过滤值按 RFC 4515
   转义，并要求显式稳定属性（如 entryUUID），不回退到可变用户名。
 - LOCAL 复用 Host BCrypt、Redis 失败计数和锁定策略，以 userId 为稳定 subject。
 - 外部身份只按 source + issuer + subject 解析；不会按 username/email 自动合并，也不会自动
@@ -28,7 +28,7 @@ master key 的独立 `API_CURSOR` 用途进行 AES-GCM 认证，并绑定 tenant
 `secretConfigured`，不返回秘密或密文。
 
 部署必须通过 `ENT_MASTER_KEY` 注入精确 32 字节值。开发期只有显式设置
-`enterprise.auth.allow-insecure-oidc=true` 才允许 HTTP OIDC；生产保持默认 false。
+`enterprise.auth.allow-insecure-oidc=true` 才允许 HTTP OIDC；生产保持默认 false。LDAP 在身份源页面只填写 URL：目录只提供明文时填写 `ldap://...`，TLS 目录填写 `ldaps://...`；旧 API 仍兼容 `ldap://` + StartTLS。
 
 ## 平台登录与设备边界
 

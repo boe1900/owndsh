@@ -9,7 +9,7 @@ EnterpriseAuthResourceConfigurationTest.java: 验证登录静态资源映射、�
 EnterpriseIdentityConfigurationTest.java: 验证公网 HTTP(S) authority 的协议/端口/结构约束，以及环境 master key 的精确 32 字节边界。
 IdentityAdminApiTest.java: 以 MockMvc 和派生 schema 验证身份源、映射、用户组、认证 cursor、权限与秘密隔离。
 IdentityPersistenceIntegrationTest.java: 以真实 PostgreSQL 验证身份、绑定、目录导入、用户组与审计事务边界。
-LdapIdentityAdapterTest.java: 以 OpenLDAP 验证 StartTLS/LDAPS、用户 bind、目录查询转义与稳定 subject。
+LdapIdentityAdapterTest.java: 以 OpenLDAP 验证 StartTLS 用户 bind、目录查询转义与稳定 subject，并校验明文 LDAP 放行及 LDAPS/StartTLS 冲突拒绝。
 LocalIdentityAdapterTest.java: 验证 Host BCrypt、统一失败策略、稳定 subject 与停用用户拒绝。
 MemberDirectoryQueryServiceTest.java: 以真实 PostgreSQL 验证成员 cursor/detail、角色、登录方式与设备/Session 聚合。
 MemberManagementServiceTest.java: 以真实 PostgreSQL 验证 LOCAL 建号、改密、角色、停用、会话撤销与身份解绑。

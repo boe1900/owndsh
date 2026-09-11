@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖身份源 OpenAPI DTO、React 本地表单状态、ProductDialog 与浏览器原生校验。
- * [OUTPUT]: 提供 OIDC/LDAP 创建、目录用户/组字段配置、OIDC/LDAP/LOCAL 编辑及不回显 secret 的请求体构造。
+ * [OUTPUT]: 提供 OIDC/LDAP 创建、目录用户/组字段配置与身份源编辑；LDAP 以 URL 区分明文/TLS，请求固定 startTls=false 且不回显 secret。
  * [POS]: features/members 的身份源写入边界，只短暂持有用户本次输入的 secret，不读取或伪造服务端秘密。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -40,7 +40,6 @@ export type IdentitySourceFormValue = {
   groupBaseDn: string;
   groupFilter: string;
   groupNameAttribute: string;
-  startTls: boolean;
   secret: string;
 };
 
@@ -73,7 +72,6 @@ export function identitySourceDefaults(source?: IdentitySource): IdentitySourceF
     groupBaseDn: source?.ldap?.groupBaseDn ?? source?.ldap?.baseDn ?? '',
     groupFilter: source?.ldap?.groupFilter ?? '(|(objectClass=groupOfNames)(objectClass=groupOfUniqueNames)(objectClass=group))',
     groupNameAttribute: source?.ldap?.groupNameAttribute ?? 'cn',
-    startTls: source?.ldap?.startTls ?? false,
     secret: ''
   };
 }
@@ -114,7 +112,7 @@ export function buildIdentitySourceRequest(value: IdentitySourceFormValue, editi
       groupBaseDn: optional(value.groupBaseDn),
       groupFilter: optional(value.groupFilter),
       groupNameAttribute: optional(value.groupNameAttribute),
-      startTls: value.startTls
+      startTls: false
     }
   } : common;
   return editing
@@ -204,7 +202,7 @@ export function IdentitySourceEditorDialog({
         ) : null}
         {value.type === 'LDAP' ? (
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="sm:col-span-2"><TextField label="LDAP URL" type="url" required placeholder="ldaps://ldap.example.com:636" value={value.ldapUrl} onChange={(next) => set('ldapUrl', next)} /></div>
+            <div className="sm:col-span-2"><TextField label="LDAP URL" type="url" required placeholder="ldap://ldap.example.com:389 或 ldaps://ldap.example.com:636" value={value.ldapUrl} onChange={(next) => set('ldapUrl', next)} /></div>
             <TextField label="Base DN" required value={value.baseDn} onChange={(next) => set('baseDn', next)} />
             <TextField label="Manager DN" required value={value.managerDn} onChange={(next) => set('managerDn', next)} />
             <TextField label="用户过滤器" required value={value.userFilter} onChange={(next) => set('userFilter', next)} />
@@ -216,7 +214,6 @@ export function IdentitySourceEditorDialog({
             <TextField label="组 Base DN" value={value.groupBaseDn} onChange={(next) => set('groupBaseDn', next)} />
             <TextField label="组过滤器" value={value.groupFilter} onChange={(next) => set('groupFilter', next)} />
             <TextField label="组名称属性" value={value.groupNameAttribute} onChange={(next) => set('groupNameAttribute', next)} />
-            <label className="flex items-center gap-2 self-end pb-2 text-[12.5px] font-medium text-ink-2"><input type="checkbox" checked={value.startTls} onChange={(event) => set('startTls', event.target.checked)} />StartTLS</label>
           </div>
         ) : null}
         {value.type !== 'LOCAL' ? <TextField label={current ? '替换密钥（留空保留）' : value.type === 'OIDC' ? 'Client Secret' : 'Manager Password'} type="password" required={!current} autoComplete="new-password" value={value.secret} onChange={(next) => set('secret', next)} /> : null}

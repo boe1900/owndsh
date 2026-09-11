@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖真实 OpenLDAP StartTLS 容器、JNDI LdapIdentityAdapter 和 AES-GCM manager secret。
- * [OUTPUT]: 验证双 bind、稳定 subject、用户/组发现、DN 重读、权威空组及 filter 注入防护。
+ * [OUTPUT]: 验证 StartTLS 双 bind、稳定 subject、目录查询与 filter 注入防护，以及明文 LDAP 放行和 LDAPS/StartTLS 冲突拒绝。
  * [POS]: T04 LDAP adapter 集成验收，不用 mock 替代目录协议和 TLS 行为。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -32,6 +32,7 @@ import java.time.Instant;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @Tag("dev")
@@ -140,7 +141,7 @@ class LdapIdentityAdapterTest {
     }
 
     @Test
-    void rejectsAmbiguousLdapsPlusStartTlsConfiguration() {
+    void validatesLdapTransportSchemes() {
         LdapSettings ambiguous = new LdapSettings(
             URI.create("ldaps://directory.example.org:636"),
             "dc=example,dc=org",
@@ -159,6 +160,14 @@ class LdapIdentityAdapterTest {
 
         assertThatThrownBy(() -> new IdentityEndpointPolicy(false).requireLdap(ambiguous))
             .isInstanceOf(IdentitySourceConfigurationException.class);
+
+        LdapSettings plain = new LdapSettings(
+            URI.create("ldap://directory.example.org:389"),
+            ambiguous.baseDn(), ambiguous.managerDn(), ambiguous.userFilter(), ambiguous.stableIdAttribute(),
+            ambiguous.usernameAttribute(), ambiguous.displayNameAttribute(), ambiguous.emailAttribute(),
+            ambiguous.groupAttribute(), ambiguous.groupBaseDn(), ambiguous.groupFilter(), ambiguous.groupNameAttribute(), false
+        );
+        assertThatCode(() -> new IdentityEndpointPolicy(false).requireLdap(plain)).doesNotThrowAnyException();
     }
 
     private static IdentityPrincipal authenticate(String username, String password) {

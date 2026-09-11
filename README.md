@@ -88,6 +88,7 @@ Server 日志仅输出到 stdout/stderr，由 Docker/K8s 与日志平台采集�
 ### 4. 配置企业
 
 1. 在“成员”中配置 LOCAL、LDAP 或 OIDC 身份来源。
+   若 LDAP 服务只提供明文 `ldap://`，在身份源表单填写 `ldap://...`；TLS 目录填写 `ldaps://...`。
 2. 在“模型”中添加供应商、API Key 和受管模型。
 3. 创建模型集，并向全部成员、用户组或指定成员授权。
 4. 按需配置 Token 配额、RPM 和并发限制。

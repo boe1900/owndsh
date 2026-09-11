@@ -7,7 +7,7 @@
 IdentityAdapter.java: OIDC/LDAP/LOCAL 的统一认证与连接检查端口，只允许输出 IdentityPrincipal。
 IdentityAdapterRegistry.java: 按身份源类型唯一索引 adapter，并封装仅 LOCAL 可达的首次改密入口。
 IdentityAuthenticationException.java: 统一认证失败异常，不携带账号、密码或外部响应。
-IdentityEndpointPolicy.java: OIDC HTTPS 与 LDAP LDAPS/StartTLS 互斥传输安全策略。
+IdentityEndpointPolicy.java: OIDC HTTPS 与 LDAP URL/StartTLS 组合的集中传输策略；页面以 ldap:// / ldaps:// 区分普通与 TLS 连接，同时保留旧 API 的 ldap:// StartTLS 兼容性。
 IdentitySourceConfigurationException.java: 外部身份源配置/连接失败边界，不泄漏秘密。
 IdentitySourceConnection.java: 连接检查的脱敏 type/ok/diagnostic 响应值。
 JdbcLocalAccountStore.java: 读取 LOCAL 最小投影，并以 userId/旧 hash/首次改密标记三重条件原子更新密码。

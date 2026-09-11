@@ -15,7 +15,7 @@ IdentitySource.java: 强制 OIDC/LDAP/LOCAL 配置互斥、LOCAL 不 JIT、秘�
 IdentitySourceStatus.java: ACTIVE/DISABLED 身份源状态集合。
 IdentitySourceType.java: OIDC/LDAP/LOCAL 身份源类型集合。
 LdapDirectory.java: 管理端按需发现的 LDAP 用户/组白名单值对象，只携带可信 DN、统一 principal 与组显示名。
-LdapSettings.java: 不含 manager 密码的 LDAP 用户/组搜索、稳定属性和 LDAPS/StartTLS 配置。
+LdapSettings.java: 不含 manager 密码的 LDAP 用户/组搜索、稳定属性和 LDAPS/StartTLS 配置；控制台默认按 URL 选择传输方式。
 LoginTransaction.java: 5 分钟 Redis 事务，绑定 client/redirect/S256/CSRF 与可选的成员、身份源、发起管理员绑定目标。
 OidcClaimMapping.java: OIDC 原始 claims 到统一 principal 的显式白名单。
 OidcCodeCredentials.java: T05 状态校验后用于 code+PKCE 交换的一次性脱敏凭据。
