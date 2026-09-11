@@ -12,7 +12,7 @@ auth/: enterprise-admin HttpOnly Cookie 会话与 PKCE 状态机；局部地图�
 components/: 从锁定 Beautiful UI commit 迁移的共享原子、复合组件与 Harness；局部地图见 components/CLAUDE.md。
 examples/: 组件画廊与完整 Harness 可执行参考；局部地图见 examples/CLAUDE.md。
 features/: 产品业务纵向切片；局部地图见 features/CLAUDE.md。
-lib/: 上游组件注册表、元数据与 class 合并支撑层；局部地图见 lib/CLAUDE.md。
+lib/: HTTP/HTTPS 通用随机标识、上游组件注册表、元数据与 class 合并支撑层；局部地图见 lib/CLAUDE.md。
 routes/: 登录/回调/403、受保护产品 pathless layout 与独立 examples 静态路由；局部地图见 routes/CLAUDE.md。
 styles/: 全局视觉基础；局部地图见 styles/CLAUDE.md。
 

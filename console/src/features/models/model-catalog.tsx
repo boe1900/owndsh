@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖生成的 Provider/Quota/受管模型 operation、console 权限事实、TanStack Query、ProductDataTable 与模型编辑器。
+ * [INPUT]: 依赖生成的 Provider/Quota/受管模型 operation、console 权限事实、TanStack Query、ProductDataTable 与模型编辑器，共享 lib/crypto 生成 HTTP/HTTPS 通用幂等键。
  * [OUTPUT]: 提供含共享上游容量的 Provider、受管模型与模型集紧凑列表及其管理动作。
  * [POS]: features/models 的产品模型工作台；供应商容量复用 RATE 策略，页面不实现限流、模型协议、重试或上游适配。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -43,6 +43,7 @@ import type {
   QuotaPolicyPageData,
   QuotaPolicyWriteRequest
 } from '@/api/generated/types.gen';
+import { randomUuid } from '@/lib/crypto';
 import { Button } from '@/components/atoms/Button';
 import { SegmentedControl } from '@/components/atoms/SegmentedControl';
 import { StatusPill } from '@/components/atoms/StatusPill';
@@ -391,7 +392,7 @@ export function ModelCatalog() {
           })
         : await createModelProvider({
             body: value as ProviderCreateRequestWritable,
-            headers: { 'Idempotency-Key': crypto.randomUUID() }
+            headers: { 'Idempotency-Key': randomUuid() }
           });
       const saved = unwrapData<Provider>(result, 'ENT_PROVIDER_WRITE_FAILED');
       if (!capacity) return { capacityError: undefined };
@@ -421,7 +422,7 @@ export function ModelCatalog() {
         };
         const capacityResult = policy
           ? await updateQuotaPolicy({ body, headers: { 'If-Match': policy.revision }, path: { quotaId: policy.id } })
-          : await createQuotaPolicy({ body, headers: { 'Idempotency-Key': crypto.randomUUID() } });
+          : await createQuotaPolicy({ body, headers: { 'Idempotency-Key': randomUuid() } });
         unwrapData<QuotaPolicy>(capacityResult, 'ENT_PROVIDER_CAPACITY_WRITE_FAILED');
         return { capacityError: undefined };
       } catch (error) {
@@ -450,7 +451,7 @@ export function ModelCatalog() {
           })
         : await createManagedModel({
             body: value,
-            headers: { 'Idempotency-Key': crypto.randomUUID() }
+            headers: { 'Idempotency-Key': randomUuid() }
           });
       unwrapData(result, 'ENT_MODEL_WRITE_FAILED');
     },

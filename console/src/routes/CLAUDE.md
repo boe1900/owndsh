@@ -21,6 +21,6 @@ examples.tsx: `/examples` 的独立父出口，不挂载企业产品壳。
 examples.index.tsx: 运行全部上游组件 demo 并展示同源源码。
 examples.harness.tsx: 运行完整 Ice Cream Harness 交互基线。
 -models-index-page.tsx: 模型根路径到真实 Provider/受管模型管理工作台的可测试适配层，前缀阻止路由生成器误收非路由源码。
--index.test.tsx: 五角色矩阵、HttpOnly 会话交换、主题、用户中心子路由、成员/用户组/LDAP、模型/授权/配额及插件写入的最小集成门禁，锁定无 Authorization/Token 持久化、UUID 幂等键、CAS revision 与 Server 事实渲染。
+-index.test.tsx: 在仅有 getRandomValues 的 HTTP 环境验证五角色矩阵、HttpOnly 会话交换、主题、用户中心、成员/用户组/LDAP、模型/授权/配额及插件写入，锁定无 Authorization/Token 持久化、UUID 幂等键、CAS revision、插件可见范围自主安装与 Server 事实渲染。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

@@ -1,14 +1,15 @@
 /**
  * [INPUT]: 依赖 Testing Library、Vitest、内存 history、静态角色元数据与完整产品 routeTree。
- * [OUTPUT]: 验证五角色矩阵、第一方多身份登录/主题、LOCAL 建号/独立用户中心、LDAP、模型/访问策略/插件写入和 Sign out。
+ * [OUTPUT]: 在仅有 getRandomValues 的 HTTP 环境验证五角色矩阵、多身份登录、成员/LDAP/模型/策略写入、插件可见范围自主安装及 Sign out。
  * [POS]: routes 的产品壳最小集成门禁，覆盖前端可见性但不替代 Server ent:* 权限测试。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
+import { webcrypto } from 'node:crypto';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, createRouter, RouterProvider } from '@tanstack/react-router';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { client } from '@/api/generated/client.gen';
 import type { AuthBuiltInRole } from '@/api/generated/types.gen';
 import { productRoutesFor } from '@/app/product-routes';
@@ -18,6 +19,10 @@ import { routeTree } from '../routeTree.gen';
 
 window.scrollTo = () => undefined;
 client.setConfig({ baseUrl: 'http://localhost' });
+
+beforeEach(() => {
+  vi.stubGlobal('crypto', { getRandomValues: webcrypto.getRandomValues.bind(webcrypto) });
+});
 
 afterEach(() => {
   cleanup();
@@ -1103,31 +1108,31 @@ describe('product console access', () => {
       pathname: '/enterprise/admin/v1/plugins/versions/version-2/actions/publish'
     });
 
-    fireEvent.click(screen.getByRole('tab', { name: '分配策略' }));
+    fireEvent.click(screen.getByRole('tab', { name: '可见范围' }));
     expect(await screen.findByText('所有成员')).toBeTruthy();
     fireEvent.click(screen.getByRole('tab', { name: '设备状态' }));
     expect(await screen.findByText('candidate')).toBeTruthy();
     expect(screen.getAllByText('需要重启')).toHaveLength(2);
   });
 
-  it('replaces plugin assignments with a selected member, CAS and idempotency', async () => {
+  it('saves optional plugin visibility with a selected member, CAS and idempotency', async () => {
     const writes = renderRoute('/plugins', 'plugin_admin', 200, ['ent:plugin:write']);
     expect(await screen.findAllByText('Audit Tools')).toHaveLength(2);
-    fireEvent.click(screen.getByRole('tab', { name: '分配策略' }));
+    fireEvent.click(screen.getByRole('tab', { name: '可见范围' }));
     expect(await screen.findByText('所有成员')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '配置分配' }));
+    fireEvent.click(screen.getByRole('button', { name: '配置范围' }));
 
-    const dialog = screen.getByRole('dialog', { name: '配置插件分配' });
-    fireEvent.click(within(dialog).getByRole('button', { name: '添加分配' }));
+    const dialog = screen.getByRole('dialog', { name: '配置可见范围' });
+    fireEvent.click(within(dialog).getByRole('button', { name: '添加范围' }));
     const member = await within(dialog).findByLabelText('成员');
     await within(dialog).findByRole('option', { name: 'Developer Two (developer.two)' });
     fireEvent.change(member, { target: { value: '303' } });
-    fireEvent.click(within(dialog).getByRole('button', { name: '保存分配' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: '保存范围' }));
 
     await waitFor(() => expect(writes).toHaveLength(1));
     expect(writes[0]).toMatchObject({
       body: { items: [
-        { pluginVersionId: 'version-1', subjectType: 'ALL', subjectId: null, desiredState: 'INSTALLED', required: true },
+        { pluginVersionId: 'version-1', subjectType: 'ALL', subjectId: null, desiredState: 'INSTALLED', required: false },
         { pluginVersionId: 'version-1', subjectType: 'USER', subjectId: '303', desiredState: 'INSTALLED', required: false }
       ] },
       ifMatch: '4',

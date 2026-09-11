@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖生成的授权/配额/用户组/模型集 operation、console 权限、TanStack Query、产品表格与策略编辑器。
+ * [INPUT]: 依赖生成的授权/配额/用户组/模型集 operation、console 权限、TanStack Query、产品表格与策略编辑器，共享 lib/crypto 生成 HTTP/HTTPS 通用幂等键。
  * [OUTPUT]: 提供模型访问、互斥 TOKEN/RATE 三视图，以及幂等/CAS 管理动作与当前 Token 窗口读取。
  * [POS]: features/access 的产品策略工作台；按 Server 策略类型分表分表单，不在浏览器计算有效规则。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -39,6 +39,7 @@ import type {
   QuotaPolicyWriteRequest,
   QuotaWindow
 } from '@/api/generated/types.gen';
+import { randomUuid } from '@/lib/crypto';
 import { Button } from '@/components/atoms/Button';
 import { SegmentedControl } from '@/components/atoms/SegmentedControl';
 import { StatusPill } from '@/components/atoms/StatusPill';
@@ -302,7 +303,7 @@ export function AccessPolicyPage() {
     mutationFn: async ({ current, value }: { current?: ModelGrant; value: ModelGrantWriteRequest }) => unwrap(
       current
         ? await updateModelGrant({ body: value, headers: { 'If-Match': current.revision }, path: { grantId: current.id } })
-        : await createModelGrant({ body: value, headers: { 'Idempotency-Key': crypto.randomUUID() } }),
+        : await createModelGrant({ body: value, headers: { 'Idempotency-Key': randomUuid() } }),
       '模型授权保存失败'
     ),
     onSuccess: async () => {
@@ -314,7 +315,7 @@ export function AccessPolicyPage() {
     mutationFn: async ({ current, value }: { current?: QuotaPolicy; value: QuotaPolicyWriteRequest }) => unwrap(
       current
         ? await updateQuotaPolicy({ body: value, headers: { 'If-Match': current.revision }, path: { quotaId: current.id } })
-        : await createQuotaPolicy({ body: value, headers: { 'Idempotency-Key': crypto.randomUUID() } }),
+        : await createQuotaPolicy({ body: value, headers: { 'Idempotency-Key': randomUuid() } }),
       '配额策略保存失败'
     ),
     onSuccess: async () => {

@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖成员/身份源 operation、用户组/身份接入管理器、console 权限、TanStack Query 与产品表格/对话框。
+ * [INPUT]: 依赖成员/身份源 operation、用户组/身份接入管理器、console 权限、TanStack Query 与产品表格/对话框，共享 lib/crypto 生成 HTTP/HTTPS 通用幂等键。
  * [OUTPUT]: 提供 LOCAL 成员创建、成员目录、LDAP 单人导入、用户组、身份接入、角色/状态和身份绑定治理。
  * [POS]: features/members 的产品治理工作台；Server 独占 revision、身份源组同步、最后管理员和设备撤销裁决。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -29,6 +29,7 @@ import type {
   MemberStatus,
   MemberSummary
 } from '@/api/generated/types.gen';
+import { randomUuid } from '@/lib/crypto';
 import { Button } from '@/components/atoms/Button';
 import { SegmentedControl } from '@/components/atoms/SegmentedControl';
 import { StatusPill } from '@/components/atoms/StatusPill';
@@ -81,7 +82,7 @@ function LocalMemberCreateDialog({
         ...(email.trim() ? { email: email.trim() } : {}),
         initialPassword
       },
-      headers: { 'Idempotency-Key': crypto.randomUUID() }
+      headers: { 'Idempotency-Key': randomUuid() }
     }), '本地成员创建失败'),
     onSuccess: onCreated
   });

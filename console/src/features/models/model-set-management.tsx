@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖生成的模型集/受管模型 operation、TanStack Query/Form 与产品表格/对话框。
+ * [INPUT]: 依赖生成的模型集/受管模型 operation、TanStack Query/Form 与产品表格/对话框，共享 lib/crypto 生成 HTTP/HTTPS 通用幂等键。
  * [OUTPUT]: 提供带供应商/模型 ID 辨识的扁平模型集列表、创建、整体替换、删除和 revision CAS 管理视图。
  * [POS]: features/models 的批量授权资源管理器；内部只保存受管模型 ID，供应商信息来自目录投影。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -25,6 +25,7 @@ import type {
   ModelSetPageData,
   ModelSetWriteRequest
 } from '@/api/generated/types.gen';
+import { randomUuid } from '@/lib/crypto';
 import { Button } from '@/components/atoms/Button';
 import { ProductDataTable, type ProductTableColumn } from '@/components/product/DataTable';
 import { ProductDialog } from '@/components/product/Dialog';
@@ -144,7 +145,7 @@ export function ModelSetManagement({ canWrite }: { canWrite: boolean }) {
     mutationFn: async ({ current, value }: { current?: ModelSet; value: ModelSetWriteRequest }) => unwrap(
       current
         ? await updateModelSet({ body: value, headers: { 'If-Match': current.revision }, path: { modelSetId: current.id } })
-        : await createModelSet({ body: value, headers: { 'Idempotency-Key': crypto.randomUUID() } }),
+        : await createModelSet({ body: value, headers: { 'Idempotency-Key': randomUuid() } }),
       '模型集保存失败'
     ),
     onSuccess: async (_data, value) => {

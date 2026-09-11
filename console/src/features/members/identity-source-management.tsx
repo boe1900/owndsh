@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖身份源 operation、TanStack Query、产品表格/编辑器与 LDAP 组映射弹窗。
+ * [INPUT]: 依赖身份源 operation、TanStack Query、产品表格/编辑器与 LDAP 组映射弹窗，共享 lib/crypto 生成 HTTP/HTTPS 通用幂等键。
  * [OUTPUT]: 提供 OIDC/LDAP/LOCAL 身份接入、连接测试、启停，以及绑定具体 LDAP 来源的组映射入口。
  * [POS]: features/members 的身份接入工作台；Server 独占 secret、endpoint、revision 和身份源状态裁决。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -24,6 +24,7 @@ import type {
   IdentitySourcePageData,
   IdentitySourceUpdateRequestWritable
 } from '@/api/generated/types.gen';
+import { randomUuid } from '@/lib/crypto';
 import { Button } from '@/components/atoms/Button';
 import { StatusPill } from '@/components/atoms/StatusPill';
 import { ProductDataTable, type ProductTableColumn } from '@/components/product/DataTable';
@@ -70,7 +71,7 @@ export function IdentitySourceManagement({ canWrite }: { canWrite: boolean }) {
   const save = useMutation({
     mutationFn: async ({ current, value }: { current?: IdentitySource; value: IdentitySourceCreateRequestWritable | IdentitySourceUpdateRequestWritable }) => current
       ? unwrapData<IdentitySource>(await updateIdentitySource({ body: value, headers: { 'If-Match': current.revision }, path: { sourceId: current.id } }), '身份源更新失败')
-      : unwrapData<IdentitySource>(await createIdentitySource({ body: value as IdentitySourceCreateRequestWritable, headers: { 'Idempotency-Key': crypto.randomUUID() } }), '身份源创建失败'),
+      : unwrapData<IdentitySource>(await createIdentitySource({ body: value as IdentitySourceCreateRequestWritable, headers: { 'Idempotency-Key': randomUuid() } }), '身份源创建失败'),
     onSuccess: async (source) => {
       setEditor(undefined);
       setNotice(`${source.name} 已保存`);

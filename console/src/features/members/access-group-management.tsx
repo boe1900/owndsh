@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖生成的用户组 CRUD operation、TanStack Query/Form、成员目录与产品表格/对话框。
+ * [INPUT]: 依赖生成的用户组 CRUD operation、TanStack Query/Form、成员目录与产品表格/对话框，共享 lib/crypto 生成 HTTP/HTTPS 通用幂等键。
  * [OUTPUT]: 提供扁平用户组列表、创建、成员整体替换、删除和 revision CAS 管理视图。
  * [POS]: features/members 的批量授权主体管理器；只维护手工成员，身份源同步关系由 Server 独立持有。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -22,6 +22,7 @@ import type {
   AccessGroupWriteRequest,
   EnterpriseErrorResponse
 } from '@/api/generated/types.gen';
+import { randomUuid } from '@/lib/crypto';
 import { Button } from '@/components/atoms/Button';
 import { ProductDataTable, type ProductTableColumn } from '@/components/product/DataTable';
 import { ProductDialog } from '@/components/product/Dialog';
@@ -128,7 +129,7 @@ export function AccessGroupManagement({ canWrite }: { canWrite: boolean }) {
     mutationFn: async ({ current, value }: { current?: AccessGroup; value: AccessGroupWriteRequest }) => unwrap(
       current
         ? await updateAccessGroup({ body: value, headers: { 'If-Match': current.revision }, path: { accessGroupId: current.id } })
-        : await createAccessGroup({ body: value, headers: { 'Idempotency-Key': crypto.randomUUID() } }),
+        : await createAccessGroup({ body: value, headers: { 'Idempotency-Key': randomUuid() } }),
       '用户组保存失败'
     ),
     onSuccess: async (_data, value) => {

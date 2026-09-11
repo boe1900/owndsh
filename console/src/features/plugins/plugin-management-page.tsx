@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖生成的插件管理 operation、浏览器原生 multipart、成员目录、console 权限事实、TanStack Query、ProductDataTable 与插件编辑器。
+ * [INPUT]: 依赖生成的插件管理 operation、浏览器原生 multipart、成员目录、console 权限事实、TanStack Query、ProductDataTable 与插件编辑器，共享 lib/crypto 生成 HTTP/HTTPS 通用幂等键。
  * [OUTPUT]: 提供企业插件 JSON part serializer、版本/可见范围/设备状态三视图，以及上传、发布、退休与原子范围管理动作。
  * [POS]: features/plugins 的产品插件工作台；服务端负责验包、签名、状态机、分配裁决和设备事实。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -26,6 +26,7 @@ import type {
   PluginPackagePageData,
   PluginVersion
 } from '@/api/generated/types.gen';
+import { randomUuid } from '@/lib/crypto';
 import { Button } from '@/components/atoms/Button';
 import { SegmentedControl } from '@/components/atoms/SegmentedControl';
 import { StatusPill } from '@/components/atoms/StatusPill';
@@ -326,7 +327,7 @@ export function PluginManagementPage() {
       const result = await uploadPluginVersion({
         body: value,
         bodySerializer: () => serializePluginUpload(value),
-        headers: { 'Idempotency-Key': crypto.randomUUID() }
+        headers: { 'Idempotency-Key': randomUuid() }
       });
       requireSuccess(result, 'ENT_PLUGIN_UPLOAD_FAILED');
     },
@@ -352,7 +353,7 @@ export function PluginManagementPage() {
     mutationFn: async (value: PluginAssignmentValue) => {
       const result = await replacePluginAssignments({
         body: { items: value.items },
-        headers: { 'Idempotency-Key': crypto.randomUUID(), 'If-Match': value.revision },
+        headers: { 'Idempotency-Key': randomUuid(), 'If-Match': value.revision },
         path: { pluginPackageId: value.packageId }
       });
       requireSuccess(result, 'ENT_PLUGIN_ASSIGNMENT_UPDATE_FAILED');

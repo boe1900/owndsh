@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖选定 LDAP 身份源、目录组发现、外部组映射、产品用户组 operation、TanStack Query 和产品对话框。
+ * [INPUT]: 依赖选定 LDAP 身份源、目录组发现、外部组映射、产品用户组 operation、TanStack Query 和产品对话框，共享 lib/crypto 生成 HTTP/HTTPS 通用幂等键。
  * [OUTPUT]: 提供绑定单个 LDAP 身份源的 Group DN 映射列表、创建和删除操作。
  * [POS]: features/members 身份接入表格的 LDAP 行操作；只保存映射，不镜像目录成员、不展开嵌套组。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -25,6 +25,7 @@ import type {
   LdapDirectoryGroup,
   LdapDirectoryGroupSearch
 } from '@/api/generated/types.gen';
+import { randomUuid } from '@/lib/crypto';
 import { Button } from '@/components/atoms/Button';
 import { ProductDataTable, type ProductTableColumn } from '@/components/product/DataTable';
 import { ProductDialog } from '@/components/product/Dialog';
@@ -129,7 +130,7 @@ export function LdapGroupMappingDialog({ canWrite, onClose, source }: {
   const save = useMutation({
     mutationFn: async ({ group, accessGroupId }: { group: LdapDirectoryGroup; accessGroupId: string }) => unwrap(await createGroupMapping({
       body: { sourceId: source.id, externalGroup: group.externalGroup, accessGroupId },
-      headers: { 'Idempotency-Key': crypto.randomUUID() }
+      headers: { 'Idempotency-Key': randomUuid() }
     }), 'LDAP 组映射保存失败'),
     onSuccess: async () => {
       setEditing(false);

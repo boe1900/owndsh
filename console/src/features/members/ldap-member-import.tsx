@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 LDAP 身份源/用户搜索/单人导入 operation、TanStack Query 与产品对话框。
+ * [INPUT]: 依赖 LDAP 身份源/用户搜索/单人导入 operation、TanStack Query 与产品对话框，共享 lib/crypto 生成 HTTP/HTTPS 通用幂等键。
  * [OUTPUT]: 提供选择启用 LDAP 来源、按关键字有界搜索并导入一个可信 DN 的 LdapMemberImportDialog。
  * [POS]: features/members 的按需目录入口；不缓存目录、不提交浏览器中的 subject/姓名/邮箱作为建号事实。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -17,6 +17,7 @@ import type {
   LdapDirectoryUserSearch,
   LdapMemberImport
 } from '@/api/generated/types.gen';
+import { randomUuid } from '@/lib/crypto';
 import { Button } from '@/components/atoms/Button';
 import { ProductDialog } from '@/components/product/Dialog';
 
@@ -62,7 +63,7 @@ export function LdapMemberImportDialog({
   const imported = useMutation({
     mutationFn: async (user: LdapDirectoryUser) => unwrap<LdapMemberImport>(await importLdapUser({
       body: { dn: user.dn },
-      headers: { 'Idempotency-Key': crypto.randomUUID() },
+      headers: { 'Idempotency-Key': randomUuid() },
       path: { sourceId }
     }), 'LDAP 成员导入失败'),
     onSuccess: onImported

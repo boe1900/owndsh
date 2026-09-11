@@ -1,10 +1,11 @@
 /**
- * [INPUT]: 依赖 Web Crypto、sessionStorage、enterprise-admin 同源授权启动/HttpOnly 会话交换与当前控制台 origin。
+ * [INPUT]: 依赖 getRandomValues、@noble/hashes SHA-256、sessionStorage 与 enterprise-admin 同源授权/HttpOnly 会话交换。
  * [OUTPUT]: 提供第一方登录页所需身份源、经 URL 同源校验的返回路径和不向 JavaScript 暴露 Token 的一次性 PKCE 回调交换。
- * [POS]: auth 的浏览器登录状态机，管理端不离开自身登录页，OIDC 才发生外部跳转，会话所有权留在服务端 Cookie。
+ * [POS]: auth 的 HTTP/HTTPS 共用登录状态机，S256 不依赖安全上下文；OIDC 才发生外部跳转，会话所有权留在服务端 Cookie。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
+import { sha256 } from '@noble/hashes/sha2.js';
 import { authorizePlatformClient, exchangeBrowserAuthorizationCode } from '@/api/generated/sdk.gen';
 import type { AuthSourcesData } from '@/api/generated/types.gen';
 import { ENTERPRISE_ADMIN_CLIENT_ID } from './session';
@@ -30,9 +31,8 @@ function randomValue(length = 32) {
   return base64Url(bytes);
 }
 
-async function challengeOf(verifier: string) {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
-  return base64Url(new Uint8Array(digest));
+function challengeOf(verifier: string) {
+  return base64Url(sha256(new TextEncoder().encode(verifier)));
 }
 
 export function normalizeReturnTo(value?: string | null) {
@@ -59,7 +59,7 @@ export async function startEnterpriseAdminLogin(returnTo?: string | null): Promi
       client_id: ENTERPRISE_ADMIN_CLIENT_ID,
       redirect_uri: pending.redirectUri,
       state: pending.state,
-      code_challenge: await challengeOf(verifier),
+      code_challenge: challengeOf(verifier),
       code_challenge_method: 'S256'
     },
     headers: { Accept: 'application/json' }
