@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖身份/设备/模型/配额/插件/Session/网关/revision 异常、Sa-Token、MVC 绑定与当前 requestId。
- * [OUTPUT]: 对外提供详细设计第 17 节稳定错误 envelope，未知故障日志只保留类型与 requestId。
+ * [OUTPUT]: 对外提供详细设计第 17 节稳定错误 envelope，并记录脱敏的入口校验失败事实。
  * [POS]: common/api 的企业 Controller 专用异常边界，优先于 Host 通用 R 响应处理器。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -349,7 +349,15 @@ public final class EnterpriseExceptionHandler {
         HttpMessageNotReadableException.class,
         MethodArgumentTypeMismatchException.class
     })
-    public ResponseEntity<EnterpriseErrorResponse> invalidRequest(HttpServletRequest request) {
+    public ResponseEntity<EnterpriseErrorResponse> invalidRequest(
+        Exception exception,
+        HttpServletRequest request
+    ) {
+        log.warn(
+            "企业请求参数校验失败 requestId={} method={} uri={} exceptionType={} contentType={} contentLength={}",
+            EnterpriseRequestIds.current(request), request.getMethod(), request.getRequestURI(),
+            exception.getClass().getSimpleName(), request.getContentType(), request.getContentLengthLong()
+        );
         return error(HttpStatus.BAD_REQUEST, "ENT_INVALID_REQUEST", "请求参数不合法", false, null, request);
     }
 
