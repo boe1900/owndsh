@@ -1,20 +1,24 @@
 /**
  * [INPUT]: 依赖 Jackson 与入口已裁决的 ProviderApiProtocol，接收限量原生 JSON bytes。
- * [OUTPUT]: 对外提供校验受管 model、stream 和互斥协议输出上限的 GatewayChatRequest，并为非法字段抛出可诊断原因。
+ * [OUTPUT]: 对外提供校验受管 model、stream 和互斥协议输出上限的 GatewayChatRequest；解析入口直接记录原始请求体用于临时排查。
  * [POS]: model/gateway 的最小信任边界；协议字段合法性归 DeepSeek Harness 官方 adapter 与上游。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.model.gateway;
 
+import lombok.extern.slf4j.Slf4j;
 import com.owndsh.enterprise.model.domain.ProviderApiProtocol;
+import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
 import java.util.List;
 import java.util.Objects;
+import java.nio.charset.StandardCharsets;
 import java.util.regex.Pattern;
 
+@Slf4j
 public final class GatewayChatRequestParser {
     private static final Pattern MODEL = Pattern.compile("^(?:enterprise/default|[A-Za-z0-9][A-Za-z0-9._-]{0,119})$");
 
@@ -27,6 +31,8 @@ public final class GatewayChatRequestParser {
     public GatewayChatRequest parse(byte[] bytes, ProviderApiProtocol protocol) {
         Objects.requireNonNull(bytes, "bytes");
         Objects.requireNonNull(protocol, "protocol");
+        log.info("企业模型请求原始 JSON protocol={} contentLength={} rawBody={}",
+            protocol, bytes.length, new String(bytes, StandardCharsets.UTF_8));
         try {
             JsonNode parsed = json.readTree(bytes);
             if (parsed == null || !parsed.isObject()) throw invalid("请求体必须是 JSON 对象");
@@ -51,6 +57,12 @@ public final class GatewayChatRequestParser {
             return new GatewayChatRequest(model, maxTokens, maxField, bytes.length, body);
         } catch (IllegalArgumentException exception) {
             throw exception;
+        } catch (JacksonException exception) {
+            log.error("企业模型请求 JSON 解析失败 protocol={} contentLength={} byteOffset={} rawBody={}",
+                protocol, bytes.length,
+                exception.getLocation() == null ? null : exception.getLocation().getByteOffset(),
+                exception);
+            throw new IllegalArgumentException("模型请求 JSON 非法", exception);
         } catch (RuntimeException exception) {
             throw new IllegalArgumentException("模型请求 JSON 非法", exception);
         }
