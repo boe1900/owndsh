@@ -58,7 +58,7 @@ public final class GatewayChatRequestParser {
         } catch (IllegalArgumentException exception) {
             throw exception;
         } catch (JacksonException exception) {
-            log.error("企业模型请求 JSON 解析失败 protocol={} contentLength={} byteOffset={} rawBody={}",
+            log.error("企业模型请求 JSON 解析失败 protocol={} contentLength={} byteOffset={}",
                 protocol, bytes.length,
                 exception.getLocation() == null ? null : exception.getLocation().getByteOffset(),
                 exception);

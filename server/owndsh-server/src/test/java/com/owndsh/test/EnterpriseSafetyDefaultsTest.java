@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 owndsh-server 经 Maven 过滤后的 application.yml、Spring YAML loader 与真实 Logback 配置运行时。
- * [OUTPUT]: 验证 Flyway 基线与 JDBC 类型推断、graceful drain、请求上限、同源 CORS、单配置环境入口、默认关闭插件签名、无默认 JWT secret 与仅 stdout 日志。
+ * [INPUT]: 依赖 owndsh-server 经 Maven 过滤后的 application.yml、Spring YAML loader、真实 Servlet 过滤器与 Logback 配置运行时。
+ * [OUTPUT]: 验证模型网关原生 JSON 不被 HTML 清洗，以及 Flyway/JDBC、graceful drain、请求上限、CORS、环境入口、插件签名、JWT 与 stdout 默认值。
  * [POS]: owndsh-server 的 T20 部署默认值回归，防止配置退化绕过业务层边界。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -13,11 +13,23 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.classic.util.LogbackMDCAdapter;
 import ch.qos.logback.core.ConsoleAppender;
 import ch.qos.logback.core.status.Status;
+import com.owndsh.common.web.config.FilterConfig;
+import com.owndsh.common.web.config.properties.XssProperties;
+import com.owndsh.common.web.filter.RepeatableFilter;
+import com.owndsh.common.web.filter.XssFilter;
+import com.owndsh.common.web.filter.XssHttpServletRequestWrapper;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.boot.context.properties.source.ConfigurationPropertySources;
 import org.springframework.boot.env.YamlPropertySourceLoader;
+import org.springframework.core.env.MutablePropertySources;
 import org.springframework.core.env.PropertySource;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.mock.web.MockFilterConfig;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -29,6 +41,58 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Tag("dev")
 class EnterpriseSafetyDefaultsTest {
     private final List<PropertySource<?>> sources = load();
+
+    @Test
+    void preservesGatewayJsonThroughGlobalFilters() throws Exception {
+        var json = JsonMapper.builder().build();
+        var body = json.createObjectNode().put("model", "managed").put("stream", true);
+        var messages = body.putArray("messages");
+        messages.addObject().put("role", "user")
+            .put("content", "上下文".repeat(30_000) + "<html><script>if (a < b) run()</script></html>");
+        messages.addObject().put("role", "assistant").putArray("tool_calls").addObject()
+            .put("id", "call-1").put("type", "function").putObject("function")
+            .put("name", "shell").put("arguments", json.writeValueAsString(java.util.Map.of("command", "a < b")));
+        messages.addObject().put("role", "tool").put("tool_call_id", "call-1")
+            .put("content", "> output\n<svg id=\"scene\">内容</svg>");
+        byte[] original = json.writeValueAsBytes(body);
+        var filter = configuredXssFilter();
+        for (String operation : List.of("chat/completions", "responses", "messages")) {
+            String path = "/enterprise/gateway/v1/" + operation;
+            var request = new MockHttpServletRequest("POST", path);
+            request.setServletPath(path);
+            request.setContentType("application/json");
+            request.setContent(original);
+            filter.doFilter(request, new MockHttpServletResponse(), (filtered, response) ->
+                new RepeatableFilter().doFilter(filtered, response, (cached, ignored) -> {
+                    byte[] actual = cached.getInputStream().readAllBytes();
+                    assertThat(actual).as("%s 原生字节必须保持完整", path).isEqualTo(original);
+                    assertThat(json.readTree(actual)).isEqualTo(body);
+                }));
+        }
+    }
+
+    @Test
+    void keepsXssFilteringOutsideTheModelGateway() throws Exception {
+        assertThat(property("xss.enabled")).isEqualTo(true);
+        var request = new MockHttpServletRequest("POST", "/system/user");
+        request.setServletPath("/system/user");
+        request.setContentType("application/json");
+        request.setContent("{\"name\":\"<b>name</b>\"}".getBytes(StandardCharsets.UTF_8));
+        configuredXssFilter().doFilter(request, new MockHttpServletResponse(), (filtered, response) -> {
+            assertThat(filtered).isInstanceOf(XssHttpServletRequestWrapper.class);
+            assertThat(new String(filtered.getInputStream().readAllBytes(), StandardCharsets.UTF_8))
+                .isEqualTo("{\"name\":\"name\"}");
+        });
+    }
+
+    private XssFilter configuredXssFilter() throws Exception {
+        var properties = new MutablePropertySources();
+        sources.forEach(properties::addLast);
+        var xss = new Binder(ConfigurationPropertySources.from(properties)).bind("xss", XssProperties.class).get();
+        var filter = new FilterConfig().xssFilter(xss);
+        filter.init(new MockFilterConfig());
+        return filter;
+    }
 
     @Test
     void freezesBoundedTransportAndGracefulShutdownDefaults() {
