@@ -354,9 +354,12 @@ public final class EnterpriseExceptionHandler {
         HttpServletRequest request
     ) {
         log.warn(
-            "企业请求参数校验失败 requestId={} method={} uri={} exceptionType={} contentType={} contentLength={}",
+            "企业请求参数校验失败 requestId={} method={} uri={} exceptionType={} reason={} causeType={} causeReason={} contentType={} contentLength={}",
             EnterpriseRequestIds.current(request), request.getMethod(), request.getRequestURI(),
-            exception.getClass().getSimpleName(), request.getContentType(), request.getContentLengthLong()
+            exception.getClass().getSimpleName(), diagnosticMessage(exception),
+            exception.getCause() == null ? null : exception.getCause().getClass().getSimpleName(),
+            exception.getCause() == null ? null : diagnosticMessage(exception.getCause()),
+            request.getContentType(), request.getContentLengthLong()
         );
         return error(HttpStatus.BAD_REQUEST, "ENT_INVALID_REQUEST", "请求参数不合法", false, null, request);
     }
@@ -390,5 +393,12 @@ public final class EnterpriseExceptionHandler {
         return ResponseEntity.status(status)
             .header(EnterpriseRequestIds.HEADER, requestId)
             .body(body);
+    }
+
+    private static String diagnosticMessage(Throwable exception) {
+        String message = exception.getMessage();
+        if (message == null || message.isBlank()) return null;
+        String compact = message.replace('\n', ' ').replace('\r', ' ');
+        return compact.length() <= 256 ? compact : compact.substring(0, 256) + "…";
     }
 }
