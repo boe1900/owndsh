@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 dsh-ui 同源 local-api、标准 Response 与 EventSource test double
- * [OUTPUT]: 验证账号/插件严格解码、地址/卸载固定路径、脱敏投影、显式刷新与秘密字段拒绝
+ * [OUTPUT]: 验证账号/插件/MCP 严格解码、工具简介与计数一致、连接/授权/预算事实、OAuth 流程绑定、固定动作路径及秘密字段拒绝
  * [POS]: dsh-ui 浏览器网络边界测试，确保浏览器只能消费 Host 脱敏 DTO
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -40,6 +40,39 @@ function ok(data: unknown): Response {
 }
 
 describe('enterprise local browser API', () => {
+  it('decodes OAuth progress only for the requested flow and rejects secrets', async () => {
+    const signal = new AbortController().signal
+    const progress = { flowId: 'flow-1', serverName: 'docs', status: 'PENDING' }
+    const fetcher = vi.fn(async () => ok(progress))
+    const api = createEnterpriseLocalApi(fetcher)
+    expect(await api.mcpOAuthStatus('flow-1', signal)).toEqual(progress)
+    expect(fetcher).toHaveBeenCalledWith('/enterprise/api/v1/local/mcp/oauth/status?flowId=flow-1', expect.objectContaining({ signal }))
+    for (const extra of [{ flowId: 'old-flow' }, { status: 'UNKNOWN' }, { accessToken: 'secret' }, { error: 'secret' }]) {
+      fetcher.mockImplementationOnce(async () => ok({ ...progress, ...extra }))
+      await expect(api.mcpOAuthStatus('flow-1', signal)).rejects.toMatchObject({ code: 'ENT_LOCAL_RESPONSE_INVALID' })
+    }
+    fetcher.mockImplementationOnce(async () => ok({ assignments: [{ serverName: 'docs', displayName: 'Docs', authType: 'oauth', presentation: 'search', configured: false, connected: false, errorCode: 'MCP_AUTH_REQUIRED' }] }))
+    expect((await api.mcpStatus(signal)).assignments[0]?.errorCode).toBe('MCP_AUTH_REQUIRED')
+  })
+  it('decodes MCP discovery and effective presentation while rejecting secrets and invalid counts', async () => {
+    const assignment = { serverName: 'docs', displayName: 'Docs', presentation: 'full', authType: 'none', configured: true,
+      connected: true, discoveredToolCount: 100, effectivePresentation: 'search', errorCode: 'MCP_BUDGET_EXCEEDED' }
+    const fetcher = vi.fn(async () => ok({ assignments: [assignment] }))
+    const api = createEnterpriseLocalApi(fetcher)
+    expect((await api.mcpStatus(new AbortController().signal)).assignments[0]).toEqual(assignment)
+    const tool = { name: 'read', description: 'Read documents' }
+    fetcher.mockImplementationOnce(async () => ok({ assignments: [{ ...assignment, discoveredToolCount: 1, tools: [tool] }] }))
+    expect((await api.mcpStatus(new AbortController().signal)).assignments[0]?.tools).toEqual([tool])
+    for (const tools of [[{ ...tool, accessToken: 'secret' }], [{ ...tool, parameters: {} }], [{ ...tool, description: null }], [tool, tool], []]) {
+      fetcher.mockImplementationOnce(async () => ok({ assignments: [{ ...assignment, discoveredToolCount: 1, tools }] }))
+      await expect(api.mcpStatus(new AbortController().signal)).rejects.toMatchObject({ code: 'ENT_LOCAL_RESPONSE_INVALID' })
+    }
+    for (const extra of [{ accessToken: 'secret' }, { discoveredToolCount: -1 }, { discoveredToolCount: 513 }, { connected: 'true' }]) {
+      fetcher.mockImplementationOnce(async () => ok({ assignments: [{ ...assignment, ...extra }] }))
+      await expect(api.mcpStatus(new AbortController().signal)).rejects.toMatchObject({ code: 'ENT_LOCAL_RESPONSE_INVALID' })
+    }
+  })
+
   it('strictly decodes every public connection state', () => {
     for (const state of ENTERPRISE_CONNECTION_STATES) {
       const value = state === 'UNCONFIGURED'

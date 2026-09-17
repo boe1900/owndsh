@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖浏览器 fetch 与 platform-client 的按需同源 JSON 协议
- * [OUTPUT]: 对外提供严格账号/插件状态解码、Server 地址/登录/整包卸载动作和显式刷新端口
+ * [OUTPUT]: 对外提供严格账号/插件/MCP 状态解码（含工具简介、重新授权与授权进度）、连接动作，以及 Server 地址/登录/整包卸载与显式刷新端口
  * [POS]: dsh-ui 的浏览器网络边界，只投影 Settings 所需事实并拒绝秘密、正文与本地执行细节
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -84,6 +84,24 @@ export interface EnterprisePluginStatus {
   readonly lastReportErrorCode?: string
 }
 
+export interface EnterpriseMcpAssignment {
+  readonly serverName: string
+  readonly displayName: string
+  readonly presentation: 'search' | 'full'
+  readonly authType: 'none' | 'api-key' | 'oauth'
+  readonly configured: boolean
+  readonly desiredConnected?: boolean
+  readonly connected?: boolean
+  readonly discoveredToolCount?: number
+  readonly tools?: readonly { readonly name: string; readonly description: string }[]
+  readonly effectivePresentation?: 'search' | 'full'
+  readonly errorCode?: 'MCP_BUDGET_EXCEEDED' | 'MCP_CLEANUP_REQUIRED' | 'MCP_AUTH_REQUIRED'
+}
+
+export interface EnterpriseMcpStatus {
+  readonly assignments: readonly EnterpriseMcpAssignment[]
+}
+
 export interface EnterprisePluginCatalogItem {
   readonly pluginVersionId: string
   readonly packageName: string
@@ -105,6 +123,14 @@ export interface EnterpriseLocalApi {
   cancelLogin(signal: AbortSignal): Promise<{ readonly cancelled: boolean }>
   logout(signal: AbortSignal): Promise<{ readonly loggedOut: true }>
   uninstall(signal: AbortSignal): Promise<{ readonly uninstalled: true; readonly restartRequested: boolean }>
+  mcpStatus(signal: AbortSignal): Promise<EnterpriseMcpStatus>
+  startMcpOAuth(serverName: string, signal: AbortSignal): Promise<{ readonly flowId: string }>
+  mcpOAuthStatus(flowId: string, signal: AbortSignal): Promise<{ readonly flowId: string; readonly serverName: string; readonly status: 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED' }>
+  cancelMcpOAuth(flowId: string, signal: AbortSignal): Promise<{ readonly cancelled: boolean }>
+  connectMcp(serverName: string, apiKey: string | undefined, signal: AbortSignal): Promise<{ readonly configured: boolean }>
+  pauseMcp(serverName: string, signal: AbortSignal): Promise<{ readonly paused: boolean }>
+  reconnectMcp(serverName: string, signal: AbortSignal): Promise<{ readonly reconnected: boolean }>
+  disconnectMcp(serverName: string, signal: AbortSignal): Promise<{ readonly disconnected: boolean }>
 }
 
 export class EnterpriseLocalApiError extends Error {
@@ -303,6 +329,39 @@ function errorCode(value: unknown): string {
   return nonEmptyString(code) ? code : 'ENT_PLATFORM_UNAVAILABLE'
 }
 
+function decodeMcpStatus(value: unknown): EnterpriseMcpStatus {
+  const source = record(value)
+  if (source === undefined || !hasExactKeys(source, ['assignments']) || !Array.isArray(source['assignments']) || source['assignments'].length > 512) {
+    throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+  }
+  const assignments = source['assignments'].map(item => {
+    const row = record(item)
+    if (row === undefined || !hasExactKeys(row, ['serverName', 'displayName', 'presentation', 'authType', 'configured'], ['connected', 'desiredConnected', 'discoveredToolCount', 'tools', 'effectivePresentation', 'errorCode'])
+      || !nonEmptyString(row['serverName']) || !nonEmptyString(row['displayName'])
+      || !(['search', 'full'] as const).includes(row['presentation'] as 'search' | 'full')
+      || !(['none', 'api-key', 'oauth'] as const).includes(row['authType'] as 'none' | 'api-key' | 'oauth')
+      || typeof row['configured'] !== 'boolean'
+      || (row['desiredConnected'] !== undefined && typeof row['desiredConnected'] !== 'boolean')
+      || (row['connected'] !== undefined && typeof row['connected'] !== 'boolean')
+      || (row['discoveredToolCount'] !== undefined && (!Number.isSafeInteger(row['discoveredToolCount']) || (row['discoveredToolCount'] as number) < 0 || (row['discoveredToolCount'] as number) > 512))
+      || (row['effectivePresentation'] !== undefined && !['search', 'full'].includes(row['effectivePresentation'] as string))
+      || (row['errorCode'] !== undefined && !['MCP_BUDGET_EXCEEDED', 'MCP_CLEANUP_REQUIRED', 'MCP_AUTH_REQUIRED'].includes(row['errorCode'] as string))) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+    if (row['tools'] !== undefined) {
+      if (!Array.isArray(row['tools']) || row['tools'].length > 512 || row['tools'].length !== row['discoveredToolCount']) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+      const names = new Set<string>()
+      for (const value of row['tools']) {
+        const tool = record(value)
+        if (tool === undefined || !hasExactKeys(tool, ['name', 'description']) || !nonEmptyString(tool['name'])
+          || tool['name'].length > 16 * 1024 || typeof tool['description'] !== 'string' || tool['description'].length > 16 * 1024
+          || names.has(tool['name'])) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+        names.add(tool['name'])
+      }
+    }
+    return row as unknown as EnterpriseMcpAssignment
+  })
+  return { assignments }
+}
+
 async function requestJson(
   path: string,
   init: RequestInit,
@@ -398,6 +457,45 @@ export function createEnterpriseLocalApi(
         throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
       }
       return { uninstalled: true, restartRequested: data['restartRequested'] }
+    },
+    mcpStatus: async signal => decodeMcpStatus(await requestJson('/mcp/status', getInit(signal), fetcher)),
+    startMcpOAuth: async (serverName, signal) => {
+      const data = record(await requestJson('/mcp/oauth/start', jsonInit('POST', { serverName }, signal), fetcher))
+      if (data === undefined || !hasExactKeys(data, ['started', 'flowId']) || data['started'] !== true || !nonEmptyString(data['flowId'])) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+      return { flowId: data['flowId'] }
+    },
+    mcpOAuthStatus: async (flowId, signal) => {
+      const data = record(await requestJson(`/mcp/oauth/status?flowId=${encodeURIComponent(flowId)}`, getInit(signal), fetcher))
+      if (data === undefined || !hasExactKeys(data, ['flowId', 'serverName', 'status'], ['error'])
+        || data['flowId'] !== flowId || !nonEmptyString(data['serverName'])
+        || !['PENDING', 'SUCCEEDED', 'FAILED', 'CANCELLED'].includes(data['status'] as string)
+        || (data['error'] !== undefined && data['error'] !== 'OAUTH_FAILED')) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+      return { flowId, serverName: data['serverName'], status: data['status'] as 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED' }
+    },
+    cancelMcpOAuth: async (flowId, signal) => {
+      const data = record(await requestJson('/mcp/oauth/cancel', jsonInit('POST', { flowId }, signal), fetcher))
+      if (data === undefined || !hasExactKeys(data, ['cancelled']) || typeof data['cancelled'] !== 'boolean') throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+      return { cancelled: data['cancelled'] }
+    },
+    connectMcp: async (serverName, apiKey, signal) => {
+      const data = record(await requestJson('/mcp/connect', jsonInit('POST', { serverName, apiKey }, signal), fetcher))
+      if (data === undefined || !hasExactKeys(data, ['configured']) || data['configured'] !== true) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+      return { configured: true }
+    },
+    pauseMcp: async (serverName, signal) => {
+      const data = record(await requestJson('/mcp/pause', jsonInit('POST', { serverName }, signal), fetcher))
+      if (data === undefined || !hasExactKeys(data, ['paused']) || data['paused'] !== true) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+      return { paused: true }
+    },
+    reconnectMcp: async (serverName, signal) => {
+      const data = record(await requestJson('/mcp/reconnect', jsonInit('POST', { serverName }, signal), fetcher))
+      if (data === undefined || !hasExactKeys(data, ['reconnected']) || data['reconnected'] !== true) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+      return { reconnected: true }
+    },
+    disconnectMcp: async (serverName, signal) => {
+      const data = record(await requestJson('/mcp/disconnect', jsonInit('POST', { serverName }, signal), fetcher))
+      if (data === undefined || !hasExactKeys(data, ['disconnected']) || data['disconnected'] !== true) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+      return { disconnected: true }
     },
   }
 }

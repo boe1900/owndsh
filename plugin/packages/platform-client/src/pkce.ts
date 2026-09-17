@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Node crypto 生成 PKCE entropy，依赖 node:http 监听 127.0.0.1 回环 callback
- * [OUTPUT]: 对外提供 createPkceS256、startLoopbackCallback 与稳定 PkceLoopbackError
+ * [OUTPUT]: 对外提供 createPkceS256、可在监听启动期间取消的 startLoopbackCallback 与稳定 PkceLoopbackError
  * [POS]: platform-client 的浏览器登录事务原语，只管理 verifier/state/callback 生命周期，不接触平台 Token
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -85,6 +85,8 @@ export async function startLoopbackCallback(
     resolveResult = resolve
     rejectResult = reject
   })
+  // 监听启动期间即可取消；调用者拿到 callback 之前也必须观察 rejection。
+  void result.catch(() => undefined)
 
   const stop = (): void => {
     clearTimeout(timeout)
@@ -144,13 +146,13 @@ export async function startLoopbackCallback(
     throw cause
   })
 
-  options.signal?.addEventListener('abort', cancel, { once: true })
-  if (options.signal?.aborted === true) cancel()
   const address = server.address()
   if (address === null || typeof address === 'string') {
     cancel()
     throw new Error('PKCE loopback listener did not expose a TCP port')
   }
+  options.signal?.addEventListener('abort', cancel, { once: true })
+  if (options.signal?.aborted === true) cancel()
 
   return {
     redirectUri: `http://127.0.0.1:${address.port}/callback`,

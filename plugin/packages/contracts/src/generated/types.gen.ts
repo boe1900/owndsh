@@ -313,6 +313,62 @@ export type RuntimePluginAssignments = PluginRuntimePluginAssignments;
 
 export type RuntimePluginAssignmentsResponse = PluginRuntimePluginAssignmentsResponse;
 
+export type McpServerId = McpMcpServerId;
+
+export type McpServerStatus = McpMcpServerStatus;
+
+export type McpTransport = McpMcpTransport;
+
+export type McpPresentation = McpMcpPresentation;
+
+export type McpAuth = McpMcpAuth;
+
+export type McpReconnectPolicy = McpMcpReconnectPolicy;
+
+export type McpServerCreateRequest = McpMcpServerCreateRequest;
+
+export type McpServerUpdateRequest = McpMcpServerUpdateRequest;
+
+export type McpServer = McpMcpServer;
+
+export type McpServerResponse = McpMcpServerResponse;
+
+export type McpServerPageData = McpMcpServerPageData;
+
+export type McpServerListResponse = McpMcpServerListResponse;
+
+export type McpCandidateTool = McpMcpCandidateTool;
+
+export type McpCatalogPageData = McpMcpCatalogPageData;
+
+export type McpCatalogResponse = McpMcpCatalogResponse;
+
+export type McpGrant = McpMcpGrant;
+
+export type McpGrantCreate = McpMcpGrantCreate;
+
+export type McpGrantBatchRequest = McpMcpGrantBatchRequest;
+
+export type McpGrantUpdateRequest = McpMcpGrantUpdateRequest;
+
+export type McpGrantResponse = McpMcpGrantResponse;
+
+export type McpGrantPageData = McpMcpGrantPageData;
+
+export type McpGrantListResponse = McpMcpGrantListResponse;
+
+export type McpGrantBatchResponse = McpMcpGrantBatchResponse;
+
+export type McpAssignment = McpMcpAssignment;
+
+export type McpSnapshot = McpMcpSnapshot;
+
+export type McpSnapshotResponse = McpMcpSnapshotResponse;
+
+export type McpCatalogUpload = McpMcpCatalogUpload;
+
+export type McpCatalogUploadResponse = McpMcpCatalogUploadResponse;
+
 export type PluginInventoryRequest = PluginPluginInventoryRequest;
 
 export type PluginInventoryResponse = PluginPluginInventoryResponse;
@@ -489,7 +545,7 @@ export type ProtocolPageResponse = {
     requestId: RequestId;
 };
 
-export type EnterpriseErrorCode = 'ENT_INVALID_REQUEST' | 'ENT_INVALID_REDIRECT_URI' | 'ENT_PKCE_REQUIRED' | 'ENT_PLUGIN_ARTIFACT_INVALID' | 'ENT_SESSION_FORMAT_UNSUPPORTED' | 'ENT_AUTH_REQUIRED' | 'ENT_AUTH_CODE_INVALID' | 'ENT_PKCE_INVALID' | 'ENT_AUTH_SESSION_EXPIRED' | 'ENT_PERMISSION_DENIED' | 'ENT_DEVICE_REVOKED' | 'ENT_MODEL_NOT_ASSIGNED' | 'ENT_PLUGIN_NOT_ASSIGNED' | 'ENT_RESOURCE_NOT_OWNED' | 'ENT_RESOURCE_NOT_FOUND' | 'ENT_SESSION_CONTENT_EXPIRED' | 'ENT_REVISION_CONFLICT' | 'ENT_LAST_ENTERPRISE_ADMIN' | 'ENT_LAST_MEMBER_IDENTITY' | 'ENT_REQUEST_IN_PROGRESS' | 'ENT_REQUEST_ALREADY_COMPLETED' | 'ENT_SESSION_SEQ_GAP' | 'ENT_SESSION_DIVERGED' | 'ENT_SESSION_SOURCE_DEVICE_CONFLICT' | 'ENT_IDENTITY_ALREADY_LINKED' | 'ENT_DEVICE_ALREADY_BOUND' | 'ENT_REQUEST_TOO_LARGE' | 'ENT_PLUGIN_ARCHIVE_TOO_LARGE' | 'ENT_SESSION_BATCH_TOO_LARGE' | 'ENT_QUOTA_FIVE_HOURS_EXCEEDED' | 'ENT_QUOTA_DAILY_EXCEEDED' | 'ENT_QUOTA_WEEKLY_EXCEEDED' | 'ENT_QUOTA_MONTHLY_EXCEEDED' | 'ENT_QUOTA_RPM_EXCEEDED' | 'ENT_QUOTA_CONCURRENCY_EXCEEDED' | 'ENT_UPSTREAM_RATE_LIMITED' | 'ENT_UPSTREAM_QUOTA_EXCEEDED' | 'ENT_UPSTREAM_AUTH_FAILED' | 'ENT_UPSTREAM_INVALID_RESPONSE' | 'ENT_PLATFORM_UNAVAILABLE' | 'ENT_UPSTREAM_UNAVAILABLE' | 'ENT_UPSTREAM_TIMEOUT';
+export type EnterpriseErrorCode = 'ENT_INVALID_REQUEST' | 'ENT_INVALID_REDIRECT_URI' | 'ENT_PKCE_REQUIRED' | 'ENT_PLUGIN_ARTIFACT_INVALID' | 'ENT_SESSION_FORMAT_UNSUPPORTED' | 'ENT_AUTH_REQUIRED' | 'ENT_AUTH_CODE_INVALID' | 'ENT_PKCE_INVALID' | 'ENT_AUTH_SESSION_EXPIRED' | 'ENT_PERMISSION_DENIED' | 'ENT_DEVICE_REVOKED' | 'ENT_MODEL_NOT_ASSIGNED' | 'ENT_PLUGIN_NOT_ASSIGNED' | 'ENT_RESOURCE_NOT_OWNED' | 'ENT_RESOURCE_NOT_FOUND' | 'ENT_SESSION_CONTENT_EXPIRED' | 'ENT_REVISION_CONFLICT' | 'ENT_LAST_ENTERPRISE_ADMIN' | 'ENT_LAST_MEMBER_IDENTITY' | 'ENT_REQUEST_IN_PROGRESS' | 'ENT_REQUEST_ALREADY_COMPLETED' | 'ENT_SESSION_SEQ_GAP' | 'ENT_SESSION_DIVERGED' | 'ENT_SESSION_SOURCE_DEVICE_CONFLICT' | 'ENT_IDENTITY_ALREADY_LINKED' | 'ENT_DEVICE_ALREADY_BOUND' | 'ENT_MCP_CONFLICT' | 'ENT_MCP_CATALOG_STALE' | 'ENT_MCP_POLICY_INVALID' | 'ENT_MCP_UNSUPPORTED' | 'ENT_REQUEST_TOO_LARGE' | 'ENT_PLUGIN_ARCHIVE_TOO_LARGE' | 'ENT_SESSION_BATCH_TOO_LARGE' | 'ENT_QUOTA_FIVE_HOURS_EXCEEDED' | 'ENT_QUOTA_DAILY_EXCEEDED' | 'ENT_QUOTA_WEEKLY_EXCEEDED' | 'ENT_QUOTA_MONTHLY_EXCEEDED' | 'ENT_QUOTA_RPM_EXCEEDED' | 'ENT_QUOTA_CONCURRENCY_EXCEEDED' | 'ENT_UPSTREAM_RATE_LIMITED' | 'ENT_UPSTREAM_QUOTA_EXCEEDED' | 'ENT_UPSTREAM_AUTH_FAILED' | 'ENT_UPSTREAM_INVALID_RESPONSE' | 'ENT_PLATFORM_UNAVAILABLE' | 'ENT_UPSTREAM_UNAVAILABLE' | 'ENT_UPSTREAM_TIMEOUT';
 
 export type ValidationViolation = {
     field: string;
@@ -1171,6 +1227,224 @@ export type IdentityOidcSettings = {
     scopes: Array<string>;
     claims: IdentityOidcClaimMapping;
 };
+
+export type McpMcpAssignment = {
+    id: McpMcpServerId;
+    revision: Revision;
+    serverName: string;
+    displayName: string;
+    description: string;
+    transport: McpMcpTransport;
+    url: string;
+    allowInsecureTransport: boolean;
+    headers: McpHeaderMap;
+    auth: McpMcpAuth;
+    toolCallTimeoutMs: number;
+    reconnect: McpMcpReconnectPolicy;
+    presentation: McpMcpPresentation;
+};
+
+export type McpMcpAuth = {
+    type: 'none';
+} | {
+    type: 'api-key';
+    headerName: string;
+} | {
+    type: 'oauth';
+    issuer: string;
+    resource: string;
+    clientId: string;
+    dynamicRegistration?: false;
+    scopes: Array<string>;
+    authorizationEndpoint?: string;
+    tokenEndpoint?: string;
+} | {
+    type: 'oauth';
+    issuer: string;
+    resource: string;
+    dynamicRegistration: true;
+    scopes: Array<string>;
+    authorizationEndpoint?: string;
+    tokenEndpoint?: string;
+};
+
+export type McpMcpCandidateTool = {
+    publicName: string;
+    description: string;
+    inputSchema: {
+        [key: string]: unknown;
+    };
+    outputSchema?: {
+        [key: string]: unknown;
+    };
+    schemaDigest: string;
+};
+
+export type McpMcpCatalogPageData = {
+    catalogId: string;
+    catalogDigest: string;
+    serverRevision: Revision;
+    tools: Array<McpMcpCandidateTool>;
+    page: CursorPage;
+};
+
+export type McpMcpCatalogResponse = {
+    data: McpMcpCatalogPageData;
+    requestId: RequestId;
+};
+
+export type McpMcpCatalogUpload = {
+    serverRevision: Revision;
+    catalogDigest: string;
+    observedAt: string;
+    tools: Array<McpMcpCandidateTool>;
+};
+
+export type McpMcpCatalogUploadResponse = {
+    data: {
+        catalogId: string;
+        catalogDigest: string;
+        receivedAt: string;
+    };
+    requestId: RequestId;
+};
+
+export type McpMcpGrant = {
+    id: string;
+    revision: Revision;
+    serverId: McpMcpServerId;
+    subjectType: McpGrantSubjectType;
+    /**
+     * ALL 为 null；USER/GROUP 为对应成员或用户组 ID
+     */
+    subjectId: string | null;
+    status: McpGrantStatus;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type McpMcpGrantBatchRequest = {
+    items: Array<McpMcpGrantCreate>;
+};
+
+export type McpMcpGrantBatchResponse = {
+    data: Array<McpMcpGrant>;
+    requestId: RequestId;
+};
+
+export type McpMcpGrantCreate = {
+    serverId: McpMcpServerId;
+    subjectType: McpGrantSubjectType;
+    /**
+     * ALL 为 null；USER/GROUP 为对应成员或用户组 ID
+     */
+    subjectId: string | null;
+    status: McpGrantStatus;
+};
+
+export type McpMcpGrantListResponse = {
+    data: McpMcpGrantPageData;
+    requestId: RequestId;
+};
+
+export type McpMcpGrantPageData = {
+    items: Array<McpMcpGrant>;
+    page: CursorPage;
+};
+
+export type McpMcpGrantResponse = {
+    data: McpMcpGrant;
+    requestId: RequestId;
+};
+
+export type McpGrantStatus = 'ACTIVE' | 'DISABLED';
+
+export type McpGrantSubjectType = 'ALL' | 'USER' | 'GROUP';
+
+export type McpMcpGrantUpdateRequest = {
+    status: McpGrantStatus;
+};
+
+export type McpHeaderMap = {
+    [key: string]: string;
+};
+
+export type McpMcpPresentation = 'search' | 'full';
+
+export type McpMcpReconnectPolicy = {
+    enabled: boolean;
+    initialDelayMs: number;
+    maxDelayMs: number;
+    maxAttempts: number;
+};
+
+export type McpMcpServer = {
+    id: McpMcpServerId;
+    revision: Revision;
+    serverName: string;
+    displayName: string;
+    description: string;
+    transport: McpMcpTransport;
+    url: string;
+    allowInsecureTransport: boolean;
+    headers: McpHeaderMap;
+    auth: McpMcpAuth;
+    toolCallTimeoutMs: number;
+    reconnect: McpMcpReconnectPolicy;
+    presentation: McpMcpPresentation;
+    status: McpMcpServerStatus;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type McpMcpServerCreateRequest = {
+    serverName: string;
+    displayName: string;
+    description: string;
+    transport: McpMcpTransport;
+    url: string;
+    allowInsecureTransport: boolean;
+    headers: McpHeaderMap;
+    auth: McpMcpAuth;
+    toolCallTimeoutMs: number;
+    reconnect: McpMcpReconnectPolicy;
+    presentation: McpMcpPresentation;
+};
+
+export type McpMcpServerId = string;
+
+export type McpMcpServerListResponse = {
+    data: McpMcpServerPageData;
+    requestId: RequestId;
+};
+
+export type McpMcpServerPageData = {
+    items: Array<McpMcpServer>;
+    page: CursorPage;
+};
+
+export type McpMcpServerResponse = {
+    data: McpMcpServer;
+    requestId: RequestId;
+};
+
+export type McpMcpServerStatus = 'ACTIVE' | 'DISABLED';
+
+export type McpMcpServerUpdateRequest = McpMcpServerCreateRequest;
+
+export type McpMcpSnapshot = {
+    schemaVersion: 1;
+    revision: Revision;
+    validForMs: 60000;
+    assignments: Array<McpMcpAssignment>;
+};
+
+export type McpMcpSnapshotResponse = {
+    data: McpMcpSnapshot;
+    requestId: RequestId;
+};
+
+export type McpMcpTransport = 'streamable-http';
 
 export type MemberIdentityLinkStart = {
     transactionId: string;
@@ -2139,6 +2413,24 @@ export type _1Enterprise1Admin1V11IdentitySources1SourceId1Ldap1Users1Actions1Im
 
 export type _1Enterprise1Admin1V11Users1UserId1IdentitySummary = unknown;
 
+export type McpCatalogCollection = unknown;
+
+export type McpGrantCollection = unknown;
+
+export type McpGrantItem = unknown;
+
+export type McpRuntimeAssignments = unknown;
+
+export type McpRuntimeCatalog = unknown;
+
+export type McpServerCollection = unknown;
+
+export type McpServerDisable = unknown;
+
+export type McpServerEnable = unknown;
+
+export type McpServerItem = unknown;
+
 export type MemberCollection = unknown;
 
 export type MemberIdentityItem = unknown;
@@ -2306,6 +2598,14 @@ export type PluginPackageIdWritable = PluginPluginPackageId;
 export type PluginVersionIdWritable = PluginPluginVersionId;
 
 export type PluginAssignmentIdWritable = PluginPluginAssignmentId;
+
+export type McpServerIdWritable = McpMcpServerId;
+
+export type McpServerStatusWritable = McpMcpServerStatus;
+
+export type McpTransportWritable = McpMcpTransport;
+
+export type McpPresentationWritable = McpMcpPresentation;
 
 export type SessionIdWritable = SessionSessionId;
 
@@ -6486,3 +6786,553 @@ export type ListAuditEventsResponses = {
 };
 
 export type ListAuditEventsResponse = ListAuditEventsResponses[keyof ListAuditEventsResponses];
+
+export type ListMcpServersData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Server-signed opaque cursor; clients must not parse it.
+         */
+        cursor?: Cursor;
+        /**
+         * Cursor page size.
+         */
+        limit?: PageLimit;
+    };
+    url: '/enterprise/admin/v1/mcp-servers';
+};
+
+export type ListMcpServersErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type ListMcpServersError = ListMcpServersErrors[keyof ListMcpServersErrors];
+
+export type ListMcpServersResponses = {
+    /**
+     * MCP server page
+     */
+    200: McpMcpServerListResponse;
+};
+
+export type ListMcpServersResponse = ListMcpServersResponses[keyof ListMcpServersResponses];
+
+export type CreateMcpServerData = {
+    body: McpMcpServerCreateRequest;
+    headers: {
+        /**
+         * Caller-generated UUID v4 reused only for one logical write.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/enterprise/admin/v1/mcp-servers';
+};
+
+export type CreateMcpServerErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type CreateMcpServerError = CreateMcpServerErrors[keyof CreateMcpServerErrors];
+
+export type CreateMcpServerResponses = {
+    /**
+     * Created MCP server
+     */
+    201: McpMcpServerResponse;
+};
+
+export type CreateMcpServerResponse = CreateMcpServerResponses[keyof CreateMcpServerResponses];
+
+export type GetMcpServerData = {
+    body?: never;
+    path: {
+        id: McpMcpServerId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/mcp-servers/{id}';
+};
+
+export type GetMcpServerErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+};
+
+export type GetMcpServerError = GetMcpServerErrors[keyof GetMcpServerErrors];
+
+export type GetMcpServerResponses = {
+    /**
+     * MCP server
+     */
+    200: McpMcpServerResponse;
+};
+
+export type GetMcpServerResponse = GetMcpServerResponses[keyof GetMcpServerResponses];
+
+export type UpdateMcpServerData = {
+    body: McpMcpServerUpdateRequest;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        id: McpMcpServerId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/mcp-servers/{id}';
+};
+
+export type UpdateMcpServerErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type UpdateMcpServerError = UpdateMcpServerErrors[keyof UpdateMcpServerErrors];
+
+export type UpdateMcpServerResponses = {
+    /**
+     * Updated MCP server
+     */
+    200: McpMcpServerResponse;
+};
+
+export type UpdateMcpServerResponse = UpdateMcpServerResponses[keyof UpdateMcpServerResponses];
+
+export type EnableMcpServerData = {
+    body: {
+        [key: string]: never;
+    };
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        id: McpMcpServerId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/mcp-servers/{id}/actions/enable';
+};
+
+export type EnableMcpServerErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type EnableMcpServerError = EnableMcpServerErrors[keyof EnableMcpServerErrors];
+
+export type EnableMcpServerResponses = {
+    /**
+     * Updated MCP server
+     */
+    200: McpMcpServerResponse;
+};
+
+export type EnableMcpServerResponse = EnableMcpServerResponses[keyof EnableMcpServerResponses];
+
+export type DisableMcpServerData = {
+    body: {
+        [key: string]: never;
+    };
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        id: McpMcpServerId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/mcp-servers/{id}/actions/disable';
+};
+
+export type DisableMcpServerErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type DisableMcpServerError = DisableMcpServerErrors[keyof DisableMcpServerErrors];
+
+export type DisableMcpServerResponses = {
+    /**
+     * Updated MCP server
+     */
+    200: McpMcpServerResponse;
+};
+
+export type DisableMcpServerResponse = DisableMcpServerResponses[keyof DisableMcpServerResponses];
+
+export type ListMcpCatalogData = {
+    body?: never;
+    path: {
+        id: McpMcpServerId;
+    };
+    query?: {
+        /**
+         * Server-signed opaque cursor; clients must not parse it.
+         */
+        cursor?: Cursor;
+        /**
+         * Cursor page size.
+         */
+        limit?: PageLimit;
+    };
+    url: '/enterprise/admin/v1/mcp-servers/{id}/catalogs';
+};
+
+export type ListMcpCatalogErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+};
+
+export type ListMcpCatalogError = ListMcpCatalogErrors[keyof ListMcpCatalogErrors];
+
+export type ListMcpCatalogResponses = {
+    /**
+     * Candidate catalog
+     */
+    200: McpMcpCatalogResponse;
+};
+
+export type ListMcpCatalogResponse = ListMcpCatalogResponses[keyof ListMcpCatalogResponses];
+
+export type ListMcpGrantsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Server-signed opaque cursor; clients must not parse it.
+         */
+        cursor?: Cursor;
+        /**
+         * Cursor page size.
+         */
+        limit?: PageLimit;
+    };
+    url: '/enterprise/admin/v1/mcp-grants';
+};
+
+export type ListMcpGrantsErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type ListMcpGrantsError = ListMcpGrantsErrors[keyof ListMcpGrantsErrors];
+
+export type ListMcpGrantsResponses = {
+    /**
+     * MCP grant page
+     */
+    200: McpMcpGrantListResponse;
+};
+
+export type ListMcpGrantsResponse = ListMcpGrantsResponses[keyof ListMcpGrantsResponses];
+
+export type CreateMcpGrantsData = {
+    body: McpMcpGrantBatchRequest;
+    headers: {
+        /**
+         * Caller-generated UUID v4 reused only for one logical write.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/enterprise/admin/v1/mcp-grants';
+};
+
+export type CreateMcpGrantsErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type CreateMcpGrantsError = CreateMcpGrantsErrors[keyof CreateMcpGrantsErrors];
+
+export type CreateMcpGrantsResponses = {
+    /**
+     * MCP grants
+     */
+    200: McpMcpGrantBatchResponse;
+};
+
+export type CreateMcpGrantsResponse = CreateMcpGrantsResponses[keyof CreateMcpGrantsResponses];
+
+export type DeleteMcpGrantData = {
+    body?: never;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/mcp-grants/{id}';
+};
+
+export type DeleteMcpGrantErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type DeleteMcpGrantError = DeleteMcpGrantErrors[keyof DeleteMcpGrantErrors];
+
+export type DeleteMcpGrantResponses = {
+    /**
+     * Deleted MCP grant
+     */
+    200: IdentityDeletedResourceResponse;
+};
+
+export type DeleteMcpGrantResponse = DeleteMcpGrantResponses[keyof DeleteMcpGrantResponses];
+
+export type UpdateMcpGrantData = {
+    body: McpMcpGrantUpdateRequest;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/mcp-grants/{id}';
+};
+
+export type UpdateMcpGrantErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type UpdateMcpGrantError = UpdateMcpGrantErrors[keyof UpdateMcpGrantErrors];
+
+export type UpdateMcpGrantResponses = {
+    /**
+     * MCP grant
+     */
+    200: McpMcpGrantResponse;
+};
+
+export type UpdateMcpGrantResponse = UpdateMcpGrantResponses[keyof UpdateMcpGrantResponses];
+
+export type GetMcpAssignmentsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/enterprise/api/v1/mcp/assignments';
+};
+
+export type GetMcpAssignmentsErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type GetMcpAssignmentsError = GetMcpAssignmentsErrors[keyof GetMcpAssignmentsErrors];
+
+export type GetMcpAssignmentsResponses = {
+    /**
+     * Effective MCP assignments
+     */
+    200: McpMcpSnapshotResponse;
+};
+
+export type GetMcpAssignmentsResponse = GetMcpAssignmentsResponses[keyof GetMcpAssignmentsResponses];
+
+export type ReportMcpCatalogData = {
+    body: McpMcpCatalogUpload;
+    path: {
+        id: McpMcpServerId;
+    };
+    query?: never;
+    url: '/enterprise/api/v1/mcp/servers/{id}/catalog';
+};
+
+export type ReportMcpCatalogErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type ReportMcpCatalogError = ReportMcpCatalogErrors[keyof ReportMcpCatalogErrors];
+
+export type ReportMcpCatalogResponses = {
+    /**
+     * Accepted catalog
+     */
+    200: McpMcpCatalogUploadResponse;
+};
+
+export type ReportMcpCatalogResponse = ReportMcpCatalogResponses[keyof ReportMcpCatalogResponses];

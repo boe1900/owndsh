@@ -5,11 +5,11 @@
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
-import { Activity, Boxes, CircleUserRound, Puzzle, ShieldCheck, Users, type LucideIcon } from 'lucide-react';
+import { Activity, Boxes, CircleUserRound, Puzzle, ServerCog, ShieldCheck, Users, type LucideIcon } from 'lucide-react';
 import type { AuthBuiltInRole } from '@/api/generated/types.gen';
 
 type ProductRouteDefinition = {
-  to: '/' | '/access' | '/plugins' | '/members' | '/activity';
+  to: '/' | '/access' | '/plugins' | '/mcp' | '/members' | '/activity';
   label: string;
   icon: LucideIcon;
   allowedRoles: readonly AuthBuiltInRole[];
@@ -19,6 +19,7 @@ export const PRODUCT_ROUTES = [
   { to: '/', label: '模型', icon: Boxes, allowedRoles: ['enterprise_admin', 'model_admin'] },
   { to: '/access', label: '访问策略', icon: ShieldCheck, allowedRoles: ['enterprise_admin', 'model_admin'] },
   { to: '/plugins', label: '插件', icon: Puzzle, allowedRoles: ['enterprise_admin', 'plugin_admin'] },
+  { to: '/mcp', label: 'MCP', icon: ServerCog, allowedRoles: ['enterprise_admin', 'plugin_admin'] },
   { to: '/members', label: '成员', icon: Users, allowedRoles: ['enterprise_admin'] },
   { to: '/activity', label: '活动记录', icon: Activity, allowedRoles: ['enterprise_admin', 'model_admin', 'plugin_admin', 'auditor'] }
 ] as const satisfies readonly ProductRouteDefinition[];

@@ -2,7 +2,7 @@
 
 import { type Client, type ClientMeta, formDataBodySerializer, type Options as Options2, type RequestResult, type ServerSentEventsResult, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import type { AppendSessionBatchData, AppendSessionBatchErrors, AppendSessionBatchResponses, AuthorizePlatformClientData, AuthorizePlatformClientErrors, AuthorizePlatformClientResponses, ChangeCurrentAccountPasswordData, ChangeCurrentAccountPasswordErrors, ChangeCurrentAccountPasswordResponses, CompleteOidcLoginData, CompleteOidcLoginErrors, CompletePasswordLoginData, CompletePasswordLoginErrors, CompletePasswordLoginResponses, CreateAccessGroupData, CreateAccessGroupErrors, CreateAccessGroupResponses, CreateGroupMappingData, CreateGroupMappingErrors, CreateGroupMappingResponses, CreateIdentitySourceData, CreateIdentitySourceErrors, CreateIdentitySourceResponses, CreateLocalMemberData, CreateLocalMemberErrors, CreateLocalMemberResponses, CreateManagedModelData, CreateManagedModelErrors, CreateManagedModelResponses, CreateModelGrantBatchData, CreateModelGrantBatchErrors, CreateModelGrantBatchResponses, CreateModelGrantData, CreateModelGrantErrors, CreateModelGrantResponses, CreateModelProviderData, CreateModelProviderErrors, CreateModelProviderResponses, CreateModelSetData, CreateModelSetErrors, CreateModelSetResponses, CreateQuotaPolicyData, CreateQuotaPolicyErrors, CreateQuotaPolicyResponses, DeleteAccessGroupData, DeleteAccessGroupErrors, DeleteAccessGroupResponses, DeleteAdminSessionData, DeleteAdminSessionErrors, DeleteAdminSessionResponses, DeleteGroupMappingData, DeleteGroupMappingErrors, DeleteGroupMappingResponses, DeleteManagedModelData, DeleteManagedModelErrors, DeleteManagedModelResponses, DeleteModelGrantData, DeleteModelGrantErrors, DeleteModelGrantResponses, DeleteModelSetData, DeleteModelSetErrors, DeleteModelSetResponses, DeleteOwnedSessionData, DeleteOwnedSessionErrors, DeleteOwnedSessionResponses, DeleteQuotaPolicyData, DeleteQuotaPolicyErrors, DeleteQuotaPolicyResponses, DisableIdentitySourceData, DisableIdentitySourceErrors, DisableIdentitySourceResponses, DisableManagedModelData, DisableManagedModelErrors, DisableManagedModelResponses, DisableModelProviderData, DisableModelProviderErrors, DisableModelProviderResponses, DisableQuotaPolicyData, DisableQuotaPolicyErrors, DisableQuotaPolicyResponses, DownloadPluginVersionData, DownloadPluginVersionErrors, DownloadPluginVersionResponses, EnableIdentitySourceData, EnableIdentitySourceErrors, EnableIdentitySourceResponses, EnableManagedModelData, EnableManagedModelErrors, EnableManagedModelResponses, EnableModelProviderData, EnableModelProviderErrors, EnableModelProviderResponses, EnableQuotaPolicyData, EnableQuotaPolicyErrors, EnableQuotaPolicyResponses, EnrollCurrentDeviceData, EnrollCurrentDeviceErrors, EnrollCurrentDeviceResponses, ExchangeBrowserAuthorizationCodeData, ExchangeBrowserAuthorizationCodeErrors, ExchangeBrowserAuthorizationCodeResponses, ExchangeDesktopTokenData, ExchangeDesktopTokenErrors, ExchangeDesktopTokenResponses, ExportOwnedSessionData, ExportOwnedSessionErrors, ExportOwnedSessionResponses, GetAccessGroupData, GetAccessGroupErrors, GetAccessGroupResponses, GetConsoleBootstrapData, GetConsoleBootstrapErrors, GetConsoleBootstrapResponses, GetDeviceData, GetDeviceErrors, GetDeviceResponses, GetEnterpriseBootstrapData, GetEnterpriseBootstrapErrors, GetEnterpriseBootstrapResponses, GetIdentitySourceData, GetIdentitySourceErrors, GetIdentitySourceResponses, GetManagedModelData, GetManagedModelErrors, GetManagedModelResponses, GetMemberData, GetMemberErrors, GetMemberResponses, GetModelProviderData, GetModelProviderErrors, GetModelProviderResponses, GetModelSetData, GetModelSetErrors, GetModelSetResponses, GetMyQuotaUsageData, GetMyQuotaUsageErrors, GetMyQuotaUsageResponses, GetPluginAssignmentsData, GetPluginAssignmentsErrors, GetPluginAssignmentsResponses, GetQuotaPolicyData, GetQuotaPolicyErrors, GetQuotaPolicyResponses, GetQuotaPolicyWindowsData, GetQuotaPolicyWindowsErrors, GetQuotaPolicyWindowsResponses, GetUserExternalIdentitySummaryData, GetUserExternalIdentitySummaryErrors, GetUserExternalIdentitySummaryResponses, HeartbeatCurrentDeviceData, HeartbeatCurrentDeviceErrors, HeartbeatCurrentDeviceResponses, ImportLdapUserData, ImportLdapUserErrors, ImportLdapUserResponses, ListAccessGroupsData, ListAccessGroupsErrors, ListAccessGroupsResponses, ListAdminSessionsData, ListAdminSessionsErrors, ListAdminSessionsResponses, ListAuditEventsData, ListAuditEventsErrors, ListAuditEventsResponses, ListDevicesData, ListDevicesErrors, ListDevicesResponses, ListGroupMappingsData, ListGroupMappingsErrors, ListGroupMappingsResponses, ListIdentitySourcesData, ListIdentitySourcesErrors, ListIdentitySourcesResponses, ListManagedModelsData, ListManagedModelsErrors, ListManagedModelsResponses, ListMembersData, ListMembersErrors, ListMembersResponses, ListModelGrantsData, ListModelGrantsErrors, ListModelGrantsResponses, ListModelProvidersData, ListModelProvidersErrors, ListModelProvidersResponses, ListModelSetsData, ListModelSetsErrors, ListModelSetsResponses, ListOwnedSessionsData, ListOwnedSessionsErrors, ListOwnedSessionsResponses, ListPluginInventoryData, ListPluginInventoryErrors, ListPluginInventoryResponses, ListPluginPackagesData, ListPluginPackagesErrors, ListPluginPackagesResponses, ListPublicIdentitySourcesData, ListPublicIdentitySourcesErrors, ListPublicIdentitySourcesResponses, ListQuotaPoliciesData, ListQuotaPoliciesErrors, ListQuotaPoliciesResponses, ListUsageLedgerData, ListUsageLedgerErrors, ListUsageLedgerResponses, LogoutPlatformSessionData, LogoutPlatformSessionErrors, LogoutPlatformSessionResponses, PublishPluginVersionData, PublishPluginVersionErrors, PublishPluginVersionResponses, ReadAdminSessionContentData, ReadAdminSessionContentErrors, ReadAdminSessionContentResponses, RecordSessionRestoreData, RecordSessionRestoreErrors, RecordSessionRestoreResponses, ReplaceMemberRolesData, ReplaceMemberRolesErrors, ReplaceMemberRolesResponses, ReplacePluginAssignmentsData, ReplacePluginAssignmentsErrors, ReplacePluginAssignmentsResponses, ReplacePluginInventoryData, ReplacePluginInventoryErrors, ReplacePluginInventoryResponses, RetirePluginVersionData, RetirePluginVersionErrors, RetirePluginVersionResponses, RevokeDeviceData, RevokeDeviceErrors, RevokeDeviceResponses, SearchLdapGroupsData, SearchLdapGroupsErrors, SearchLdapGroupsResponses, SearchLdapUsersData, SearchLdapUsersErrors, SearchLdapUsersResponses, StartIdentityLinkData, StartIdentityLinkErrors, StartIdentityLinkResponses, StartOidcLoginData, StartOidcLoginErrors, StreamEnterpriseAnthropicMessagesData, StreamEnterpriseAnthropicMessagesErrors, StreamEnterpriseAnthropicMessagesResponse, StreamEnterpriseAnthropicMessagesResponses, StreamEnterpriseChatCompletionsData, StreamEnterpriseChatCompletionsErrors, StreamEnterpriseChatCompletionsResponse, StreamEnterpriseChatCompletionsResponses, StreamEnterpriseResponsesData, StreamEnterpriseResponsesErrors, StreamEnterpriseResponsesResponse, StreamEnterpriseResponsesResponses, TestIdentitySourceData, TestIdentitySourceErrors, TestIdentitySourceResponses, TestModelProviderData, TestModelProviderErrors, TestModelProviderResponses, UnlinkMemberIdentityData, UnlinkMemberIdentityErrors, UnlinkMemberIdentityResponses, UpdateAccessGroupData, UpdateAccessGroupErrors, UpdateAccessGroupResponses, UpdateIdentitySourceData, UpdateIdentitySourceErrors, UpdateIdentitySourceResponses, UpdateManagedModelData, UpdateManagedModelErrors, UpdateManagedModelResponses, UpdateMemberStatusData, UpdateMemberStatusErrors, UpdateMemberStatusResponses, UpdateModelGrantData, UpdateModelGrantErrors, UpdateModelGrantResponses, UpdateModelProviderData, UpdateModelProviderErrors, UpdateModelProviderResponses, UpdateModelSetData, UpdateModelSetErrors, UpdateModelSetResponses, UpdateQuotaPolicyData, UpdateQuotaPolicyErrors, UpdateQuotaPolicyResponses, UploadPluginVersionData, UploadPluginVersionErrors, UploadPluginVersionResponses } from './types.gen';
+import type { AppendSessionBatchData, AppendSessionBatchErrors, AppendSessionBatchResponses, AuthorizePlatformClientData, AuthorizePlatformClientErrors, AuthorizePlatformClientResponses, ChangeCurrentAccountPasswordData, ChangeCurrentAccountPasswordErrors, ChangeCurrentAccountPasswordResponses, CompleteOidcLoginData, CompleteOidcLoginErrors, CompletePasswordLoginData, CompletePasswordLoginErrors, CompletePasswordLoginResponses, CreateAccessGroupData, CreateAccessGroupErrors, CreateAccessGroupResponses, CreateGroupMappingData, CreateGroupMappingErrors, CreateGroupMappingResponses, CreateIdentitySourceData, CreateIdentitySourceErrors, CreateIdentitySourceResponses, CreateLocalMemberData, CreateLocalMemberErrors, CreateLocalMemberResponses, CreateManagedModelData, CreateManagedModelErrors, CreateManagedModelResponses, CreateMcpGrantsData, CreateMcpGrantsErrors, CreateMcpGrantsResponses, CreateMcpServerData, CreateMcpServerErrors, CreateMcpServerResponses, CreateModelGrantBatchData, CreateModelGrantBatchErrors, CreateModelGrantBatchResponses, CreateModelGrantData, CreateModelGrantErrors, CreateModelGrantResponses, CreateModelProviderData, CreateModelProviderErrors, CreateModelProviderResponses, CreateModelSetData, CreateModelSetErrors, CreateModelSetResponses, CreateQuotaPolicyData, CreateQuotaPolicyErrors, CreateQuotaPolicyResponses, DeleteAccessGroupData, DeleteAccessGroupErrors, DeleteAccessGroupResponses, DeleteAdminSessionData, DeleteAdminSessionErrors, DeleteAdminSessionResponses, DeleteGroupMappingData, DeleteGroupMappingErrors, DeleteGroupMappingResponses, DeleteManagedModelData, DeleteManagedModelErrors, DeleteManagedModelResponses, DeleteMcpGrantData, DeleteMcpGrantErrors, DeleteMcpGrantResponses, DeleteModelGrantData, DeleteModelGrantErrors, DeleteModelGrantResponses, DeleteModelSetData, DeleteModelSetErrors, DeleteModelSetResponses, DeleteOwnedSessionData, DeleteOwnedSessionErrors, DeleteOwnedSessionResponses, DeleteQuotaPolicyData, DeleteQuotaPolicyErrors, DeleteQuotaPolicyResponses, DisableIdentitySourceData, DisableIdentitySourceErrors, DisableIdentitySourceResponses, DisableManagedModelData, DisableManagedModelErrors, DisableManagedModelResponses, DisableMcpServerData, DisableMcpServerErrors, DisableMcpServerResponses, DisableModelProviderData, DisableModelProviderErrors, DisableModelProviderResponses, DisableQuotaPolicyData, DisableQuotaPolicyErrors, DisableQuotaPolicyResponses, DownloadPluginVersionData, DownloadPluginVersionErrors, DownloadPluginVersionResponses, EnableIdentitySourceData, EnableIdentitySourceErrors, EnableIdentitySourceResponses, EnableManagedModelData, EnableManagedModelErrors, EnableManagedModelResponses, EnableMcpServerData, EnableMcpServerErrors, EnableMcpServerResponses, EnableModelProviderData, EnableModelProviderErrors, EnableModelProviderResponses, EnableQuotaPolicyData, EnableQuotaPolicyErrors, EnableQuotaPolicyResponses, EnrollCurrentDeviceData, EnrollCurrentDeviceErrors, EnrollCurrentDeviceResponses, ExchangeBrowserAuthorizationCodeData, ExchangeBrowserAuthorizationCodeErrors, ExchangeBrowserAuthorizationCodeResponses, ExchangeDesktopTokenData, ExchangeDesktopTokenErrors, ExchangeDesktopTokenResponses, ExportOwnedSessionData, ExportOwnedSessionErrors, ExportOwnedSessionResponses, GetAccessGroupData, GetAccessGroupErrors, GetAccessGroupResponses, GetConsoleBootstrapData, GetConsoleBootstrapErrors, GetConsoleBootstrapResponses, GetDeviceData, GetDeviceErrors, GetDeviceResponses, GetEnterpriseBootstrapData, GetEnterpriseBootstrapErrors, GetEnterpriseBootstrapResponses, GetIdentitySourceData, GetIdentitySourceErrors, GetIdentitySourceResponses, GetManagedModelData, GetManagedModelErrors, GetManagedModelResponses, GetMcpAssignmentsData, GetMcpAssignmentsErrors, GetMcpAssignmentsResponses, GetMcpServerData, GetMcpServerErrors, GetMcpServerResponses, GetMemberData, GetMemberErrors, GetMemberResponses, GetModelProviderData, GetModelProviderErrors, GetModelProviderResponses, GetModelSetData, GetModelSetErrors, GetModelSetResponses, GetMyQuotaUsageData, GetMyQuotaUsageErrors, GetMyQuotaUsageResponses, GetPluginAssignmentsData, GetPluginAssignmentsErrors, GetPluginAssignmentsResponses, GetQuotaPolicyData, GetQuotaPolicyErrors, GetQuotaPolicyResponses, GetQuotaPolicyWindowsData, GetQuotaPolicyWindowsErrors, GetQuotaPolicyWindowsResponses, GetUserExternalIdentitySummaryData, GetUserExternalIdentitySummaryErrors, GetUserExternalIdentitySummaryResponses, HeartbeatCurrentDeviceData, HeartbeatCurrentDeviceErrors, HeartbeatCurrentDeviceResponses, ImportLdapUserData, ImportLdapUserErrors, ImportLdapUserResponses, ListAccessGroupsData, ListAccessGroupsErrors, ListAccessGroupsResponses, ListAdminSessionsData, ListAdminSessionsErrors, ListAdminSessionsResponses, ListAuditEventsData, ListAuditEventsErrors, ListAuditEventsResponses, ListDevicesData, ListDevicesErrors, ListDevicesResponses, ListGroupMappingsData, ListGroupMappingsErrors, ListGroupMappingsResponses, ListIdentitySourcesData, ListIdentitySourcesErrors, ListIdentitySourcesResponses, ListManagedModelsData, ListManagedModelsErrors, ListManagedModelsResponses, ListMcpCatalogData, ListMcpCatalogErrors, ListMcpCatalogResponses, ListMcpGrantsData, ListMcpGrantsErrors, ListMcpGrantsResponses, ListMcpServersData, ListMcpServersErrors, ListMcpServersResponses, ListMembersData, ListMembersErrors, ListMembersResponses, ListModelGrantsData, ListModelGrantsErrors, ListModelGrantsResponses, ListModelProvidersData, ListModelProvidersErrors, ListModelProvidersResponses, ListModelSetsData, ListModelSetsErrors, ListModelSetsResponses, ListOwnedSessionsData, ListOwnedSessionsErrors, ListOwnedSessionsResponses, ListPluginInventoryData, ListPluginInventoryErrors, ListPluginInventoryResponses, ListPluginPackagesData, ListPluginPackagesErrors, ListPluginPackagesResponses, ListPublicIdentitySourcesData, ListPublicIdentitySourcesErrors, ListPublicIdentitySourcesResponses, ListQuotaPoliciesData, ListQuotaPoliciesErrors, ListQuotaPoliciesResponses, ListUsageLedgerData, ListUsageLedgerErrors, ListUsageLedgerResponses, LogoutPlatformSessionData, LogoutPlatformSessionErrors, LogoutPlatformSessionResponses, PublishPluginVersionData, PublishPluginVersionErrors, PublishPluginVersionResponses, ReadAdminSessionContentData, ReadAdminSessionContentErrors, ReadAdminSessionContentResponses, RecordSessionRestoreData, RecordSessionRestoreErrors, RecordSessionRestoreResponses, ReplaceMemberRolesData, ReplaceMemberRolesErrors, ReplaceMemberRolesResponses, ReplacePluginAssignmentsData, ReplacePluginAssignmentsErrors, ReplacePluginAssignmentsResponses, ReplacePluginInventoryData, ReplacePluginInventoryErrors, ReplacePluginInventoryResponses, ReportMcpCatalogData, ReportMcpCatalogErrors, ReportMcpCatalogResponses, RetirePluginVersionData, RetirePluginVersionErrors, RetirePluginVersionResponses, RevokeDeviceData, RevokeDeviceErrors, RevokeDeviceResponses, SearchLdapGroupsData, SearchLdapGroupsErrors, SearchLdapGroupsResponses, SearchLdapUsersData, SearchLdapUsersErrors, SearchLdapUsersResponses, StartIdentityLinkData, StartIdentityLinkErrors, StartIdentityLinkResponses, StartOidcLoginData, StartOidcLoginErrors, StreamEnterpriseAnthropicMessagesData, StreamEnterpriseAnthropicMessagesErrors, StreamEnterpriseAnthropicMessagesResponse, StreamEnterpriseAnthropicMessagesResponses, StreamEnterpriseChatCompletionsData, StreamEnterpriseChatCompletionsErrors, StreamEnterpriseChatCompletionsResponse, StreamEnterpriseChatCompletionsResponses, StreamEnterpriseResponsesData, StreamEnterpriseResponsesErrors, StreamEnterpriseResponsesResponse, StreamEnterpriseResponsesResponses, TestIdentitySourceData, TestIdentitySourceErrors, TestIdentitySourceResponses, TestModelProviderData, TestModelProviderErrors, TestModelProviderResponses, UnlinkMemberIdentityData, UnlinkMemberIdentityErrors, UnlinkMemberIdentityResponses, UpdateAccessGroupData, UpdateAccessGroupErrors, UpdateAccessGroupResponses, UpdateIdentitySourceData, UpdateIdentitySourceErrors, UpdateIdentitySourceResponses, UpdateManagedModelData, UpdateManagedModelErrors, UpdateManagedModelResponses, UpdateMcpGrantData, UpdateMcpGrantErrors, UpdateMcpGrantResponses, UpdateMcpServerData, UpdateMcpServerErrors, UpdateMcpServerResponses, UpdateMemberStatusData, UpdateMemberStatusErrors, UpdateMemberStatusResponses, UpdateModelGrantData, UpdateModelGrantErrors, UpdateModelGrantResponses, UpdateModelProviderData, UpdateModelProviderErrors, UpdateModelProviderResponses, UpdateModelSetData, UpdateModelSetErrors, UpdateModelSetResponses, UpdateQuotaPolicyData, UpdateQuotaPolicyErrors, UpdateQuotaPolicyResponses, UploadPluginVersionData, UploadPluginVersionErrors, UploadPluginVersionResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -1172,4 +1172,154 @@ export const listAuditEvents = <ThrowOnError extends boolean = false>(options?: 
         }],
     url: '/enterprise/admin/v1/audit-events',
     ...options
+});
+
+export const listMcpServers = <ThrowOnError extends boolean = false>(options?: Options<ListMcpServersData, ThrowOnError>): RequestResult<ListMcpServersResponses, ListMcpServersErrors, ThrowOnError> => (options?.client ?? client).get<ListMcpServersResponses, ListMcpServersErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'enterprise-admin',
+            type: 'apiKey'
+        }],
+    url: '/enterprise/admin/v1/mcp-servers',
+    ...options
+});
+
+export const createMcpServer = <ThrowOnError extends boolean = false>(options: Options<CreateMcpServerData, ThrowOnError>): RequestResult<CreateMcpServerResponses, CreateMcpServerErrors, ThrowOnError> => (options.client ?? client).post<CreateMcpServerResponses, CreateMcpServerErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'enterprise-admin',
+            type: 'apiKey'
+        }],
+    url: '/enterprise/admin/v1/mcp-servers',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const getMcpServer = <ThrowOnError extends boolean = false>(options: Options<GetMcpServerData, ThrowOnError>): RequestResult<GetMcpServerResponses, GetMcpServerErrors, ThrowOnError> => (options.client ?? client).get<GetMcpServerResponses, GetMcpServerErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'enterprise-admin',
+            type: 'apiKey'
+        }],
+    url: '/enterprise/admin/v1/mcp-servers/{id}',
+    ...options
+});
+
+export const updateMcpServer = <ThrowOnError extends boolean = false>(options: Options<UpdateMcpServerData, ThrowOnError>): RequestResult<UpdateMcpServerResponses, UpdateMcpServerErrors, ThrowOnError> => (options.client ?? client).put<UpdateMcpServerResponses, UpdateMcpServerErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'enterprise-admin',
+            type: 'apiKey'
+        }],
+    url: '/enterprise/admin/v1/mcp-servers/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const enableMcpServer = <ThrowOnError extends boolean = false>(options: Options<EnableMcpServerData, ThrowOnError>): RequestResult<EnableMcpServerResponses, EnableMcpServerErrors, ThrowOnError> => (options.client ?? client).post<EnableMcpServerResponses, EnableMcpServerErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'enterprise-admin',
+            type: 'apiKey'
+        }],
+    url: '/enterprise/admin/v1/mcp-servers/{id}/actions/enable',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const disableMcpServer = <ThrowOnError extends boolean = false>(options: Options<DisableMcpServerData, ThrowOnError>): RequestResult<DisableMcpServerResponses, DisableMcpServerErrors, ThrowOnError> => (options.client ?? client).post<DisableMcpServerResponses, DisableMcpServerErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'enterprise-admin',
+            type: 'apiKey'
+        }],
+    url: '/enterprise/admin/v1/mcp-servers/{id}/actions/disable',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const listMcpCatalog = <ThrowOnError extends boolean = false>(options: Options<ListMcpCatalogData, ThrowOnError>): RequestResult<ListMcpCatalogResponses, ListMcpCatalogErrors, ThrowOnError> => (options.client ?? client).get<ListMcpCatalogResponses, ListMcpCatalogErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'enterprise-admin',
+            type: 'apiKey'
+        }],
+    url: '/enterprise/admin/v1/mcp-servers/{id}/catalogs',
+    ...options
+});
+
+export const listMcpGrants = <ThrowOnError extends boolean = false>(options?: Options<ListMcpGrantsData, ThrowOnError>): RequestResult<ListMcpGrantsResponses, ListMcpGrantsErrors, ThrowOnError> => (options?.client ?? client).get<ListMcpGrantsResponses, ListMcpGrantsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'enterprise-admin',
+            type: 'apiKey'
+        }],
+    url: '/enterprise/admin/v1/mcp-grants',
+    ...options
+});
+
+export const createMcpGrants = <ThrowOnError extends boolean = false>(options: Options<CreateMcpGrantsData, ThrowOnError>): RequestResult<CreateMcpGrantsResponses, CreateMcpGrantsErrors, ThrowOnError> => (options.client ?? client).post<CreateMcpGrantsResponses, CreateMcpGrantsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'enterprise-admin',
+            type: 'apiKey'
+        }],
+    url: '/enterprise/admin/v1/mcp-grants',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const deleteMcpGrant = <ThrowOnError extends boolean = false>(options: Options<DeleteMcpGrantData, ThrowOnError>): RequestResult<DeleteMcpGrantResponses, DeleteMcpGrantErrors, ThrowOnError> => (options.client ?? client).delete<DeleteMcpGrantResponses, DeleteMcpGrantErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'enterprise-admin',
+            type: 'apiKey'
+        }],
+    url: '/enterprise/admin/v1/mcp-grants/{id}',
+    ...options
+});
+
+export const updateMcpGrant = <ThrowOnError extends boolean = false>(options: Options<UpdateMcpGrantData, ThrowOnError>): RequestResult<UpdateMcpGrantResponses, UpdateMcpGrantErrors, ThrowOnError> => (options.client ?? client).put<UpdateMcpGrantResponses, UpdateMcpGrantErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }, {
+            in: 'cookie',
+            name: 'enterprise-admin',
+            type: 'apiKey'
+        }],
+    url: '/enterprise/admin/v1/mcp-grants/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const getMcpAssignments = <ThrowOnError extends boolean = false>(options?: Options<GetMcpAssignmentsData, ThrowOnError>): RequestResult<GetMcpAssignmentsResponses, GetMcpAssignmentsErrors, ThrowOnError> => (options?.client ?? client).get<GetMcpAssignmentsResponses, GetMcpAssignmentsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/enterprise/api/v1/mcp/assignments',
+    ...options
+});
+
+export const reportMcpCatalog = <ThrowOnError extends boolean = false>(options: Options<ReportMcpCatalogData, ThrowOnError>): RequestResult<ReportMcpCatalogResponses, ReportMcpCatalogErrors, ThrowOnError> => (options.client ?? client).put<ReportMcpCatalogResponses, ReportMcpCatalogErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/enterprise/api/v1/mcp/servers/{id}/catalog',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
 });

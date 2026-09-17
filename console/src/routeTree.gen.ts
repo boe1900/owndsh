@@ -17,6 +17,7 @@ import { Route as ConsoleIndexRouteImport } from './routes/_console.index'
 import { Route as ConsoleAccessRouteImport } from './routes/_console.access'
 import { Route as ConsoleAccountRouteImport } from './routes/_console.account'
 import { Route as ConsoleActivityRouteImport } from './routes/_console.activity'
+import { Route as ConsoleMcpRouteImport } from './routes/_console.mcp'
 import { Route as ConsoleMembersRouteImport } from './routes/_console.members'
 import { Route as ConsolePluginsRouteImport } from './routes/_console.plugins'
 import { Route as ExamplesIndexRouteImport } from './routes/examples.index'
@@ -64,6 +65,11 @@ const ConsoleActivityRoute = ConsoleActivityRouteImport.update({
   path: '/activity',
   getParentRoute: () => ConsoleRoute,
 } as any)
+const ConsoleMcpRoute = ConsoleMcpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => ConsoleRoute,
+} as any)
 const ConsoleMembersRoute = ConsoleMembersRouteImport.update({
   id: '/members',
   path: '/members',
@@ -108,6 +114,7 @@ export interface FileRoutesByFullPath {
   '/access': typeof ConsoleAccessRoute
   '/account': typeof ConsoleAccountRouteWithChildren
   '/activity': typeof ConsoleActivityRoute
+  '/mcp': typeof ConsoleMcpRoute
   '/members': typeof ConsoleMembersRoute
   '/plugins': typeof ConsolePluginsRoute
   '/examples/harness': typeof ExamplesHarnessRoute
@@ -121,6 +128,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/access': typeof ConsoleAccessRoute
   '/activity': typeof ConsoleActivityRoute
+  '/mcp': typeof ConsoleMcpRoute
   '/members': typeof ConsoleMembersRoute
   '/plugins': typeof ConsolePluginsRoute
   '/examples/harness': typeof ExamplesHarnessRoute
@@ -139,6 +147,7 @@ export interface FileRoutesById {
   '/_console/access': typeof ConsoleAccessRoute
   '/_console/account': typeof ConsoleAccountRouteWithChildren
   '/_console/activity': typeof ConsoleActivityRoute
+  '/_console/mcp': typeof ConsoleMcpRoute
   '/_console/members': typeof ConsoleMembersRoute
   '/_console/plugins': typeof ConsolePluginsRoute
   '/examples/harness': typeof ExamplesHarnessRoute
@@ -158,6 +167,7 @@ export interface FileRouteTypes {
     | '/access'
     | '/account'
     | '/activity'
+    | '/mcp'
     | '/members'
     | '/plugins'
     | '/examples/harness'
@@ -171,6 +181,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/access'
     | '/activity'
+    | '/mcp'
     | '/members'
     | '/plugins'
     | '/examples/harness'
@@ -188,6 +199,7 @@ export interface FileRouteTypes {
     | '/_console/access'
     | '/_console/account'
     | '/_console/activity'
+    | '/_console/mcp'
     | '/_console/members'
     | '/_console/plugins'
     | '/examples/harness'
@@ -264,6 +276,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConsoleActivityRouteImport
       parentRoute: typeof ConsoleRoute
     }
+    '/_console/mcp': {
+      id: '/_console/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof ConsoleMcpRouteImport
+      parentRoute: typeof ConsoleRoute
+    }
     '/_console/members': {
       id: '/_console/members'
       path: '/members'
@@ -334,6 +353,7 @@ interface ConsoleRouteChildren {
   ConsoleAccessRoute: typeof ConsoleAccessRoute
   ConsoleAccountRoute: typeof ConsoleAccountRouteWithChildren
   ConsoleActivityRoute: typeof ConsoleActivityRoute
+  ConsoleMcpRoute: typeof ConsoleMcpRoute
   ConsoleMembersRoute: typeof ConsoleMembersRoute
   ConsolePluginsRoute: typeof ConsolePluginsRoute
   ConsoleIndexRoute: typeof ConsoleIndexRoute
@@ -343,6 +363,7 @@ const ConsoleRouteChildren: ConsoleRouteChildren = {
   ConsoleAccessRoute: ConsoleAccessRoute,
   ConsoleAccountRoute: ConsoleAccountRouteWithChildren,
   ConsoleActivityRoute: ConsoleActivityRoute,
+  ConsoleMcpRoute: ConsoleMcpRoute,
   ConsoleMembersRoute: ConsoleMembersRoute,
   ConsolePluginsRoute: ConsolePluginsRoute,
   ConsoleIndexRoute: ConsoleIndexRoute,

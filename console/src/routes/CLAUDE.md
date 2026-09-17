@@ -16,11 +16,12 @@ _console.index.tsx: 根路径模型路由，薄转发到 features/models 的 Pro
 _console.access.tsx: 模型授权、Token 配额和速率限制真实产品页的薄路由入口。
 _console.activity.tsx: 活动记录薄路由入口，转发到 features/activity 的权限分段与观测事实。
 _console.members.tsx: 产品成员、扁平用户组与身份接入聚合目录的薄路由入口。
-_console.plugins.tsx: 插件版本、分配事实和设备状态真实产品页的薄路由入口。
+_console.plugins.tsx: `/plugins` 插件版本工作台的薄路由入口。
+_console.mcp.tsx: `/mcp` 独立 MCP 服务与访问授权管理路由。
 examples.tsx: `/examples` 的独立父出口，不挂载企业产品壳。
 examples.index.tsx: 运行全部上游组件 demo 并展示同源源码。
 examples.harness.tsx: 运行完整 Ice Cream Harness 交互基线。
 -models-index-page.tsx: 模型根路径到真实 Provider/受管模型管理工作台的可测试适配层，前缀阻止路由生成器误收非路由源码。
--index.test.tsx: 在仅有 getRandomValues 的 HTTP 环境验证五角色矩阵、HttpOnly 会话交换、主题、用户中心、成员/用户组/LDAP、模型/授权/配额及插件写入，锁定无 Authorization/Token 持久化、UUID 幂等键、CAS revision、插件可见范围自主安装与 Server 事实渲染。
+-index.test.tsx: 在仅有 getRandomValues 的 HTTP 环境验证角色矩阵、会话、成员/组/LDAP、模型/授权/配额及插件 read/write 分权后的写入；锁定 UUID、CAS、自主安装与 Server 事实渲染。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

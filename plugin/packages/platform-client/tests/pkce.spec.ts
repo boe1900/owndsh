@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 platform-client PKCE 公开入口与 Node fetch/crypto 测试运行时
- * [OUTPUT]: 验证 S256、127.0.0.1 callback、state、取消和超时的自动化证据
+ * [OUTPUT]: 验证 S256、127.0.0.1 callback、state、启动前/期间取消和超时的自动化证据
  * [POS]: platform-client 登录事务回归测试，锁定系统浏览器回环协议的安全边界
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -48,5 +48,15 @@ describe('PKCE S256', () => {
 
     const timedOut = await startLoopbackCallback({ expectedState: 'state', timeoutMs: 10 })
     await expect(timedOut.result).rejects.toMatchObject({ code: 'ENT_AUTH_TIMEOUT' })
+  })
+
+  it.each(['before', 'during'])('handles cancellation %s listener startup without leaking a rejection', async when => {
+    const abort = new AbortController()
+    if (when === 'before') abort.abort()
+    const starting = startLoopbackCallback({ expectedState: 'state', timeoutMs: 1_000, signal: abort.signal })
+    if (when === 'during') abort.abort()
+    const callback = await starting
+    await expect(callback.result).rejects.toMatchObject({ code: 'ENT_AUTH_CANCELLED' })
+    await expect(fetch(callback.redirectUri)).rejects.toThrow()
   })
 })

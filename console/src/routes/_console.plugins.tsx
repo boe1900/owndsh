@@ -6,8 +6,8 @@
  */
 
 import { createFileRoute } from '@tanstack/react-router';
-import { PluginManagementPage } from '@/features/plugins/plugin-management-page';
+import { PluginsWorkspacePage } from '@/features/plugins/plugins-workspace-page';
 
 export const Route = createFileRoute('/_console/plugins')({
-  component: PluginManagementPage
+  component: PluginsWorkspacePage
 });

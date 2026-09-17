@@ -169,6 +169,24 @@ paths:
     $ref: './paths/session.yaml#/AdminSessionItem'
   /enterprise/admin/v1/audit-events:
     $ref: './paths/audit.yaml#/AdminAuditCollection'
+  /enterprise/admin/v1/mcp-servers:
+    $ref: './paths/mcp.yaml#/McpServerCollection'
+  /enterprise/admin/v1/mcp-servers/{id}:
+    $ref: './paths/mcp.yaml#/McpServerItem'
+  /enterprise/admin/v1/mcp-servers/{id}/actions/enable:
+    $ref: './paths/mcp.yaml#/McpServerEnable'
+  /enterprise/admin/v1/mcp-servers/{id}/actions/disable:
+    $ref: './paths/mcp.yaml#/McpServerDisable'
+  /enterprise/admin/v1/mcp-servers/{id}/catalogs:
+    $ref: './paths/mcp.yaml#/McpCatalogCollection'
+  /enterprise/admin/v1/mcp-grants:
+    $ref: './paths/mcp.yaml#/McpGrantCollection'
+  /enterprise/admin/v1/mcp-grants/{id}:
+    $ref: './paths/mcp.yaml#/McpGrantItem'
+  /enterprise/api/v1/mcp/assignments:
+    $ref: './paths/mcp.yaml#/McpRuntimeAssignments'
+  /enterprise/api/v1/mcp/servers/{id}/catalog:
+    $ref: './paths/mcp.yaml#/McpRuntimeCatalog'
 
 x-enterprise-error-statuses:
   '400':
@@ -202,10 +220,15 @@ x-enterprise-error-statuses:
     - ENT_SESSION_SOURCE_DEVICE_CONFLICT
     - ENT_IDENTITY_ALREADY_LINKED
     - ENT_DEVICE_ALREADY_BOUND
+    - ENT_MCP_CONFLICT
+    - ENT_MCP_CATALOG_STALE
   '413':
     - ENT_REQUEST_TOO_LARGE
     - ENT_PLUGIN_ARCHIVE_TOO_LARGE
     - ENT_SESSION_BATCH_TOO_LARGE
+  '422':
+    - ENT_MCP_POLICY_INVALID
+    - ENT_MCP_UNSUPPORTED
   '429':
     - ENT_QUOTA_FIVE_HOURS_EXCEEDED
     - ENT_QUOTA_DAILY_EXCEEDED
@@ -818,6 +841,34 @@ components:
     PluginAssignmentBatchResponse: {$ref: './components/plugin.yaml#/PluginAssignmentBatchResponse'}
     RuntimePluginAssignments: {$ref: './components/plugin.yaml#/RuntimePluginAssignments'}
     RuntimePluginAssignmentsResponse: {$ref: './components/plugin.yaml#/RuntimePluginAssignmentsResponse'}
+    McpServerId: {$ref: './components/mcp.yaml#/McpServerId'}
+    McpServerStatus: {$ref: './components/mcp.yaml#/McpServerStatus'}
+    McpTransport: {$ref: './components/mcp.yaml#/McpTransport'}
+    McpPresentation: {$ref: './components/mcp.yaml#/McpPresentation'}
+    McpAuth: {$ref: './components/mcp.yaml#/McpAuth'}
+    McpReconnectPolicy: {$ref: './components/mcp.yaml#/McpReconnectPolicy'}
+    McpServerCreateRequest: {$ref: './components/mcp.yaml#/McpServerCreateRequest'}
+    McpServerUpdateRequest: {$ref: './components/mcp.yaml#/McpServerUpdateRequest'}
+    McpServer: {$ref: './components/mcp.yaml#/McpServer'}
+    McpServerResponse: {$ref: './components/mcp.yaml#/McpServerResponse'}
+    McpServerPageData: {$ref: './components/mcp.yaml#/McpServerPageData'}
+    McpServerListResponse: {$ref: './components/mcp.yaml#/McpServerListResponse'}
+    McpCandidateTool: {$ref: './components/mcp.yaml#/McpCandidateTool'}
+    McpCatalogPageData: {$ref: './components/mcp.yaml#/McpCatalogPageData'}
+    McpCatalogResponse: {$ref: './components/mcp.yaml#/McpCatalogResponse'}
+    McpGrant: {$ref: './components/mcp.yaml#/McpGrant'}
+    McpGrantCreate: {$ref: './components/mcp.yaml#/McpGrantCreate'}
+    McpGrantBatchRequest: {$ref: './components/mcp.yaml#/McpGrantBatchRequest'}
+    McpGrantUpdateRequest: {$ref: './components/mcp.yaml#/McpGrantUpdateRequest'}
+    McpGrantResponse: {$ref: './components/mcp.yaml#/McpGrantResponse'}
+    McpGrantPageData: {$ref: './components/mcp.yaml#/McpGrantPageData'}
+    McpGrantListResponse: {$ref: './components/mcp.yaml#/McpGrantListResponse'}
+    McpGrantBatchResponse: {$ref: './components/mcp.yaml#/McpGrantBatchResponse'}
+    McpAssignment: {$ref: './components/mcp.yaml#/McpAssignment'}
+    McpSnapshot: {$ref: './components/mcp.yaml#/McpSnapshot'}
+    McpSnapshotResponse: {$ref: './components/mcp.yaml#/McpSnapshotResponse'}
+    McpCatalogUpload: {$ref: './components/mcp.yaml#/McpCatalogUpload'}
+    McpCatalogUploadResponse: {$ref: './components/mcp.yaml#/McpCatalogUploadResponse'}
     PluginInventoryRequest: {$ref: './components/plugin.yaml#/PluginInventoryRequest'}
     PluginInventoryResponse: {$ref: './components/plugin.yaml#/PluginInventoryResponse'}
     AdminPluginInventoryListResponse: {$ref: './components/plugin.yaml#/AdminPluginInventoryListResponse'}
@@ -991,6 +1042,10 @@ components:
         - ENT_SESSION_SOURCE_DEVICE_CONFLICT
         - ENT_IDENTITY_ALREADY_LINKED
         - ENT_DEVICE_ALREADY_BOUND
+        - ENT_MCP_CONFLICT
+        - ENT_MCP_CATALOG_STALE
+        - ENT_MCP_POLICY_INVALID
+        - ENT_MCP_UNSUPPORTED
         - ENT_REQUEST_TOO_LARGE
         - ENT_PLUGIN_ARCHIVE_TOO_LARGE
         - ENT_SESSION_BATCH_TOO_LARGE

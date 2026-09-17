@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖事务、产品用户组/成员 JDBC 事实、bootstrap revision、审计与 ID generator。
- * [OUTPUT]: 对外提供用户组 list/get/create/update/delete、手工成员整体替换和 revision CAS。
+ * [OUTPUT]: 提供用户组 CRUD、手工成员替换与 revision CAS；模型或 MCP 授权引用阻止删除。
  * [POS]: auth/application 的扁平批量授权主体用例，身份源成员关系由登录同步单独维护。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -142,8 +142,10 @@ public final class AccessGroupService {
             AccessGroup current = lock(context.tenantId(), id);
             requireRevision(current, expectedRevision);
             Boolean referenced = jdbc.queryForObject(
-                "select exists(select 1 from ent_model_grant where tenant_id = ? and subject_type = 'ACCESS_GROUP' and subject_id = ?)",
-                Boolean.class, context.tenantId(), id
+                """
+                select exists(select 1 from ent_model_grant where tenant_id = ? and subject_type = 'ACCESS_GROUP' and subject_id = ?)
+                    or exists(select 1 from ent_mcp_grant where tenant_id = ? and subject_type = 'GROUP' and subject_id = ?)
+                """, Boolean.class, context.tenantId(), id, context.tenantId(), id
             );
             if (Boolean.TRUE.equals(referenced)) throw new IllegalArgumentException("仍被授权引用的用户组不能删除");
             if (jdbc.update(

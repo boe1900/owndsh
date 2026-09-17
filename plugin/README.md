@@ -18,9 +18,9 @@ with in-memory Access Token ownership, official Host `GrantRecord` persistence f
 installation persistence, enroll/bootstrap, restart recovery, and request-time Token renewal and same-origin local JSON (no resident enterprise SSE). The workspace uses the locked Harness
 release's public plugin surface and does not generate or mount a custom Typert
 Remote. T07 adds the employee account experience through the official
-`settings.section`, `sidebar.footer.action`, and `shell.overlay` slots. The
+`settings.section` and `shell.overlay` slots. Account information and sign-out live only in OwnDsh Settings. The
 overlay blocks the official UI until a Server address is configured and the
-enterprise session is ready; all three surfaces share one browser store over
+enterprise session is ready; both surfaces share one browser store over
 the T06 local control plane. The Server address is persisted by the official
 Harness settings service, so a normal installation requires no profile edit.
 T11 directly mounts the official rc.2 `@deepseek-ai/dsh-llm-pi-ai` adapter with

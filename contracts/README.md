@@ -38,6 +38,10 @@ rolling-hash proofs, owner metadata pages, separately authorized admin content,
 and deletion tombstones. Admin metadata schemas deliberately omit title, header,
 payload, and ciphertext; only the content operation can project decrypted bytes.
 
+P2-MCP-01 adds MCP server configuration, none/API Key/OAuth public declarations,
+runtime tool catalog, member/group grants, and runtime assignments
+operations. User API keys and OAuth tokens never enter this protocol.
+
 ```sh
 cd plugin
 pnpm --filter @owndsh/contracts generate

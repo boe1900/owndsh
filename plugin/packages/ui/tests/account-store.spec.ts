@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 EnterpriseAccountStore、local-api 端口和可控请求与时钟
- * [OUTPUT]: 验证地址保存成败、退出失败后的状态收敛、跨服务/账号迟到响应隔离与订阅/查询生命周期
- * [POS]: dsh-ui 账号状态控制器测试，覆盖三个官方 slot 共享的行为真源
+ * [OUTPUT]: 验证手动刷新忙碌/成功/失败与并发阻止、地址保存成败、退出失败后的状态收敛、跨服务/账号迟到响应隔离、MCP 授权与订阅/查询生命周期
+ * [POS]: dsh-ui 账号状态控制器测试，覆盖设置与门禁 slot 共享的行为真源
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -17,6 +17,104 @@ const base = {
 }
 
 describe('EnterpriseAccountStore', () => {
+  it('serializes manual refresh and distinguishes success, request failure, and Host error status', async () => {
+    const ready: EnterpriseLocalStatus = { ...base, state: 'READY' }
+    let finish!: (status: EnterpriseLocalStatus) => void
+    const api = {
+      status: vi.fn(async () => ready), bootstrap: vi.fn(), plugins: vi.fn(), mcpStatus: vi.fn(),
+      refresh: vi.fn(() => new Promise<EnterpriseLocalStatus>(resolve => { finish = resolve })),
+    }
+    const store = new EnterpriseAccountStore(api as unknown as EnterpriseLocalApi)
+    await store.refresh()
+    const pending = store.refreshConfiguration()
+    expect(store.getSnapshot().busy).toBe('refresh')
+    await expect(store.refreshConfiguration()).resolves.toBe(false)
+    expect(api.refresh).toHaveBeenCalledOnce()
+    finish(ready)
+    await expect(pending).resolves.toBe(true)
+    expect(store.getSnapshot().busy).toBeUndefined()
+    api.refresh.mockRejectedValueOnce(new EnterpriseLocalApiError('ENT_PLATFORM_UNAVAILABLE', 503))
+    await expect(store.refreshConfiguration()).resolves.toBe(false)
+    expect(store.getSnapshot()).toMatchObject({ errorCode: 'ENT_PLATFORM_UNAVAILABLE' })
+    expect(store.getSnapshot().busy).toBeUndefined()
+    api.refresh.mockResolvedValueOnce({ ...ready, errorCode: 'ENT_PLATFORM_UNAVAILABLE' })
+    await expect(store.refreshConfiguration()).resolves.toBe(false)
+    api.refresh.mockResolvedValueOnce(ready)
+    await expect(store.refreshConfiguration()).resolves.toBe(true)
+    expect(store.getSnapshot().errorCode).toBeUndefined()
+  })
+
+  it.each(['SUCCEEDED', 'FAILED', 'CANCELLED', 'cancel', 'timeout', 'account-change', 'unmount'] as const)(
+    'bounds MCP OAuth polling and settles %s without blocking the enterprise account', async outcome => {
+      vi.useFakeTimers()
+      let status: EnterpriseLocalStatus = { ...base, state: 'READY' }
+      let progress = 'PENDING'
+      const mcpStatus = { assignments: [{ serverName: 'docs', displayName: 'Docs', authType: 'oauth', presentation: 'search', configured: false, connected: false, errorCode: 'MCP_AUTH_REQUIRED' }] }
+      const api = {
+        status: vi.fn(async () => status), bootstrap: vi.fn(), plugins: vi.fn(),
+        mcpStatus: vi.fn(async () => mcpStatus),
+        startMcpOAuth: vi.fn(async () => ({ flowId: 'flow-1' })),
+        mcpOAuthStatus: vi.fn(async () => ({ flowId: 'flow-1', serverName: 'docs', status: progress })),
+        cancelMcpOAuth: vi.fn(async () => ({ cancelled: true })),
+      }
+      const store = new EnterpriseAccountStore(api as unknown as EnterpriseLocalApi)
+      const unsubscribe = store.subscribe(() => {})
+      try {
+        await vi.advanceTimersByTimeAsync(0)
+        await store.startMcpOAuth('docs')
+        await store.startMcpOAuth('docs')
+        expect(api.startMcpOAuth).toHaveBeenCalledOnce()
+        expect(store.getSnapshot().mcpOAuth).toEqual({ serverName: 'docs', flowId: 'flow-1' })
+        if (outcome === 'cancel') await store.cancelMcpOAuth('flow-1')
+        else if (outcome === 'account-change') {
+          status = { ...status, platformUrl: 'https://new.example' }
+          await store.refresh()
+        } else if (outcome === 'unmount') unsubscribe()
+        else if (outcome === 'timeout') await vi.advanceTimersByTimeAsync(331_000)
+        else {
+          progress = outcome
+          if (outcome === 'SUCCEEDED') api.mcpStatus.mockResolvedValue({ assignments: [{ ...mcpStatus.assignments[0]!, configured: true, connected: true, errorCode: undefined }] } as any)
+          await vi.advanceTimersByTimeAsync(1_000)
+        }
+        expect(store.getSnapshot().mcpOAuth).toBeUndefined()
+        expect(store.getSnapshot().status?.state).toBe('READY')
+        expect(store.getSnapshot().mcpErrorCode).toBe(outcome === 'FAILED' ? 'MCP_OAUTH_FAILED' : outcome === 'timeout' ? 'MCP_OAUTH_TIMEOUT' : undefined)
+        if (outcome === 'SUCCEEDED') expect(store.getSnapshot().mcpStatus?.assignments[0]?.connected).toBe(true)
+        if (outcome === 'cancel') expect(api.cancelMcpOAuth).toHaveBeenCalledWith('flow-1', expect.any(AbortSignal))
+        const count = api.mcpOAuthStatus.mock.calls.length
+        await vi.advanceTimersByTimeAsync(600_000)
+        expect(api.mcpOAuthStatus).toHaveBeenCalledTimes(count)
+      } finally { unsubscribe(); vi.useRealTimers() }
+    },
+  )
+
+  it.each(['start', 'poll', 'status'] as const)('ignores late MCP %s results after an account switch', async pending => {
+    let status: EnterpriseLocalStatus = { ...base, state: 'READY' }
+    let resolve!: (value: any) => void
+    let oldSignal!: AbortSignal
+    const delayed = (signal: AbortSignal) => { oldSignal = signal; return new Promise<any>(done => { resolve = done }) }
+    const api = {
+      status: vi.fn(async () => status), bootstrap: vi.fn(), plugins: vi.fn(),
+      mcpStatus: vi.fn(async () => ({ assignments: [] })),
+      startMcpOAuth: vi.fn(async (_name: string, signal: AbortSignal) => pending === 'start' ? delayed(signal) : { flowId: 'old-flow' }),
+      mcpOAuthStatus: vi.fn(async (_id: string, signal: AbortSignal) => delayed(signal)),
+    }
+    const store = new EnterpriseAccountStore(api as unknown as EnterpriseLocalApi)
+    await store.refresh()
+    if (pending === 'status') api.mcpStatus.mockImplementationOnce(delayed as any)
+    const action = pending === 'status' ? store.refreshMcp() : store.startMcpOAuth('docs')
+    await vi.waitFor(() => expect(resolve).toBeDefined())
+    status = { ...status, platformUrl: 'https://new.example' }
+    await store.refresh()
+    expect(oldSignal.aborted).toBe(true)
+    resolve(pending === 'status' ? { assignments: [{ serverName: 'old-server' }] } : { flowId: 'old-flow', serverName: 'docs', status: 'SUCCEEDED' })
+    await action
+    expect(store.getSnapshot().mcpOAuth).toBeUndefined()
+    expect(store.getSnapshot().mcpStatus).toEqual({ assignments: [] })
+    expect(store.getSnapshot().mcpErrorCode).toBeUndefined()
+    expect(api.mcpStatus).toHaveBeenCalledTimes(pending === 'status' ? 3 : 2)
+  })
+
   it('reports failed and busy saves as unsuccessful, and refreshes local state after a failed logout', async () => {
     let status: EnterpriseLocalStatus = { ...base, state: 'READY' }
     const api: EnterpriseLocalApi = {

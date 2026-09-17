@@ -1,0 +1,292 @@
+# [INPUT]: 依赖根协议的 ID、revision、cursor、成员主体与统一 envelope 约定
+# [OUTPUT]: 提供 MCP 服务、认证声明、工具目录、授权、runtime snapshot 与客户端事件 schemas
+# [POS]: contracts/components 的 MCP 纵向协议真源；不承载用户 API Key/OAuth token
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+McpServerId:
+  type: string
+  pattern: '^[1-9][0-9]{0,18}$'
+McpServerStatus:
+  type: string
+  enum: [ACTIVE, DISABLED]
+McpTransport:
+  type: string
+  const: streamable-http
+McpPresentation:
+  type: string
+  enum: [search, full]
+McpHeaderMap:
+  type: object
+  additionalProperties:
+    type: string
+    maxLength: 1024
+  maxProperties: 16
+McpAuth:
+  oneOf:
+    - type: object
+      additionalProperties: false
+      required: [type]
+      properties:
+        type: {type: string, const: none}
+    - type: object
+      additionalProperties: false
+      required: [type, headerName]
+      properties:
+        type: {type: string, const: api-key}
+        headerName:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: '^[!#$%&''*+.^_`|~0-9A-Za-z-]+$'
+    - type: object
+      additionalProperties: false
+      required: [type, issuer, resource, clientId, scopes]
+      properties:
+        type: {type: string, const: oauth}
+        issuer: {type: string, format: uri, maxLength: 2048}
+        resource: {type: string, format: uri, maxLength: 2048}
+        clientId: {type: string, minLength: 1, maxLength: 255}
+        dynamicRegistration: {type: boolean, const: false}
+        scopes:
+          type: array
+          maxItems: 32
+          uniqueItems: true
+          items: {type: string, minLength: 1, maxLength: 128}
+        authorizationEndpoint: {type: string, format: uri, maxLength: 2048}
+        tokenEndpoint: {type: string, format: uri, maxLength: 2048}
+    - type: object
+      additionalProperties: false
+      required: [type, issuer, resource, scopes, dynamicRegistration]
+      properties:
+        type: {type: string, const: oauth}
+        issuer: {type: string, format: uri, maxLength: 2048}
+        resource: {type: string, format: uri, maxLength: 2048}
+        dynamicRegistration: {type: boolean, const: true}
+        scopes:
+          type: array
+          maxItems: 32
+          uniqueItems: true
+          items: {type: string, minLength: 1, maxLength: 128}
+        authorizationEndpoint: {type: string, format: uri, maxLength: 2048}
+        tokenEndpoint: {type: string, format: uri, maxLength: 2048}
+McpReconnectPolicy:
+  type: object
+  additionalProperties: false
+  required: [enabled, initialDelayMs, maxDelayMs, maxAttempts]
+  properties:
+    enabled: {type: boolean}
+    initialDelayMs: {type: integer, minimum: 100, maximum: 30000}
+    maxDelayMs: {type: integer, minimum: 100, maximum: 300000}
+    maxAttempts: {type: integer, minimum: 1, maximum: 20}
+McpServerCreateRequest:
+  type: object
+  additionalProperties: false
+  required: [serverName, displayName, description, transport, url, allowInsecureTransport, headers, auth, toolCallTimeoutMs, reconnect, presentation]
+  properties:
+    serverName: {type: string, minLength: 1, maxLength: 32, pattern: '^[a-z][a-z0-9_-]*$'}
+    displayName: {type: string, minLength: 1, maxLength: 120}
+    description: {type: string, maxLength: 1000}
+    transport: {$ref: '#/McpTransport'}
+    url: {type: string, format: uri, maxLength: 2048}
+    allowInsecureTransport: {type: boolean}
+    headers: {$ref: '#/McpHeaderMap'}
+    auth: {$ref: '#/McpAuth'}
+    toolCallTimeoutMs: {type: integer, minimum: 1000, maximum: 300000}
+    reconnect: {$ref: '#/McpReconnectPolicy'}
+    presentation: {$ref: '#/McpPresentation'}
+McpServerUpdateRequest:
+  allOf: [{$ref: '#/McpServerCreateRequest'}]
+McpServer:
+  type: object
+  additionalProperties: false
+  required: [id, revision, serverName, displayName, description, transport, url, allowInsecureTransport, headers, auth, toolCallTimeoutMs, reconnect, presentation, status, createdAt, updatedAt]
+  properties:
+    id: {$ref: '#/McpServerId'}
+    revision: {$ref: '../enterprise-openapi.yaml#/components/schemas/Revision'}
+    serverName: {type: string, minLength: 1, maxLength: 32, pattern: '^[a-z][a-z0-9_-]*$'}
+    displayName: {type: string, minLength: 1, maxLength: 120}
+    description: {type: string, maxLength: 1000}
+    transport: {$ref: '#/McpTransport'}
+    url: {type: string, format: uri, maxLength: 2048}
+    allowInsecureTransport: {type: boolean}
+    headers: {$ref: '#/McpHeaderMap'}
+    auth: {$ref: '#/McpAuth'}
+    toolCallTimeoutMs: {type: integer, minimum: 1000, maximum: 300000}
+    reconnect: {$ref: '#/McpReconnectPolicy'}
+    presentation: {$ref: '#/McpPresentation'}
+    status: {$ref: '#/McpServerStatus'}
+    createdAt: {type: string, format: date-time}
+    updatedAt: {type: string, format: date-time}
+McpServerPageData:
+  type: object
+  additionalProperties: false
+  required: [items, page]
+  properties:
+    items: {type: array, maxItems: 200, items: {$ref: '#/McpServer'}}
+    page: {$ref: '../enterprise-openapi.yaml#/components/schemas/CursorPage'}
+McpServerResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/McpServer'}
+    requestId: {$ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'}
+McpServerListResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/McpServerPageData'}
+    requestId: {$ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'}
+McpCandidateTool:
+  type: object
+  additionalProperties: false
+  required: [publicName, description, inputSchema, schemaDigest]
+  properties:
+    publicName: {type: string, minLength: 1, maxLength: 64}
+    description: {type: string, maxLength: 4000}
+    inputSchema: {type: object, maxProperties: 128}
+    outputSchema: {type: object, maxProperties: 128}
+    schemaDigest: {type: string, pattern: '^[0-9a-f]{64}$'}
+McpCatalogPageData:
+  type: object
+  additionalProperties: false
+  required: [catalogId, catalogDigest, serverRevision, tools, page]
+  properties:
+    catalogId: {type: string, minLength: 1, maxLength: 128}
+    catalogDigest: {type: string, pattern: '^[0-9a-f]{64}$'}
+    serverRevision: {$ref: '../enterprise-openapi.yaml#/components/schemas/Revision'}
+    tools: {type: array, maxItems: 512, items: {$ref: '#/McpCandidateTool'}}
+    page: {$ref: '../enterprise-openapi.yaml#/components/schemas/CursorPage'}
+McpCatalogResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/McpCatalogPageData'}
+    requestId: {$ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'}
+McpGrantSubjectType:
+  type: string
+  enum: [ALL, USER, GROUP]
+McpGrantStatus:
+  type: string
+  enum: [ACTIVE, DISABLED]
+McpGrant:
+  type: object
+  additionalProperties: false
+  required: [id, revision, serverId, subjectType, subjectId, status, createdAt, updatedAt]
+  properties:
+    id: {type: string, pattern: '^[1-9][0-9]{0,18}$'}
+    revision: {$ref: '../enterprise-openapi.yaml#/components/schemas/Revision'}
+    serverId: {$ref: '#/McpServerId'}
+    subjectType: {$ref: '#/McpGrantSubjectType'}
+    subjectId: {type: [string, 'null'], pattern: '^[1-9][0-9]{0,18}$', description: 'ALL 为 null；USER/GROUP 为对应成员或用户组 ID'}
+    status: {$ref: '#/McpGrantStatus'}
+    createdAt: {type: string, format: date-time}
+    updatedAt: {type: string, format: date-time}
+McpGrantCreate:
+  type: object
+  additionalProperties: false
+  required: [serverId, subjectType, subjectId, status]
+  properties:
+    serverId: {$ref: '#/McpServerId'}
+    subjectType: {$ref: '#/McpGrantSubjectType'}
+    subjectId: {type: [string, 'null'], pattern: '^[1-9][0-9]{0,18}$', description: 'ALL 为 null；USER/GROUP 为对应成员或用户组 ID'}
+    status: {$ref: '#/McpGrantStatus'}
+McpGrantBatchRequest:
+  type: object
+  additionalProperties: false
+  required: [items]
+  properties:
+    items: {type: array, minItems: 1, maxItems: 100, items: {$ref: '#/McpGrantCreate'}}
+McpGrantUpdateRequest:
+  type: object
+  additionalProperties: false
+  required: [status]
+  properties:
+    status: {$ref: '#/McpGrantStatus'}
+McpGrantPageData:
+  type: object
+  additionalProperties: false
+  required: [items, page]
+  properties:
+    items: {type: array, maxItems: 200, items: {$ref: '#/McpGrant'}}
+    page: {$ref: '../enterprise-openapi.yaml#/components/schemas/CursorPage'}
+McpGrantResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/McpGrant'}
+    requestId: {$ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'}
+McpGrantListResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/McpGrantPageData'}
+    requestId: {$ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'}
+McpGrantBatchResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {type: array, maxItems: 100, items: {$ref: '#/McpGrant'}}
+    requestId: {$ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'}
+McpAssignment:
+  type: object
+  additionalProperties: false
+  required: [id, revision, serverName, displayName, description, transport, url, allowInsecureTransport, headers, auth, toolCallTimeoutMs, reconnect, presentation]
+  properties:
+    id: {$ref: '#/McpServerId'}
+    revision: {$ref: '../enterprise-openapi.yaml#/components/schemas/Revision'}
+    serverName: {type: string, minLength: 1, maxLength: 32, pattern: '^[a-z][a-z0-9_-]*$'}
+    displayName: {type: string, minLength: 1, maxLength: 120}
+    description: {type: string, maxLength: 1000}
+    transport: {$ref: '#/McpTransport'}
+    url: {type: string, format: uri, maxLength: 2048}
+    allowInsecureTransport: {type: boolean}
+    headers: {$ref: '#/McpHeaderMap'}
+    auth: {$ref: '#/McpAuth'}
+    toolCallTimeoutMs: {type: integer, minimum: 1000, maximum: 300000}
+    reconnect: {$ref: '#/McpReconnectPolicy'}
+    presentation: {$ref: '#/McpPresentation'}
+McpSnapshot:
+  type: object
+  additionalProperties: false
+  required: [schemaVersion, revision, validForMs, assignments]
+  properties:
+    schemaVersion: {type: integer, const: 1}
+    revision: {$ref: '../enterprise-openapi.yaml#/components/schemas/Revision'}
+    validForMs: {type: integer, const: 60000}
+    assignments: {type: array, maxItems: 512, items: {$ref: '#/McpAssignment'}}
+McpSnapshotResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/McpSnapshot'}
+    requestId: {$ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'}
+McpCatalogUpload:
+  type: object
+  additionalProperties: false
+  required: [serverRevision, catalogDigest, observedAt, tools]
+  properties:
+    serverRevision: {$ref: '../enterprise-openapi.yaml#/components/schemas/Revision'}
+    catalogDigest: {type: string, pattern: '^[0-9a-f]{64}$'}
+    observedAt: {type: string, format: date-time}
+    tools: {type: array, maxItems: 512, items: {$ref: '#/McpCandidateTool'}}
+McpCatalogUploadResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data:
+      type: object
+      additionalProperties: false
+      required: [catalogId, catalogDigest, receivedAt]
+      properties:
+        catalogId: {type: string, minLength: 1, maxLength: 128}
+        catalogDigest: {type: string, pattern: '^[0-9a-f]{64}$'}
+        receivedAt: {type: string, format: date-time}
+    requestId: {$ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'}

@@ -9,8 +9,7 @@
 
 Browser-side employee account and managed-plugin surface for the locked Harness Client runtime.
 It registers the `OwnDsh 设置` page through the official `settings.section`
-slot, an account entry through `sidebar.footer.action`, and the
-required access gate through `shell.overlay`. OwnDsh does not own or fork the
+slot and the required access gate through `shell.overlay`. OwnDsh does not own or fork the
 surrounding Web/Desktop UI.
 
 The access gate is shown during startup and whenever the connection is not
@@ -24,12 +23,11 @@ navigation cannot reach the official shell underneath. Its brand, single-line
 Server editor, connection strip, and version use Host theme tokens; Desktop
 chrome and theme controls remain owned by the surrounding official shell.
 
-The OwnDsh Settings section contains Account and Plugins tabs aligned with the
-native DSH Plugins tab rhythm and keyboard navigation. The sidebar footer uses
-the embedded OwnDsh whale at the native Settings icon size, matches its row
-height and hover, shows the employee display name, and provides a muted direct
-sign-out control. Both this control and the Account tab require the same in-page
-Harness `Modal` and `Button` confirmation before clearing the session. Uninstall uses the same component;
+The OwnDsh Settings section contains Account, Plugins, and MCP tabs aligned with the
+native DSH Plugins tab rhythm and keyboard navigation. Account information and
+sign-out are available only in the Account tab; OwnDsh registers no sidebar footer
+entry, leaving that space to Harness. Sign-out requires an in-page Harness
+`Modal` and `Button` confirmation before clearing the session. Uninstall uses the same component;
 Cancel and Escape leave the account and plugins unchanged. The dialog uses Host
 theme and traps focus while open, without relying on a desktop
 bridge for `window.confirm()`.
@@ -38,7 +36,9 @@ left-aligned Server/device/version rows with small label icons. Host theme token
 tabs/buttons keep this layout consistent with Harness. The Server address is read-only here;
 sign out before editing it in the login gate. Authorization, enrollment and session restoration
 hide the editor. Failed saves preserve the editor and its input. An explicitly labeled
-configuration refresh shares a quiet footer with sign-out/uninstall. Account values
+configuration refresh shares a quiet footer with sign-out/uninstall. Manual refresh
+shows a spinning icon and disables duplicate actions until the request settles,
+then reports success or failure; Host error statuses also count as failures. Account values
 stay on one line, truncate with an ellipsis, and expose the full
 value on hover; the connection timestamp is omitted because authentication runs on demand.
 Grouped surfaces pair Host background and border tokens to avoid transparent superellipse border artifacts.
@@ -61,7 +61,7 @@ SHA-256, restart markers, tgz
 paths, trust keys, CLI output, and platform credentials are validated or removed
 before the snapshot reaches React.
 
-All three official slot registrations share one `EnterpriseAccountStore`. Its browser API uses
+Both official slot registrations share one `EnterpriseAccountStore`. Its browser API uses
 only fixed same-origin `/enterprise/api/v1/local/*` paths, sends strict JSON for
 Server, login, cancel, logout, uninstall, and explicit refresh actions. It reuses official
 Host adapter/credential/settings events and connection reset notifications to read local
@@ -73,8 +73,3 @@ a bootstrap revision change. Server/account changes and connected/disconnected t
 old account, plugin requests and discard their late results and errors. Runtime decoders project only account/device facts and reject unknown
 status fields, including Token-shaped additions. Host Context and platform
 credentials never enter React.
-
-Harness deliberately does not expose a public API for a footer action to open
-an arbitrary settings section. The account row therefore does not imitate a
-Settings shortcut through DOM access; the normal Settings navigation owns the
-OwnDsh page.

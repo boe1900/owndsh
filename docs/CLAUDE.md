@@ -10,6 +10,9 @@ v1-e2e-acceptance.md: V1 发布验收执行真源，以真实部署、LDAP/OIDC�
 owndsh-work-platform.md: 产品预研，定义企业工作平台形态、能力边界、演进阶段与商业方向。
 owndsh-governance-mvp-design.md: MVP 实施真源，定义冻结决策、模块、API、数据表、测试、T00-T23 顺序和验收标准。
 phase-2-product-console-design.md: 第二阶段产品化实施真源，冻结 TanStack/Beautiful UI 控制台、成员多身份、LDAP 目录组映射、集合授权，以及 TOKEN 多窗口、组织级供应商与其他资源 RATE 瞬时限流结构。
+mcp-management-design.md: MCP 详细设计入口，明确版本差异、公共字段、服务访问授权、数据库、管理/runtime 契约、RBAC 与第一版边界。
+mcp-runtime-design.md: MCP 端侧实施规格，记录已落地的身份/目标凭据隔离与 OAuth 取消/失效重授权边界与提前 401 扩展点限制，定义后续 discovery、连接与撤销状态机、search/hot/PTC 呈现、并发重挂载、local API 及诊断边界。
+mcp-implementation-plan.md: MCP 开发任务与验收矩阵，从官方接缝探针推进到契约/服务/客户端/UI/发布，区分已有证据和待实现门禁。
 desktop-2.0.3-harness-rc2-migration.md: 当前 Desktop 发行基线迁移证据，记录 Desktop→Harness 派生锁、上游变化、企业适配、行为风险与 Web/Desktop 门禁结果。
 gateway-real-model-validation-20260906.md: V29 与取消修复的 10 次真实 Responses 调用证据，记录 Spring flush 根因、667 毫秒取消清理、108 项后端回归及已获准请求超额结算规则。
 t00-baseline-acceptance.md: T00 独立验收证据，记录初始导入与 rc.7 重新基线的环境、命令、真实 consumer 和退出结论。

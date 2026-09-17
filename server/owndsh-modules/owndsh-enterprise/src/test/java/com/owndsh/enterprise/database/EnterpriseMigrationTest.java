@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖普通数据库所有者、空数据库、classpath V0-V29 migration 与旧版 baseline 0 历史。
- * [OUTPUT]: 验证空库建表、旧库接管/升级、重复启动、字符串时间参数及数据库计量迁移约束。
+ * [INPUT]: 依赖普通数据库所有者、空数据库、classpath V0-V33 migration 与旧版 baseline 0 历史。
+ * [OUTPUT]: 验证空库建表、旧库接管/升级、重复启动、字符串时间参数、数据库计量迁移与 MCP 原样认证值迁移约束。
  * [POS]: database 的持续 migration 门禁，防止后续任务只验证最终 schema 而遗漏中间版本不可升级。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -40,12 +40,12 @@ class EnterpriseMigrationTest {
         assertThat(database.jdbc().queryForObject(
             "select type from flyway_schema_history where version='0'", String.class
         )).isEqualTo("SQL");
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("29");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("33");
         Integer tableCount = database.jdbc().queryForObject("""
             select count(*) from information_schema.tables
             where table_schema = 'public' and table_name like 'ent_%'
             """, Integer.class);
-        assertThat(tableCount).isEqualTo(27);
+        assertThat(tableCount).isEqualTo(31);
         assertThat(database.jdbc().queryForObject(
             "select policy_type from ent_quota_policy where tenant_id='000000'",
             String.class
@@ -121,6 +121,29 @@ class EnterpriseMigrationTest {
     }
 
     @Test
+    void removesMcpValuePrefixAndAdvancesOnlyAffectedRevisions() {
+        var database = PostgresTestDatabase.create("mcp_raw_auth");
+        PostgresTestDatabase.migrate(database, "32");
+        long userId = 1900800000000910001L;
+        PostgresTestDatabase.insertActiveUser(database, userId, 1761000000000000103L, "mcp-prefix-owner", "MCP owner");
+        database.jdbc().update("""
+            insert into ent_mcp_server(id,tenant_id,server_name,display_name,transport,url,headers_json,auth_json,reconnect_json,created_by)
+            values (1903000000000910001,'000000','legacy','Legacy','streamable-http','https://mcp.example.test',
+                    '{"X-Apifox-Api-Version":"2025-09-01"}', '{"type":"api-key","headerName":"Authorization","valuePrefix":"Bearer "}', '{}', ?),
+                   (1903000000000910002,'000000','public','Public','streamable-http','https://mcp.example.test',
+                    '{}','{"type":"none"}','{}',?)
+            """, userId, userId);
+        var flyway = PostgresTestDatabase.migrate(database, null);
+        assertThat(database.jdbc().queryForObject("select auth_json::text from ent_mcp_server where server_name='legacy'", String.class))
+            .doesNotContain("valuePrefix").contains("Authorization");
+        assertThat(database.jdbc().queryForObject("select headers_json->>'X-Apifox-Api-Version' from ent_mcp_server where server_name='legacy'", String.class)).isEqualTo("2025-09-01");
+        assertThat(database.jdbc().queryForObject("select revision from ent_mcp_server where server_name='legacy'", Long.class)).isEqualTo(1);
+        assertThat(database.jdbc().queryForObject("select revision from ent_mcp_server where server_name='public'", Long.class)).isZero();
+        assertThat(database.jdbc().queryForObject("select revision from ent_platform_revision where tenant_id='000000' and scope='BOOTSTRAP'", Long.class)).isEqualTo(1);
+        assertThat(flyway.migrate().migrationsExecuted).isZero();
+    }
+
+    @Test
     void repeatedMigrationPreservesSeedsAndSupportsTimestampParameters() {
         var database = PostgresTestDatabase.create("repeat_migrate");
         Flyway flyway = PostgresTestDatabase.migrate(database, null);
@@ -157,7 +180,7 @@ class EnterpriseMigrationTest {
 
         Flyway flyway = PostgresTestDatabase.migrate(database, null);
 
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("29");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("33");
         assertThat(database.jdbc().queryForObject(
             "select type from flyway_schema_history where version='0'", String.class
         )).isEqualTo("BASELINE");
@@ -538,7 +561,7 @@ class EnterpriseMigrationTest {
             .run(context -> {
                 assertThat(context).hasSingleBean(Flyway.class);
                 assertThat(context.getBean(Flyway.class).info().current().getVersion().getVersion())
-                    .isEqualTo("29");
+                    .isEqualTo("33");
             });
     }
 }

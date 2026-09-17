@@ -98,6 +98,10 @@ export const zEnterpriseErrorCode = z.enum([
     'ENT_SESSION_SOURCE_DEVICE_CONFLICT',
     'ENT_IDENTITY_ALREADY_LINKED',
     'ENT_DEVICE_ALREADY_BOUND',
+    'ENT_MCP_CONFLICT',
+    'ENT_MCP_CATALOG_STALE',
+    'ENT_MCP_POLICY_INVALID',
+    'ENT_MCP_UNSUPPORTED',
     'ENT_REQUEST_TOO_LARGE',
     'ENT_PLUGIN_ARCHIVE_TOO_LARGE',
     'ENT_SESSION_BATCH_TOO_LARGE',
@@ -1026,6 +1030,277 @@ export const zIdentityIdentitySourceUpdateRequest = z.object({
 }).strict();
 
 export const zIdentitySourceUpdateRequest = zIdentityIdentitySourceUpdateRequest;
+
+export const zMcpMcpAuth = z.union([
+    z.object({
+        type: z.literal('none')
+    }).strict(),
+    z.object({
+        type: z.literal('api-key'),
+        headerName: z.string().min(1).max(128).regex(/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/)
+    }).strict(),
+    z.object({
+        type: z.literal('oauth'),
+        issuer: z.url().max(2048),
+        resource: z.url().max(2048),
+        clientId: z.string().min(1).max(255),
+        dynamicRegistration: z.literal(false).optional(),
+        scopes: z.array(z.string().min(1).max(128)).max(32),
+        authorizationEndpoint: z.url().max(2048).optional(),
+        tokenEndpoint: z.url().max(2048).optional()
+    }).strict(),
+    z.object({
+        type: z.literal('oauth'),
+        issuer: z.url().max(2048),
+        resource: z.url().max(2048),
+        dynamicRegistration: z.literal(true),
+        scopes: z.array(z.string().min(1).max(128)).max(32),
+        authorizationEndpoint: z.url().max(2048).optional(),
+        tokenEndpoint: z.url().max(2048).optional()
+    }).strict()
+]);
+
+export const zMcpAuth = zMcpMcpAuth;
+
+export const zMcpMcpCandidateTool = z.object({
+    publicName: z.string().min(1).max(64),
+    description: z.string().max(4000),
+    inputSchema: z.record(z.string(), z.unknown()),
+    outputSchema: z.record(z.string(), z.unknown()).optional(),
+    schemaDigest: z.string().regex(/^[0-9a-f]{64}$/)
+}).strict();
+
+export const zMcpCandidateTool = zMcpMcpCandidateTool;
+
+export const zMcpMcpCatalogPageData = z.object({
+    catalogId: z.string().min(1).max(128),
+    catalogDigest: z.string().regex(/^[0-9a-f]{64}$/),
+    serverRevision: zRevision,
+    tools: z.array(zMcpMcpCandidateTool).max(512),
+    page: zCursorPage
+}).strict();
+
+export const zMcpCatalogPageData = zMcpMcpCatalogPageData;
+
+export const zMcpMcpCatalogResponse = z.object({
+    data: zMcpMcpCatalogPageData,
+    requestId: zRequestId
+}).strict();
+
+export const zMcpCatalogResponse = zMcpMcpCatalogResponse;
+
+export const zMcpMcpCatalogUpload = z.object({
+    serverRevision: zRevision,
+    catalogDigest: z.string().regex(/^[0-9a-f]{64}$/),
+    observedAt: z.iso.datetime({ offset: true }),
+    tools: z.array(zMcpMcpCandidateTool).max(512)
+}).strict();
+
+export const zMcpCatalogUpload = zMcpMcpCatalogUpload;
+
+export const zMcpMcpCatalogUploadResponse = z.object({
+    data: z.object({
+        catalogId: z.string().min(1).max(128),
+        catalogDigest: z.string().regex(/^[0-9a-f]{64}$/),
+        receivedAt: z.iso.datetime({ offset: true })
+    }).strict(),
+    requestId: zRequestId
+}).strict();
+
+export const zMcpCatalogUploadResponse = zMcpMcpCatalogUploadResponse;
+
+export const zMcpGrantStatus = z.enum(['ACTIVE', 'DISABLED']);
+
+export const zMcpGrantSubjectType = z.enum([
+    'ALL',
+    'USER',
+    'GROUP'
+]);
+
+export const zMcpMcpGrantUpdateRequest = z.object({
+    status: zMcpGrantStatus
+}).strict();
+
+export const zMcpGrantUpdateRequest = zMcpMcpGrantUpdateRequest;
+
+export const zMcpHeaderMap = z.record(z.string(), z.string().max(1024));
+
+export const zMcpMcpPresentation = z.enum(['search', 'full']);
+
+export const zMcpPresentation = zMcpMcpPresentation;
+
+export const zMcpMcpReconnectPolicy = z.object({
+    enabled: z.boolean(),
+    initialDelayMs: z.int().gte(100).lte(30000),
+    maxDelayMs: z.int().gte(100).lte(300000),
+    maxAttempts: z.int().gte(1).lte(20)
+}).strict();
+
+export const zMcpReconnectPolicy = zMcpMcpReconnectPolicy;
+
+export const zMcpMcpServerId = z.string().regex(/^[1-9][0-9]{0,18}$/);
+
+export const zMcpServerId = zMcpMcpServerId;
+
+export const zMcpMcpGrant = z.object({
+    id: z.string().regex(/^[1-9][0-9]{0,18}$/),
+    revision: zRevision,
+    serverId: zMcpMcpServerId,
+    subjectType: zMcpGrantSubjectType,
+    subjectId: z.string().regex(/^[1-9][0-9]{0,18}$/).nullable(),
+    status: zMcpGrantStatus,
+    createdAt: z.iso.datetime({ offset: true }),
+    updatedAt: z.iso.datetime({ offset: true })
+}).strict();
+
+export const zMcpGrant = zMcpMcpGrant;
+
+export const zMcpMcpGrantBatchResponse = z.object({
+    data: z.array(zMcpMcpGrant).max(100),
+    requestId: zRequestId
+}).strict();
+
+export const zMcpGrantBatchResponse = zMcpMcpGrantBatchResponse;
+
+export const zMcpMcpGrantCreate = z.object({
+    serverId: zMcpMcpServerId,
+    subjectType: zMcpGrantSubjectType,
+    subjectId: z.string().regex(/^[1-9][0-9]{0,18}$/).nullable(),
+    status: zMcpGrantStatus
+}).strict();
+
+export const zMcpGrantCreate = zMcpMcpGrantCreate;
+
+export const zMcpMcpGrantBatchRequest = z.object({
+    items: z.array(zMcpMcpGrantCreate).min(1).max(100)
+}).strict();
+
+export const zMcpGrantBatchRequest = zMcpMcpGrantBatchRequest;
+
+export const zMcpMcpGrantPageData = z.object({
+    items: z.array(zMcpMcpGrant).max(200),
+    page: zCursorPage
+}).strict();
+
+export const zMcpGrantPageData = zMcpMcpGrantPageData;
+
+export const zMcpMcpGrantListResponse = z.object({
+    data: zMcpMcpGrantPageData,
+    requestId: zRequestId
+}).strict();
+
+export const zMcpGrantListResponse = zMcpMcpGrantListResponse;
+
+export const zMcpMcpGrantResponse = z.object({
+    data: zMcpMcpGrant,
+    requestId: zRequestId
+}).strict();
+
+export const zMcpGrantResponse = zMcpMcpGrantResponse;
+
+export const zMcpMcpServerStatus = z.enum(['ACTIVE', 'DISABLED']);
+
+export const zMcpServerStatus = zMcpMcpServerStatus;
+
+export const zMcpMcpTransport = z.literal('streamable-http');
+
+export const zMcpTransport = zMcpMcpTransport;
+
+export const zMcpMcpAssignment = z.object({
+    id: zMcpMcpServerId,
+    revision: zRevision,
+    serverName: z.string().min(1).max(32).regex(/^[a-z][a-z0-9_-]*$/),
+    displayName: z.string().min(1).max(120),
+    description: z.string().max(1000),
+    transport: zMcpMcpTransport,
+    url: z.url().max(2048),
+    allowInsecureTransport: z.boolean(),
+    headers: zMcpHeaderMap,
+    auth: zMcpMcpAuth,
+    toolCallTimeoutMs: z.int().gte(1000).lte(300000),
+    reconnect: zMcpMcpReconnectPolicy,
+    presentation: zMcpMcpPresentation
+}).strict();
+
+export const zMcpAssignment = zMcpMcpAssignment;
+
+export const zMcpMcpServer = z.object({
+    id: zMcpMcpServerId,
+    revision: zRevision,
+    serverName: z.string().min(1).max(32).regex(/^[a-z][a-z0-9_-]*$/),
+    displayName: z.string().min(1).max(120),
+    description: z.string().max(1000),
+    transport: zMcpMcpTransport,
+    url: z.url().max(2048),
+    allowInsecureTransport: z.boolean(),
+    headers: zMcpHeaderMap,
+    auth: zMcpMcpAuth,
+    toolCallTimeoutMs: z.int().gte(1000).lte(300000),
+    reconnect: zMcpMcpReconnectPolicy,
+    presentation: zMcpMcpPresentation,
+    status: zMcpMcpServerStatus,
+    createdAt: z.iso.datetime({ offset: true }),
+    updatedAt: z.iso.datetime({ offset: true })
+}).strict();
+
+export const zMcpServer = zMcpMcpServer;
+
+export const zMcpMcpServerCreateRequest = z.object({
+    serverName: z.string().min(1).max(32).regex(/^[a-z][a-z0-9_-]*$/),
+    displayName: z.string().min(1).max(120),
+    description: z.string().max(1000),
+    transport: zMcpMcpTransport,
+    url: z.url().max(2048),
+    allowInsecureTransport: z.boolean(),
+    headers: zMcpHeaderMap,
+    auth: zMcpMcpAuth,
+    toolCallTimeoutMs: z.int().gte(1000).lte(300000),
+    reconnect: zMcpMcpReconnectPolicy,
+    presentation: zMcpMcpPresentation
+}).strict();
+
+export const zMcpServerCreateRequest = zMcpMcpServerCreateRequest;
+
+export const zMcpMcpServerPageData = z.object({
+    items: z.array(zMcpMcpServer).max(200),
+    page: zCursorPage
+}).strict();
+
+export const zMcpServerPageData = zMcpMcpServerPageData;
+
+export const zMcpMcpServerListResponse = z.object({
+    data: zMcpMcpServerPageData,
+    requestId: zRequestId
+}).strict();
+
+export const zMcpServerListResponse = zMcpMcpServerListResponse;
+
+export const zMcpMcpServerResponse = z.object({
+    data: zMcpMcpServer,
+    requestId: zRequestId
+}).strict();
+
+export const zMcpServerResponse = zMcpMcpServerResponse;
+
+export const zMcpMcpServerUpdateRequest = zMcpMcpServerCreateRequest;
+
+export const zMcpServerUpdateRequest = zMcpMcpServerUpdateRequest;
+
+export const zMcpMcpSnapshot = z.object({
+    schemaVersion: z.literal(1),
+    revision: zRevision,
+    validForMs: z.literal(60000),
+    assignments: z.array(zMcpMcpAssignment).max(512)
+}).strict();
+
+export const zMcpSnapshot = zMcpMcpSnapshot;
+
+export const zMcpMcpSnapshotResponse = z.object({
+    data: zMcpMcpSnapshot,
+    requestId: zRequestId
+}).strict();
+
+export const zMcpSnapshotResponse = zMcpMcpSnapshotResponse;
 
 export const zMemberIdentityLinkStart = z.object({
     transactionId: z.string().regex(/^tx_[A-Za-z0-9_-]{20,128}$/),
@@ -2379,6 +2654,24 @@ export const z1Enterprise1Admin1V11IdentitySources1SourceId1Ldap1Users1Actions1I
 
 export const z1Enterprise1Admin1V11Users1UserId1IdentitySummary = z.unknown();
 
+export const zMcpCatalogCollection = z.unknown();
+
+export const zMcpGrantCollection = z.unknown();
+
+export const zMcpGrantItem = z.unknown();
+
+export const zMcpRuntimeAssignments = z.unknown();
+
+export const zMcpRuntimeCatalog = z.unknown();
+
+export const zMcpServerCollection = z.unknown();
+
+export const zMcpServerDisable = z.unknown();
+
+export const zMcpServerEnable = z.unknown();
+
+export const zMcpServerItem = z.unknown();
+
 export const zMemberCollection = z.unknown();
 
 export const zMemberIdentityItem = z.unknown();
@@ -2528,6 +2821,14 @@ export const zPluginPackageIdWritable = zPluginPluginPackageId;
 export const zPluginVersionIdWritable = zPluginPluginVersionId;
 
 export const zPluginAssignmentIdWritable = zPluginPluginAssignmentId;
+
+export const zMcpServerIdWritable = zMcpMcpServerId;
+
+export const zMcpServerStatusWritable = zMcpMcpServerStatus;
+
+export const zMcpTransportWritable = zMcpMcpTransport;
+
+export const zMcpPresentationWritable = zMcpMcpPresentation;
 
 export const zSessionIdWritable = zSessionSessionId;
 
@@ -3842,3 +4143,157 @@ export const zListAuditEventsQuery = z.object({
  * Append-only audit metadata page; source IP and user-agent hash are not returned.
  */
 export const zListAuditEventsResponse = zAuditAuditEventListResponse;
+
+export const zListMcpServersQuery = z.object({
+    cursor: zCursor.optional(),
+    limit: zPageLimit.optional()
+});
+
+/**
+ * MCP server page
+ */
+export const zListMcpServersResponse = zMcpMcpServerListResponse;
+
+export const zCreateMcpServerBody = zMcpMcpServerCreateRequest;
+
+export const zCreateMcpServerHeaders = z.object({
+    'Idempotency-Key': z.uuid().length(36).regex(/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/)
+});
+
+/**
+ * Created MCP server
+ */
+export const zCreateMcpServerResponse = zMcpMcpServerResponse;
+
+export const zGetMcpServerPath = z.object({
+    id: zMcpMcpServerId
+});
+
+/**
+ * MCP server
+ */
+export const zGetMcpServerResponse = zMcpMcpServerResponse;
+
+export const zUpdateMcpServerBody = zMcpMcpServerUpdateRequest;
+
+export const zUpdateMcpServerHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zUpdateMcpServerPath = z.object({
+    id: zMcpMcpServerId
+});
+
+/**
+ * Updated MCP server
+ */
+export const zUpdateMcpServerResponse = zMcpMcpServerResponse;
+
+export const zEnableMcpServerBody = z.record(z.string(), z.never());
+
+export const zEnableMcpServerHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zEnableMcpServerPath = z.object({
+    id: zMcpMcpServerId
+});
+
+/**
+ * Updated MCP server
+ */
+export const zEnableMcpServerResponse = zMcpMcpServerResponse;
+
+export const zDisableMcpServerBody = z.record(z.string(), z.never());
+
+export const zDisableMcpServerHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zDisableMcpServerPath = z.object({
+    id: zMcpMcpServerId
+});
+
+/**
+ * Updated MCP server
+ */
+export const zDisableMcpServerResponse = zMcpMcpServerResponse;
+
+export const zListMcpCatalogPath = z.object({
+    id: zMcpMcpServerId
+});
+
+export const zListMcpCatalogQuery = z.object({
+    cursor: zCursor.optional(),
+    limit: zPageLimit.optional()
+});
+
+/**
+ * Candidate catalog
+ */
+export const zListMcpCatalogResponse = zMcpMcpCatalogResponse;
+
+export const zListMcpGrantsQuery = z.object({
+    cursor: zCursor.optional(),
+    limit: zPageLimit.optional()
+});
+
+/**
+ * MCP grant page
+ */
+export const zListMcpGrantsResponse = zMcpMcpGrantListResponse;
+
+export const zCreateMcpGrantsBody = zMcpMcpGrantBatchRequest;
+
+export const zCreateMcpGrantsHeaders = z.object({
+    'Idempotency-Key': z.uuid().length(36).regex(/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/)
+});
+
+/**
+ * MCP grants
+ */
+export const zCreateMcpGrantsResponse = zMcpMcpGrantBatchResponse;
+
+export const zDeleteMcpGrantHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zDeleteMcpGrantPath = z.object({
+    id: z.string().regex(/^[1-9][0-9]{0,18}$/)
+});
+
+/**
+ * Deleted MCP grant
+ */
+export const zDeleteMcpGrantResponse = zIdentityDeletedResourceResponse;
+
+export const zUpdateMcpGrantBody = zMcpMcpGrantUpdateRequest;
+
+export const zUpdateMcpGrantHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zUpdateMcpGrantPath = z.object({
+    id: z.string().regex(/^[1-9][0-9]{0,18}$/)
+});
+
+/**
+ * MCP grant
+ */
+export const zUpdateMcpGrantResponse = zMcpMcpGrantResponse;
+
+/**
+ * Effective MCP assignments
+ */
+export const zGetMcpAssignmentsResponse = zMcpMcpSnapshotResponse;
+
+export const zReportMcpCatalogBody = zMcpMcpCatalogUpload;
+
+export const zReportMcpCatalogPath = z.object({
+    id: zMcpMcpServerId
+});
+
+/**
+ * Accepted catalog
+ */
+export const zReportMcpCatalogResponse = zMcpMcpCatalogUploadResponse;

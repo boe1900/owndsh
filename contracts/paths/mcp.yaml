@@ -1,0 +1,168 @@
+# [INPUT]: 依赖 mcp.yaml schemas 与根协议 cursor/limit/revision/idempotency/error 组件
+# [OUTPUT]: 提供 MCP 配置、授权 CRUD/CAS 及 runtime assignment/catalog Path Item
+# [POS]: contracts/paths 的 MCP 纵向分片；不实现 MCP tools/call 代理
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+McpServerCollection:
+  get:
+    operationId: listMcpServers
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Cursor'
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Limit'
+    responses:
+      '200': {description: MCP server page, content: {application/json: {schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/McpServerListResponse'}}}}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+  post:
+    operationId: createMcpServer
+    parameters: [{ $ref: '../enterprise-openapi.yaml#/components/parameters/IdempotencyKey' }]
+    requestBody: {required: true, content: {application/json: {schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/McpServerCreateRequest'}}}}
+    responses:
+      '201': {description: Created MCP server, content: {application/json: {schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/McpServerResponse'}}}}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+McpServerItem:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/McpServerId'}
+  get:
+    operationId: getMcpServer
+    responses:
+      '200': {description: MCP server, content: {application/json: {schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/McpServerResponse'}}}}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+  put:
+    operationId: updateMcpServer
+    parameters: [{ $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision' }]
+    requestBody: {required: true, content: {application/json: {schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/McpServerUpdateRequest'}}}}
+    responses:
+      '200': {description: Updated MCP server, content: {application/json: {schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/McpServerResponse'}}}}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+McpServerEnable:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/McpServerId'}
+  post:
+    operationId: enableMcpServer
+    requestBody: {required: true, content: {application/json: {schema: {type: object, additionalProperties: false}}}}
+    parameters: [{ $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision' }]
+    responses:
+      '200': {description: Updated MCP server, content: {application/json: {schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/McpServerResponse'}}}}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+McpServerDisable:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/McpServerId'}
+  post:
+    operationId: disableMcpServer
+    requestBody: {required: true, content: {application/json: {schema: {type: object, additionalProperties: false}}}}
+    parameters: [{ $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision' }]
+    responses:
+      '200': {description: Updated MCP server, content: {application/json: {schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/McpServerResponse'}}}}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+McpCatalogCollection:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/McpServerId'}
+  get:
+    operationId: listMcpCatalog
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Cursor'
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Limit'
+    responses:
+      '200': {description: Candidate catalog, content: {application/json: {schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/McpCatalogResponse'}}}}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+McpGrantCollection:
+  get:
+    operationId: listMcpGrants
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Cursor'
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Limit'
+    responses:
+      '200': {description: MCP grant page, content: {application/json: {schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/McpGrantListResponse'}}}}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+  post:
+    operationId: createMcpGrants
+    parameters: [{ $ref: '../enterprise-openapi.yaml#/components/parameters/IdempotencyKey' }]
+    requestBody: {required: true, content: {application/json: {schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/McpGrantBatchRequest'}}}}
+    responses:
+      '200': {description: MCP grants, content: {application/json: {schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/McpGrantBatchResponse'}}}}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+McpGrantItem:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema: {type: string, pattern: '^[1-9][0-9]{0,18}$'}
+  put:
+    operationId: updateMcpGrant
+    parameters: [{ $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision' }]
+    requestBody: {required: true, content: {application/json: {schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/McpGrantUpdateRequest'}}}}
+    responses:
+      '200': {description: MCP grant, content: {application/json: {schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/McpGrantResponse'}}}}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+  delete:
+    operationId: deleteMcpGrant
+    parameters: [{ $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision' }]
+    responses:
+      '200': {description: Deleted MCP grant, content: {application/json: {schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/DeletedResourceResponse'}}}}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+McpRuntimeAssignments:
+  get:
+    operationId: getMcpAssignments
+    security: [{EnterpriseBearer: []}]
+    responses:
+      '200': {description: Effective MCP assignments, content: {application/json: {schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/McpSnapshotResponse'}}}}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+McpRuntimeCatalog:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/McpServerId'}
+  put:
+    operationId: reportMcpCatalog
+    security: [{EnterpriseBearer: []}]
+    requestBody: {required: true, content: {application/json: {schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/McpCatalogUpload'}}}}
+    responses:
+      '200': {description: Accepted catalog, content: {application/json: {schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/McpCatalogUploadResponse'}}}}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}

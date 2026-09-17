@@ -17,6 +17,7 @@ coverage/
 *.tsbuildinfo
 plugin/packages/*/lib/
 /artifacts/
+/plugin/artifacts/
 
 # Cloudflare deployment cache
 .wrangler/

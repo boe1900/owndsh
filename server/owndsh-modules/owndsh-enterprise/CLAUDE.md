@@ -11,6 +11,7 @@ src/main/java/com/owndsh/enterprise/device/: Token terminal 授权的 enroll/hea
 src/main/java/com/owndsh/enterprise/model/: provider/model/model set/grant 管理、AES-GCM 密钥生命周期、集合授权展开、有效默认解析、runtime bootstrap 与模型网关纵向模块；局部地图见 model/CLAUDE.md。
 src/main/java/com/owndsh/enterprise/quota/: TOKEN/RATE 互斥的组织/成员与多模型范围策略、组织级供应商速率上限、四类 Token 窗口、PostgreSQL 预留、Redis lease、结算恢复与用量查询纵向模块；局部地图见 quota/CLAUDE.md。
 src/main/java/com/owndsh/enterprise/plugin/: tgz 流式验包、JCS/Ed25519、CAS 制品、version/assignment、下载授权与设备库存纵向模块；局部地图见 plugin/CLAUDE.md。
+src/main/java/com/owndsh/enterprise/mcp/: MCP server 公共配置、用户/组授权、工具目录与 runtime assignment 纵向模块；局部地图见 mcp/CLAUDE.md。
 src/main/java/com/owndsh/enterprise/session/: 精确 JSONL/hash、AES-GCM 远端副本、本人/管理读取、tombstone 与 retention 纵向模块；局部地图见 session/CLAUDE.md。
 src/main/java/com/owndsh/enterprise/common/: 企业 HTTP envelope、40 个稳定错误映射、requestId/metadata、认证 cursor、有界 JSON 请求与故障日志隔离公共边界；局部地图见 common/CLAUDE.md。
 src/main/java/com/owndsh/enterprise/audit/: 31-action 显式 metadata DTO、只追加 JDBC sink、tenant/keyset 管理查询、365 天有界 retention 与用户治理事务监听纵向模块；局部地图见 audit/CLAUDE.md。

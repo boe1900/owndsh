@@ -34,5 +34,10 @@ V26__provider_rate_limits.sql: 扩展资源范围为组织级供应商 RATE，�
 V27__one_rate_limit_per_provider.sql: 以局部唯一索引保证每个供应商至多一条共享 RATE 容量策略，支持提供商表单单值投影。
 V28__refresh_sessions.sql: 建立只存 SHA-256 摘要、绑定用户/client/installation、绝对 30 天且保留轮换重放证据的 Refresh Session family。
 V29__gateway_usage_accounting.sql: 保留历史配额扣额、清除估算伪装的实测分类，并给 reservation 增加最终 usage 快照用于结算恢复。
+V30__enterprise_mcp.sql: 建立 MCP 配置、授权与目录表；tenant/server 复合外键和 NULLS NOT DISTINCT 保证引用隔离与全员去重，不保存用户秘密。
+V31__enterprise_mcp_permissions.sql: 独立 ID 区间增加 MCP read/write/grant，显式绑定管理员全权和审计员只读，沿用插件工作台入口。
+V32__enterprise_mcp_idempotency.sql: 持久化 MCP server/grant 创建的幂等占位、请求摘要和成功资源 ID，失败事务不留记录。
+
+V33__mcp_raw_auth_value.sql: 移除旧 API Key 的 valuePrefix 配置，仅推进受影响的服务与租户 revision，端侧重新连接后原样发送用户输入。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

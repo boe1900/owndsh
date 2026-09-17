@@ -10,6 +10,6 @@ access/: 模型访问、组织/成员 TOKEN/RATE 互斥策略的分表列表与�
 activity/: 按 console 权限读取用量、审计和插件关键运行异常，V1 不读取或展示 Session；局部地图见 activity/CLAUDE.md。
 members/: 产品成员、扁平用户组、OIDC/LDAP/LOCAL 身份接入、LDAP 单人导入/组映射与身份/角色治理；局部地图见 members/CLAUDE.md。
 models/: Provider 与受管模型目录、三协议配置、模型发现和 Harness 能力声明管理；局部地图见 models/CLAUDE.md。
-plugins/: 插件版本、发布状态、分配事实和设备库存管理；局部地图见 plugins/CLAUDE.md。
+plugins/: 插件版本、发布状态、分配事实与设备库存管理，以及独立 `/mcp` 页的服务配置/访问授权；局部地图见 plugins/CLAUDE.md。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

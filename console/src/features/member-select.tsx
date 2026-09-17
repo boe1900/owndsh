@@ -14,11 +14,12 @@ const inputClass = 'h-9 w-full rounded-lg border border-line bg-canvas px-3 text
 
 export async function loadMemberPage(cursor?: string) {
   const result = await listMembers({ query: { limit: 200, ...(cursor ? { cursor } : {}) } });
-  if (result.error !== undefined || result.data === undefined) {
+  const page = result.data?.data;
+  if (result.error !== undefined || !page || !Array.isArray(page.items) || !page.page) {
     const error = result.error as EnterpriseErrorResponse | undefined;
     throw new Error(error?.error.message ?? '成员目录加载失败');
   }
-  return result.data.data as MemberPageData;
+  return page as MemberPageData;
 }
 
 async function loadMembers() {

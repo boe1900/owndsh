@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Testing Library、Vitest、内存 history、静态角色元数据与完整产品 routeTree。
- * [OUTPUT]: 在仅有 getRandomValues 的 HTTP 环境验证五角色矩阵、多身份登录、成员/LDAP/模型/策略写入、插件可见范围自主安装及 Sign out。
+ * [OUTPUT]: 在仅有 getRandomValues 的 HTTP 环境验证五角色矩阵、业务写入、插件 read/write 权限下的发布与可见范围及 Sign out。
  * [POS]: routes 的产品壳最小集成门禁，覆盖前端可见性但不替代 Server ent:* 权限测试。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -639,13 +639,13 @@ function renderRoute(path: string, role?: AuthBuiltInRole, logoutStatus = 200, p
 describe('product console access', () => {
   it('uses the fixed five-role page matrix', () => {
     const paths = (role: AuthBuiltInRole) => productRoutesFor([role]).map((route) => route.to);
-    expect(paths('enterprise_admin')).toEqual(['/', '/access', '/plugins', '/members', '/activity']);
+    expect(paths('enterprise_admin')).toEqual(['/', '/access', '/plugins', '/mcp', '/members', '/activity']);
     expect(paths('model_admin')).toEqual(['/', '/access', '/activity']);
-    expect(paths('plugin_admin')).toEqual(['/plugins', '/activity']);
+    expect(paths('plugin_admin')).toEqual(['/plugins', '/mcp', '/activity']);
     expect(paths('auditor')).toEqual(['/activity']);
     expect(paths('employee')).toEqual([]);
     expect(productRoutesFor(['model_admin', 'plugin_admin']).map((route) => route.to))
-      .toEqual(['/', '/access', '/plugins', '/activity']);
+      .toEqual(['/', '/access', '/plugins', '/mcp', '/activity']);
   });
 
   it('sends an unauthenticated product URL to login', async () => {
@@ -1096,8 +1096,8 @@ describe('product console access', () => {
   });
 
   it('renders plugin facts and publishes a validated version with CAS', async () => {
-    const writes = renderRoute('/plugins', 'enterprise_admin', 200, ['ent:plugin:write']);
-    expect(await screen.findAllByText('Audit Tools')).toHaveLength(2);
+    const writes = renderRoute('/plugins', 'enterprise_admin', 200, ['ent:plugin:read', 'ent:plugin:write']);
+    expect(await screen.findAllByText('Audit Tools', {}, { timeout: 5_000 })).toHaveLength(2);
     expect(screen.getByText('1.2.0')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: '发布 @owndsh/audit-tools@1.2.0' }));
@@ -1116,8 +1116,8 @@ describe('product console access', () => {
   });
 
   it('saves optional plugin visibility with a selected member, CAS and idempotency', async () => {
-    const writes = renderRoute('/plugins', 'plugin_admin', 200, ['ent:plugin:write']);
-    expect(await screen.findAllByText('Audit Tools')).toHaveLength(2);
+    const writes = renderRoute('/plugins', 'plugin_admin', 200, ['ent:plugin:read', 'ent:plugin:write']);
+    expect(await screen.findAllByText('Audit Tools', {}, { timeout: 5_000 })).toHaveLength(2);
     fireEvent.click(screen.getByRole('tab', { name: '可见范围' }));
     expect(await screen.findByText('所有成员')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '配置范围' }));

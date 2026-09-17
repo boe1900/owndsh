@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖身份/设备/模型/配额/插件/Session/网关/revision 异常、Sa-Token、MVC 绑定与当前 requestId。
- * [OUTPUT]: 对外提供详细设计第 17 节稳定错误 envelope，并记录脱敏的入口校验失败事实。
+ * [INPUT]: 依赖企业业务（含 MCP）/revision 异常、Sa-Token、MVC 绑定与当前 requestId。
+ * [OUTPUT]: 对外提供详细设计第 17 节稳定错误 envelope，并记录脱敏的入口校验原因。
  * [POS]: common/api 的企业 Controller 专用异常边界，优先于 Host 通用 R 响应处理器。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -23,6 +23,8 @@ import com.owndsh.enterprise.device.application.DeviceAccessException;
 import com.owndsh.enterprise.device.application.DeviceBindingConflictException;
 import com.owndsh.enterprise.device.application.DeviceNotFoundException;
 import com.owndsh.enterprise.model.application.ModelResourceNotFoundException;
+import com.owndsh.enterprise.mcp.application.McpResourceNotFoundException;
+import com.owndsh.enterprise.mcp.application.McpIdempotencyConflictException;
 import com.owndsh.enterprise.model.gateway.GatewayException;
 import com.owndsh.enterprise.quota.application.QuotaExceededException;
 import com.owndsh.enterprise.quota.application.QuotaResourceNotFoundException;
@@ -121,6 +123,16 @@ public final class EnterpriseExceptionHandler {
     @ExceptionHandler(IdentityResourceNotFoundException.class)
     public ResponseEntity<EnterpriseErrorResponse> notFound(HttpServletRequest request) {
         return error(HttpStatus.NOT_FOUND, "ENT_RESOURCE_NOT_FOUND", "身份资源不存在", false, null, request);
+    }
+
+    @ExceptionHandler(McpResourceNotFoundException.class)
+    public ResponseEntity<EnterpriseErrorResponse> mcpNotFound(HttpServletRequest request) {
+        return error(HttpStatus.NOT_FOUND, "ENT_RESOURCE_NOT_FOUND", "MCP 资源不存在", false, null, request);
+    }
+
+    @ExceptionHandler(McpIdempotencyConflictException.class)
+    public ResponseEntity<EnterpriseErrorResponse> mcpIdempotencyConflict(HttpServletRequest request) {
+        return error(HttpStatus.CONFLICT, "ENT_IDEMPOTENCY_CONFLICT", "幂等键已经用于其他请求", false, null, request);
     }
 
     @ExceptionHandler(MemberManagementException.class)

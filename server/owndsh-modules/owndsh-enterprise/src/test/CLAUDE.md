@@ -4,6 +4,8 @@
 
 成员清单
 
+java/com/owndsh/enterprise/mcp/: MCP 组授权的 PostgreSQL/MockMvc 纵向门禁；局部地图见 mcp/CLAUDE.md。
+
 java/com/owndsh/enterprise/crypto/SecretCipherTest.java: 验证全部封闭用途 AES-GCM round trip、随机 nonce、AAD/用途隔离、篡改认证与防御性复制。
 java/com/owndsh/enterprise/auth/: 身份、PKCE、Access/Refresh Session、成员治理与认证 HTTP 契约门禁；局部地图见 auth/CLAUDE.md。
 java/com/owndsh/enterprise/device/DeviceContextIsolationTest.java: 证明伪造 X-Device-Id 不会覆盖 Sa-Token terminal 的 installation 授权事实。
@@ -34,9 +36,9 @@ java/com/owndsh/enterprise/audit/: 31-action metadata 白名单、requestId 关�
 java/com/owndsh/enterprise/common/api/: T20 有界 JSON 请求、稳定 413/503 与故障日志秘密隔离门禁；局部地图见 common/api/CLAUDE.md。
 java/com/owndsh/enterprise/test/OpenLdapTestServer.java: 共享 OpenLDAP Testcontainer 与测试专用 TLS trust，集中管理 LDAP 集成环境。
 java/com/owndsh/enterprise/test/RedisTestServer.java: 共享 Redis 8 Testcontainer，并为每项认证测试清理隔离 keyspace。
-java/com/owndsh/enterprise/database/EnterpriseMigrationTest.java: 验证普通数据库所有者从空库执行 V0-V29、旧 baseline 0 接管/升级、重复启动不重放种子、字符串时间参数与历史计量迁移。
+java/com/owndsh/enterprise/database/EnterpriseMigrationTest.java: 验证普通数据库所有者从空库执行 V0-V33、旧 baseline 0 接管/升级、重复启动不重放种子、字符串时间参数、历史计量与 MCP 原样认证值迁移。
 java/com/owndsh/enterprise/deployment/DeploymentBootstrapServiceTest.java: 以真实 PostgreSQL 验证缺配置失败、事务回滚、幂等管理员/角色/marker，以及分步认证和 JDBC 条件首次改密。
-java/com/owndsh/enterprise/database/RbacSeedTest.java: 验证五个 built-in 角色、16 个冻结权限码、最小权限集合与数据库不可变 trigger。
+java/com/owndsh/enterprise/database/RbacSeedTest.java: 验证五个 built-in 角色、20 个冻结权限码、MCP 管理员全权/审计员只读与数据库不可变 trigger。
 java/com/owndsh/enterprise/revision/RevisionAuditIntegrationTest.java: 验证 BOOTSTRAP CAS、稳定冲突码、显式 metadata、只追加审计及同事务回滚。
 java/com/owndsh/enterprise/test/PostgresTestDatabase.java: 共享 PostgreSQL 17 Testcontainer，为每组验收创建非超级用户持有的空数据库、从 classpath 执行全部 Flyway 迁移，并提供不依赖默认账号的最小活动用户 fixture。
 resources/ldap/bootstrap.ldif: OpenLDAP 集成测试的固定组织、用户与可验证属性数据，不含生产秘密。

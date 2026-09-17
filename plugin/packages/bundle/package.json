@@ -2,7 +2,13 @@
   "name": "owndsh-plugin",
   "version": "0.1.0",
   "description": "Self-hosted enterprise control plane plugin for DeepSeek Harness",
-  "keywords": ["deepseek", "harness", "self-hosted", "enterprise", "ai"],
+  "keywords": [
+    "deepseek",
+    "harness",
+    "self-hosted",
+    "enterprise",
+    "ai"
+  ],
   "homepage": "https://github.com/boe1900/owndsh#readme",
   "bugs": "https://github.com/boe1900/owndsh/issues",
   "repository": {
@@ -44,7 +50,6 @@
       "platform": "web",
       "inject": [
         "@deepseek-ai/dsh-client-ui-layout",
-        "@deepseek-ai/dsh-client-ui-sidebar",
         "@deepseek-ai/dsh-client-ui-settings-general"
       ]
     }
@@ -61,18 +66,27 @@
     "@deepseek-ai/dsh-host-plugin-inventory": "^0.1.5-rc.2",
     "@deepseek-ai/dsh-llm": "^0.1.5-rc.2",
     "@deepseek-ai/dsh-llm-pi-ai": "^0.1.5-rc.2",
+    "@deepseek-ai/dsh-mcp-client": "^0.1.5-rc.2",
     "@deepseek-ai/dsh-settings": "^0.1.5-rc.2",
     "@deepseek-ai/dsh-subprocess": "^0.1.5-rc.2",
-    "@deepseek-ai/schemastery": "^3.18.1"
+    "@deepseek-ai/dsh-tools": "^0.1.5-rc.2",
+    "@deepseek-ai/schemastery": "^3.18.1",
+    "@modelcontextprotocol/sdk": "^1.30.0"
   },
   "devDependencies": {
+    "@deepseek-ai/dsh-code-runtime": "0.1.5-rc.2",
     "@deepseek-ai/dsh-credentials": "0.1.5-rc.2",
     "@deepseek-ai/dsh-host-plugin-inventory": "0.1.5-rc.2",
     "@deepseek-ai/dsh-llm": "0.1.5-rc.2",
     "@deepseek-ai/dsh-llm-pi-ai": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-mcp-client": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-scope": "0.1.5-rc.2",
     "@deepseek-ai/dsh-settings": "0.1.5-rc.2",
     "@deepseek-ai/dsh-subprocess": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-system-prompt": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-tools": "0.1.5-rc.2",
     "@deepseek-ai/schemastery": "3.18.1",
+    "@modelcontextprotocol/sdk": "1.30.0",
     "@owndsh/llm-gateway": "workspace:*",
     "@owndsh/platform-client": "workspace:*",
     "@owndsh/plugin-distribution": "workspace:*",

@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 Cordis/Schemastery、Harness credentials/LLM/subprocess/inventory、官方运行时身份与企业业务模块
- * [OUTPUT]: 对外提供 Web/Desktop 共用 bundle apply、默认关闭的插件验签开关、Host 凭据持久化与企业插件安装/卸载组合
- * [POS]: bundle 的唯一 Host Loader 入口，组合平台认证、官方企业模型与环境原生插件调和；V1 不启动 Session 同步
+ * [INPUT]: 依赖 Cordis/Schemastery、Harness credentials/LLM/subprocess/inventory、官方运行时身份、企业业务模块与 mcp-runtime 组合入口
+ * [OUTPUT]: 对外提供 Web/Desktop 共用 bundle apply、默认关闭的插件验签开关、Host 凭据持久化与企业插件安装/卸载组合；由 mcp-runtime 管理 MCP 子 fiber 生命周期
+ * [POS]: bundle 的唯一 Host Loader 入口，组合平台认证、官方企业模型与环境原生插件调和；MCP 连接由独立 Cordis fiber 隔离并可撤销
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -20,9 +20,11 @@ import {
   EnterprisePlatformService,
   type WebServerRoutePort,
 } from '@owndsh/platform-client'
+import { mountMcpRuntime } from './mcp-runtime.js'
+import type { ToolRuntime } from '@deepseek-ai/dsh-tools'
 
 export const name = 'owndsh'
-export const inject = ['webServer', 'credentials', 'llm', 'subprocess', 'pluginInventory']
+export const inject = ['webServer', 'credentials', 'llm', 'subprocess', 'pluginInventory', 'tools']
 
 const VERIFIED_HARNESS_COMMITS: Readonly<Record<string, string>> = {
   '0.1.1-rc.2': 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e',
@@ -61,6 +63,7 @@ interface EnterpriseHostContext extends Context {
   readonly llm: LlmRuntime
   readonly subprocess: PluginDistributionContext['subprocess']
   readonly pluginInventory: PluginDistributionContext['pluginInventory']
+  readonly tools: ToolRuntime
 }
 
 interface DesktopProfilesPort {
@@ -126,6 +129,7 @@ export function apply(ctx: EnterpriseHostContext, config: Config): void {
       }
     },
   })
+  mountMcpRuntime(ctx, platform, ctx.credentials)
   ctx.effect(() => registerEnterpriseGateway(ctx, {
     platform,
     harnessVersion: HARNESS_VERSION,
