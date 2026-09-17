@@ -118,7 +118,7 @@ node scripts/mcp-design-spike.mjs /absolute/path/to/built/deepseek-harness
 
 1. 端侧 Tool metadata 采用稳定 canonical 结构；目录仅用于诊断。
 2. search工具：输入验证、Unicode/英文拆词、名称/描述权重、稳定排序；返回compact metadata。
-3. WeakMap<Agent,HotSet>，16工具/64KiB预算，full聚合超限退到明确的effective search。
+3. WeakMap<Agent,LoadedSet>去重累加，mcp_tool_release显式释放；presented固定本步调用许可，删除16工具/64KiB及LRU。
 4. 修改assembly.tools并以官方renderer替换tools:sdk，保留run_code及非受管工具与PTC-only指导。
 5. 现有scope restrict交集、session/fork/resume冷启动、撤权/变更移出hot。
 6. 真实LLM适配器的捕获服务断言wire payload，而不只测试中间数组。
@@ -217,13 +217,13 @@ node scripts/mcp-design-spike.mjs /absolute/path/to/built/deepseek-harness
 
 | ID | 输入/故障 | 必须观察到 |
 |---|---|---|
-| P01 | 连接含100个工具，新agent | 冷启动请求仅search/控制说明，没有100个schema |
+| P01 | 连接含100个工具，新agent | 冷启动请求仅search/release控制工具，没有100个schema |
 | P02 | search命中5个 | 下一次推理仅加载5个；search返回不重复带完整schema |
 | P03 | A会话热5个，B会话冷 | B请求无A的schema，连接实例不重复建立 |
 | P04 | native/ptc/both × TS/Python renderer | wire schema和SDK均过滤，run_code与非MCP能力保留 |
 | P05 | 中文查询、alias、无结果、server过滤 | 不退成前N项；stable排序；不泄露未授权工具名 |
 | P06 | hot工具撤权/摘要改变/远端删除 | 后续请求移除，旧历史name调用被guard拒绝 |
-| P07 | 17个候选/超过64KiB/多个full服务 | 有界LRU，超预算改effective search且UI说明 |
+| P07 | 多次搜索累计24个/超过64KiB/多个full服务/显式释放 | 无隐式淘汰或降级；去重累加，释放仅下步生效、可重搜、full不释放 |
 | P08 | description含HTML、NUL、`{{x}}`、代码围栏 | 无DOM执行、无模板变量注入、工具结构未被错误截断 |
 | P09 | 宿主重新组装请求、工具代次变化、其他 manager 改写 hook | OwnDsh 按当前授权和 Agent 热集合投影工具，不泄漏冷工具；不支持的呈现组合明确拒绝。Harness 压缩算法本身不属于本项验收 |
 | G01 | 实际standard/minimal及自定义restrict preset | 与Harness scope规则一致，broker不能绕过restrict |
@@ -386,3 +386,17 @@ Server按当前Maven父项目/test容器流程运行集成用例；Host使用现
 2026-09-17 短描述交互修正：展开入口仅在字符预算截断或三行实际溢出时出现，ResizeObserver 负责宽度变化后的重新测量；短描述直接渲染为无交互文本。真实 Harness Web 的 Notion 41 项目录验证为 10 项普通文本、31 项可展开，普通文本没有隐藏溢出，notion-get-session-status 无 summary/button/tabindex；长描述通过 Enter 展开后完整渲染 1624 字符，再次 Enter 可收起。UI 类型检查、插件构建和 diff 检查通过，安装产物与本次构建一致。
 
 2026-09-17 账号入口与刷新反馈收口：移除 OwnDsh 的 sidebar.footer.action 注册及侧栏依赖，账号信息、退出确认集中在 OwnDsh 设置 → 账号，保留原登录门禁。手动刷新复用 store 动作锁，显示旋转图标、“刷新中”和最终成功/失败；HTTP 异常及 Host 错误状态均按失败处理，允许重试，自动状态读取不触发成功提示。UI 32 条与 bundle 入口 3 条回归通过；真实 Harness Web 验证侧栏无退出入口、账号页退出确认可取消、刷新显示进行中后成功。Notion 与 Apifox 两个配置保留在本机测试目录。
+
+2026-09-17 内网 HTTP OAuth 支持：管理页、服务端公共元数据及端侧 OAuth 统一接受 HTTP(S)，管理员填写 HTTP 地址即可，MCP transport 标记由 URL 派生。端侧 token exchange/refresh 共用 URL 校验；PKCE/state、issuer/resource 绑定、userinfo/片段拒绝、取消隔离和禁止自动重定向继续保留。真实 HTTP provider fixture 直接处理授权页面跳转、loopback callback、code exchange 和 refresh，不再把 HTTPS URL 改写为本地 HTTP；分别覆盖手工端点、发现和动态 public client 注册。search/full 同一会话失效/重授权也直接使用 HTTP token endpoint。MCP OAuth/runtime 37 条、Console MCP 21 条、Server MCP 9 条回归通过；Console 类型检查、插件正式构建和服务端 prod 打包通过。上述证据覆盖 OwnDsh 的 HTTP 能力，不代表已验证用户内网 OAuth provider 的业务配置。
+
+2026-09-17 按需加载故障排查：用户报告来自另一套桌面环境，未取得该环境原会话日志，不能把模型关于“始终只有初始六个工具”的自述当作实际出站 Schema。使用原问题“看看我notion的mcp，能干啥？”在本地 Harness Web、真实模型和 Notion 创建会话 `ecf8b218-f724-43dd-8dbc-d30313959da7`；逐次读取官方持久化 `request/header`，三次搜索分别返回 6/8/7 个 loadedNames，下一步请求分别包含 6/10/7 个 Notion 工具，三批的遗漏数均为 0。第二轮只读询问当前工作区，模型自主重新搜索并成功调用之前已被 LRU 淘汰的 notion-fetch。该证据证明本地普通跨步注入正常，不证明远端报告无问题，也不是网络抓包；期间 Agent Session 工具的 Notion 403 权限拒绝与 Schema 注入分开记录。
+
+同轮排查确认 OwnDsh 存在另一条可复现缺陷：一个模型响应中多次执行搜索，中间未发生 inference，后一次搜索可按 LRU 淘汰前一次刚返回的 loadedNames，使“下一步可用”的承诺失效。数量上限与 64KiB 字节上限两个回归均先失败；修复后按 Agent 临时保留尚未呈现的加载结果至下一次成功 assembly，空间不足返回较少结果或 BUDGET_EXCEEDED，随后恢复常规 LRU，撤权/连接失效不受保留约束。搜索说明同步解释历史加载可能被后续搜索淘汰；不修改第三方 MCP Schema 或参数。
+
+本轮验证：MCP runtime 19 条通过，bundle 类型检查和正式构建通过；临时受控模型驱动本地官方 AgentLoop，每次在同一模型响应产生三批搜索，数量预算返回 8/8/0、字节预算返回 6/0/0，所有成功 loadedNames 均在下一步模型 adapter 请求中，随后真实调度执行首批工具成功。该 AgentLoop 探针使用受控工具与模型，无外部 MCP 调用；上述 Notion Web 复现使用修复前的已安装插件，不能冒充修复版外部 E2E。修复尚未发布，远端桌面具体事件仍需原始日志才能归因。
+
+HTTP改动的本地运行环境已更新：Server 18081 替换该次 prod JAR 后健康状态 UP；Harness Web 60465 安装的是HTTP改动tgz，Host/Client SHA-256与该次构建一致、配置刷新READY；Console 18080继续提供源码页面。上述搜索/释放新改动尚未安装到这个Web实例，也未发布。
+
+2026-09-17 搜索设计最终收敛（替代上文LRU及临时pending方案）：用户选择保留已加载工具、由模型显式释放，并要求简化自定上限。删除16工具/64KiB会话预算、LRU/pending/result-touch及full自动降级；保留目录异常输入保护和每次5/8个搜索结果。新增mcp_tool_release，完整验证后仅修改本Agent的下步选择，重复释放幂等、full固定工具不释放；本步presented快照来自实际native/SDK定义，搜索和释放不改变本步调用许可，实时撤权/定义变化仍立即拒绝。原始Notion定义不作兼容补丁。端侧设计6.5提供最终Mermaid图，6.7记录OpenAI/Anthropic官方机制与限制；此前预算版本的验证只是历史证据。
+
+最终版本验证：`pnpm exec vitest run tests/mcp-runtime.spec.ts` 28条通过，覆盖native/PTC/both × TypeScript/Python的真实pi-ai HTTP请求与释放后的Schema/SDK消失，连续三批搜索24个工具保留、长定义超过旧64KiB限制、full不降级、重复搜索/释放、非法释放批次无部分提交、Agent隔离、连接状态不受释放影响、控制名称冲突、scope撤销与代次变化。UI现有32条通过，UI构建、bundle类型检查与正式构建通过。临时受控模型驱动本地官方AgentLoop的三个场景通过：普通/长定义均搜索8+8+8后下步包含24个Schema，首批工具成功执行；本步release旧工具+search新工具时旧调用成功、新调用提前拒绝，下一步新工具成功。探针证明调度/注入接缝，不证明真实模型会主动或及时释放工具；PTC解释器仍用受控binding替身。HTTP版外部Notion复现与此次源码验证严格分开，未获远端原日志，不能宣布远端具体事件已定位。

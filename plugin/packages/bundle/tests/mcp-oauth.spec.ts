@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖身份绑定的 MCP credentials、真实 PKCE loopback、受控浏览器交接与 token HTTP 响应。
- * [OUTPUT]: 验证持久秘密隔离、原子刷新/轮换、invalid_grant 与重新授权状态、取消/销毁期间迟到响应及 PKCE/state。
+ * [OUTPUT]: 验证持久秘密隔离、原子刷新/轮换、invalid_grant 与重新授权状态、取消/销毁期间迟到响应及 PKCE/state；真实 HTTP 覆盖手工端点、发现、动态注册与刷新。
  * [POS]: bundle 的凭据与 OAuth 协议边界回归；provider 使用本地真实 HTTP fixture，不调用外部服务，不打开真实浏览器。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -186,16 +186,17 @@ describe('MCP credentials', () => {
 })
 
 describe('MCP OAuth browser flow', () => {
-  it('runs discovery, dynamic registration, authorization code and refresh against a real provider fixture', async () => {
+  it.each(['manual', 'discovery', 'dynamic'] as const)('runs HTTP OAuth authorization and refresh against a real provider: %s', async mode => {
     const credentials = new MemoryCredentials(), manager = createManager(credentials)
-    const resource = 'https://mcp.local/mcp', issuer = 'https://issuer.local'
+    let resource: string, issuer: string, authorization: URL
     const requests: Array<{ method: string; path: string; body: string }> = []
     let refreshCount = 0
     const provider = createServer(async (request, response) => {
       const chunks: Buffer[] = []
       for await (const chunk of request) chunks.push(Buffer.from(chunk))
       const body = Buffer.concat(chunks).toString()
-      requests.push({ method: request.method ?? '', path: request.url ?? '', body })
+      const url = new URL(request.url!, issuer)
+      requests.push({ method: request.method ?? '', path: url.pathname, body })
       const json = (value: unknown, status = 200) => {
         response.writeHead(status, { 'content-type': 'application/json' }); response.end(JSON.stringify(value))
       }
@@ -212,9 +213,22 @@ describe('MCP OAuth browser flow', () => {
           grant_types: ['authorization_code'], response_types: ['code'],
         }, 201)
       }
+      if (url.pathname === '/authorize') {
+        authorization = url
+        const callback = new URL(url.searchParams.get('redirect_uri')!)
+        callback.searchParams.set('state', url.searchParams.get('state')!)
+        callback.searchParams.set('code', 'fixture-code')
+        response.writeHead(302, { location: callback.toString() }); response.end(); return
+      }
       if (request.url === '/token') {
         const params = new URLSearchParams(body)
-        if (params.get('grant_type') === 'authorization_code') return json(token('fixture-access', 'fixture-refresh', 3600))
+        if (params.get('grant_type') === 'authorization_code') {
+          expect(params.get('code')).toBe('fixture-code')
+          expect(params.get('redirect_uri')).toBe(authorization.searchParams.get('redirect_uri'))
+          expect(authorization.searchParams.get('code_challenge_method')).toBe('S256')
+          expect(createHash('sha256').update(params.get('code_verifier')!).digest('base64url')).toBe(authorization.searchParams.get('code_challenge'))
+          return json(token('fixture-access', 'fixture-refresh', 3600))
+        }
         refreshCount += 1
         expect(params.get('grant_type')).toBe('refresh_token')
         expect(params.get('resource')).toBe(resource)
@@ -224,37 +238,40 @@ describe('MCP OAuth browser flow', () => {
     })
     await new Promise<void>(resolve => provider.listen(0, '127.0.0.1', resolve))
     const port = (provider.address() as { port: number }).port
+    issuer = `http://127.0.0.1:${port}`; resource = `${issuer}/mcp`
     const nativeFetch = globalThis.fetch
-    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = new URL(String(input))
-      if (url.hostname === 'mcp.local' || url.hostname === 'issuer.local') {
-        url.protocol = 'http:'; url.hostname = '127.0.0.1'; url.port = String(port)
-        const response = await nativeFetch(url, init)
-        // 将本地映射响应的 url 清空，模拟 provider 直接返回且不触发生产重定向保护。
-        return new Response(await response.arrayBuffer(), { status: response.status, headers: response.headers })
-      }
-      return nativeFetch(input, init)
-    })
     const browser = vi.mocked(openSystemBrowser)
-    browser.mockImplementation(async raw => {
-      const authorization = new URL(raw), callback = new URL(authorization.searchParams.get('redirect_uri')!)
-      callback.searchParams.set('state', authorization.searchParams.get('state')!); callback.searchParams.set('code', 'fixture-code')
-      await nativeFetch(callback)
-    })
+    browser.mockImplementation(async raw => { expect((await nativeFetch(raw)).status).toBe(200) })
     try {
-      await authorizeMcpOAuth(manager, { resource, issuer, dynamicRegistration: true, scopes: ['read'], signal: active() })
+      await authorizeMcpOAuth(manager, { resource, issuer, scopes: ['read'], signal: active(),
+        ...(mode === 'dynamic' ? { dynamicRegistration: true } : { clientId: 'fixture-public-client' }),
+        ...(mode === 'manual' ? { authorizationEndpoint: `${issuer}/authorize`, tokenEndpoint: `${issuer}/token` } : {}),
+      })
       expect(await manager.accessToken()).toBe('fixture-access')
-      await manager.storeOAuth(token('fixture-access', 'fixture-refresh', 1), active(), 'fixture-public-client')
-      expect(await manager.accessToken(`${issuer}/token`, undefined, resource)).toBe('fixture-refresh-1')
+      vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 3_601_000)
+      expect(await manager.accessToken(`${issuer}/token`, mode === 'dynamic' ? undefined : 'fixture-public-client', resource)).toBe('fixture-refresh-1')
       expect(requests.map(request => request.path)).toEqual([
-        '/.well-known/oauth-protected-resource/mcp', '/.well-known/oauth-authorization-server', '/register', '/token', '/token',
+        ...(mode === 'manual' ? [] : ['/.well-known/oauth-protected-resource/mcp', '/.well-known/oauth-authorization-server']),
+        ...(mode === 'dynamic' ? ['/register'] : []), '/authorize', '/token', '/token',
       ])
       const tokenRequests = requests.filter(request => request.path === '/token')
       expect(new URLSearchParams(tokenRequests[0]!.body).get('resource')).toBe(resource)
       expect(new URLSearchParams(tokenRequests[1]!.body).get('client_id')).toBe('fixture-public-client')
+      expect((await credentials.readRecord(manager.key) as any).payload.refreshToken).toBe('fixture-rotated-1')
     } finally {
       await new Promise<void>((resolve, reject) => provider.close(error => error ? reject(error) : resolve()))
     }
+  })
+
+  it.each(['ftp://auth.internal/token', 'http://user:password@auth.internal/token', 'http://auth.internal/token#fragment'])('rejects invalid OAuth URLs before authorization or refresh: %s', async endpoint => {
+    const manager = createManager(new MemoryCredentials())
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(authorizeMcpOAuth(manager, { ...oauthOptions(), tokenEndpoint: endpoint })).rejects.toThrow('MCP_OAUTH_ENDPOINT_INVALID')
+    await manager.storeOAuth(token('expired', 'refresh', 1), active())
+    await expect(manager.accessToken(endpoint, 'client')).rejects.toThrow('MCP_OAUTH_ENDPOINT_INVALID')
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(openSystemBrowser).not.toHaveBeenCalled()
   })
 
   it('discovers protected resource and authorization server metadata only for the configured issuer', async () => {

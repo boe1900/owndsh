@@ -47,6 +47,6 @@ P2-08C 将产品控制台会话收敛为服务端 Sa-Token 与 HttpOnly/SameSite
 
 插件验签策略：客户端 `verifyPluginSignatures` 默认 false，HTTP 内网部署无需员工配置公钥；文件大小、SHA-256、兼容性、逐请求授权与核心包保护始终生效。显式开启后仅信任安装层配置的 Ed25519 公钥，目录、下载和缓存都严格验签，服务端响应无权关闭校验或替换信任根。服务端 `ENT_PLUGIN_SIGNING_ENABLED` 同样默认 false，关闭时不加载私钥、不生成签名；数据库保留非空 bytea，以零长度表示未签名，HTTP `signatureBase64` 对应空字符串，无需迁移。开启签名仅影响新上传版本，不补签旧制品。Docker 与离线安装默认不提供签名密钥；升级时先更新员工插件，旧客户端无法解析无签名版本。
 
-MCP 员工能力仍在唯一 `owndsh-plugin` 的 OwnDsh 设置中；公共配置和服务授权归 Console/Server，用户秘密归 Host credentials。端侧复用官方 MCP client 的独立 fiber，按 Agent 搜索和有界热集合呈现工具；凭据绑定平台 origin、bootstrap 用户/设备/installation 与 MCP serverId/目标配置摘要，OAuth access token 仅存内存，平台身份失效先关调用门禁并取消在途授权。实现进度、OAuth 失效/重新授权和真实 Notion Web 验证边界见 docs/mcp-implementation-plan.md。
+MCP 员工能力仍在唯一 `owndsh-plugin` 的 OwnDsh 设置中；公共配置和服务授权归 Console/Server，用户秘密归 Host credentials。MCP/OAuth 各地址统一接受管理员指定的 HTTP(S)，沿用 PKCE、state 和 issuer/resource 绑定；协议由部署方选择。端侧复用官方 MCP client 的独立 fiber，按 Agent 搜索累加、显式释放和本步调用快照呈现工具，无自动 LRU/16工具/64KiB会话硬限；凭据绑定平台 origin、bootstrap 用户/设备/installation 与 MCP serverId/目标配置摘要，OAuth access token 仅存内存，平台身份失效先关调用门禁并取消在途授权。实现进度、OAuth 失效/重新授权和真实 Notion Web 验证边界见 docs/mcp-implementation-plan.md。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

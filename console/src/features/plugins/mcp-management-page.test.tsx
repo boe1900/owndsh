@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 MCP 管理页、生成 SDK、Testing Library 与 Query Client。
- * [OUTPUT]: 验证服务配置/访问授权 Tab 切换、配置创建/编辑与原值保留、固定请求头校验、revision 冲突、ALL 授权和异常响应不会触发 null.items 崩溃。
+ * [OUTPUT]: 验证服务配置/访问授权 Tab 切换、配置创建/编辑与原值保留、OAuth URL 字段提示、固定请求头校验、revision 冲突、ALL 授权和异常响应不会触发 null.items 崩溃。
  * [POS]: MCP 管理 UI 的核心回归门禁。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -88,6 +88,37 @@ const authenticationCases: Array<{ name: string; auth: McpMcpAuth }> = [
   { name: 'OAuth public client', auth: { type: 'oauth', issuer: 'https://auth.example.test', resource: 'https://api.example.test/resource', clientId: 'existing-client', dynamicRegistration: false, scopes: ['read', 'write'], authorizationEndpoint: 'https://auth.example.test/authorize', tokenEndpoint: 'https://auth.example.test/token' } },
   { name: 'OAuth dynamic registration', auth: { type: 'oauth', issuer: 'https://auth.example.test', resource: 'https://api.example.test/resource', dynamicRegistration: true, scopes: ['read'] } }
 ];
+it.each(['Issuer', 'Resource', 'Authorization endpoint', 'Token endpoint'])('rejects unsupported protocols for OAuth %s without sending the invalid draft', async (label) => {
+  server.auth = authenticationCases[2]!.auth;
+  show();
+  fireEvent.click(await screen.findByRole('button', { name: '编辑 设计工具' }));
+  fireEvent.change(screen.getByLabelText(label), { target: { value: 'ftp://localhost:8090/mcp' } });
+  fireEvent.click(screen.getByRole('button', { name: '保存服务' }));
+  expect(await screen.findByRole('alert')).toHaveProperty('textContent', `OAuth ${label} 必须使用 HTTP 或 HTTPS 地址。`);
+  expect((screen.getByLabelText(label) as HTMLInputElement).value).toBe('ftp://localhost:8090/mcp');
+  expect(updates).toEqual([]);
+  expect(writes).toEqual([]);
+});
+it('creates an HTTP OAuth configuration and defaults Resource to the HTTP MCP address', async () => {
+  show();
+  await screen.findByText('设计工具');
+  fireEvent.click(screen.getByRole('button', { name: '添加 MCP' }));
+  fireEvent.change(screen.getByLabelText('服务标识'), { target: { value: 'intranet-mcp' } });
+  fireEvent.change(screen.getByLabelText('显示名称'), { target: { value: '内网 MCP' } });
+  fireEvent.change(screen.getByPlaceholderText('https://mcp.example.com/mcp'), { target: { value: 'http://localhost:8090/mcp' } });
+  fireEvent.change(screen.getByLabelText('认证方式'), { target: { value: 'oauth' } });
+  fireEvent.change(screen.getByLabelText('Issuer'), { target: { value: 'http://auth.internal/auth' } });
+  fireEvent.change(screen.getByLabelText('Public client ID'), { target: { value: 'public-client' } });
+  fireEvent.change(screen.getByLabelText('Authorization endpoint'), { target: { value: 'http://auth.internal/auth/authorize' } });
+  fireEvent.change(screen.getByLabelText('Token endpoint'), { target: { value: 'http://auth.internal/auth/token' } });
+  fireEvent.click(screen.getByRole('button', { name: '保存服务' }));
+  await waitFor(() => expect(writes[0]).toMatchObject({
+    url: 'http://localhost:8090/mcp', allowInsecureTransport: true,
+    auth: { type: 'oauth', issuer: 'http://auth.internal/auth', resource: 'http://localhost:8090/mcp', clientId: 'public-client',
+      authorizationEndpoint: 'http://auth.internal/auth/authorize', tokenEndpoint: 'http://auth.internal/auth/token' }
+  }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+});
 it.each(authenticationCases)('edits $name configuration without resetting existing metadata', async ({ auth }) => {
   server = { ...server, auth, allowInsecureTransport: true, url: 'http://mcp.example.test' };
   const { id, revision, status, createdAt, updatedAt, ...configuration } = server;

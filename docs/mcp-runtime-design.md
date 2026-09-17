@@ -1,6 +1,6 @@
 <!--
 [INPUT]: 依赖 mcp-management-design.md 的字段/授权、Harness tools/system-prompt/credentials、platform-client 的公开原语。
-[OUTPUT]: 定义连接与 OAuth 状态机、会话搜索、PTC 兼容、并发/撤销、端侧路由和诊断契约。
+[OUTPUT]: 定义连接与 OAuth 状态机、会话搜索/显式释放流程图、厂商机制对照、本步调用快照、PTC 兼容、并发/撤销、端侧路由和诊断契约。
 [POS]: docs 的 MCP 端侧实施规格；不重新实现 MCP 协议、不把呈现过滤充作安全隔离。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
@@ -32,7 +32,7 @@ OAuth 外部请求在 mcp-runtime 专用 auth HTTP 函数完成，不调用 plat
 不为单实现另造通用插件工厂。bundle 以现有依赖注入端口连接 UI local API，platform-client 不反向 import mcp-runtime。
 
 Host 共享：assignment map、client fiber、用户 credential、当前授权快照、受管工具目录。
-每 agent 独立：hot LRU、当前呈现代次、预算与搜索结果；用 WeakMap<Agent,...>，同 session 恢复后产生新 Agent 则从冷态开始。
+每 agent 独立：下步 loaded 集合、本步 presented 快照；用 WeakMap<Agent,...>，同 session 恢复后产生新 Agent 则从冷态开始。搜索和执行分别读取下步集合与本步快照，不能把可变 loaded 直接当成本步执行许可。
 上下文缺少 agent 时不返回受管 schema；Host 设置页用专门 status/catalog 方法，不依赖空 scope 的搜索工具。
 
 单 Host 同时一个平台用户。当前 owner 为 `(platform origin, userId, deviceId, installationId)` 的 SHA-256；身份只取已校验的 `platform.bootstrap()`，serverId 另列入凭据键。当前数据库 `sys_user.user_id` 与 `ent_device.id` 都是全库主键，足以区分租户；不从 UI 接收 tenantId，也不凭客户端字段授权。如果未来改成租户内 ID，必须同步把服务端可信 tenantId 加入 owner。运行时另用 session generation 拒绝同身份重新登录之前的迟到任务。
@@ -42,7 +42,7 @@ Host 共享：assignment map、client fiber、用户 credential、当前授权�
 ### 2.1 非秘密 settings
 
 复用官方 settings，命名 `owndsh.mcp`，记录版本1与身份键对应的 `{serverId,desiredConnected}`。
-默认 desiredConnected=false；首次 CONNECT 显式变 true。NONE 也需点击连接。PAUSE 置 false 保留 credential；DISCONNECT 置 false 删除 credential。不存 URL/token、工具 schema 或 hot set。
+默认 desiredConnected=false；首次 CONNECT 显式变 true。NONE 也需点击连接。PAUSE 置 false 保留 credential；DISCONNECT 置 false 删除 credential。不存 URL/token、工具 schema 或 loaded 集合。
 
 ### 2.2 CredentialRecord
 
@@ -100,7 +100,7 @@ refresh token 在 `credentials.modifyRecord` 独占回调内读取、请求和�
 ∧ 当前 generation 未被撤销
 ```
 
-Full 模式不会跳过任一条件。Hot membership 只控制呈现与上下文预算。
+Full 模式不会跳过任一条件。Loaded membership 只管理搜索选择；执行另查本步呈现快照和实时权限。
 目录dirty期间guard拒绝新受管调用，microtask重建并原子发布后恢复；不能让同步重注册的中间态绕过准入。
 不把其他插件注册的 `mcp__` 全部接管。仅处理 OwnDsh assignment 保留的 namespaces；检测到第三方 manager 占用 search 名称/namespace 时关闭受管功能并报 CONFLICT。
 `ctx.tools.restrict` 的外部 preset 掩码照常生效；broker 取交集，不能从全局目录把被 preset 隐藏的工具重新加回来。
@@ -114,10 +114,10 @@ Full 模式不会跳过任一条件。Hot membership 只控制呈现与上下文
 | tools.guard | 同步检查最新 generation/lease/准入/desiredConnected；返回固定拒绝码，无 await |
 | tools/execute | 仅受管工具增加在途计数、合并 lifecycle abort signal、finally 减计数；再次同步确认 dispatch 前配置未撤销；不绕开 next() |
 | tools/post-execute | 受管失败输出脱敏及展示规则；不记录参数和正文 |
-| tools/result | 同步观察事实，更新 hot set/耗时 metadata；入内存队列，不在 listener 中等待网络 |
+| tools/result | 如需观测仅记录调用事实；搜索集合不依赖成功调用更新，没有 LRU touch |
 | tools/change | 标记目录 dirty，microtask 合并重扫；不把注册过程中的暂态空目录当撤权 |
 
-同步 guard 不是同进程恶意插件沙箱。官方 client 自动注册远端 tools；OwnDsh 不维护 Tool 白名单，只通过会话呈现、预算和 Harness 原有安全策略控制使用。
+同步 guard 不是同进程恶意插件沙箱。官方 client 自动注册远端 tools；OwnDsh 不维护 Tool 白名单，只通过会话呈现、显式释放和 Harness 原有安全策略控制使用。
 
 所有 received tool name 与 schema 来源都属于当前命名空间，publicName 只用官方产物；不复制命名 hash 函数、不 reverse-parse rawName。插件返回合法 rawName 的 tools/call 由官方保持。
 
@@ -153,10 +153,10 @@ Full 模式不会跳过任一条件。Hot membership 只控制呈现与上下文
 
 当前 bundle 的 `src/mcp-runtime.ts` 使用一个 MCP 子 fiber 对应一个 server：官方 `apply()` 注册连接与工具，返回的 Cordis fiber 由 runtime 保存；assignment 撤回、revision 或生效认证头变化、用户 disconnect 以及 Host 销毁都会先 `await fiber.dispose()`，再允许同名 namespace 重新挂载。刷新通过单一 `refreshing` Promise 串行化，避免同一 server 重复连接；生效凭据签名包含 OAuth access token/API Key，因此 OAuth 返回新 access token 会触发旧 fiber 释放后重挂载；若 token 字符串不变、只延长 expiresAt，则保留 fiber 并更新执行门禁的有效期。挂载失败只记录该 server 的固定错误并清理其 fiber，不阻断 OwnDsh bundle。通过 platform.subscribe 感知登录与退出，prompt assembly、受管调用和 Settings 读取按需验证 60 秒租约；缓存仍有效时只调和端侧凭据，不发 assignment 网络请求。单次失败不续 lease，未知/过低 revision 不接受；当前调和仍按共享 Promise 串行，尚未达到每服务独立队列与四连接并发的目标。
 
-服务显示名/presentation-only 变化：更新投影和 guard，不重连。URL/auth/headers 变化：清空 hot 与旧 binding，需用户重新连接。显示名变化只刷新 UI。
+服务显示名/presentation-only 变化：更新投影和 guard，不重连。URL/auth/headers 变化：清空 loaded 与旧 binding，需用户重新连接。显示名变化只刷新 UI。
 重连 token 不变时遵循官方 reconnect，不再叠加 OwnDsh 自动重试；重连耗尽无公开精确事件时 UI 用 DEGRADED/手动重连，不读官方 private supervisor 状态。
 
-官方 tools/list_changed 是全代替注册。重扫完成后比较 canonical digest，不比较 JS definition 对象地址；删除或变更摘要即移出当前 hot set，等待下一次搜索加载最新定义。
+官方 tools/list_changed 是全代替注册。重扫完成后比较官方定义的结构等价性，不仅比较 JS definition 对象地址；删除或结构变更即移出当前 loaded 集合，等待下一次搜索加载最新定义。
 重注册期间临时查找失败可返回可重试的 MCP_NOT_READY；不自动重放工具。
 
 ### 4.3 并发、超时与关闭
@@ -182,7 +182,7 @@ OwnDsh 控制 fetchFn、issuer/resource/client 约束、凭据存储与浏览器
 2. 复用 platform-client 导出的 createPkceS256/startLoopbackCallback、浏览器 opener；若 SDK startAuthorization 自带 verifier，选择同一份 verifier 持有，不生成两份。
 3. state 256bit 随机、单次使用。记录 `{flowId,owner,binding,issuer,redirectUri,state,verifier,startedAt}`，仅内存。
 4. mcp discovery：从配置的 resource 发现 PRM，再从其 authorization_servers 选择与配置 issuer 精确匹配的一项，发现该 AS 元数据。若无匹配/缺关键能力则拒绝；用户可以让管理员切换 manual，不自动跨 AS。
-5. 校验 PKCE S256、authorization code grant、token endpoint 认证方式 none；端点 HTTPS、无开放重定向。resource 参数固定为被管理资源，不按第三方任意建议更改。当前实现用 SDK discovery 校验 PRM 的 resource 与 authorization_servers，并精确比较配置 issuer；若管理员同时提供完整 authorizationEndpoint/tokenEndpoint，则保持 manual endpoint 兼容，不绕过其 HTTPS/重定向校验。
+5. 校验 PKCE S256、authorization code grant、token endpoint 认证方式 none；端点 HTTP(S)、无开放重定向。resource 参数固定为被管理资源，不按第三方任意建议更改。当前实现用 SDK discovery 校验 PRM 的 resource 与 authorization_servers，并精确比较配置 issuer；若管理员同时提供完整 authorizationEndpoint/tokenEndpoint，则保持 manual endpoint 兼容，不绕过其 HTTP(S) 协议/userinfo/片段/重定向校验。
 6. pre-registered 用配置 clientId；dynamic 必须显式开启且 AS 发布注册 endpoint，提交 public native/web client metadata，拒绝返回需要 client_secret 的注册。动态 clientId 按 issuer/resource/callback/设备绑定保存。
 7. 浏览器打开 authorizationUrl，带 response_type=code、client_id、state、code_challenge、S256、redirect_uri、scope、resource。
 8. callback 校验精确路径/Host、state 恒定时间比较、事务未过期、当前 owner/binding 没变。恶意错误 state 不消费合法事务；合法 response 仅结算一次。
@@ -216,7 +216,7 @@ API Key 模式只收一个用户输入的完整认证值，原样放入 `auth.he
 - 无 expires_in：expiresAt=null；当前进程可用，但不推断JWT exp，也不能保证提前刷新。有 refresh token 时手动 reconnect 执行 refresh；无 refresh 要重授权。
 - 官方 client 不保证把 HTTP 401 状态结构化传给管理插件。**第一版不依据 error.message 正则识别401，不承诺每次401自动刷新。** 过期已知由前置 refresh 解决；未知提前撤销显示连接失败，可手动重授权。
 - tools/call 无论何种失败都不由 adapter 自动重放；平台 API 的401重试策略不能复制到 MCP mutation。
-- 同名 remount 后保持 publicName；schema 改变时清理旧 hot 定义，不能继续调用旧闭包。
+- 同名 remount 后保持 publicName；schema 改变时清理旧 loaded 定义，不能继续调用旧闭包。
 
 当前验证边界（2026-09-15）：已实现上述身份/目标绑定、进程内 access token、动态 public clientId 与 refresh token 原子保存、原子 rotation、single-flight、invalid_grant 清秘密、生命周期 abort、30 秒 token HTTP 超时、拒绝重定向及 resource 在授权/交换/refresh 请求中的注入。仍使用固定提前量 30 秒并要求 `expires_in`；比例提前量、无有效期 token、429/5xx 冷却、远程固定 HTTPS callback 尚未完成。本轮已实现受控 PRM/AS discovery、resource/issuer 校验、manual endpoint 兼容和 RFC 7591 public DCR；confidential registration 会被拒绝。回调继续复用平台 PKCE 原语：真实 loopback 已验证 S256/state、取消和浏览器失败清理，但该原语遇错 state 会结束事务，尚不满足 5.2 的“错 state 不消费事务”和完整 Host 校验目标。受控 token HTTP 响应用 mock，不能视为真实 OAuth provider 或远程浏览器验证。
 
@@ -230,16 +230,13 @@ API Key 模式只收一个用户输入的完整认证值，原样放入 `auth.he
 
 ### 6.1 Canonical tool definition
 
-统一生成：`{publicName,description,parameters,outputSchema}`，description 去 NUL/control、合并换行并截至1000 Unicode code points；parameters/outputSchema 来自官方 ToolDefinition，不能简化结构使模型参数与执行验证不一致。
-受管native schema与SDK输入必须使用这份canonical description，不能把截断摘要当成完整定义发给模型；parameters/outputSchema保持官方语义。
-JCS canonical JSON → UTF-8 → SHA-256 lowercase；复用现有 JCS 原语，Server 与 TS 共用 fixture。数字需 lossless JSON，禁止 NaN/Infinity/undefined。schemaDigest 包含 description，描述变化触发端侧刷新。
-单工具 canonical bytes≤16KiB、深度≤32、节点≤4096；不合格工具不进入候选/搜索/请求且 guard 拒绝。目录512条/1MiB是 OwnDsh 投影/上报上限；官方 client 在投影前已经发现完整列表，**此上限不能声称限制了网络接收内存**。
-公告目录按 publicName code-unit 排序；catalogDigest 对 canonical 工具数组再取摘要。相同列表顺序改变不产生新候选，官方重注册行为照常。
-MCP 描述允许普通说明，但当作 untrusted data；系统约束是固定 OwnDsh 文本。HTML/UI 使用文本渲染，schema/描述不能插成可执行 Markdown HTML。
+当前投影直接使用官方 `tools.schemas()` 的名称、完整 description、parameters 和 `get(name).output.schema`，不截断或改写交给模型的第三方定义。结构等价比较只维护内存代次键；同连接、同结构的重新注册保留已加载状态，定义实际改变时旧键失效。目录显示与搜索结果的短预览不充作执行 Schema。
+单工具定义 UTF-8 JSON≤16KiB、深度≤32、节点≤4096；不合格工具不进入目录/搜索/请求且 guard 拒绝。目录最多512条/1MiB，按 publicName code-unit 顺序准入。这些是 OwnDsh 投影的异常输入保护，不是模型上下文预算；官方 client 在投影前已经发现完整列表，**不能声称它们限制了网络接收内存**。
+Server 候选目录的 canonical digest 属于独立诊断契约，不用于重写模型 Schema。MCP 描述当作 untrusted data；UI 按纯文本渲染，SDK 文本通过独立变量注入，不能作为模板递归执行。
 
 ### 6.2 模型工具 mcp_tool_search
 
-注册一次，名称冲突则受管 MCP 不启动。`isConcurrencySafe` 不声明 true（它改变 hot set，采用默认独占）。
+注册一次，名称冲突则受管 MCP 不启动。`isConcurrencySafe` 不声明 true（search/release 都改变会话集合，采用官方默认独占）。
 
 ```ts
 // JSON Schema 对应语义；落地使用 Harness defineTool。
@@ -252,7 +249,7 @@ Output = {
   matches: Array<{name:string,description:string,serverName:string}>,
   loadedNames: string[],
   truncated: boolean,
-  reason?: 'NO_MATCH' | 'AUTH_REQUIRED' | 'MCP_AUTH_REQUIRED' | 'POLICY_STALE' | 'BUDGET_EXCEEDED'
+  reason?: 'NO_MATCH' | 'AUTH_REQUIRED' | 'MCP_AUTH_REQUIRED' | 'POLICY_STALE'
   authorizationRequired?: string[] // 最多 8 个当前分配且需要重新授权的 serverName
   message?: string // OwnDsh 设置 → MCP 的恢复指引
 }
@@ -261,7 +258,7 @@ Output = {
 搜索仅遍历当前 agent 有权看见且由端侧动态发现的目录。不返回未授权 server 名称、候选工具和认证 token。
 输出 description≤220字符、整体≤8KiB；不重复返回完整 parameters，避免 schema 同时进入工具历史和下轮 tools 字段。模型在下一次 inference 才收到真实定义。
 Prompt 固定说明：外部能力先搜索；匹配加载只影响当前对话；加载成功后按实际 native/PTC 方式调用；搜索失败不得猜测隐藏工具。
-初始只有 search 和少量授权 server 的名称/人类描述（目录说明总≤2KiB，超出只显示可搜索服务数）；不自动加所有工具名索引。
+search 冷态只增加 search/release 两个控制工具；当前不注入全目录名称索引或额外服务摘要。full 工具和其他插件工具遵循各自呈现规则。
 
 ### 6.3 最小可用检索
 
@@ -269,23 +266,96 @@ NFKC + lowercase；Latin/digit 词、按 `_`/`-`/camelCase 边界切分；中文
 稳定排序规则：完全 publicName 命中最高；工具名命中权重3，serverName/displayName权重2，description权重1；同分 publicName 升序。没有有效 token 返回 NO_MATCH，不能让中文查询落为“前N个工具”。
 允许 serverName filter + 通用 query（如 list/read）；中文检索质量不足时改善服务显示名或 MCP Server 返回的工具描述，不在管理端增加 Tool 配置，不自动把查询发给另一模型/外部服务。
 
-### 6.4 Hot set 与预算
+### 6.4 累加集合与显式释放
 
-常量写入 mcp-runtime 单一 constants，不公开一堆配置旋钮：
+2026-09-17 收敛：删除每 Agent 16 个工具/64KiB 的人为会话硬限、自动 LRU、pending 保留层、调用成功 touch 和 full 超限降级。不要用其他数字替换这套上限，也不引入 native/PTC 分模式预算计算。
 
-| 上限 | 数值/意义 |
-|---|---|
-| 默认 search limit / 最大 | 5 / 8 |
-| 每 agent hot 容量 | 16 工具，按最近命中/成功调用更新 |
-| 每次受管 MCP schema/SDK 增量 | 64KiB UTF-8，both 中 schema 与 SDK 的两份成本都算 |
-| 每 tool 定义 | 16KiB（input+output+说明） |
-| 每次查询 metadata | 8KiB，不含完整 schema |
+保留的边界集中在 `mcp-tools.ts`：search 默认5个、最多8个，单次结果≤8KiB；单定义和目录边界见6.1。这些值是 OwnDsh 自定的查询/输入保护，不是厂商规定，也不是 token 预算。
 
-模型总上下文仍由 Harness 管理，字节预算不是精确 token 数；不声称64KiB必定等于某个 token 数。
-选结果先算预算、再原子更新 hot；load 不下的候选不得返回已加载。每次 assembly 固定本次集合并按名称排序，避免 parallel sibling 执行中改写同一请求。
-真实工具成功调用 touchHot；拒绝/失败不升温。移除/摘要变更/撤权立刻清 hot；session fork/resume 冷启动，历史数据照常保留，不篡改日志。
-LRU 移出只减少后续定义，不删除过去的 search result；长会话历史的 compaction/spill 由 Harness 管理，OwnDsh 不实现或修改压缩算法。OwnDsh 的责任是每次 assembly 使用当前连接、授权和 Agent 热集合，历史工具名不能绕过执行门禁。集合改变仍会影响 prompt cache；稳定排序不是零缓存成本承诺。
-full 按端侧预算加载集合；超出预算自动降级 search。多个 full 服务叠加导致端侧超过总预算时，effectivePresentation=search 并显示预算原因；不能把超限请求直接发送 LLM。
+`loaded: WeakMap<Agent, Map<publicName, generationKey>>` 保存当前 Agent 按需加载的选择。多次搜索做并集，同名同代次只有一份；没有时间过期或容量淘汰。请求始终按名称稳定排序。搜索写入后立即返回实际 loadedNames；下一次成功 assembly 结合实时授权与目录生成可调用定义。
+
+`mcp_tool_release` 负责上下文清理：
+
+```ts
+Input = { names: string[] } // 1..512项；每项合法工具名1..64字符；整个数组JSON≤7936 UTF-8 bytes
+Output = {
+  releasedNames: string[],
+  ignoredNames: string[], // 原输入中的重复名去重；未加载/非OwnDsh/full固定工具不修改
+  reason?: 'AUTH_REQUIRED' | 'POLICY_STALE'
+}
+```
+
+先完整校验批次再修改，非法参数没有部分提交；重复名称去重，重复释放幂等。只删除当前 Agent 的 loaded 项，下次 assembly 生效，不删除历史消息、不注销注册表、不断开 MCP、不清凭据、不改管理员配置。被释放的 search 工具可再次搜索加载。full 是管理员选择的固定呈现项，不由 release 移除。
+
+**没有会话硬限不等于无限上下文。** 搜索的全部命中最终仍可能累积为整个有效目录；模型应只加载任务需要的工具，并显式释放不再需要的工具。完整定义仍计入模型输入，受具体模型和 API 限制。Harness 负责历史与总上下文机制，但 compaction 不会因此自动清空 OwnDsh loaded。此实现不承诺模型一定及时释放，也不承诺满上下文后仍能靠 release 自救。
+
+full 将全部有效、授权且符合输入保护的定义加入每次请求，包括无关提问；不再自动切回 search。目录较大的 MCP 应使用 search。稳定排序不能消除集合变更带来的 prompt cache 成本。
+
+### 6.5 加载与调用流程图（Review 入口）
+
+```mermaid
+flowchart TD
+    A[官方 MCP client 连接并注册工具] --> C[Host 目录：名称 / 定义 / 连接代次]
+    C --> S[模型调用 mcp_tool_search]
+    S --> L[当前 Agent loaded 按名称去重累加]
+    R[模型调用 mcp_tool_release] --> L
+    L --> N[下一步 assembly]
+    C --> N
+    F[full 固定项] --> N
+    N --> V[交集：有效连接、授权、scope、代次]
+    V --> P[native Schema / PTC SDK]
+    P --> K[记录本步 presented 快照]
+    K --> M[本步模型推理与工具调用]
+    M --> G{快照匹配且实时权限仍有效}
+    G -->|是| E[官方 tools pipeline 调用 MCP]
+    G -->|否| D[拒绝并返回原因]
+    M --> S
+    M --> R
+    X[撤权 / 断开 / 过期 / 定义变化] --> G
+    X --> V
+```
+
+搜索/释放仅影响下一步选择，不改变已经交给模型的本步定义。撤权和失效不是“上下文清理”，必须立即阻断。
+
+### 6.6 状态与时序不变量
+
+| 状态 | 归属 | 写入时机 | 职责 |
+|---|---|---|---|
+| catalog | Host | 连接就绪、tools/change、撤销 | 官方定义及稳定代次键；不等于模型已加载 |
+| loaded | 每 Agent | 搜索、显式释放、失效清理 | 为下一步保留选择；名称去重，无自动淘汰 |
+| presented | 每 Agent | 成功 assembly | 本步实际 Schema/SDK 中的名称与代次；执行门禁依据 |
+
+1. 连续搜索 A/B 和 B/C，集合为 A/B/C，同一个 B 只有一份。
+2. 本步搜索 D，D 下步才能调用；即使搜索返回 loadedNames，也不能在同一个 run_code 内猜名调用。
+3. 本步释放 A，当前响应中的 A 仍可按原快照执行；下步不再呈现且 guard 拒绝。释放不是撤权。
+4. 同一步先加载再释放，以最后显式操作为准；释放后重新搜索同理。官方独占调度串行提交，批次验证失败不部分更新。
+5. 撤权、断开、OAuth 失效、目录移除、定义改变和重挂载优先于所有历史 loadedNames/快照。旧名称不能绕过实时校验，不自动重放业务调用。
+6. Agent 隔离；新建、恢复、fork 得到新 Agent 时冷启动。相同名称在不同服务有不同 namespace；其他插件的 MCP 不参与本集合。
+7. full 与 loaded 做并集后按名称排序；查看设置页工具目录不会加载工具，显式释放也不会改变设置页发现数量。
+
+| 时刻 | 本步 presented | 下步 loaded | 结果 |
+|---|---|---|---|
+| 第一步请求 | A、B、C | A、B、C | A/B/C 可调用 |
+| 本步搜索 D、再次搜索 C/D | 仍为 A、B、C | A、B、C、D | 无淘汰、无重复，D 暂不能调用 |
+| 本步显式释放 A | 仍为 A、B、C | B、C、D | 本步 A 调用仍合法 |
+| 第二步 assembly | B、C、D | B、C、D | D 可调用，A 需重新搜索 |
+| 任意时刻撤权 | 可能仍记有旧名称 | 失效项清理 | 立即拒绝，不等下一步 |
+
+### 6.7 Claude / OpenAI 公开机制与本项目的区别
+
+核对日期：2026-09-17。仅讨论公开 API，不推测 ChatGPT/Claude 产品内部实现。
+
+| 公开方案 | 发现与复用 | 明确的限制/建议 |
+|---|---|---|
+| [Anthropic Tool Search](https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-search-tool) | `defer_loading` 延迟模型可见性，搜索返回 `tool_reference`，API 展开完整定义；保留历史引用后，后续轮次可复用 | 每请求最多10,000个 deferred 定义；每次搜索默认5，limit允许1..10,000；regex≤200字符/BM25≤500字符。目录容量不代表同时载入规模；定义计入输入token |
+| [OpenAI Tool Search](https://developers.openai.com/api/docs/guides/tools-tool-search) | 搜索返回 `tool_search_output.tools`，后续轮次仍可调用；定义追加到上下文末尾以保持前缀缓存 | 此工具搜索指南未列统一的已加载集合数量/字节硬限；推荐按 namespace/MCP 组织、每namespace少于10个函数。这是建议，不是模型/API无限制的承诺 |
+| OwnDsh + Harness | 插件保存 Agent 选择，在每次 assembly 过滤 native Schema/SDK；全局注册不等于每会话发送 | 默认5/最多8个搜索结果；没有16工具/64KiB会话硬限；用显式release减少后续请求定义，输入保护仍保留 |
+
+两家文档都没有给出“会话满16个/64KiB就自动LRU淘汰”的通用规则，不能据此声称厂商没有其他限制。OpenAI 文档明确，禁用已加载工具需修改对应 search output，且会使该位置后的缓存失效；OwnDsh 不改历史，只改变后续 assembly。
+
+我们借鉴的是按需发现、完整定义、跨轮复用；不复制厂商专用 wire 字段，不自建第二套协议 adapter。`mcp_tool_release` 是本项目显式清理选择，不声称两家有相同工具。原生 tool_reference/末尾追加保缓存需要 Harness 官方适配层支持，当前通用 assembly 方案不具备这项缓存保证。
+
+本地 Notion 41个工具仅 description 合计53,682 UTF-8 bytes（52.4KiB），尚不含参数/输出Schema；不能把它当完整请求大小或token数。描述较长正是按需加载的理由，不能截短原始工具契约来凑预算。
 
 ## 7. Native / PTC / both 呈现
 
@@ -293,8 +363,8 @@ full 按端侧预算加载集合；超出预算自动降级 search。多个 full
 
 | 模式 | assembly.tools | tools:sdk |
 |---|---|---|
-| native | 原有非受管 tools + search + 允许的 hot/full MCP | 无 |
-| ptc | 保留官方 run_code，不把 MCP/search 强行增加为 native schemas | 官方 renderer 重生成：非受管 bindings + search + hot/full MCP |
+| native | 原有非受管 tools + search/release + 允许的 loaded/full MCP | 无 |
+| ptc | 保留官方 run_code，不把 MCP/search/release 强行增加为 native schemas | 官方 renderer 重生成：非受管 bindings + search/release + loaded/full MCP |
 | both | native 的受限集合 + run_code | 与 native 同一允许集合的 bindings |
 
 PTC 中模型使用 `await tools.mcp_tool_search(...)`；搜索结果返回后结束这次 run_code，下轮看到候选 binding 才编排调用。registry 仍保留授权能力，adapter 不直接调用 MCP client 私有方法。
@@ -305,13 +375,13 @@ SDK 必须用公开 `renderToolsSdk` 或 `renderToolsSdkPy`，以 `tools.schemas
 
 Hook 采用明确 compose 顺序，完成后由实际请求捕获验证。不能仅验证 assembly 中 schema 少了；还要验证模型 adapter 收到的 tools 和完整 system text 没有冷工具定义，structured output/complete prompt 仍保持原协议。
 
-### 7.1 当前实现与已验证边界（2026-09-15）
+### 7.1 当前实现与已验证边界（2026-09-17）
 
-`src/mcp-tools.ts` 在挂载官方 client 前安装搜索、assembly hook 与 guard，再保留对应 namespace；成功 activation 后读取 `ctx.tools.schemas()`/`get()` 的真实定义。`tools/change` 合并到 microtask 重扫；输入、输出和描述结构相同时保留热集合键，定义变化/移除/连接重挂载使旧键失效。通过标准库 `isDeepStrictEqual` 判断结构等价（包括不同对象键顺序），无需另造一份命名或 schema hash 算法；持久诊断用 canonical digest 仍由后续目录上报切片实现。
+`src/mcp-tools.ts` 在挂载官方 client 前安装搜索、assembly hook 与 guard，再保留对应 namespace；成功 activation 后读取 `ctx.tools.schemas()`/`get()` 的真实定义。`tools/change` 合并到 microtask 重扫；输入、输出和描述结构相同时保留加载集合键，定义变化/移除/连接重挂载使旧键失效。通过标准库 `isDeepStrictEqual` 判断结构等价（包括不同对象键顺序），无需另造一份命名或 schema hash 算法；持久诊断用 canonical digest 仍由后续目录上报切片实现。
 
-搜索先取当前 Agent 的官方可见目录交集，返回精简 name/description/serverName 和实际 loadedNames；LRU 最大 16 个，单定义 16KiB，目录最多 512 个/1MiB，搜索返回最多 8 个/8KiB。预算保守计入 native schema 与 TS/Python 中较大的 SDK 增量，即使 native 模式也不放宽至另一套上限。多个 full 服务合计超限时有效呈现降级 search，Settings 显示原因与发现数量。
+搜索先取当前 Agent 的官方可见目录交集，返回精简 name/description/serverName 和实际 loadedNames；无自动淘汰、无 full 预算降级。release 仅修改该 Agent 的下步集合；native/PTC/both 共享相同选择，完整定义交给对应官方 renderer。单定义16KiB、目录512个/1MiB、单次搜索最多8个/8KiB仍是输入保护。
 
-pre-execute 保存该调用看到的定义和目录代次，guard 与 dispatch 再核对最新租约/连接/热集合；连接撤销会 abort 在途调用，不自动重放；guard 之后的 tools/execute 等待期间若定义被替换，也通过同步 tools/change 取消该次 dispatch，防止最后一次 lookup 执行新定义。相同 schema 的官方重新注册不清空热集合，但已经进入异步 gate 的旧调用仍拒绝；新调用使用当前官方定义。仅 OwnDsh 保留的 namespace 参与过滤，其他插件的 MCP 与普通工具保留；重叠 namespace 明确报冲突。
+pre-execute 保存该调用看到的定义和目录代次，guard 与 dispatch 再核对最新租约/连接、作用域可见性及本步 presented 快照，不以可变 loaded 决定本步能否调用；连接撤销会 abort 在途调用，不自动重放；guard 之后的 tools/execute 等待期间若定义被替换，也通过同步 tools/change 取消该次 dispatch，防止最后一次 lookup 执行新定义。相同 schema 的官方重新注册不清空加载集合/快照，但已经进入异步 gate 的旧调用仍拒绝；新调用使用当前官方定义。仅 OwnDsh 保留的 namespace 参与过滤，其他插件的 MCP 与普通工具保留；重叠 namespace 明确报冲突。
 
 验收使用官方 `dsh-tools/system-prompt/mcp-client/llm-pi-ai@0.1.5-rc.2` 与本地模型 HTTP 服务捕获真实出站请求：100 工具冷启动无 schema/SDK 泄漏，搜索后一轮只发命中定义，另一 Agent 仍冷态；native、PTC、both 和 TypeScript/Python renderer 均已覆盖。PTC 测试用受控 CodeRuntime 调用官方 bindings，未执行真实 TS/Python 解释器；尚未验证全部宿主与其他 manager 的 hook 组合。集成回归限于 OwnDsh 的请求投影、Agent 隔离和执行门禁；AgentLoop、会话重建与 compaction 的实现和算法验收由 Harness 负责。未知语言、重复 SDK、下游改写 SDK 均阻断本次呈现，不静默发全量。
 
@@ -322,8 +392,8 @@ Key 只在 local write body → credentials → Host headers 三处出现。提�
 MCP transport 由官方创建，无动态 authProvider/fetch 注入接口。禁止 monkey patch global fetch、ctx.tools.register 或 SDK private transport。
 因此第一版直连依赖管理员信任 endpoint 和部署出口约束；无法仅凭 client Config 强制 DNS pinning/响应体硬上限。企业严格要求这些边界时，必须先增加官方 transport 扩展点或部署独立受控出口，不能把它写成已实现特性。
 
-OAuth 辅助 HTTP 可以控制 fetchFn：限制 method/redirect、HTTPS、响应≤256KiB、10秒 timeout；PRM/AS/注册/token 路径逐项校验 issuer/元数据约束。外部 endpoint 的 DNS/IP 防护若依赖部署出口，部署门禁必须证明规则覆盖重解析与重定向；不能在一次 DNS lookup 后用另一个未经绑定的连接宣称防 rebinding。
-HTTP MCP 只有管理员显式 allowInsecureTransport 才允许；OAuth token 路径始终 HTTPS。管理配置中的 query 不可当秘密承载；审计不输出 URL query。
+OAuth 辅助 HTTP 可以控制 fetchFn：限制 method/redirect、HTTP(S) 协议、响应≤256KiB、10秒 timeout；PRM/AS/注册/token 路径逐项校验 issuer/元数据约束。外部 endpoint 的 DNS/IP 防护若依赖部署出口，部署门禁必须证明规则覆盖重解析与重定向；不能在一次 DNS lookup 后用另一个未经绑定的连接宣称防 rebinding。
+MCP 与 OAuth 的发现、注册、授权、交换及刷新都接受管理员指定的 HTTP(S) 地址，协议按原值使用；管理页按 MCP URL 派生 allowInsecureTransport，无额外开关。管理配置中的 query 不可当秘密承载；审计不输出 URL query。
 
 ## 9. 本地 API 与 UI 契约
 
@@ -369,7 +439,6 @@ UI 从现有宿主事件触发刷新；操作进行中允许1秒临时轮询，5
 | MCP_OAUTH_PROVIDER_UNSUPPORTED | 422 | 管理员修正公共配置 |
 | MCP_CREDENTIAL_STORE_FAILED | 503 | 修复本地存储 |
 | MCP_SCHEMA_CHANGED | 409 | 重新发现最新工具定义 |
-| MCP_BUDGET_EXCEEDED | 409 | 改用search/减少候选 |
 | MCP_CONNECTION_FAILED / MCP_UNKNOWN_OUTCOME | 502 | 人工检查；不自动重放 |
 | MCP_CONFLICT / MCP_CLEANUP_REQUIRED | 409 | 关闭冲突插件/重试清理 |
 
@@ -384,10 +453,10 @@ Client event：`eventId(UUID),type,serverId,publicName?,sessionId?,occurredAt,du
 本机批量队列≤200，丢最旧并增加 droppedCount，不落调用正文文件；活动时每30秒或满50项批量发，退出 best effort；Server按(tenant,device,eventId)去重。runtime上报仅记 telemetry/observed audit 分类，不能与 Server 权限变更审计混同。
 
 工具调用是否 ask 沿用当前 Harness 的执行审批策略，OwnDsh 不新增一套逐调用确认 UI，也不覆盖已有 deny/ask。组织准入不自动替代用户对具体副作用的授权；readOnlyHint不可信，不能据此更改审批策略。无审批服务时原有 ask→deny 行为保留。
-`tools/pre-execute` 保持下游 deny/ask，不把它改为 allow；审批后 guard 再查最新授权，审批等待期间撤权必须拒绝。search只修改会话呈现，本身不额外发起用户确认。
+`tools/pre-execute` 保持下游 deny/ask，不把它改为 allow；审批后 guard 再查最新授权，审批等待期间撤权必须拒绝。search/release只修改会话呈现，本身不额外发起用户确认。
 
 工具结果保持官方 image/structuredContent 投影；spill/compaction 的实现和开关属于 Harness，OwnDsh 不增加压缩模块，不截断 canonical programmatic value 冒充完整结果。search 只治理定义，不解决无限 tools/list、超大返回值或用户历史总上下文。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
-2026-09-17 MCP 目录浏览与操作语义：当前 `GET /enterprise/api/v1/local/mcp/status` 的 assignment 新增可选 `tools: {name, description}[]`，复用官方发现后的有效目录，条数与 discoveredToolCount 一致；不返回参数 Schema、凭据或执行结果。失效/禁用/断开时目录清空，既有目录总量和字节预算仍生效；禁用卡片隐藏工具数量，启用恢复后再显示。客户端严格校验字段白名单、计数、重复名称与单项大小；设置页仅工具数量的数字作为可点击入口，“个工具”保持普通文字。目录默认呈现名称和最多三行的预览；预览只取原描述前 240 个字符并折叠空白，用户展开单个工具时才将完整原文渲染到 DOM，收起后卸载全文。仅字符截断或实际超过三行时提供展开入口；可完整显示的短描述与空描述使用普通文本，窗口宽度变化后重新测量。所有内容以纯文本渲染，展示裁剪不修改 MCP Schema，也不影响 Agent 热集合或调用工具。“暂停/重新连接”在本机禁用场景统一显示“禁用/启用”；“断开并移除”改为“断开连接”，已禁用但有凭据的服务也可断开。无认证服务只保留启用/禁用，避免提供含义相同的两项操作。每个 MCP 使用独立卡片，卡片间保持间距；窄屏操作按钮自动换行，展开目录留在所属卡片内并独立滚动。页面只保留按钮名称和状态，不增加常驻说明或操作 tooltip。
+2026-09-17 MCP 目录浏览与操作语义：当前 `GET /enterprise/api/v1/local/mcp/status` 的 assignment 新增可选 `tools: {name, description}[]`，复用官方发现后的有效目录，条数与 discoveredToolCount 一致；不返回参数 Schema、凭据或执行结果。失效/禁用/断开时目录清空，既有目录总量和字节预算仍生效；禁用卡片隐藏工具数量，启用恢复后再显示。客户端严格校验字段白名单、计数、重复名称与单项大小；设置页仅工具数量的数字作为可点击入口，“个工具”保持普通文字。目录默认呈现名称和最多三行的预览；预览只取原描述前 240 个字符并折叠空白，用户展开单个工具时才将完整原文渲染到 DOM，收起后卸载全文。仅字符截断或实际超过三行时提供展开入口；可完整显示的短描述与空描述使用普通文本，窗口宽度变化后重新测量。所有内容以纯文本渲染，展示裁剪不修改 MCP Schema，也不影响 Agent 加载集合或调用工具。“暂停/重新连接”在本机禁用场景统一显示“禁用/启用”；“断开并移除”改为“断开连接”，已禁用但有凭据的服务也可断开。无认证服务只保留启用/禁用，避免提供含义相同的两项操作。每个 MCP 使用独立卡片，卡片间保持间距；窄屏操作按钮自动换行，展开目录留在所属卡片内并独立滚动。页面只保留按钮名称和状态，不增加常驻说明或操作 tooltip。

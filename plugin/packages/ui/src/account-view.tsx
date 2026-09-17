@@ -620,7 +620,6 @@ function EnterpriseMcpSettings({ store }: { store: EnterpriseAccountStore }): Re
             {item.discoveredToolCount ?? 0}</button> 个工具</>} · {item.effectivePresentation === 'full' ? '直接可用' : '按需加载'}</div>
           {authRequired ? <div style={{ ...detailValue, fontSize: 12 }}>授权已失效，重新授权后可继续当前对话。</div> : null}
           {flow ? <div role="status" style={{ ...detailValue, fontSize: 12 }}>请在浏览器完成授权，此处会自动更新。</div> : null}
-          {item.errorCode === 'MCP_BUDGET_EXCEEDED' ? <div style={{ ...detailValue, fontSize: 12 }}>工具较多，已切换为按需搜索。</div> : null}
           {item.errorCode === 'MCP_CLEANUP_REQUIRED' ? <div style={{ ...detailValue, fontSize: 12, color: 'var(--dsw-alias-status-error, #c4320a)' }}>凭据清理失败，请重试“断开连接”。</div> : null}
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end', marginLeft: 'auto' }}>

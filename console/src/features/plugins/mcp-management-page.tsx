@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 MCP/成员/用户组生成 API、console 权限事实、TanStack Query、SegmentedControl、ProductDataTable 与 ProductDialog。
- * [OUTPUT]: 提供标题右侧 Tab 切换的 MCP 服务配置与访问授权目录；配置与授权通过统一弹窗提交，编辑与启停沿用模型页图标按钮，编辑携带 revision 并保留未改配置，固定公共请求头可编辑，用户认证头由端侧生成。
+ * [OUTPUT]: 提供标题右侧 Tab 切换的 MCP 服务配置与访问授权目录；配置与授权通过统一弹窗提交，编辑携带 revision 并保留未改配置，OAuth URL 和固定公共请求头提交前按字段校验，用户认证头由端侧生成。
  * [POS]: features/plugins 中独立 /mcp 路由的管理工作台，和插件版本页面共享组件但不再共享菜单或 tab；服务端只保存协议元数据。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -116,10 +116,19 @@ export function McpManagementPage() {
       } : value.authType === 'api-key'
         ? { type: 'api-key', headerName: value.headerName.trim() }
         : { type: 'none' };
+      if (auth.type === 'oauth') {
+        for (const [label, address] of [['Issuer', auth.issuer], ['Resource', auth.resource], ['Authorization endpoint', auth.authorizationEndpoint], ['Token endpoint', auth.tokenEndpoint]] as const) {
+          if (address === undefined) continue;
+          if (!URL.canParse(address)) throw new Error(`OAuth ${label} 不是有效的地址。`);
+          const url = new URL(address);
+          if (!['http:', 'https:'].includes(url.protocol)) throw new Error(`OAuth ${label} 必须使用 HTTP 或 HTTPS 地址。`);
+          if (url.username || url.password || url.hash) throw new Error(`OAuth ${label} 不能包含用户名、密码或 URL 片段。`);
+        }
+      }
       const body: McpMcpServerCreateRequest = {
         serverName: value.serverName.trim(), displayName: value.displayName.trim(),
         description: current?.description ?? '', transport: 'streamable-http', url: value.url.trim(),
-        allowInsecureTransport: current?.allowInsecureTransport ?? false, headers: publicHeaders(value), auth,
+        allowInsecureTransport: new URL(value.url.trim()).protocol === 'http:', headers: publicHeaders(value), auth,
         toolCallTimeoutMs: current?.toolCallTimeoutMs ?? 60_000,
         reconnect: current?.reconnect ?? { enabled: true, initialDelayMs: 1_000, maxDelayMs: 30_000, maxAttempts: 5 },
         presentation: value.presentation

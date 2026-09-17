@@ -5,7 +5,7 @@
 成员清单
 
 EnterpriseMcpConfiguration.java: MCP JDBC store 与 application service 的 Spring 装配，并注入既有 AuditSink。
-domain/McpServer.java: tenant 内公共 MCP Streamable HTTP 配置与状态不变量，校验 none/API Key/OAuth 预注册与 dynamic public client union；单密钥只声明 Header，公共 headers 禁止大小写重复、认证覆盖与协议保留头。
+domain/McpServer.java: tenant 内公共 MCP Streamable HTTP 配置与状态不变量，校验 none/API Key/OAuth 预注册与 dynamic public client union；OAuth 接受 HTTP(S) 完整地址并拒绝 userinfo/片段；单密钥只声明 Header，公共 headers 禁止大小写重复、认证覆盖与协议保留头。
 domain/McpGrant.java: ALL/USER/GROUP 授权记录，ALL/null 与指定主体正 ID 不变量。
 application/McpService.java: server CRUD/CAS、assignment 与 catalog；授权创建/启停/删除及 bootstrap revision 同事务，noop 不递增，旧 revision 冲突；管理写入追加脱敏审计。
 application/McpResourceNotFoundException.java: MCP 当前 tenant 中查无资源到统一 HTTP 404 的无敏感字段信号。

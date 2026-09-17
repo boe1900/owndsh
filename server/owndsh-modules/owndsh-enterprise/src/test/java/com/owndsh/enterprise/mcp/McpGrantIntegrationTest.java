@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖真实 PostgreSQL/Flyway、MCP 与既有用户组服务、MockMvc 和认证 cursor。
- * [OUTPUT]: 验证授权并集/回收、CAS 并发、事务回滚、tenant 边界、固定请求头/单认证头配置分发与分页/字符串 ID 的 HTTP 协议。
+ * [OUTPUT]: 验证授权并集/回收、CAS 并发、事务回滚、tenant 边界、HTTP(S) OAuth 与固定请求头/单认证头配置分发、分页/字符串 ID 协议。
  * [POS]: MCP 授权纵向门禁，覆盖配置分发事实；不把端侧连接撤销冒充为已验证。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -212,6 +212,35 @@ class McpGrantIntegrationTest {
         for (String invalid : List.of(body.replace("\"subjectId\":null", "\"subjectId\":\"0\""), "{\"items\":[]}")) {
             mvc.perform(post("/enterprise/admin/v1/mcp-grants").header("Idempotency-Key", UUID.randomUUID())
                 .contentType(MediaType.APPLICATION_JSON).content(invalid)).andExpect(status().isBadRequest());
+        }
+    }
+
+    @Test
+    void acceptsHttpOAuthMetadataAndRejectsInvalidEndpointShapes() throws Exception {
+        String body = """
+            {"serverName":"intranet-oauth","displayName":"Intranet OAuth","description":"",
+             "transport":"streamable-http","url":"http://localhost:8090/mcp","allowInsecureTransport":true,
+             "headers":{},"auth":{"type":"oauth","issuer":"http://auth.internal/auth","resource":"http://localhost:8090/mcp",
+             "clientId":"public-client","scopes":["server"],"authorizationEndpoint":"http://auth.internal/auth/authorize","tokenEndpoint":"http://auth.internal/auth/token"},
+             "toolCallTimeoutMs":60000,"reconnect":{"enabled":true,"initialDelayMs":1000,"maxDelayMs":30000,"maxAttempts":5},"presentation":"search"}
+            """;
+        String response = mvc.perform(post("/enterprise/admin/v1/mcp-servers").header("Idempotency-Key", UUID.randomUUID())
+            .contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.data.auth.issuer").value("http://auth.internal/auth"))
+            .andExpect(jsonPath("$.data.auth.resource").value("http://localhost:8090/mcp"))
+            .andReturn().getResponse().getContentAsString();
+        long id = Long.parseLong(JSON.readTree(response).path("data").path("id").asString());
+        mvc.perform(put("/enterprise/admin/v1/mcp-servers/" + id).header("If-Match", 0)
+            .contentType(MediaType.APPLICATION_JSON).content(body.replace("/auth/token", "/auth/token-v2")))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.auth.tokenEndpoint").value("http://auth.internal/auth/token-v2"));
+        service.changeStatus(TENANT, id, McpServer.Status.ACTIVE, 1);
+        service.createGrants(TENANT, List.of(grant(id, McpGrant.SubjectType.ALL, null)));
+        var assignment = service.assignments(TENANT, USER).stream().filter(item -> item.id() == id).findFirst().orElseThrow();
+        assertThat(assignment.auth()).containsEntry("tokenEndpoint", "http://auth.internal/auth/token-v2");
+        for (String invalid : List.of("ftp://auth.internal/auth", "http://user:password@auth.internal/auth", "http://auth.internal/auth#fragment", "http:/missing-host")) {
+            mvc.perform(put("/enterprise/admin/v1/mcp-servers/" + id).header("If-Match", 2)
+                .contentType(MediaType.APPLICATION_JSON).content(body.replace("http://auth.internal/auth", invalid)))
+                .andExpect(status().isBadRequest());
         }
     }
 

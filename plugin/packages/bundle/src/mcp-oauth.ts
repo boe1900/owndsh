@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Harness credentials 原子记录、平台 bootstrap 身份、公共 MCP 配置、既有 JSON 规范化和 PKCE 原语。
- * [OUTPUT]: 提供身份/目标绑定的 McpCredentialManager、重新授权状态与可取消 OAuth；仅持久化 API Key/refresh token 及动态 public clientId。
+ * [OUTPUT]: 提供身份/目标绑定的 McpCredentialManager、重新授权状态与支持 HTTP(S) 的可取消 OAuth；仅持久化 API Key/refresh token 及动态 public clientId。
  * [POS]: bundle 的 MCP 秘密边界；阻止跨账号、跨目标读取和撤销后的迟到写入，平台 Token 不进入外部请求。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -31,8 +31,8 @@ export interface McpOAuthDiscovery {
 
 /** RFC 9728/8414 discovery with an explicit issuer allow-list and redirect rejection. */
 export async function discoverMcpOAuth(resource: string, expectedIssuer: string, signal: AbortSignal): Promise<McpOAuthDiscovery> {
-  const resourceUrl = httpsUrl(resource, 'MCP_OAUTH_RESOURCE_INVALID')
-  const issuerUrl = httpsUrl(expectedIssuer, 'MCP_OAUTH_ISSUER_INVALID')
+  const resourceUrl = httpUrl(resource, 'MCP_OAUTH_RESOURCE_INVALID')
+  const issuerUrl = httpUrl(expectedIssuer, 'MCP_OAUTH_ISSUER_INVALID')
   const fetchFn: FetchLike = async (input, init) => {
     signal.throwIfAborted()
     const response = await fetch(input, { ...init, redirect: 'error', signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]) })
@@ -234,8 +234,7 @@ function parseToken(value: unknown): { access: AccessToken; refreshToken?: strin
 }
 
 function tokenRequest(endpoint: string, body: Record<string, string>, signal: AbortSignal): Promise<Response> {
-  const url = new URL(endpoint)
-  if (url.protocol !== 'https:' || url.username || url.password || url.hash) throw new Error('MCP_OAUTH_ENDPOINT_INVALID')
+  const url = httpUrl(endpoint, 'MCP_OAUTH_ENDPOINT_INVALID')
   signal.throwIfAborted()
   return fetch(url, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams(body), signal, redirect: 'error' })
@@ -250,8 +249,8 @@ export async function authorizeMcpOAuth(
   const discovered = options.dynamicRegistration === true || options.authorizationEndpoint === undefined || options.tokenEndpoint === undefined
     ? await discoverMcpOAuth(options.resource ?? '', options.issuer ?? '', signal)
     : undefined
-  const authorization = httpsUrl(discovered?.authorizationEndpoint ?? options.authorizationEndpoint!, 'MCP_OAUTH_ENDPOINT_INVALID')
-  const tokenEndpoint = httpsUrl(discovered?.tokenEndpoint ?? options.tokenEndpoint!, 'MCP_OAUTH_ENDPOINT_INVALID')
+  const authorization = httpUrl(discovered?.authorizationEndpoint ?? options.authorizationEndpoint!, 'MCP_OAUTH_ENDPOINT_INVALID')
+  const tokenEndpoint = httpUrl(discovered?.tokenEndpoint ?? options.tokenEndpoint!, 'MCP_OAUTH_ENDPOINT_INVALID')
   const state = randomBytes(24).toString('base64url')
   const pkce = createPkceS256()
   const callback = await startLoopbackCallback({ expectedState: state, timeoutMs: 300_000, signal })
@@ -285,7 +284,7 @@ export async function authorizeMcpOAuth(
 
 async function registerPublicClient(endpoint: string | undefined, redirectUri: string, signal: AbortSignal): Promise<string> {
   if (endpoint === undefined) throw new Error('MCP_OAUTH_REGISTRATION_UNSUPPORTED')
-  const registration = httpsUrl(endpoint, 'MCP_OAUTH_ENDPOINT_INVALID')
+  const registration = httpUrl(endpoint, 'MCP_OAUTH_ENDPOINT_INVALID')
   const fetchFn: FetchLike = async (input, init) => {
     signal.throwIfAborted()
     const response = await fetch(input, { ...init, redirect: 'error', signal: AbortSignal.any([signal, AbortSignal.timeout(TOKEN_TIMEOUT_MS)]) })
@@ -315,9 +314,9 @@ function validClientId(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && value.length <= 255 && !/[\u0000-\u001f\u007f]/u.test(value)
 }
 
-function httpsUrl(value: string, errorCode: string): URL {
+function httpUrl(value: string, errorCode: string): URL {
   let url: URL
   try { url = new URL(value) } catch { throw new Error(errorCode) }
-  if (url.protocol !== 'https:' || url.username || url.password || url.hash) throw new Error(errorCode)
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.hash) throw new Error(errorCode)
   return url
 }

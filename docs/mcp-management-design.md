@@ -7,7 +7,7 @@
 
 # OwnDsh MCP 详细设计
 
-修订日期：2026-09-16。状态：第一版实施规格；实现进度与验证事实见实施文档，不能把源码核对当作 E2E 通过。
+修订日期：2026-09-17。状态：第一版实施规格；实现进度与验证事实见实施文档，不能把源码核对当作 E2E 通过。
 
 阅读顺序：[本文件](mcp-management-design.md) → [端侧运行时](mcp-runtime-design.md) → [实施任务与验收](mcp-implementation-plan.md)。三份文件组成一份设计；字段以本文为准，运行顺序以运行时文档为准。
 
@@ -22,9 +22,9 @@
 | 用户凭据 | Host 的 Harness credentials provider；OAuth access token 只在 Host 内存 |
 | OAuth | OwnDsh 组织流程；复用 MCP TypeScript SDK 的发现/授权辅助函数；token 生成静态 headers 后重挂载官方 client |
 | MCP 连接 | 单用户 Host 复用连接；用户首次点击连接，assignment 不自动发起 OAuth |
-| 工具目录 | 端侧通过 tools/list 动态发现；搜索与呈现受运行时上下文预算约束 |
-| 呈现 | 默认 search；full 受端侧上下文预算约束 |
-| 会话 | 每个 live agent 独立 hot set；不把用户 token 或 hot set 写入 preset |
+| 工具目录 | 端侧通过 tools/list 动态发现；保留单定义/目录输入保护，完整定义不改写 |
+| 呈现 | 默认 search，累加去重并显式释放；full 全量呈现有效目录，不自动降级 |
+| 会话 | 每个 live agent 独立 loaded 与本步 presented；不写入 preset，无16工具/64KiB会话硬限 |
 | 宿主会话能力 | AgentLoop、会话保存/恢复、compaction/spill 由 Harness 实现；OwnDsh 只负责 MCP 工具投影、会话隔离和执行权限的接缝回归 |
 | 执行 | 保留 Harness 完整 tools pipeline；授权使用 monotonic guard，呈现使用 assemble waterfall |
 | 老客户端 | MCP 配置放独立 runtime 切片，避免破坏现有严格 bootstrap decoder |
@@ -92,6 +92,8 @@ MCP 新能力以 **0.1.5-rc.2** 为目标；开发前确认实际发行运行树
 | [Js2Hou/dsh-mcp-manager](https://github.com/Js2Hou/dsh-mcp-manager) | 配置 UI、连接诊断、启停生命周期 | 不编辑用户 cordis.patch.yml |
 | [hyqhyq3/dsh-mcp-manager](https://github.com/hyqhyq3/dsh-mcp-manager) | OAuth 交互与 broker 思路 | 不把 token 文件和本地事实源搬到平台，不下发任意 stdio |
 
+公开 Claude/OpenAI 的延迟加载、跨轮复用、限制和缓存差异见 [端侧设计6.7](mcp-runtime-design.md#67-claude--openai-公开机制与本项目的区别)。没有统一16工具/64KiB的规定不等于无限上下文；会话显式释放是OwnDsh选择，不冒充厂商原生协议。
+
 没有任何公开方案替 OwnDsh 决定授权撤销、用户凭据归属或会话隔离；这三项由本设计定义。
 
 ## 3. 产品流程
@@ -99,7 +101,7 @@ MCP 新能力以 **0.1.5-rc.2** 为目标；开发前确认实际发行运行树
 1. 管理员在 `/mcp` 的“服务配置”tab 通过“添加 MCP”弹窗创建服务。初始 DISABLED。
 2. 填连接、认证信息并启用；给试用成员授权。
 3. 员工在「OwnDsh 设置 → MCP」点击连接，输入 Key 或完成 OAuth。Host 通过 MCP `tools/list` 动态发现工具。
-4. 端侧按 search/full 和上下文预算决定提供给模型的工具元数据；高风险调用沿用 Harness 用户确认。
+4. 端侧按 search/full、当前会话加载选择和有效授权呈现工具元数据；高风险调用沿用 Harness 用户确认。
 5. 模型搜索命中 → 当前会话加载 schema → 正常 Harness tool call → 端侧直连 MCP。
 6. 目录新增或 schema 改变由端侧刷新；管理员停用/撤销在授权快照有效期内收敛。
 
@@ -120,7 +122,7 @@ MCP 新能力以 **0.1.5-rc.2** 为目标；开发前确认实际发行运行树
 | description | string 0..1000，默认空 | 人类说明，不作为系统指令 |
 | transport | literal `streamable-http` | 不接受 command/args/env/cwd |
 | url | HTTP(S)，长度 ≤2048，无 userinfo/hash | 完整 endpoint；不能内含凭据 |
-| allowInsecureTransport | boolean false | HTTP 必须显式 true；UI 说明流量可能明文 |
+| allowInsecureTransport | boolean | 管理页按 MCP 地址协议填写：HTTP 为 true、HTTPS 为 false；保留现有协议字段，不增加配置开关 |
 | headers | string map，默认 {}，≤16 项，合计 ≤8 KiB | 仅公共常量，不接收 API Key；规则见 4.3 |
 | auth | none / api-key / oauth discriminated object | 见 4.2 |
 | toolCallTimeoutMs | integer，默认 60000，1000..300000 | 对齐官方字段 |
@@ -161,15 +163,15 @@ headerName 为合法 HTTP token，≤128，默认 Authorization。端侧只接�
 | OAuth 字段 | 冻结规则 |
 |---|---|
 | discovery | `mcp` 默认：PRM → AS 元数据；`manual`：配置下面两个 endpoint |
-| issuer | 必填、HTTPS、≤2048；选择/绑定 AS，禁止发现结果任意换 issuer |
-| authorizationUrl / tokenUrl | manual 时必填，mcp 时禁止；HTTPS，无 fragment/userinfo |
+| issuer | 必填、HTTP(S)、≤2048；选择/绑定 AS，禁止发现结果任意换 issuer |
+| authorizationEndpoint / tokenEndpoint | 可手工填写 HTTP(S) 地址，无 fragment/userinfo；缺少任一项时使用 discovery |
 | clientRegistration | pre-registered 默认 / dynamic；dynamic 必须显式开启 |
 | clientId | pre-registered 必填，1..255；dynamic 时禁止；服务端动态注册返回的 public clientId 仅保存在用户 Host |
 | scopes | ≤32 个唯一项，每项 1..120，无空格/控制字符；UI 显示实际授权范围 |
-| resource | 必填、HTTPS，无 fragment；按 RFC8707 传到授权、交换、refresh，不等同于私自新增 audience |
-| callback | 由 OwnDsh 端侧根据 Host 部署能力选择 loopback 或固定 HTTPS；管理端不保存 callback 地址 |
+| resource | 必填、HTTP(S)，无 fragment/userinfo；按 RFC8707 传到授权、交换、refresh，不等同于私自新增 audience |
+| callback | 固定使用端侧本机 loopback；管理端不保存 callback 地址 |
 
-`client_secret`、密码授权、任意 extraParams 不受支持。provider 特有 audience 尚未实现时提示不兼容，不能默默丢掉。OAuth 的 MCP resource endpoint 必须 HTTPS，即便平台自身用 HTTP 也不能据此降低 OAuth 要求。
+`client_secret`、密码授权、任意 extraParams 不受支持。provider 特有 audience 尚未实现时提示不兼容，不能默默丢掉。MCP 与 OAuth 各地址支持管理员指定的 HTTP 或 HTTPS，适配企业内网部署；客户端保持原协议，不自动升级或降级，也不要求另开允许 HTTP 的开关。PKCE、state、issuer/resource 绑定与凭据隔离继续适用。
 
 ### 4.3 Headers、URL 与配置改变
 

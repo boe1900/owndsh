@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 接收 tenant 内 MCP 公共连接配置。
- * [OUTPUT]: 提供不可变 MCP server 聚合，API Key 仅声明目标 Header，禁止承载用户凭据或拼接前缀。
+ * [OUTPUT]: 提供不可变 MCP server 聚合，OAuth 地址接受 HTTP(S)，API Key 仅声明目标 Header，禁止承载用户凭据或拼接前缀。
  * [POS]: mcp/domain 的配置根；管理端和 runtime snapshot 共享其字段不变量。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -55,11 +55,11 @@ public record McpServer(
         } else if ("oauth".equals(type)) {
             allowed = Set.of("type", "issuer", "resource", "clientId", "dynamicRegistration", "scopes", "authorizationEndpoint", "tokenEndpoint");
             if (!(auth.get("issuer") instanceof String) || !(auth.get("resource") instanceof String)
-                || !https((String) auth.get("issuer")) || !https((String) auth.get("resource"))
+                || !httpUrl((String) auth.get("issuer")) || !httpUrl((String) auth.get("resource"))
                 || !(auth.get("scopes") instanceof List<?> scopes) || scopes.size() > 32 || scopes.stream().anyMatch(v -> !(v instanceof String s) || s.isBlank() || s.length() > 128)) throw new IllegalArgumentException("MCP OAuth auth 非法");
             boolean dynamic = Boolean.TRUE.equals(auth.get("dynamicRegistration"));
             if ((dynamic && auth.get("clientId") != null) || (!dynamic && !(auth.get("clientId") instanceof String id && !id.isBlank() && id.length() <= 255))) throw new IllegalArgumentException("MCP OAuth clientRegistration 非法");
-            for (String endpoint : List.of("authorizationEndpoint", "tokenEndpoint")) if (auth.get(endpoint) != null && !(auth.get(endpoint) instanceof String s && https(s))) throw new IllegalArgumentException("MCP OAuth endpoint 非法");
+            for (String endpoint : List.of("authorizationEndpoint", "tokenEndpoint")) if (auth.get(endpoint) != null && !(auth.get(endpoint) instanceof String s && httpUrl(s))) throw new IllegalArgumentException("MCP OAuth endpoint 非法");
         } else throw new IllegalArgumentException("MCP auth type 非法");
         if (!allowed.containsAll(auth.keySet())) throw new IllegalArgumentException("MCP auth 字段非法");
     }
@@ -77,6 +77,12 @@ public record McpServer(
         }
         if (bytes > 8192) throw new IllegalArgumentException("固定请求头合计不能超过 8 KiB");
     }
-    private static boolean https(String value) { try { URI u = URI.create(value); return "https".equalsIgnoreCase(u.getScheme()) && u.getUserInfo() == null && u.getFragment() == null; } catch (RuntimeException e) { return false; } }
+    private static boolean httpUrl(String value) {
+        try {
+            URI u = URI.create(value);
+            return ("http".equalsIgnoreCase(u.getScheme()) || "https".equalsIgnoreCase(u.getScheme()))
+                && u.getHost() != null && u.getUserInfo() == null && u.getFragment() == null;
+        } catch (RuntimeException e) { return false; }
+    }
     public enum Status { ACTIVE, DISABLED }
 }

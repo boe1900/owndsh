@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖官方 ToolRuntime 注册表/guard、SystemPrompt assembly、TS/Python SDK renderer 与 runtime 的有效授权租约。
- * [OUTPUT]: 提供 mountMcpTools 与 MCP 连接代次，组合工具名称/简介目录、会话搜索、预算投影、撤销门禁与重新授权指引。
+ * [OUTPUT]: 提供 mountMcpTools 与 MCP 连接代次，分离本步可调用快照与下步加载集合，支持去重累加、显式释放和即时撤销。
  * [POS]: bundle 的 MCP 呈现与执行边界；保持官方注册表和 preset 限制，只管理 OwnDsh 保留的 namespaces。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -21,7 +21,7 @@ export interface McpConnection {
 
 type SdkSchema = Parameters<typeof renderToolsSdk>[0][number]
 type Entry = { connection: McpConnection; definition: ToolDefinition; schema: ToolSchema; sdk: SdkSchema; key: object }
-const LIMITS = { tools: 16, bytes: 64 * 1024, definition: 16 * 1024, catalog: 512, catalogBytes: 1024 * 1024, result: 8 * 1024 }
+const LIMITS = { definition: 16 * 1024, catalog: 512, catalogBytes: 1024 * 1024, result: 8 * 1024 }
 const bytes = (value: unknown): number => Buffer.byteLength(typeof value === 'string' ? value : JSON.stringify(value), 'utf8')
 const prefix = (serverName: string): string => `mcp__${serverName}__`
 const compare = (a: string, b: string): number => a < b ? -1 : a > b ? 1 : 0
@@ -40,20 +40,11 @@ function bounded(value: unknown, depth = 0, count = { value: 0 }): boolean {
   return typeof value !== 'object' || value === null || Object.values(value).every(item => bounded(item, depth + 1, count))
 }
 
-// ---- 同时计入 native 与较大的语言 SDK 增量，任何呈现模式都不会超过预算 ----
-function fits(entries: Entry[]): boolean {
-  if (entries.length > LIMITS.tools) return false
-  const sdk = entries.map(item => item.sdk)
-  return bytes(entries.map(item => item.schema)) + Math.max(
-    bytes(renderToolsSdk(sdk)) - bytes(renderToolsSdk([])),
-    bytes(renderToolsSdkPy(sdk)) - bytes(renderToolsSdkPy([])),
-  ) <= LIMITS.bytes
-}
-
 export function mountMcpTools(ctx: Context, access: { fresh(): boolean; refresh(): Promise<void>; authorizationRequired?(): string[] }) {
   const connections = new Map<string, McpConnection>()
   const namespaces = new Set<string>()
-  const hot = new WeakMap<object, Map<string, object>>()
+  const loaded = new WeakMap<object, Map<string, object>>()
+  const presented = new WeakMap<object, Map<string, object>>()
   const executions = new WeakMap<object, Entry>()
   const dispatching = new Map<Readonly<ToolExecution>, { entry: Entry; abort: AbortController }>()
   let catalog = new Map<string, Entry>()
@@ -88,25 +79,14 @@ export function mountMcpTools(ctx: Context, access: { fresh(): boolean; refresh(
       && ctx.tools.get(item.schema.name, scope) === item.definition)
   }
 
-  function full(entries: Entry[]): Entry[] {
-    const candidates = entries.filter(item => item.connection.presentation === 'full')
-    return fits(candidates) ? candidates : []
-  }
-
   function selection(agent: object | undefined, entries: Entry[]): Entry[] {
     if (agent === undefined) return []
-    const current = hot.get(agent)
-    const selected = full(entries)
-    if (current !== undefined) {
-      for (const [name, key] of current) {
-        if (!entries.some(item => item.schema.name === name && item.key === key)) current.delete(name)
-      }
-      for (const name of [...current.keys()].reverse()) {
-        const item = entries.find(value => value.schema.name === name)!
-        if (!selected.includes(item) && fits([...selected, item])) selected.push(item)
-      }
+    const current = loaded.get(agent)
+    for (const [name, key] of current ?? []) {
+      if (!entries.some(item => item.schema.name === name && item.key === key && item.connection.presentation === 'search')) current?.delete(name)
     }
-    return selected.sort((a, b) => compare(a.schema.name, b.schema.name))
+    return entries.filter(item => item.connection.presentation === 'full' || current?.get(item.schema.name) === item.key)
+      .sort((a, b) => compare(a.schema.name, b.schema.name))
   }
 
   function denial(exec: Readonly<ToolExecution>): string | undefined {
@@ -120,12 +100,15 @@ export function mountMcpTools(ctx: Context, access: { fresh(): boolean; refresh(
     const captured = executions.get(exec)
     if (entry === undefined || captured?.key !== entry.key || captured.definition !== entry.definition
       || entry.connection.abort.signal.aborted) return 'MCP_GENERATION_CHANGED'
-    return selection(exec.agent, eligible(exec.agent)).includes(entry) ? undefined : 'MCP_TOOL_NOT_LOADED: 请先调用 mcp_tool_search'
+    const visible = exec.agent === undefined ? undefined : presented.get(exec.agent)
+    return visible?.get(exec.name) === entry.key && eligible(exec.agent).includes(entry)
+      ? undefined : 'MCP_TOOL_NOT_LOADED: 请先调用 mcp_tool_search，并在下一步推理时调用工具'
   }
 
+  if (['mcp_tool_search', 'mcp_tool_release'].some(name => ctx.tools.get(name) !== undefined)) throw new Error('MCP_NAMESPACE_CONFLICT')
   const search = ctx.tools.register(defineTool({
     name: 'mcp_tool_search',
-    description: 'Search external MCP capabilities. Matching tools load for this conversation on the next inference. Return from run_code after searching; do not guess hidden tool names.',
+    description: 'Search external MCP capabilities. Matching tools load for this conversation on the next inference. Loaded tools accumulate without duplicates and remain available until explicitly released with mcp_tool_release or invalidated by connection, authorization, or definition changes. Load only tools needed for the task. Return from run_code after searching; do not guess hidden tool names.',
     parameters: {
       query: { type: 'string', required: true, description: 'Search words, 1–256 characters' },
       serverName: { type: 'string', description: 'Optional exact MCP server name' },
@@ -152,31 +135,39 @@ export function mountMcpTools(ctx: Context, access: { fresh(): boolean; refresh(
         return { item, score }
       }).filter(item => item.score > 0).sort((a, b) => b.score - a.score || compare(a.item.schema.name, b.item.schema.name))
       selection(exec.agent, entries)
-      const current = new Map(hot.get(exec.agent))
+      const current = new Map(loaded.get(exec.agent))
       const matches: Array<{ name: string; description: string; serverName: string }> = []
       for (const { item } of ranked) {
-        const trial = new Map(current)
-        trial.delete(item.schema.name)
-        trial.set(item.schema.name, item.key)
-        const combined = () => [...new Set([...full(entries), ...entries.filter(value => trial.has(value.schema.name))])]
-        while (!fits(combined())) {
-          const oldest = [...trial.keys()].find(name => name !== item.schema.name && !matches.some(match => match.name === name))
-          if (oldest === undefined) break
-          trial.delete(oldest)
-        }
-        if (!fits(combined())) continue
         const match = { name: item.schema.name, description: Array.from(item.schema.description).slice(0, 220).join(''), serverName: item.connection.serverName }
         if (bytes({ matches: [...matches, match], loadedNames: [...matches.map(value => value.name), match.name], truncated: true }) > LIMITS.result) break
-        current.clear()
-        for (const [name, key] of trial) current.set(name, key)
+        if (item.connection.presentation === 'search') current.set(item.schema.name, item.key)
         matches.push(match)
         if (matches.length === limit) break
       }
-      hot.set(exec.agent, current)
+      loaded.set(exec.agent, current)
       const authorizationRequired = (access.authorizationRequired?.() ?? []).filter(name => scopedServerName === undefined || name === scopedServerName).slice(0, 8)
       return { matches, loadedNames: matches.map(item => item.name), truncated: ranked.length > matches.length,
-        ...(matches.length ? {} : { reason: ranked.length ? 'BUDGET_EXCEEDED' : authorizationRequired.length ? 'MCP_AUTH_REQUIRED' : 'NO_MATCH' }),
+        ...(matches.length ? {} : { reason: authorizationRequired.length ? 'MCP_AUTH_REQUIRED' : 'NO_MATCH' }),
         ...(authorizationRequired.length ? { authorizationRequired, message: '这些服务需要在 OwnDsh 设置 → MCP 重新授权，完成后继续当前对话。' } : {}) }
+    },
+  }))
+  const release = ctx.tools.register(defineTool({
+    name: 'mcp_tool_release',
+    description: 'Release no-longer-needed search-loaded MCP tools from this conversation on the next inference to reduce context use. Tools are never automatically evicted. Supply exact names already loaded; search again to reload later. Full-mode tools remain available. This does not disconnect servers or remove credentials. Return from run_code before using the updated tool set.',
+    parameters: { names: { type: 'array', items: { type: 'string' }, required: true, description: 'Exact tool names to release; non-empty, at most 512 names and 7936 UTF-8 JSON bytes. Unknown or full-mode names are ignored.' } },
+    output: { schema: { type: 'object', additionalProperties: true }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
+    async execute({ names }, exec) {
+      // 先完整验证再更新，非法批次不能部分释放；重复和未加载名称均幂等处理。
+      if (!names.length || names.length > LIMITS.catalog || bytes(names) > LIMITS.result - 256
+        || names.some(name => !/^[A-Za-z0-9_-]{1,64}$/.test(name))) throw new Error('MCP_RELEASE_INVALID')
+      if (exec.agent === undefined) return { releasedNames: [], ignoredNames: [], reason: 'AUTH_REQUIRED' }
+      await access.refresh()
+      if (!access.fresh()) return { releasedNames: [], ignoredNames: [], reason: 'POLICY_STALE' }
+      selection(exec.agent, eligible(exec.agent))
+      const current = loaded.get(exec.agent)
+      const releasedNames: string[] = [], ignoredNames: string[] = []
+      for (const name of new Set(names)) (current?.delete(name) ? releasedNames : ignoredNames).push(name)
+      return { releasedNames, ignoredNames }
     },
   }))
   const change = ctx.on('tools/change', () => {
@@ -208,14 +199,6 @@ export function mountMcpTools(ctx: Context, access: { fresh(): boolean; refresh(
     exec.signal = AbortSignal.any([signal, entry.connection.abort.signal, abort.signal])
     try { return await next() } finally { dispatching.delete(exec); exec.signal = signal }
   })
-  const result = ctx.on('tools/result', (exec, outcome) => {
-    const current = exec.agent === undefined ? undefined : hot.get(exec.agent)
-    const entry = catalog.get(exec.name)
-    if (!outcome.isError && entry !== undefined && current?.get(exec.name) === entry.key) {
-      current.delete(exec.name)
-      current.set(exec.name, entry.key)
-    }
-  })
   const assemble = ctx.on('system-prompt/assemble', async (assembly, context: AssembleContext, next) => {
     if (dirty) rebuild()
     const before = new Map([...catalog].map(([name, entry]) => [name, entry.key]))
@@ -227,6 +210,7 @@ export function mountMcpTools(ctx: Context, access: { fresh(): boolean; refresh(
       .map(item => [item.schema.name, item]))
     output.tools = output.tools.filter(schema => !owned(schema.name)
       || (allowed.has(schema.name) && isDeepStrictEqual(schema, allowed.get(schema.name)!.schema)))
+    const visible = new Set(output.tools.map(schema => schema.name))
     const sdk = output.sections.filter(section => section.name === 'tools:sdk' && section.text !== '')
     if (sdk.length > 1) throw new Error('MCP_PRESENTATION_UNSUPPORTED')
     if (sdk[0] !== undefined) {
@@ -238,6 +222,11 @@ export function mountMcpTools(ctx: Context, access: { fresh(): boolean; refresh(
         .map(schema => ({ ...schema, output: ctx.tools.get(schema.name, context.scope)!.output.schema }))
       output.variables.owndsh_mcp_sdk = render(schemas)
       sdk[0].text = '{{owndsh_mcp_sdk}}'
+      for (const schema of schemas) visible.add(schema.name)
+    }
+    if (context.agent !== undefined) {
+      // 执行只认本步已呈现的定义；搜索/释放只能改变下一步，实时撤权仍优先。
+      presented.set(context.agent, new Map([...allowed].filter(([name]) => visible.has(name)).map(([name, entry]) => [name, entry.key])))
     }
     return output
   })
@@ -266,14 +255,12 @@ export function mountMcpTools(ctx: Context, access: { fresh(): boolean; refresh(
       if (dirty) rebuild()
       const entries = eligible()
       const requestedFull = connections.get(serverName)?.presentation === 'full'
-      const overBudget = requestedFull && !fits(entries.filter(item => item.connection.presentation === 'full'))
       const tools = entries.filter(item => item.connection.serverName === serverName).map(item => ({
         name: item.schema.name.slice(prefix(serverName).length),
         description: item.schema.description,
       }))
       return { discoveredToolCount: tools.length, tools,
-        effectivePresentation: requestedFull && !overBudget ? 'full' as const : 'search' as const,
-        ...(overBudget ? { errorCode: 'MCP_BUDGET_EXCEEDED' } : {}) }
+        effectivePresentation: requestedFull ? 'full' as const : 'search' as const }
     },
     dispose(): void {
       stopped = true
@@ -281,7 +268,7 @@ export function mountMcpTools(ctx: Context, access: { fresh(): boolean; refresh(
       for (const connection of connections.values()) connection.abort.abort()
       connections.clear()
       catalog.clear()
-      for (const dispose of [assemble, result, dispatch, guard, pre, change, search]) dispose()
+      for (const dispose of [assemble, dispatch, guard, pre, change, release, search]) dispose()
     },
   }
 }

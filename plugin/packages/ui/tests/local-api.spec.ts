@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 dsh-ui 同源 local-api、标准 Response 与 EventSource test double
- * [OUTPUT]: 验证账号/插件/MCP 严格解码、工具简介与计数一致、连接/授权/预算事实、OAuth 流程绑定、固定动作路径及秘密字段拒绝
+ * [OUTPUT]: 验证账号/插件/MCP 严格解码、工具简介与计数一致、连接/授权/呈现事实、OAuth 流程绑定、固定动作路径及秘密字段拒绝
  * [POS]: dsh-ui 浏览器网络边界测试，确保浏览器只能消费 Host 脱敏 DTO
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -56,7 +56,7 @@ describe('enterprise local browser API', () => {
   })
   it('decodes MCP discovery and effective presentation while rejecting secrets and invalid counts', async () => {
     const assignment = { serverName: 'docs', displayName: 'Docs', presentation: 'full', authType: 'none', configured: true,
-      connected: true, discoveredToolCount: 100, effectivePresentation: 'search', errorCode: 'MCP_BUDGET_EXCEEDED' }
+      connected: true, discoveredToolCount: 100, effectivePresentation: 'full' }
     const fetcher = vi.fn(async () => ok({ assignments: [assignment] }))
     const api = createEnterpriseLocalApi(fetcher)
     expect((await api.mcpStatus(new AbortController().signal)).assignments[0]).toEqual(assignment)

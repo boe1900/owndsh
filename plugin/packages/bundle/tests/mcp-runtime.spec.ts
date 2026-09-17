@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖真实 Cordis/tools/systemPrompt/pi-ai、可控 HTTP MCP/模型服务和端侧运行时。
- * [OUTPUT]: 验证工具简介目录不预热会话、search 隔离/预算、native/PTC 请求正文、代次撤销、真实 client 连接、同一会话 OAuth 失效恢复与提前 401 不重放。
+ * [OUTPUT]: 验证目录不预热会话、search 去重/累加/显式释放与本步调用快照、native/PTC 请求正文、代次撤销、真实 client 连接、HTTP OAuth 同一会话失效恢复与提前 401 不重放。
  * [POS]: bundle 的 MCP 行为回归；使用受控工具与假凭据，不调用外部模型或真实 OAuth 服务。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -132,28 +132,134 @@ describe('MCP search and request presentation', () => {
       expect((await call(ctx, 'mcp__docs__read_7', {}, first, mode === 'ptc')).isError).toBeFalsy()
       expect((await call(ctx, 'mcp__docs__read_8', {}, first, mode === 'ptc')).isError).toBe(true)
       expect((await call(ctx, 'ordinary', {}, first, mode === 'ptc')).isError).toBeFalsy()
+      await call(ctx, 'mcp_tool_release', { names: ['mcp__docs__read_7'] }, first, mode === 'ptc')
+      expect((await wire()).body).not.toContain('mcp__docs__read_7')
+      expect((await call(ctx, 'mcp__docs__read_7', {}, first, mode === 'ptc')).isError).toBe(true)
     }, 20_000,
   )
 
-  it('enforces scope restrictions, search limits, LRU and aggregate full budgets', async () => {
+  it.each([['native', 'typescript'], ['ptc', 'typescript'], ['both', 'typescript'], ['ptc', 'python'], ['both', 'python']] as const)(
+    'keeps the current inference callable while searches prepare the next: %s / %s', async (mode, language) => {
+      const ctx = await host(mode, language)
+      const surface = mountMcpTools(ctx, { fresh: () => true, refresh: async () => {} })
+      disposals.push(() => surface.dispose())
+      const connection = surface.begin('docs', 'Docs', 'search')
+      for (let i = 0; i < 17; i++) ctx.tools.register(tool(`mcp__docs__item_${String(i).padStart(2, '0')}`))
+      surface.ready(connection)
+      await ctx.systemPrompt.assemble({ scope: first, agent: first })
+      for (let i = 0; i < 16; i++) await call(ctx, 'mcp_tool_search', { query: `mcp__docs__item_${String(i).padStart(2, '0')}`, limit: 1 }, first, mode === 'ptc')
+      await ctx.systemPrompt.assemble({ scope: first, agent: first })
+      // 显式释放、加载新工具只改变下一步，本步旧调用仍按已呈现快照执行。
+      await call(ctx, 'mcp_tool_release', { names: ['mcp__docs__item_00'] }, first, mode === 'ptc')
+      await call(ctx, 'mcp_tool_search', { query: 'mcp__docs__item_16', limit: 1 }, first, mode === 'ptc')
+      expect((await call(ctx, 'mcp__docs__item_00', {}, first, mode === 'ptc')).isError).toBe(false)
+      expect((await call(ctx, 'mcp__docs__item_16', {}, first, mode === 'ptc')).isError).toBe(true)
+      const next = await ctx.systemPrompt.assemble({ scope: first, agent: first })
+      expect(JSON.stringify(next)).not.toContain('mcp__docs__item_00')
+      expect(JSON.stringify(next)).toContain('mcp__docs__item_16')
+      expect((await call(ctx, 'mcp__docs__item_00', {}, first, mode === 'ptc')).isError).toBe(true)
+      expect((await call(ctx, 'mcp__docs__item_16', {}, first, mode === 'ptc')).isError).toBe(false)
+    },
+  )
+
+  it('deduplicates repeated searches, combines full tools, and respects live scope revocation', async () => {
     const ctx = await host()
     const surface = mountMcpTools(ctx, { fresh: () => true, refresh: async () => {} })
     disposals.push(() => surface.dispose())
-    const connection = surface.begin('docs', 'Docs', 'full')
+    const search = surface.begin('docs', 'Docs', 'search'), full = surface.begin('fixed', 'Fixed', 'full')
+    for (const name of ['mcp__docs__a', 'mcp__docs__b', 'mcp__fixed__a']) ctx.tools.register(tool(name))
+    surface.ready(search); surface.ready(full)
+    for (const query of ['mcp__docs__a', 'mcp__docs__a', 'mcp__docs__b']) {
+      expect((await call(ctx, 'mcp_tool_search', { query, limit: 1 })).value).toMatchObject({ loadedNames: [query] })
+    }
+    const names = (await ctx.systemPrompt.assemble({ scope: first, agent: first })).tools.map(value => value.name)
+    expect(names).toEqual(['mcp__docs__a', 'mcp__docs__b', 'mcp__fixed__a', 'mcp_tool_release', 'mcp_tool_search'])
+    await call(ctx, 'mcp_tool_search', { query: 'mcp__docs__a', limit: 1 })
+    expect((await ctx.systemPrompt.assemble({ scope: first, agent: first })).tools.map(value => value.name)).toEqual(names)
+    expect((await ctx.systemPrompt.assemble({ scope: second, agent: second })).tools.map(value => value.name)).toEqual(['mcp__fixed__a', 'mcp_tool_release', 'mcp_tool_search'])
+    const scope = createScope(ctx, first)
+    await scope.ctx.inject(['tools'], child => { child.tools.restrict({ deny: ['mcp__docs__a'] }) })
+    expect((await call(ctx, 'mcp__docs__a')).isError).toBe(true)
+    expect((await call(ctx, 'mcp__docs__b')).isError).toBe(false)
+    surface.revoke(full)
+    expect((await call(ctx, 'mcp__fixed__a')).isError).toBe(true)
+  })
+
+  it.each(['count', 'bytes'])('retains loads beyond former %s limits until explicitly released', async budget => {
+    const ctx = await host()
+    const surface = mountMcpTools(ctx, { fresh: () => true, refresh: async () => {} })
+    disposals.push(() => surface.dispose())
+    const connection = surface.begin('docs', 'Docs', 'search')
+    for (const batch of ['alpha', 'bravo', 'charlie']) {
+      for (let i = 0; i < 8; i++) ctx.tools.register(tool(`mcp__docs__${batch}_${i}`, budget === 'bytes' ? 'x'.repeat(5000) : batch))
+    }
+    surface.ready(connection)
+    await ctx.systemPrompt.assemble({ scope: first, agent: first })
+    const loaded: string[] = []
+    // 一个模型响应可包含多个独占搜索调用；中间没有新的 inference。
+    for (const query of ['alpha', 'bravo', 'charlie']) {
+      const result = await call(ctx, 'mcp_tool_search', { query, limit: 8 })
+      expect(result.isError).toBe(false)
+      expect((result.value as any).loadedNames).toHaveLength(8)
+      loaded.push(...(result.value as any).loadedNames)
+    }
+    const shown = (await ctx.systemPrompt.assemble({ scope: first, agent: first })).tools.map(value => value.name)
+    expect(loaded).toHaveLength(24)
+    expect(shown).toEqual(expect.arrayContaining(loaded))
+    // 已呈现和未呈现工具一视同仁地保留，重复搜索不制造第二份定义。
+    await call(ctx, 'mcp_tool_search', { query: 'charlie', limit: 8 })
+    expect((await ctx.systemPrompt.assemble({ scope: first, agent: first })).tools.map(value => value.name)).toEqual(shown)
+    await call(ctx, 'mcp_tool_release', { names: loaded.slice(0, 8) })
+    const changed = (await ctx.systemPrompt.assemble({ scope: first, agent: first })).tools.map(value => value.name)
+    expect(loaded.slice(0, 8).every(name => !changed.includes(name))).toBe(true)
+    expect(changed).toEqual(expect.arrayContaining(loaded.slice(8)))
+    expect((await call(ctx, 'mcp_tool_search', { query: 'alpha', limit: 8 })).value).toMatchObject({ loadedNames: loaded.slice(0, 8) })
+  })
+
+  it('combines full and searched tools and only permits schemas actually presented', async () => {
+    const ctx = await host()
+    const surface = mountMcpTools(ctx, { fresh: () => true, refresh: async () => {} })
+    disposals.push(() => surface.dispose())
+    const full = surface.begin('fixed', 'Fixed', 'full'), search = surface.begin('docs', 'Docs', 'search')
+    for (let i = 0; i < 16; i++) ctx.tools.register(tool(`mcp__fixed__item_${i}`))
+    ctx.tools.register(tool('mcp__docs__read'))
+    surface.ready(full); surface.ready(search)
+    await ctx.systemPrompt.assemble({ scope: first, agent: first })
+    expect((await call(ctx, 'mcp_tool_search', { query: 'read', serverName: 'docs', limit: 1 })).value).toMatchObject({ loadedNames: ['mcp__docs__read'] })
+    expect((await call(ctx, 'mcp__fixed__item_0')).isError).toBe(false)
+    ctx.on('system-prompt/assemble', async (_assembly, _context, next) => {
+      const output = await next()
+      output.tools = output.tools.filter(schema => schema.name !== 'mcp__fixed__item_0')
+      return output
+    })
+    await ctx.systemPrompt.assemble({ scope: first, agent: first })
+    expect((await call(ctx, 'mcp__fixed__item_0')).isError).toBe(true)
+  })
+
+  it('enforces scope restrictions and search limits without automatically evicting loaded tools', async () => {
+    const ctx = await host()
+    const surface = mountMcpTools(ctx, { fresh: () => true, refresh: async () => {} })
+    disposals.push(() => surface.dispose())
+    const connection = surface.begin('docs', 'Docs', 'search')
     for (let i = 0; i < 20; i++) ctx.tools.register(tool(`mcp__docs__read_${String(i).padStart(2, '0')}`))
     ctx.tools.register(tool('mcp__docs__huge', 'x'.repeat(17 * 1024)))
     surface.ready(connection)
-    expect(surface.status('docs')).toMatchObject({ effectivePresentation: 'search', errorCode: 'MCP_BUDGET_EXCEEDED', discoveredToolCount: 20 })
+    expect(surface.status('docs')).toMatchObject({ effectivePresentation: 'search', discoveredToolCount: 20 })
     expect((await ctx.systemPrompt.assemble({ scope: first, agent: first })).tools.filter(value => value.name.startsWith('mcp__'))).toHaveLength(0)
-    for (let i = 0; i < 17; i++) expect((await call(ctx, 'mcp_tool_search', { query: `mcp__docs__read_${String(i).padStart(2, '0')}`, limit: 1 })).isError).toBeFalsy()
+    for (let i = 0; i < 17; i++) {
+      expect((await call(ctx, 'mcp_tool_search', { query: `mcp__docs__read_${String(i).padStart(2, '0')}`, limit: 1 })).isError).toBeFalsy()
+      await ctx.systemPrompt.assemble({ scope: first, agent: first })
+    }
     let shown = (await ctx.systemPrompt.assemble({ scope: first, agent: first })).tools.map(value => value.name)
-    expect(shown.filter(value => value.startsWith('mcp__'))).toHaveLength(16)
-    expect(shown).not.toContain('mcp__docs__read_00')
+    expect(shown.filter(value => value.startsWith('mcp__'))).toHaveLength(17)
+    expect(shown).toContain('mcp__docs__read_00')
     await call(ctx, 'mcp__docs__read_01')
+    await call(ctx, 'mcp_tool_release', { names: ['mcp__docs__read_02'] })
     await call(ctx, 'mcp_tool_search', { query: 'mcp__docs__read_17', limit: 1 })
     shown = (await ctx.systemPrompt.assemble({ scope: first, agent: first })).tools.map(value => value.name)
     expect(shown).toContain('mcp__docs__read_01')
     expect(shown).not.toContain('mcp__docs__read_02')
+    expect(shown).toContain('mcp__docs__read_17')
     const scope = createScope(ctx, second)
     await scope.ctx.inject(['tools'], child => { child.tools.restrict({ deny: ['mcp__docs__read_01'] }) })
     const search = await call(ctx, 'mcp_tool_search', { query: 'read', serverName: 'docs', limit: 8 }, second)
@@ -166,7 +272,7 @@ describe('MCP search and request presentation', () => {
     expect((await call(ctx, 'mcp_tool_search', { query: 'read', limit: 9 })).isError).toBe(true)
   })
 
-  it('bounds SDK expansion in both mode, beyond the raw JSON schema size', async () => {
+  it('preserves full mode and original descriptions beyond the former 64 KiB limit', async () => {
     const ctx = await host('both')
     const surface = mountMcpTools(ctx, { fresh: () => true, refresh: async () => {} })
     disposals.push(() => surface.dispose())
@@ -175,15 +281,41 @@ describe('MCP search and request presentation', () => {
       for (let i = 0; i < 8; i++) ctx.tools.register(tool(`mcp__${server}__large_${i}`, '说明'.repeat(1100)))
       surface.ready(connection)
     }
-    expect(surface.status('a').effectivePresentation).toBe('search')
+    expect(surface.status('a').effectivePresentation).toBe('full')
     const result = await call(ctx, 'mcp_tool_search', { query: 'large', limit: 8 })
     expect(result.isError).toBeFalsy()
     const loaded = (result.value as any).loadedNames
-    expect(loaded.length).toBeLessThan(8)
+    expect(loaded).toHaveLength(8)
     const assembly = await ctx.systemPrompt.assemble({ scope: first, agent: first })
     const schemas = assembly.tools.filter(value => value.name.startsWith('mcp__'))
-    expect(schemas.map(value => value.name)).toEqual(loaded)
-    expect(Buffer.byteLength(JSON.stringify(schemas)) + Buffer.byteLength(assembly.variables.owndsh_mcp_sdk!)).toBeLessThanOrEqual(64 * 1024)
+    expect(schemas).toHaveLength(16)
+    expect(schemas.map(value => value.name)).toEqual(expect.arrayContaining(loaded))
+    expect(schemas[0]!.description).toBe('说明'.repeat(1100))
+    expect(Buffer.byteLength(JSON.stringify(schemas)) + Buffer.byteLength(assembly.variables.owndsh_mcp_sdk!)).toBeGreaterThan(64 * 1024)
+  })
+
+  it('releases only this Agent’s dynamic tools, validates atomically, and leaves full tools connected', async () => {
+    const ctx = await host()
+    const surface = mountMcpTools(ctx, { fresh: () => true, refresh: async () => {} })
+    disposals.push(() => surface.dispose())
+    const dynamic = surface.begin('docs', 'Docs', 'search'), fixed = surface.begin('fixed', 'Fixed', 'full')
+    for (const name of ['mcp__docs__a', 'mcp__docs__b', 'mcp__fixed__a']) ctx.tools.register(tool(name))
+    surface.ready(dynamic); surface.ready(fixed)
+    for (const agent of [first, second]) await call(ctx, 'mcp_tool_search', { query: 'docs', limit: 2 }, agent)
+    expect((await call(ctx, 'mcp_tool_release', { names: ['mcp__docs__a', 'bad name'] })).isError).toBe(true)
+    expect((await call(ctx, 'mcp_tool_release', { names: [] })).isError).toBe(true)
+    expect((await call(ctx, 'mcp_tool_release', { names: Array(513).fill('mcp__docs__a') })).isError).toBe(true)
+    expect((await call(ctx, 'mcp_tool_release', { names: Array(512).fill('x'.repeat(64)) })).isError).toBe(true)
+    expect((await call(ctx, 'mcp_tool_release', { names: ['mcp__docs__a', 'mcp__docs__a', 'mcp__fixed__a', 'ordinary'] })).value).toMatchObject({
+      releasedNames: ['mcp__docs__a'], ignoredNames: ['mcp__fixed__a', 'ordinary'],
+    })
+    expect((await call(ctx, 'mcp_tool_release', { names: ['mcp__docs__a'] })).value).toMatchObject({ releasedNames: [] })
+    expect((await ctx.systemPrompt.assemble({ scope: second, agent: second })).tools.map(t => t.name)).toContain('mcp__docs__a')
+    expect((await ctx.systemPrompt.assemble({ scope: first, agent: first })).tools.map(t => t.name)).toEqual(['mcp__docs__b', 'mcp__fixed__a', 'mcp_tool_release', 'mcp_tool_search'])
+    expect(surface.status('docs').discoveredToolCount).toBe(2)
+    expect((await call(ctx, 'mcp_tool_search', { query: 'mcp__docs__a', limit: 1 })).value).toMatchObject({ loadedNames: ['mcp__docs__a'] })
+    await call(ctx, 'mcp_tool_release', { names: ['mcp__docs__a'] })
+    expect((await ctx.systemPrompt.assemble({ scope: first, agent: first })).tools.map(t => t.name)).not.toContain('mcp__docs__a')
   })
 
   it('preserves identical schema warmth but rejects changes while pre-execute is waiting', async () => {
@@ -195,6 +327,7 @@ describe('MCP search and request presentation', () => {
     let unregister = ctx.tools.register(tool('mcp__docs__read'))
     surface.ready(connection)
     await call(ctx, 'mcp_tool_search', { query: 'read' })
+    await ctx.systemPrompt.assemble({ scope: first, agent: first })
     unregister()
     unregister = ctx.tools.register(tool('mcp__docs__read'))
     await Promise.resolve()
@@ -217,6 +350,7 @@ describe('MCP search and request presentation', () => {
     wait()
     expect((await call(ctx, 'mcp__docs__read')).isError).toBe(true)
     await call(ctx, 'mcp_tool_search', { query: 'read' })
+    await ctx.systemPrompt.assemble({ scope: first, agent: first })
     expect((await call(ctx, 'mcp__docs__read')).isError).toBeFalsy()
     fresh = false
     expect((await call(ctx, 'mcp__docs__read')).isError).toBe(true)
@@ -224,6 +358,15 @@ describe('MCP search and request presentation', () => {
     surface.revoke(connection)
     expect((await call(ctx, 'mcp__docs__read')).isError).toBe(true)
     expect((await ctx.systemPrompt.assemble({ scope: first, agent: first })).tools.map(value => value.name)).not.toContain('mcp__docs__read')
+  })
+
+  it('rejects control-tool conflicts without leaving a partial registration', async () => {
+    const ctx = await host()
+    const existing = tool('mcp_tool_release')
+    ctx.tools.register(existing)
+    expect(() => mountMcpTools(ctx, { fresh: () => true, refresh: async () => {} })).toThrow('MCP_NAMESPACE_CONFLICT')
+    expect(ctx.tools.get('mcp_tool_search')).toBeUndefined()
+    expect(ctx.tools.get('mcp_tool_release')).toBe(existing)
   })
 
   it('refuses a foreign namespace and a replaced SDK without altering ordinary tools', async () => {
@@ -247,6 +390,7 @@ describe('MCP search and request presentation', () => {
     const connection = surface.begin('docs', 'Docs', 'full')
     const unregister = ctx.tools.register(tool('mcp__docs__read'))
     surface.ready(connection)
+    await ctx.systemPrompt.assemble({ scope: first, agent: first })
     const entered = deferred(), release = deferred()
     ctx.on('tools/execute', async (_exec, next) => { entered.resolve(); await release.promise; return next() })
     const pending = call(ctx, 'mcp__docs__read')
@@ -301,6 +445,7 @@ describe('official MCP client integration', () => {
     expect(Object.keys(directory.data.assignments[0].tools[0]).sort()).toEqual(['description', 'name'])
     expect((await ctx.systemPrompt.assemble({ scope: first, agent: first })).tools.map(value => value.name)).not.toContain('mcp__docs__read')
     expect((await call(ctx, 'mcp_tool_search', { query: 'read' })).isError).toBeFalsy()
+    await ctx.systemPrompt.assemble({ scope: first, agent: first })
     expect((await call(ctx, 'mcp__docs__read')).isError).toBeFalsy()
     expect(methods.filter(value => value === 'tools/call')).toHaveLength(1)
     expect(platform.request).toHaveBeenCalledTimes(1)
@@ -341,6 +486,7 @@ describe('official MCP client integration', () => {
     expect(changed.tools.map(value => value.name)).not.toContain('mcp__docs__read')
     expect((await call(ctx, 'mcp__docs__read')).isError).toBe(true)
     await call(ctx, 'mcp_tool_search', { query: 'read' })
+    await ctx.systemPrompt.assemble({ scope: first, agent: first })
     expect((await call(ctx, 'mcp__docs__read')).isError).toBeFalsy()
     granted = false
     revision++
@@ -399,9 +545,6 @@ describe('official MCP client integration', () => {
       response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ jsonrpc: '2.0', id: body.id, result }))
     })
     const nativeFetch = globalThis.fetch
-    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => nativeFetch(
-      String(input) === 'https://oauth.example/token' ? `${providerUrl}/token` : input, init,
-    ))
     vi.mocked(openSystemBrowser).mockImplementation(async raw => {
       const authorization = new URL(raw), callback = new URL(authorization.searchParams.get('redirect_uri')!)
       callback.searchParams.set('state', authorization.searchParams.get('state')!)
@@ -421,7 +564,7 @@ describe('official MCP client integration', () => {
     const local = (path: string, body?: object) => fetch(`${localUrl}/enterprise/api/v1/local/mcp/${path}`, body === undefined ? {} : { method: 'POST', body: JSON.stringify(body) })
     const assignment = { id: '3', serverName: 'docs', displayName: 'Docs', revision: 1,
       url: `${providerUrl}/mcp`, transport: 'streamable-http', headers: {}, presentation,
-      auth: { type: 'oauth', authorizationEndpoint: 'https://oauth.example/authorize', tokenEndpoint: 'https://oauth.example/token', clientId: 'client' }, reconnect: { enabled: false } }
+      auth: { type: 'oauth', issuer: providerUrl, resource: `${providerUrl}/mcp`, authorizationEndpoint: `${providerUrl}/authorize`, tokenEndpoint: `${providerUrl}/token`, clientId: 'client' }, reconnect: { enabled: false } }
     const platform = {
       status: () => ({ state: 'READY', platformUrl: 'https://platform.example' }),
       bootstrap: () => ({ user: { id: '1' }, device: { id: '2', installationId: 'installation-a' } }),
@@ -571,6 +714,7 @@ describe('official MCP client integration', () => {
     expect(ctx.tools.get('mcp__docs__read')).toBe(original)
     clock.mockReturnValue(realNow + 33_000)
     await call(ctx, 'mcp_tool_search', { query: 'read' })
+    await ctx.systemPrompt.assemble({ scope: first, agent: first })
     expect((await call(ctx, 'mcp__docs__read')).isError).toBeFalsy()
     clock.mockReturnValue(realNow + 3_603_000)
     token = 'oauth-rotated'
