@@ -42,6 +42,7 @@ export interface EnterpriseLocalApiOptions {
   readonly platform: EnterpriseLocalPlatformPort
   /** 由组合层绑定 distribution，避免 platform-client 反向依赖具体插件包。 */
   readonly pluginStatus: () => unknown
+  readonly restartPlugins?: () => Promise<{ readonly restart: () => void }>
   readonly pluginAction?: (action: 'install' | 'remove', packageName: string, pluginVersionId?: string) => Promise<void>
   /** 由组合层绑定整包卸载；返回的重启动作必须在 HTTP 成功响应写出后才执行。 */
   readonly uninstallPlugin?: () => Promise<{ readonly restart?: () => void }>
@@ -231,6 +232,23 @@ export function registerEnterpriseLocalApi(
           return
         }
         writeJson(response, 200, { data: options.platform.bootstrap() ?? null })
+      },
+    }))
+
+    disposers.push(webServer.register({
+      kind: 'exact', path: `${LOCAL_API_PREFIX}/plugins/restart`,
+      handler: async (request, response) => {
+        if (request.method !== 'POST') { methodNotAllowed(response, 'POST'); return }
+        try {
+          await requireEmptyObject(request)
+          if (options.restartPlugins === undefined) throw new Error('restart is unavailable')
+          const result = await options.restartPlugins()
+          writeJson(response, 200, { data: { restartRequested: true } })
+          result.restart()
+        } catch (error) {
+          const status = actionErrorStatus(error)
+          writeJson(response, status, { error: { code: status === 400 ? 'ENT_INVALID_REQUEST' : errorCode(error) } })
+        }
       },
     }))
 

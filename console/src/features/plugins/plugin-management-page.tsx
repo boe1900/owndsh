@@ -1,21 +1,21 @@
 /**
- * [INPUT]: 依赖生成的插件管理 operation、浏览器原生 multipart、成员目录、console 权限事实、TanStack Query、ProductDataTable 与插件编辑器，共享 lib/crypto 生成 HTTP/HTTPS 通用幂等键。
- * [OUTPUT]: 提供企业插件 JSON part serializer、版本/可见范围/设备状态三视图，以及上传、发布、退休与原子范围管理动作。
- * [POS]: features/plugins 的产品插件工作台；服务端负责验包、签名、状态机、分配裁决和设备事实。
+ * [INPUT]: 依赖生成的插件管理 operation、JSON 安装配置、成员目录、console 权限事实、TanStack Query、ProductDataTable 与插件编辑器，共享 lib/crypto 生成 HTTP/HTTPS 通用幂等键。
+ * [OUTPUT]: 提供企业插件安装配置、版本/可见范围/设备状态三视图；登记时复用目录分页收集已有分类，支持发布、退休与原子范围管理。
+ * [POS]: features/plugins 的产品插件工作台；服务端负责目录、状态机和分配裁决，宿主负责包安装及依赖。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouteContext } from '@tanstack/react-router';
-import { Archive, CloudUpload, Settings2, Upload } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Archive, Send, Settings2, Plus } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   listPluginInventory,
   listPluginPackages,
   publishPluginVersion,
   replacePluginAssignments,
   retirePluginVersion,
-  uploadPluginVersion
+  registerPluginVersion
 } from '@/api/generated/sdk.gen';
 import type {
   AdminPluginInventoryItem,
@@ -35,9 +35,9 @@ import { useMembers } from '@/features/member-select';
 import {
   PluginAssignmentDialog,
   RetirePluginVersionDialog,
-  UploadPluginVersionDialog,
+  RegisterPluginVersionDialog,
   type PluginAssignmentValue,
-  type PluginUploadValue
+  type PluginRegistrationValue
 } from './plugin-editors';
 
 const SECTIONS = ['插件版本', '可见范围', '设备状态'] as const;
@@ -72,13 +72,6 @@ function requireSuccess(result: { error?: EnterpriseErrorResponse }, fallback: s
   if (result.error !== undefined) throw new Error(errorMessage(result.error, fallback));
 }
 
-export function serializePluginUpload(value: PluginUploadValue) {
-  const body = new FormData();
-  body.append('artifact', value.artifact);
-  body.append('compatibility', new Blob([JSON.stringify(value.compatibility)], { type: 'application/json' }));
-  return body;
-}
-
 async function loadPackages(cursor?: string) {
   const result = await listPluginPackages({ query: { limit: 100, ...(cursor ? { cursor } : {}) } });
   return unwrapData<PluginPackagePageData>(result, 'ENT_PLUGIN_CATALOG_UNAVAILABLE');
@@ -93,28 +86,18 @@ function nextCursor(page: { page: { hasMore: boolean; nextCursor: string | null 
   return page.page.hasMore ? page.page.nextCursor ?? undefined : undefined;
 }
 
-function formatBytes(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KiB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MiB`;
-}
-
 function formatDate(value: string) {
   return new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
 }
 
 const VERSION_STATUS = {
-  UPLOADED: { label: '已上传', tone: 'neutral' },
-  VALIDATED: { label: '已验证', tone: 'accent' },
+  VALIDATED: { label: '待发布', tone: 'accent' },
   PUBLISHED: { label: '已发布', tone: 'green' },
   RETIRED: { label: '已退休', tone: 'neutral' }
 } as const;
 
 const DEVICE_STATUS: Record<AdminPluginInventoryItem['state'], { label: string; tone: 'accent' | 'green' | 'neutral' | 'orange' | 'red' }> = {
   EXPECTED: { label: '等待处理', tone: 'neutral' },
-  DOWNLOAD_PENDING: { label: '等待下载', tone: 'accent' },
-  DOWNLOADING: { label: '下载中', tone: 'accent' },
-  VERIFIED: { label: '已验证', tone: 'accent' },
   INSTALLING: { label: '安装中', tone: 'accent' },
   RESTART_REQUIRED: { label: '需要重启', tone: 'orange' },
   ACTIVE: { label: '正常', tone: 'green' },
@@ -162,29 +145,23 @@ const versionColumns: ReadonlyArray<ProductTableColumn<PluginVersionRow>> = [
     meta: { label: '状态', className: 'w-[105px]', cellClassName: 'w-[105px]' }
   },
   {
-    id: 'operatingSystems',
-    accessorFn: (row) => row.compatibility.operatingSystems.join(' / '),
-    header: '操作系统',
-    meta: { label: '操作系统', className: 'w-[155px]', cellClassName: 'w-[155px]' }
+    id: 'installation',
+    accessorFn: (row) => row.installation.spec,
+    header: '安装地址',
+    cell: ({ getValue }) => <span className="block truncate font-mono text-[11px]" title={String(getValue())}>{String(getValue())}</span>,
+    meta: { label: '安装地址', className: 'w-[240px]', cellClassName: 'w-[240px]' }
   },
   {
-    id: 'enterpriseBundleRange',
-    accessorFn: (row) => row.compatibility.enterpriseBundleRange,
-    header: 'Bundle 范围',
-    cell: ({ getValue }) => <span className="block truncate font-mono text-[12px]" title={String(getValue())}>{String(getValue())}</span>,
-    meta: { label: 'Bundle 范围', className: 'w-[150px]', cellClassName: 'w-[150px]' }
-  },
-  {
-    id: 'sizeBytes',
-    accessorFn: (row) => formatBytes(row.sizeBytes),
-    header: '大小',
-    meta: { label: '大小', className: 'w-[90px]', cellClassName: 'w-[90px]' }
+    id: 'categories',
+    accessorFn: (row) => row.installation.categories.join(' / ') || '未分类',
+    header: '分类',
+    meta: { label: '分类', className: 'w-[140px]', cellClassName: 'w-[140px]' }
   },
   {
     id: 'createdAt',
     accessorFn: (row) => formatDate(row.createdAt),
-    header: '上传时间',
-    meta: { label: '上传时间', className: 'w-[160px]', cellClassName: 'w-[160px]' }
+    header: '添加时间',
+    meta: { label: '添加时间', className: 'w-[160px]', cellClassName: 'w-[160px]' }
   }
 ];
 
@@ -203,7 +180,7 @@ function versionColumnsWithActions(
     enableSorting: false,
     cell: ({ row }) => row.original.status === 'VALIDATED' ? (
       <Button variant="quiet" size="xs" className="size-7 rounded-md p-0" disabled={disabled} aria-label={`发布 ${row.original.packageName}@${row.original.version}`} title="发布" onClick={() => onPublish(row.original)}>
-        <CloudUpload aria-hidden className="size-3.5" />
+        <Send aria-hidden className="size-3.5" />
       </Button>
     ) : row.original.status === 'PUBLISHED' ? (
       <Button variant="quiet" size="xs" className="size-7 rounded-md p-0" disabled={disabled} aria-label={`退休 ${row.original.packageName}@${row.original.version}`} title="退休" onClick={() => onRetire(row.original)}>
@@ -302,7 +279,7 @@ export function PluginManagementPage() {
   const canWrite = bootstrap.permissions.includes('ent:plugin:write');
   const queryClient = useQueryClient();
   const [section, setSection] = useState<(typeof SECTIONS)[number]>('插件版本');
-  const [uploadOpen, setUploadOpen] = useState(false);
+  const [registrationOpen, setRegistrationOpen] = useState(false);
   const [assignmentOpen, setAssignmentOpen] = useState(false);
   const [retireTarget, setRetireTarget] = useState<PluginVersion>();
   const members = useMembers(section === '可见范围' || assignmentOpen);
@@ -322,17 +299,20 @@ export function PluginManagementPage() {
     enabled: section === '设备状态',
     staleTime: 15_000
   });
-  const upload = useMutation({
-    mutationFn: async (value: PluginUploadValue) => {
-      const result = await uploadPluginVersion({
-        body: value,
-        bodySerializer: () => serializePluginUpload(value),
-        headers: { 'Idempotency-Key': randomUuid() }
+  useEffect(() => {
+    if (registrationOpen && packages.hasNextPage && !packages.isFetching && !packages.isFetchNextPageError) {
+      void packages.fetchNextPage();
+    }
+  }, [registrationOpen, packages.hasNextPage, packages.isFetching, packages.isFetchNextPageError, packages.fetchNextPage]);
+  const registration = useMutation({
+    mutationFn: async (value: PluginRegistrationValue) => {
+      const result = await registerPluginVersion({
+        body: value
       });
-      requireSuccess(result, 'ENT_PLUGIN_UPLOAD_FAILED');
+      requireSuccess(result, '插件配置保存失败');
     },
     onSuccess: async () => {
-      setUploadOpen(false);
+      setRegistrationOpen(false);
       await queryClient.invalidateQueries({ queryKey: ['plugins', 'packages'] });
     }
   });
@@ -366,9 +346,10 @@ export function PluginManagementPage() {
   const packageRows = useMemo(() => packages.data?.pages.flatMap((page) => page.items) ?? [], [packages.data]);
   const versionRows = useMemo(() => packageRows.flatMap((pluginPackage) => pluginPackage.versions.map((version) => ({
     ...version,
-    displayName: pluginPackage.displayName,
+    displayName: version.installation.displayName,
     packageRevision: pluginPackage.revision
   }))), [packageRows]);
+  const categoryOptions = useMemo(() => [...new Set(versionRows.flatMap(version => version.installation.categories))], [versionRows]);
   const memberNames = useMemo(() => new Map(members.data?.map((member) => [member.id, member.displayName]) ?? []), [members.data]);
   const assignmentRows = useMemo(() => packageRows.flatMap((pluginPackage) => pluginPackage.assignments
     .filter((assignment) => assignment.subjectType !== 'DEPT')
@@ -404,9 +385,9 @@ export function PluginManagementPage() {
       onRetry={() => void packages.refetch()}
       searchPlaceholder="搜索插件或版本"
       toolbarAction={canWrite ? (
-        <Button variant="primary" size="xs" onClick={() => { upload.reset(); setUploadOpen(true); }}>
-          <Upload aria-hidden className="size-3.5" />
-          上传版本
+        <Button variant="primary" size="xs" onClick={() => { registration.reset(); setRegistrationOpen(true); }}>
+          <Plus aria-hidden className="size-3.5" />
+          添加插件
         </Button>
       ) : undefined}
     />
@@ -460,12 +441,16 @@ export function PluginManagementPage() {
         {changeVersion.error && !retireTarget ? <p role="alert" className="m-0 text-[12.5px] text-red">{changeVersion.error.message}</p> : null}
         {table}
       </div>
-      {uploadOpen ? (
-        <UploadPluginVersionDialog
-          error={upload.error?.message}
-          saving={upload.isPending}
-          onClose={() => setUploadOpen(false)}
-          onSave={(value) => upload.mutate(value)}
+      {registrationOpen ? (
+        <RegisterPluginVersionDialog
+          categoryOptions={categoryOptions}
+          categoriesLoading={packages.isFetching}
+          categoriesError={packages.isError}
+          onRetryCategories={() => { void (packages.isFetchNextPageError ? packages.fetchNextPage() : packages.refetch()); }}
+          error={registration.error?.message}
+          saving={registration.isPending}
+          onClose={() => setRegistrationOpen(false)}
+          onSave={(value) => registration.mutate(value)}
         />
       ) : null}
       {assignmentOpen ? (

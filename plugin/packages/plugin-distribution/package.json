@@ -11,7 +11,10 @@
       "default": "./lib/index.js"
     }
   },
-  "files": ["lib", "README.md"],
+  "files": [
+    "lib",
+    "README.md"
+  ],
   "scripts": {
     "build": "pnpm --filter @owndsh/plugin-distribution^... run build && tsc -p tsconfig.json",
     "typecheck": "pnpm --filter @owndsh/plugin-distribution^... run build && tsc -p tsconfig.json --noEmit",
@@ -19,8 +22,7 @@
   },
   "dependencies": {
     "@owndsh/contracts": "workspace:*",
-    "@owndsh/platform-client": "workspace:*",
-    "semver": "7.8.4"
+    "@owndsh/platform-client": "workspace:*"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
@@ -29,7 +31,6 @@
   },
   "devDependencies": {
     "@deepseek-ai/dsh-host-plugin-inventory": "0.1.5-rc.2",
-    "@deepseek-ai/dsh-subprocess": "0.1.5-rc.2",
-    "@types/semver": "7.7.1"
+    "@deepseek-ai/dsh-subprocess": "0.1.5-rc.2"
   }
 }

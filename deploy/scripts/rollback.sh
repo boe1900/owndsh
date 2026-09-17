@@ -35,20 +35,18 @@ docker image inspect "$old_console" >/dev/null 2>&1 || fail "上一 Console 镜�
 
 postgres_volume=$(volume_for postgres /var/lib/postgresql/data)
 redis_volume=$(volume_for redis /data)
-artifact_volume=$(volume_for server /var/lib/enterprise/artifacts)
 before_keys=$(key_fingerprint)
 replace_env OWNDSH_RELEASE_VERSION "$old_release" "$(runtime_file)"
 replace_env OWNDSH_SERVER_IMAGE "$old_server" "$(runtime_file)"
 replace_env OWNDSH_CONSOLE_IMAGE "$old_console" "$(runtime_file)"
 cp "$OWNDSH_STATE_DIR/releases/$old_release/harness/$old_harness_bundle" "$OWNDSH_STATE_DIR/harness/$old_harness_bundle"
 chmod 644 "$OWNDSH_STATE_DIR/harness/$old_harness_bundle"
-compose up -d storage-init server console
+compose up -d server console
 wait_healthy server 90
 wait_healthy console 30
 
 [ "$postgres_volume" = "$(volume_for postgres /var/lib/postgresql/data)" ] || fail "回滚改变了 PostgreSQL 卷"
 [ "$redis_volume" = "$(volume_for redis /data)" ] || fail "回滚改变了 Redis 卷"
-[ "$artifact_volume" = "$(volume_for server /var/lib/enterprise/artifacts)" ] || fail "回滚改变了 artifact 卷"
 [ "$before_keys" = "$(key_fingerprint)" ] || fail "回滚改变了 key"
 printf '%s\n' "应用镜像回滚完成；数据库、Redis、artifact 与 key 保持原位"
 printf '%s\n' "Harness bundle 已回退；请用官方 CLI 更新各 Harness/Desktop profile: $OWNDSH_STATE_DIR/harness/$old_harness_bundle"

@@ -54,9 +54,11 @@ class AuditMetadataPolicyTest {
     void everyFrozenActionHasOneConcreteMetadataSample() {
         List<AuditMetadata> samples = samples();
 
-        assertThat(samples).hasSize(AuditAction.values().length);
+        var activeActions = EnumSet.allOf(AuditAction.class);
+        activeActions.removeAll(List.of(AuditAction.PLUGIN_UPLOADED, AuditAction.PLUGIN_DOWNLOADED));
+        assertThat(samples).hasSize(activeActions.size());
         assertThat(samples.stream().map(AuditMetadata::action))
-            .containsExactlyInAnyOrderElementsOf(EnumSet.allOf(AuditAction.class));
+            .containsExactlyInAnyOrderElementsOf(activeActions);
     }
 
     @Test
@@ -110,10 +112,9 @@ class AuditMetadataPolicyTest {
             new QuotaPolicyChangeMetadata(QuotaSubjectType.ORGANIZATION, QuotaStatus.ACTIVE, -1, 0),
             new QuotaRejectionMetadata(QuotaExceededException.Kind.DAILY, 1, 100),
             new ReservationRecoveredMetadata(ReservationState.RESERVED, ReservationState.RELEASED),
-            plugin(PluginAuditMetadata.Operation.UPLOAD),
+            plugin(PluginAuditMetadata.Operation.REGISTER),
             plugin(PluginAuditMetadata.Operation.PUBLISH),
             plugin(PluginAuditMetadata.Operation.ASSIGN),
-            plugin(PluginAuditMetadata.Operation.DOWNLOAD),
             plugin(PluginAuditMetadata.Operation.INVENTORY),
             new SessionAuditMetadata.BatchAppended(0, 1, 2),
             new SessionAuditMetadata.Exported(0, 1, 2),

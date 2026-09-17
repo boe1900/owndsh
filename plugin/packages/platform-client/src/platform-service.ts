@@ -215,6 +215,7 @@ export class EnterprisePlatformService extends Service {
         bootstrap: () => this.bootstrap(),
       },
       pluginStatus: internals.pluginStatus ?? (() => ({ assignmentRevision: 0, plugins: [] })),
+      ...(internals.restartPlugins === undefined ? {} : { restartPlugins: internals.restartPlugins }),
       ...(internals.pluginAction === undefined ? {} : { pluginAction: internals.pluginAction }),
       ...(internals.uninstallPlugin === undefined ? {} : { uninstallPlugin: internals.uninstallPlugin }),
     })

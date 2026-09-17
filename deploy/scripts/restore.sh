@@ -1,6 +1,6 @@
 #!/bin/sh
 # [INPUT]: 依赖已安装但可停机的目标、完整数据备份与独立 key 备份。
-# [OUTPUT]: 恢复 PostgreSQL、Redis、artifact、master key 及归档中已有的 signing key，把 Redis RDB 转为完整 AOF 后重新等待应用健康。
+# [OUTPUT]: 恢复 PostgreSQL、Redis、master key，把 Redis RDB 转为完整 AOF 后重新等待应用健康。
 # [POS]: T21 灾难恢复入口；以 Redis 自身完成持久化格式转换，不恢复或更换目标域名的 TLS。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -45,12 +45,8 @@ temporary_keys=$(mktemp -d "${TMPDIR:-/tmp}/owndsh-keys.XXXXXX")
 trap 'rm -rf "$temporary_keys"; rmdir "$OWNDSH_STATE_DIR/.operation.lock" 2>/dev/null || true' EXIT HUP INT TERM
 tar -C "$temporary_keys" -xzf "$key_backup/enterprise-keys.tar.gz"
 require_file "$temporary_keys/enterprise_master_key"
-if [ "$(env_value ENT_PLUGIN_SIGNING_ENABLED "$(runtime_file)")" = true ] \
-  || [ "$(env_value ENT_PLUGIN_SIGNING_ENABLED "$data_backup/runtime.env")" = true ]; then
-  require_file "$temporary_keys/plugin_signing_private_key"
-fi
 compose stop console server redis
-for key_file in enterprise_master_key plugin_signing_private_key plugin_signing_public_key; do
+for key_file in enterprise_master_key; do
   [ -f "$temporary_keys/$key_file" ] || continue
   cp "$temporary_keys/$key_file" "$OWNDSH_STATE_DIR/secrets/$key_file"
   chmod 600 "$OWNDSH_STATE_DIR/secrets/$key_file"
@@ -100,13 +96,7 @@ docker run --rm --platform linux/amd64 --user 0:0 \
     redis-cli SHUTDOWN NOSAVE >/dev/null 2>&1 || true
   '
 
-artifact_volume=$(volume_for server /var/lib/enterprise/artifacts)
-server_image=$(env_value OWNDSH_SERVER_IMAGE "$(runtime_file)")
-docker run --rm --platform linux/amd64 --user 0:0 \
-  -v "$artifact_volume:/target" -v "$data_backup:/restore:ro" \
-  --entrypoint sh "$server_image" -ec 'find /target -mindepth 1 -maxdepth 1 -exec rm -rf {} +; tar -C /target -xzf /restore/artifacts.tar.gz; chown -R 10001:10001 /target'
-
-compose up -d redis storage-init server console
+compose up -d redis server console
 wait_healthy redis 45
 wait_healthy server 90
 wait_healthy console 30

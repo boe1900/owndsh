@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 ACTIVE DeviceService、active user store、生效 resolver、artifact store、事务、审计与 ID。
- * [OUTPUT]: 提供 runtime assignments、逐请求 version 下载授权和设备 inventory 原子替换。
- * [POS]: plugin/application 的 runtime 信任编排，任何下载都重新计算当前 assignment。
+ * [INPUT]: 依赖 ACTIVE DeviceService、active user store、生效 resolver、事务、审计与 ID。
+ * [OUTPUT]: 提供 runtime assignments、设备 inventory 原子替换。
+ * [POS]: plugin/application 的 runtime 信任编排，每次安装前的目录请求都重新计算当前 assignment。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.plugin.application;
@@ -16,15 +16,10 @@ import com.owndsh.enterprise.device.application.DeviceService;
 import com.owndsh.enterprise.device.domain.EnterpriseDevice;
 import com.owndsh.enterprise.model.application.BootstrapUser;
 import com.owndsh.enterprise.model.persistence.BootstrapUserStore;
-import com.owndsh.enterprise.plugin.artifact.PluginArtifactStore;
 import com.owndsh.enterprise.plugin.domain.DevicePluginInventory;
-import com.owndsh.enterprise.plugin.domain.PluginAssignment;
-import com.owndsh.enterprise.plugin.domain.PluginVersion;
-import com.owndsh.enterprise.plugin.domain.RuntimePluginAssignment;
 import com.owndsh.enterprise.plugin.persistence.PluginStore;
 import org.springframework.transaction.support.TransactionOperations;
 
-import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -40,7 +35,6 @@ public final class PluginRuntimeService {
     private final BootstrapUserStore users;
     private final EffectivePluginResolver resolver;
     private final PluginStore plugins;
-    private final PluginArtifactStore artifacts;
     private final AuditSink auditSink;
     private final LongSupplier ids;
     private final Clock clock;
@@ -51,11 +45,10 @@ public final class PluginRuntimeService {
         BootstrapUserStore users,
         EffectivePluginResolver resolver,
         PluginStore plugins,
-        PluginArtifactStore artifacts,
         AuditSink auditSink,
         LongSupplier ids
     ) {
-        this(transactions, devices, users, resolver, plugins, artifacts, auditSink, ids, Clock.systemUTC());
+        this(transactions, devices, users, resolver, plugins, auditSink, ids, Clock.systemUTC());
     }
 
     PluginRuntimeService(
@@ -64,7 +57,6 @@ public final class PluginRuntimeService {
         BootstrapUserStore users,
         EffectivePluginResolver resolver,
         PluginStore plugins,
-        PluginArtifactStore artifacts,
         AuditSink auditSink,
         LongSupplier ids,
         Clock clock
@@ -74,7 +66,6 @@ public final class PluginRuntimeService {
         this.users = Objects.requireNonNull(users, "users");
         this.resolver = Objects.requireNonNull(resolver, "resolver");
         this.plugins = Objects.requireNonNull(plugins, "plugins");
-        this.artifacts = Objects.requireNonNull(artifacts, "artifacts");
         this.auditSink = Objects.requireNonNull(auditSink, "auditSink");
         this.ids = Objects.requireNonNull(ids, "ids");
         this.clock = Objects.requireNonNull(clock, "clock");
@@ -84,30 +75,6 @@ public final class PluginRuntimeService {
         EnterpriseDevice device = devices.requireActive(context);
         BootstrapUser user = requireUser(context.tenantId(), device.userId());
         return resolver.resolve(context.tenantId(), user.id(), user.departmentId());
-    }
-
-    public AuthorizedDownload authorizeDownload(DeviceCallContext context, long versionId) {
-        EnterpriseDevice device = devices.requireActive(context);
-        BootstrapUser user = requireUser(context.tenantId(), device.userId());
-        EffectivePluginResolver.ResolvedAssignments effective = resolver.resolve(
-            context.tenantId(), user.id(), user.departmentId()
-        );
-        RuntimePluginAssignment assignment = effective.assignments().stream()
-            .filter(value -> value.pluginVersionId() == versionId)
-            .filter(value -> value.desiredState() == PluginAssignment.DesiredState.INSTALLED)
-            .findFirst()
-            .orElseThrow(PluginAccessException::new);
-        PluginVersion version = plugins.findVersion(context.tenantId(), versionId)
-            .orElseThrow(PluginAccessException::new);
-        Path path = artifacts.resolve(version.artifactRef(), version.sha256());
-        transactions.executeWithoutResult(status -> audit(
-            context, device.id(), AuditAction.PLUGIN_DOWNLOADED, versionId,
-            new PluginAuditMetadata(
-                PluginAuditMetadata.Operation.DOWNLOAD, version.revision(), effective.revision(), 1,
-                assignment.required()
-            )
-        ));
-        return new AuthorizedDownload(path, version.sizeBytes(), version.sha256());
     }
 
     public int replaceInventory(DeviceCallContext context, List<InventoryObservation> observations) {
@@ -124,7 +91,7 @@ public final class PluginRuntimeService {
             }
             return new DevicePluginInventory(
                 positiveId(), context.tenantId(), device.id(), null, value.packageName(), value.version(),
-                value.sha256(), value.desiredRevision(), value.state(), value.loaderPhase(),
+                value.desiredRevision(), value.state(), value.loaderPhase(),
                 value.lastErrorCode(), value.observedAt()
             );
         }).toList();
@@ -166,13 +133,9 @@ public final class PluginRuntimeService {
         return value;
     }
 
-    public record AuthorizedDownload(Path path, long sizeBytes, String sha256) {
-    }
-
     public record InventoryObservation(
         String packageName,
         String version,
-        String sha256,
         long desiredRevision,
         DevicePluginInventory.State state,
         String loaderPhase,

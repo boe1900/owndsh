@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖普通数据库所有者、空数据库、classpath V0-V33 migration 与旧版 baseline 0 历史。
+ * [INPUT]: 依赖普通数据库所有者、空数据库、classpath V0-V34 migration 与旧版 baseline 0 历史。
  * [OUTPUT]: 验证空库建表、旧库接管/升级、重复启动、字符串时间参数、数据库计量迁移与 MCP 原样认证值迁移约束。
  * [POS]: database 的持续 migration 门禁，防止后续任务只验证最终 schema 而遗漏中间版本不可升级。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -26,6 +26,32 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @Tag("dev")
 class EnterpriseMigrationTest {
     @Test
+    void replacesUploadedPluginCatalogWithRequiredInstallationConfiguration() {
+        var database = PostgresTestDatabase.create("plugin_sources");
+        PostgresTestDatabase.migrate(database, "33");
+        var jdbc = database.jdbc();
+        long creator = jdbc.queryForObject("select min(user_id) from sys_user", Long.class);
+        jdbc.update("insert into ent_plugin_package(id,tenant_id,package_name,display_name,status,revision) values(990001,'000000','example-plugin','Example','ACTIVE',0)");
+        jdbc.update("""
+            insert into ent_plugin_version(id,tenant_id,package_id,version,artifact_ref,size_bytes,sha256,signature,
+                compatibility_json,status,created_by,revision)
+            values(990002,'000000',990001,'1.0.0','legacy.tgz',100,?,?,'{}','PUBLISHED',?,0)
+            """, "a".repeat(64), new byte[0], creator);
+        jdbc.update("""
+            insert into ent_plugin_assignment(id,tenant_id,package_id,plugin_version_id,subject_type,desired_state,status)
+            values(990003,'000000',990001,990002,'ALL','INSTALLED','ACTIVE')
+            """);
+        long revision = jdbc.queryForObject("select revision from ent_platform_revision where tenant_id='000000'", Long.class);
+        PostgresTestDatabase.migrate(database, null);
+        assertThat(jdbc.queryForObject("select count(*) from ent_plugin_package", Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from ent_plugin_assignment", Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from ent_plugin_version", Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("select revision from ent_platform_revision where tenant_id='000000'", Long.class)).isEqualTo(revision + 1);
+        assertThat(jdbc.queryForObject("select is_nullable from information_schema.columns where table_name='ent_plugin_version' and column_name='installation_json'", String.class)).isEqualTo("NO");
+        assertThat(jdbc.queryForObject("select count(*) from information_schema.columns where table_name='ent_plugin_version' and column_name in ('artifact_ref','size_bytes','sha256','signature','compatibility_json')", Integer.class)).isZero();
+    }
+
+    @Test
     void migratesAnEmptyDatabaseToLatestWithoutSuperuserPrivileges() {
         var database = PostgresTestDatabase.create("empty_enterprise");
         assertThat(database.jdbc().queryForObject(
@@ -40,7 +66,7 @@ class EnterpriseMigrationTest {
         assertThat(database.jdbc().queryForObject(
             "select type from flyway_schema_history where version='0'", String.class
         )).isEqualTo("SQL");
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("33");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("34");
         Integer tableCount = database.jdbc().queryForObject("""
             select count(*) from information_schema.tables
             where table_schema = 'public' and table_name like 'ent_%'
@@ -180,7 +206,7 @@ class EnterpriseMigrationTest {
 
         Flyway flyway = PostgresTestDatabase.migrate(database, null);
 
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("33");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("34");
         assertThat(database.jdbc().queryForObject(
             "select type from flyway_schema_history where version='0'", String.class
         )).isEqualTo("BASELINE");
@@ -561,7 +587,7 @@ class EnterpriseMigrationTest {
             .run(context -> {
                 assertThat(context).hasSingleBean(Flyway.class);
                 assertThat(context.getBean(Flyway.class).info().current().getVersion().getVersion())
-                    .isEqualTo("33");
+                    .isEqualTo("34");
             });
     }
 }

@@ -9,7 +9,6 @@ export const enterpriseErrorStatuses = {
   "ENT_INVALID_REQUEST": 400,
   "ENT_INVALID_REDIRECT_URI": 400,
   "ENT_PKCE_REQUIRED": 400,
-  "ENT_PLUGIN_ARTIFACT_INVALID": 400,
   "ENT_SESSION_FORMAT_UNSUPPORTED": 400,
   "ENT_AUTH_REQUIRED": 401,
   "ENT_AUTH_CODE_INVALID": 401,
@@ -35,7 +34,6 @@ export const enterpriseErrorStatuses = {
   "ENT_MCP_CONFLICT": 409,
   "ENT_MCP_CATALOG_STALE": 409,
   "ENT_REQUEST_TOO_LARGE": 413,
-  "ENT_PLUGIN_ARCHIVE_TOO_LARGE": 413,
   "ENT_SESSION_BATCH_TOO_LARGE": 413,
   "ENT_MCP_POLICY_INVALID": 422,
   "ENT_MCP_UNSUPPORTED": 422,
@@ -54,4 +52,4 @@ export const enterpriseErrorStatuses = {
   "ENT_UPSTREAM_TIMEOUT": 504
 } as const
 
-export const enterpriseProtocolSha256 = '7eabecdf0f4184289e7cedb86040a45ca3ac51c1a109907c1110f67147559f0e'
+export const enterpriseProtocolSha256 = '38d70b37ab9f255e233d30d409f5a5149764b211acc3a5722ac5cb8d56671ee0'

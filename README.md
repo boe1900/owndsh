@@ -28,7 +28,7 @@ OwnDsh 不 fork 官方 Harness Web UI，不接管员工工作区，也不远程�
 |---|---|
 | 平台管理员 | 自托管控制台、LOCAL/LDAP/OIDC 身份、成员与设备治理 |
 | 模型管理员 | 集中保管供应商 API Key，管理模型、模型集、授权、Token、RPM 与并发 |
-| 插件管理员 | 上传、签名、发布企业插件，设置可见范围并查看客户端状态 |
+| 插件管理员 | 配置安装地址、发布企业插件，设置可见范围并查看客户端状态 |
 | 审计员 | 查询管理操作、模型调用、用量与 request ID 关联记录 |
 | 员工 | 用企业账号登录 Harness，使用获准模型并自主安装企业插件，无需持有上游 API Key |
 
@@ -92,7 +92,7 @@ Server 日志仅输出到 stdout/stderr，由 Docker/K8s 与日志平台采集�
 2. 在“模型”中添加供应商、API Key 和受管模型。
 3. 创建模型集，并向全部成员、用户组或指定成员授权。
 4. 按需配置 Token 配额、RPM 和并发限制。
-5. 按需上传、发布企业插件，并设置对全部或指定成员可见。
+5. 按需配置 npm 或包路径、发布企业插件，并设置对全部或指定成员可见。
 6. 邀请员工安装 OwnDsh 并登录；企业插件由员工在市场自行选择安装。
 
 员工设备不会得到供应商 API Key；每次模型请求都由 OwnDsh 网关重新校验身份、授权和额度。
@@ -131,7 +131,7 @@ pnpm --dir /path/to/deepseek-harness dsh \
 
 Server 地址和 Refresh Token 由 Harness Host 的官方 settings/credentials 服务持久化。Access Token 只存在 Host 内存，浏览器页面不会读取或保存 Token；正常重启会静默恢复登录。主动退出、设备撤销、成员停用、改密或 30 天有效期结束后需要重新登录。
 
-「OwnDsh 设置 → 插件」展示管理员发布且对本人可见的插件，支持搜索、详情、自主安装、更新和卸载。打开设置或刷新不会安装插件；其他设备独立选择。服务端签名（`ENT_PLUGIN_SIGNING_ENABLED=false`）和客户端验签（`verifyPluginSignatures=false`）默认关闭，无需配置公私钥；大小、SHA-256、兼容性和下载权限仍会校验。需要验签时可开启 `verifyPluginSignatures` 并配置部署专属公钥，详见[信任配置](plugin/packages/plugin-distribution/README.md)。从旧版迁移时必须更新员工 OwnDsh 插件，仅更新后台无法改变旧客户端的公钥要求或自动安装行为。
+「OwnDsh 设置 → 插件」展示本人可见的插件，支持分类、搜索、详情确认、自主安装、更新和卸载；卡片不显示图标。管理员配置 npm 精确版本、GitHub 固定 commit、tgz 地址或客户端绝对路径，源码仓库单独填写。宿主 pnpm 负责包及其依赖，私有源使用宿主认证配置。安装后重启生效。V34 清空旧上传插件目录/范围/库存，不兼容旧制品协议；详见[安装说明](plugin/packages/plugin-distribution/README.md)。
 
 OwnDsh 闲置时不建立企业 SSE、不定时拉配置或提前续期。用户请求时按需续期，服务端认证 401 最多续期重试一次；Refresh Token 失效或设备撤销时显示登录门禁，重新登录后可继续对话。网络暂不可达保留凭据，可再次发起请求或在 OwnDsh 设置点击刷新；模型与插件目录在打开设置或主动刷新时更新。
 

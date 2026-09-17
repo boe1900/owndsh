@@ -9,6 +9,8 @@
 
 状态：`implementation-in-progress-p2-08`
 
+插件修订（2026-09-17）：插件协议已改为安装配置登记，删除上传/制品/签名链路。V34 清空旧插件目录、可见范围和库存，需要重新登记；本文的早期上传验收条目只作历史证据。
+
 设计日期：2026-08-31（Asia/Shanghai）
 
 适用基线：DSH Desktop `2.0.3`、DeepSeek Harness `0.1.1-rc.2`、第一阶段 Server/Flyway V17。
@@ -761,7 +763,7 @@ mutation 成功后只失效所属实体和列表；不全局清空缓存。revis
 
 ### 12.2 数据连续性
 
-- 不换 PostgreSQL、Redis 或 artifact 数据卷。
+- 不换 PostgreSQL、Redis 数据卷；插件 artifact 卷随上传链路退役。
 - 不重建用户、外部身份、模型、非部门授权与限额、插件、设备、Session、用量 ledger 和审计数据。
 - 切换 migration 删除旧 `DEPT` grant/quota，并收紧协议、Schema 和数据库约束；第二阶段不兼容这两类旧配置。
 - 旧 grant `is_default` 不迁移为 Organization 默认模型；切换后由管理员明确设置。

@@ -16,10 +16,7 @@
         "packageId",
         "packageName",
         "version",
-        "sizeBytes",
-        "sha256",
-        "signatureBase64",
-        "compatibility",
+        "installation",
         "status",
         "createdAt",
         "revision"
@@ -45,69 +42,48 @@
           "maxLength": 64,
           "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
         },
-        "sizeBytes": {
-          "type": "integer",
-          "format": "int64",
-          "minimum": 1,
-          "maximum": 52428800
-        },
-        "sha256": {
-          "type": "string",
-          "pattern": "^[0-9a-f]{64}$"
-        },
-        "signatureBase64": {
-          "description": "空字符串表示未签名；非空值为 Ed25519 签名的 Base64。",
-          "oneOf": [
-            {
-              "type": "string",
-              "enum": [
-                ""
-              ]
-            },
-            {
-              "type": "string",
-              "minLength": 88,
-              "maxLength": 88,
-              "pattern": "^[A-Za-z0-9+/]{86}==$"
-            }
-          ]
-        },
-        "compatibility": {
+        "installation": {
           "type": "object",
           "additionalProperties": false,
           "required": [
-            "harnessCommits",
-            "enterpriseBundleRange",
-            "operatingSystems"
+            "spec",
+            "displayName",
+            "description",
+            "author",
+            "repositoryUrl",
+            "categories"
           ],
           "properties": {
-            "harnessCommits": {
-              "type": "array",
-              "minItems": 1,
-              "maxItems": 20,
-              "uniqueItems": true,
-              "items": {
-                "type": "string",
-                "pattern": "^[0-9a-f]{40}$"
-              }
+            "spec": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
             },
-            "enterpriseBundleRange": {
+            "displayName": {
               "type": "string",
               "minLength": 1,
               "maxLength": 120
             },
-            "operatingSystems": {
+            "description": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "author": {
+              "type": "string",
+              "maxLength": 120
+            },
+            "repositoryUrl": {
+              "type": "string",
+              "maxLength": 2048
+            },
+            "categories": {
               "type": "array",
-              "minItems": 1,
-              "maxItems": 3,
+              "maxItems": 12,
               "uniqueItems": true,
               "items": {
                 "type": "string",
-                "enum": [
-                  "darwin",
-                  "linux",
-                  "win32"
-                ]
+                "minLength": 1,
+                "maxLength": 40
               }
             }
           }
@@ -115,7 +91,6 @@
         "status": {
           "type": "string",
           "enum": [
-            "UPLOADED",
             "VALIDATED",
             "PUBLISHED",
             "RETIRED"

@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖真实 PostgreSQL 17/Flyway V1-V13、三个显式活动用户 fixture、CAS 文件、Ed25519、设备与插件 JDBC/application 服务。
- * [OUTPUT]: 验证无签名上传/存储/HTTP 投影与有签名版本并存、并发上传、可选可见范围、退休下架/禁止优先级回退、下载授权、库存、审计和文件补偿。
- * [POS]: T13 服务端纵向验收，跨越 artifact、domain、persistence 与 application 的真实事务边界。
+ * [INPUT]: 依赖真实 PostgreSQL 17/Flyway V1-V13、三个显式活动用户 fixture、设备与插件 JDBC/application 服务。
+ * [OUTPUT]: 验证配置登记、并发幂等、可选可见范围、退休下架/禁止优先级回退、安装授权、库存、审计和事务回滚。
+ * [POS]: T13 服务端纵向验收，跨越 domain、persistence 与 application 的真实事务边界。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.plugin;
@@ -15,17 +15,13 @@ import com.owndsh.enterprise.device.application.DeviceService;
 import com.owndsh.enterprise.device.persistence.JdbcDeviceStore;
 import com.owndsh.enterprise.model.persistence.JdbcBootstrapUserStore;
 import com.owndsh.enterprise.plugin.application.EffectivePluginResolver;
-import com.owndsh.enterprise.plugin.application.PluginAccessException;
 import com.owndsh.enterprise.plugin.application.PluginCatalogService;
 import com.owndsh.enterprise.plugin.application.PluginMutationContext;
 import com.owndsh.enterprise.plugin.application.PluginRuntimeService;
-import com.owndsh.enterprise.plugin.artifact.PluginArtifactInspector;
-import com.owndsh.enterprise.plugin.artifact.PluginArtifactStore;
-import com.owndsh.enterprise.plugin.artifact.PluginManifestSigner;
 import com.owndsh.enterprise.plugin.domain.DevicePluginInventory;
 import com.owndsh.enterprise.plugin.domain.PluginAssignment;
-import com.owndsh.enterprise.plugin.domain.PluginCompatibility;
 import com.owndsh.enterprise.plugin.domain.PluginVersion;
+import com.owndsh.enterprise.plugin.domain.PluginInstallation;
 import com.owndsh.enterprise.plugin.persistence.JdbcPluginStore;
 import com.owndsh.enterprise.plugin.web.PluginViews;
 import com.owndsh.enterprise.revision.JdbcBootstrapRevisionStore;
@@ -33,15 +29,10 @@ import com.owndsh.enterprise.test.PostgresTestDatabase;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.json.JsonMapper;
 
-import java.io.ByteArrayInputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.security.KeyPairGenerator;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -52,7 +43,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongSupplier;
-import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -73,9 +63,6 @@ class PluginServerIntegrationTest {
     private static final Instant OBSERVED_AT = Instant.parse("2026-08-19T03:00:00Z");
 
     private static PostgresTestDatabase.Database database;
-
-    @TempDir
-    Path artifactRoot;
 
     @BeforeAll
     static void createDatabase() {
@@ -102,57 +89,32 @@ class PluginServerIntegrationTest {
         var store = new JdbcPluginStore(jdbc, json);
         var revisions = new JdbcBootstrapRevisionStore(jdbc);
         var audit = new JdbcAuditSink(jdbc, json);
-        var artifacts = new PluginArtifactStore(artifactRoot, 2_000_000);
-        var inspector = new PluginArtifactInspector(json, 8_000_000, 100);
-        var signer = new PluginManifestSigner(
-            json, KeyPairGenerator.getInstance("Ed25519").generateKeyPair().getPrivate()
-        );
         AtomicLong sequence = new AtomicLong(1_901_300_000_100_000_000L);
         LongSupplier ids = sequence::incrementAndGet;
-        PluginCatalogService catalog = new PluginCatalogService(
-            transaction, store, artifacts, inspector, signer, revisions, audit, ids
-        );
-        PluginCatalogService unsignedCatalog = new PluginCatalogService(
-            transaction, store, artifacts, inspector,
-            new EnterprisePluginConfiguration().enterprisePluginManifestSigner(json, new EnterprisePluginProperties()),
-            revisions, audit, ids
-        );
+        PluginCatalogService catalog = new PluginCatalogService(transaction, store, revisions, audit, ids);
         EffectivePluginResolver resolver = new EffectivePluginResolver(store, revisions);
         DeviceService devices = new DeviceService(
             transaction, new JdbcDeviceStore(jdbc), audit, mock(PlatformSessionGateway.class), ids
         );
         PluginRuntimeService runtime = new PluginRuntimeService(
-            transaction, devices, new JdbcBootstrapUserStore(jdbc), resolver, store, artifacts, audit, ids
+            transaction, devices, new JdbcBootstrapUserStore(jdbc), resolver, store, audit, ids
         );
         PluginMutationContext mutation = mutationContext();
-        PluginCompatibility compatibility = compatibility();
-
-        byte[] versionOneBytes = PluginTestArtifacts.validArchive("@example/t13-tools", "1.0.0");
-        List<PluginCatalogService.UploadResult> duplicates = concurrentUploads(
-            unsignedCatalog, mutation, compatibility, versionOneBytes
-        );
-        assertThat(duplicates).filteredOn(PluginCatalogService.UploadResult::created).hasSize(1);
-        assertThat(duplicates).extracting(result -> result.version().id()).containsOnly(
-            duplicates.getFirst().version().id()
-        );
+        List<PluginCatalogService.RegistrationResult> duplicates = concurrentRegistrations(catalog, mutation);
+        assertThat(duplicates).filteredOn(PluginCatalogService.RegistrationResult::created).hasSize(1);
         PluginVersion versionOne = duplicates.getFirst().version();
-        assertThat(versionOne.signature()).isEmpty();
-        assertThat(PluginViews.version(versionOne).signatureBase64()).isEmpty();
-        assertThat(jdbc.queryForObject("select octet_length(signature) from ent_plugin_version where id=?",
-            Integer.class, versionOne.id())).isZero();
-        assertThat(catalog.upload(mutation, UUID.randomUUID(), new ByteArrayInputStream(versionOneBytes), compatibility)
-            .version().signature()).isEmpty();
+        assertThat(duplicates).extracting(result -> result.version().id()).containsOnly(versionOne.id());
+        assertThat(versionOne.installation().spec()).isEqualTo("@example/t13-tools@1.0.0");
+        assertThatThrownBy(() -> catalog.register(mutation, "@example/t13-tools", "1.0.0",
+            new PluginInstallation("/different/package.tgz", "Changed", "", "", "", List.of())))
+            .isInstanceOf(IllegalArgumentException.class);
         assertThat(versionOne.status()).isEqualTo(PluginVersion.Status.VALIDATED);
-        assertThat(versionOne.revision()).isEqualTo(1);
+        assertThat(versionOne.revision()).isEqualTo(0);
         assertThat(jdbc.queryForObject("select count(*) from ent_plugin_version", Long.class)).isEqualTo(1);
         PluginVersion publishedOne = catalog.publish(mutation, versionOne.id(), versionOne.revision());
         assertThat(publishedOne.status()).isEqualTo(PluginVersion.Status.PUBLISHED);
 
-        byte[] versionTwoBytes = PluginTestArtifacts.validArchive("@example/t13-tools", "2.0.0");
-        PluginVersion versionTwo = catalog.upload(
-            mutation, UUID.randomUUID(), new ByteArrayInputStream(versionTwoBytes), compatibility
-        ).version();
-        assertThat(versionTwo.signature()).hasSize(64);
+        PluginVersion versionTwo = catalog.register(mutation, "@example/t13-tools", "2.0.0", installation("2.0.0")).version();
         PluginVersion publishedTwo = catalog.publish(mutation, versionTwo.id(), versionTwo.revision());
         long packageId = publishedOne.packageId();
         assertThat(publishedTwo.packageId()).isEqualTo(packageId);
@@ -183,39 +145,24 @@ class PluginServerIntegrationTest {
         assertResolved(resolver.resolve(TENANT, PEER_USER, ADMIN_DEPT), publishedTwo.id(), "INSTALLED");
         assertResolved(resolver.resolve(TENANT, OTHER_USER, OTHER_DEPT), publishedOne.id(), "INSTALLED");
 
-        assertThat(PluginViews.runtime(resolver.resolve(TENANT, OTHER_USER, OTHER_DEPT))
-            .assignments().getFirst().signatureBase64()).isEmpty();
-        assertThat(PluginViews.runtime(resolver.resolve(TENANT, PEER_USER, ADMIN_DEPT))
-            .assignments().getFirst().signatureBase64()).hasSize(88);
-
-        DeviceCallContext adminContext = runtimeContext(ADMIN_USER, ADMIN_INSTALLATION);
         DeviceCallContext peerContext = runtimeContext(PEER_USER, PEER_INSTALLATION);
-        assertThatThrownBy(() -> runtime.authorizeDownload(adminContext, publishedOne.id()))
-            .isInstanceOf(PluginAccessException.class);
-        assertThatThrownBy(() -> runtime.authorizeDownload(peerContext, publishedOne.id()))
-            .isInstanceOf(PluginAccessException.class);
-        PluginRuntimeService.AuthorizedDownload initialDownload = runtime.authorizeDownload(
-            peerContext, publishedTwo.id()
-        );
-        assertThat(Files.readAllBytes(initialDownload.path())).isEqualTo(versionTwoBytes);
-
+        assertResolved(runtime.assignments(peerContext), publishedTwo.id(), "INSTALLED");
         PluginVersion retiredTwo = catalog.retire(mutation, publishedTwo.id(), publishedTwo.revision());
         assertThat(retiredTwo.status()).isEqualTo(PluginVersion.Status.RETIRED);
         assertThat(resolver.resolve(TENANT, PEER_USER, ADMIN_DEPT).assignments()).isEmpty();
-        assertThatThrownBy(() -> runtime.authorizeDownload(peerContext, retiredTwo.id()))
-            .isInstanceOf(PluginAccessException.class);
+        assertThat(runtime.assignments(peerContext).assignments()).isEmpty();
         assertResolved(resolver.resolve(TENANT, OTHER_USER, OTHER_DEPT), publishedOne.id(), "INSTALLED");
         assertThat(catalog.list(TENANT, 0, 10).getFirst().pluginPackage().revision()).isEqualTo(5);
 
         List<PluginRuntimeService.InventoryObservation> firstInventory = List.of(
-            observation("@example/t13-tools", "2.0.0", retiredTwo.sha256(), 4,
+            observation("@example/t13-tools", "2.0.0", 4,
                 DevicePluginInventory.State.ACTIVE, "active", null),
-            observation("@example/removed", null, null, 4,
+            observation("@example/removed", null, 4,
                 DevicePluginInventory.State.REMOVE_PENDING, null, null)
         );
         assertThat(runtime.replaceInventory(peerContext, firstInventory)).isEqualTo(2);
         assertThat(runtime.replaceInventory(peerContext, List.of(
-            observation("@example/t13-tools", "2.0.0", retiredTwo.sha256(), 5,
+            observation("@example/t13-tools", "2.0.0", 5,
                 DevicePluginInventory.State.FAILED, "failed", "ENT_PLUGIN_INSTALL_FAILED")
         ))).isEqualTo(1);
         assertThat(catalog.listInventory(TENANT, 0, 10)).singleElement().satisfies(value -> {
@@ -229,7 +176,7 @@ class PluginServerIntegrationTest {
         assertThat(jdbc.queryForObject("select count(*) from ent_device_plugin", Long.class)).isEqualTo(1);
 
         assertThat(jdbc.queryForObject(
-            "select count(*) from ent_audit_event where action='PLUGIN_UPLOADED'", Long.class
+            "select count(*) from ent_audit_event where action='PLUGIN_REGISTERED'", Long.class
         )).isEqualTo(2);
         assertThat(jdbc.queryForObject(
             "select count(*) from ent_audit_event where action='PLUGIN_PUBLISHED'", Long.class
@@ -238,67 +185,43 @@ class PluginServerIntegrationTest {
             "select count(*) from ent_audit_event where action='PLUGIN_ASSIGNED'", Long.class
         )).isEqualTo(1);
         assertThat(jdbc.queryForObject(
-            "select count(*) from ent_audit_event where action='PLUGIN_DOWNLOADED'", Long.class
-        )).isEqualTo(1);
-        assertThat(jdbc.queryForObject(
             "select count(*) from ent_audit_event where action='PLUGIN_INVENTORY_REPORTED'", Long.class
         )).isEqualTo(2);
         assertThat(revisions.current(TENANT)).isEqualTo(revisionBeforeAssignments + 2);
-        assertThat(artifactCount()).isEqualTo(2);
-        assertDirectoryEmpty(artifactRoot.resolve("tmp"));
 
         PluginCatalogService failingCatalog = new PluginCatalogService(
-            transaction, store, artifacts, inspector, signer, revisions,
+            transaction, store, revisions,
             event -> { throw new IllegalStateException("forced audit rollback"); }, ids
         );
-        byte[] rollbackBytes = PluginTestArtifacts.validArchive("@example/t13-rollback", "1.0.0");
-        assertThatThrownBy(() -> failingCatalog.upload(
-            mutation, UUID.randomUUID(), new ByteArrayInputStream(rollbackBytes), compatibility
-        )).isInstanceOf(IllegalStateException.class).hasMessage("forced audit rollback");
+        assertThatThrownBy(() -> failingCatalog.register(mutation, "@example/t13-rollback", "1.0.0",
+            new PluginInstallation("@example/t13-rollback@1.0.0", "Rollback", "", "", "", List.of())))
+            .isInstanceOf(IllegalStateException.class).hasMessage("forced audit rollback");
         assertThat(jdbc.queryForObject(
             "select count(*) from ent_plugin_package where package_name='@example/t13-rollback'", Long.class
         )).isZero();
-        assertThat(artifactCount()).isEqualTo(2);
-        assertDirectoryEmpty(artifactRoot.resolve("tmp"));
     }
 
-    private static List<PluginCatalogService.UploadResult> concurrentUploads(
+    private static List<PluginCatalogService.RegistrationResult> concurrentRegistrations(
         PluginCatalogService catalog,
-        PluginMutationContext mutation,
-        PluginCompatibility compatibility,
-        byte[] archive
+        PluginMutationContext mutation
     ) throws Exception {
         int workers = 6;
         var executor = Executors.newFixedThreadPool(workers);
         CountDownLatch start = new CountDownLatch(1);
         try {
-            List<Future<PluginCatalogService.UploadResult>> futures = new ArrayList<>();
+            List<Future<PluginCatalogService.RegistrationResult>> futures = new ArrayList<>();
             for (int index = 0; index < workers; index++) {
                 futures.add(executor.submit(() -> {
                     start.await();
-                    return catalog.upload(
-                        mutation, UUID.randomUUID(), new ByteArrayInputStream(archive), compatibility
-                    );
+                    return catalog.register(mutation, "@example/t13-tools", "1.0.0", installation("1.0.0"));
                 }));
             }
             start.countDown();
-            List<PluginCatalogService.UploadResult> results = new ArrayList<>();
-            for (Future<PluginCatalogService.UploadResult> future : futures) results.add(future.get());
+            List<PluginCatalogService.RegistrationResult> results = new ArrayList<>();
+            for (Future<PluginCatalogService.RegistrationResult> future : futures) results.add(future.get());
             return results;
         } finally {
             executor.shutdownNow();
-        }
-    }
-
-    private long artifactCount() throws Exception {
-        try (Stream<Path> paths = Files.walk(artifactRoot.resolve("sha256"))) {
-            return paths.filter(Files::isRegularFile).count();
-        }
-    }
-
-    private static void assertDirectoryEmpty(Path directory) throws Exception {
-        try (Stream<Path> paths = Files.list(directory)) {
-            assertThat(paths).isEmpty();
         }
     }
 
@@ -328,23 +251,18 @@ class PluginServerIntegrationTest {
     private static PluginRuntimeService.InventoryObservation observation(
         String packageName,
         String version,
-        String sha256,
         long desiredRevision,
         DevicePluginInventory.State state,
         String loaderPhase,
         String lastErrorCode
     ) {
         return new PluginRuntimeService.InventoryObservation(
-            packageName, version, sha256, desiredRevision, state, loaderPhase, lastErrorCode, OBSERVED_AT
+            packageName, version, desiredRevision, state, loaderPhase, lastErrorCode, OBSERVED_AT
         );
     }
 
-    private static PluginCompatibility compatibility() {
-        return new PluginCompatibility(
-            List.of(PluginCompatibility.LOCKED_HARNESS_COMMIT),
-            ">=0.1.0 <0.2.0",
-            List.of("darwin", "linux")
-        );
+    private static PluginInstallation installation(String version) {
+        return new PluginInstallation("@example/t13-tools@" + version, "Tools", "Review", "Example", "https://github.com/example/plugin", List.of("开发"));
     }
 
     private static PluginMutationContext mutationContext() {

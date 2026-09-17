@@ -14,8 +14,8 @@ RUN mvn -B -ntp -Pprod -DskipTests -pl owndsh-server -am package
 FROM ${OWNDSH_JRE_IMAGE}
 RUN groupadd --system --gid 10001 enterprise \
     && useradd --system --uid 10001 --gid 10001 --no-create-home enterprise \
-    && mkdir -p /app/tmp /var/lib/enterprise/artifacts \
-    && chown -R 10001:10001 /app /var/lib/enterprise
+    && mkdir -p /app/tmp \
+    && chown -R 10001:10001 /app
 WORKDIR /app
 COPY --from=build --chown=10001:10001 /workspace/server/owndsh-server/target/owndsh-server.jar /app/app.jar
 USER 10001:10001

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Testing Library、Vitest、内存 history、静态角色元数据与完整产品 routeTree。
- * [OUTPUT]: 在仅有 getRandomValues 的 HTTP 环境验证五角色矩阵、业务写入、插件 read/write 权限下的发布与可见范围及 Sign out。
+ * [OUTPUT]: 在仅有 getRandomValues 的 HTTP 环境验证五角色矩阵、业务写入、插件多选/自定义分类登记、read/write 权限下的发布与可见范围及 Sign out。
  * [POS]: routes 的产品壳最小集成门禁，覆盖前端可见性但不替代 Server ent:* 权限测试。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -513,19 +513,13 @@ function mockApi(role: AuthBuiltInRole, logoutStatus = 200, permissions: string[
             status: 'ACTIVE', revision: 4,
             versions: [{
               id: 'version-1', packageId: 'plugin-1', packageName: '@owndsh/audit-tools',
-              version: '1.1.0', sizeBytes: 12_288, sha256: 'b'.repeat(64), signatureBase64: `${'B'.repeat(86)}==`,
-              compatibility: {
-                harnessCommits: ['b150a551b8d465e31e418e1b2eaf5e79bbb7d28e'],
-                enterpriseBundleRange: '>=0.1.0 <0.2.0', operatingSystems: ['darwin', 'linux']
-              },
+              version: '1.1.0', installation: { spec: '@owndsh/audit-tools@1.1.0', displayName: 'Audit Tools',
+                description: 'Audit', author: 'Example', repositoryUrl: 'https://github.com/example/audit', categories: ['开发'] },
               status: 'PUBLISHED', createdAt: '2026-08-31T05:00:00Z', revision: 4
             }, {
               id: 'version-2', packageId: 'plugin-1', packageName: '@owndsh/audit-tools',
-              version: '1.2.0', sizeBytes: 13_312, sha256: 'a'.repeat(64), signatureBase64: `${'A'.repeat(86)}==`,
-              compatibility: {
-                harnessCommits: ['b150a551b8d465e31e418e1b2eaf5e79bbb7d28e'],
-                enterpriseBundleRange: '>=0.1.0 <0.2.0', operatingSystems: ['darwin', 'linux']
-              },
+              version: '1.2.0', installation: { spec: '@owndsh/audit-tools@1.2.0', displayName: 'Audit Tools',
+                description: 'Audit', author: 'Example', repositoryUrl: 'https://github.com/example/audit', categories: ['开发'] },
               status: 'VALIDATED', createdAt: '2026-09-01T05:00:00Z', revision: 3
             }],
             assignments: [{
@@ -539,6 +533,11 @@ function mockApi(role: AuthBuiltInRole, logoutStatus = 200, permissions: string[
         requestId: 'req_plugins'
       });
     }
+    if (pathname.endsWith('/enterprise/admin/v1/plugins/versions') && request.method === 'POST') {
+      const body = await request.json();
+      writes.push({ body, idempotencyKey: null, ifMatch: null, method: request.method, pathname });
+      return json({ data: { id: 'version-3', ...body }, requestId: 'req_registered' });
+    }
     if (pathname.endsWith('/enterprise/admin/v1/plugins/versions/version-2/actions/publish')) {
       writes.push({
         body: null,
@@ -550,11 +549,8 @@ function mockApi(role: AuthBuiltInRole, logoutStatus = 200, permissions: string[
       return json({
         data: {
           id: 'version-2', packageId: 'plugin-1', packageName: '@owndsh/audit-tools',
-          version: '1.2.0', sizeBytes: 12_288, sha256: 'a'.repeat(64), signatureBase64: `${'A'.repeat(86)}==`,
-          compatibility: {
-            harnessCommits: ['b150a551b8d465e31e418e1b2eaf5e79bbb7d28e'],
-            enterpriseBundleRange: '>=0.1.0 <0.2.0', operatingSystems: ['darwin', 'linux']
-          },
+          version: '1.2.0', installation: { spec: '@owndsh/audit-tools@1.2.0', displayName: 'Audit Tools',
+                description: 'Audit', author: 'Example', repositoryUrl: 'https://github.com/example/audit', categories: ['开发'] },
           status: 'PUBLISHED', createdAt: '2026-09-01T05:00:00Z', revision: 4
         },
         requestId: 'req_plugin_published'
@@ -576,7 +572,7 @@ function mockApi(role: AuthBuiltInRole, logoutStatus = 200, permissions: string[
         data: {
           items: [{
             deviceId: 'device-1', username: 'candidate', packageName: '@owndsh/audit-tools',
-            version: '1.1.0', sha256: 'b'.repeat(64), desiredRevision: 7,
+            version: '1.1.0', desiredRevision: 7,
             state: 'RESTART_REQUIRED', loaderPhase: 'loaded', lastErrorCode: null,
             observedAt: '2026-09-01T05:30:00Z'
           }],
@@ -1093,6 +1089,27 @@ describe('product console access', () => {
       body: { resourceId: 'model-1', resourceType: 'MODEL', status: 'ACTIVE', subjectId: '303', subjectType: 'MEMBER' },
       pathname: '/enterprise/admin/v1/model-grants'
     });
+  });
+
+  it('registers package configuration as JSON without an upload field', async () => {
+    const writes = renderRoute('/plugins', 'plugin_admin', 200, ['ent:plugin:read', 'ent:plugin:write']);
+    fireEvent.click(await screen.findByRole('button', { name: '添加插件' }));
+    const dialog = screen.getByRole('dialog', { name: '添加插件版本' });
+    expect(dialog.querySelector('input[type=file]')).toBeNull();
+    fireEvent.change(within(dialog).getByLabelText('包名'), { target: { value: '@company/review' } });
+    fireEvent.change(within(dialog).getByLabelText('版本'), { target: { value: '1.0.0' } });
+    const categories = within(dialog).getByRole('combobox', { name: '分类' });
+    for (const [category, option] of [['开发', '开发'], ['效率', '创建分类「效率」']]) {
+      fireEvent.input(categories, { inputType: 'insertText', target: { value: category } });
+      fireEvent.click(await screen.findByRole('option', { name: option }));
+    }
+    fireEvent.click(within(dialog).getByRole('button', { name: '保存版本' }));
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]).toMatchObject({ method: 'POST', pathname: '/enterprise/admin/v1/plugins/versions', body: {
+      packageName: '@company/review', version: '1.0.0', installation: {
+        spec: '@company/review@1.0.0', displayName: '@company/review', categories: ['开发', '效率'], repositoryUrl: ''
+      }
+    } });
   });
 
   it('renders plugin facts and publishes a validated version with CAS', async () => {

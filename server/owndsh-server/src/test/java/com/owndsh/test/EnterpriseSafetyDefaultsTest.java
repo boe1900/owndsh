@@ -127,10 +127,6 @@ class EnterpriseSafetyDefaultsTest {
             .isEqualTo("${ENT_POSTGRES_PASSWORD:owndsh}");
         assertThat(property("spring.data.redis.password")).isEqualTo("${ENT_REDIS_PASSWORD:owndsh}");
         assertThat(property("enterprise.crypto.master-key")).isEqualTo("${ENT_MASTER_KEY:}");
-        assertThat(property("enterprise.plugin.signing-enabled"))
-            .isEqualTo("${ENT_PLUGIN_SIGNING_ENABLED:false}");
-        assertThat(property("enterprise.plugin.signing-private-key"))
-            .isEqualTo("${ENT_PLUGIN_SIGNING_PRIVATE_KEY:}");
     }
 
     @Test

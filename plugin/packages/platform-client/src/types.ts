@@ -1,12 +1,12 @@
 /**
- * [INPUT]: 依赖 zod、生成契约、installation 与本地 API 端口，约束含可空签名的 bootstrap 输入及 Service 配置边界
+ * [INPUT]: 依赖 zod、生成契约、installation 与本地 API 端口，约束含安装配置的 bootstrap 输入及 Service 配置边界
  * [OUTPUT]: 对外提供 BootstrapSnapshot、平台状态/错误、无验收探针的 Service 配置与运行时 schema
  * [POS]: platform-client 的公共契约层，隔离中心 HTTP 输入、Host 运行参数与无秘密界面状态
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { z } from 'zod'
-import { zBootstrapQuota, zRequestId, zRevision, type EnterpriseErrorCode } from '@owndsh/contracts'
+import { zBootstrapQuota, zRuntimePluginAssignment, zRequestId, zRevision, type EnterpriseErrorCode } from '@owndsh/contracts'
 import type { InstallationOptions } from './installation.js'
 import type { EnterpriseLocalApiOptions } from './local-api.js'
 
@@ -47,6 +47,7 @@ export interface EnterprisePlatformInternals {
   readonly installation?: Omit<InstallationOptions, 'dshHome' | 'name'>
   readonly pluginStatus?: () => unknown
   readonly pluginAction?: EnterpriseLocalApiOptions['pluginAction']
+  readonly restartPlugins?: EnterpriseLocalApiOptions['restartPlugins']
   readonly uninstallPlugin?: () => Promise<{ readonly restart?: () => void }>
 }
 
@@ -66,17 +67,6 @@ export type EnterpriseConnectionState =
 
 const numericId = z.string().regex(/^[1-9][0-9]{0,18}$/)
 const revision = zRevision
-const pluginVersionId = numericId
-const pluginPackageName = z.string().min(1).max(214)
-  .regex(/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/)
-const pluginVersion = z.string().min(1).max(64)
-  .regex(/^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/)
-const pluginSha256 = z.string().regex(/^[0-9a-f]{64}$/)
-const pluginCompatibility = z.object({
-  harnessCommits: z.array(z.string().regex(/^[0-9a-f]{40}$/)).min(1).max(20),
-  enterpriseBundleRange: z.string().min(1).max(120),
-  operatingSystems: z.array(z.enum(['darwin', 'linux', 'win32'])).min(1).max(3),
-}).strict()
 const installationId = z.uuid().regex(
   /^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/,
 )
@@ -136,18 +126,7 @@ export const zBootstrapSnapshot = z.object({
   quotas: z.array(bootstrapQuota),
   plugins: z.object({
     revision,
-    assignments: z.array(z.object({
-      pluginVersionId,
-      packageName: pluginPackageName,
-      version: pluginVersion,
-      sizeBytes: z.number().int().positive().safe(),
-      sha256: pluginSha256,
-      signatureBase64: z.union([z.literal(''), z.string().length(88).regex(/^[A-Za-z0-9+/]{86}==$/)]),
-      compatibility: pluginCompatibility,
-      downloadUrl: z.string().min(1).max(2048).nullable(),
-      required: z.boolean(),
-      desiredState: z.enum(['INSTALLED', 'ABSENT']),
-    }).strict()),
+    assignments: z.array(zRuntimePluginAssignment).max(200),
   }).strict(),
   sessionPolicy: z.object({
     enabled: z.boolean(),

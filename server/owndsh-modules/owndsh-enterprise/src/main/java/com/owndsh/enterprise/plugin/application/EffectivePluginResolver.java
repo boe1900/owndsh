@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 PluginStore 的数据库窗口裁决与全局 BOOTSTRAP revision。
  * [OUTPUT]: 对外提供 USER→DEPT→ALL 唯一生效 assignment 集合及单调 revision。
- * [POS]: plugin/application 的生效规则单一入口，bootstrap、重试接口和下载授权必须复用。
+ * [POS]: plugin/application 的生效规则单一入口，bootstrap 与安装前目录复查共同复用。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.plugin.application;

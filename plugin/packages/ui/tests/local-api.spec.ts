@@ -24,7 +24,7 @@ const STATUS = {
 const PLUGIN = {
   packageName: '@example/dsh-code-review',
   version: '1.2.0',
-  sha256: 'a'.repeat(64),
+  pluginVersionId: '880',
   desiredRevision: 7,
   desiredState: 'INSTALLED' as const,
   state: 'RESTART_REQUIRED' as const,
@@ -142,10 +142,10 @@ describe('enterprise local browser API', () => {
   })
 
   it('keeps catalog metadata separate from installation facts and sends explicit version-bound commands', async () => {
-    const item = { pluginVersionId: '880', packageName: '@example/tools', version: '1.0.0', sizeBytes: 100, operatingSystems: ['darwin'] }
+    const item = { pluginVersionId: '880', packageName: '@example/tools', version: '1.0.0', installation: { spec: '@example/tools@1.0.0', displayName: 'Tools', description: '', author: '', repositoryUrl: '', categories: [] } }
     const status = { assignmentRevision: 7, catalog: [item], plugins: [] }
     expect(decodeEnterprisePluginStatus(status)).toEqual(status)
-    for (const catalog of [[{ ...item, accessToken: 'secret' }], [{ ...item, downloadUrl: 'https://invalid' }], [item, item], [{ ...item, sizeBytes: -1 }]]) {
+    for (const catalog of [[{ ...item, accessToken: 'secret' }], [{ ...item, downloadUrl: 'https://invalid' }], [item, item], [{ ...item, installation: undefined }]]) {
       expect(() => decodeEnterprisePluginStatus({ ...status, catalog })).toThrow('ENT_LOCAL_RESPONSE_INVALID')
     }
     const fetcher = vi.fn(async () => ok(status))

@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 platform-client bootstrap/request、安装层验签开关、Harness subprocess/inventory、制品校验与原子状态文件
+ * [INPUT]: 依赖 platform-client bootstrap/request、Harness subprocess/inventory、安装目标校验与原子状态文件
  * [OUTPUT]: 对外提供企业可选目录、显式安装/版本切换/卸载、撤回调和、核心保护与库存状态
- * [POS]: plugin-distribution 的串行生命周期所有者，中心决定可用范围，用户决定本机安装，Loader 确认重启结果
+ * [POS]: plugin-distribution 的串行生命周期所有者，中心决定可用范围，用户确认固定版本，宿主 pnpm 安装及解析依赖，Loader 确认重启结果
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -24,7 +24,7 @@ import type {
   PluginDistributionStatus,
   RuntimePluginAssignment,
 } from './types.js'
-import { downloadAndVerifyArtifact, parseTrustedPluginPublicKey, verifyAssignmentMetadata } from './verification.js'
+import { verifyAssignmentMetadata, verifyInstalledPlugin, installationTarget } from './verification.js'
 
 /** 企业安装包拥有、通用分发绝不能更新或卸载的完整产品代码集合。 */
 export const PROTECTED_ENTERPRISE_PACKAGES = new Set([
@@ -34,14 +34,12 @@ export const PROTECTED_ENTERPRISE_PACKAGES = new Set([
   '@owndsh/platform-client',
   '@owndsh/plugin-distribution',
   '@owndsh/ui',
+  'dsh-plugin-desktop',
+  'dsh-plugin-desktop-beta',
 ])
 const OWNDSH_PACKAGE = 'owndsh-plugin'
 
 interface ResolvedConfig {
-  readonly verifyPluginSignatures: boolean
-  readonly trustedPublicKey?: ReturnType<typeof parseTrustedPluginPublicKey>
-  readonly harnessCommit?: string
-  readonly bundleVersion: string
   readonly profile: string
   readonly dshCommand: string
   readonly dshHome: string
@@ -49,7 +47,6 @@ interface ResolvedConfig {
 }
 
 export interface PluginDistributionInternals {
-  readonly operatingSystem?: NodeJS.Platform
   readonly now?: () => Date
   readonly runMarker?: string
   readonly store?: ManagedPluginStore
@@ -57,10 +54,6 @@ export interface PluginDistributionInternals {
 }
 
 function resolveConfig(config: PluginDistributionConfig): ResolvedConfig {
-  if (config.harnessCommit !== undefined && !/^[0-9a-f]{40}$/.test(config.harnessCommit)) {
-    throw new TypeError('harnessCommit must be a full lowercase commit')
-  }
-  if (config.bundleVersion.length === 0) throw new TypeError('bundleVersion is required')
   const profile = config.profile ?? 'enterprise'
   if (profile === '' || profile === '.' || profile === '..' || profile.includes('/') || profile.includes('\\')) {
     throw new TypeError('profile must be one Harness profile name')
@@ -72,12 +65,6 @@ function resolveConfig(config: PluginDistributionConfig): ResolvedConfig {
     throw new TypeError('subprocessGraceMs must be a positive safe integer')
   }
   return {
-    verifyPluginSignatures: config.verifyPluginSignatures ?? false,
-    ...(config.verifyPluginSignatures !== true || config.trustedPluginPublicKey === undefined || config.trustedPluginPublicKey.trim() === ''
-      ? {}
-      : { trustedPublicKey: parseTrustedPluginPublicKey(config.trustedPluginPublicKey) }),
-    ...(config.harnessCommit === undefined ? {} : { harnessCommit: config.harnessCommit }),
-    bundleVersion: config.bundleVersion,
     profile,
     dshCommand,
     dshHome: resolveEnterpriseDshHome(config.dshHome === undefined ? {} : { dshHome: config.dshHome }),
@@ -89,10 +76,10 @@ function cloneRecord(record: ManagedPluginRecord): ManagedPluginRecord {
   return { ...record }
 }
 
-function sameArtifact(record: ManagedPluginRecord | undefined, assignment: RuntimePluginAssignment): boolean {
+function sameVersion(record: ManagedPluginRecord | undefined, assignment: RuntimePluginAssignment): boolean {
   return record?.desiredState === 'INSTALLED'
     && record.version === assignment.version
-    && record.sha256 === assignment.sha256
+    && record.pluginVersionId === assignment.pluginVersionId
 }
 
 /** 受管插件调和 Service；同一时刻只有一个 revision worker 可以触碰文件或 CLI。 */
@@ -103,7 +90,6 @@ export class EnterprisePluginDistributionService extends Service {
   private readonly config: ResolvedConfig
   private readonly store: ManagedPluginStore
   private readonly runMarker: string
-  private readonly operatingSystem: NodeJS.Platform
   private readonly now: () => Date
   private readonly commandPort: DshPluginCommandPort | undefined
   private readonly abort = new AbortController()
@@ -132,7 +118,6 @@ export class EnterprisePluginDistributionService extends Service {
     this.config = resolveConfig(config)
     this.store = internals.store ?? new ManagedPluginStore(this.config.dshHome)
     this.runMarker = internals.runMarker ?? randomUUID()
-    this.operatingSystem = internals.operatingSystem ?? process.platform
     this.now = internals.now ?? (() => new Date())
     this.commandPort = internals.commandPort
     this.startup = this.loadState().catch((error: unknown) => {
@@ -147,7 +132,7 @@ export class EnterprisePluginDistributionService extends Service {
     ctx.effect(() => () => this.dispose(), 'enterprisePluginDistribution.dispose()')
   }
 
-  /** 返回状态文件事实的副本，不包含 tgz 路径、公钥、CLI 输出或平台凭据。 */
+  /** 返回状态文件事实的副本，不包含 安装凭据、CLI 输出或平台凭据。 */
   status(): PluginDistributionStatus {
     const platform = this.pluginContext.enterprisePlatform
     const connected = !this.disposed && ['READY', 'REFRESHING'].includes(platform.status().state)
@@ -158,15 +143,13 @@ export class EnterprisePluginDistributionService extends Service {
         .map(item => {
           let installErrorCode: string | undefined
           try {
-            verifyAssignmentMetadata(item, this.config.trustedPublicKey, {
-              ...this.config, operatingSystem: this.operatingSystem,
-            }, this.config.verifyPluginSignatures)
+            verifyAssignmentMetadata(item)
           } catch (error) {
             installErrorCode = distributionError(error, 'ENT_PLUGIN_INCOMPATIBLE', 'plugin is unavailable').code
           }
           return {
             pluginVersionId: item.pluginVersionId, packageName: item.packageName, version: item.version,
-            sizeBytes: item.sizeBytes, operatingSystems: [...item.compatibility.operatingSystems],
+            installation: item.installation,
             ...(installErrorCode === undefined ? {} : { installErrorCode }),
           }
         }),
@@ -185,7 +168,7 @@ export class EnterprisePluginDistributionService extends Service {
     }
   }
 
-  /** 版本 ID 绑定用户看见的版本；重新请求中心授权，即使 tgz 已缓存也不能绕过撤回。 */
+  /** 版本 ID 绑定用户看见的版本；重新请求中心授权，不可绕过撤回。 */
   install(packageName: string, pluginVersionId: string): Promise<void> {
     return this.changePlugin(async () => {
       const platform = this.pluginContext.enterprisePlatform
@@ -198,10 +181,7 @@ export class EnterprisePluginDistributionService extends Service {
       if (candidate === undefined || identity !== this.currentIdentity()) {
         throw new PluginDistributionError('ENT_PERMISSION_DENIED', 'plugin is no longer available')
       }
-      const assignment = { ...candidate, sizeBytes: Number(candidate.sizeBytes) }
-      if (!Number.isSafeInteger(assignment.sizeBytes)) throw new PluginDistributionError(
-        'ENT_PLUGIN_SIZE_MISMATCH', 'plugin size exceeds the supported range',
-      )
+      const assignment = candidate
       this.requireUnprotected(packageName)
       this.assignmentRevision = catalog.revision
       try {
@@ -294,7 +274,7 @@ export class EnterprisePluginDistributionService extends Service {
     return operation
   }
 
-  /** 中止下载/CLI，取消平台订阅，并等待唯一 worker 退出。 */
+  /** 中止 CLI，取消平台订阅，并等待唯一 worker 退出。 */
   async dispose(): Promise<void> {
     if (this.disposed) return
     this.disposed = true
@@ -356,7 +336,7 @@ export class EnterprisePluginDistributionService extends Service {
         const current = this.records.get(assignment.packageName)
         if (assignment.desiredState === 'ABSENT' && current !== undefined) {
           await this.reconcileWithdrawal(assignment)
-        } else if (sameArtifact(current, assignment) && current !== undefined) {
+        } else if (sameVersion(current, assignment) && current !== undefined) {
           await this.refreshDesiredRevision(assignment, current)
         }
       }
@@ -414,12 +394,9 @@ export class EnterprisePluginDistributionService extends Service {
   }
 
   private async reconcileInstalled(assignment: RuntimePluginAssignment, identity: string): Promise<void> {
-    const trustedPublicKey = this.config.trustedPublicKey
-    verifyAssignmentMetadata(assignment, trustedPublicKey, {
-      ...this.config, operatingSystem: this.operatingSystem,
-    }, this.config.verifyPluginSignatures)
+    verifyAssignmentMetadata(assignment)
     const current = this.records.get(assignment.packageName)
-    if (sameArtifact(current, assignment)) {
+    if (sameVersion(current, assignment)) {
       if (current?.state === 'ACTIVE' && await this.loaderActive(assignment.packageName)) {
         await this.refreshDesiredRevision(assignment, current)
         return
@@ -432,29 +409,14 @@ export class EnterprisePluginDistributionService extends Service {
     if (current?.state === 'ACTIVE' && current.version !== assignment.version) {
       await this.put(assignment, 'ROLLBACK')
     }
-    await this.put(assignment, 'DOWNLOAD_PENDING')
-    await this.put(assignment, 'DOWNLOADING')
-    const artifactPath = await downloadAndVerifyArtifact({
-      platform: this.pluginContext.enterprisePlatform,
-      assignment,
-      dshHome: this.config.dshHome,
-      verifyPluginSignatures: this.config.verifyPluginSignatures,
-      ...(trustedPublicKey === undefined ? {} : { trustedPublicKey }),
-      ...(this.config.harnessCommit === undefined ? {} : { harnessCommit: this.config.harnessCommit }),
-      bundleVersion: this.config.bundleVersion,
-      operatingSystem: this.operatingSystem,
-      signal: this.abort.signal,
-    })
-    if (identity !== this.currentIdentity()) throw new PluginDistributionError(
-      'ENT_PERMISSION_DENIED', 'enterprise account changed during installation',
-    )
-    await this.put(assignment, 'VERIFIED')
+    if (identity !== this.currentIdentity()) throw new PluginDistributionError('ENT_PERMISSION_DENIED', 'enterprise account changed')
     await this.put(assignment, 'INSTALLING')
-    try {
-      await installManagedPlugin(this.commandOptions(), artifactPath)
-    } catch (error) {
-      throw distributionError(error, 'ENT_PLUGIN_CLI_FAILED', 'plugin installation failed')
-    }
+    await installManagedPlugin(this.commandOptions(), installationTarget(assignment))
+    this.records.set(assignment.packageName, {
+      ...this.records.get(assignment.packageName)!, version: assignment.version, pluginVersionId: assignment.pluginVersionId,
+    })
+    await this.persist()
+    await verifyInstalledPlugin(this.config.dshHome, this.config.profile, assignment)
     await this.put(assignment, 'RESTART_REQUIRED', null, this.runMarker)
   }
 
@@ -523,7 +485,7 @@ export class EnterprisePluginDistributionService extends Service {
     this.records.set(assignment.packageName, {
       packageName: assignment.packageName,
       version: state === 'RESTART_REQUIRED' ? assignment.version : current?.version ?? null,
-      sha256: state === 'RESTART_REQUIRED' ? assignment.sha256 : current?.sha256 ?? null,
+      pluginVersionId: state === 'RESTART_REQUIRED' ? assignment.pluginVersionId : current?.pluginVersionId ?? null,
       desiredRevision: this.assignmentRevision,
       desiredState: assignment.desiredState,
       state,
@@ -534,7 +496,7 @@ export class EnterprisePluginDistributionService extends Service {
   }
 
   private async fail(assignment: RuntimePluginAssignment, error: unknown): Promise<void> {
-    const failure = distributionError(error, 'ENT_PLUGIN_DOWNLOAD_FAILED', 'plugin reconciliation failed')
+    const failure = distributionError(error, 'ENT_PLUGIN_CLI_FAILED', 'plugin reconciliation failed')
     await this.put(assignment, 'FAILED', failure.code)
   }
 
@@ -563,7 +525,6 @@ export class EnterprisePluginDistributionService extends Service {
       return {
         packageName: record.packageName,
         version: record.version,
-        sha256: record.sha256,
         desiredRevision: record.desiredRevision,
         state: record.state,
         loaderPhase: entry?.fiberPhase ?? null,
@@ -584,7 +545,7 @@ export class EnterprisePluginDistributionService extends Service {
     } catch (error) {
       if (!this.disposed) {
         this.lastReportErrorCode = distributionError(
-          error, 'ENT_PLUGIN_DOWNLOAD_FAILED', 'plugin inventory report failed',
+          error, 'ENT_PLUGIN_CLI_FAILED', 'plugin inventory report failed',
         ).code
       }
     }

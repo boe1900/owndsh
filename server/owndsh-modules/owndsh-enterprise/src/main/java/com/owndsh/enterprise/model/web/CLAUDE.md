@@ -19,7 +19,7 @@ ModelSetWriteRequest.java: 模型集名称与完整模型 ID 列表写入边界�
 ModelSetView.java: 模型集名称、成员模型 ID、计数和 revision 管理投影。
 AdminModelSetController.java: 模型集 list/get/create/update/delete 与 ent:model 权限入口。
 DeletedModelResourceView.java: 模型/授权删除成功的统一 id/deleted 投影。
-BootstrapView.java: T06 严格客户端消费的完整脱敏 bootstrap 外壳，向 Harness 投影模型 reasoningEfforts 并汇总配额、插件与 Session 策略。
+BootstrapView.java: 完整脱敏 bootstrap，汇总模型/配额并复用 PluginViews 的安装配置投影，避免目录接口漂移。
 BootstrapController.java: 只接受 ACTIVE dsh-desktop 设备的 runtime bootstrap 入口。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

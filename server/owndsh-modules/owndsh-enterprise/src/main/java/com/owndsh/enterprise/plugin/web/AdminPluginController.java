@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 PluginCatalogService、可信 enterprise-admin 上下文、认证 cursor 与 ent:plugin 权限码。
- * [OUTPUT]: 提供 catalog list、multipart 上传、version publish/retire、assignment batch 和 inventory list。
- * [POS]: plugin/web 的管理 HTTP 入口，artifact 路径与签名私钥永不进入响应。
+ * [OUTPUT]: 提供 catalog list、JSON 安装配置登记、version publish/retire、assignment batch 和 inventory list。
+ * [POS]: plugin/web 的管理 HTTP 入口，只接收安装配置，包内容由客户端宿主获取。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.plugin.web;
@@ -18,7 +18,6 @@ import com.owndsh.enterprise.common.api.EnterpriseResponse;
 import com.owndsh.enterprise.plugin.application.PluginCatalogService;
 import com.owndsh.enterprise.plugin.application.PluginMutationContext;
 import com.owndsh.enterprise.plugin.domain.DevicePluginInventory;
-import com.owndsh.enterprise.plugin.domain.PluginCompatibility;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,11 +27,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
@@ -82,25 +78,15 @@ public final class AdminPluginController {
         );
     }
 
-    @PostMapping(path = "/versions", consumes = "multipart/form-data")
+    @PostMapping(path = "/versions", consumes = "application/json")
     @SaCheckPermission("ent:plugin:write")
-    public ResponseEntity<EnterpriseResponse<PluginViews.VersionView>> upload(
-        @RequestHeader("Idempotency-Key") UUID idempotencyKey,
-        @RequestPart("artifact") MultipartFile artifact,
-        @RequestPart("compatibility") PluginCompatibility compatibility,
-        HttpServletRequest request
+    public ResponseEntity<EnterpriseResponse<PluginViews.VersionView>> register(
+        @RequestBody PluginRegistrationRequest body, HttpServletRequest request
     ) {
-        EnterpriseApiValidation.requireUuidV4(idempotencyKey, "Idempotency-Key");
         EnterpriseRequestContext context = contexts.resolve(request);
-        try {
-            PluginCatalogService.UploadResult result = catalog.upload(
-                mutation(context), idempotencyKey, artifact.getInputStream(), compatibility
-            );
-            HttpStatus status = result.created() ? HttpStatus.CREATED : HttpStatus.OK;
-            return ResponseEntity.status(status).body(response(PluginViews.version(result.version()), context));
-        } catch (IOException exception) {
-            throw new IllegalStateException("插件 multipart 无法读取", exception);
-        }
+        PluginCatalogService.RegistrationResult result = catalog.register(mutation(context), body.packageName(), body.version(), body.installation());
+        return ResponseEntity.status(result.created() ? HttpStatus.CREATED : HttpStatus.OK)
+            .body(response(PluginViews.version(result.version()), context));
     }
 
     @PostMapping("/versions/{versionId}/actions/publish")

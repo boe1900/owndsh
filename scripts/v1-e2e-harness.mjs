@@ -1,12 +1,11 @@
 /**
- * [INPUT]: 依赖 E23-E35 已创建的真实模型、可控上游、锁定 Harness checkout、当前 bundle、服务端签名开关与 LOCAL 管理凭据。
+ * [INPUT]: 依赖 E23-E35 已创建的真实模型、可控上游、锁定 Harness checkout、当前 bundle、 LOCAL 管理凭据。
  * [OUTPUT]: 提供共用登录 opener/进程生命周期工具并执行 E36-E47 的真实 Harness 登录、模型重试、插件调和、设备撤销、审计与 Session 停用验收。
  * [POS]: scripts 的 Harness 纵向验收模块；复用官方 Agent 与插件 CLI，企业 Server 不接管客户端协议语义。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { execFile, execFileSync, spawn } from 'node:child_process';
-import { createPrivateKey, createPublicKey } from 'node:crypto';
 import { chmod, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
@@ -296,21 +295,6 @@ export async function runHarnessScenarios({ acceptance, admin, fixture, prefix, 
     await pnpm(['--dir', HARNESS_ROOT, 'dsh', 'plugin', '--profile', 'web', 'add', '--ignore-scripts', BUNDLE], {
       cwd: HARNESS_ROOT, env,
     });
-    const serverEnvironment = JSON.parse(execFileSync('docker', [
-      'inspect', SERVER_CONTAINER, '--format', '{{json .Config.Env}}',
-    ], { encoding: 'utf8' }));
-    const signingEnabled = serverEnvironment.includes('ENT_PLUGIN_SIGNING_ENABLED=true');
-    const signingConfig = [];
-    if (signingEnabled) {
-      const signingKey = serverEnvironment.find(value => value.startsWith('ENT_PLUGIN_SIGNING_PRIVATE_KEY='))
-        ?.slice('ENT_PLUGIN_SIGNING_PRIVATE_KEY='.length);
-      assert.ok(signingKey);
-      const privateKey = createPrivateKey(signingKey.startsWith('-----BEGIN')
-        ? signingKey
-        : { key: Buffer.from(signingKey, 'base64'), format: 'der', type: 'pkcs8' });
-      const publicKey = createPublicKey(privateKey).export({ format: 'der', type: 'spki' }).toString('base64');
-      signingConfig.push('    verifyPluginSignatures: true', `    trustedPluginPublicKey: ${JSON.stringify(publicKey)}`);
-    }
     const profileDir = resolve(temporaryHome, 'profiles', 'web');
     const probePath = resolve(temporaryHome, 'v1-e2e-probe.mjs');
     await writeFile(probePath, probeSource());
@@ -318,7 +302,6 @@ export async function runHarnessScenarios({ acceptance, admin, fixture, prefix, 
       '- id: owndsh',
       '  config:',
       `    baseUrl: ${JSON.stringify(ORIGIN)}`,
-      ...signingConfig,
       '    bootstrapIntervalMs: 200',
       '    requestTimeoutMs: 5000',
       `    dshCommand: ${JSON.stringify(resolve(HARNESS_ROOT, 'apps', 'cli', 'lib', 'bin.js'))}`,
@@ -547,7 +530,6 @@ export async function runHarnessScenarios({ acceptance, admin, fixture, prefix, 
     });
 
     const release = await runReleaseScenarios({
-      signingEnabled,
       acceptance,
       admin,
       prefix,
@@ -568,7 +550,7 @@ export async function runHarnessScenarios({ acceptance, admin, fixture, prefix, 
 
     assert.equal((await run('git', ['status', '--porcelain'], { cwd: HARNESS_ROOT })).stdout, '');
     const localFiles = await readdir(resolve(temporaryHome, 'enterprise'));
-    assert.deepEqual(localFiles.sort(), ['artifacts', 'device.json', 'managed-plugins.json']);
+    assert.deepEqual(localFiles.sort(), ['device.json', 'plugin-installations.json']);
     return { harnessCommit: harnessHead, profile: 'web', sessionFiles: localFiles, release };
   } finally {
     fixture.setModelMode('success');

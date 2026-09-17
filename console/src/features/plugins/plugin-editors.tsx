@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 React、共享 MemberSelect、ProductDialog、插件 DTO 与浏览器原生表单控件。
- * [OUTPUT]: 提供插件 tgz 上传、ALL/USER 企业可见范围编辑和版本退休确认对话框；发布不强制安装。
- * [POS]: features/plugins 的写入表单层，只收集产品语义，不解析 tgz、不签名也不持有 mutation。
+ * [INPUT]: 依赖 React、共享 MemberSelect、ProductDialog、PluginCategorySelect、插件 DTO 与浏览器原生表单控件。
+ * [OUTPUT]: 提供插件安装目标与展示信息登记、ALL/USER 企业可见范围编辑和版本退休确认对话框；发布不强制安装。
+ * [POS]: features/plugins 的写入表单层，只收集产品语义，不解析包或执行安装命令，也不持有 mutation。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -9,28 +9,18 @@ import { Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import type {
   PluginAssignmentWrite,
-  PluginCompatibility,
-  PluginOperatingSystem,
+  PluginRegistrationRequest,
   PluginPackage,
   PluginVersion
 } from '@/api/generated/types.gen';
 import { Button } from '@/components/atoms/Button';
 import { ProductDialog } from '@/components/product/Dialog';
 import { MemberSelect } from '@/features/member-select';
+import { PluginCategorySelect } from './plugin-category-select';
 
-const SUPPORTED_HARNESS_COMMITS = 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e\na66e4702047846cdaa10c66c9d3df3951f5ea70d';
-const MAX_ARTIFACT_BYTES = 50 * 1024 * 1024;
-const OPERATING_SYSTEMS: ReadonlyArray<{ label: string; value: PluginOperatingSystem }> = [
-  { label: 'macOS', value: 'darwin' },
-  { label: 'Linux', value: 'linux' },
-  { label: 'Windows', value: 'win32' }
-];
 const inputClass = 'h-9 w-full rounded-lg border border-line bg-canvas px-3 text-[13px] text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent-tint';
 
-export type PluginUploadValue = {
-  artifact: File;
-  compatibility: PluginCompatibility;
-};
+export type PluginRegistrationValue = PluginRegistrationRequest;
 
 type ProductAssignment = Omit<PluginAssignmentWrite, 'subjectType'> & {
   subjectType: 'ALL' | 'USER';
@@ -54,109 +44,65 @@ function editableAssignments(pluginPackage: PluginPackage): ProductAssignment[] 
     }));
 }
 
-export function parseHarnessCommits(value: string) {
-  return [...new Set(value.split(/[\s,]+/).map((item) => item.trim()).filter(Boolean))];
+export function registrationValue(values: Record<string, string>, categories: string[] = []): PluginRegistrationValue {
+  const packageName = (values.packageName ?? '').trim();
+  const version = (values.version ?? '').trim();
+  return {
+    packageName,
+    version,
+    installation: {
+      spec: (values.spec ?? '').trim() || `${packageName}@${version}`,
+      displayName: (values.displayName ?? '').trim() || packageName,
+      description: (values.description ?? '').trim(),
+      author: (values.author ?? '').trim(),
+      repositoryUrl: (values.repositoryUrl ?? '').trim(),
+      categories: [...new Set(categories.map(value => value.trim()).filter(Boolean))]
+    }
+  };
 }
 
-export function UploadPluginVersionDialog({
-  error,
-  onClose,
-  onSave,
-  saving
-}: {
+export function RegisterPluginVersionDialog({ categoryOptions, categoriesLoading, categoriesError, onRetryCategories, error, onClose, onSave, saving }: {
+  categoryOptions: string[];
+  categoriesLoading: boolean;
+  categoriesError: boolean;
+  onRetryCategories: () => void;
   error?: string;
   onClose: () => void;
-  onSave: (value: PluginUploadValue) => void;
+  onSave: (value: PluginRegistrationValue) => void;
   saving: boolean;
 }) {
-  const [artifact, setArtifact] = useState<File>();
-  const [harnessCommits, setHarnessCommits] = useState(SUPPORTED_HARNESS_COMMITS);
-  const [enterpriseBundleRange, setEnterpriseBundleRange] = useState('>=0.1.0 <0.2.0');
-  const [operatingSystems, setOperatingSystems] = useState<PluginOperatingSystem[]>(['darwin', 'linux', 'win32']);
-  const [validationError, setValidationError] = useState<string>();
-
-  const submit = () => {
-    if (!artifact || !artifact.name.endsWith('.tgz')) {
-      setValidationError('请选择 .tgz 插件包');
-      return;
-    }
-    if (artifact.size > MAX_ARTIFACT_BYTES) {
-      setValidationError('插件包不能超过 50 MiB');
-      return;
-    }
-    const commits = parseHarnessCommits(harnessCommits);
-    if (commits.length === 0 || commits.length > 20 || commits.some((commit) => !/^[0-9a-f]{40}$/.test(commit))) {
-      setValidationError('Harness commit 必须是 1-20 个完整小写 commit');
-      return;
-    }
-    if (!enterpriseBundleRange.trim()) {
-      setValidationError('Bundle 版本范围不能为空');
-      return;
-    }
-    if (operatingSystems.length === 0) {
-      setValidationError('至少选择一个操作系统');
-      return;
-    }
-    setValidationError(undefined);
-    onSave({
-      artifact,
-      compatibility: {
-        harnessCommits: commits,
-        enterpriseBundleRange: enterpriseBundleRange.trim(),
-        operatingSystems
-      }
-    });
-  };
-
-  return (
-    <ProductDialog title="上传插件版本" onClose={onClose}>
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [categories, setCategories] = useState<string[]>([]);
+  const fields = [
+    ['packageName', '包名', '@company/dsh-plugin', true, 214],
+    ['version', '版本', '1.0.0', true, 64],
+    ['spec', '安装目标', '留空使用包名@版本，或填写 Git / .tgz 地址 / 客户端绝对路径', false, 2048],
+    ['displayName', '显示名称', '留空使用包名', false, 120],
+    ['description', '简介', '这个插件能做什么', false, 2000],
+    ['author', '作者', '团队或作者名称', false, 120],
+    ['repositoryUrl', '源码仓库', 'https://github.com/company/plugin', false, 2048]
+  ] as const;
+  return <ProductDialog title="添加插件版本" onClose={onClose}>
+    <form onSubmit={event => { event.preventDefault(); onSave(registrationValue(values, categories)); }}>
       <div className="grid gap-4 p-5">
-        <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
-          插件包
-          <input
-            type="file"
-            accept=".tgz,application/gzip"
-            className="block w-full rounded-lg border border-line bg-canvas px-3 py-2 text-[12.5px] text-ink file:mr-3 file:rounded-md file:border-0 file:bg-inset file:px-2.5 file:py-1 file:text-[12px] file:text-ink-2"
-            onChange={(event) => setArtifact(event.target.files?.[0])}
-          />
-        </label>
-        <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
-          Harness commits
-          <textarea
-            className={`${inputClass} min-h-20 resize-y py-2 font-mono text-[12px]`}
-            value={harnessCommits}
-            onChange={(event) => setHarnessCommits(event.target.value)}
-          />
-        </label>
-        <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
-          Bundle 版本范围
-          <input className={inputClass} value={enterpriseBundleRange} onChange={(event) => setEnterpriseBundleRange(event.target.value)} />
-        </label>
-        <fieldset className="grid gap-2">
-          <legend className="text-[12.5px] font-medium text-ink-2">操作系统</legend>
-          <div className="flex flex-wrap gap-4">
-            {OPERATING_SYSTEMS.map((system) => (
-              <label key={system.value} className="flex items-center gap-2 text-[13px] text-ink-2">
-                <input
-                  type="checkbox"
-                  checked={operatingSystems.includes(system.value)}
-                  onChange={(event) => setOperatingSystems((current) => event.target.checked
-                    ? [...current, system.value]
-                    : current.filter((value) => value !== system.value))}
-                />
-                {system.label}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-        {validationError || error ? <p role="alert" className="m-0 text-[12.5px] text-red">{validationError ?? error}</p> : null}
+        {fields.map(([key, label, placeholder, required, maxLength]) => <label key={key} className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
+          {label}
+          <input className={inputClass} name={key} required={required} maxLength={maxLength}
+            type={key === 'repositoryUrl' ? 'url' : 'text'} placeholder={placeholder}
+            value={values[key] ?? ''} onChange={event => setValues(current => ({ ...current, [key]: event.target.value }))} />
+        </label>)}
+        <PluginCategorySelect options={categoryOptions} value={categories} onChange={setCategories} disabled={saving} />
+        {categoriesLoading ? <p role="status" className="m-0 text-[12px] text-ink-3">正在加载已有分类…</p> : null}
+        {categoriesError ? <p role="alert" className="m-0 text-[12px] text-red">已有分类加载失败。<button type="button" className="ml-1 underline" onClick={onRetryCategories}>重试</button></p> : null}
+        <p className="m-0 text-[12px] text-ink-3">Git 格式：github:组织/仓库#完整 commit，可追加 &amp;path:/子目录。包地址由员工客户端访问；私有源使用宿主已有的认证配置。</p>
+        {error ? <p role="alert" className="m-0 text-[12.5px] text-red">{error}</p> : null}
       </div>
       <footer className="flex justify-end gap-2 border-t border-line px-5 py-4">
         <Button type="button" size="sm" onClick={onClose}>取消</Button>
-        <Button type="button" variant="primary" size="sm" disabled={saving} onClick={submit}>{saving ? '上传中' : '上传并验证'}</Button>
+        <Button type="submit" variant="primary" size="sm" disabled={saving}>{saving ? '保存中' : '保存版本'}</Button>
       </footer>
-    </ProductDialog>
-  );
+    </form>
+  </ProductDialog>;
 }
 
 export function PluginAssignmentDialog({

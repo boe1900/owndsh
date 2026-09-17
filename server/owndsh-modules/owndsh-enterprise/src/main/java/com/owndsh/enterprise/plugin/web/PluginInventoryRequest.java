@@ -26,7 +26,6 @@ public record PluginInventoryRequest(List<Item> items) {
     public record Item(
         String packageName,
         String version,
-        String sha256,
         long desiredRevision,
         DevicePluginInventory.State state,
         String loaderPhase,
@@ -35,7 +34,7 @@ public record PluginInventoryRequest(List<Item> items) {
     ) {
         PluginRuntimeService.InventoryObservation observation() {
             return new PluginRuntimeService.InventoryObservation(
-                packageName, version, sha256, desiredRevision, state, loaderPhase, lastErrorCode, observedAt
+                packageName, version, desiredRevision, state, loaderPhase, lastErrorCode, observedAt
             );
         }
     }

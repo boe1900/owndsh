@@ -1,16 +1,16 @@
 /**
  * [INPUT]: 投影 BootstrapService 的用户、ACTIVE 设备、revision、含协议/推理 profile 的有效模型/配额与插件分配。
  * [OUTPUT]: 对外提供 T06 严格客户端所需的完整脱敏 bootstrap 外壳，并明确停用 V1 Session 同步策略。
- * [POS]: model/web 的 runtime 配置输出边界；插件复用下载授权事实，Session 能力保留但不进入 V1 客户端运行面。
+ * [POS]: model/web 的 runtime 配置输出边界；插件复用安装授权事实，Session 能力保留但不进入 V1 客户端运行面。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.model.web;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.owndsh.enterprise.model.application.BootstrapService;
+import com.owndsh.enterprise.plugin.web.PluginViews;
 
 import java.util.List;
-import java.util.Base64;
 
 public record BootstrapView(
     long revision,
@@ -44,14 +44,7 @@ public record BootstrapView(
             )).toList(),
             new Plugins(
                 snapshot.plugins().revision(),
-                snapshot.plugins().assignments().stream().map(value -> new PluginAssignment(
-                    Long.toString(value.pluginVersionId()), value.packageName(), value.version(), value.sizeBytes(),
-                    value.sha256(), Base64.getEncoder().encodeToString(value.signature()), value.compatibility(),
-                    value.desiredState().name().equals("INSTALLED")
-                        ? "/enterprise/api/v1/plugins/versions/" + value.pluginVersionId() + "/download"
-                        : null,
-                    value.required(), value.desiredState().name()
-                )).toList()
+                snapshot.plugins().assignments().stream().map(PluginViews::runtime).toList()
             ),
             new SessionPolicy(false, 90, 1_048_576)
         );
@@ -90,21 +83,7 @@ public record BootstrapView(
     ) {
     }
 
-    public record Plugins(long revision, List<PluginAssignment> assignments) {
-    }
-
-    public record PluginAssignment(
-        String pluginVersionId,
-        String packageName,
-        String version,
-        long sizeBytes,
-        String sha256,
-        String signatureBase64,
-        com.owndsh.enterprise.plugin.domain.PluginCompatibility compatibility,
-        String downloadUrl,
-        boolean required,
-        String desiredState
-    ) {
+    public record Plugins(long revision, List<PluginViews.RuntimeAssignmentView> assignments) {
     }
 
     public record SessionPolicy(boolean enabled, int retentionDays, int maxBatchBytes) {

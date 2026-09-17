@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖已构建 contracts/platform-client/plugin-distribution tgz、Corepack pnpm 与全新临时 consumer
- * [OUTPUT]: 提供无 ambient shim 的真实 package install/import、兼容 peer、JCS、原子状态与发布清单验收
+ * [OUTPUT]: 提供无 ambient shim 的真实 package install/import、兼容 peer、安装参数、原子状态与发布清单验收
  * [POS]: plugin T14 树外包消费者门禁，证明发布产物不借用 workspace 或同级 Harness 源码
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -83,8 +83,8 @@ try {
     '--input-type=module',
     '--eval',
     [
-      "import { canonicalizeJson, ManagedPluginStore } from '@owndsh/plugin-distribution'",
-      "if (canonicalizeJson({ b: 2, a: 1 }) !== '{\"a\":1,\"b\":2}') process.exit(2)",
+      "import { installPluginArguments, ManagedPluginStore } from '@owndsh/plugin-distribution'",
+      "if (installPluginArguments('web', 'example@1.0.0').at(-1) !== 'example@1.0.0') process.exit(2)",
       'const store = new ManagedPluginStore(process.env.DSH_HOME)',
       "await store.write({ formatVersion: 1, assignmentRevision: 7, plugins: [] })",
       'const state = await store.read()',
@@ -106,7 +106,7 @@ try {
   ].join('\n')
   assert.doesNotMatch(built, /declare module ['"]@deepseek-ai\/dsh-typert-protocol/)
   assert.doesNotMatch(built, /\/deepseek-harness\/|\.\.\/deepseek-harness/)
-  const stateText = await readFile(resolve(dshHome, 'enterprise', 'managed-plugins.json'), 'utf8')
+  const stateText = await readFile(resolve(dshHome, 'enterprise', 'plugin-installations.json'), 'utf8')
   assert.doesNotMatch(stateText, /token|authorization|secret|publicKey/i)
 
   process.stdout.write(`${JSON.stringify({

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 OpenAPI 生成的 fixture manifest/Zod schema、错误状态映射和品牌 ID 公共 API
- * [OUTPUT]: 验证全部正反 fixture、38 个错误码、成员身份、gateway/plugin（空签名或 64 字节签名）/Session/audit 严格契约、未知字段与品牌类型隔离
+ * [OUTPUT]: 验证全部正反 fixture、稳定错误码、成员身份、gateway/插件安装配置/Session/audit 严格契约、未知字段与品牌类型隔离
  * [POS]: contracts 的双端协议回归测试之一，与 Java JSON Schema 测试消费相同 fixture 声明
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -20,7 +20,6 @@ import {
   zNativeGatewayRequest,
   zMyQuotaUsageResponse,
   zPluginAssignmentBatchRequest,
-  zPluginCompatibility,
   zPluginInventoryResponse,
   zPluginVersionResponse,
   zQuotaExceededDetails,
@@ -37,7 +36,6 @@ import {
   zSessionExportResponse,
   zUsageLedgerListResponse,
   type EnterpriseUserId,
-  type PluginCompatibility,
 } from '../src/index.js'
 import * as generatedSchemas from '../src/generated/zod.gen.js'
 
@@ -49,7 +47,6 @@ const expectedErrorStatuses = {
   ENT_INVALID_REQUEST: 400,
   ENT_INVALID_REDIRECT_URI: 400,
   ENT_PKCE_REQUIRED: 400,
-  ENT_PLUGIN_ARTIFACT_INVALID: 400,
   ENT_SESSION_FORMAT_UNSUPPORTED: 400,
   ENT_AUTH_REQUIRED: 401,
   ENT_AUTH_CODE_INVALID: 401,
@@ -73,7 +70,6 @@ const expectedErrorStatuses = {
   ENT_IDENTITY_ALREADY_LINKED: 409,
   ENT_DEVICE_ALREADY_BOUND: 409,
   ENT_REQUEST_TOO_LARGE: 413,
-  ENT_PLUGIN_ARCHIVE_TOO_LARGE: 413,
   ENT_SESSION_BATCH_TOO_LARGE: 413,
   ENT_QUOTA_DAILY_EXCEEDED: 429,
   ENT_QUOTA_MONTHLY_EXCEEDED: 429,
@@ -114,7 +110,6 @@ describe('generated enterprise contracts', () => {
       code,
       enterpriseErrorHttpStatus(code as keyof typeof expectedErrorStatuses),
     ]))).toEqual(expectedErrorStatuses)
-    expect(Object.keys(expectedErrorStatuses)).toHaveLength(38)
   })
 
   it('keeps empty audit metadata strict without generating an invalid Zod chain', () => {
@@ -210,24 +205,10 @@ describe('generated enterprise contracts', () => {
 
     const version = JSON.parse(await readFile(resolve(CONTRACT_ROOT, 'fixtures/plugin-version-success.json'), 'utf8'))
     const assignments = JSON.parse(await readFile(resolve(CONTRACT_ROOT, 'fixtures/plugin-assignments-success.json'), 'utf8'))
-    for (const signature of ['', `${'A'.repeat(86)}==`, null, '\n', ' ', 'AA==', 'A'.repeat(88)]) {
-      const valid = signature === '' || signature === `${'A'.repeat(86)}==`
-      version.data.signatureBase64 = signature
-      assignments.data.assignments[0].signatureBase64 = signature
-      expect(zPluginVersionResponse.safeParse(version).success).toBe(valid)
-      expect(zRuntimePluginAssignmentsResponse.safeParse(assignments).success).toBe(valid)
-    }
-
-    const compatibility: PluginCompatibility = {
-      harnessCommits: ['99f6f02fecdb7dff40c3fbc9470f5907c29f74ca'],
-      enterpriseBundleRange: '>=0.1.0 <0.2.0',
-      operatingSystems: ['darwin', 'linux'],
-    }
-    expect(zPluginCompatibility.safeParse(compatibility).success).toBe(true)
-    expect(zPluginCompatibility.safeParse({
-      ...compatibility,
-      minHarnessCommit: compatibility.harnessCommits[0],
-    }).success).toBe(false)
+    version.data.signatureBase64 = ''
+    expect(zPluginVersionResponse.safeParse(version).success).toBe(false)
+    delete assignments.data.assignments[0].installation
+    expect(zRuntimePluginAssignmentsResponse.safeParse(assignments).success).toBe(false)
     expect(zPluginAssignmentBatchRequest.safeParse({
       items: [{
         pluginVersionId: '1901300000000000101',

@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 投影 plugin catalog/version/assignment/runtime/inventory 领域对象。
- * [OUTPUT]: 对外提供字符串化 snowflake、完整 catalog assignments、Base64 Ed25519（未签名为空字符串）与无 artifact 路径的严格 HTTP views。
- * [POS]: plugin/web 的统一安全投影，管理端和 runtime 共享签名/compatibility 字段语义。
+ * [OUTPUT]: 对外提供字符串化 snowflake、完整 catalog assignments、安装配置与严格 HTTP views。
+ * [POS]: plugin/web 的统一安全投影，管理端和 runtime 共用安装配置。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.plugin.web;
@@ -10,12 +10,11 @@ import com.owndsh.enterprise.plugin.application.EffectivePluginResolver;
 import com.owndsh.enterprise.plugin.application.PluginCatalogService;
 import com.owndsh.enterprise.plugin.domain.DevicePluginInventory;
 import com.owndsh.enterprise.plugin.domain.PluginAssignment;
-import com.owndsh.enterprise.plugin.domain.PluginCompatibility;
 import com.owndsh.enterprise.plugin.domain.PluginVersion;
+import com.owndsh.enterprise.plugin.domain.PluginInstallation;
 import com.owndsh.enterprise.plugin.domain.RuntimePluginAssignment;
 
 import java.time.Instant;
-import java.util.Base64;
 import java.util.List;
 
 public final class PluginViews {
@@ -34,8 +33,7 @@ public final class PluginViews {
     public static VersionView version(PluginVersion value) {
         return new VersionView(
             Long.toString(value.id()), Long.toString(value.packageId()), value.packageName(), value.version(),
-            value.sizeBytes(), value.sha256(), Base64.getEncoder().encodeToString(value.signature()),
-            value.compatibility(), value.status().name(), value.createdAt(), value.revision()
+            value.status().name(), value.createdAt(), value.revision(), value.installation()
         );
     }
 
@@ -55,18 +53,14 @@ public final class PluginViews {
 
     public static RuntimeAssignmentView runtime(RuntimePluginAssignment value) {
         return new RuntimeAssignmentView(
-            Long.toString(value.pluginVersionId()), value.packageName(), value.version(), value.sizeBytes(),
-            value.sha256(), Base64.getEncoder().encodeToString(value.signature()), value.compatibility(),
-            value.desiredState() == PluginAssignment.DesiredState.INSTALLED
-                ? "/enterprise/api/v1/plugins/versions/" + value.pluginVersionId() + "/download"
-                : null,
-            value.required(), value.desiredState().name()
+            Long.toString(value.pluginVersionId()), value.packageName(), value.version(),
+            value.required(), value.desiredState().name(), value.installation()
         );
     }
 
     public static InventoryView inventory(DevicePluginInventory value) {
         return new InventoryView(
-            Long.toString(value.deviceId()), value.username(), value.packageName(), value.version(), value.sha256(),
+            Long.toString(value.deviceId()), value.username(), value.packageName(), value.version(),
             value.desiredRevision(), value.state().name(), value.loaderPhase(), value.lastErrorCode(),
             value.observedAt()
         );
@@ -88,13 +82,10 @@ public final class PluginViews {
         String packageId,
         String packageName,
         String version,
-        long sizeBytes,
-        String sha256,
-        String signatureBase64,
-        PluginCompatibility compatibility,
         String status,
         Instant createdAt,
-        long revision
+        long revision,
+        PluginInstallation installation
     ) {
     }
 
@@ -118,13 +109,9 @@ public final class PluginViews {
         String pluginVersionId,
         String packageName,
         String version,
-        long sizeBytes,
-        String sha256,
-        String signatureBase64,
-        PluginCompatibility compatibility,
-        String downloadUrl,
         boolean required,
-        String desiredState
+        String desiredState,
+        PluginInstallation installation
     ) {
     }
 
@@ -133,7 +120,6 @@ public final class PluginViews {
         String username,
         String packageName,
         String version,
-        String sha256,
         long desiredRevision,
         String state,
         String loaderPhase,

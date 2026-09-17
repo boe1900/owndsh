@@ -1,5 +1,5 @@
 # [INPUT]: 依赖根协议的资源 ID、revision、cursor、requestId 与严格成功 envelope
-# [OUTPUT]: 提供插件 compatibility、含完整 assignment 集合的 catalog、含空字符串未签名表示的下载元数据与设备库存 schemas
+# [OUTPUT]: 提供安装地址/展示信息、可见范围和设备库存 schemas
 # [POS]: contracts/components 的插件分发真源，保留 assignment 线协议并以可见范围承载员工自主安装
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -14,7 +14,7 @@ PluginAssignmentId:
   pattern: '^[1-9][0-9]{0,18}$'
 PluginVersionStatus:
   type: string
-  enum: [UPLOADED, VALIDATED, PUBLISHED, RETIRED]
+  enum: [VALIDATED, PUBLISHED, RETIRED]
 PluginPackageStatus:
   type: string
   enum: [ACTIVE, DISABLED]
@@ -23,7 +23,7 @@ PluginSubjectType:
   enum: [ALL, DEPT, USER]
 PluginDesiredState:
   # INSTALLED 表示可见且允许用户安装；ABSENT 表示撤回并移除已有受管包。
-  # assignment.required 为兼容旧协议保留，新保存值固定 false，员工客户端不据此自动安装。
+  # 员工自主安装，目录更新不触发自动安装。
   type: string
   enum: [INSTALLED, ABSENT]
 PluginAssignmentStatus:
@@ -33,9 +33,6 @@ ManagedPluginState:
   type: string
   enum:
     - EXPECTED
-    - DOWNLOAD_PENDING
-    - DOWNLOADING
-    - VERIFIED
     - INSTALLING
     - RESTART_REQUIRED
     - ACTIVE
@@ -43,9 +40,6 @@ ManagedPluginState:
     - REMOVING
     - FAILED
     - ROLLBACK
-PluginOperatingSystem:
-  type: string
-  enum: [darwin, linux, win32]
 PluginPackageName:
   type: string
   minLength: 1
@@ -56,32 +50,29 @@ PluginSemanticVersion:
   minLength: 1
   maxLength: 64
   pattern: '^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$'
-PluginSha256:
-  type: string
-  pattern: '^[0-9a-f]{64}$'
-PluginCompatibility:
+PluginInstallation:
   type: object
   additionalProperties: false
-  required: [harnessCommits, enterpriseBundleRange, operatingSystems]
+  required: [spec, displayName, description, author, repositoryUrl, categories]
   properties:
-    harnessCommits:
+    spec: {type: string, minLength: 1, maxLength: 2048}
+    displayName: {type: string, minLength: 1, maxLength: 120}
+    description: {type: string, maxLength: 2000}
+    author: {type: string, maxLength: 120}
+    repositoryUrl: {type: string, maxLength: 2048}
+    categories:
       type: array
-      minItems: 1
-      maxItems: 20
+      maxItems: 12
       uniqueItems: true
-      items:
-        type: string
-        pattern: '^[0-9a-f]{40}$'
-    enterpriseBundleRange:
-      type: string
-      minLength: 1
-      maxLength: 120
-    operatingSystems:
-      type: array
-      minItems: 1
-      maxItems: 3
-      uniqueItems: true
-      items: {$ref: '#/PluginOperatingSystem'}
+      items: {type: string, minLength: 1, maxLength: 40}
+PluginRegistrationRequest:
+  type: object
+  additionalProperties: false
+  required: [packageName, version, installation]
+  properties:
+    packageName: {$ref: '#/PluginPackageName'}
+    version: {$ref: '#/PluginSemanticVersion'}
+    installation: {$ref: '#/PluginInstallation'}
 
 PluginVersion:
   type: object
@@ -91,10 +82,7 @@ PluginVersion:
     - packageId
     - packageName
     - version
-    - sizeBytes
-    - sha256
-    - signatureBase64
-    - compatibility
+    - installation
     - status
     - createdAt
     - revision
@@ -103,22 +91,7 @@ PluginVersion:
     packageId: {$ref: '#/PluginPackageId'}
     packageName: {$ref: '#/PluginPackageName'}
     version: {$ref: '#/PluginSemanticVersion'}
-    sizeBytes:
-      type: integer
-      format: int64
-      minimum: 1
-      maximum: 52428800
-    sha256: {$ref: '#/PluginSha256'}
-    signatureBase64:
-      description: 空字符串表示未签名；非空值为 Ed25519 签名的 Base64。
-      oneOf:
-        - type: string
-          enum: ['']
-        - type: string
-          minLength: 88
-          maxLength: 88
-          pattern: '^[A-Za-z0-9+/]{86}==$'
-    compatibility: {$ref: '#/PluginCompatibility'}
+    installation: {$ref: '#/PluginInstallation'}
     status: {$ref: '#/PluginVersionStatus'}
     createdAt:
       type: string
@@ -248,38 +221,14 @@ RuntimePluginAssignment:
     - pluginVersionId
     - packageName
     - version
-    - sizeBytes
-    - sha256
-    - signatureBase64
-    - compatibility
-    - downloadUrl
+    - installation
     - required
     - desiredState
   properties:
     pluginVersionId: {$ref: '#/PluginVersionId'}
     packageName: {$ref: '#/PluginPackageName'}
     version: {$ref: '#/PluginSemanticVersion'}
-    sizeBytes:
-      type: integer
-      format: int64
-      minimum: 1
-    sha256: {$ref: '#/PluginSha256'}
-    signatureBase64:
-      description: 空字符串表示未签名；非空值为 Ed25519 签名的 Base64。
-      oneOf:
-        - type: string
-          enum: ['']
-        - type: string
-          minLength: 88
-          maxLength: 88
-          pattern: '^[A-Za-z0-9+/]{86}==$'
-    compatibility: {$ref: '#/PluginCompatibility'}
-    downloadUrl:
-      oneOf:
-        - type: string
-          minLength: 1
-          maxLength: 2048
-        - type: 'null'
+    installation: {$ref: '#/PluginInstallation'}
     required:
       type: boolean
     desiredState: {$ref: '#/PluginDesiredState'}
@@ -309,7 +258,6 @@ PluginInventoryItem:
   required:
     - packageName
     - version
-    - sha256
     - desiredRevision
     - state
     - loaderPhase
@@ -320,10 +268,6 @@ PluginInventoryItem:
     version:
       oneOf:
         - $ref: '#/PluginSemanticVersion'
-        - type: 'null'
-    sha256:
-      oneOf:
-        - $ref: '#/PluginSha256'
         - type: 'null'
     desiredRevision:
       $ref: '../enterprise-openapi.yaml#/components/schemas/Revision'
@@ -377,7 +321,6 @@ AdminPluginInventoryItem:
     - username
     - packageName
     - version
-    - sha256
     - desiredRevision
     - state
     - loaderPhase
@@ -394,10 +337,6 @@ AdminPluginInventoryItem:
     version:
       oneOf:
         - $ref: '#/PluginSemanticVersion'
-        - type: 'null'
-    sha256:
-      oneOf:
-        - $ref: '#/PluginSha256'
         - type: 'null'
     desiredRevision:
       $ref: '../enterprise-openapi.yaml#/components/schemas/Revision'

@@ -35,8 +35,6 @@ function composeConfig(baseImageRegistry = undefined) {
     ENT_REDIS_PASSWORD: 'redis-fixture',
     SA_TOKEN_JWT_SECRET_KEY: 'jwt-fixture',
     ENT_MASTER_KEY: '0123456789abcdef0123456789abcdef',
-    ENT_PLUGIN_SIGNING_ENABLED: 'true',
-    ENT_PLUGIN_SIGNING_PRIVATE_KEY: 'signing-fixture',
     ENT_BOOTSTRAP_ADMIN_USERNAME: 'platform.admin',
     ENT_BOOTSTRAP_ADMIN_PASSWORD: 'FixturePassword1!',
   }
@@ -45,7 +43,7 @@ function composeConfig(baseImageRegistry = undefined) {
 
 test('compose publishes only the HTTP Console and pins all third-party images', () => {
   const config = composeConfig()
-  assert.deepEqual(Object.keys(config.services).sort(), ['console', 'postgres', 'redis', 'server', 'storage-init'])
+  assert.deepEqual(Object.keys(config.services).sort(), ['console', 'postgres', 'redis', 'server'])
   assert.equal(config.services.postgres.ports, undefined)
   assert.equal(config.services.redis.ports, undefined)
   assert.equal(config.services.server.ports, undefined)
@@ -67,15 +65,7 @@ test('compose publishes only the HTTP Console and pins all third-party images', 
   assert.equal(config.services.server.environment.ENT_ALLOW_INSECURE_OIDC, 'false')
   assert.equal(config.services.server.environment.XDG_CACHE_HOME, '/tmp')
   assert.equal(config.services.server.read_only, true)
-  assert.deepEqual(Object.keys(config.volumes).sort(), ['artifacts', 'postgres_data', 'redis_data'])
-  for (const service of ['server', 'storage-init']) {
-    assert.deepEqual(config.services[service].volumes.map(({ source, target }) => ({ source, target })), [
-      { source: 'artifacts', target: '/var/lib/enterprise/artifacts' },
-    ])
-  }
-  assert.deepEqual(config.services['storage-init'].command, [
-    'sh', '-ec', 'chown -R 10001:10001 /var/lib/enterprise',
-  ])
+  assert.deepEqual(Object.keys(config.volumes).sort(), ['postgres_data', 'redis_data'])
   assert.ok(config.services.server.tmpfs.some(mount =>
     typeof mount === 'string' ? mount.split(':')[0] === '/tmp' : mount.target === '/tmp'
   ))
@@ -91,7 +81,6 @@ test('root Compose has GHCR images and overridable test defaults', () => {
   assert.match(compose, /ghcr\.io\/boe1900\/owndsh-console:next/)
   for (const variable of [
     'ENT_POSTGRES_PASSWORD', 'ENT_REDIS_PASSWORD', 'SA_TOKEN_JWT_SECRET_KEY',
-    'ENT_MASTER_KEY', 'ENT_PLUGIN_SIGNING_PRIVATE_KEY', 'ENT_BOOTSTRAP_ADMIN_USERNAME',
     'ENT_BOOTSTRAP_ADMIN_PASSWORD',
   ]) assert.match(compose, new RegExp(`\\$\\{${variable}:-`))
   assert.doesNotMatch(compose, /ENT_ADMIN_REDIRECT_URI/)
@@ -105,8 +94,6 @@ test('root Compose has GHCR images and overridable test defaults', () => {
   assert.match(environment, /^ENT_REDIS_PASSWORD=owndsh$/m)
   assert.match(environment, /^SA_TOKEN_JWT_SECRET_KEY=.+$/m)
   assert.match(environment, /^ENT_MASTER_KEY=.{32}$/m)
-  assert.match(environment, /^ENT_PLUGIN_SIGNING_ENABLED=false$/m)
-  assert.match(environment, /^ENT_PLUGIN_SIGNING_PRIVATE_KEY=$/m)
   assert.match(read('.gitignore'), /^\.owndsh\/$/m)
   assert.match(read('.dockerignore'), /^\.owndsh$/m)
 })
@@ -114,28 +101,26 @@ test('root Compose has GHCR images and overridable test defaults', () => {
 test('root Compose starts without .env and derives public URLs from the published port', () => {
   const env = { ...process.env, OWNDSH_HTTP_PORT: '19090' }
   delete env.ENT_PUBLIC_BASE_URL
-  delete env.ENT_PLUGIN_SIGNING_ENABLED
-  delete env.ENT_PLUGIN_SIGNING_PRIVATE_KEY
   const config = JSON.parse(execFileSync('docker', [
     'compose', '--env-file', '/dev/null', '-f', COMPOSE, 'config', '--format', 'json',
   ], { env, encoding: 'utf8' }))
   assert.equal(config.services.server.environment.ENT_PUBLIC_BASE_URL, 'http://localhost:19090')
-  assert.equal(config.services.server.environment.ENT_PLUGIN_SIGNING_ENABLED, 'false')
-  assert.equal(config.services.server.environment.ENT_PLUGIN_SIGNING_PRIVATE_KEY, '')
   assert.equal(config.services.server.environment.ENT_ADMIN_REDIRECT_URI, undefined)
   assert.equal(config.services.server.environment.ENT_BOOTSTRAP_ADMIN_USERNAME, 'admin')
   assert.equal(config.services.server.environment.ENT_BOOTSTRAP_ADMIN_PASSWORD, 'owndsh')
 })
 
-test('release workflow publishes only test artifacts and uses npm OIDC', () => {
+test('release workflow selects npm tags from the version and uses OIDC', () => {
   const workflow = read('.github/workflows/release.yml')
-  assert.match(workflow, /tags: \['v\*-\*'\]/)
+  assert.match(workflow, /tags: \['v\*'\]/)
+  assert.match(workflow, /tag=latest/);
+  assert.match(workflow, /then tag=next; fi/);
   assert.match(workflow, /type=raw,value=next/)
   assert.match(workflow, /flavor: latest=false/)
   assert.match(workflow, /id-token: write/)
   assert.match(workflow, /uses: actions\/upload-artifact@v4/)
   assert.match(workflow, /uses: actions\/download-artifact@v4/)
-  assert.match(workflow, /npm publish \.\/plugin-package\/\*\.tgz --tag next --provenance --access public/)
+  assert.match(workflow, /npm publish \.\/plugin-package\/\*\.tgz --tag "\$tag" --provenance --access public/)
   assert.doesNotMatch(workflow, /NPM_TOKEN|NODE_AUTH_TOKEN|type=raw,value=latest/)
 })
 
@@ -154,7 +139,6 @@ test('bootstrap credentials and runtime secrets come directly from overridable e
     Object.fromEntries([
       'ENT_BOOTSTRAP_ADMIN_USERNAME', 'ENT_BOOTSTRAP_ADMIN_PASSWORD', 'ENT_POSTGRES_PASSWORD',
       'ENT_REDIS_PASSWORD', 'SA_TOKEN_JWT_SECRET_KEY', 'ENT_MASTER_KEY',
-      'ENT_PLUGIN_SIGNING_ENABLED', 'ENT_PLUGIN_SIGNING_PRIVATE_KEY',
     ].map(name => [name, config.services.server.environment[name]])),
     {
       ENT_BOOTSTRAP_ADMIN_USERNAME: 'platform.admin',
@@ -163,8 +147,6 @@ test('bootstrap credentials and runtime secrets come directly from overridable e
       ENT_REDIS_PASSWORD: 'redis-fixture',
       SA_TOKEN_JWT_SECRET_KEY: 'jwt-fixture',
       ENT_MASTER_KEY: '0123456789abcdef0123456789abcdef',
-      ENT_PLUGIN_SIGNING_ENABLED: 'true',
-      ENT_PLUGIN_SIGNING_PRIVATE_KEY: 'signing-fixture',
     }
   )
 })
@@ -224,7 +206,6 @@ test('server has one environment-driven application configuration', () => {
   assert.deepEqual(applications, ['application.yml'])
   for (const variable of [
     'ENT_POSTGRES_HOST', 'ENT_POSTGRES_PASSWORD', 'ENT_REDIS_HOST', 'ENT_REDIS_PASSWORD',
-    'SA_TOKEN_JWT_SECRET_KEY', 'ENT_MASTER_KEY', 'ENT_PLUGIN_SIGNING_PRIVATE_KEY',
     'ENT_BOOTSTRAP_ADMIN_USERNAME', 'ENT_BOOTSTRAP_ADMIN_PASSWORD',
   ]) assert.match(application, new RegExp(`\\$\\{${variable}`))
   assert.doesNotMatch(application, /ENT_ADMIN_REDIRECT_URI|admin-redirect-uri/)
@@ -294,39 +275,19 @@ test('portable SHA-256 helper emits and verifies standard manifests', () => {
   ], { cwd: state })
 })
 
-test('offline operations allow absent signing files and preserve existing signing keys', () => {
-  const state = mkdtempSync(join(tmpdir(), 'owndsh-optional-keys-'))
+test('offline operations back up only the platform master key', () => {
+  const state = mkdtempSync(join(tmpdir(), 'owndsh-master-key-'))
   const secrets = join(state, 'secrets')
   const common = join(DEPLOY_ROOT, 'scripts', 'common.sh')
   mkdirSync(secrets)
-  for (const file of ['enterprise_master_key', 'postgres_password', 'redis_password', 'sa_token_jwt_secret_key']) {
-    writeFileSync(join(secrets, file), 'fixture-' + file)
-  }
-  writeFileSync(join(state, 'runtime.env'), 'OWNDSH_RELEASE_VERSION=test\n')
+  writeFileSync(join(secrets, 'enterprise_master_key'), 'fixture-master-key')
   const run = script => execFileSync('sh', ['-c', '. "$1"; ' + script, 'sh', common], {
     encoding: 'utf8', stdio: 'pipe', env: { ...process.env, OWNDSH_STATE_DIR: state },
   }).trim()
   try {
     assert.equal(run('backup_key_files'), 'enterprise_master_key')
-    assert.equal(run('docker() { printf "%s" "$ENT_PLUGIN_SIGNING_PRIVATE_KEY"; }; compose config'), '')
-    writeFileSync(join(state, 'runtime.env'), 'OWNDSH_RELEASE_VERSION=test\nENT_PLUGIN_SIGNING_ENABLED=true\n')
-    assert.throws(() => run('backup_key_files'), /缺少文件: .*plugin_signing_private_key/)
-    assert.throws(() => run('key_fingerprint'), /缺少文件: .*plugin_signing_private_key/)
-    writeFileSync(join(state, 'runtime.env'), 'OWNDSH_RELEASE_VERSION=test\n')
-    const unsignedFingerprint = run('key_fingerprint')
-    assert.match(unsignedFingerprint, /^[a-f0-9]{64}$/)
-    for (const file of ['plugin_signing_private_key', 'plugin_signing_public_key']) {
-      writeFileSync(join(secrets, file), 'fixture-' + file)
-    }
-    assert.deepEqual(run('backup_key_files').split('\n'), [
-      'enterprise_master_key', 'plugin_signing_private_key', 'plugin_signing_public_key',
-    ])
-    assert.equal(run('docker() { printf "%s" "$ENT_PLUGIN_SIGNING_PRIVATE_KEY"; }; compose config'),
-      'fixture-plugin_signing_private_key')
-    assert.notEqual(run('key_fingerprint'), unsignedFingerprint)
-  } finally {
-    rmSync(state, { recursive: true, force: true })
-  }
+    assert.match(run('key_fingerprint'), /^[a-f0-9]{64}$/)
+  } finally { rmSync(state, { recursive: true, force: true }) }
 })
 
 test('installer rejects runtime.env injection and invalid published ports before mutation', () => {

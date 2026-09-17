@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖事务、PluginStore、带 hash 互斥的 tgz inspector/CAS store、JCS Ed25519 signer、revision、审计与 ID。
- * [OUTPUT]: 提供企业目录、幂等上传、发布/退休与可见范围原子替换；保留 required 协议字段但写入统一为可选安装。
- * [POS]: plugin/application 的管理状态编排，文件系统补偿与数据库事务边界在此唯一协调。
+ * [INPUT]: 依赖事务、PluginStore、revision、审计与 ID。
+ * [OUTPUT]: 提供企业目录、幂等安装配置登记、发布/退休与可见范围原子替换；保留 required 协议字段但写入统一为可选安装。
+ * [POS]: plugin/application 的管理状态编排，版本不可变，发布与可见范围共用 revision/审计事务。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.plugin.application;
@@ -11,13 +11,10 @@ import com.owndsh.enterprise.audit.AuditActorType;
 import com.owndsh.enterprise.audit.AuditEvent;
 import com.owndsh.enterprise.audit.AuditResult;
 import com.owndsh.enterprise.audit.AuditSink;
-import com.owndsh.enterprise.plugin.artifact.PluginArtifactInspector;
-import com.owndsh.enterprise.plugin.artifact.PluginArtifactStore;
-import com.owndsh.enterprise.plugin.artifact.PluginManifestSigner;
 import com.owndsh.enterprise.plugin.domain.DevicePluginInventory;
 import com.owndsh.enterprise.plugin.domain.PluginAssignment;
-import com.owndsh.enterprise.plugin.domain.PluginCompatibility;
 import com.owndsh.enterprise.plugin.domain.PluginPackage;
+import com.owndsh.enterprise.plugin.domain.PluginInstallation;
 import com.owndsh.enterprise.plugin.domain.PluginVersion;
 import com.owndsh.enterprise.plugin.persistence.PluginStore;
 import com.owndsh.enterprise.revision.BootstrapRevisionStore;
@@ -25,7 +22,6 @@ import com.owndsh.enterprise.revision.RevisionConflictException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.support.TransactionOperations;
 
-import java.io.InputStream;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.HashSet;
@@ -38,9 +34,6 @@ import java.util.function.LongSupplier;
 public final class PluginCatalogService {
     private final TransactionOperations transactions;
     private final PluginStore plugins;
-    private final PluginArtifactStore artifacts;
-    private final PluginArtifactInspector inspector;
-    private final PluginManifestSigner signer;
     private final BootstrapRevisionStore revisions;
     private final AuditSink auditSink;
     private final LongSupplier ids;
@@ -49,24 +42,18 @@ public final class PluginCatalogService {
     public PluginCatalogService(
         TransactionOperations transactions,
         PluginStore plugins,
-        PluginArtifactStore artifacts,
-        PluginArtifactInspector inspector,
-        PluginManifestSigner signer,
         BootstrapRevisionStore revisions,
         AuditSink auditSink,
         LongSupplier ids
     ) {
         this(
-            transactions, plugins, artifacts, inspector, signer, revisions, auditSink, ids, Clock.systemUTC()
+            transactions, plugins, revisions, auditSink, ids, Clock.systemUTC()
         );
     }
 
     PluginCatalogService(
         TransactionOperations transactions,
         PluginStore plugins,
-        PluginArtifactStore artifacts,
-        PluginArtifactInspector inspector,
-        PluginManifestSigner signer,
         BootstrapRevisionStore revisions,
         AuditSink auditSink,
         LongSupplier ids,
@@ -74,9 +61,6 @@ public final class PluginCatalogService {
     ) {
         this.transactions = Objects.requireNonNull(transactions, "transactions");
         this.plugins = Objects.requireNonNull(plugins, "plugins");
-        this.artifacts = Objects.requireNonNull(artifacts, "artifacts");
-        this.inspector = Objects.requireNonNull(inspector, "inspector");
-        this.signer = Objects.requireNonNull(signer, "signer");
         this.revisions = Objects.requireNonNull(revisions, "revisions");
         this.auditSink = Objects.requireNonNull(auditSink, "auditSink");
         this.ids = Objects.requireNonNull(ids, "ids");
@@ -93,92 +77,42 @@ public final class PluginCatalogService {
             .toList();
     }
 
-    public UploadResult upload(
-        PluginMutationContext context,
-        UUID uploadId,
-        InputStream input,
-        PluginCompatibility compatibility
-    ) {
-        Objects.requireNonNull(context, "context");
-        Objects.requireNonNull(compatibility, "compatibility");
-        PluginArtifactStore.PendingArtifact pending = artifacts.writePending(uploadId, input);
-        PluginArtifactInspector.InspectedPlugin inspected;
+    public RegistrationResult register(PluginMutationContext context, String packageName, String version,
+        PluginInstallation installation) {
+        Objects.requireNonNull(installation, "installation").validateTarget(packageName, version);
         try {
-            inspected = inspector.inspect(pending.path());
-        } catch (RuntimeException exception) {
-            artifacts.deletePending(pending);
+            return requireResult(transactions.execute(status -> {
+                PluginPackage pluginPackage = plugins.findPackageByNameForUpdate(context.tenantId(), packageName).orElse(null);
+                PluginVersion existing = plugins.findExistingVersion(context.tenantId(), packageName, version).orElse(null);
+                if (existing != null) return registeredVersion(existing, installation);
+                boolean createdPackage = pluginPackage == null;
+                if (createdPackage) {
+                    pluginPackage = new PluginPackage(positiveId(), context.tenantId(), packageName,
+                        installation.displayName(), PluginPackage.Status.ACTIVE, 0);
+                    plugins.insertPackage(pluginPackage);
+                }
+                PluginVersion configured = new PluginVersion(positiveId(), context.tenantId(), pluginPackage.id(),
+                    packageName, version, PluginVersion.Status.VALIDATED,
+                    context.actorId(), Instant.now(clock), 0, installation);
+                plugins.insertVersion(configured);
+                if (!createdPackage && !plugins.incrementPackageRevision(context.tenantId(), pluginPackage.id(), pluginPackage.revision())) {
+                    throw packageConflict(context.tenantId(), pluginPackage.id(), pluginPackage.revision());
+                }
+                audit(context, null, AuditAction.PLUGIN_REGISTERED, "PLUGIN_VERSION", configured.id(),
+                    new PluginAuditMetadata(PluginAuditMetadata.Operation.REGISTER, 0,
+                        revisions.current(context.tenantId()), 1, false));
+                return new RegistrationResult(configured, true);
+            }));
+        } catch (DataIntegrityViolationException exception) {
+            PluginVersion existing = plugins.findExistingVersion(context.tenantId(), packageName, version).orElse(null);
+            if (existing != null) return registeredVersion(existing, installation);
             throw exception;
         }
+    }
 
-        try (PluginArtifactStore.ArtifactMutationLock ignored = artifacts.lockForMutation(pending)) {
-            PluginArtifactStore.StoredArtifact[] finalized = new PluginArtifactStore.StoredArtifact[1];
-            try {
-                UploadResult result = requireResult(transactions.execute(status -> {
-                    PluginVersion existing = plugins.findExistingVersion(
-                        context.tenantId(), inspected.packageName(), inspected.version(), pending.sha256()
-                    ).orElse(null);
-                    if (existing != null) return new UploadResult(existing, false);
-
-                    PluginPackage pluginPackage = plugins.findPackageByNameForUpdate(
-                        context.tenantId(), inspected.packageName()
-                    ).orElse(null);
-                    boolean packageCreated = pluginPackage == null;
-                    if (pluginPackage == null) {
-                        pluginPackage = new PluginPackage(
-                            positiveId(), context.tenantId(), inspected.packageName(), inspected.displayName(),
-                            PluginPackage.Status.ACTIVE, 0
-                        );
-                        plugins.insertPackage(pluginPackage);
-                    }
-
-                    long versionId = positiveId();
-                    finalized[0] = artifacts.finalizeArtifact(pending);
-                    PluginManifestSigner.SignatureManifest manifest = new PluginManifestSigner.SignatureManifest(
-                        Long.toString(versionId), inspected.packageName(), inspected.version(), pending.sizeBytes(),
-                        pending.sha256(), compatibility
-                    );
-                    PluginVersion uploaded = new PluginVersion(
-                        versionId, context.tenantId(), pluginPackage.id(), inspected.packageName(), inspected.version(),
-                        finalized[0].artifactRef(), pending.sizeBytes(), pending.sha256(), signer.sign(manifest),
-                        compatibility, PluginVersion.Status.UPLOADED, context.actorId(), Instant.now(clock), 0
-                    );
-                    plugins.insertVersion(uploaded);
-                    if (!plugins.transitionVersion(
-                        context.tenantId(), versionId, PluginVersion.Status.UPLOADED,
-                        PluginVersion.Status.VALIDATED, 0
-                    )) {
-                        throw new IllegalStateException("新上传版本无法进入 VALIDATED");
-                    }
-                    if (!packageCreated && !plugins.incrementPackageRevision(
-                            context.tenantId(), pluginPackage.id(), pluginPackage.revision()
-                    )) {
-                        throw packageConflict(context.tenantId(), pluginPackage.id(), pluginPackage.revision());
-                    }
-                    PluginVersion validated = plugins.findVersion(context.tenantId(), versionId).orElseThrow();
-                    audit(
-                        context, null, AuditAction.PLUGIN_UPLOADED, "PLUGIN_VERSION", versionId,
-                        new PluginAuditMetadata(
-                            PluginAuditMetadata.Operation.UPLOAD, validated.revision(),
-                            revisions.current(context.tenantId()), 1, false
-                        )
-                    );
-                    return new UploadResult(validated, true);
-                }));
-                return result;
-            } catch (DataIntegrityViolationException exception) {
-                artifacts.deleteStoredIfCreated(finalized[0]);
-                PluginVersion existing = plugins.findExistingVersion(
-                    context.tenantId(), inspected.packageName(), inspected.version(), pending.sha256()
-                ).orElse(null);
-                if (existing != null) return new UploadResult(existing, false);
-                throw new IllegalArgumentException("插件 package/version 或 SHA-256 冲突", exception);
-            } catch (RuntimeException exception) {
-                artifacts.deleteStoredIfCreated(finalized[0]);
-                throw exception;
-            }
-        } finally {
-            artifacts.deletePending(pending);
-        }
+    private static RegistrationResult registeredVersion(PluginVersion existing, PluginInstallation installation) {
+        if (!installation.equals(existing.installation())) throw new IllegalArgumentException("此版本已登记其他配置，请使用新版本号");
+        return new RegistrationResult(existing, false);
     }
 
     public PluginVersion publish(PluginMutationContext context, long versionId, long expectedRevision) {
@@ -343,8 +277,8 @@ public final class PluginCatalogService {
         }
     }
 
-    public record UploadResult(PluginVersion version, boolean created) {
-        public UploadResult {
+    public record RegistrationResult(PluginVersion version, boolean created) {
+        public RegistrationResult {
             Objects.requireNonNull(version, "version");
         }
     }

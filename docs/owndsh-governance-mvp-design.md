@@ -9,7 +9,7 @@
 
 设计日期：2026-08-17
 
-文档状态：实施基线
+文档状态：实施基线；插件市场已于 2026-09-17 改为安装配置模式，早期 T13/T14/T15 上传与签名验收记录只保留为历史证据。
 
 ## 1. 文档定位
 
@@ -59,7 +59,7 @@ OwnDsh Server 由本项目自主维护，原始代码的 MIT 许可证保留在 
 | 模型 | Harness 官方 `dsh-llm-pi-ai` 负责三协议语义；企业网关只做治理和透明 upstream |
 | 密钥 | 上游模型密钥只在服务端加密保存和解密使用，不进入员工设备、浏览器、Session Event 或日志 |
 | 配额 | 支持默认、部门和用户三个作用域的日/月 Token、RPM 和并发限制；请求前预留，请求后结算 |
-| 插件 | 只分发预构建 `.tgz` bundle，平台验包并签名，客户端校验后用 `dsh plugin` 安装，重启后生效 |
+| 插件 | 配置 npm 精确版本、固定 commit 的 GitHub 包、tgz URL 或客户端绝对路径；平台管理发布与可见范围，宿主 pnpm 安装依赖，重启后生效 |
 | 会话 | 本地持久化仍是真源；独立同步消费者上传完整 Session Event 日志，支持个人会话管理和恢复副本，不同步工作区文件 |
 | 数据保留 | Session 正文默认 90 天，审计元数据默认 365 天，均可由部署配置修改 |
 | 审计 | 使用应用级只追加审计表，不做哈希链、不可抵赖证明、风险发现或安全报告 |
@@ -73,7 +73,7 @@ OwnDsh Server 由本项目自主维护，原始代码的 MIT 许可证保留在 
 | Harness 可成为企业受管 Agent 客户端 | 不修改 `agent-loop`，通过 bundle 和插件完成登录、模型、插件、同步与员工 UI | 企业 profile 连续试用两周，所有企业行为均有明确插件所有者 |
 | 企业可集中供给模型且不下发上游密钥 | 员工通过企业账号登录后直接调用已分配模型 | 员工设备和浏览器中不存在上游 API Key，伪造模型别名仍被网关拒绝 |
 | 管理员可实际控制成本和可用模型 | 管理员配置 provider、模型、授权和配额后观察即时结果 | 未授权、停用、超日/月限额、超 RPM 和超并发请求都由服务端拒绝 |
-| 通用插件可受管分发 | 管理员上传预构建 bundle 并分配给用户或部门 | 客户端验签、安装、提示重启、激活、清单上报和回滚形成闭环 |
+| 通用插件可受管分发 | 管理员登记安装配置并设置全部成员或指定成员可见 | 客户端确认版本、重新授权、宿主安装、重启激活、清单上报和版本切换形成闭环 |
 | 会话留痕可跨设备使用 | 本地日志增量上传，另一台设备登录后恢复为可继续的本地副本 | 正常网络 RPO 不超过 60 秒，恢复副本事件序列与远端完全一致 |
 | 平台具备企业采购所需的基本可追溯性 | 管理员按用户、时间、动作和 requestId 查询 | 登录、模型、配额、插件、会话和管理变更都有服务端审计记录 |
 
@@ -84,7 +84,7 @@ OwnDsh Server 由本项目自主维护，原始代码的 MIT 许可证保留在 
 - DeepSeek-compatible provider、受管模型、用户/部门授权、默认模型和停用控制。
 - 日/月 Token、RPM 和并发配额，流式调用预留、结算和用量查询。
 - 三协议透明流式模型网关及 Harness 官方 `dsh-llm-pi-ai` 企业 profile。
-- 预构建 bundle 上传、校验、签名、分配、下载、安装、重启激活、清单和回滚。
+- 插件安装配置登记、发布、可见范围、分类搜索、详情确认、宿主安装、重启激活、库存和版本切换。
 - 本地 Session Event 增量同步、远端个人会话列表、内容查看、删除、保留和恢复副本。
 - 登录、设备、模型、用量、插件、会话和管理变更审计。
 - React 管理控制台和 Harness 员工设置页。
@@ -156,7 +156,6 @@ flowchart LR
   ldap["LDAP / Active Directory"]
   postgres["PostgreSQL"]
   redis["Redis"]
-  artifact["本地持久卷<br/>插件制品"]
   upstream["DeepSeek-compatible 上游"]
 
   employee <-->|"同源本地 HTTP / SSE"| host
@@ -168,7 +167,6 @@ flowchart LR
   server -->|"Bind + Search"| ldap
   server --> postgres
   server --> redis
-  server --> artifact
   server -->|"服务端 API Key"| upstream
 ```
 
@@ -404,7 +402,7 @@ Token 交换把 installation ID 写进 Sa-Token login device。后续 API 从 Sa
 |---|---|
 | `enterprise_admin` | 全部企业权限、固定角色分配、身份源、设备、模型、配额、插件、Session 正文、审计 |
 | `model_admin` | provider、模型、授权、配额、用量元数据；不能读取 provider 密钥明文、Session 正文或修改身份源 |
-| `plugin_admin` | 插件上传、发布、分配、回滚和设备插件状态 |
+| `plugin_admin` | 插件登记、发布、可见范围、版本切换和设备插件状态 |
 | `auditor` | 设备只读、模型用量只读、Session 元数据/正文只读、审计只读 |
 | `employee` | 本人 bootstrap、模型调用、用量、设备、插件状态、Session 同步/恢复/删除 |
 
@@ -468,9 +466,16 @@ Token 交换把 installation ID 写进 Sa-Token login device。后续 API 从 Sa
         {
           "packageName": "@example/dsh-code-review",
           "version": "1.2.0",
-          "sha256": "hex...",
-          "downloadUrl": "/enterprise/api/v1/plugins/versions/880/download",
-          "required": true,
+          "pluginVersionId": "880",
+          "installation": {
+            "spec": "@example/dsh-code-review@1.2.0",
+            "displayName": "代码审查",
+            "description": "检查代码并整理审查建议",
+            "author": "Example",
+            "repositoryUrl": "https://github.com/example/dsh-code-review",
+            "categories": ["开发工具"]
+          },
+          "required": false,
           "desiredState": "INSTALLED"
         }
       ]
@@ -592,79 +597,27 @@ RELEASED   CHARGED_MAX
 
 `GET /enterprise/api/v1/usage/me` 返回当前用户所有适用策略的日/月上限、已用、已预留、reset time、当前 RPM 和并发。管理端可以按用户、部门、模型和时间查询 ledger，但不能看到 prompts、messages 或上游密钥。
 
-## 11. 通用插件分发
+## 11. 企业插件市场
 
-### 11.1 制品约束
+### 11.1 安装配置
 
-管理员只能上传由 `pnpm pack` 产生的预构建 `.tgz`。Server 使用 Apache Commons Compress 流式检查，不把未知归档直接解压到文件系统。
+管理员登记包名、精确版本和安装目标，不上传插件。目标支持 `包名@版本`、`github:owner/repo#完整40位commit`（可追加 `&path:/子目录`）、HTTP(S) `.tgz` URL、客户端绝对目录/包路径。显示名称、简介、作者、分类和源码仓库独立配置，卡片无图标；源码仓库一般填写 GitHub URL。
 
-制品必须满足：
+正常 `dependencies`、peer 和构建脚本由宿主 pnpm 解析，OwnDsh 不要求零依赖、不强制精确 Harness commit、不附加 `--ignore-scripts`。企业私有 npm/Git 源使用宿主已有认证配置，平台不托管包内容或凭据。
 
-- 压缩大小不超过 `enterprise.plugin.maxArchiveBytes`，默认 50 MiB；解压总量默认不超过 200 MiB；entry 数默认不超过 10,000。
-- 所有路径位于 `package/` 下，拒绝绝对路径、`..`、反斜杠绕过、NUL、符号链接、硬链接和设备文件。
-- 根 `package/package.json` 的 `name`、`version`、`type=module`、`dsh.bundle.patch` 和 patch 文件存在。
-- `scripts` 不得包含 `preinstall`、`install`、`postinstall`、`prepare`；归档不得包含 `.node`。
-- `dependencies` 必须为空；Harness 依赖只能声明为与企业发行版精确兼容的 `peerDependencies`，其他运行依赖必须在构建时 bundle 进 JavaScript。
-- compatibility 必须声明允许的 Harness commit 集合、企业 bundle SemVer 范围和操作系统；JSON
-  字段固定为 `harnessCommits`、`enterpriseBundleRange`、`operatingSystems`。Git commit 不具备可比较
-  的版本顺序，因此不得用 `min/max` 或字典序伪造 commit 范围；首个发行版至少包含锁定的
-  `99f6f02fecdb7dff40c3fbc9470f5907c29f74ca`，操作系统值只允许 `darwin/linux/win32`。
+### 11.2 发布和可见范围
 
-上传通过后计算整个 tgz 的 SHA-256，并以 Ed25519 对签名声明的 RFC 8785 JSON Canonicalization Scheme UTF-8 结果签名。声明字段固定为字符串 `artifactId`、`packageName`、`version`、十进制整数 `sizeBytes`、小写十六进制 `sha256` 和对象 `compatibility`；服务端与客户端使用同一组规范化测试向量，禁止自行拼接字段。私钥只在 Server secret 中，公钥写进员工最初安装的企业 bundle Config；bootstrap 返回的公钥不能替换本地信任根。
+版本 `VALIDATED -> PUBLISHED -> RETIRED`。同包名/版本/配置幂等，不允许就地更改已登记版本。登记使用同包事务锁，发布与范围替换保留 revision CAS 与同事务审计。
 
-制品先写 `$ENT_ARTIFACT_ROOT/tmp/<upload-id>.part`，同一 SHA-256 的 CAS 终结与数据库补偿由进程内锁加 artifact root 文件锁跨进程串行化，验包和签名成功后原子移动到 `$ENT_ARTIFACT_ROOT/sha256/<hash前两位>/<完整hash>.tgz`。数据库事务失败时删除临时文件和本次独占创建且尚未被其他事务复用的最终文件；已发布版本引用的制品不得删除，退休且无 assignment 引用的制品保留 30 天后由清理任务删除。
+控制台配置 ALL/USER 可见范围；底层按 USER、DEPT、ALL 裁决。INSTALLED 表示允许用户选择安装，ABSENT 表示撤回已有受管安装。删除范围或退休停止新安装，不自动移除用户当前版本。目录返回完整 assignment 集合以供原子替换。
 
-### 11.2 发布和分配
+### 11.3 员工安装
 
-插件版本状态为 `UPLOADED -> VALIDATED -> PUBLISHED -> RETIRED`，只有 `PUBLISHED` 可分配。相同 package/version 或相同 SHA-256 重复上传返回已有版本，不新建记录。
+插件 tab 提供分类、搜索、无图标卡片与固定版本详情确认。只有确认操作调用安装，刷新、发布和重启均不自动升级。Host 重新读取有效授权且绑定所选版本 ID，再委托官方 `dsh plugin --profile <profile> add --save-exact <target>` 或 Desktop `runPlugin()`。Git/URL/路径绑定指定依赖键；安装后核对实际包名、版本和 DSH bundle 文件，错误结果保持 FAILED。
 
-分配作用域为 `ALL`、`DEPT` 或 `USER`，期望状态为 `INSTALLED` 或 `ABSENT`，并包含唯一目标版本和 `required`。解析优先级为 USER、DEPT、ALL；同一优先级冲突在管理写入时拒绝。回滚就是把 assignment 指向已发布旧版本并增加插件 revision。
+安装成功进入 RESTART_REQUIRED；下一进程读取 Loader active 才标记 ACTIVE。Desktop 提供立即/稍后重启，其余宿主提示手动重启。卸载复用官方 remove，版本切换复用相同安装流程。
 
-管理 catalog 的每个 `PluginPackage` 必须返回该 package 当前的完整 `assignments` 集合。assignment batch 是基于 package revision 的全量原子替换，不是增量 patch；管理端编辑时必须从完整集合初始化并回传完整集合，CAS 冲突后重新加载完整服务端事实再由管理员重试，禁止只提交当前筛选或当前页可见项而静默删除其他 subject。runtime 仍只返回当前用户解析后的有效 assignment，不暴露管理集合。
-
-### 11.3 客户端调和
-
-`@owndsh/plugin-distribution` 在每次 bootstrap revision 变化后调和，状态固定为：
-
-```text
-UNASSIGNED -> DOWNLOAD_PENDING -> DOWNLOADING -> VERIFIED -> INSTALLING -> RESTART_REQUIRED -> ACTIVE
-                       |              |             |                 |
-                       +-----------> FAILED <-------+-----------------+
-ACTIVE -> REMOVE_PENDING -> REMOVING -> RESTART_REQUIRED
-```
-
-下载到 `$DSH_HOME/enterprise/artifacts/<sha256>.tgz.part`，完成后校验大小、SHA-256、Ed25519 和 compatibility，再原子改名为 `<sha256>.tgz`。校验失败删除 `.part` 并上报，绝不执行 `dsh plugin`。
-
-安装命令固定为 `dsh plugin --profile enterprise add --ignore-scripts --save-exact <absolute-tgz-path>`，移除命令固定为 `dsh plugin --profile enterprise remove <package-name>`。实现通过 `ctx.subprocess` 调用，argv 数组传参，不拼 shell 字符串；`dshCommand` 和 profile 名是 Schemastery Config，默认分别为 `dsh` 和 `enterprise`。
-
-CLI 成功后写入 `$DSH_HOME/enterprise/managed-plugins.json`，记录 assignment revision、package、version、artifact SHA 和 `RESTART_REQUIRED`。当前进程不 HMR 新插件、不自动退出；用户重启后联合 `pluginInventory/list` 和受管状态确认 Loader row 为 active，才上报 `ACTIVE`。
-
-通用分发不能更新 `owndsh-plugin`、platform client、distribution 自身或它们的传递代码。企业核心升级由安装包执行，失败时可恢复整个已知版本。
-
-### 11.4 Runtime API
-
-| 方法 | 路径 | 用途 |
-|---|---|---|
-| `GET` | `/enterprise/api/v1/plugins/assignments` | 拉取当前用户有效分配；bootstrap 已包含，单独接口用于重试 |
-| `GET` | `/enterprise/api/v1/plugins/versions/{id}/download` | 认证、授权后流式下载制品，支持 Range |
-| `PUT` | `/enterprise/api/v1/plugins/inventory` | 幂等上报每个受管插件的本地状态和 Loader 状态 |
-
-下载授权必须重新解析当前 assignment，不能只凭不可猜 ID。`ABSENT`、已退休且未被当前 assignment 引用、其他用户专属版本均拒绝下载。
-
-### 11.5 管理 API
-
-| 方法 | 路径 | 用途 |
-|---|---|---|
-| `GET` | `/enterprise/admin/v1/plugins` | package 与版本 cursor 列表 |
-| `POST` | `/enterprise/admin/v1/plugins/versions` | multipart 上传 tgz 与 compatibility，package 由 package.json 确定 |
-| `POST` | `/enterprise/admin/v1/plugins/versions/{id}/actions/publish` | 发布已验证版本 |
-| `POST` | `/enterprise/admin/v1/plugins/versions/{id}/actions/retire` | 退休已发布版本 |
-| `POST` | `/enterprise/admin/v1/plugins/{packageId}/assignments/batch` | 原子替换 package 的 assignment 集合 |
-| `GET` | `/enterprise/admin/v1/plugins/inventory` | 查询设备受管插件观测状态 |
-
-上传的 multipart 字段固定为二进制 `artifact` 和 JSON `compatibility`；`Idempotency-Key` 仍要求
-UUID v4。publish/retire 和 assignment batch 使用 `If-Match` 对版本或 package revision 做 CAS。
-package/version、相同 SHA-256 的自然唯一键是上传重试的最终幂等事实，不能依赖进程内缓存。
+状态存放 `$DSH_HOME/enterprise/plugin-installations.json`，库存只报受管安装事实，不上传文件路径或命令输出。V34 清空旧上传目录/范围/库存并删除制品列，旧上传/下载/验签代码全部退役；需同步更新客户端并重新登记，历史审计保持只追加。
 
 ## 12. Session Event 同步与恢复
 
@@ -744,7 +697,7 @@ MVP 必须产生以下 action：
 | 设备 | `DEVICE_ENROLLED`、`DEVICE_HEARTBEAT`、`DEVICE_REVOKED` |
 | 模型 | `PROVIDER_CHANGED`、`MODEL_CHANGED`、`MODEL_GRANT_CHANGED`、`MODEL_REQUEST_ACCEPTED`、`MODEL_REQUEST_FINISHED` |
 | 配额 | `QUOTA_CHANGED`、`QUOTA_REJECTED`、`RESERVATION_RECOVERED` |
-| 插件 | `PLUGIN_UPLOADED`、`PLUGIN_PUBLISHED`、`PLUGIN_ASSIGNED`、`PLUGIN_DOWNLOADED`、`PLUGIN_INVENTORY_REPORTED` |
+| 插件 | `PLUGIN_REGISTERED`、`PLUGIN_PUBLISHED`、`PLUGIN_ASSIGNED`、`PLUGIN_INVENTORY_REPORTED`；历史账本保留已退役的上传/下载事件 |
 | Session | `SESSION_BATCH_APPENDED`、`SESSION_EXPORTED`、`SESSION_RESTORED`、`SESSION_CONTENT_READ`、`SESSION_DELETED`、`SESSION_EXPIRED` |
 | 管理 | `ROLE_ASSIGNED`、`USER_STATUS_CHANGED`、`CONFIG_CHANGED` |
 
@@ -780,9 +733,9 @@ MVP 必须产生以下 action：
 | `ent_usage_reservation` | `id uuid,tenant_id,user_id,device_id,model_id,idempotency_key,request_id,state,estimated_tokens,reserved_windows_json,expires_at,created_at,updated_at` | 唯一 `(user_id,idempotency_key)`；window 快照逐项含 `windowId,policyId,windowType,reservedTokens`；索引 `(state,expires_at)` 与 `request_id` |
 | `ent_usage_ledger` | `id bigint,tenant_id,reservation_id,user_id,model_id,request_id,input_tokens,output_tokens,cache_tokens,total_tokens,result,upstream_request_id,created_at` | 唯一 `reservation_id`；索引 `(user_id,created_at)`、`(model_id,created_at)`、`request_id` |
 | `ent_plugin_package` | `id,tenant_id,package_name,display_name,status,revision` | 唯一 `(tenant_id,package_name)` |
-| `ent_plugin_version` | `id,tenant_id,package_id,version,artifact_ref,size_bytes,sha256,signature,compatibility_json,status,created_by,created_at,revision` | 唯一 `(package_id,version)`；唯一 `(tenant_id,sha256)` |
+| `ent_plugin_version` | `id,tenant_id,package_id,version,installation_json,status,created_by,created_at,revision` | 唯一 `(package_id,version)`；安装配置不可变 |
 | `ent_plugin_assignment` | `id,tenant_id,package_id,plugin_version_id,subject_type,subject_id,desired_state,required,status,revision` | 外键保证 version 属于 package；非 ALL 唯一 `(package_id,subject_type,subject_id)`，ALL 使用 `subject_id is null` 的部分唯一索引保证每 package 只有一条；type 检查 `ALL/DEPT/USER` |
-| `ent_device_plugin` | `id,tenant_id,device_id,package_name,version,sha256,desired_revision,state,loader_phase,last_error_code,observed_at` | 唯一 `(device_id,package_name)`；索引 `(state,observed_at)` |
+| `ent_device_plugin` | `id,tenant_id,device_id,package_name,version,desired_revision,state,loader_phase,last_error_code,observed_at` | 唯一 `(device_id,package_name)`；索引 `(state,observed_at)` |
 | `ent_session_replica` | `id,tenant_id,session_id,owner_user_id,source_device_id,format_version,content_key_version,header_ciphertext,header_nonce,title_ciphertext,title_nonce,last_seq,event_count,rolling_hash,status,created_at,updated_at,deleted_at` | 唯一 `(tenant_id,owner_user_id,session_id)`；官方 rc.7 `format_version=0`；`last_seq >= -1`；索引 owner/status/updated 与 status/updated retention |
 | `ent_session_event` | `tenant_id,replica_id,seq,event_type,event_time,ciphertext,nonce,event_hash,created_at` | 主键 `(replica_id,seq)`；`event_hash` 保存包含当前事件后的 rolling-hash checkpoint；禁止业务 update；索引 `(replica_id,event_type)` |
 | `ent_replication_batch` | `id,tenant_id,replica_id,device_id,idempotency_key,from_seq,to_seq,payload_sha256,result_hash,created_at` | 唯一 `(tenant_id,idempotency_key)`；范围检查 |
@@ -823,7 +776,6 @@ Flyway 在已有 原始服务端框架 PostgreSQL schema 上以 version `0` 建�
 | `GET` | `/enterprise/api/v1/bootstrap` | 返回第 8 节完整快照 |
 | `GET` | `/enterprise/api/v1/usage/me` | 返回本人适用配额和窗口 |
 | `GET` | `/enterprise/api/v1/plugins/assignments` | 返回当前有效插件期望 |
-| `GET` | `/enterprise/api/v1/plugins/versions/{id}/download` | 鉴权下载制品 |
 | `PUT` | `/enterprise/api/v1/plugins/inventory` | 替换当前设备受管插件清单 |
 | `POST` | `/enterprise/api/v1/sessions/{id}/batches` | 追加连续事件批次 |
 | `GET` | `/enterprise/api/v1/sessions` | 游标分页列出本人 ACTIVE 副本 |
@@ -847,7 +799,7 @@ Flyway 在已有 原始服务端框架 PostgreSQL schema 上以 version `0` 建�
 | 授权 | `/enterprise/admin/v1/model-grants` | list/create/update/delete、默认冲突检查 |
 | 配额 | `/enterprise/admin/v1/quotas` | CRUD、窗口查询 |
 | 用量 | `/enterprise/admin/v1/usage` | ledger 聚合与 requestId 查询 |
-| 插件 | `/enterprise/admin/v1/plugins` | package、上传 version、发布、退休、分配、设备状态 |
+| 插件 | `/enterprise/admin/v1/plugins` | package、登记 version 安装配置、发布、退休、可见范围、设备状态 |
 | Session | `/enterprise/admin/v1/sessions` | metadata list、content、delete |
 | 审计 | `/enterprise/admin/v1/audit-events` | 只读筛选与 cursor 分页 |
 
@@ -920,7 +872,7 @@ T01 必须在产品仓库的独立 `plugin` workspace 构建预编译 bundle，�
 
 Client 包通过 `settings.section` 注册一个 `enterprise` 设置页，通过 `sidebar.footer.action` 注册连接状态图标，并通过 `shell.overlay` 在 `UNCONFIGURED`、未登录、登录失败、登录过期或设备撤销时全屏阻断宿主。初装只要求 Server origin，登录成功后 overlay 返回 `null` 并恢复官方 UI。组件数据全部来自插件自有同源本地 API 的脱敏调用，不把 Host `ctx` 传入 React。
 
-`plugin/packages/bundle/cordis.patch.yml` 插入 platform client、官方 LLM profile bridge、plugin distribution 和 UI Client row；覆盖默认模型，禁用 base profile 的个人 provider 与个人模型设置页，V1 不启动 Session 同步。Server 地址保存在 `$DSH_HOME/settings.yaml` 的 `owndsh.serverUrl`；bundle `baseUrl` 只作可选安装默认值。信任公钥可由私有部署安装层预置，缺失时基础登录/模型代理可用，但受管插件安装严格失败。
+`plugin/packages/bundle/cordis.patch.yml` 插入 platform client、官方 LLM profile bridge、plugin distribution 和 UI Client row；覆盖默认模型，禁用 base profile 的个人 provider 与个人模型设置页，V1 不启动 Session 同步。Server 地址保存在 `$DSH_HOME/settings.yaml` 的 `owndsh.serverUrl`；bundle `baseUrl` 只作可选安装默认值。私有包认证和依赖构建策略由宿主 pnpm 配置。
 
 ## 17. 错误与并发约定
 
@@ -959,7 +911,7 @@ Client 包通过 `settings.section` 注册一个 `enterprise` 设置页，通过
 ### 17.2 并发和幂等
 
 - 所有配置更新使用 revision CAS，管理端收到冲突后重新拉取，不自动覆盖。
-- 授权码消费、配额预留、用量结算、Session 批次和插件上传 idempotency 都由数据库或 Redis 唯一约束兜底，不能只做“先查再写”。
+- 授权码消费、配额预留、用量结算、Session 批次和插件登记 idempotency 都由数据库或 Redis 唯一约束兜底，不能只做“先查再写”。
 - Session replica 行锁只覆盖 hash 校验和批次插入，不持有到网络请求之外。
 - provider 流式 HTTP 不持有数据库事务；预留、标记 SENT 和结算分别使用短事务。
 - 相同用户的多个设备各自拥有 Sa-Token；撤销一个设备不应注销其他设备。
@@ -972,15 +924,12 @@ Client 包通过 `settings.section` 注册一个 `enterprise` 设置页，通过
 |---|---|
 | `ENT_PUBLIC_BASE_URL` | 唯一外部 HTTP(S) 根地址；管理端 PKCE 回调固定派生为其 `/enterprise/auth/callback` |
 | `ENT_MASTER_KEY_FILE` | 32 字节 master key 的 secret 文件 |
-| `ENT_PLUGIN_SIGNING_PRIVATE_KEY_FILE` | Ed25519 私钥 secret 文件 |
-| `ENT_PLUGIN_SIGNING_PUBLIC_KEY_FILE` | 对应公钥，供安装包生成 bundle 配置 |
 | `SA_TOKEN_JWT_SECRET_KEY` | 平台 Sa-Token JWT 签名密钥，不接受仓库默认值 |
 | `SPRING_DATASOURCE_*` | PostgreSQL 连接 |
 | `REDIS_*` | Redis 地址、认证和 TLS 配置 |
-| `ENT_ARTIFACT_ROOT` | 插件制品持久目录 |
 | `ENT_DEPLOYMENT_TIME_ZONE` | 日/月配额时区，初始化后冻结 |
 
-默认配置包括 Session 90 天、审计 365 天、bootstrap/heartbeat 60 秒、授权码 60 秒、登录事务 5 分钟、普通企业 JSON 2 MiB、模型请求体 10 MiB、Session batch 1 MiB、插件压缩 50 MiB 和解压 200 MiB。URL-encoded form 上限 1 MiB，multipart 单文件/总请求上限为 50/52 MiB；Server 使用 30 秒有界 graceful drain。部署可变值必须绑定到 `@ConfigurationProperties` 并在启动时校验。
+默认配置包括 Session 90 天、审计 365 天、bootstrap/heartbeat 60 秒、授权码 60 秒、登录事务 5 分钟、普通企业 JSON 2 MiB、模型请求体 10 MiB、Session batch 1 MiB。URL-encoded form 上限 1 MiB，multipart 单文件/总请求上限为 50/52 MiB；Server 使用 30 秒有界 graceful drain。部署可变值必须绑定到 `@ConfigurationProperties` 并在启动时校验。
 
 ### 18.2 Harness bundle Config
 
@@ -988,7 +937,6 @@ Client 包通过 `settings.section` 注册一个 `enterprise` 设置页，通过
 |---|---|
 | `baseUrl` | 空；可选安装默认值，员工在门禁中填写后写入官方 settings |
 | `profile` | `enterprise` |
-| `trustedPluginPublicKey` | 空；私有安装包可写入，缺失时禁用受管插件安装 |
 | `bootstrapIntervalMs` | `60000` |
 | `heartbeatIntervalMs` | `60000` |
 | `sessionSyncDebounceMs` | `2000` |
@@ -1001,14 +949,14 @@ Client 包通过 `settings.section` 注册一个 `enterprise` 设置页，通过
 ### 18.3 安全验收规则
 
 - OwnDsh Compose 只提供 HTTP；生产环境需要 TLS 时由部署方反向代理、Ingress 或负载均衡终止，并覆盖客户端伪造的 forwarding headers 后写入可信 `X-Forwarded-*`。
-- 中心平台 CORS 只允许同域管理端；登录、下载和模型接口不使用通配 origin。Harness 本地 API 只接受同源相对路径，不发送 CORS 许可头。
+- 中心平台 CORS 只允许同域管理端；登录和模型接口不使用通配 origin。Harness 本地 API 只接受同源相对路径，不发送 CORS 许可头。
 - PKCE、OIDC state/nonce、LDAP filter escape、redirect allowlist 和一次性授权码都有独立负例测试。
 - 平台 Token、密码、provider secret 和 Session plaintext 不进入日志；CI 对测试日志运行秘密模式扫描。
 - provider base URL 只由管理员配置，scheme/host/port 在保存时解析并固定；禁止请求级 URL 覆盖和重定向跟随到不同 origin。
-- 插件下载设置 `Content-Disposition`、`X-Content-Type-Options: nosniff`，服务端和客户端都校验 hash 与签名。
+- 插件安装地址只由管理员登记；客户端安装前重取可见范围并绑定版本 ID，包名和版本在宿主安装后复核；禁止修改核心包。
 - Session 正文解密只发生在 export/content API 的授权方法中，返回后不缓存到管理端浏览器持久存储。
 - 管理员权限、资源 owner、设备状态、模型 grant 和插件 assignment 每次由服务端读取当前事实；bootstrap 缓存不能授权。
-- 数据库、Redis、artifact 目录和 master/signing key 必须进入备份与恢复演练；key 文件不进入普通数据库备份。
+- 数据库、Redis 和 master key 必须进入备份与恢复演练；key 文件不进入普通数据库备份。
 - migration 不创建已知密码的默认管理员。空库首次启动要求 `ENT_BOOTSTRAP_ADMIN_USERNAME` 和 `ENT_BOOTSTRAP_ADMIN_PASSWORD_FILE`，事务创建一个本地 `enterprise_admin` 后写初始化完成标记；后续启动忽略这两个值。首次登录验证初始凭据后只签发 5 分钟一次性 Redis challenge，页面清空旧凭据，第二步以 challenge 条件改密并继续原 PKCE 事务，不提供通用密码重置旁路。
 
 T20 验收应用边界的 CORS、限流、请求体、超时、drain、日志、不可达与数据恢复，但不提前创建 T21 的部署树。HTTP Console Gateway 的 forwarding header 规范化、初始化管理员、正式备份入口和健康检查由 T21 在 Compose/Nginx/安装交付中实现；外部 TLS 不属于 OwnDsh 交付物。
@@ -1027,7 +975,7 @@ T20 验收应用边界的 CORS、限流、请求体、超时、drain、日志、
 | 模型授权 | 模型、subject 类型/名称、默认标记、状态、revision | 分配用户/部门、设默认、撤销 | `ent:grant:*` |
 | 配额 | DEFAULT/部门/用户、日/月 Token、RPM、并发、状态 | CRUD、查看当前窗口 | `ent:grant:*` |
 | 用量 | 时间、用户、部门、模型、input/output/total、结果、requestId | 筛选、查看元数据 | `ent:model:read` |
-| 插件 | package、version、hash、兼容性、发布状态、分配、设备状态 | 上传、发布、退休、分配、回滚 | `ent:plugin:*` |
+| 插件 | 包名、版本、安装目标、分类、源码、发布状态、可见范围、设备状态 | 登记、发布、退休、可见范围、版本切换 | `ent:plugin:*` |
 | Session | owner、设备、标题、format、事件数、最后同步、状态 | 查看正文、删除 | `ent:session:*` |
 | 审计 | 时间、actor、action、resource、result、reason、requestId | 筛选和查看 metadata | `ent:audit:read` |
 
@@ -1065,7 +1013,7 @@ sidebar footer 使用图标表达 `SIGNED_OUT`、`READY`、`REFRESHING`、`ERROR
 | 模型 | alias 授权、默认解析、停用 provider/model、请求级 route 伪造、secret 不出响应与日志 |
 | 配额 | DEFAULT/DEPT/USER 叠加、日/月边界、并发 50 请求、锁顺序、RPM、lease TTL、重复结算、recovery job |
 | 网关 | SSE 成功、reasoning、tool calls、usage、401/429/5xx、无 usage、断流、客户端取消、上游超时、首字节前/后错误 |
-| 插件 | tar traversal、链接、压缩炸弹、脚本、`.node`、依赖、hash、签名、重复上传、assignment 优先级、越权下载 |
+| 插件 | 安装目标边界、核心包保护、登记幂等、assignment 优先级、安装前授权、实际包名/版本/入口、普通依赖安装、重启激活 |
 | Session | 首批、连续批、重复批、gap、diverge、跨设备、并发 append、密文、正文授权、删除 tombstone、保留 |
 | 审计 | 同事务成功/回滚、敏感字段缺失、requestId 关联、保留删除 |
 
@@ -1106,7 +1054,7 @@ OpenAPI contract test 对每个 operation 至少执行一个成功和一个失�
 1. 使用初始化本地管理员登录管理端，创建一个 LDAP 或 OIDC 身份源并通过连接测试。
 2. 创建 DeepSeek provider，输入上游密钥；刷新页面后只能看到“已配置”，数据库中只有 AES-GCM 密文。
 3. 创建 alias 为 `deepseek-chat` 的模型，分配给研发部门并设为默认，设置用户日配额、RPM 和并发。
-4. 上传一个预构建测试 bundle，发布并分配给研发部门。
+4. 配置测试 bundle 安装地址，发布给指定成员，并在员工端确认安装。
 5. 研发用户启动企业 profile，系统浏览器完成 PKCE 登录；员工没有输入或取得上游模型 Key。
 6. Harness 模型列表出现 `deepseek-chat`，发送消息并收到完整流式响应和 usage。
 7. 未授权用户看不到模型；手工构造 alias 调用网关仍返回 `ENT_MODEL_NOT_ASSIGNED`。
@@ -1128,7 +1076,7 @@ OpenAPI contract test 对每个 operation 至少执行一个成功和一个失�
 | 上游密钥 | 员工设备、浏览器、Session 和日志中出现次数为 0 |
 | 模型授权 | 未授权和停用绕过成功次数为 0 |
 | 配额正确性 | 所有成功调用有唯一 reservation/ledger；并发测试无超卖和负数 |
-| 插件 | 签名失败激活次数为 0；分配后 10 分钟内可见状态 |
+| 插件 | 包身份校验失败不报告 ACTIVE；显式刷新后显示当前可见目录与库存 |
 | Session | 正常网络 RPO 不超过 60 秒；恢复事件一致率 100% |
 | 审计 | 指定动作覆盖率 100%，requestId 可关联模型调用全链路 |
 | 稳定性 | 工作日可用率不低于 99%，无数据丢失或越权读取 |
@@ -1161,14 +1109,14 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 | T10 模型网关 | T08,T09 | 实现三协议透明 upstream、授权、预留/结算、协议终态观察、错误映射和审计 | 假上游完整矩阵通过；日志无 secret/prompt；三协议首字节前后错误正确 |
 | T11 Harness 模型链路 | T06,T10 | 直接挂载官方 `dsh-llm-pi-ai`，实现动态 profile、default sentinel、本机认证代理和 bundle provider 覆盖；不自研模型 adapter | 企业 profile 无本地上游 Key 完成三协议组合对话；reasoning 映射、取消、未授权/超额/撤销均通过；核心假设验收 |
 | T12 管理控制台 | T04,T05,T08,T09,T10 | 实现管理端 PKCE 登录、权限路由、身份源、组映射、用户扩展、设备、provider、模型、授权、配额和用量页面及菜单权限 | Playwright 完成管理员登录、身份源配置、设备撤销和模型创建到员工生效；revision 冲突可恢复；无密钥回显 |
-| T13 插件服务端 | T03,T11 | 实现 tgz 流式检查、artifact store、Ed25519、version 状态、assignment 和下载授权 | 所有恶意归档、签名、重复上传、优先级和越权下载测试通过 |
-| T14 插件客户端 | T06,T13 | 实现下载、双重校验、`ctx.subprocess` argv、状态文件、重启 active、清单和回滚 | 假平台与真实 `dsh plugin` smoke 通过；失败不激活；核心 bundle 自更新被拒绝 |
-| T15 插件页面 | T13,T14 | 管理上传/发布/分配/回滚/设备状态和员工插件 tab | Playwright 与 Harness snapshot 覆盖完整闭环 |
+| T13 插件服务端 | T03,T11 | 实现安装配置登记、version 状态、assignment 和库存 | 安装目标、登记幂等、优先级、越权拒绝和迁移测试通过 |
+| T14 插件客户端 | T06,T13 | 实现固定版本授权、宿主 pnpm/`ctx.subprocess` argv、安装结果校验、状态文件、重启 active、库存和版本切换 | 假平台与真实 `dsh plugin` smoke 通过；失败不激活；核心 bundle 自更新被拒绝 |
+| T15 插件页面 | T13,T14 | 管理登记/发布/可见范围/版本切换/设备状态和员工分类插件 tab | Playwright 与 Harness snapshot 覆盖完整闭环 |
 | T16 Session 服务端 | T03,T11 | 实现 replica/batch/event、字节 hash、AES-GCM、list/export/delete、正文权限和 retention | 连续/重复/gap/diverge/跨设备/并发、密文、删除和保留测试通过 |
 | T17 Session 客户端 | T11,T16 | 实现 dirty queue、flush/readFrom、游标、重试终态、远端列表和 seed 恢复 | 本地 append 不等待网络；断点续传；新 ID 恢复；格式/hash 错误无半成品 |
 | T18 Session 页面 | T16,T17 | 管理 Session 列表/正文/删除，员工同步与恢复 tab | 正文权限 Playwright、读取审计、跨设备恢复 snapshot 和 GIF 通过 |
 | T19 审计闭环 | T05,T10,T13,T16 | 补齐所有 action、管理查询页、metadata 白名单和 retention | 第 13 节 action 覆盖测试；requestId 演示可关联；敏感模式扫描为零 |
-| T20 安全与故障 | T11,T12,T15,T18,T19 | 限流、请求体限制、超时、关闭 drain、日志扫描、备份恢复、服务不可达和磁盘故障 | 第 18.3 节应用安全负例、kill/restart、数据库/Redis/制品/key 恢复演练通过；HTTP gateway/bootstrap admin 依赖于 T21 |
+| T20 安全与故障 | T11,T12,T15,T18,T19 | 限流、请求体限制、超时、关闭 drain、日志扫描、备份恢复、服务不可达和磁盘故障 | 第 18.3 节应用安全负例、kill/restart、数据库/Redis/master key 恢复演练通过；HTTP gateway/bootstrap admin 依赖于 T21 |
 | T21 部署交付 | T20 | HTTP Compose/Nginx、初始化管理员、secret 生成、健康检查、备份/升级/回滚脚本和文档 | 全新 Linux amd64 主机按文档安装成功；回滚保留数据库和 key |
 | T22 人工功能验收 | T21 | 提供单后端、单 Harness 的本地启动入口，按第 21.1 节逐功能人工验证和优化；不维护跨模块自动总编排、假 opener、候选 fixture 或自动媒体 | 用户逐项确认 14 步真实体验；问题修复回到所属模块并运行最小相关测试；非生产 MVP 不执行镜像漏洞扫描 |
 | T23 试点 | T22 | 部署 20 用户环境、收集第 21.2 节指标，只修阻断和高频问题 | 两周数据形成明确继续/调整结论；未把远期功能塞入候选版 |
@@ -1220,7 +1168,7 @@ MVP 只有同时满足以下条件才完成：
 - 服务端对模型 alias、设备、资源 owner、插件 assignment 和 Session 正文权限逐请求裁决。
 - 上游 Key 在员工设备、浏览器、Session、日志、审计和异常中均不存在。
 - 配额并发测试无超卖、负数、双结算或永久并发占用。
-- 插件只有通过服务器验包、平台签名、客户端下载校验和重启 Loader active 后才显示成功。
+- 插件只有通过当前授权、安装结果身份核对和重启 Loader active 后才显示已启用。
 - Session 本地写入不依赖网络，正常网络 RPO 不超过 60 秒，恢复副本事件完全一致，删除 tombstone 阻止自动重传。
 - 指定审计 action 完整，requestId 能关联登录、模型 accepted/finished、用量、插件和 Session 操作。
 - 全新部署、备份恢复、版本升级和应用回滚均按交付文档演练。

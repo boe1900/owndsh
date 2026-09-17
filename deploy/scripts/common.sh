@@ -104,15 +104,10 @@ compose_file() {
 
 compose() {
   runtime=$(runtime_file)
-  plugin_signing_key=
-  if [ -f "$OWNDSH_STATE_DIR/secrets/plugin_signing_private_key" ]; then
-    plugin_signing_key=$(cat "$OWNDSH_STATE_DIR/secrets/plugin_signing_private_key")
-  fi
   ENT_POSTGRES_PASSWORD="$(cat "$OWNDSH_STATE_DIR/secrets/postgres_password")" \
   ENT_REDIS_PASSWORD="$(cat "$OWNDSH_STATE_DIR/secrets/redis_password")" \
   SA_TOKEN_JWT_SECRET_KEY="$(cat "$OWNDSH_STATE_DIR/secrets/sa_token_jwt_secret_key")" \
   ENT_MASTER_KEY="$(cat "$OWNDSH_STATE_DIR/secrets/enterprise_master_key")" \
-  ENT_PLUGIN_SIGNING_PRIVATE_KEY="$plugin_signing_key" \
     docker compose --env-file "$runtime" -f "$(compose_file)" "$@"
 }
 
@@ -156,16 +151,8 @@ volume_for() {
 }
 
 backup_key_files() {
-  if [ "$(env_value ENT_PLUGIN_SIGNING_ENABLED "$(runtime_file)")" = true ]; then
-    require_file "$OWNDSH_STATE_DIR/secrets/plugin_signing_private_key"
-  fi
   require_file "$OWNDSH_STATE_DIR/secrets/enterprise_master_key"
   printf '%s\n' enterprise_master_key
-  for signing_file in plugin_signing_private_key plugin_signing_public_key; do
-    if [ -f "$OWNDSH_STATE_DIR/secrets/$signing_file" ]; then
-      printf '%s\n' "$signing_file"
-    fi
-  done
 }
 
 key_fingerprint() {

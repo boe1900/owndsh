@@ -1,12 +1,12 @@
 /**
- * [INPUT]: 依赖已登录的锁定 Harness、管理/runtime API、标准 tar、可选插件签名根、设备与审计持久化。
- * [OUTPUT]: 提供共用 tgz/发布工具并执行 E43-E47 的插件完整生命周期、设备撤销、秘密隔离与 Session 停用验收。
+ * [INPUT]: 依赖已登录的锁定 Harness、管理/runtime API、标准 tar、设备与审计持久化。
+ * [OUTPUT]: 提供可携带普通依赖与运行探针的 tgz/发布工具，并执行 E43-E47 插件生命周期、卸载库存清除、设备撤销、秘密隔离与 Session 停用验收。
  * [POS]: scripts 的 V1 运行时发布场景模块；只编排真实产品入口，不复制插件或鉴权实现。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { execFileSync } from 'node:child_process';
-import { mkdir, readFile, readdir, symlink, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -20,7 +20,6 @@ import {
 } from './v1-e2e-support.mjs';
 
 const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const HARNESS_COMMIT = 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e';
 const ADMIN_USERNAME = process.env.OWNDSH_E2E_ADMIN_USERNAME ?? 'candidate.admin';
 const ADMIN_PASSWORD = process.env.OWNDSH_E2E_ADMIN_PASSWORD;
 
@@ -50,16 +49,8 @@ async function json(url) {
   return JSON.parse(text).data;
 }
 
-function compatibility(commit = HARNESS_COMMIT) {
-  return {
-    harnessCommits: [commit],
-    enterpriseBundleRange: '>=0.1.0 <0.2.0',
-    operatingSystems: ['darwin', 'linux', 'win32'],
-  };
-}
-
-async function artifact(root, packageName, version, variant = 'valid') {
-  const fixtureRoot = resolve(root, `${version}-${variant}`);
+async function artifact(root, packageName, version, { dependencies, source } = {}) {
+  const fixtureRoot = resolve(root, version);
   const packageRoot = resolve(fixtureRoot, 'package');
   await mkdir(packageRoot, { recursive: true });
   const manifest = {
@@ -68,11 +59,11 @@ async function artifact(root, packageName, version, variant = 'valid') {
     displayName: `V1 E2E Plugin ${version}`,
     type: 'module',
     main: 'index.js',
-    dsh: { bundle: { patch: variant === 'path' ? '../outside.yml' : './cordis.patch.yml' } },
-    ...(variant === 'oversized' ? { padding: 'x'.repeat(1_048_576) } : {}),
+    ...(dependencies === undefined ? {} : { dependencies }),
+    dsh: { bundle: { patch: './cordis.patch.yml' } },
   };
   await writeFile(resolve(packageRoot, 'package.json'), JSON.stringify(manifest));
-  await writeFile(resolve(packageRoot, 'index.js'), [
+  await writeFile(resolve(packageRoot, 'index.js'), source ?? [
     `export const name = ${JSON.stringify(packageName)}`,
     'export function apply() {}',
     '',
@@ -83,25 +74,18 @@ async function artifact(root, packageName, version, variant = 'valid') {
     `      name: ${JSON.stringify(packageName)}`,
     '',
   ].join('\n'));
-  if (variant === 'link') await symlink('index.js', resolve(packageRoot, 'linked.js'));
-  if (variant === 'native') await writeFile(resolve(packageRoot, 'addon.node'), 'not-native-code');
-  const archive = resolve(root, `${version}-${variant}.tgz`);
+  const archive = resolve(root, `${version}.tgz`);
   execFileSync('tar', ['-czf', archive, '-C', fixtureRoot, 'package']);
-  return { bytes: await readFile(archive) };
+  return { packageName, version, path: archive };
 }
 
-function multipart(pluginArtifact, pluginCompatibility = compatibility()) {
-  const form = new FormData();
-  form.append('artifact', new Blob([pluginArtifact.bytes], { type: 'application/gzip' }), 'plugin.tgz');
-  form.append('compatibility', new Blob([JSON.stringify(pluginCompatibility)], { type: 'application/json' }));
-  return form;
-}
-
-async function upload(admin, pluginArtifact, pluginCompatibility = compatibility()) {
+async function register(admin, pluginArtifact) {
   return admin.request('/enterprise/admin/v1/plugins/versions', {
-    method: 'POST',
-    headers: { 'idempotency-key': randomUUID() },
-    body: multipart(pluginArtifact, pluginCompatibility),
+    method: 'POST', body: {
+      packageName: pluginArtifact.packageName, version: pluginArtifact.version,
+      installation: { spec: pluginArtifact.path, displayName: 'E2E Plugin', description: 'Host pnpm fixture',
+        author: 'OwnDsh', repositoryUrl: '', categories: ['开发'] },
+    },
   });
 }
 
@@ -129,7 +113,6 @@ async function replaceAssignments(admin, plugin, version, items) {
 }
 
 export async function runReleaseScenarios({
-  signingEnabled,
   acceptance,
   admin,
   prefix,
@@ -147,19 +130,12 @@ export async function runReleaseScenarios({
   let pluginV1;
   let pluginV2;
 
-  await acceptance.check('E43', 'unsafe plugins are rejected while a validated package supports ALL and USER assignment', async () => {
+  await acceptance.check('E43', 'configured package supports ALL and USER visibility', async () => {
     await mkdir(pluginFixtures, { recursive: true });
-    for (const variant of ['path', 'link', 'native', 'oversized']) {
-      const rejected = await upload(
-        admin, await artifact(pluginFixtures, `${packageName}-${variant}`, '1.0.0', variant),
-      );
-      assert.ok([400, 413].includes(rejected.response.status), `${variant}=${rejected.response.status}`);
-    }
     const valid = await artifact(pluginFixtures, packageName, '1.0.0');
-    assert.equal((await upload(admin, valid, compatibility('f'.repeat(40)))).response.status, 400);
-    const uploaded = await upload(admin, valid);
-    assert.equal(uploaded.response.status, 201, uploaded.text);
-    pluginV1 = data(uploaded);
+    const registered = await register(admin, valid);
+    assert.equal(registered.response.status, 201, registered.text);
+    pluginV1 = data(registered);
     state.pluginVersions.push(pluginV1.id);
     pluginV1 = data(await admin.expect(`/enterprise/admin/v1/plugins/versions/${pluginV1.id}/actions/publish`, {
       method: 'POST', headers: { 'if-match': String(pluginV1.revision) },
@@ -174,9 +150,9 @@ export async function runReleaseScenarios({
     managedPlugin = await findPackage(admin, packageName);
     assert.equal(managedPlugin.assignments.length, 2);
     assert.equal(pluginV1.status, 'PUBLISHED');
-    assert.equal(pluginV1.signatureBase64.length, signingEnabled ? 88 : 0);
+    assert.equal(pluginV1.installation.spec, valid.path);
     assert.doesNotMatch(JSON.stringify(managedPlugin), /artifactRef|privateKey|signing/i);
-    return `four unsafe archives and incompatible commit rejected; package=${managedPlugin.id}; assignments=ALL+USER`;
+    return `package target registered; package=${managedPlugin.id}; assignments=ALL+USER`;
   });
 
   const pluginStatus = () => json(`${harness.url()}/enterprise/api/v1/local/plugins`);
@@ -187,14 +163,26 @@ export async function runReleaseScenarios({
     return plugin?.state === stateName ? plugin : undefined;
   }, `${packageName}@${version} did not reach ${stateName}`);
 
+  const localAction = async (path, body = {}) => {
+    const response = await fetch(`${harness.url()}/enterprise/api/v1/local/${path}`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+    });
+    assert.equal(response.status, 200, await response.text());
+  };
+  const install = async version => {
+    await localAction('refresh');
+    await localAction('plugins/install', { packageName, pluginVersionId: version.id });
+  };
+
   await acceptance.check('E44', 'official Harness CLI installs, upgrades, rolls back and removes the managed plugin', async () => {
+    await install(pluginV1);
     await waitForPlugin('1.0.0', 'RESTART_REQUIRED');
     await harness.restart();
     await waitForPlugin('1.0.0', 'ACTIVE');
 
-    const uploaded = await upload(admin, await artifact(pluginFixtures, packageName, '1.1.0'));
-    assert.equal(uploaded.response.status, 201, uploaded.text);
-    pluginV2 = data(uploaded);
+    const registered = await register(admin, await artifact(pluginFixtures, packageName, '1.1.0'));
+    assert.equal(registered.response.status, 201, registered.text);
+    pluginV2 = data(registered);
     state.pluginVersions.push(pluginV2.id);
     pluginV2 = data(await admin.expect(`/enterprise/admin/v1/plugins/versions/${pluginV2.id}/actions/publish`, {
       method: 'POST', headers: { 'if-match': String(pluginV2.revision) },
@@ -204,6 +192,7 @@ export async function runReleaseScenarios({
       { subjectType: 'ALL', desiredState: 'INSTALLED' },
     ]);
     state.pluginAssignments.push(...assigned.map(value => value.id));
+    await install(pluginV2);
     await waitForPlugin('1.1.0', 'RESTART_REQUIRED');
     await harness.restart();
     await waitForPlugin('1.1.0', 'ACTIVE');
@@ -213,6 +202,7 @@ export async function runReleaseScenarios({
       { subjectType: 'ALL', desiredState: 'INSTALLED' },
     ]);
     state.pluginAssignments.push(...assigned.map(value => value.id));
+    await install(pluginV1);
     await waitForPlugin('1.0.0', 'RESTART_REQUIRED');
     await harness.restart();
     await waitForPlugin('1.0.0', 'ACTIVE');
@@ -222,12 +212,13 @@ export async function runReleaseScenarios({
       { subjectType: 'ALL', desiredState: 'ABSENT' },
     ]);
     state.pluginAssignments.push(...assigned.map(value => value.id));
+    await localAction('refresh');
     await waitForPlugin('1.0.0', 'RESTART_REQUIRED');
     await harness.restart();
     await waitFor(async () => (await pluginStatus()).plugins.every(value => value.packageName !== packageName),
       `${packageName} remained after restart`);
     const inventory = data(await admin.expect('/enterprise/admin/v1/plugins/inventory?limit=200')).items;
-    assert.ok(inventory.some(value => value.packageName === packageName));
+    assert.equal(inventory.some(value => value.packageName === packageName), false);
     return '1.0 install -> 1.1 upgrade -> 1.0 rollback -> ABSENT; every transition confirmed after restart';
   });
 
@@ -266,7 +257,7 @@ export async function runReleaseScenarios({
         headers: { 'idempotency-key': randomUUID() },
         body: { model: modelAndQuota.modelAliases.responses, input: 'revoked device', stream: true },
       }],
-      [`/enterprise/api/v1/plugins/versions/${pluginV1.id}/download`, {}],
+      ['/enterprise/api/v1/plugins/assignments', {}],
     ]) {
       const denied = await revokedRuntime.session.request(path, options);
       assert.ok([401, 403].includes(denied.response.status), `${path}=${denied.response.status}`);
@@ -329,11 +320,11 @@ export async function runReleaseScenarios({
     const bundleSource = await readFile(resolve(PROJECT_ROOT, 'plugin/packages/bundle/lib/index.js'), 'utf8');
     assert.doesNotMatch(bundleSource, /enterpriseSessionSync/);
     const localFiles = await readdir(resolve(temporaryHome, 'enterprise'));
-    assert.deepEqual(localFiles.sort(), ['artifacts', 'device.json', 'managed-plugins.json']);
+    assert.deepEqual(localFiles.sort(), ['device.json', 'plugin-installations.json']);
     return 'bootstrap=false; no Session gateway access; no replica; no Session service; only controlled local files';
   });
 
   return { packageId: managedPlugin.id, versionIds: [pluginV1.id, pluginV2.id] };
 }
 
-export { artifact, compatibility, findPackage, replaceAssignments, upload };
+export { artifact, findPackage, replaceAssignments, register };

@@ -1,4 +1,4 @@
-# [INPUT]: 依赖环境变量提供的 PostgreSQL、Redis、JWT、enterprise 公网 URI 与 master key、默认关闭的插件签名与可选 signing key
+# [INPUT]: 依赖环境变量提供的 PostgreSQL、Redis、JWT、enterprise 公网 URI 与 master key
 # [OUTPUT]: 提供 OwnDsh 唯一应用配置、数据库迁移、公开认证白名单、模型原生 JSON 的 XSS 排除、健康检查、PostgreSQL 参数类型推断与 enterprise 强类型装配
 # [POS]: owndsh-server 的单一启动真源；开发、容器与生产使用相同配置结构，仅由环境变量覆盖运行值
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -56,10 +56,6 @@ enterprise:
   public-base-url: ${ENT_PUBLIC_BASE_URL:}
   crypto:
     master-key: ${ENT_MASTER_KEY:}
-  plugin:
-    artifact-root: ${ENT_ARTIFACT_ROOT:./data/enterprise/artifacts}
-    signing-enabled: ${ENT_PLUGIN_SIGNING_ENABLED:false}
-    signing-private-key: ${ENT_PLUGIN_SIGNING_PRIVATE_KEY:}
   deployment:
     bootstrap:
       username: ${ENT_BOOTSTRAP_ADMIN_USERNAME:}

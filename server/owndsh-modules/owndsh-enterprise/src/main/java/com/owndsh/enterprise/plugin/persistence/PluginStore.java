@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 接收 tenant、catalog/version CAS、完整 assignment 集合和 ACTIVE 设备 inventory 事实。
  * [OUTPUT]: 提供自然键幂等、USER→DEPT→ALL 生效查询、主体存在性和 inventory replace 端口。
- * [POS]: plugin application 的 PostgreSQL DIP 边界，隐藏 JSONB/bytea/窗口函数和 SQL 锁细节。
+ * [POS]: plugin application 的 PostgreSQL DIP 边界，隐藏 JSONB/窗口函数和 SQL 锁细节。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.plugin.persistence;
@@ -31,8 +31,7 @@ public interface PluginStore {
     Optional<PluginVersion> findExistingVersion(
         String tenantId,
         String packageName,
-        String version,
-        String sha256
+        String version
     );
 
     Optional<PluginVersion> findVersion(String tenantId, long versionId);

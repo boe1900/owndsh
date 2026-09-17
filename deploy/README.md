@@ -11,11 +11,9 @@
 
 两种方式共用同一生产 Compose 拓扑。对外只有 Console 的 HTTP `8080`；Server、PostgreSQL 和 Redis 没有宿主端口。Console 与管理 API 同域。OwnDsh 不管理证书或终止 TLS；需要 HTTPS 时，由部署方现有的 Nginx、Ingress、负载均衡或零信任网关代理到该 HTTP 入口。
 
-插件签名默认关闭，Compose 无需 `ENT_PLUGIN_SIGNING_PRIVATE_KEY`。显式开启时设置 `ENT_PLUGIN_SIGNING_ENABLED=true`、有效的 Ed25519 PKCS#8 私钥，并给客户端安装配置提供对应公钥与 `verifyPluginSignatures: true`。已有离线部署要继续签名，需在 `runtime.env` 显式设置 `ENT_PLUGIN_SIGNING_ENABLED=true`；原有密钥仍保留并随独立 key 归档备份。
 
 LDAP 传输由身份源 URL 控制：目录只提供明文时填写 `ldap://...`，TLS 目录填写 `ldaps://...`。
 
-升级应先更新员工 `owndsh-plugin` 再上传无签名插件：旧客户端不接受空签名。开关只影响新上传版本；已上传版本不会补签或清除签名，关闭后新增的无签名版本也不能由旧版服务端读取，回滚前需确认目标版本支持空签名。
 
 ## 交付包
 
@@ -84,7 +82,6 @@ install -m 600 /approved/cordis.patch.yml "$DSH_HOME/profiles/enterprise/cordis.
 dsh --profile enterprise --dump-config
 ```
 
-默认关闭服务端签名与客户端验签，不生成公私钥；profile overlay 只包含 `baseUrl` 和关闭的技术刺探开关。需要启用时，安装命令追加 `--enable-plugin-signing`，安装器才会生成 Ed25519 密钥对、设置 `ENT_PLUGIN_SIGNING_ENABLED=true`，并在 overlay 写入 `verifyPluginSignatures: true` 与公钥。不要把 signing 私钥、master key 或平台 Token复制到员工设备。
 
 ## 备份与恢复
 
@@ -97,9 +94,9 @@ dsh --profile enterprise --dump-config
   --key-output /key-custody/enterprise-keys
 ```
 
-数据归档包含 PostgreSQL custom dump、Redis RDB、artifact tar 和非 secret runtime 元数据。key 归档包含 master key 和存在的 signing key，默认无签名文件也能备份/恢复，绝不进入普通数据库或 artifact 备份。master key 丢失后 provider secret 与 Session 正文不可恢复；signing key 丢失后不能延续既有插件信任根。
+数据归档包含 PostgreSQL custom dump、Redis RDB 和非 secret runtime 元数据。key 归档仅包含 master key，独立于数据备份；丢失后 provider secret 与 Session 正文不可恢复。
 
-恢复会短暂停止 Console、Server 和 Redis，并覆盖目标安装中的数据库、Redis、artifact 与关键 key。恢复脚本先校验 Redis RDB，再由隔离的 Redis 进程加载 RDB 并生成 AOF，避免开启 AOF 的常规进程忽略独立 RDB：
+恢复会短暂停止 Console、Server 和 Redis，并覆盖目标安装中的数据库、Redis 与 master key。恢复脚本先校验 Redis RDB，再由隔离的 Redis 进程加载 RDB 并生成 AOF，避免开启 AOF 的常规进程忽略独立 RDB：
 
 ```sh
 ./scripts/restore.sh \
@@ -126,7 +123,7 @@ dsh --profile enterprise --dump-config
 ./scripts/rollback.sh --state-dir /opt/owndsh
 ```
 
-回滚不会执行 migration undo，不恢复数据库、不替换 key，也不改变 PostgreSQL、Redis 或 artifact 卷；恢复旧 release 指针后可再次执行同一新版的 `upgrade.sh`。发布前必须确认旧应用可读取前向迁移后的 schema；不兼容时只能修复前进或按独立灾难恢复流程处理，不能把应用回滚伪装成数据库回滚。
+回滚不会执行 migration undo，不恢复数据库、不替换 key，也不改变 PostgreSQL 或 Redis 卷；恢复旧 release 指针后可再次执行同一新版的 `upgrade.sh`。发布前必须确认旧应用可读取前向迁移后的 schema；不兼容时只能修复前进或按独立灾难恢复流程处理，不能把应用回滚伪装成数据库回滚。
 
 ## 日常检查
 
@@ -139,10 +136,10 @@ curl --fail http://agent.internal:8080/healthz
 
 Server 应用日志只写 stdout，JVM 标准错误保留在 stderr，由 Docker/K8s 和日志平台负责采集、轮转与保留。应用不再创建 `/app/logs`、文件日志或 Actuator logfile 端点；Compose 不再声明或挂载 `server_logs`。使用 `docker compose logs -f server` 或 `kubectl logs -f <pod> -c <server-container>` 查看日志。
 
-已有部署需先构建并更新 Server 镜像，再移除 K8s 的日志 `volumeMounts`、专用 `volumes` 和对应权限初始化路径。旧镜像仍依赖文件日志；历史日志卷保留，按既有保留策略另行清理。`storage-init` 继续初始化 `artifacts` 插件卷权限。
+已有部署需先构建并更新 Server 镜像，再移除 K8s 的日志 `volumeMounts`、专用 `volumes` 和对应权限初始化路径。旧镜像仍依赖文件日志；历史日志卷保留，按既有保留策略另行清理。插件采用安装地址配置，无插件文件卷或 storage-init 服务。
 
 手工 JAR 部署时，`server/script/bin/owndsh.sh start` / `restart` 改为前台运行并输出日志，长期后台运行交给 systemd 等进程管理器；Windows 脚本使用独立 Java 控制台窗口显示日志。
 
-Actuator 只暴露不含详情的 health。不要运行 `docker compose down -v`；这会删除 PostgreSQL、Redis 和 artifact 数据卷。
+Actuator 只暴露不含详情的 health。不要运行 `docker compose down -v`；这会删除 PostgreSQL 和 Redis 数据卷。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

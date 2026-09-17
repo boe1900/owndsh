@@ -1,11 +1,12 @@
 /**
  * [INPUT]: 依赖同级锁定 Harness built dsh、Corepack pnpm 与两个预构建测试 bundle tgz
- * [OUTPUT]: 验证 enterprise profile 的 add --save-exact、旧版本回滚、remove、bundle reconcile 与上游清洁度
+ * [OUTPUT]: 验证 enterprise profile 的 add --save-exact、普通运行依赖自动解析、旧版本回滚、remove、bundle reconcile 与上游清洁度
  * [POS]: plugin T14 真实 CLI 验收器，只操作带空格的临时制品路径和临时 DSH_HOME
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import assert from 'node:assert/strict'
+import { createRequire } from 'node:module'
 import { spawn } from 'node:child_process'
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -57,12 +58,15 @@ async function pack(version) {
     name: packageName,
     version,
     type: 'module',
+    dependencies: { semver: '7.8.4' },
     main: 'index.js',
     files: ['index.js', 'cordis.patch.yml'],
     dsh: { bundle: { patch: './cordis.patch.yml' } },
   }, null, 2))
   await writeFile(resolve(source, 'index.js'), [
     `export const version = ${JSON.stringify(version)}`,
+    "import semver from 'semver'",
+    'export const dependencyWorks = semver.valid(version) === version',
     'export function apply() {}',
     '',
   ].join('\n'))
@@ -100,13 +104,15 @@ try {
     resolve(profileDir, 'node_modules', '@example', 'enterprise-managed-smoke', 'package.json'), 'utf8',
   ).then(JSON.parse)
 
-  await plugin('add', '--ignore-scripts', '--save-exact', v2)
+  await plugin('add', '--save-exact', `${packageName}@file:${v2}`)
   assert.equal((await installedManifest()).version, '2.0.0')
+  const pluginRequire = createRequire(resolve(profileDir, 'node_modules', packageName, 'package.json'))
+  assert.equal(pluginRequire('semver').valid('2.0.0'), '2.0.0')
   let profile = JSON.parse(await readFile(resolve(profileDir, 'package.json'), 'utf8'))
   assert.ok(profile.dsh.profile.bundles.includes(packageName))
   assert.ok(profile.dependencies[packageName].includes('enterprise-managed-smoke-2.0.0.tgz'))
 
-  await plugin('add', '--ignore-scripts', '--save-exact', v1)
+  await plugin('add', '--save-exact', `${packageName}@file:${v1}`)
   assert.equal((await installedManifest()).version, '1.0.0')
   profile = JSON.parse(await readFile(resolve(profileDir, 'package.json'), 'utf8'))
   assert.ok(profile.dependencies[packageName].includes('enterprise-managed-smoke-1.0.0.tgz'))
@@ -122,6 +128,7 @@ try {
   process.stdout.write(`${JSON.stringify({
     artifactPathWithSpaces: 'passed',
     exactAdd: '2.0.0',
+    runtimeDependency: 'semver@7.8.4',
     harnessCommit: head,
     profile: 'enterprise',
     remove: 'passed',

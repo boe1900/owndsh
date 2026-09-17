@@ -4,13 +4,13 @@
 
 成员清单
 
-pom.xml: 企业治理 Maven 边界，运行时依赖 Spring JDBC/Redis、Jackson、Flyway/PostgreSQL、Commons Compress 与 RFC 8785 JCS，测试使用真实 PostgreSQL/Redis/OpenLDAP Testcontainers。
+pom.xml: 企业治理 Maven 边界，使用 JDBC/Redis、Jackson、Flyway/PostgreSQL 与 MCP 摘要所需 JCS，测试使用 Testcontainers。
 README.md: 模块职责、身份/PKCE/设备/模型/配额/插件边界、部署前置条件和可重复测试入口。
 src/main/java/com/owndsh/enterprise/auth/: OIDC/LDAP/LOCAL、LDAP 目录按需发现/导入、扁平产品用户组、PKCE 与固定 public client Access/Refresh Session 纵向模块；局部地图见 auth/CLAUDE.md。
 src/main/java/com/owndsh/enterprise/device/: Token terminal 授权的 enroll/heartbeat/ACTIVE/revoke 设备纵向模块；局部地图见 device/CLAUDE.md。
 src/main/java/com/owndsh/enterprise/model/: provider/model/model set/grant 管理、AES-GCM 密钥生命周期、集合授权展开、有效默认解析、runtime bootstrap 与模型网关纵向模块；局部地图见 model/CLAUDE.md。
 src/main/java/com/owndsh/enterprise/quota/: TOKEN/RATE 互斥的组织/成员与多模型范围策略、组织级供应商速率上限、四类 Token 窗口、PostgreSQL 预留、Redis lease、结算恢复与用量查询纵向模块；局部地图见 quota/CLAUDE.md。
-src/main/java/com/owndsh/enterprise/plugin/: tgz 流式验包、JCS/Ed25519、CAS 制品、version/assignment、下载授权与设备库存纵向模块；局部地图见 plugin/CLAUDE.md。
+src/main/java/com/owndsh/enterprise/plugin/: 安装配置登记、版本发布/可见范围、安装前授权和设备库存；宿主 pnpm 负责包获取与依赖；局部地图见 plugin/CLAUDE.md。
 src/main/java/com/owndsh/enterprise/mcp/: MCP server 公共配置、用户/组授权、工具目录与 runtime assignment 纵向模块；局部地图见 mcp/CLAUDE.md。
 src/main/java/com/owndsh/enterprise/session/: 精确 JSONL/hash、AES-GCM 远端副本、本人/管理读取、tombstone 与 retention 纵向模块；局部地图见 session/CLAUDE.md。
 src/main/java/com/owndsh/enterprise/common/: 企业 HTTP envelope、40 个稳定错误映射、requestId/metadata、认证 cursor、有界 JSON 请求与故障日志隔离公共边界；局部地图见 common/CLAUDE.md。

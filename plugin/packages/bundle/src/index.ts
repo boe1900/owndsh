@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Cordis/Schemastery、Harness credentials/LLM/subprocess/inventory、官方运行时身份、企业业务模块与 mcp-runtime 组合入口
- * [OUTPUT]: 对外提供 Web/Desktop 共用 bundle apply、默认关闭的插件验签开关、Host 凭据持久化与企业插件安装/卸载组合；由 mcp-runtime 管理 MCP 子 fiber 生命周期
+ * [OUTPUT]: 对外提供 Web/Desktop 共用 bundle apply、显式插件重启、Host 凭据持久化与企业插件安装/卸载组合；由 mcp-runtime 管理 MCP 子 fiber 生命周期
  * [POS]: bundle 的唯一 Host Loader 入口，组合平台认证、官方企业模型与环境原生插件调和；MCP 连接由独立 Cordis fiber 隔离并可撤销
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -26,21 +26,12 @@ import type { ToolRuntime } from '@deepseek-ai/dsh-tools'
 export const name = 'owndsh'
 export const inject = ['webServer', 'credentials', 'llm', 'subprocess', 'pluginInventory', 'tools']
 
-const VERIFIED_HARNESS_COMMITS: Readonly<Record<string, string>> = {
-  '0.1.1-rc.2': 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e',
-  '0.1.2-rc.1': 'a66e4702047846cdaa10c66c9d3df3951f5ea70d',
-  '0.1.5-rc.2': 'fb2c4b9e698e30edb738bca4cf0618587db7d203',
-}
 const HARNESS_VERSION = APP_IDENTITY.version
 const { version: BUNDLE_VERSION } = createRequire(import.meta.url)('../package.json') as { version: string }
 
 export interface Config {
   /** 可选安装默认值；用户可在欢迎页写入 Harness 官方 settings。 */
   readonly baseUrl?: string
-  /** 默认关闭；开启后使用安装配置的公钥验证企业插件签名。 */
-  readonly verifyPluginSignatures?: boolean
-  /** 仅开启验签时读取的 Ed25519 SPKI PEM 或 DER Base64；bootstrap 无权替换。 */
-  readonly trustedPluginPublicKey?: string
   readonly requestTimeoutMs: number
   readonly disposeTimeoutMs: number
   readonly profile: string
@@ -49,8 +40,6 @@ export interface Config {
 
 export const Config: z<Config> = z.object({
   baseUrl: z.string().default(''),
-  verifyPluginSignatures: z.boolean().default(false),
-  trustedPluginPublicKey: z.string().default(''),
   requestTimeoutMs: z.number().step(1).min(1).default(30_000),
   disposeTimeoutMs: z.number().step(1).min(1).default(3_000),
   profile: z.string().default('web'),
@@ -110,7 +99,19 @@ export function apply(ctx: EnterpriseHostContext, config: Config): void {
     requestTimeoutMs: config.requestTimeoutMs,
     disposeTimeoutMs: config.disposeTimeoutMs,
   }, {
-    pluginStatus: () => pluginDistribution?.status() ?? { assignmentRevision: 0, plugins: [] },
+    pluginStatus: () => ({
+      ...(pluginDistribution?.status() ?? { assignmentRevision: 0, plugins: [] }),
+      canRestart: ctx.get('desktopActions') !== undefined,
+    }),
+    restartPlugins: async () => {
+      await pluginDistribution?.settled()
+      const actions = ctx.get('desktopActions') as DesktopActionsPort | undefined
+      if (actions === undefined || !['READY', 'REFRESHING'].includes(platform.status().state)
+        || !pluginDistribution?.status().plugins.some(item => item.state === 'RESTART_REQUIRED')) {
+        throw new Error('plugin restart is unavailable')
+      }
+      return { restart: () => { void actions.requestRestart().catch(() => ctx.logger.error('owndsh: plugin restart failed')) } }
+    },
     pluginAction: async (action, packageName, pluginVersionId) => {
       if (pluginDistribution === undefined) throw new Error('OwnDsh plugin distribution is unavailable')
       if (action === 'install') await pluginDistribution.install(packageName, pluginVersionId!)
@@ -141,14 +142,6 @@ export function apply(ctx: EnterpriseHostContext, config: Config): void {
     commandPort?: DshPluginCommandPort,
   ): void => {
     pluginDistribution = new EnterprisePluginDistributionService(distributionContext, {
-      verifyPluginSignatures: config.verifyPluginSignatures ?? false,
-      ...(config.trustedPluginPublicKey === undefined ? {} : {
-        trustedPluginPublicKey: config.trustedPluginPublicKey,
-      }),
-      ...(VERIFIED_HARNESS_COMMITS[HARNESS_VERSION] === undefined ? {} : {
-        harnessCommit: VERIFIED_HARNESS_COMMITS[HARNESS_VERSION],
-      }),
-      bundleVersion: BUNDLE_VERSION,
       profile,
       dshCommand: config.dshCommand,
       subprocessGraceMs: config.disposeTimeoutMs,

@@ -64,7 +64,7 @@ type McpCredentialPayload = {
 这是当前 `McpCredentialManager` 的持久记录；accessToken/expiresAt 不入记录。预注册 OAuth 的 clientId 来自受绑定的公共 assignment；动态注册返回的 public clientId 与 refresh token 同一条记录原子保存，供重启后的 refresh 使用。issuer/resource/scopes 仍来自公共 assignment，discovery 元数据不持久化。旧版只按 serverName 保存且包含 accessToken 的 grant 不读取、不迁移；无法证明所属身份，升级后需用户重新连接。新记录保持在独立 `owndsh-mcp/` 命名空间。
 
 实际实现用 discriminated union，拒绝分支混用和未知字段。bindingDigest 是 URL/auth/公共 headers/transport 的稳定摘要；所有可能改变秘密发送目标的配置变化都使旧记录失效。
-摘要复用现有 `canonicalizeJson`，对象键顺序不影响绑定；auth 的 issuer/resource/clientId/scopes/endpoints 全部参与摘要。不会对新 URL 尝试旧 Key，不仅按 serverName 存秘密。显示名/呈现/超时/reconnect/revision 变化不丢 OAuth。
+摘要使用 bundle `mcp-oauth.ts` 内部的 `canonicalizeJson`，对象键顺序不影响绑定；auth 的 issuer/resource/clientId/scopes/endpoints 全部参与摘要。不会对新 URL 尝试旧 Key，不仅按 serverName 存秘密。显示名/呈现/超时/reconnect/revision 变化不丢 OAuth。
 
 OAuth accessToken、expiresAt（可未知）、state/verifier、授权 code 只在内存。当前 discovery 结果也只在本次授权/调和调用内存，不持久化 provider metadata。
 refresh token 在 `credentials.modifyRecord` 独占回调内读取、请求和轮换；刷新未返回新 refresh_token 则保留旧值。新的浏览器授权没有 refresh_token 时不能继承上次授权的 refresh token。官方 modifyRecord 返回 undefined 表示“不改动”，因此 `invalid_grant` 或新授权无 refresh token 时写 `{kind:grant,payload:null}` 原子清除旧秘密；该空记录不视为已配置。

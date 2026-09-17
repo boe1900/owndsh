@@ -115,7 +115,7 @@ importers:
     devDependencies:
       '@deepseek-ai/dsh-llm-pi-ai':
         specifier: 0.1.5-rc.2
-        version: 0.1.5-rc.2(b4f7bb9e03aa0ac09345989f4c56153b)
+        version: 0.1.5-rc.2(80e7aa580019c8c406a5f76cbd9d60a7)
 
   packages/platform-client:
     dependencies:
@@ -150,9 +150,6 @@ importers:
       '@owndsh/platform-client':
         specifier: workspace:*
         version: link:../platform-client
-      semver:
-        specifier: 7.8.4
-        version: 7.8.4
     devDependencies:
       '@deepseek-ai/dsh-host-plugin-inventory':
         specifier: 0.1.5-rc.2
@@ -160,15 +157,18 @@ importers:
       '@deepseek-ai/dsh-subprocess':
         specifier: 0.1.5-rc.2
         version: 0.1.5-rc.2(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-http-proxy@0.1.5-rc.2(@deepseek-ai/cordis@4.0.1))
-      '@types/semver':
-        specifier: 7.7.1
-        version: 7.7.1
 
   packages/ui:
     dependencies:
+      '@owndsh/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       react:
         specifier: ^18.2.0
         version: 18.3.1
+      semver:
+        specifier: 7.8.4
+        version: 7.8.4
     devDependencies:
       '@deepseek-ai/dsh-client-ui-primitives':
         specifier: 0.1.5-rc.2
@@ -176,6 +176,9 @@ importers:
       '@types/mdast':
         specifier: 4.0.4
         version: 4.0.4
+      '@types/semver':
+        specifier: 7.7.1
+        version: 7.7.1
 
 packages:
 
@@ -2288,7 +2291,7 @@ snapshots:
       '@deepseek-ai/cordis': 4.0.1(@deepseek-ai/cordis-plugin-loader@1.0.3)
       '@deepseek-ai/dsh-invariants': 0.1.1-rc.2(@deepseek-ai/cordis@4.0.1)
 
-  '@deepseek-ai/dsh-llm-pi-ai@0.1.5-rc.2(b4f7bb9e03aa0ac09345989f4c56153b)':
+  '@deepseek-ai/dsh-llm-pi-ai@0.1.5-rc.2(80e7aa580019c8c406a5f76cbd9d60a7)':
     dependencies:
       '@deepseek-ai/cordis': 4.0.1(@deepseek-ai/cordis-plugin-loader@1.0.3)
       '@deepseek-ai/dsh-attachment': 0.1.1-rc.2(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-brand@0.1.5-rc.2(@deepseek-ai/cordis@4.0.1))(@deepseek-ai/dsh-invariants@0.1.1-rc.2(@deepseek-ai/cordis@4.0.1))

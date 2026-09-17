@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖当前企业 bundle tgz、显式开启的验签、同级锁定 Harness、Corepack pnpm 与 Node 回环签名假平台
+ * [INPUT]: 依赖当前企业 bundle tgz、锁定 Harness built CLI、Corepack pnpm 与 Node 回环安装配置假平台
  * [OUTPUT]: 启动可重启、可收口的真实 Harness Web profile，目录供用户显式安装并验证 RESTART_REQUIRED/ACTIVE
  * [POS]: T15 无密钥浏览器组合载体，只写临时 DSH_HOME 并以真实 CLI/Loader 证明插件状态迁移
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -7,13 +7,12 @@
 
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
-import { createHash, generateKeyPairSync, sign } from 'node:crypto'
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, resolve } from 'node:path'
 import process from 'node:process'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { fileURLToPath } from 'node:url'
 
 const WORKSPACE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const PROJECT_ROOT = resolve(WORKSPACE_ROOT, '..')
@@ -30,6 +29,7 @@ function option(name, fallback) {
 
 const tgz = resolve(option('--tgz', resolve(PROJECT_ROOT, 'artifacts', 'owndsh-plugin-0.1.0.tgz')))
 const harnessRoot = resolve(option('--harness-root', DEFAULT_HARNESS_ROOT))
+const dsh = resolve(harnessRoot, 'apps', 'cli', 'lib', 'bin.js')
 const harnessLock = JSON.parse(await readFile(resolve(PROJECT_ROOT, 'upstream', 'deepseek-harness.lock.json'), 'utf8'))
 const temporaryDshHome = await mkdtemp(resolve(tmpdir(), 'enterprise-t15-browser-'))
 const fixtureRoot = resolve(temporaryDshHome, 'fixture')
@@ -141,36 +141,13 @@ async function createManagedBundle() {
   return { bytes: await readFile(path), path }
 }
 
-const { canonicalizeJson, signatureManifest } = await import(pathToFileURL(
-  resolve(WORKSPACE_ROOT, 'packages', 'plugin-distribution', 'lib', 'index.js'),
-).href)
 const managedBundle = await createManagedBundle()
-const signingKey = generateKeyPairSync('ed25519')
-const assignmentBase = {
-  pluginVersionId: '1901500000000000101',
-  packageName: PACKAGE_NAME,
-  version: '1.0.0',
-  sizeBytes: managedBundle.bytes.byteLength,
-  sha256: createHash('sha256').update(managedBundle.bytes).digest('hex'),
-  signatureBase64: `${'A'.repeat(86)}==`,
-  compatibility: {
-    harnessCommits: [HARNESS_COMMIT],
-    enterpriseBundleRange: '>=0.1.0 <0.2.0',
-    operatingSystems: ['darwin', 'linux', 'win32'],
-  },
-  downloadUrl: '/enterprise/api/v1/plugins/versions/1901500000000000101/download',
-  required: false,
-  desiredState: 'INSTALLED',
-}
 const assignment = {
-  ...assignmentBase,
-  signatureBase64: sign(
-    null,
-    Buffer.from(canonicalizeJson(signatureManifest(assignmentBase))),
-    signingKey.privateKey,
-  ).toString('base64'),
+  pluginVersionId: '1901500000000000101', packageName: PACKAGE_NAME, version: '1.0.0',
+  installation: { spec: managedBundle.path, displayName: '代码审查', description: '检查代码并整理审查建议',
+    author: 'Example', repositoryUrl: 'https://github.com/example/review', categories: ['开发工具'] },
+  required: false, desiredState: 'INSTALLED',
 }
-const trustedPluginPublicKey = signingKey.publicKey.export({ type: 'spki', format: 'der' }).toString('base64')
 
 let installationId = '00000000-0000-4000-8000-000000000000'
 let bootstrapRevision = 1
@@ -183,8 +160,8 @@ let completeAcceptance
 const acceptanceCompleted = new Promise(resolvePromise => { completeAcceptance = resolvePromise })
 
 async function startHarness() {
-  const child = spawn('corepack', [
-    'pnpm@11.7.0', '--dir', harnessRoot, 'dsh', '--profile', 'web', '--port', '0',
+  const child = spawn(dsh, [
+    '--profile', 'web', '--port', '0',
   ], {
     cwd: harnessRoot,
     env: harnessEnv,
@@ -230,9 +207,9 @@ const platformServer = createServer(async (request, response) => {
   }
   if (url.pathname === '/enterprise/auth/v1/token' && request.method === 'POST') {
     const input = await readJson(request)
-    installationId = String(input.installationId)
+    if (input.installationId) installationId = String(input.installationId)
     json(response, 200, {
-      data: { accessToken: 't15-host-memory-token', tokenType: 'Bearer', expiresIn: 43_200, clientId: 'dsh-desktop' },
+      data: { accessToken: 't15-host-memory-token', tokenType: 'Bearer', expiresIn: 43_200, clientId: 'dsh-desktop', refreshToken: 'r'.repeat(43), refreshExpiresIn: 2_592_000 },
       requestId: REQUEST_ID,
     })
     return
@@ -269,15 +246,6 @@ const platformServer = createServer(async (request, response) => {
     json(response, 200, { data: { revision: 7, assignments: [assignment] }, requestId: REQUEST_ID })
     return
   }
-  if (url.pathname === assignment.downloadUrl && request.method === 'GET') {
-    response.writeHead(200, {
-      'cache-control': 'no-store',
-      'content-length': String(managedBundle.bytes.byteLength),
-      'content-type': 'application/octet-stream',
-    })
-    response.end(managedBundle.bytes)
-    return
-  }
   if (url.pathname === '/enterprise/api/v1/plugins/inventory' && request.method === 'PUT') {
     const input = await readJson(request)
     json(response, 200, { data: { reported: input.items.length }, requestId: REQUEST_ID })
@@ -298,7 +266,7 @@ try {
 
   platformUrl = await listen(platformServer)
   harnessEnv = { ...process.env, DSH_HOME: temporaryDshHome }
-  await pnpm(['--dir', harnessRoot, 'dsh', 'plugin', '--profile', 'web', 'add', '--ignore-scripts', tgz], {
+  await run(dsh, ['plugin', '--profile', 'web', 'add', '--save-exact', tgz], {
     cwd: harnessRoot,
     env: harnessEnv,
   })
@@ -306,8 +274,6 @@ try {
     '- id: owndsh',
     '  config:',
     `    baseUrl: '${platformUrl}'`,
-    '    verifyPluginSignatures: true',
-    `    trustedPluginPublicKey: '${trustedPluginPublicKey}'`,
     '    requestTimeoutMs: 5000',
     '    disposeTimeoutMs: 10000',
     "    profile: 'web'",

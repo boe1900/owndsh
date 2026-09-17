@@ -75,7 +75,6 @@ export const zEnterpriseErrorCode = z.enum([
     'ENT_INVALID_REQUEST',
     'ENT_INVALID_REDIRECT_URI',
     'ENT_PKCE_REQUIRED',
-    'ENT_PLUGIN_ARTIFACT_INVALID',
     'ENT_SESSION_FORMAT_UNSUPPORTED',
     'ENT_AUTH_REQUIRED',
     'ENT_AUTH_CODE_INVALID',
@@ -103,7 +102,6 @@ export const zEnterpriseErrorCode = z.enum([
     'ENT_MCP_POLICY_INVALID',
     'ENT_MCP_UNSUPPORTED',
     'ENT_REQUEST_TOO_LARGE',
-    'ENT_PLUGIN_ARCHIVE_TOO_LARGE',
     'ENT_SESSION_BATCH_TOO_LARGE',
     'ENT_QUOTA_FIVE_HOURS_EXCEEDED',
     'ENT_QUOTA_DAILY_EXCEEDED',
@@ -179,6 +177,7 @@ export const zAuditAuditAction = z.enum([
     'QUOTA_CHANGED',
     'QUOTA_REJECTED',
     'RESERVATION_RECOVERED',
+    'PLUGIN_REGISTERED',
     'PLUGIN_UPLOADED',
     'PLUGIN_PUBLISHED',
     'PLUGIN_ASSIGNED',
@@ -331,6 +330,7 @@ export const zModelGrantChangeAuditMetadata = z.object({
 
 export const zPluginAuditMetadata = z.object({
     operation: z.enum([
+        'REGISTER',
         'UPLOAD',
         'PUBLISH',
         'RETIRE',
@@ -1890,9 +1890,6 @@ export const zProviderUpdateRequest = zModelProviderUpdateRequest;
 
 export const zManagedPluginState = z.enum([
     'EXPECTED',
-    'DOWNLOAD_PENDING',
-    'DOWNLOADING',
-    'VERIFIED',
     'INSTALLING',
     'RESTART_REQUIRED',
     'ACTIVE',
@@ -1910,6 +1907,17 @@ export const zPluginAssignmentStatus = z.enum(['ACTIVE', 'DISABLED']);
 
 export const zPluginDesiredState = z.enum(['INSTALLED', 'ABSENT']);
 
+export const zPluginPluginInstallation = z.object({
+    spec: z.string().min(1).max(2048),
+    displayName: z.string().min(1).max(120),
+    description: z.string().max(2000),
+    author: z.string().max(120),
+    repositoryUrl: z.string().max(2048),
+    categories: z.array(z.string().min(1).max(40)).max(12)
+}).strict();
+
+export const zPluginInstallation = zPluginPluginInstallation;
+
 export const zPluginInventoryAck = z.object({
     reported: z.int().gte(0).lte(500)
 }).strict();
@@ -1921,20 +1929,6 @@ export const zPluginPluginInventoryResponse = z.object({
 
 export const zPluginInventoryResponse = zPluginPluginInventoryResponse;
 
-export const zPluginOperatingSystem = z.enum([
-    'darwin',
-    'linux',
-    'win32'
-]);
-
-export const zPluginPluginCompatibility = z.object({
-    harnessCommits: z.array(z.string().regex(/^[0-9a-f]{40}$/)).min(1).max(20),
-    enterpriseBundleRange: z.string().min(1).max(120),
-    operatingSystems: z.array(zPluginOperatingSystem).min(1).max(3)
-}).strict();
-
-export const zPluginCompatibility = zPluginPluginCompatibility;
-
 export const zPluginPluginPackageId = z.string().regex(/^[1-9][0-9]{0,18}$/);
 
 export const zPluginPackageId = zPluginPluginPackageId;
@@ -1945,14 +1939,11 @@ export const zPluginPackageStatus = z.enum(['ACTIVE', 'DISABLED']);
 
 export const zPluginSemanticVersion = z.string().min(1).max(64).regex(/^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/);
 
-export const zPluginSha256 = z.string().regex(/^[0-9a-f]{64}$/);
-
 export const zAdminPluginInventoryItem = z.object({
     deviceId: zEnterpriseDeviceId,
     username: z.string().min(1).max(100),
     packageName: zPluginPackageName,
     version: zPluginSemanticVersion.nullable(),
-    sha256: zPluginSha256.nullable(),
     desiredRevision: zRevision,
     state: zManagedPluginState,
     loaderPhase: z.string().min(1).max(32).nullable(),
@@ -1975,7 +1966,6 @@ export const zAdminPluginInventoryListResponse = zPluginAdminPluginInventoryList
 export const zPluginInventoryItem = z.object({
     packageName: zPluginPackageName,
     version: zPluginSemanticVersion.nullable(),
-    sha256: zPluginSha256.nullable(),
     desiredRevision: zRevision,
     state: zManagedPluginState,
     loaderPhase: z.string().min(1).max(32).nullable(),
@@ -1988,6 +1978,14 @@ export const zPluginPluginInventoryRequest = z.object({
 }).strict();
 
 export const zPluginInventoryRequest = zPluginPluginInventoryRequest;
+
+export const zPluginPluginRegistrationRequest = z.object({
+    packageName: zPluginPackageName,
+    version: zPluginSemanticVersion,
+    installation: zPluginPluginInstallation
+}).strict();
+
+export const zPluginRegistrationRequest = zPluginPluginRegistrationRequest;
 
 export const zPluginSubjectType = z.enum([
     'ALL',
@@ -2033,7 +2031,6 @@ export const zPluginPluginAssignmentBatchRequest = z.object({
 export const zPluginAssignmentBatchRequest = zPluginPluginAssignmentBatchRequest;
 
 export const zPluginVersionStatus = z.enum([
-    'UPLOADED',
     'VALIDATED',
     'PUBLISHED',
     'RETIRED'
@@ -2044,13 +2041,7 @@ export const zPluginPluginVersion = z.object({
     packageId: zPluginPluginPackageId,
     packageName: zPluginPackageName,
     version: zPluginSemanticVersion,
-    sizeBytes: z.coerce.bigint().gte(BigInt(1)).lte(BigInt(52428800)),
-    sha256: zPluginSha256,
-    signatureBase64: z.union([
-        z.enum(['']),
-        z.string().length(88).regex(/^[A-Za-z0-9+\/]{86}==$/)
-    ]),
-    compatibility: zPluginPluginCompatibility,
+    installation: zPluginPluginInstallation,
     status: zPluginVersionStatus,
     createdAt: z.iso.datetime({ offset: true }),
     revision: zRevision
@@ -2095,14 +2086,7 @@ export const zRuntimePluginAssignment = z.object({
     pluginVersionId: zPluginPluginVersionId,
     packageName: zPluginPackageName,
     version: zPluginSemanticVersion,
-    sizeBytes: z.coerce.bigint().gte(BigInt(1)).max(BigInt('9223372036854775807'), { error: 'Invalid value: Expected int64 to be <= 9223372036854775807' }),
-    sha256: zPluginSha256,
-    signatureBase64: z.union([
-        z.enum(['']),
-        z.string().length(88).regex(/^[A-Za-z0-9+\/]{86}==$/)
-    ]),
-    compatibility: zPluginPluginCompatibility,
-    downloadUrl: z.string().min(1).max(2048).nullable(),
+    installation: zPluginPluginInstallation,
     required: z.boolean(),
     desiredState: zPluginDesiredState
 }).strict();
@@ -2722,13 +2706,11 @@ export const zPluginCollection = z.unknown();
 
 export const zPluginVersionPublish = z.unknown();
 
+export const zPluginVersionRegistration = z.unknown();
+
 export const zPluginVersionRetire = z.unknown();
 
-export const zPluginVersionUpload = z.unknown();
-
 export const zPluginRuntimePluginAssignments2 = z.unknown();
-
-export const zRuntimePluginDownload = z.unknown();
 
 export const zRuntimePluginInventory = z.unknown();
 
@@ -3946,19 +3928,12 @@ export const zListPluginPackagesQuery = z.object({
  */
 export const zListPluginPackagesResponse = zPluginPluginPackageListResponse;
 
-export const zUploadPluginVersionBody = z.object({
-    artifact: z.string(),
-    compatibility: zPluginPluginCompatibility
-}).strict();
-
-export const zUploadPluginVersionHeaders = z.object({
-    'Idempotency-Key': z.uuid().length(36).regex(/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/)
-});
+export const zRegisterPluginVersionBody = zPluginPluginRegistrationRequest;
 
 /**
- * Existing version returned for an idempotent natural key.
+ * Existing identical configuration.
  */
-export const zUploadPluginVersionResponse = zPluginPluginVersionResponse;
+export const zRegisterPluginVersionResponse = zPluginPluginVersionResponse;
 
 export const zPublishPluginVersionHeaders = z.object({
     'If-Match': zRevision
@@ -4016,19 +3991,6 @@ export const zListPluginInventoryResponse = zPluginAdminPluginInventoryListRespo
  * Effective assignments for the active Harness device owner.
  */
 export const zGetPluginAssignmentsResponse = zPluginRuntimePluginAssignmentsResponse;
-
-export const zDownloadPluginVersionHeaders = z.object({
-    Range: z.string().regex(/^bytes=[0-9]*-[0-9]*$/).optional()
-});
-
-export const zDownloadPluginVersionPath = z.object({
-    pluginVersionId: zPluginPluginVersionId
-});
-
-/**
- * Complete tgz artifact.
- */
-export const zDownloadPluginVersionResponse = z.string();
 
 export const zReplacePluginInventoryBody = zPluginPluginInventoryRequest;
 

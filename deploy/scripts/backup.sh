@@ -1,6 +1,6 @@
 #!/bin/sh
-# [INPUT]: 依赖健康安装、PostgreSQL/Redis/artifact 持久事实及两个不同的备份目标目录。
-# [OUTPUT]: 生成数据库/Redis/artifact 数据归档和独立 master key 及已有 signing key 归档，各带 SHA-256 清单。
+# [INPUT]: 依赖健康安装、PostgreSQL/Redis 持久事实及两个不同的备份目标目录。
+# [OUTPUT]: 生成数据库/Redis 数据归档和独立 master key 归档，各带 SHA-256 清单。
 # [POS]: T21 正式备份入口；普通数据备份绝不包含 key，调用方必须把 key 归档异地保管。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -48,12 +48,6 @@ compose exec -T redis sh -ec 'export REDISCLI_AUTH="$REDIS_PASSWORD"; redis-cli 
 redis_container=$(compose ps -q redis)
 docker cp "$redis_container:/data/dump.rdb" "$data_backup/redis.rdb"
 
-artifact_volume=$(volume_for server /var/lib/enterprise/artifacts)
-server_image=$(env_value OWNDSH_SERVER_IMAGE "$(runtime_file)")
-docker run --rm --platform linux/amd64 --user 0:0 \
-  -v "$artifact_volume:/source:ro" -v "$data_backup:/backup" \
-  --entrypoint sh "$server_image" -ec 'tar -C /source -czf /backup/artifacts.tar.gz .'
-
 cp "$(runtime_file)" "$data_backup/runtime.env"
 cat > "$data_backup/backup.env" <<EOF
 OWNDSH_BACKUP_FORMAT=1
@@ -62,7 +56,7 @@ OWNDSH_RELEASE_VERSION=$(env_value OWNDSH_RELEASE_VERSION "$(runtime_file)")
 EOF
 (
   cd "$data_backup"
-  sha256sum_compat postgres.dump redis.rdb artifacts.tar.gz runtime.env backup.env > SHA256SUMS
+  sha256sum_compat postgres.dump redis.rdb runtime.env backup.env > SHA256SUMS
 )
 
 key_files=$(backup_key_files)

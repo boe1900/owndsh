@@ -45,7 +45,7 @@ describe('enterprise local API', () => {
       plugins: [{
         packageName: '@example/dsh-code-review',
         version: '1.2.0',
-        sha256: 'a'.repeat(64),
+        pluginVersionId: '880',
         desiredRevision: 7,
         desiredState: 'INSTALLED',
         state: 'RESTART_REQUIRED',
@@ -79,6 +79,19 @@ describe('enterprise local API', () => {
     server.closeAllConnections()
     await new Promise<void>(resolve => server.close(() => resolve()))
   })
+
+  it('restarts only after an explicit empty-object POST and acknowledges before invoking the host', async () => {
+    const restart = vi.fn(); const restartPlugins = vi.fn(async () => ({ restart }));
+    registerEnterpriseLocalApi(webServer, { platform, pluginStatus, restartPlugins });
+    const url = `${baseUrl}/enterprise/api/v1/local/plugins/restart`;
+    expect((await fetch(url)).status).toBe(405);
+    expect((await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"force":true}' })).status).toBe(400);
+    expect(restart).not.toHaveBeenCalled();
+    const result = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+    expect(result.status).toBe(200);
+    expect(await result.json()).toEqual({ data: { restartRequested: true } });
+    expect(restart).toHaveBeenCalledOnce();
+  });
 
   it('serves desensitized state and bootstrap without CORS or Token fields', async () => {
     registerEnterpriseLocalApi(webServer, { platform, pluginStatus })

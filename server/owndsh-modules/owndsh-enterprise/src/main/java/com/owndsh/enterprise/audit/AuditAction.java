@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖详细设计第 13 节冻结的 MVP action 集合。
  * [OUTPUT]: 对外提供不能由任意字符串扩张的 AuditAction 枚举。
- * [POS]: audit 事件分类真源，与 V4 数据库 check 约束保持同构。
+ * [POS]: audit 事件分类真源，与 V34 数据库 check 约束保持同构。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.audit;
@@ -27,6 +27,7 @@ public enum AuditAction {
     QUOTA_CHANGED,
     QUOTA_REJECTED,
     RESERVATION_RECOVERED,
+    PLUGIN_REGISTERED,
     PLUGIN_UPLOADED,
     PLUGIN_PUBLISHED,
     PLUGIN_ASSIGNED,

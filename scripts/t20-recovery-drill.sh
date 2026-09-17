@@ -1,6 +1,6 @@
 #!/bin/sh
 # [INPUT]: 依赖可用 Docker daemon、postgres:17-alpine、redis:8-alpine 与本机 tar/hash 工具。
-# [OUTPUT]: 提供 PostgreSQL/Redis kill-restart、全新实例恢复、artifact/key 分离备份与只读磁盘故障验收。
+# [OUTPUT]: 提供 PostgreSQL/Redis kill-restart、全新实例恢复、master key 独立备份与只读磁盘故障验收。
 # [POS]: scripts 的 T20 隔离故障演练，只使用随机临时目录和专用容器，不依赖 T21 部署树。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -31,10 +31,8 @@ cleanup() {
 }
 trap cleanup EXIT HUP INT TERM
 
-mkdir -p "$work_dir/backups" "$work_dir/source/artifacts/sha256/aa" "$work_dir/source/keys"
-printf '%s\n' 'approved-plugin-artifact-v1' > "$work_dir/source/artifacts/sha256/aa/probe.tgz"
+mkdir -p "$work_dir/backups" "$work_dir/source/keys"
 dd if=/dev/urandom of="$work_dir/source/keys/master.key" bs=32 count=1 2>/dev/null
-dd if=/dev/urandom of="$work_dir/source/keys/signing.key" bs=64 count=1 2>/dev/null
 
 digest() {
   if command -v sha256sum >/dev/null 2>&1; then
@@ -87,15 +85,9 @@ docker exec "$redis_source" redis-cli set enterprise:t20:lease active >/dev/null
 docker exec "$redis_source" redis-cli save >/dev/null
 docker cp "$redis_source:/data/dump.rdb" "$work_dir/backups/redis.rdb" >/dev/null
 
-tar -czf "$work_dir/backups/artifacts.tar.gz" -C "$work_dir/source/artifacts" .
 tar -czf "$work_dir/backups/keys.tar.gz" -C "$work_dir/source/keys" .
 chmod 600 "$work_dir/backups/database.dump" "$work_dir/backups/redis.rdb" \
-  "$work_dir/backups/artifacts.tar.gz" "$work_dir/backups/keys.tar.gz"
-
-if tar -tzf "$work_dir/backups/artifacts.tar.gz" | grep -Eq '(master|signing)\.key$'; then
-  echo "artifact 备份错误包含 key" >&2
-  exit 1
-fi
+  "$work_dir/backups/keys.tar.gz"
 
 echo "[T20] kill/restart PostgreSQL 与 Redis"
 docker kill "$pg_source" >/dev/null
@@ -134,17 +126,14 @@ wait_redis "$redis_restore"
 test "$(docker exec "$redis_restore" redis-cli --raw get enterprise:t20:quota)" = '7'
 test "$(docker exec "$redis_restore" redis-cli --raw get enterprise:t20:lease)" = 'active'
 
-mkdir -p "$work_dir/restore/artifacts" "$work_dir/restore/keys"
-tar -xzf "$work_dir/backups/artifacts.tar.gz" -C "$work_dir/restore/artifacts"
+mkdir -p "$work_dir/restore/keys"
 tar -xzf "$work_dir/backups/keys.tar.gz" -C "$work_dir/restore/keys"
-test "$(digest "$work_dir/source/artifacts/sha256/aa/probe.tgz")" = "$(digest "$work_dir/restore/artifacts/sha256/aa/probe.tgz")"
 cmp "$work_dir/source/keys/master.key" "$work_dir/restore/keys/master.key"
-cmp "$work_dir/source/keys/signing.key" "$work_dir/restore/keys/signing.key"
 
-echo "[T20] 验证 artifact 只读磁盘故障"
+echo "[T20] 验证 key 只读磁盘故障"
 docker run --rm --name "$disk_probe" \
-  -v "$work_dir/restore/artifacts:/artifacts:ro" \
+  -v "$work_dir/restore/keys:/keys:ro" \
   redis:8-alpine sh -ec \
-  'test -r /artifacts/sha256/aa/probe.tgz; if touch /artifacts/write-must-fail 2>/dev/null; then exit 1; fi'
+  'test -r /keys/master.key; if touch /keys/write-must-fail 2>/dev/null; then exit 1; fi'
 
-echo "T20 恢复演练通过: PostgreSQL=1 Redis=2 artifact=1 keys=2 kill/restart=2 disk-fault=1"
+echo "T20 恢复演练通过: PostgreSQL=1 Redis=2 keys=1 kill/restart=2 disk-fault=1"

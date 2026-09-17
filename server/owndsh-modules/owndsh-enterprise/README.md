@@ -8,7 +8,7 @@ Authorization Code + PKCE、Sa-Token 终端隔离、公开登录页与设备生�
 provider/model/grant 管理、provider 密钥保护、有效默认解析和 runtime bootstrap 模型目录；T09
 增加 Flyway `V6`、叠加配额、PostgreSQL reservation、Redis lease、结算恢复和用量 API；T10
 增加请求级授权、三协议透明 upstream、原生 SSE、计费终态和模型调用审计；T13 增加
-Flyway `V8`、不落地解压的 tgz 验包、RFC 8785 JCS/Ed25519、CAS 制品、插件状态/分配、下载授权与库存；T16
+Flyway `V34`、插件安装配置登记、发布/可见范围、安装前授权与库存；T16
 增加 Flyway `V9`、官方 Session format v0 精确 JSONL/hash、AES-GCM 远端副本、读取权限、tombstone 与 retention。T19 补齐显式审计白名单与查询/retention；T20 在模块前置增加 2 MiB 普通 JSON 上限、稳定 413 和未知故障秘密隔离。
 
 ## 身份边界
@@ -116,20 +116,13 @@ master key 的独立 `API_CURSOR` 用途进行 AES-GCM 认证，并绑定 tenant
 
 ## 插件服务端边界
 
-- multipart 上传先有界写入 `.part` 并计算整包 SHA-256，再由 Commons Compress 单遍读取；不解压到
-  文件系统，拒绝路径逃逸、链接、设备文件、`.node`、安装脚本、非空 dependencies 与非精确 Harness peer。
-- 整包按 SHA-256 内容寻址；同 hash 的终结和事务补偿由进程锁加 artifact root 文件锁串行化，
-  避免并发失败删除其他 tenant 已引用制品。签名默认关闭（`ENT_PLUGIN_SIGNING_ENABLED=false`），无需私钥；关闭时以空 bytea/`signatureBase64: ""` 表示未签名，不改变表结构。显式开启才加载 `ENT_PLUGIN_SIGNING_PRIVATE_KEY` 并使用 RFC 8785 JCS/Ed25519，缺失或非法私钥阻止启动。开关只影响新上传版本，已有版本（包括幂等重传）不重签；客户端需升级以接受空签名。
-- 版本只允许 `UPLOADED -> VALIDATED -> PUBLISHED -> RETIRED`，只有 PUBLISHED 可新分配；相同
-  package/version 或 tenant 内相同 SHA-256 返回已有版本，不复制事实。
-- assignment 原子替换并按 USER、当前 DEPT、ALL 裁决，`INSTALLED` 表示对员工可见并允许自主安装，保存时统一 `required=false`；`ABSENT` 表示撤回已有受管包。
-  下载每次重验 ACTIVE 设备、当前用户和当前 assignment；退休版本停止新安装和下载，且不回退到低优先级范围。删除可见范围或退休不自动卸载，员工可自行移除。
-- runtime 下载支持完整或单一 bytes Range，并固定 gzip、长度、ETag、attachment 与 `nosniff`；
-  inventory 是当前设备最多 500 条 package 唯一的全量替换，数据库和审计同事务。
+管理员通过 JSON 登记包名、精确版本、安装目标及名称/简介/作者/分类/源码仓库。相同包名/版本/配置幂等，修改配置需新版本；同包事务串行，发布/退休和范围替换保留 CAS 与审计。
 
-管理入口位于 `/enterprise/admin/v1/plugins`，使用 `ent:plugin:read/write`；runtime 入口位于
-`/enterprise/api/v1/plugins`。部署必须配置 `enterprise.plugin.artifact-root` 和只读 PKCS#8
-`ENT_PLUGIN_SIGNING_PRIVATE_KEY`；默认压缩/解压上限分别为 50 MiB/200 MiB。
+支持 npm 精确版本、固定 commit 的 GitHub 包、HTTP(S) tgz 和客户端绝对路径。服务端不接收、下载或签名插件包。普通 dependencies、peer 和脚本由宿主 pnpm 自己处理，私有源认证留在客户端宿主。
+
+管理入口 `/enterprise/admin/v1/plugins` 使用 `ent:plugin:read/write`。runtime 的 `/plugins/assignments` 每次重新确认 ACTIVE 用户和设备及有效范围，客户端显式安装前重新读取；库存替换和审计同事务。Bootstrap 与目录共用安装配置投影。
+
+V34 清空旧上传目录、可见范围和库存并删除制品列，保留历史审计。更新后需重新登记插件，同步更新 Server/Console/员工插件，不提供旧上传协议兼容。
 
 ## Session 服务端边界
 
@@ -151,7 +144,7 @@ runtime 入口位于 `/enterprise/api/v1/sessions`，管理入口位于 `/enterp
 
 - 普通 enterprise JSON 在 MVC 解序列化前有界读取，客户端不能用 chunked 绕过 2 MiB 限制；模型网关保留自己的 10 MiB 流式边界，插件 multipart 保留 50 MiB 制品精确计数。
 - 数据库、Redis 或磁盘的未知运行时故障返回 retryable `ENT_PLATFORM_UNAVAILABLE`；服务端日志只写 requestId 和异常类型，不写可能含凭据的 message 或 stack。
-- PostgreSQL、Redis、artifact 与 master/signing key 的隔离备份恢复由仓库 T20 演练脚本验证；生产入口、TLS 与可信代理由 T21 部署交付承担。
+- PostgreSQL、Redis 与 master key 的隔离备份恢复由仓库 T20 演练脚本验证；生产入口、TLS 与可信代理由 T21 部署交付承担。
 
 ## 数据库
 
@@ -178,8 +171,8 @@ PATH=/usr/local/opt/openjdk@21/bin:$PATH \
 测试从真实 Host PostgreSQL 基线启动数据库，分别验证一次性迁移和逐版本升级；不会使用 H2
 模拟 PostgreSQL 约束。身份/设备/网关测试还会启动 WireMock OIDC/DeepSeek、OpenLDAP StartTLS、
 Redis 8 和 PostgreSQL 17 Testcontainers，并使用 OpenAPI 派生 JSON Schema 验证认证、设备、模型、
-配额、bootstrap、用量、模型流、插件与 Session 接口的成功/失败响应。插件测试还覆盖恶意归档、
-JCS/Ed25519、并发幂等上传、assignment 优先级、自选安装范围、越权/退休下载拒绝、库存原子替换和文件补偿；Session
+配额、bootstrap、用量、模型流、插件与 Session 接口的成功/失败响应。插件测试还覆盖安装目标、
+并发幂等登记、assignment 优先级、自选安装范围、越权/退休版本拒绝、库存原子替换和旧目录清理迁移；Session
 测试覆盖精确字节 hash、连续/重复/gap/diverge/跨设备/并发、密文、正文权限、删除与 retention。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

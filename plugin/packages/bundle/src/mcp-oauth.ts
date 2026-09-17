@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 Harness credentials 原子记录、平台 bootstrap 身份、公共 MCP 配置、既有 JSON 规范化和 PKCE 原语。
+ * [INPUT]: 依赖 Harness credentials 原子记录、平台 bootstrap 身份、公共 MCP 配置、本地确定性 JSON 规范化和 PKCE 原语。
  * [OUTPUT]: 提供身份/目标绑定的 McpCredentialManager、重新授权状态与支持 HTTP(S) 的可取消 OAuth；仅持久化 API Key/refresh token 及动态 public clientId。
  * [POS]: bundle 的 MCP 秘密边界；阻止跨账号、跨目标读取和撤销后的迟到写入，平台 Token 不进入外部请求。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -8,8 +8,28 @@ import { credentialKey, type CredentialKey, type CredentialProvider, type Creden
 import { discoverAuthorizationServerMetadata, discoverOAuthProtectedResourceMetadata, registerClient } from '@modelcontextprotocol/sdk/client/auth.js'
 import type { FetchLike } from '@modelcontextprotocol/sdk/shared/transport.js'
 import { createPkceS256, openSystemBrowser, startLoopbackCallback } from '@owndsh/platform-client'
-import { canonicalizeJson } from '@owndsh/plugin-distribution'
 import { createHash, randomBytes } from 'node:crypto'
+
+function compareUtf16(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0
+}
+
+/** 凭据绑定摘要使用确定性 JSON；对象键递归排序，数值只允许安全有限整数。 */
+function canonicalizeJson(value: unknown): string {
+  if (value === null || typeof value === 'boolean' || typeof value === 'string') return JSON.stringify(value)
+  if (typeof value === 'number') {
+    if (!Number.isSafeInteger(value)) throw new TypeError('canonical numbers must be safe integers')
+    return JSON.stringify(value)
+  }
+  if (Array.isArray(value)) return `[${value.map(canonicalizeJson).join(',')}]`
+  if (typeof value === 'object') {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => compareUtf16(left, right))
+      .map(([key, item]) => `${JSON.stringify(key)}:${canonicalizeJson(item)}`)
+      .join(',')}}`
+  }
+  throw new TypeError('canonical JSON contains an unsupported value')
+}
 
 export interface McpCredentialOwner { platformUrl: string; userId: string; deviceId: string; installationId: string }
 export interface McpCredentialBinding { ownerDigest: string; serverId: string; bindingDigest: string }

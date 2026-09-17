@@ -136,7 +136,7 @@ paths:
   /enterprise/admin/v1/plugins:
     $ref: './paths/plugin.yaml#/PluginCollection'
   /enterprise/admin/v1/plugins/versions:
-    $ref: './paths/plugin.yaml#/PluginVersionUpload'
+    $ref: './paths/plugin.yaml#/PluginVersionRegistration'
   /enterprise/admin/v1/plugins/versions/{pluginVersionId}/actions/publish:
     $ref: './paths/plugin.yaml#/PluginVersionPublish'
   /enterprise/admin/v1/plugins/versions/{pluginVersionId}/actions/retire:
@@ -147,8 +147,6 @@ paths:
     $ref: './paths/plugin.yaml#/AdminPluginInventory'
   /enterprise/api/v1/plugins/assignments:
     $ref: './paths/plugin.yaml#/RuntimePluginAssignments'
-  /enterprise/api/v1/plugins/versions/{pluginVersionId}/download:
-    $ref: './paths/plugin.yaml#/RuntimePluginDownload'
   /enterprise/api/v1/plugins/inventory:
     $ref: './paths/plugin.yaml#/RuntimePluginInventory'
   /enterprise/api/v1/sessions:
@@ -193,7 +191,6 @@ x-enterprise-error-statuses:
     - ENT_INVALID_REQUEST
     - ENT_INVALID_REDIRECT_URI
     - ENT_PKCE_REQUIRED
-    - ENT_PLUGIN_ARTIFACT_INVALID
     - ENT_SESSION_FORMAT_UNSUPPORTED
   '401':
     - ENT_AUTH_REQUIRED
@@ -224,7 +221,6 @@ x-enterprise-error-statuses:
     - ENT_MCP_CATALOG_STALE
   '413':
     - ENT_REQUEST_TOO_LARGE
-    - ENT_PLUGIN_ARCHIVE_TOO_LARGE
     - ENT_SESSION_BATCH_TOO_LARGE
   '422':
     - ENT_MCP_POLICY_INVALID
@@ -831,7 +827,8 @@ components:
     PluginPackageId: {$ref: './components/plugin.yaml#/PluginPackageId'}
     PluginVersionId: {$ref: './components/plugin.yaml#/PluginVersionId'}
     PluginAssignmentId: {$ref: './components/plugin.yaml#/PluginAssignmentId'}
-    PluginCompatibility: {$ref: './components/plugin.yaml#/PluginCompatibility'}
+    PluginInstallation: {$ref: './components/plugin.yaml#/PluginInstallation'}
+    PluginRegistrationRequest: {$ref: './components/plugin.yaml#/PluginRegistrationRequest'}
     PluginVersion: {$ref: './components/plugin.yaml#/PluginVersion'}
     PluginVersionResponse: {$ref: './components/plugin.yaml#/PluginVersionResponse'}
     PluginPackage: {$ref: './components/plugin.yaml#/PluginPackage'}
@@ -1019,7 +1016,6 @@ components:
         - ENT_INVALID_REQUEST
         - ENT_INVALID_REDIRECT_URI
         - ENT_PKCE_REQUIRED
-        - ENT_PLUGIN_ARTIFACT_INVALID
         - ENT_SESSION_FORMAT_UNSUPPORTED
         - ENT_AUTH_REQUIRED
         - ENT_AUTH_CODE_INVALID
@@ -1047,7 +1043,6 @@ components:
         - ENT_MCP_POLICY_INVALID
         - ENT_MCP_UNSUPPORTED
         - ENT_REQUEST_TOO_LARGE
-        - ENT_PLUGIN_ARCHIVE_TOO_LARGE
         - ENT_SESSION_BATCH_TOO_LARGE
         - ENT_QUOTA_FIVE_HOURS_EXCEEDED
         - ENT_QUOTA_DAILY_EXCEEDED

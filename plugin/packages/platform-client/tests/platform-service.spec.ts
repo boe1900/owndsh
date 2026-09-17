@@ -233,13 +233,8 @@ describe('EnterprisePlatformService', () => {
               revision: 7,
               assignments: [{
                 pluginVersionId: '880', packageName: '@example/dsh-code-review', version: '1.2.0',
-                sizeBytes: 4096, sha256: 'a'.repeat(64), signatureBase64: '',
-                compatibility: {
-                  harnessCommits: ['99f6f02fecdb7dff40c3fbc9470f5907c29f74ca'],
-                  enterpriseBundleRange: '>=0.1.0 <0.2.0',
-                  operatingSystems: ['darwin', 'linux', 'win32'],
-                },
-                downloadUrl: '/enterprise/api/v1/plugins/versions/880/download', required: true,
+                installation: { spec: '@example/dsh-code-review@1.2.0', displayName: 'Review', description: '',
+                  author: '', repositoryUrl: '', categories: [] }, required: false,
                 desiredState: 'INSTALLED',
               }],
             },

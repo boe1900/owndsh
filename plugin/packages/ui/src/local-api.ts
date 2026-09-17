@@ -1,9 +1,11 @@
 /**
- * [INPUT]: 依赖浏览器 fetch 与 platform-client 的按需同源 JSON 协议
+ * [INPUT]: 依赖 contracts 安装元数据 schema、浏览器 fetch 与 platform-client 的按需同源 JSON 协议
  * [OUTPUT]: 对外提供严格账号/插件/MCP 状态解码（含工具简介、重新授权与授权进度）、连接动作，以及 Server 地址/登录/整包卸载与显式刷新端口
  * [POS]: dsh-ui 的浏览器网络边界，只投影 Settings 所需事实并拒绝秘密、正文与本地执行细节
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
+
+import { zPluginInstallation, type PluginInstallation } from '@owndsh/contracts'
 
 const LOCAL_API_PREFIX = '/enterprise/api/v1/local'
 
@@ -25,9 +27,6 @@ export type EnterpriseConnectionState = typeof ENTERPRISE_CONNECTION_STATES[numb
 
 export const MANAGED_PLUGIN_STATES = [
   'EXPECTED',
-  'DOWNLOAD_PENDING',
-  'DOWNLOADING',
-  'VERIFIED',
   'INSTALLING',
   'RESTART_REQUIRED',
   'ACTIVE',
@@ -79,6 +78,7 @@ export interface EnterprisePluginItem {
 export interface EnterprisePluginStatus {
   readonly assignmentRevision: number
   readonly plugins: readonly EnterprisePluginItem[]
+  readonly canRestart?: boolean
   readonly catalog?: readonly EnterprisePluginCatalogItem[]
   readonly fatalErrorCode?: string
   readonly lastReportErrorCode?: string
@@ -106,8 +106,7 @@ export interface EnterprisePluginCatalogItem {
   readonly pluginVersionId: string
   readonly packageName: string
   readonly version: string
-  readonly sizeBytes: number
-  readonly operatingSystems: readonly string[]
+  readonly installation: PluginInstallation
   readonly installErrorCode?: string
 }
 
@@ -116,6 +115,7 @@ export interface EnterpriseLocalApi {
   refresh(signal: AbortSignal): Promise<EnterpriseLocalStatus>
   setServerUrl(serverUrl: string, signal: AbortSignal): Promise<{ readonly serverUrl: string }>
   bootstrap(signal: AbortSignal): Promise<EnterpriseAccountBootstrap | undefined>
+  restartPlugins?(signal: AbortSignal): Promise<void>
   plugins(signal: AbortSignal): Promise<EnterprisePluginStatus>
   installPlugin(packageName: string, pluginVersionId: string, signal: AbortSignal): Promise<EnterprisePluginStatus>
   removePlugin(packageName: string, signal: AbortSignal): Promise<EnterprisePluginStatus>
@@ -264,12 +264,12 @@ function decodePluginItem(value: unknown): EnterprisePluginItem | undefined {
   const item = record(value)
   if (item === undefined
     || !hasExactKeys(item, [
-      'packageName', 'version', 'sha256', 'desiredRevision', 'desiredState', 'state',
+      'packageName', 'version', 'pluginVersionId', 'desiredRevision', 'desiredState', 'state',
       'lastErrorCode', 'restartMarker',
     ])
     || !nonEmptyString(item['packageName'])
     || !nullableString(item['version'])
-    || !(item['sha256'] === null || (typeof item['sha256'] === 'string' && /^[0-9a-f]{64}$/.test(item['sha256'])))
+    || !(item['pluginVersionId'] === null || enterpriseId(item['pluginVersionId']))
     || !Number.isSafeInteger(item['desiredRevision']) || Number(item['desiredRevision']) < 0
     || !(item['desiredState'] === 'INSTALLED' || item['desiredState'] === 'ABSENT')
     || !MANAGED_PLUGIN_STATES.includes(item['state'] as ManagedPluginState)
@@ -285,11 +285,12 @@ function decodePluginItem(value: unknown): EnterprisePluginItem | undefined {
   }
 }
 
-/** 严格校验 Host 分发状态，并删除 SHA、进程 marker 与任何未声明字段。 */
+/** 严格校验 Host 分发状态，并删除内部版本 ID、进程 marker 与任何未声明字段。 */
 export function decodeEnterprisePluginStatus(value: unknown): EnterprisePluginStatus {
   const source = record(value)
   if (source === undefined
-    || !hasExactKeys(source, ['assignmentRevision', 'plugins'], ['catalog', 'fatalErrorCode', 'lastReportErrorCode'])
+    || !hasExactKeys(source, ['assignmentRevision', 'plugins'], ['catalog', 'fatalErrorCode', 'lastReportErrorCode', 'canRestart'])
+    || (source['canRestart'] !== undefined && typeof source['canRestart'] !== 'boolean')
     || !Number.isSafeInteger(source['assignmentRevision']) || Number(source['assignmentRevision']) < 0
     || !Array.isArray(source['plugins']) || source['plugins'].length > 500
     || (source['fatalErrorCode'] !== undefined && !nonEmptyString(source['fatalErrorCode']))
@@ -303,10 +304,10 @@ export function decodeEnterprisePluginStatus(value: unknown): EnterprisePluginSt
   const entries = catalog.map(value => {
     const item = record(value)
     if (item === undefined || !hasExactKeys(item,
-      ['pluginVersionId', 'packageName', 'version', 'sizeBytes', 'operatingSystems'], ['installErrorCode'])
+      ['pluginVersionId', 'packageName', 'version', 'installation'], ['installErrorCode'])
       || !enterpriseId(item['pluginVersionId']) || !nonEmptyString(item['packageName'])
-      || !nonEmptyString(item['version']) || !Number.isSafeInteger(item['sizeBytes']) || Number(item['sizeBytes']) <= 0
-      || !Array.isArray(item['operatingSystems']) || item['operatingSystems'].some(os => !['darwin', 'linux', 'win32'].includes(os))
+      || !nonEmptyString(item['version'])
+      || !zPluginInstallation.safeParse(item['installation']).success
       || item['installErrorCode'] !== undefined && !nonEmptyString(item['installErrorCode'])) {
       throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
     }
@@ -315,6 +316,7 @@ export function decodeEnterprisePluginStatus(value: unknown): EnterprisePluginSt
   if (new Set(entries.map(item => item.packageName)).size !== entries.length) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
   return {
     assignmentRevision: Number(source['assignmentRevision']),
+    ...(source['canRestart'] === undefined ? {} : { canRestart: source['canRestart'] as boolean }),
     plugins: plugins as EnterprisePluginItem[],
     ...(source['catalog'] === undefined ? {} : { catalog: entries }),
     ...(source['fatalErrorCode'] === undefined ? {} : { fatalErrorCode: source['fatalErrorCode'] as string }),
@@ -422,6 +424,10 @@ export function createEnterpriseLocalApi(
       return { serverUrl: data['serverUrl'] }
     },
     bootstrap: async signal => decodeBootstrap(await requestJson('/bootstrap', getInit(signal), fetcher)),
+    restartPlugins: async signal => {
+      const result = record(await requestJson('/plugins/restart', postInit(signal), fetcher))
+      if (result?.['restartRequested'] !== true || !hasExactKeys(result, ['restartRequested'])) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+    },
     plugins: async signal => decodeEnterprisePluginStatus(await requestJson('/plugins', getInit(signal), fetcher)),
     installPlugin: async (packageName, pluginVersionId, signal) => decodeEnterprisePluginStatus(
       await requestJson('/plugins/install', jsonInit('POST', { packageName, pluginVersionId }, signal), fetcher),

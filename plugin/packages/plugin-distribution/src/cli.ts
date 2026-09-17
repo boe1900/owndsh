@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 rc.2 ctx.subprocess 或 Desktop 公开 plugin command port、固定 profile/DSH_HOME 与取消信号
  * [OUTPUT]: 对外提供 installManagedPlugin、removeManagedPlugin 及 Web/Desktop 共用的可审计 argv
- * [POS]: plugin-distribution 的唯一命令边界，按运行环境委托官方 CLI 且永不构造 shell 命令
+ * [POS]: plugin-distribution 的唯一命令边界，按运行环境委托官方 CLI，依赖安装使用宿主策略且永不构造 shell 命令
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -23,8 +23,8 @@ export interface DshPluginCommandPort {
   run(argv: readonly string[], invokingDir: string, signal?: AbortSignal): Promise<void>
 }
 
-export function installPluginArguments(profile: string, artifactPath: string): readonly string[] {
-  return ['plugin', '--profile', profile, 'add', '--ignore-scripts', '--save-exact', artifactPath]
+export function installPluginArguments(profile: string, target: string): readonly string[] {
+  return ['plugin', '--profile', profile, 'add', '--save-exact', target]
 }
 
 export function removePluginArguments(profile: string, packageName: string): readonly string[] {
@@ -67,12 +67,12 @@ async function runDshPlugin(
   }
 }
 
-/** 通过官方 CLI 安装一个已验证绝对 tgz 路径。 */
-export function installManagedPlugin(options: DshPluginCommandOptions, artifactPath: string): Promise<void> {
+/** 通过官方 CLI 安装一个管理员批准的包目标；依赖和生命周期脚本策略由宿主 pnpm 处理。 */
+export function installManagedPlugin(options: DshPluginCommandOptions, target: string): Promise<void> {
   return runDshPlugin(
     options,
-    installPluginArguments(options.profile, artifactPath),
-    ['add', '--ignore-scripts', '--save-exact', artifactPath],
+    installPluginArguments(options.profile, target),
+    ['add', '--save-exact', target],
   )
 }
 

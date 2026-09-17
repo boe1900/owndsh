@@ -60,7 +60,7 @@ replace_env OWNDSH_RELEASE_VERSION "$new_release" "$(runtime_file)"
 replace_env OWNDSH_SERVER_IMAGE "$new_server" "$(runtime_file)"
 replace_env OWNDSH_CONSOLE_IMAGE "$new_console" "$(runtime_file)"
 
-compose up -d storage-init server console
+compose up -d server console
 wait_healthy server 90
 wait_healthy console 30
 printf '%s\n' "升级完成: $old_release -> $new_release"

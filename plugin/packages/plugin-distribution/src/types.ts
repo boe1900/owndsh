@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 platform-client bootstrap、contracts 受管状态与兼容 Harness subprocess/inventory 公共类型
- * [OUTPUT]: 对外提供含可选验签开关的分发 Config、企业目录/本机安装快照及平台/官方运行时窄 port
+ * [OUTPUT]: 对外提供分发 Config、企业目录/本机安装快照及平台/官方运行时窄 port
  * [POS]: plugin-distribution 的依赖倒置层，使业务状态机只依赖官方能力契约而不耦合实现
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -8,7 +8,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { PluginInventorySnapshot } from '@deepseek-ai/dsh-host-plugin-inventory'
 import type { SubprocessRuntime } from '@deepseek-ai/dsh-subprocess'
-import type { ManagedPluginState } from '@owndsh/contracts'
+import type { ManagedPluginState, PluginInstallation } from '@owndsh/contracts'
 import type {
   BootstrapSnapshot,
   EnterprisePlatformStatus,
@@ -33,7 +33,7 @@ export interface PluginInventoryPort {
 export interface ManagedPluginRecord {
   readonly packageName: string
   readonly version: string | null
-  readonly sha256: string | null
+  readonly pluginVersionId: string | null
   readonly desiredRevision: number
   readonly desiredState: 'INSTALLED' | 'ABSENT'
   readonly state: ManagedPluginState
@@ -42,7 +42,7 @@ export interface ManagedPluginRecord {
   readonly restartMarker: string | null
 }
 
-/** `$DSH_HOME/enterprise/managed-plugins.json` 的版本化根对象。 */
+/** `$DSH_HOME/enterprise/plugin-installations.json` 的版本化根对象。 */
 export interface ManagedPluginsFile {
   readonly formatVersion: 1
   readonly assignmentRevision: number
@@ -57,21 +57,15 @@ export interface PluginDistributionStatus {
     readonly pluginVersionId: string
     readonly packageName: string
     readonly version: string
-    readonly sizeBytes: number
-    readonly operatingSystems: readonly string[]
+    readonly installation: PluginInstallation
     readonly installErrorCode?: string
   }[]
   readonly fatalErrorCode?: string
   readonly lastReportErrorCode?: string
 }
 
-/** 安装层控制验签策略；默认关闭，开启后缺失信任根会阻止受管安装。 */
+/** 宿主官方插件命令的运行参数。 */
 export interface PluginDistributionConfig {
-  readonly verifyPluginSignatures?: boolean
-  readonly trustedPluginPublicKey?: string
-  /** 可选的已验证 Harness commit；未知运行时保持缺省并拒绝受管制品安装。 */
-  readonly harnessCommit?: string
-  readonly bundleVersion: string
   readonly profile?: string
   readonly dshCommand?: string
   readonly dshHome?: string

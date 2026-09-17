@@ -30,7 +30,6 @@ import com.owndsh.enterprise.quota.application.QuotaExceededException;
 import com.owndsh.enterprise.quota.application.QuotaResourceNotFoundException;
 import com.owndsh.enterprise.plugin.application.PluginAccessException;
 import com.owndsh.enterprise.plugin.application.PluginResourceNotFoundException;
-import com.owndsh.enterprise.plugin.artifact.PluginArtifactException;
 import com.owndsh.enterprise.quota.application.RequestAlreadyCompletedException;
 import com.owndsh.enterprise.quota.application.RequestInProgressException;
 import com.owndsh.enterprise.revision.RevisionConflictException;
@@ -222,20 +221,6 @@ public final class EnterpriseExceptionHandler {
             case NOT_FOUND -> "Session 不存在";
         };
         return error(status,exception.errorCode(),message,false,null,request);
-    }
-
-    @ExceptionHandler(PluginArtifactException.class)
-    public ResponseEntity<EnterpriseErrorResponse> pluginArtifact(
-        PluginArtifactException exception,
-        HttpServletRequest request
-    ) {
-        HttpStatus status = exception.kind() == PluginArtifactException.Kind.TOO_LARGE
-            ? HttpStatus.PAYLOAD_TOO_LARGE
-            : HttpStatus.BAD_REQUEST;
-        String message = exception.kind() == PluginArtifactException.Kind.TOO_LARGE
-            ? "插件归档超过限制"
-            : "插件归档无效";
-        return error(status, exception.errorCode(), message, false, null, request);
     }
 
     @ExceptionHandler(GatewayException.class)

@@ -1,6 +1,6 @@
 # [INPUT]: 依赖 plugin.yaml DTO 与根协议的 ID、cursor、revision、幂等键和统一错误响应
-# [OUTPUT]: 提供 T13 管理上传/发布/退休/分配/库存及 runtime 分配/下载/上报 Path Item
-# [POS]: contracts/paths 的插件纵向分片，下载每次重算 assignment 且 Range 不绕过设备授权
+# [OUTPUT]: 提供 T13 管理安装配置/发布/退休/分配/库存及 runtime 分配/上报 Path Item
+# [POS]: contracts/paths 的插件纵向分片，每次读取目录重算 assignment，客户端安装前必须重新读取授权
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 PluginCollection:
@@ -18,43 +18,28 @@ PluginCollection:
       '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
       '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
 
-PluginVersionUpload:
+PluginVersionRegistration:
   post:
-    operationId: uploadPluginVersion
-    parameters:
-      - $ref: '../enterprise-openapi.yaml#/components/parameters/IdempotencyKey'
+    operationId: registerPluginVersion
     requestBody:
       required: true
       content:
-        multipart/form-data:
-          schema:
-            type: object
-            additionalProperties: false
-            required: [artifact, compatibility]
-            properties:
-              artifact:
-                type: string
-                format: binary
-              compatibility:
-                $ref: '../enterprise-openapi.yaml#/components/schemas/PluginCompatibility'
-          encoding:
-            compatibility:
-              contentType: application/json
+        application/json:
+          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/PluginRegistrationRequest'}
     responses:
       '201':
-        description: Validated and signed plugin version.
+        description: Configured plugin version; installation is delegated to the host package manager.
         content:
           application/json:
             schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/PluginVersionResponse'}
       '200':
-        description: Existing version returned for an idempotent natural key.
+        description: Existing identical configuration.
         content:
           application/json:
             schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/PluginVersionResponse'}
       '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
       '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
       '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
-      '413': {$ref: '../enterprise-openapi.yaml#/components/responses/Error413'}
 
 PluginVersionPublish:
   parameters:
@@ -143,43 +128,6 @@ RuntimePluginAssignments:
             schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/RuntimePluginAssignmentsResponse'}
       '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
       '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
-
-RuntimePluginDownload:
-  parameters:
-    - $ref: '../enterprise-openapi.yaml#/components/parameters/PluginVersionIdPath'
-  get:
-    operationId: downloadPluginVersion
-    parameters:
-      - name: Range
-        in: header
-        required: false
-        schema:
-          type: string
-          pattern: '^bytes=[0-9]*-[0-9]*$'
-    responses:
-      '200':
-        description: Complete tgz artifact.
-        headers:
-          Accept-Ranges:
-            schema: {type: string, const: bytes}
-        content:
-          application/gzip:
-            schema: {type: string, format: binary}
-      '206':
-        description: Single byte range of the tgz artifact.
-        headers:
-          Accept-Ranges:
-            schema: {type: string, const: bytes}
-          Content-Range:
-            required: true
-            schema: {type: string}
-        content:
-          application/gzip:
-            schema: {type: string, format: binary}
-      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
-      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
-      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
-      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
 
 RuntimePluginInventory:
   put:

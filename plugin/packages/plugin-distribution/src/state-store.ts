@@ -14,9 +14,6 @@ import type { ManagedPluginRecord, ManagedPluginsFile } from './types.js'
 
 const STATES = new Set<ManagedPluginState>([
   'EXPECTED',
-  'DOWNLOAD_PENDING',
-  'DOWNLOADING',
-  'VERIFIED',
   'INSTALLING',
   'RESTART_REQUIRED',
   'ACTIVE',
@@ -27,14 +24,14 @@ const STATES = new Set<ManagedPluginState>([
 ])
 const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/
-const SHA256 = /^[0-9a-f]{64}$/
+const VERSION_ID = /^[1-9][0-9]{0,18}$/
 
 export function emptyManagedPluginsFile(): ManagedPluginsFile {
   return { formatVersion: 1, assignmentRevision: 0, plugins: [] }
 }
 
 export function resolveManagedPluginsPath(dshHome: string): string {
-  return join(dshHome, 'enterprise', 'managed-plugins.json')
+  return join(dshHome, 'enterprise', 'plugin-installations.json')
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -48,10 +45,10 @@ function nullableString(value: unknown, pattern?: RegExp): value is string | nul
 function parsePlugin(value: unknown): ManagedPluginRecord {
   if (!isRecord(value)
     || Object.keys(value).sort().join(',')
-      !== 'desiredRevision,desiredState,lastErrorCode,packageName,restartMarker,sha256,state,version'
+      !== 'desiredRevision,desiredState,lastErrorCode,packageName,pluginVersionId,restartMarker,state,version'
     || typeof value['packageName'] !== 'string' || !PACKAGE_NAME.test(value['packageName'])
     || !nullableString(value['version'], VERSION)
-    || !nullableString(value['sha256'], SHA256)
+    || !nullableString(value['pluginVersionId'], VERSION_ID)
     || !Number.isSafeInteger(value['desiredRevision']) || Number(value['desiredRevision']) < 0
     || value['desiredState'] !== 'INSTALLED' && value['desiredState'] !== 'ABSENT'
     || typeof value['state'] !== 'string' || !STATES.has(value['state'] as ManagedPluginState)
@@ -62,7 +59,7 @@ function parsePlugin(value: unknown): ManagedPluginRecord {
   return {
     packageName: value['packageName'],
     version: value['version'],
-    sha256: value['sha256'],
+    pluginVersionId: value['pluginVersionId'],
     desiredRevision: Number(value['desiredRevision']),
     desiredState: value['desiredState'],
     state: value['state'] as ManagedPluginState,

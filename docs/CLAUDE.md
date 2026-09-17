@@ -4,11 +4,12 @@
 
 成员清单
 
-v1-product-feature-catalog.md: V1 产品功能真源，汇总身份、LDAP 用户/组目录接入、模型、授权、配额、限流、插件、设备与审计的交付状态、关键语义、发布门禁和明确非目标。
-plugin-signing-e2e-20260909.md: 默认免公私钥与显式验签的真实 HTTP/Harness 生命周期、损坏制品/签名拒绝、离线安装和四类持久数据备份恢复的验收记录与复现入口。
+v1-product-feature-catalog.md: V1 产品功能真源，汇总身份、LDAP 用户/组目录接入、模型、授权、配额、限流、插件安装配置、设备与审计的交付状态、关键语义、发布门禁和明确非目标。
+plugin-signing-e2e-20260909.md: 已退役上传/验签链路的历史验收记录；当前安装配置模式以详细设计第 11 节为准，原复现脚本已删除。
+plugin-market-e2e-20260917.md: 当前 Server 与真实 npm Harness/Chromium 的插件联合验收，记录 10 项通过、原生 pnpm 构建审批前提、复现命令和安装源/原生窗口实测边界。
 v1-e2e-acceptance.md: V1 发布验收执行真源，以真实部署、LDAP/OIDC、锁定 Harness/Desktop 和浏览器场景覆盖全部冻结能力，并记录隔离、恢复与逐项证据。
 owndsh-work-platform.md: 产品预研，定义企业工作平台形态、能力边界、演进阶段与商业方向。
-owndsh-governance-mvp-design.md: MVP 实施真源，定义冻结决策、模块、API、数据表、测试、T00-T23 顺序和验收标准。
+owndsh-governance-mvp-design.md: MVP 实施真源，定义冻结决策、模块、API、数据表、测试、T00-T23 顺序和验收标准；插件已切换到安装配置模式，早期上传记录仅作历史证据。
 phase-2-product-console-design.md: 第二阶段产品化实施真源，冻结 TanStack/Beautiful UI 控制台、成员多身份、LDAP 目录组映射、集合授权，以及 TOKEN 多窗口、组织级供应商与其他资源 RATE 瞬时限流结构。
 mcp-management-design.md: MCP 详细设计入口，明确版本差异、公共字段、服务访问授权、数据库、管理/runtime 契约、RBAC 与第一版边界。
 mcp-runtime-design.md: MCP 端侧实施规格，记录已落地的身份/目标凭据隔离与 OAuth 取消/失效重授权边界与提前 401 扩展点限制，定义后续 discovery、连接与撤销状态机、search/release/PTC 呈现与本步快照、厂商机制对照和加载流程图、并发重挂载、local API 及诊断边界。

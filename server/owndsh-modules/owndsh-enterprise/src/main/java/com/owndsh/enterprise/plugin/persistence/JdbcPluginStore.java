@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 Spring JdbcOperations、Jackson 3 与 V2/V8 插件表、sys_user/sys_dept 主体事实。
- * [OUTPUT]: 实现 catalog/version CAS、幂等、可见范围优先级与库存；退休版本阻止新下载且不回退到低优先级范围。
+ * [INPUT]: 依赖 Spring JdbcOperations、Jackson 3 与 V34 安装配置表、sys_user/sys_dept 主体事实。
+ * [OUTPUT]: 实现 catalog/version CAS、幂等、可见范围优先级与库存；退休版本阻止新安装且不回退到低优先级范围。
  * [POS]: plugin/persistence 的 PostgreSQL adapter，所有业务查询同时限定 tenant 与 package ownership。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -8,8 +8,8 @@ package com.owndsh.enterprise.plugin.persistence;
 
 import com.owndsh.enterprise.plugin.domain.DevicePluginInventory;
 import com.owndsh.enterprise.plugin.domain.PluginAssignment;
-import com.owndsh.enterprise.plugin.domain.PluginCompatibility;
 import com.owndsh.enterprise.plugin.domain.PluginPackage;
+import com.owndsh.enterprise.plugin.domain.PluginInstallation;
 import com.owndsh.enterprise.plugin.domain.PluginVersion;
 import com.owndsh.enterprise.plugin.domain.RuntimePluginAssignment;
 import org.springframework.jdbc.core.JdbcOperations;
@@ -29,9 +29,8 @@ public final class JdbcPluginStore implements PluginStore {
     private static final String PACKAGE_COLUMNS =
         "id, tenant_id, package_name, display_name, status, revision";
     private static final String VERSION_COLUMNS = """
-        v.id, v.tenant_id, v.package_id, p.package_name, v.version, v.artifact_ref,
-        v.size_bytes, v.sha256, v.signature, v.compatibility_json, v.status,
-        v.created_by, v.created_at, v.revision
+        v.id, v.tenant_id, v.package_id, p.package_name, v.version, v.status,
+        v.created_by, v.created_at, v.revision, v.installation_json
         """;
     private static final String ASSIGNMENT_COLUMNS = """
         id, tenant_id, package_id, plugin_version_id, subject_type, subject_id,
@@ -58,9 +57,7 @@ public final class JdbcPluginStore implements PluginStore {
         """;
     private static final String FIND_EXISTING_VERSION = "select " + VERSION_COLUMNS + """
         from ent_plugin_version v join ent_plugin_package p on p.id=v.package_id
-        where v.tenant_id=? and (v.sha256=? or (p.package_name=? and v.version=?))
-        order by case when p.package_name=? and v.version=? then 0 else 1 end, v.id
-        limit 1
+        where v.tenant_id=? and p.package_name=? and v.version=?
         """;
     private static final String LIST_VERSIONS = "select " + VERSION_COLUMNS + """
         from ent_plugin_version v join ent_plugin_package p on p.id=v.package_id
@@ -68,9 +65,8 @@ public final class JdbcPluginStore implements PluginStore {
         """;
     private static final String INSERT_VERSION = """
         insert into ent_plugin_version(
-            id,tenant_id,package_id,version,artifact_ref,size_bytes,sha256,signature,
-            compatibility_json,status,created_by,created_at,revision
-        ) values (?,?,?,?,?,?,?,?,cast(? as jsonb),?,?,?,?)
+            id,tenant_id,package_id,version,status,created_by,created_at,revision,installation_json
+        ) values (?,?,?,?,?,?,?,?,cast(? as jsonb))
         """;
     private static final String TRANSITION_VERSION = """
         update ent_plugin_version set status=?, revision=revision+1
@@ -89,8 +85,7 @@ public final class JdbcPluginStore implements PluginStore {
         """;
     private static final String EFFECTIVE_ASSIGNMENTS = """
         with ranked as (
-            select v.id as plugin_version_id, p.package_name, v.version, v.size_bytes,
-                   v.sha256, v.signature, v.compatibility_json, a.required, a.desired_state, v.status as version_status,
+            select v.id as plugin_version_id, p.package_name, v.version, v.installation_json, a.required, a.desired_state, v.status as version_status,
                    row_number() over (
                        partition by a.package_id
                        order by case a.subject_type when 'USER' then 1 when 'DEPT' then 2 else 3 end, a.id
@@ -106,21 +101,20 @@ public final class JdbcPluginStore implements PluginStore {
                   or (a.subject_type='ALL' and a.subject_id is null)
               )
         )
-        select plugin_version_id, package_name, version, size_bytes, sha256, signature,
-               compatibility_json, required, desired_state
+        select plugin_version_id, package_name, version, installation_json, required, desired_state
         from ranked where priority=1 and (version_status='PUBLISHED' or desired_state='ABSENT') order by package_name
         """;
     private static final String DELETE_INVENTORY =
         "delete from ent_device_plugin where tenant_id=? and device_id=?";
     private static final String INSERT_INVENTORY = """
         insert into ent_device_plugin(
-            id,tenant_id,device_id,package_name,version,sha256,desired_revision,
+            id,tenant_id,device_id,package_name,version,desired_revision,
             state,loader_phase,last_error_code,observed_at
-        ) values (?,?,?,?,?,?,?,?,?,?,?)
+        ) values (?,?,?,?,?,?,?,?,?,?)
         """;
     private static final String LIST_INVENTORY = """
         select i.id,i.tenant_id,i.device_id,u.user_name as username,i.package_name,i.version,
-               i.sha256,i.desired_revision,i.state,i.loader_phase,i.last_error_code,i.observed_at
+               i.desired_revision,i.state,i.loader_phase,i.last_error_code,i.observed_at
         from ent_device_plugin i
         join ent_device d on d.id=i.device_id and d.tenant_id=i.tenant_id
         join sys_user u on u.user_id=d.user_id
@@ -140,6 +134,7 @@ public final class JdbcPluginStore implements PluginStore {
 
     @Override
     public Optional<PluginPackage> findPackageByNameForUpdate(String tenantId, String packageName) {
+        jdbc.query("select pg_advisory_xact_lock(hashtextextended(?, 0))", (rs, row) -> 0, tenantId + ":" + packageName);
         return jdbc.query(FIND_PACKAGE_NAME_FOR_UPDATE, packageMapper, tenantId, packageName).stream().findFirst();
     }
 
@@ -176,12 +171,11 @@ public final class JdbcPluginStore implements PluginStore {
     public Optional<PluginVersion> findExistingVersion(
         String tenantId,
         String packageName,
-        String version,
-        String sha256
+        String version
     ) {
         return jdbc.query(
             FIND_EXISTING_VERSION, versionMapper,
-            tenantId, sha256, packageName, version, packageName, version
+            tenantId, packageName, version
         ).stream().findFirst();
     }
 
@@ -199,9 +193,9 @@ public final class JdbcPluginStore implements PluginStore {
     public void insertVersion(PluginVersion value) {
         jdbc.update(
             INSERT_VERSION,
-            value.id(), value.tenantId(), value.packageId(), value.version(), value.artifactRef(),
-            value.sizeBytes(), value.sha256(), value.signature(), json.writeValueAsString(value.compatibility()),
-            value.status().name(), value.createdBy(), at(value.createdAt()), value.revision()
+            value.id(), value.tenantId(), value.packageId(), value.version(),
+            value.status().name(), value.createdBy(), at(value.createdAt()), value.revision(),
+            json.writeValueAsString(value.installation())
         );
     }
 
@@ -256,10 +250,10 @@ public final class JdbcPluginStore implements PluginStore {
             EFFECTIVE_ASSIGNMENTS,
             (resultSet, rowNumber) -> new RuntimePluginAssignment(
                 resultSet.getLong("plugin_version_id"), resultSet.getString("package_name"),
-                resultSet.getString("version"), resultSet.getLong("size_bytes"), resultSet.getString("sha256"),
-                resultSet.getBytes("signature"), compatibility(resultSet.getString("compatibility_json")),
+                resultSet.getString("version"),
                 resultSet.getBoolean("required"),
-                PluginAssignment.DesiredState.valueOf(resultSet.getString("desired_state"))
+                PluginAssignment.DesiredState.valueOf(resultSet.getString("desired_state")),
+                installation(resultSet.getString("installation_json"))
             ),
             tenantId, userId, departmentId, departmentId
         );
@@ -271,7 +265,7 @@ public final class JdbcPluginStore implements PluginStore {
         for (DevicePluginInventory value : inventory) {
             jdbc.update(
                 INSERT_INVENTORY,
-                value.id(), tenantId, deviceId, value.packageName(), value.version(), value.sha256(),
+                value.id(), tenantId, deviceId, value.packageName(), value.version(),
                 value.desiredRevision(), value.state().name(), value.loaderPhase(), value.lastErrorCode(),
                 at(value.observedAt())
             );
@@ -296,10 +290,9 @@ public final class JdbcPluginStore implements PluginStore {
         return new PluginVersion(
             resultSet.getLong("id"), resultSet.getString("tenant_id"), resultSet.getLong("package_id"),
             resultSet.getString("package_name"), resultSet.getString("version"),
-            resultSet.getString("artifact_ref"), resultSet.getLong("size_bytes"), resultSet.getString("sha256"),
-            resultSet.getBytes("signature"), compatibility(resultSet.getString("compatibility_json")),
             PluginVersion.Status.valueOf(resultSet.getString("status")), resultSet.getLong("created_by"),
-            instant(resultSet, "created_at"), resultSet.getLong("revision")
+            instant(resultSet, "created_at"), resultSet.getLong("revision"),
+            installation(resultSet.getString("installation_json"))
         );
     }
 
@@ -320,14 +313,14 @@ public final class JdbcPluginStore implements PluginStore {
         return new DevicePluginInventory(
             resultSet.getLong("id"), resultSet.getString("tenant_id"), resultSet.getLong("device_id"),
             resultSet.getString("username"), resultSet.getString("package_name"), resultSet.getString("version"),
-            resultSet.getString("sha256"), resultSet.getLong("desired_revision"),
+            resultSet.getLong("desired_revision"),
             DevicePluginInventory.State.valueOf(resultSet.getString("state")), resultSet.getString("loader_phase"),
             resultSet.getString("last_error_code"), instant(resultSet, "observed_at")
         );
     }
 
-    private PluginCompatibility compatibility(String value) {
-        return json.readValue(value, PluginCompatibility.class);
+    private PluginInstallation installation(String value) {
+        return json.readValue(value, PluginInstallation.class);
     }
 
     private static OffsetDateTime at(Instant value) {

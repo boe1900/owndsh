@@ -293,7 +293,9 @@ export type PluginVersionId = PluginPluginVersionId;
 
 export type PluginAssignmentId = PluginPluginAssignmentId;
 
-export type PluginCompatibility = PluginPluginCompatibility;
+export type PluginInstallation = PluginPluginInstallation;
+
+export type PluginRegistrationRequest = PluginPluginRegistrationRequest;
 
 export type PluginVersion = PluginPluginVersion;
 
@@ -545,7 +547,7 @@ export type ProtocolPageResponse = {
     requestId: RequestId;
 };
 
-export type EnterpriseErrorCode = 'ENT_INVALID_REQUEST' | 'ENT_INVALID_REDIRECT_URI' | 'ENT_PKCE_REQUIRED' | 'ENT_PLUGIN_ARTIFACT_INVALID' | 'ENT_SESSION_FORMAT_UNSUPPORTED' | 'ENT_AUTH_REQUIRED' | 'ENT_AUTH_CODE_INVALID' | 'ENT_PKCE_INVALID' | 'ENT_AUTH_SESSION_EXPIRED' | 'ENT_PERMISSION_DENIED' | 'ENT_DEVICE_REVOKED' | 'ENT_MODEL_NOT_ASSIGNED' | 'ENT_PLUGIN_NOT_ASSIGNED' | 'ENT_RESOURCE_NOT_OWNED' | 'ENT_RESOURCE_NOT_FOUND' | 'ENT_SESSION_CONTENT_EXPIRED' | 'ENT_REVISION_CONFLICT' | 'ENT_LAST_ENTERPRISE_ADMIN' | 'ENT_LAST_MEMBER_IDENTITY' | 'ENT_REQUEST_IN_PROGRESS' | 'ENT_REQUEST_ALREADY_COMPLETED' | 'ENT_SESSION_SEQ_GAP' | 'ENT_SESSION_DIVERGED' | 'ENT_SESSION_SOURCE_DEVICE_CONFLICT' | 'ENT_IDENTITY_ALREADY_LINKED' | 'ENT_DEVICE_ALREADY_BOUND' | 'ENT_MCP_CONFLICT' | 'ENT_MCP_CATALOG_STALE' | 'ENT_MCP_POLICY_INVALID' | 'ENT_MCP_UNSUPPORTED' | 'ENT_REQUEST_TOO_LARGE' | 'ENT_PLUGIN_ARCHIVE_TOO_LARGE' | 'ENT_SESSION_BATCH_TOO_LARGE' | 'ENT_QUOTA_FIVE_HOURS_EXCEEDED' | 'ENT_QUOTA_DAILY_EXCEEDED' | 'ENT_QUOTA_WEEKLY_EXCEEDED' | 'ENT_QUOTA_MONTHLY_EXCEEDED' | 'ENT_QUOTA_RPM_EXCEEDED' | 'ENT_QUOTA_CONCURRENCY_EXCEEDED' | 'ENT_UPSTREAM_RATE_LIMITED' | 'ENT_UPSTREAM_QUOTA_EXCEEDED' | 'ENT_UPSTREAM_AUTH_FAILED' | 'ENT_UPSTREAM_INVALID_RESPONSE' | 'ENT_PLATFORM_UNAVAILABLE' | 'ENT_UPSTREAM_UNAVAILABLE' | 'ENT_UPSTREAM_TIMEOUT';
+export type EnterpriseErrorCode = 'ENT_INVALID_REQUEST' | 'ENT_INVALID_REDIRECT_URI' | 'ENT_PKCE_REQUIRED' | 'ENT_SESSION_FORMAT_UNSUPPORTED' | 'ENT_AUTH_REQUIRED' | 'ENT_AUTH_CODE_INVALID' | 'ENT_PKCE_INVALID' | 'ENT_AUTH_SESSION_EXPIRED' | 'ENT_PERMISSION_DENIED' | 'ENT_DEVICE_REVOKED' | 'ENT_MODEL_NOT_ASSIGNED' | 'ENT_PLUGIN_NOT_ASSIGNED' | 'ENT_RESOURCE_NOT_OWNED' | 'ENT_RESOURCE_NOT_FOUND' | 'ENT_SESSION_CONTENT_EXPIRED' | 'ENT_REVISION_CONFLICT' | 'ENT_LAST_ENTERPRISE_ADMIN' | 'ENT_LAST_MEMBER_IDENTITY' | 'ENT_REQUEST_IN_PROGRESS' | 'ENT_REQUEST_ALREADY_COMPLETED' | 'ENT_SESSION_SEQ_GAP' | 'ENT_SESSION_DIVERGED' | 'ENT_SESSION_SOURCE_DEVICE_CONFLICT' | 'ENT_IDENTITY_ALREADY_LINKED' | 'ENT_DEVICE_ALREADY_BOUND' | 'ENT_MCP_CONFLICT' | 'ENT_MCP_CATALOG_STALE' | 'ENT_MCP_POLICY_INVALID' | 'ENT_MCP_UNSUPPORTED' | 'ENT_REQUEST_TOO_LARGE' | 'ENT_SESSION_BATCH_TOO_LARGE' | 'ENT_QUOTA_FIVE_HOURS_EXCEEDED' | 'ENT_QUOTA_DAILY_EXCEEDED' | 'ENT_QUOTA_WEEKLY_EXCEEDED' | 'ENT_QUOTA_MONTHLY_EXCEEDED' | 'ENT_QUOTA_RPM_EXCEEDED' | 'ENT_QUOTA_CONCURRENCY_EXCEEDED' | 'ENT_UPSTREAM_RATE_LIMITED' | 'ENT_UPSTREAM_QUOTA_EXCEEDED' | 'ENT_UPSTREAM_AUTH_FAILED' | 'ENT_UPSTREAM_INVALID_RESPONSE' | 'ENT_PLATFORM_UNAVAILABLE' | 'ENT_UPSTREAM_UNAVAILABLE' | 'ENT_UPSTREAM_TIMEOUT';
 
 export type ValidationViolation = {
     field: string;
@@ -583,7 +585,7 @@ export type EnterpriseErrorResponse = {
     error: EnterpriseError;
 };
 
-export type AuditAuditAction = 'LOGIN_SUCCEEDED' | 'LOGIN_FAILED' | 'LOGOUT' | 'IDENTITY_SOURCE_CHANGED' | 'USER_LINKED' | 'USER_UNLINKED' | 'DEVICE_ENROLLED' | 'DEVICE_HEARTBEAT' | 'DEVICE_REVOKED' | 'PROVIDER_CHANGED' | 'MODEL_CHANGED' | 'MODEL_GRANT_CHANGED' | 'MODEL_REQUEST_ACCEPTED' | 'MODEL_REQUEST_FINISHED' | 'QUOTA_CHANGED' | 'QUOTA_REJECTED' | 'RESERVATION_RECOVERED' | 'PLUGIN_UPLOADED' | 'PLUGIN_PUBLISHED' | 'PLUGIN_ASSIGNED' | 'PLUGIN_DOWNLOADED' | 'PLUGIN_INVENTORY_REPORTED' | 'SESSION_BATCH_APPENDED' | 'SESSION_EXPORTED' | 'SESSION_RESTORED' | 'SESSION_CONTENT_READ' | 'SESSION_DELETED' | 'SESSION_EXPIRED' | 'ROLE_ASSIGNED' | 'USER_STATUS_CHANGED' | 'CONFIG_CHANGED';
+export type AuditAuditAction = 'LOGIN_SUCCEEDED' | 'LOGIN_FAILED' | 'LOGOUT' | 'IDENTITY_SOURCE_CHANGED' | 'USER_LINKED' | 'USER_UNLINKED' | 'DEVICE_ENROLLED' | 'DEVICE_HEARTBEAT' | 'DEVICE_REVOKED' | 'PROVIDER_CHANGED' | 'MODEL_CHANGED' | 'MODEL_GRANT_CHANGED' | 'MODEL_REQUEST_ACCEPTED' | 'MODEL_REQUEST_FINISHED' | 'QUOTA_CHANGED' | 'QUOTA_REJECTED' | 'RESERVATION_RECOVERED' | 'PLUGIN_REGISTERED' | 'PLUGIN_UPLOADED' | 'PLUGIN_PUBLISHED' | 'PLUGIN_ASSIGNED' | 'PLUGIN_DOWNLOADED' | 'PLUGIN_INVENTORY_REPORTED' | 'SESSION_BATCH_APPENDED' | 'SESSION_EXPORTED' | 'SESSION_RESTORED' | 'SESSION_CONTENT_READ' | 'SESSION_DELETED' | 'SESSION_EXPIRED' | 'ROLE_ASSIGNED' | 'USER_STATUS_CHANGED' | 'CONFIG_CHANGED';
 
 export type AuditAuditActorType = 'USER' | 'SYSTEM';
 
@@ -693,7 +695,7 @@ export type ModelGrantChangeAuditMetadata = {
 };
 
 export type PluginAuditMetadata = {
-    operation: 'UPLOAD' | 'PUBLISH' | 'RETIRE' | 'ASSIGN' | 'DOWNLOAD' | 'INVENTORY';
+    operation: 'REGISTER' | 'UPLOAD' | 'PUBLISH' | 'RETIRE' | 'ASSIGN' | 'DOWNLOAD' | 'INVENTORY';
     resourceRevision: number;
     bootstrapRevision: number;
     itemCount: number;
@@ -1829,7 +1831,6 @@ export type AdminPluginInventoryItem = {
     username: string;
     packageName: PluginPackageName;
     version: PluginSemanticVersion | null;
-    sha256: PluginSha256 | null;
     desiredRevision: Revision;
     state: ManagedPluginState;
     loaderPhase: string | null;
@@ -1847,7 +1848,7 @@ export type AdminPluginInventoryPageData = {
     page: CursorPage;
 };
 
-export type ManagedPluginState = 'EXPECTED' | 'DOWNLOAD_PENDING' | 'DOWNLOADING' | 'VERIFIED' | 'INSTALLING' | 'RESTART_REQUIRED' | 'ACTIVE' | 'REMOVE_PENDING' | 'REMOVING' | 'FAILED' | 'ROLLBACK';
+export type ManagedPluginState = 'EXPECTED' | 'INSTALLING' | 'RESTART_REQUIRED' | 'ACTIVE' | 'REMOVE_PENDING' | 'REMOVING' | 'FAILED' | 'ROLLBACK';
 
 export type PluginAssignment = {
     id: PluginPluginAssignmentId;
@@ -1882,13 +1883,16 @@ export type PluginAssignmentWrite = {
     required: boolean;
 };
 
-export type PluginPluginCompatibility = {
-    harnessCommits: Array<string>;
-    enterpriseBundleRange: string;
-    operatingSystems: Array<PluginOperatingSystem>;
-};
-
 export type PluginDesiredState = 'INSTALLED' | 'ABSENT';
+
+export type PluginPluginInstallation = {
+    spec: string;
+    displayName: string;
+    description: string;
+    author: string;
+    repositoryUrl: string;
+    categories: Array<string>;
+};
 
 export type PluginInventoryAck = {
     reported: number;
@@ -1897,7 +1901,6 @@ export type PluginInventoryAck = {
 export type PluginInventoryItem = {
     packageName: PluginPackageName;
     version: PluginSemanticVersion | null;
-    sha256: PluginSha256 | null;
     desiredRevision: Revision;
     state: ManagedPluginState;
     loaderPhase: string | null;
@@ -1913,8 +1916,6 @@ export type PluginPluginInventoryResponse = {
     data: PluginInventoryAck;
     requestId: RequestId;
 };
-
-export type PluginOperatingSystem = 'darwin' | 'linux' | 'win32';
 
 export type PluginPluginPackage = {
     id: PluginPluginPackageId;
@@ -1942,9 +1943,13 @@ export type PluginPluginPackagePageData = {
 
 export type PluginPackageStatus = 'ACTIVE' | 'DISABLED';
 
-export type PluginSemanticVersion = string;
+export type PluginPluginRegistrationRequest = {
+    packageName: PluginPackageName;
+    version: PluginSemanticVersion;
+    installation: PluginPluginInstallation;
+};
 
-export type PluginSha256 = string;
+export type PluginSemanticVersion = string;
 
 export type PluginSubjectType = 'ALL' | 'DEPT' | 'USER';
 
@@ -1953,13 +1958,7 @@ export type PluginPluginVersion = {
     packageId: PluginPluginPackageId;
     packageName: PluginPackageName;
     version: PluginSemanticVersion;
-    sizeBytes: number;
-    sha256: PluginSha256;
-    /**
-     * 空字符串表示未签名；非空值为 Ed25519 签名的 Base64。
-     */
-    signatureBase64: '' | string;
-    compatibility: PluginPluginCompatibility;
+    installation: PluginPluginInstallation;
     status: PluginVersionStatus;
     createdAt: string;
     revision: Revision;
@@ -1972,20 +1971,13 @@ export type PluginPluginVersionResponse = {
     requestId: RequestId;
 };
 
-export type PluginVersionStatus = 'UPLOADED' | 'VALIDATED' | 'PUBLISHED' | 'RETIRED';
+export type PluginVersionStatus = 'VALIDATED' | 'PUBLISHED' | 'RETIRED';
 
 export type RuntimePluginAssignment = {
     pluginVersionId: PluginPluginVersionId;
     packageName: PluginPackageName;
     version: PluginSemanticVersion;
-    sizeBytes: number;
-    sha256: PluginSha256;
-    /**
-     * 空字符串表示未签名；非空值为 Ed25519 签名的 Base64。
-     */
-    signatureBase64: '' | string;
-    compatibility: PluginPluginCompatibility;
-    downloadUrl: string | null;
+    installation: PluginPluginInstallation;
     required: boolean;
     desiredState: PluginDesiredState;
 };
@@ -2481,13 +2473,11 @@ export type PluginCollection = unknown;
 
 export type PluginVersionPublish = unknown;
 
+export type PluginVersionRegistration = unknown;
+
 export type PluginVersionRetire = unknown;
 
-export type PluginVersionUpload = unknown;
-
 export type PluginRuntimePluginAssignments2 = unknown;
-
-export type RuntimePluginDownload = unknown;
 
 export type RuntimePluginInventory = unknown;
 
@@ -6081,23 +6071,14 @@ export type ListPluginPackagesResponses = {
 
 export type ListPluginPackagesResponse = ListPluginPackagesResponses[keyof ListPluginPackagesResponses];
 
-export type UploadPluginVersionData = {
-    body: {
-        artifact: Blob | File;
-        compatibility: PluginPluginCompatibility;
-    };
-    headers: {
-        /**
-         * Caller-generated UUID v4 reused only for one logical write.
-         */
-        'Idempotency-Key': string;
-    };
+export type RegisterPluginVersionData = {
+    body: PluginPluginRegistrationRequest;
     path?: never;
     query?: never;
     url: '/enterprise/admin/v1/plugins/versions';
 };
 
-export type UploadPluginVersionErrors = {
+export type RegisterPluginVersionErrors = {
     /**
      * Invalid request.
      */
@@ -6110,26 +6091,22 @@ export type UploadPluginVersionErrors = {
      * Permission denied.
      */
     403: EnterpriseErrorResponse;
-    /**
-     * Request or archive is too large.
-     */
-    413: EnterpriseErrorResponse;
 };
 
-export type UploadPluginVersionError = UploadPluginVersionErrors[keyof UploadPluginVersionErrors];
+export type RegisterPluginVersionError = RegisterPluginVersionErrors[keyof RegisterPluginVersionErrors];
 
-export type UploadPluginVersionResponses = {
+export type RegisterPluginVersionResponses = {
     /**
-     * Existing version returned for an idempotent natural key.
+     * Existing identical configuration.
      */
     200: PluginPluginVersionResponse;
     /**
-     * Validated and signed plugin version.
+     * Configured plugin version; installation is delegated to the host package manager.
      */
     201: PluginPluginVersionResponse;
 };
 
-export type UploadPluginVersionResponse = UploadPluginVersionResponses[keyof UploadPluginVersionResponses];
+export type RegisterPluginVersionResponse = RegisterPluginVersionResponses[keyof RegisterPluginVersionResponses];
 
 export type PublishPluginVersionData = {
     body?: never;
@@ -6340,52 +6317,6 @@ export type GetPluginAssignmentsResponses = {
 };
 
 export type GetPluginAssignmentsResponse = GetPluginAssignmentsResponses[keyof GetPluginAssignmentsResponses];
-
-export type DownloadPluginVersionData = {
-    body?: never;
-    headers?: {
-        Range?: string;
-    };
-    path: {
-        pluginVersionId: PluginPluginVersionId;
-    };
-    query?: never;
-    url: '/enterprise/api/v1/plugins/versions/{pluginVersionId}/download';
-};
-
-export type DownloadPluginVersionErrors = {
-    /**
-     * Invalid request.
-     */
-    400: EnterpriseErrorResponse;
-    /**
-     * Authentication failed.
-     */
-    401: EnterpriseErrorResponse;
-    /**
-     * Permission denied.
-     */
-    403: EnterpriseErrorResponse;
-    /**
-     * Resource not found.
-     */
-    404: EnterpriseErrorResponse;
-};
-
-export type DownloadPluginVersionError = DownloadPluginVersionErrors[keyof DownloadPluginVersionErrors];
-
-export type DownloadPluginVersionResponses = {
-    /**
-     * Complete tgz artifact.
-     */
-    200: Blob | File;
-    /**
-     * Single byte range of the tgz artifact.
-     */
-    206: Blob | File;
-};
-
-export type DownloadPluginVersionResponse = DownloadPluginVersionResponses[keyof DownloadPluginVersionResponses];
 
 export type ReplacePluginInventoryData = {
     body: PluginPluginInventoryRequest;
