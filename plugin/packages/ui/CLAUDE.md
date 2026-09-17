@@ -5,7 +5,7 @@
 成员清单
 
 README.md: 员工 Client 边界说明，记录官方 UI 零分叉、初装只填 Server、全局门禁、整包卸载与 V1 Session 停用。
-package.json: 私有双入口 package 清单，Host 空入口与 Client React 入口分离；官方 ui-primitives 只用于开发类型检查，发行时使用 Harness 共享实例；semver 比较企业与本机版本，避免将回滚或构建元数据误报为更新。
+package.json: 私有双入口 package 清单，Host 空入口与 Client React 入口分离；构建与类型检查先产出 contracts 依赖声明，支持全新 checkout；官方 ui-primitives 只用于开发类型检查，发行时使用 Harness 共享实例；semver 比较企业与本机版本，避免将回滚或构建元数据误报为更新。
 tsconfig.json: React 18 Client TypeScript 构建边界，生成 ESM、声明和 sourcemap。
 src/account-store.ts: 官方 slot 共享的状态控制器，串行处理 Server、账号、插件和 MCP 状态/授权动作并返回地址保存与手动刷新结果；服务/账号或连接边界变化时取消旧事实请求，防止迟到数据与错误跨会话回填；账号/MCP 授权查询有截止时间，成功后刷新连接事实，取消和账号切换停止旧查询。
 src/account-view.tsx: 复用宿主 Button/tokens 呈现账号摘要、只读地址/设备/版本和刷新进度/成功失败反馈/退出/卸载；Server 编辑只出现在无活动会话的门禁，保存成功才收起；保留插件/MCP tab、每服务独立 MCP 卡片、实际连接/数字目录入口/三行短预览与仅截断时按需渲染全文及本机启用、禁用、断开语义、OAuth 重新授权/等待/取消动作与原样认证值输入提示、官方 close 门禁联动和窄屏导航适配。
