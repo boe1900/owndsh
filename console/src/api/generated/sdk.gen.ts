@@ -1004,7 +1004,11 @@ export const publishPluginVersion = <ThrowOnError extends boolean = false>(optio
             type: 'apiKey'
         }],
     url: '/enterprise/admin/v1/plugins/versions/{pluginVersionId}/actions/publish',
-    ...options
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
 });
 
 export const retirePluginVersion = <ThrowOnError extends boolean = false>(options: Options<RetirePluginVersionData, ThrowOnError>): RequestResult<RetirePluginVersionResponses, RetirePluginVersionErrors, ThrowOnError> => (options.client ?? client).post<RetirePluginVersionResponses, RetirePluginVersionErrors, ThrowOnError>({

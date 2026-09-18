@@ -1,11 +1,11 @@
 /**
  * [INPUT]: 依赖生成的插件管理 operation、JSON 安装配置、成员目录、console 权限事实、TanStack Query、ProductDataTable 与插件编辑器，共享 lib/crypto 生成 HTTP/HTTPS 通用幂等键。
- * [OUTPUT]: 提供企业插件安装配置、版本/可见范围/设备状态三视图；登记时复用目录分页收集已有分类，支持发布、退休与原子范围管理。
+ * [OUTPUT]: 提供插件版本/范围/设备三视图；从已有版本继承配置，保存后衔接发布确认，以版本与包 revision 原子发布并更新范围。
  * [POS]: features/plugins 的产品插件工作台；服务端负责目录、状态机和分配裁决，宿主负责包安装及依赖。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { useRouteContext } from '@tanstack/react-router';
 import { Archive, Send, Settings2, Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -24,6 +24,7 @@ import type {
   PluginAssignment,
   PluginPackage,
   PluginPackagePageData,
+  PluginPublishRequest,
   PluginVersion
 } from '@/api/generated/types.gen';
 import { randomUuid } from '@/lib/crypto';
@@ -36,6 +37,7 @@ import {
   PluginAssignmentDialog,
   RetirePluginVersionDialog,
   RegisterPluginVersionDialog,
+  PublishPluginVersionDialog,
   type PluginAssignmentValue,
   type PluginRegistrationValue
 } from './plugin-editors';
@@ -169,7 +171,8 @@ function versionColumnsWithActions(
   canWrite: boolean,
   disabled: boolean,
   onPublish: (version: PluginVersion) => void,
-  onRetire: (version: PluginVersion) => void
+  onRetire: (version: PluginVersion) => void,
+  onNewVersion: (version: PluginVersion) => void
 ): ReadonlyArray<ProductTableColumn<PluginVersionRow>> {
   if (!canWrite) return versionColumns;
   return [...versionColumns, {
@@ -178,7 +181,12 @@ function versionColumnsWithActions(
     enableGlobalFilter: false,
     enableHiding: false,
     enableSorting: false,
-    cell: ({ row }) => row.original.status === 'VALIDATED' ? (
+    cell: ({ row }) => <div className="flex items-center gap-1">
+      <Button variant="quiet" size="xs" className="h-7 gap-1 rounded-md px-2" disabled={disabled}
+        aria-label={`基于 ${row.original.packageName}@${row.original.version} 新增版本`} onClick={() => onNewVersion(row.original)}>
+        <Plus aria-hidden className="size-3.5" />新增版本
+      </Button>
+      {row.original.status === 'VALIDATED' ? (
       <Button variant="quiet" size="xs" className="size-7 rounded-md p-0" disabled={disabled} aria-label={`发布 ${row.original.packageName}@${row.original.version}`} title="发布" onClick={() => onPublish(row.original)}>
         <Send aria-hidden className="size-3.5" />
       </Button>
@@ -186,8 +194,8 @@ function versionColumnsWithActions(
       <Button variant="quiet" size="xs" className="size-7 rounded-md p-0" disabled={disabled} aria-label={`退休 ${row.original.packageName}@${row.original.version}`} title="退休" onClick={() => onRetire(row.original)}>
         <Archive aria-hidden className="size-3.5" />
       </Button>
-    ) : null,
-    meta: { label: '操作', className: 'w-[80px]', cellClassName: 'w-[80px]' }
+    ) : null}</div>,
+    meta: { label: '操作', className: 'w-[145px]', cellClassName: 'w-[145px]' }
   }];
 }
 
@@ -280,6 +288,8 @@ export function PluginManagementPage() {
   const queryClient = useQueryClient();
   const [section, setSection] = useState<(typeof SECTIONS)[number]>('插件版本');
   const [registrationOpen, setRegistrationOpen] = useState(false);
+  const [registrationBase, setRegistrationBase] = useState<PluginVersion>();
+  const [publishTarget, setPublishTarget] = useState<{ version: PluginVersion; pluginPackage: PluginPackage; sourceVersionId?: string }>();
   const [assignmentOpen, setAssignmentOpen] = useState(false);
   const [retireTarget, setRetireTarget] = useState<PluginVersion>();
   const members = useMembers(section === '可见范围' || assignmentOpen);
@@ -309,25 +319,33 @@ export function PluginManagementPage() {
       const result = await registerPluginVersion({
         body: value
       });
-      requireSuccess(result, '插件配置保存失败');
+      return unwrapData<PluginVersion>(result, '插件配置保存失败');
     },
-    onSuccess: async () => {
-      setRegistrationOpen(false);
+    onSuccess: async (version) => {
       await queryClient.invalidateQueries({ queryKey: ['plugins', 'packages'] });
+      setRegistrationOpen(false);
+      const pluginPackage = queryClient.getQueryData<InfiniteData<PluginPackagePageData>>(['plugins', 'packages'])
+        ?.pages.flatMap(page => page.items).find(item => item.id === version.packageId);
+      if (registrationBase && pluginPackage && version.status === 'VALIDATED') {
+        changeVersion.reset();
+        setPublishTarget({ version, pluginPackage, sourceVersionId: registrationBase.id });
+      }
     }
   });
   const changeVersion = useMutation({
-    mutationFn: async ({ action, version }: { action: 'publish' | 'retire'; version: PluginVersion }) => {
+    mutationFn: async ({ action, version, upgrade }: { action: 'publish' | 'retire'; version: PluginVersion; upgrade?: PluginPublishRequest }) => {
       const options = { headers: { 'If-Match': version.revision }, path: { pluginVersionId: version.id } };
       const result = action === 'publish'
-        ? await publishPluginVersion(options)
+        ? await publishPluginVersion({ ...options, ...(upgrade ? { body: upgrade } : {}) })
         : await retirePluginVersion(options);
       requireSuccess(result, 'ENT_PLUGIN_VERSION_UPDATE_FAILED');
     },
     onSuccess: async (_data, variables) => {
       if (variables.action === 'retire') setRetireTarget(undefined);
+      else setPublishTarget(undefined);
       await queryClient.invalidateQueries({ queryKey: ['plugins', 'packages'] });
-    }
+    },
+    onError: () => { void queryClient.invalidateQueries({ queryKey: ['plugins', 'packages'] }); }
   });
   const saveAssignments = useMutation({
     mutationFn: async (value: PluginAssignmentValue) => {
@@ -370,8 +388,12 @@ export function PluginManagementPage() {
       columns={versionColumnsWithActions(
         canWrite,
         changeVersion.isPending,
-        (version) => changeVersion.mutate({ action: 'publish', version }),
-        setRetireTarget
+        (version) => {
+          const pluginPackage = packageRows.find(item => item.id === version.packageId);
+          if (pluginPackage) { changeVersion.reset(); setPublishTarget({ version, pluginPackage }); }
+        },
+        setRetireTarget,
+        (version) => { registration.reset(); setRegistrationBase(version); setRegistrationOpen(true); }
       )}
       data={versionRows}
       emptyText="暂无插件版本"
@@ -385,7 +407,7 @@ export function PluginManagementPage() {
       onRetry={() => void packages.refetch()}
       searchPlaceholder="搜索插件或版本"
       toolbarAction={canWrite ? (
-        <Button variant="primary" size="xs" onClick={() => { registration.reset(); setRegistrationOpen(true); }}>
+        <Button variant="primary" size="xs" onClick={() => { registration.reset(); setRegistrationBase(undefined); setRegistrationOpen(true); }}>
           <Plus aria-hidden className="size-3.5" />
           添加插件
         </Button>
@@ -438,21 +460,30 @@ export function PluginManagementPage() {
           <h1 className="m-0 text-[22px] font-semibold leading-tight text-ink">企业插件</h1>
           <SegmentedControl options={SECTIONS} value={section} onChange={setSection} />
         </header>
-        {changeVersion.error && !retireTarget ? <p role="alert" className="m-0 text-[12.5px] text-red">{changeVersion.error.message}</p> : null}
+        {changeVersion.error && !retireTarget && !publishTarget ? <p role="alert" className="m-0 text-[12.5px] text-red">{changeVersion.error.message}</p> : null}
         {table}
       </div>
       {registrationOpen ? (
         <RegisterPluginVersionDialog
+          baseVersion={registrationBase}
+          versions={packageRows.find(item => item.id === registrationBase?.packageId)?.versions}
           categoryOptions={categoryOptions}
           categoriesLoading={packages.isFetching}
           categoriesError={packages.isError}
           onRetryCategories={() => { void (packages.isFetchNextPageError ? packages.fetchNextPage() : packages.refetch()); }}
           error={registration.error?.message}
           saving={registration.isPending}
-          onClose={() => setRegistrationOpen(false)}
+          onClose={() => { if (!registration.isPending) setRegistrationOpen(false); }}
           onSave={(value) => registration.mutate(value)}
         />
       ) : null}
+      {publishTarget ? <PublishPluginVersionDialog
+        {...publishTarget}
+        error={changeVersion.error?.message}
+        saving={changeVersion.isPending}
+        onClose={() => { if (!changeVersion.isPending) setPublishTarget(undefined); }}
+        onPublish={upgrade => changeVersion.mutate({ action: 'publish', version: publishTarget.version, upgrade })}
+      /> : null}
       {assignmentOpen ? (
         <PluginAssignmentDialog
           error={saveAssignments.error?.message}

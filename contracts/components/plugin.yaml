@@ -1,5 +1,5 @@
 # [INPUT]: 依赖根协议的资源 ID、revision、cursor、requestId 与严格成功 envelope
-# [OUTPUT]: 提供安装地址/展示信息、可见范围和设备库存 schemas
+# [OUTPUT]: 提供安装配置、可选双 revision 发布升级、可见范围和设备库存 schemas
 # [POS]: contracts/components 的插件分发真源，保留 assignment 线协议并以可见范围承载员工自主安装
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -73,6 +73,17 @@ PluginRegistrationRequest:
     packageName: {$ref: '#/PluginPackageName'}
     version: {$ref: '#/PluginSemanticVersion'}
     installation: {$ref: '#/PluginInstallation'}
+
+PluginPublishRequest:
+  type: object
+  additionalProperties: false
+  required: [sourceVersionId, packageRevision]
+  properties:
+    sourceVersionId:
+      $ref: '#/PluginVersionId'
+      description: Published version whose active installable assignments move to the new version.
+    packageRevision:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/Revision'
 
 PluginVersion:
   type: object

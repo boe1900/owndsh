@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖真实 PostgreSQL 17/Flyway V1-V13、三个显式活动用户 fixture、设备与插件 JDBC/application 服务。
- * [OUTPUT]: 验证配置登记、并发幂等、可选可见范围、退休下架/禁止优先级回退、安装授权、库存、审计和事务回滚。
+ * [INPUT]: 依赖真实 PostgreSQL 17/Flyway 最新迁移、三个活动用户、设备与插件 JDBC/application 服务。
+ * [OUTPUT]: 验证登记/并发幂等、范围优先级、发布升级的双 revision 与精确迁移、安装授权、库存及审计失败全事务回滚。
  * [POS]: T13 服务端纵向验收，跨越 domain、persistence 与 application 的真实事务边界。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -25,6 +25,7 @@ import com.owndsh.enterprise.plugin.domain.PluginInstallation;
 import com.owndsh.enterprise.plugin.persistence.JdbcPluginStore;
 import com.owndsh.enterprise.plugin.web.PluginViews;
 import com.owndsh.enterprise.revision.JdbcBootstrapRevisionStore;
+import com.owndsh.enterprise.revision.RevisionConflictException;
 import com.owndsh.enterprise.test.PostgresTestDatabase;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
@@ -199,6 +200,58 @@ class PluginServerIntegrationTest {
         assertThat(jdbc.queryForObject(
             "select count(*) from ent_plugin_package where package_name='@example/t13-rollback'", Long.class
         )).isZero();
+
+        // ---- 新版发布仅迁移旧版的有效可安装范围，撤回、停用与其他版本均保留 ----
+        store.insertAssignment(new PluginAssignment(ids.getAsLong(), TENANT, packageId, publishedOne.id(),
+            PluginAssignment.SubjectType.USER, PEER_USER, PluginAssignment.DesiredState.INSTALLED,
+            false, PluginAssignment.Status.DISABLED, 0));
+        PluginVersion versionThree = catalog.register(mutation, "@example/t13-tools", "3.0.0", installation("3.0.0")).version();
+        long packageRevision = store.findPackageById(TENANT, packageId).orElseThrow().revision();
+        long bootstrapRevision = revisions.current(TENANT);
+        List<PluginAssignment> beforeUpgrade = store.listAssignments(TENANT, packageId);
+        assertThatThrownBy(() -> catalog.publishAndUpgrade(mutation, versionThree.id(), 0, publishedOne.id(), packageRevision - 1))
+            .isInstanceOf(RevisionConflictException.class);
+        assertThatThrownBy(() -> catalog.publishAndUpgrade(mutation, versionThree.id(), 1, publishedOne.id(), packageRevision))
+            .isInstanceOf(RevisionConflictException.class);
+        assertThatThrownBy(() -> catalog.publishAndUpgrade(mutation, versionThree.id(), 0, retiredTwo.id(), packageRevision))
+            .isInstanceOf(IllegalArgumentException.class);
+
+        PluginCatalogService failingUpgrade = new PluginCatalogService(transaction, store, revisions, event -> {
+            if (event.action() == com.owndsh.enterprise.audit.AuditAction.PLUGIN_ASSIGNED) {
+                throw new IllegalStateException("forced upgrade rollback");
+            }
+            audit.append(event);
+        }, ids);
+        assertThatThrownBy(() -> failingUpgrade.publishAndUpgrade(mutation, versionThree.id(), 0, publishedOne.id(), packageRevision))
+            .isInstanceOf(IllegalStateException.class).hasMessage("forced upgrade rollback");
+        assertThat(store.findVersion(TENANT, versionThree.id()).orElseThrow()).isEqualTo(versionThree);
+        assertThat(store.findPackageById(TENANT, packageId).orElseThrow().revision()).isEqualTo(packageRevision);
+        assertThat(revisions.current(TENANT)).isEqualTo(bootstrapRevision);
+        assertThat(store.listAssignments(TENANT, packageId)).containsExactlyElementsOf(beforeUpgrade);
+
+        PluginVersion upgraded = catalog.publishAndUpgrade(mutation, versionThree.id(), 0, publishedOne.id(), packageRevision);
+        assertThat(upgraded.status()).isEqualTo(PluginVersion.Status.PUBLISHED);
+        assertThat(store.findPackageById(TENANT, packageId).orElseThrow().revision()).isEqualTo(packageRevision + 1);
+        assertThat(revisions.current(TENANT)).isEqualTo(bootstrapRevision + 1);
+        List<PluginAssignment> afterUpgrade = store.listAssignments(TENANT, packageId);
+        for (PluginAssignment before : beforeUpgrade) {
+            PluginAssignment after = afterUpgrade.stream().filter(item -> item.id() == before.id()).findFirst().orElseThrow();
+            if (before.subjectType() == PluginAssignment.SubjectType.ALL) {
+                assertThat(after.pluginVersionId()).isEqualTo(versionThree.id());
+                assertThat(after.revision()).isEqualTo(before.revision() + 1);
+            } else assertThat(after).isEqualTo(before);
+        }
+        assertResolved(resolver.resolve(TENANT, OTHER_USER, OTHER_DEPT), versionThree.id(), "INSTALLED");
+        assertResolved(resolver.resolve(TENANT, ADMIN_USER, ADMIN_DEPT), publishedOne.id(), "ABSENT");
+
+        // 已被迁空的旧版不能制造“发布成功但没有范围”的半完成结果。
+        PluginVersion versionFour = catalog.register(mutation, "@example/t13-tools", "4.0.0", installation("4.0.0")).version();
+        long emptySourceRevision = store.findPackageById(TENANT, packageId).orElseThrow().revision();
+        assertThatThrownBy(() -> catalog.publishAndUpgrade(mutation, versionFour.id(), 0, publishedOne.id(), emptySourceRevision))
+            .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("已无可沿用");
+        assertThat(store.findVersion(TENANT, versionFour.id()).orElseThrow()).isEqualTo(versionFour);
+        assertThat(store.findPackageById(TENANT, packageId).orElseThrow().revision()).isEqualTo(emptySourceRevision);
+        assertThat(store.listAssignments(TENANT, packageId)).containsExactlyElementsOf(afterUpgrade);
     }
 
     private static List<PluginCatalogService.RegistrationResult> concurrentRegistrations(

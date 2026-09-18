@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖插件管理/runtime Controller、MockMvc、权限注解与派生 OpenAPI schemas。
- * [OUTPUT]: 验证八个插件 operation、catalog 完整 assignment 投影、JSON 登记、稳定错误和固定权限码。
+ * [OUTPUT]: 验证八个插件 operation、可选原子发布升级的请求校验与参数、完整 assignment 投影、稳定错误和权限码。
  * [POS]: T13 Server/OpenAPI 同步门禁，application services 使用 mock 以隔离 HTTP 翻译与安装配置。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -57,10 +57,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -147,6 +149,24 @@ class T13ApiContractTest {
                 """.formatted(VERSION_ID)), 200), "PluginAssignmentBatchResponse");
         assertSchema(response(get("/enterprise/admin/v1/plugins/inventory"), 200),
             "AdminPluginInventoryListResponse");
+    }
+
+    @Test
+    void publishesWithAnExplicitSourceVersionAndPackageRevision() throws Exception {
+        when(catalog.publishAndUpgrade(any(), anyLong(), anyLong(), anyLong(), anyLong()))
+            .thenReturn(version(PluginVersion.Status.PUBLISHED, 2));
+        assertSchema(response(post("/enterprise/admin/v1/plugins/versions/{id}/actions/publish", VERSION_ID)
+            .header("If-Match", "1").contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {"sourceVersionId":"101","packageRevision":7}
+                """), 200), "PluginVersionResponse");
+        verify(catalog).publishAndUpgrade(any(), eq(VERSION_ID), eq(1L), eq(101L), eq(7L));
+        for (String body : List.of("{}", "{\"sourceVersionId\":\"101\"}",
+            "{\"sourceVersionId\":\"0\",\"packageRevision\":7}",
+            "{\"sourceVersionId\":\"101\",\"packageRevision\":-1}")) {
+            response(post("/enterprise/admin/v1/plugins/versions/{id}/actions/publish", VERSION_ID)
+                .header("If-Match", "1").contentType(MediaType.APPLICATION_JSON).content(body), 400);
+        }
     }
 
     @Test

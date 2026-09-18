@@ -829,6 +829,7 @@ components:
     PluginAssignmentId: {$ref: './components/plugin.yaml#/PluginAssignmentId'}
     PluginInstallation: {$ref: './components/plugin.yaml#/PluginInstallation'}
     PluginRegistrationRequest: {$ref: './components/plugin.yaml#/PluginRegistrationRequest'}
+    PluginPublishRequest: {$ref: './components/plugin.yaml#/PluginPublishRequest'}
     PluginVersion: {$ref: './components/plugin.yaml#/PluginVersion'}
     PluginVersionResponse: {$ref: './components/plugin.yaml#/PluginVersionResponse'}
     PluginPackage: {$ref: './components/plugin.yaml#/PluginPackage'}

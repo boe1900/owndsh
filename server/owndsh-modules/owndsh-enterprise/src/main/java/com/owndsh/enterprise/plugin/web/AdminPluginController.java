@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 PluginCatalogService、可信 enterprise-admin 上下文、认证 cursor 与 ent:plugin 权限码。
- * [OUTPUT]: 提供 catalog list、JSON 安装配置登记、version publish/retire、assignment batch 和 inventory list。
+ * [OUTPUT]: 提供 catalog、配置登记、版本发布/退休、可选双 revision 原子发布升级、范围和库存入口。
  * [POS]: plugin/web 的管理 HTTP 入口，只接收安装配置，包内容由客户端宿主获取。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -94,11 +94,15 @@ public final class AdminPluginController {
     public EnterpriseResponse<PluginViews.VersionView> publish(
         @PathVariable long versionId,
         @RequestHeader("If-Match") long expectedRevision,
+        @RequestBody(required = false) PluginPublishRequest body,
         HttpServletRequest request
     ) {
         EnterpriseRequestContext context = contexts.resolve(request);
         return response(
-            PluginViews.version(catalog.publish(mutation(context), versionId, expectedRevision)), context
+            PluginViews.version(body == null
+                ? catalog.publish(mutation(context), versionId, expectedRevision)
+                : catalog.publishAndUpgrade(mutation(context), versionId, expectedRevision,
+                    Long.parseLong(body.sourceVersionId()), body.packageRevision())), context
         );
     }
 

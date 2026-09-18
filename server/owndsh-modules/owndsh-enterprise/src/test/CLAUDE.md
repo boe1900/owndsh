@@ -26,8 +26,8 @@ java/com/owndsh/enterprise/quota/application/QuotaOrderingTest.java: 验证有�
 java/com/owndsh/enterprise/quota/RedisQuotaRateLimiterTest.java: 使用真实 Redis 8 验证多策略 Lua 全成全败、RPM、并发续租与 TTL 回收。
 java/com/owndsh/enterprise/quota/QuotaManagementIntegrationTest.java: 真实 PostgreSQL 验证 TOKEN/RATE、策略叠加、四窗口/CAS、并发预留及恢复；已获准请求超额按实测结算，拒绝后续请求且不截断其他在途结算。
 java/com/owndsh/enterprise/quota/T09ApiContractTest.java: 以 MockMvc/JSON Schema 验证带策略类型的配额/用量 operation、四窗口与资源范围、ACTIVE 设备/用户边界及 ledger 脱敏。
-java/com/owndsh/enterprise/plugin/PluginServerIntegrationTest.java: PostgreSQL 验证配置登记、并发幂等、发布/退休/CAS、可见优先级、授权目录、库存和审计回滚。
-java/com/owndsh/enterprise/plugin/T13ApiContractTest.java: MockMvc/JSON Schema 验证八个插件 operation、JSON 登记、安装配置与固定权限码。
+java/com/owndsh/enterprise/plugin/PluginServerIntegrationTest.java: PostgreSQL 验证登记/并发幂等、发布/退休、范围优先级、库存与审计；新增发布升级双 revision、精确迁移、撤回/停用/其他版本保留和审计失败全事务回滚。
+java/com/owndsh/enterprise/plugin/T13ApiContractTest.java: MockMvc/JSON Schema 验证八个插件 operation、JSON 登记、发布升级参数与缺失/非法字段拒绝，以及固定权限码。
 java/com/owndsh/enterprise/session/: T16 精确 JSONL/hash、并发远端副本、正文权限、tombstone 与 V9 协议纵向门禁；局部地图见 session/CLAUDE.md。
 java/com/owndsh/enterprise/audit/: 31-action metadata 白名单、requestId 关联、用户治理接缝与 365 天 retention 门禁；局部地图见 audit/CLAUDE.md。
 java/com/owndsh/enterprise/common/api/: T20 有界 JSON 请求、稳定 413/503 与故障日志秘密隔离门禁；局部地图见 common/api/CLAUDE.md。

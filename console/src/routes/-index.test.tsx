@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Testing Library、Vitest、内存 history、静态角色元数据与完整产品 routeTree。
- * [OUTPUT]: 在仅有 getRandomValues 的 HTTP 环境验证五角色矩阵、业务写入、插件多选/自定义分类登记、read/write 权限下的发布与可见范围及 Sign out。
+ * [OUTPUT]: 在仅有 getRandomValues 的 HTTP 环境验证五角色矩阵、业务写入、插件分类登记、发布确认及双 revision 范围升级、read/write 分权及 Sign out。
  * [POS]: routes 的产品壳最小集成门禁，覆盖前端可见性但不替代 Server ent:* 权限测试。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -540,7 +540,7 @@ function mockApi(role: AuthBuiltInRole, logoutStatus = 200, permissions: string[
     }
     if (pathname.endsWith('/enterprise/admin/v1/plugins/versions/version-2/actions/publish')) {
       writes.push({
-        body: null,
+        body: await request.json(),
         idempotencyKey: request.headers.get('Idempotency-Key'),
         ifMatch: request.headers.get('If-Match'),
         method: request.method,
@@ -1094,7 +1094,7 @@ describe('product console access', () => {
   it('registers package configuration as JSON without an upload field', async () => {
     const writes = renderRoute('/plugins', 'plugin_admin', 200, ['ent:plugin:read', 'ent:plugin:write']);
     fireEvent.click(await screen.findByRole('button', { name: '添加插件' }));
-    const dialog = screen.getByRole('dialog', { name: '添加插件版本' });
+    const dialog = screen.getByRole('dialog', { name: '添加插件' });
     expect(dialog.querySelector('input[type=file]')).toBeNull();
     fireEvent.change(within(dialog).getByLabelText('包名'), { target: { value: '@company/review' } });
     fireEvent.change(within(dialog).getByLabelText('版本'), { target: { value: '1.0.0' } });
@@ -1118,12 +1118,16 @@ describe('product console access', () => {
     expect(screen.getByText('1.2.0')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: '发布 @owndsh/audit-tools@1.2.0' }));
+    const dialog = screen.getByRole('dialog', { name: '发布插件版本' });
+    fireEvent.click(within(dialog).getByRole('button', { name: '发布并更新范围' }));
     await waitFor(() => expect(writes).toHaveLength(1));
     expect(writes[0]).toMatchObject({
+      body: { sourceVersionId: 'version-1', packageRevision: 4 },
       ifMatch: '3',
       method: 'POST',
       pathname: '/enterprise/admin/v1/plugins/versions/version-2/actions/publish'
     });
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '发布插件版本' })).toBeNull());
 
     fireEvent.click(screen.getByRole('tab', { name: '可见范围' }));
     expect(await screen.findByText('所有成员')).toBeTruthy();

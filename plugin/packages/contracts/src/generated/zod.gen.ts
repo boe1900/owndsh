@@ -2030,6 +2030,13 @@ export const zPluginPluginAssignmentBatchRequest = z.object({
 
 export const zPluginAssignmentBatchRequest = zPluginPluginAssignmentBatchRequest;
 
+export const zPluginPluginPublishRequest = z.object({
+    sourceVersionId: zPluginPluginVersionId,
+    packageRevision: zRevision
+}).strict();
+
+export const zPluginPublishRequest = zPluginPluginPublishRequest;
+
 export const zPluginVersionStatus = z.enum([
     'VALIDATED',
     'PUBLISHED',
@@ -3935,6 +3942,11 @@ export const zRegisterPluginVersionBody = zPluginPluginRegistrationRequest;
  */
 export const zRegisterPluginVersionResponse = zPluginPluginVersionResponse;
 
+/**
+ * When provided, publish and move the source version's active INSTALLED assignments atomically; preserve withdrawals and other versions. If-Match checks the target version and packageRevision checks the package and assignments.
+ */
+export const zPublishPluginVersionBody = zPluginPluginPublishRequest;
+
 export const zPublishPluginVersionHeaders = z.object({
     'If-Match': zRevision
 });
@@ -3944,7 +3956,7 @@ export const zPublishPluginVersionPath = z.object({
 });
 
 /**
- * Published plugin version.
+ * Published plugin version, with optional assignment migration completed in the same transaction.
  */
 export const zPublishPluginVersionResponse = zPluginPluginVersionResponse;
 

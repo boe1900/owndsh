@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 React、共享 MemberSelect、ProductDialog、PluginCategorySelect、插件 DTO 与浏览器原生表单控件。
- * [OUTPUT]: 提供插件安装目标与展示信息登记、ALL/USER 企业可见范围编辑和版本退休确认对话框；发布不强制安装。
+ * [OUTPUT]: 提供首次登记、锁定包名并继承资料的新增版本、发布并沿用指定旧版范围、范围编辑和退休确认；员工仍自主安装。
  * [POS]: features/plugins 的写入表单层，只收集产品语义，不解析包或执行安装命令，也不持有 mutation。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -11,6 +11,7 @@ import type {
   PluginAssignmentWrite,
   PluginRegistrationRequest,
   PluginPackage,
+  PluginPublishRequest,
   PluginVersion
 } from '@/api/generated/types.gen';
 import { Button } from '@/components/atoms/Button';
@@ -61,7 +62,9 @@ export function registrationValue(values: Record<string, string>, categories: st
   };
 }
 
-export function RegisterPluginVersionDialog({ categoryOptions, categoriesLoading, categoriesError, onRetryCategories, error, onClose, onSave, saving }: {
+export function RegisterPluginVersionDialog({ baseVersion, versions = [], categoryOptions, categoriesLoading, categoriesError, onRetryCategories, error, onClose, onSave, saving }: {
+  baseVersion?: PluginVersion;
+  versions?: ReadonlyArray<PluginVersion>;
   categoryOptions: string[];
   categoriesLoading: boolean;
   categoriesError: boolean;
@@ -71,35 +74,99 @@ export function RegisterPluginVersionDialog({ categoryOptions, categoriesLoading
   onSave: (value: PluginRegistrationValue) => void;
   saving: boolean;
 }) {
-  const [values, setValues] = useState<Record<string, string>>({});
-  const [categories, setCategories] = useState<string[]>([]);
+  const npmSource = !baseVersion || baseVersion.installation.spec === `${baseVersion.packageName}@${baseVersion.version}`;
+  const [values, setValues] = useState<Record<string, string>>(() => {
+    if (!baseVersion) return {};
+    const { categories: _categories, ...metadata } = baseVersion.installation;
+    return { ...metadata, packageName: baseVersion.packageName, version: '', spec: npmSource ? '' : metadata.spec };
+  });
+  const [categories, setCategories] = useState<string[]>(baseVersion?.installation.categories ?? []);
+  const [validationError, setValidationError] = useState<string>();
   const fields = [
     ['packageName', '包名', '@company/dsh-plugin', true, 214],
     ['version', '版本', '1.0.0', true, 64],
-    ['spec', '安装目标', '留空使用包名@版本，或填写 Git / .tgz 地址 / 客户端绝对路径', false, 2048],
+    ['spec', '安装目标', npmSource && baseVersion ? `自动使用 ${baseVersion.packageName}@${values.version?.trim() || '新版本号'}` : '留空使用包名@版本，或填写 Git / .tgz 地址 / 客户端绝对路径', !npmSource, 2048],
     ['displayName', '显示名称', '留空使用包名', false, 120],
     ['description', '简介', '这个插件能做什么', false, 2000],
     ['author', '作者', '团队或作者名称', false, 120],
     ['repositoryUrl', '源码仓库', 'https://github.com/company/plugin', false, 2048]
   ] as const;
-  return <ProductDialog title="添加插件版本" onClose={onClose}>
-    <form onSubmit={event => { event.preventDefault(); onSave(registrationValue(values, categories)); }}>
+  const renderField = ([key, label, placeholder, required, maxLength]: typeof fields[number]) => <label key={key} className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
+    {label}
+    <input className={inputClass} name={key} required={required} maxLength={maxLength} disabled={saving}
+      readOnly={Boolean(baseVersion) && key === 'packageName'} autoFocus={Boolean(baseVersion) && key === 'version'}
+      type={key === 'repositoryUrl' ? 'url' : 'text'} placeholder={placeholder}
+      value={values[key] ?? ''} onChange={event => { setValidationError(undefined); setValues(current => ({ ...current, [key]: event.target.value })); }} />
+  </label>;
+  const metadata = <>
+    {fields.slice(3).map(renderField)}
+    <PluginCategorySelect options={categoryOptions} value={categories} onChange={setCategories} disabled={saving} />
+    {categoriesLoading ? <p role="status" className="m-0 text-[12px] text-ink-3">正在加载已有分类…</p> : null}
+    {categoriesError ? <p role="alert" className="m-0 text-[12px] text-red">已有分类加载失败。<button type="button" className="ml-1 underline" onClick={onRetryCategories}>重试</button></p> : null}
+  </>;
+  return <ProductDialog title={baseVersion ? '新增版本' : '添加插件'} onClose={onClose}>
+    <form onSubmit={event => {
+      event.preventDefault();
+      const value = registrationValue({ ...values, ...(baseVersion ? { packageName: baseVersion.packageName } : {}) }, categories);
+      if (baseVersion && (value.version === baseVersion.version || versions.some(item => item.version === value.version))) {
+        setValidationError('这个版本已存在，请填写新的版本号。'); return;
+      }
+      if (baseVersion?.installation.spec.startsWith('github:') && value.installation.spec === baseVersion.installation.spec) {
+        setValidationError('请将安装目标改为新版本对应的 Git commit。'); return;
+      }
+      onSave(value);
+    }}>
       <div className="grid gap-4 p-5">
-        {fields.map(([key, label, placeholder, required, maxLength]) => <label key={key} className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
-          {label}
-          <input className={inputClass} name={key} required={required} maxLength={maxLength}
-            type={key === 'repositoryUrl' ? 'url' : 'text'} placeholder={placeholder}
-            value={values[key] ?? ''} onChange={event => setValues(current => ({ ...current, [key]: event.target.value }))} />
-        </label>)}
-        <PluginCategorySelect options={categoryOptions} value={categories} onChange={setCategories} disabled={saving} />
-        {categoriesLoading ? <p role="status" className="m-0 text-[12px] text-ink-3">正在加载已有分类…</p> : null}
-        {categoriesError ? <p role="alert" className="m-0 text-[12px] text-red">已有分类加载失败。<button type="button" className="ml-1 underline" onClick={onRetryCategories}>重试</button></p> : null}
+        {baseVersion ? <p className="m-0 text-[12px] text-ink-3">基于 {baseVersion.installation.displayName} v{baseVersion.version}，已沿用插件资料。</p> : null}
+        {fields.slice(0, 3).map(renderField)}
+        {baseVersion ? <details className="rounded-lg border border-line p-3">
+          <summary className="cursor-pointer text-[12.5px] font-medium text-ink-2">插件资料 · 已沿用，按需修改</summary>
+          <div className="mt-4 grid gap-4">{metadata}</div>
+        </details> : metadata}
         <p className="m-0 text-[12px] text-ink-3">Git 格式：github:组织/仓库#完整 commit，可追加 &amp;path:/子目录。包地址由员工客户端访问；私有源使用宿主已有的认证配置。</p>
-        {error ? <p role="alert" className="m-0 text-[12.5px] text-red">{error}</p> : null}
+        {validationError || error ? <p role="alert" className="m-0 text-[12.5px] text-red">{validationError ?? error}</p> : null}
       </div>
       <footer className="flex justify-end gap-2 border-t border-line px-5 py-4">
         <Button type="button" size="sm" onClick={onClose}>取消</Button>
         <Button type="submit" variant="primary" size="sm" disabled={saving}>{saving ? '保存中' : '保存版本'}</Button>
+      </footer>
+    </form>
+  </ProductDialog>;
+}
+
+export function PublishPluginVersionDialog({ pluginPackage, version, sourceVersionId: preferredSource, error, saving, onClose, onPublish }: {
+  pluginPackage: PluginPackage;
+  version: PluginVersion;
+  sourceVersionId?: string;
+  error?: string;
+  saving: boolean;
+  onClose: () => void;
+  onPublish: (upgrade?: PluginPublishRequest) => void;
+}) {
+  const sources = pluginPackage.versions.filter(item => item.id !== version.id && item.status === 'PUBLISHED'
+    && pluginPackage.assignments.some(rule => rule.pluginVersionId === item.id && rule.status === 'ACTIVE' && rule.desiredState === 'INSTALLED'));
+  const [sourceVersionId, setSourceVersionId] = useState(preferredSource !== undefined
+    ? sources.find(source => source.id === preferredSource)?.id ?? '' : sources[0]?.id ?? '');
+  const count = pluginPackage.assignments.filter(rule => rule.pluginVersionId === sourceVersionId && rule.status === 'ACTIVE' && rule.desiredState === 'INSTALLED').length;
+  return <ProductDialog title="发布插件版本" onClose={onClose}>
+    <form onSubmit={event => { event.preventDefault(); onPublish(sourceVersionId ? { sourceVersionId, packageRevision: pluginPackage.revision } : undefined); }}>
+      <div className="grid gap-4 p-5 text-[13px] text-ink-2">
+        <p className="m-0">发布 <strong className="text-ink">{version.installation.displayName} v{version.version}</strong></p>
+        {sources.length ? <label className="grid gap-1.5 text-[12.5px] font-medium">
+          可见范围
+          <select className={inputClass} value={sourceVersionId} disabled={saving} onChange={event => setSourceVersionId(event.target.value)}>
+            {sources.map(source => <option key={source.id} value={source.id}>沿用 v{source.version} 的可见范围</option>)}
+            <option value="">仅发布，稍后配置可见范围</option>
+          </select>
+        </label> : null}
+        <p className="m-0 text-[12px] text-ink-3">{sourceVersionId
+          ? `将所选旧版的 ${count} 条可见范围切换至新版，员工刷新插件目录后可自主更新。撤回规则和其他版本的范围保持不变。`
+          : '发布后需在“可见范围”中分配此版本，员工才能看到并安装。'}</p>
+        {error ? <p role="alert" className="m-0 text-[12.5px] text-red">{error}</p> : null}
+      </div>
+      <footer className="flex justify-end gap-2 border-t border-line px-5 py-4">
+        <Button type="button" size="sm" disabled={saving} onClick={onClose}>取消</Button>
+        <Button type="submit" variant="primary" size="sm" disabled={saving}>{saving ? '发布中' : sourceVersionId ? '发布并更新范围' : '确认发布'}</Button>
       </footer>
     </form>
   </ProductDialog>;

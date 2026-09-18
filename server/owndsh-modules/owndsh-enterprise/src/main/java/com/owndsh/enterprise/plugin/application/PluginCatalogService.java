@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖事务、PluginStore、revision、审计与 ID。
- * [OUTPUT]: 提供企业目录、幂等安装配置登记、发布/退休与可见范围原子替换；保留 required 协议字段但写入统一为可选安装。
+ * [OUTPUT]: 提供幂等配置登记、发布/退休、原子发布并迁移指定旧版可见范围及范围替换；双 revision 防止覆盖并发版本/范围变更。
  * [POS]: plugin/application 的管理状态编排，版本不可变，发布与可见范围共用 revision/审计事务。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -127,6 +127,31 @@ public final class PluginCatalogService {
             context, versionId, expectedRevision, PluginVersion.Status.PUBLISHED,
             PluginVersion.Status.RETIRED, AuditAction.PLUGIN_PUBLISHED, PluginAuditMetadata.Operation.RETIRE
         );
+    }
+
+    /** 发布和范围迁移共用事务；只继承指定旧版仍可安装的规则。 */
+    public PluginVersion publishAndUpgrade(PluginMutationContext context, long versionId, long expectedRevision,
+        long sourceVersionId, long expectedPackageRevision) {
+        return requireResult(transactions.execute(status -> {
+            PluginVersion target = plugins.findVersion(context.tenantId(), versionId)
+                .orElseThrow(PluginResourceNotFoundException::new);
+            PluginPackage pluginPackage = plugins.findPackageByIdForUpdate(context.tenantId(), target.packageId())
+                .orElseThrow(PluginResourceNotFoundException::new);
+            requireRevision(pluginPackage.revision(), expectedPackageRevision);
+            PluginVersion source = plugins.findVersion(context.tenantId(), sourceVersionId)
+                .orElseThrow(PluginResourceNotFoundException::new);
+            if (source.packageId() != target.packageId() || source.id() == target.id()
+                || source.status() != PluginVersion.Status.PUBLISHED || target.status() != PluginVersion.Status.VALIDATED) {
+                throw new IllegalArgumentException("请选择同一插件的已发布旧版和待发布新版");
+            }
+            PluginVersion published = publish(context, versionId, expectedRevision);
+            int changed = plugins.upgradeAssignments(context.tenantId(), target.packageId(), sourceVersionId, versionId);
+            if (changed == 0) throw new IllegalArgumentException("所选旧版已无可沿用的可见范围，请刷新后重试");
+            audit(context, null, AuditAction.PLUGIN_ASSIGNED, "PLUGIN_PACKAGE", target.packageId(),
+                new PluginAuditMetadata(PluginAuditMetadata.Operation.ASSIGN, expectedPackageRevision + 1,
+                    revisions.current(context.tenantId()), changed, false));
+            return published;
+        }));
     }
 
     public List<PluginAssignment> replaceAssignments(

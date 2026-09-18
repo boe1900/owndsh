@@ -297,6 +297,8 @@ export type PluginInstallation = PluginPluginInstallation;
 
 export type PluginRegistrationRequest = PluginPluginRegistrationRequest;
 
+export type PluginPublishRequest = PluginPluginPublishRequest;
+
 export type PluginVersion = PluginPluginVersion;
 
 export type PluginVersionResponse = PluginPluginVersionResponse;
@@ -1942,6 +1944,14 @@ export type PluginPluginPackagePageData = {
 };
 
 export type PluginPackageStatus = 'ACTIVE' | 'DISABLED';
+
+export type PluginPluginPublishRequest = {
+    /**
+     * Published version whose active installable assignments move to the new version.
+     */
+    sourceVersionId: PluginPluginVersionId;
+    packageRevision: Revision;
+};
 
 export type PluginPluginRegistrationRequest = {
     packageName: PluginPackageName;
@@ -6109,7 +6119,10 @@ export type RegisterPluginVersionResponses = {
 export type RegisterPluginVersionResponse = RegisterPluginVersionResponses[keyof RegisterPluginVersionResponses];
 
 export type PublishPluginVersionData = {
-    body?: never;
+    /**
+     * When provided, publish and move the source version's active INSTALLED assignments atomically; preserve withdrawals and other versions. If-Match checks the target version and packageRevision checks the package and assignments.
+     */
+    body?: PluginPluginPublishRequest;
     headers: {
         /**
          * Current resource revision used for compare-and-swap updates.
@@ -6124,6 +6137,10 @@ export type PublishPluginVersionData = {
 };
 
 export type PublishPluginVersionErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
     /**
      * Authentication failed.
      */
@@ -6146,7 +6163,7 @@ export type PublishPluginVersionError = PublishPluginVersionErrors[keyof Publish
 
 export type PublishPluginVersionResponses = {
     /**
-     * Published plugin version.
+     * Published plugin version, with optional assignment migration completed in the same transaction.
      */
     200: PluginPluginVersionResponse;
 };
