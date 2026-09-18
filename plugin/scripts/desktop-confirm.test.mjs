@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖内置 Harness/插件运行树与 Playwright，使用临时 profile 并拦截账号动作 API
- * [OUTPUT]: 验证账号编辑与确认，覆盖原型卡片/精简详情、四色气泡、减少动态效果、固定版本安装/更新确认、重启和明暗/窄屏布局
+ * [OUTPUT]: 验证账号编辑与确认、原型卡片/精简详情、固定版本安装的动画/失败重试/完成待重启，以及明暗/窄屏布局
  * [POS]: 插件的 WebView 兼容回归，外部 runtime 显式传入，不访问真实企业账号或卸载实际插件
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -49,7 +49,7 @@ test('packaged plugin uses Harness confirmation modals without native confirm', 
       repositoryUrl: 'https://github.com/example/plugins', categories: [category],
     })
     const pluginStatus = {
-      canRestart: true,
+      canRestart: false,
       assignmentRevision: 1,
       catalog: [
         { packageName: '@enterprise/code-review', pluginVersionId: '881', version: '1.2.0', installation: installation('@enterprise/code-review', '1.2.0', '代码审查', '开发工具', '检查代码变更，发现潜在问题，生成清晰的审查建议。支持从架构设计、边界条件、安全防护到性能优化的完整审查，帮助团队在合并代码前识别风险并记录可执行的修复建议。') },
@@ -63,6 +63,7 @@ test('packaged plugin uses Harness confirmation modals without native confirm', 
       ],
     }
     let state = 'READY'
+    let installRequest = Promise.withResolvers()
     let platformUrl = 'https://enterprise.example.com'
     const status = () => ({ state, bundleVersion: '0.1.0', platformUrl, transport: 'webServer.register' })
     page.on('pageerror', error => errors.push(error.message))
@@ -97,6 +98,11 @@ test('packaged plugin uses Harness confirmation modals without native confirm', 
       else if (path === 'install') {
         assert.deepEqual(route.request().postDataJSON(), { packageName: '@enterprise/code-review', pluginVersionId: '881' })
         calls.installPlugin++
+        await new Promise(resolve => { installRequest.resolve(resolve) })
+        if (calls.installPlugin === 1) {
+          await route.fulfill({ status: 500, json: { error: { code: 'ENT_PLUGIN_CLI_FAILED' } } })
+          return
+        }
         pluginStatus.plugins.push({ packageName: '@enterprise/code-review', version: '1.2.0', pluginVersionId: '881', desiredRevision: 1, desiredState: 'INSTALLED', state: 'RESTART_REQUIRED', lastErrorCode: null, restartMarker: 'test-run' })
         data = pluginStatus
       }
@@ -272,14 +278,43 @@ test('packaged plugin uses Harness confirmation modals without native confirm', 
     assert.equal(calls.installPlugin, 0, 'Card action must only open details')
     assert.equal(await detail.getByRole('link', { name: '查看源码' }).getAttribute('href'), 'https://github.com/example/plugins')
     await detail.getByRole('button', { name: '确认安装', exact: true }).click()
+    await detail.getByRole('status').filter({ hasText: '正在安装中…' }).waitFor()
+    const installingButton = detail.getByRole('button', { name: '安装中…', exact: true })
+    assert.equal(await installingButton.isDisabled(), true)
+    assert.equal(await installingButton.getAttribute('aria-busy'), 'true')
+    assert.equal(await installingButton.evaluate(el => el.getAnimations({ subtree: true }).some(animation => animation.playState === 'running')), true)
+    assert.equal(await cardFor('code-review').getByRole('button', { name: '正在安装: 代码审查', exact: true }).getAttribute('aria-busy'), 'true')
+    await page.screenshot({ path: join(root, '.build/plugin-detail-installing.png') })
+    await page.keyboard.press('Escape')
+    await detail.waitFor({ state: 'hidden' })
+    assert.equal(await market.isVisible(), true)
+    await cardFor('code-review').getByRole('button', { name: '查看详情: 代码审查', exact: true }).click()
+    await detail.getByRole('status').filter({ hasText: '正在安装中…' }).waitFor()
+    ;(await installRequest.promise)()
+    await detail.getByRole('alert').filter({ hasText: '插件安装工具执行失败，请重试' }).waitFor()
+    assert.equal(await detail.getByRole('button', { name: '完成', exact: true }).count(), 0)
+    await page.screenshot({ path: join(root, '.build/plugin-detail-install-failed.png') })
+    installRequest = Promise.withResolvers()
+    await detail.getByRole('button', { name: '重试安装', exact: true }).click()
+    await detail.getByRole('status').filter({ hasText: '正在安装中…' }).waitFor()
+    assert.equal(await detail.getByRole('alert').count(), 0)
+    ;(await installRequest.promise)()
+    await detail.getByRole('status').filter({ hasText: '安装完成，重启客户端后生效。' }).waitFor()
+    await detail.getByText('请完全退出并重新打开客户端。', { exact: true }).waitFor()
+    assert.equal(await detail.getByRole('button', { name: '安装中…', exact: true }).count(), 0)
+    assert.equal(await market.getByRole('button', { name: '立即重启', exact: true }).count(), 0)
+    await page.screenshot({ path: join(root, '.build/plugin-detail-install-complete.png') })
+    await detail.getByRole('button', { name: '完成', exact: true }).click()
     await detail.waitFor({ state: 'hidden' })
     await market.getByText('等待重启', { exact: true }).waitFor()
-    await market.getByRole('button', { name: '稍后重启', exact: true }).click()
+    assert.equal(await cardFor('code-review').locator('.own-market-status .own-market-dot').getAttribute('data-tone'), 'pending')
     assert.equal(calls.restart, 0)
-    assert.equal(calls.installPlugin, 1)
+    assert.equal(calls.installPlugin, 2)
     pluginStatus.plugins.find(plugin => plugin.packageName === '@enterprise/code-review').state = 'ACTIVE'
     await market.getByRole('button', { name: '刷新插件', exact: true }).click()
     await market.getByRole('button', { name: '已启用: 代码审查', exact: true }).click()
+    assert.equal(await cardFor('code-review').locator('.own-market-status .own-market-dot').getAttribute('data-tone'), 'enabled')
+    pluginStatus.canRestart = true
     const removePlugin = detail.getByRole('button', { name: '卸载 @enterprise/code-review', exact: true })
     await removePlugin.waitFor()
     await removePlugin.click()
@@ -293,13 +328,15 @@ test('packaged plugin uses Harness confirmation modals without native confirm', 
     await market.getByRole('button', { name: '立即重启', exact: true }).click()
     assert.equal(calls.restart, 1)
     await market.getByRole('button', { name: '刷新插件', exact: true }).click()
-    assert.equal(calls.installPlugin, 1)
+    assert.equal(calls.installPlugin, 2)
     await market.getByRole('searchbox', { name: '搜索企业插件' }).fill('')
     await market.getByRole('button', { name: '更新到 2.0.0: 知识库', exact: true }).click()
     const updateDetail = page.getByRole('dialog', { name: '知识库', exact: true })
     assert.equal(calls.updatePlugin, 0, 'Update must require confirmation')
     await updateDetail.getByText('v1.0.0 → v2.0.0', { exact: true }).waitFor()
     await updateDetail.getByRole('button', { name: '确认更新', exact: true }).click()
+    await updateDetail.getByRole('status').filter({ hasText: '安装完成，重启客户端后生效。' }).waitFor()
+    await updateDetail.getByRole('button', { name: '完成', exact: true }).click()
     await cardFor('knowledge-base').getByRole('button', { name: '等待重启: 知识库', exact: true }).waitFor()
     assert.equal(calls.updatePlugin, 1)
     assert.equal(await cardFor('knowledge-base').locator('.own-market-status .own-market-dot').getAttribute('data-tone'), 'pending')

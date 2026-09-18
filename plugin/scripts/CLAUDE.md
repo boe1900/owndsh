@@ -5,7 +5,7 @@
 成员清单
 
 desktop-auth.test.mjs: 消费显式 OWNDSH_TEST_RUNTIME 的 macOS/Chromium 认证闭环，验证闲置零请求、过期续期、网络恢复与设备撤销；使用隔离 profile。
-desktop-confirm.test.mjs: 消费显式 OWNDSH_TEST_RUNTIME 的插件页面验收，覆盖只读账号地址、退出后修改/失败保留/授权锁定，以及原型三段卡片/按钮配色、四色气泡/键盘聚焦、更新微闪/减少动态效果、等高双列/两行截断、精简详情/全文展示/技术字段隐藏、分类市场、固定版本安装与更新确认、不可安装原因、重启提示及官方确认框，记录市场与详情的明暗主题和窄屏截图。
+desktop-confirm.test.mjs: 消费显式 OWNDSH_TEST_RUNTIME 的插件页面验收，覆盖只读账号地址、退出后修改/失败保留/授权锁定，以及原型卡片/四色气泡/键盘聚焦/减少动态效果、精简详情和固定版本确认；受控安装请求验证保留详情与动画、关闭后重新查看进度、失败就地重试、成功后手动重启提示及重启前不误报启用，同时覆盖可重启宿主与卸载确认；记录进度/失败/完成及明暗/窄屏截图，finally 回收浏览器、Harness 和临时 profile。
 
 t01-harness-smoke.mjs: T01/T06/T14 真实组合验收器，将零业务配置 bundle 安装到锁定临时 profile，验证 `UNCONFIGURED`、Server API/settings 持久化、Client bundle、本地状态/插件 API/无 SSE 与上游清洁度。
 t02-contract-consumer.mjs: T02 真实包验收器，把 contracts tgz 安装到全新临时 consumer，验证公开 ESM、品牌构造、严格错误解码和协议 hash。

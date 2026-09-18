@@ -1,11 +1,11 @@
 /**
- * [INPUT]: 依赖企业目录/本机事实、semver 版本优先级、Harness Modal/Button/Input/Pill/Tooltip；按产品原型组织市场布局，卡片圆角对齐宿主 Agent 预设
- * [OUTPUT]: 提供整卡点击的无图标紧凑等高卡片、四色状态及更新微闪、分类/全文搜索、简介式精简详情和固定版本安装/卸载确认
+ * [INPUT]: 依赖企业目录/本机事实、账号 store 的安装忙碌态与错误、semver、Harness Modal/Button/Input/Pill/Tooltip/StateDot
+ * [OUTPUT]: 提供原型市场卡片和精简详情；固定版本安装保留弹窗，呈现进度、失败重试与完成后手动重启提示，启用状态只取 Host 事实
  * [POS]: ui 的员工插件管理视图，由 OwnDsh 设置的插件 tab 承载，数据与执行由 OwnDsh Host 拥有
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
-import { Button, Input, Modal, Pill, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, Input, Modal, Pill, StateDot, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import { ExternalLink, ListFilter, RefreshCw, Search, Trash2, X } from 'lucide-react'
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import gt from 'semver/functions/gt.js'
@@ -162,7 +162,9 @@ body[data-ds-dark-theme] .own-market,body[data-ds-dark-theme] .own-market-dialog
 .own-market-detail-meta a{display:inline-flex;align-items:center;gap:5px;color:inherit;text-decoration:none}
 .own-market-detail-meta a:hover{text-decoration:underline}
 .own-market-detail-message{margin:14px 0 0;font-size:12px;line-height:20px;color:var(--own-muted);overflow-wrap:anywhere}
-.own-market-detail-message[role=alert]{color:var(--dsw-alias-state-error-primary)}
+.own-market-detail-feedback{display:flex;align-items:center;gap:10px;margin-top:16px;padding:12px;border-radius:10px;background:var(--own-soft);font-size:13px;line-height:20px;overflow-wrap:anywhere}
+.own-market-detail-feedback[role=alert]{color:var(--dsw-alias-state-error-primary)}
+.own-market-detail-feedback small{display:block;margin-top:4px;color:var(--own-muted);font-size:12px}
 .own-market-detail-footer{justify-content:flex-end;margin-top:24px}
 .own-market-detail-footer>button{border-radius:8px}
 .own-market-dialog .own-market-confirm{border-radius:8px;background:var(--own-solid);color:var(--own-solid-text)}
@@ -182,6 +184,7 @@ export function EnterprisePluginMarket({ store }: {
   const [category, setCategory] = useState('')
   const [selectedCatalog, setSelectedCatalog] = useState<EnterprisePluginCatalogItem>()
   const [selected, setSelected] = useState<string>()
+  const [installAttempt, setInstallAttempt] = useState<string>()
   const [restartDismissed, setRestartDismissed] = useState(false)
   const details = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -205,6 +208,11 @@ export function EnterprisePluginMarket({ store }: {
   }, [selected])
   const status = snapshot.pluginStatus
   const connected = snapshot.status?.state === 'READY' || snapshot.status?.state === 'REFRESHING'
+  useEffect(() => {
+    setSelected(undefined)
+    setSelectedCatalog(undefined)
+    setInstallAttempt(undefined)
+  }, [connected, snapshot.status?.platformUrl, snapshot.status?.user?.id])
   const catalog = connected ? status?.catalog ?? [] : []
   const local = new Map((connected ? status?.plugins ?? [] : []).map(item => [item.packageName, item]))
   const available = new Map(catalog.map(item => [item.packageName, item]))
@@ -223,6 +231,15 @@ export function EnterprisePluginMarket({ store }: {
   const fatal = status?.fatalErrorCode
   const selectedItem = selectedCatalog
   const selectedLocal = selected === undefined ? undefined : local.get(selected)
+  const selectedInstalling = selected !== undefined && snapshot.pluginBusy?.packageName === selected && snapshot.pluginBusy.action === 'install'
+  useEffect(() => {
+    // 安装按钮禁用会丢失焦点；移到关闭按钮，保持 Tab/Escape 在详情内。
+    if (selectedInstalling) details.current?.querySelector<HTMLButtonElement>('button')?.focus()
+  }, [selectedInstalling])
+  const selectedWaiting = !selectedInstalling && selectedLocal?.state === 'RESTART_REQUIRED'
+  const selectedError = selectedInstalling ? undefined : fatal
+    ?? (installAttempt === selected ? snapshot.pluginErrorCode : undefined)
+    ?? selectedLocal?.lastErrorCode ?? selectedItem?.installErrorCode
   const selectedVersion = (selectedLocal?.desiredState === 'INSTALLED' ? selectedLocal.version : undefined) ?? selectedItem?.version
   const selectedSource = selectedItem?.installation.repositoryUrl ? repositoryHref(selectedItem.installation.repositoryUrl) : undefined
   const selectedSourceHost = selectedSource ? new URL(selectedSource).hostname.replace(/^www\./, '') : undefined
@@ -234,17 +251,20 @@ export function EnterprisePluginMarket({ store }: {
     const waiting = record?.state === 'RESTART_REQUIRED'
     const sameVersion = record?.desiredState === 'INSTALLED' && record.version === item?.version && record.state === 'ACTIVE'
     return <div className="own-market-actions own-market-detail-footer">
-      <Button size="sm" variant="ghost" onClick={() => setSelected(undefined)}>关闭</Button>
-      {record?.version != null && (record.desiredState === 'INSTALLED' || record.state === 'FAILED') ? <ConfirmAction
-        title="卸载企业插件" description={name} confirmLabel="确认卸载" disabled={busy || !connected || fatal !== undefined || waiting}
+      <Button size="sm" variant={selectedWaiting ? 'primary' : 'ghost'} className={selectedWaiting ? 'own-market-confirm' : undefined}
+        onClick={() => setSelected(undefined)}>{selectedWaiting ? '完成' : '关闭'}</Button>
+      {!waiting && record?.version != null && (record.desiredState === 'INSTALLED' || record.state === 'FAILED') ? <ConfirmAction
+        title="卸载企业插件" description={name} confirmLabel="确认卸载" disabled={busy || !connected || fatal !== undefined}
         onConfirm={() => { setSelected(undefined); void store.removePlugin(name) }}>
-        {open => <Button size="sm" variant="ghost" aria-label={`卸载 ${name}`} title="卸载" disabled={busy || !connected || fatal !== undefined || waiting}
+        {open => <Button size="sm" variant="ghost" aria-label={`卸载 ${name}`} title="卸载" disabled={busy || !connected || fatal !== undefined}
           icon={<Trash2 size={14} aria-hidden />} onClick={open}>卸载</Button>}
       </ConfirmAction> : null}
       {item && !sameVersion && !waiting ? <Button size="sm" variant="primary" className="own-market-confirm" data-tone={enterprisePluginCardPresentation(item, record).tone}
         disabled={busy || !connected || fatal !== undefined || item.installErrorCode !== undefined || item.pluginVersionId !== available.get(name)?.pluginVersionId}
-        onClick={() => { setSelected(undefined); void store.installPlugin(name, item.pluginVersionId) }}>
-        {snapshot.pluginBusy?.packageName === name && snapshot.pluginBusy.action === 'install' ? '正在安装' : enterprisePluginCardPresentation(item, record).tone === 'update' ? '确认更新' : '确认安装'}
+        aria-busy={selectedInstalling}
+        icon={selectedInstalling ? <StateDot state="ongoing" size={12} /> : undefined}
+        onClick={() => { setInstallAttempt(name); void store.installPlugin(name, item.pluginVersionId) }}>
+        {selectedInstalling ? '安装中…' : selectedError && !item.installErrorCode ? '重试安装' : enterprisePluginCardPresentation(item, record).tone === 'update' ? '确认更新' : '确认安装'}
       </Button> : null}
     </div>
   }
@@ -273,7 +293,7 @@ export function EnterprisePluginMarket({ store }: {
       {!restartDismissed && status?.canRestart ? <div className="own-market-actions" style={{ marginTop: 8 }}>
         <Button size="sm" disabled={busy} onClick={() => { void store.restartPlugins() }}>{snapshot.busy === 'restart' ? '正在重启' : '立即重启'}</Button>
         <Button size="sm" variant="ghost" disabled={busy} onClick={() => setRestartDismissed(true)}>稍后重启</Button>
-      </div> : !status?.canRestart ? <span>请完全退出并重新打开宿主。</span> : null}
+      </div> : !status?.canRestart ? <span>请完全退出并重新打开客户端。</span> : null}
     </div> : null}
     {snapshot.pluginErrorCode || fatal || snapshot.errorCode ? <div className="own-market-notice own-market-error" role="alert">{errorMessage(snapshot.pluginErrorCode ?? fatal ?? snapshot.errorCode!)}</div> : null}
     {status?.lastReportErrorCode ? <div className="own-market-notice" role="status">设备状态暂未上报</div> : null}
@@ -287,7 +307,8 @@ export function EnterprisePluginMarket({ store }: {
         const metadata = item?.installation
         const source = metadata?.repositoryUrl ? repositoryHref(metadata.repositoryUrl) : undefined
         const sourceHost = source ? new URL(source).hostname.replace(/^www\./, '') : undefined
-        const presentation = enterprisePluginCardPresentation(item, record)
+        const installing = snapshot.pluginBusy?.packageName === name && snapshot.pluginBusy.action === 'install'
+        const presentation = installing ? { tone: 'pending', hint: '正在安装：请稍候', action: '正在安装' } : enterprisePluginCardPresentation(item, record)
         const title = metadata?.displayName ?? name
         const version = record?.version ?? item?.version
         return <article className="own-market-card" key={name} aria-label={title}
@@ -310,6 +331,7 @@ export function EnterprisePluginMarket({ store }: {
               {(metadata?.categories.length ? metadata.categories.slice(0, 2) : ['未分类']).map(value => <Pill key={value}>{value}</Pill>)}
             </div>
             <Button size="sm" className="own-market-card-action" data-tone={presentation.tone} aria-haspopup="dialog" aria-label={`${presentation.action}: ${title}`}
+              aria-busy={installing} icon={installing ? <StateDot state="ongoing" size={12} /> : undefined}
               disabled={busy || presentation.tone === 'pending' || item?.installErrorCode !== undefined} onClick={() => openDetails(name)}>
               {['enabled', 'update'].includes(presentation.tone) ? <span className="own-market-dot" data-tone={presentation.tone} aria-hidden /> : null}
               {presentation.action}
@@ -339,8 +361,12 @@ export function EnterprisePluginMarket({ store }: {
             <div><dt>插件来源</dt><dd>{selectedSource ? <a href={selectedSource} target="_blank" rel="noopener noreferrer" aria-label="查看源码">{selectedSourceHost === 'github.com' ? 'GitHub' : selectedSourceHost}<ExternalLink size={12} aria-hidden /></a> : '企业目录'}</dd></div>
           </dl>
           {selectedItem && selectedItem.pluginVersionId !== available.get(selected ?? '')?.pluginVersionId ? <p className="own-market-detail-message" role="status">可用版本已变化，请关闭详情后重新选择。</p> : null}
-          {selectedLocal?.lastErrorCode || selectedItem?.installErrorCode ? <p className="own-market-detail-message" role="alert">{errorMessage(selectedLocal?.lastErrorCode ?? selectedItem!.installErrorCode!)}</p> : null}
-          {selectedLocal?.state === 'RESTART_REQUIRED' ? <p className="own-market-detail-message" role="status">插件变更已保存，重启客户端后生效。</p> : null}
+          {selectedInstalling ? <div className="own-market-detail-feedback" role="status"><StateDot state="ongoing" size={14} /><span>正在安装中…</span></div>
+            : selectedError ? <div className="own-market-detail-feedback" role="alert"><StateDot state="error" size={14} /><span>{errorMessage(selectedError)}</span></div>
+            : selectedWaiting ? <div className="own-market-detail-feedback" role="status"><StateDot state="done" size={14} /><div>
+              {selectedLocal?.desiredState === 'INSTALLED' ? '安装完成，重启客户端后生效。' : '插件变更已保存，重启客户端后生效。'}
+              <small>请完全退出并重新打开客户端。</small>
+            </div></div> : null}
         </div>
         {selected === undefined ? null : actions(selected)}
       </div>
