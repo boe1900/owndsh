@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Cordis、真实临时 profile/状态文件与平台、subprocess、inventory 测试端口。
- * [OUTPUT]: 验证源安装、身份核对、授权撤回、串行操作、失败重试及重启确认。
+ * [OUTPUT]: 验证源安装、身份核对、授权撤回、串行操作、失败重试及卸载后的重启确认收敛。
  * [POS]: 插件市场安装生命周期门禁，依赖安装另由真实官方 CLI smoke 验证。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -71,7 +71,7 @@ async function installed(home: string, desired: RuntimePluginAssignment, patch =
   await writeFile(join(dir, 'bundle.yml'), '{}')
 }
 async function environment(platform: Platform, options: {
-  home?: string; marker?: string; active?: boolean; code?: number; commandPort?: DshPluginCommandPort
+  home?: string; marker?: string; active?: boolean; inventoryState?: 'inactive'; code?: number; commandPort?: DshPluginCommandPort
 } = {}) {
   const home = options.home ?? await mkdtemp(join(tmpdir(), 'owndsh-plugins-'))
   if (!options.home) cleanups.push(() => rm(home, { recursive: true, force: true }))
@@ -85,8 +85,9 @@ async function environment(platform: Platform, options: {
   const ctx = new Context()
   ctx.reflect.provide('enterprisePlatform', platform as never)
   ctx.reflect.provide('subprocess', subprocess)
-  ctx.reflect.provide('pluginInventory' as never, { list: async () => ({ entries: options.active
-    ? platform.snapshot.plugins.assignments.map(item => ({ entryId: 'entry', moduleName: item.packageName, enabled: true, fiberPhase: 'active' })) : [] }) } as never)
+  ctx.reflect.provide('pluginInventory' as never, { list: async () => ({ entries: options.active || options.inventoryState === 'inactive'
+    ? platform.snapshot.plugins.assignments.map(item => ({ entryId: 'entry', moduleName: item.packageName,
+      enabled: options.active === true, fiberPhase: options.active === true ? 'active' : 'stopped' })) : [] }) } as never)
   const service = new EnterprisePluginDistributionService(ctx as unknown as PluginDistributionContext, {
     dshHome: home, profile: 'enterprise', dshCommand: 'dsh',
   }, { runMarker: options.marker ?? 'one', ...(options.commandPort ? { commandPort: options.commandPort } : {}) })
@@ -176,6 +177,35 @@ describe('source plugin installation', () => {
     const removed = await environment(platform, { home: env.home, marker: 'three' })
     expect(removed.service.status().plugins).toEqual([])
     expect(removed.specs).toHaveLength(0)
+  })
+
+  it('treats an absent plugin as uninstalled after restart despite a stale inactive loader entry', async () => {
+    const desired = assignment(); const platform = new Platform(bootstrap([desired]))
+    const installedEnv = await environment(platform)
+    await installed(installedEnv.home, desired)
+    await installedEnv.service.install(desired.packageName, '880')
+    await installedEnv.close()
+
+    const active = await environment(platform, { home: installedEnv.home, marker: 'two', active: true })
+    await active.service.remove(desired.packageName)
+    expect(active.service.status().plugins[0]).toMatchObject({ desiredState: 'ABSENT', state: 'RESTART_REQUIRED' })
+    await active.close()
+
+    const restarted = await environment(platform, { home: installedEnv.home, marker: 'three', inventoryState: 'inactive' })
+    expect(restarted.service.status().plugins).toEqual([])
+    await restarted.close()
+
+    await new ManagedPluginStore(installedEnv.home).write({
+      formatVersion: 1,
+      assignmentRevision: 1,
+      plugins: [{
+        packageName: desired.packageName, version: desired.version, pluginVersionId: desired.pluginVersionId,
+        desiredRevision: 1, desiredState: 'ABSENT', state: 'FAILED',
+        lastErrorCode: 'ENT_PLUGIN_LOADER_INACTIVE', restartMarker: null,
+      }],
+    })
+    const recovered = await environment(platform, { home: installedEnv.home, marker: 'four', inventoryState: 'inactive' })
+    expect(recovered.service.status().plugins).toEqual([])
   })
 
   it('withdraws installed packages only for explicit ABSENT and serializes actions', async () => {

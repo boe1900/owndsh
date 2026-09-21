@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 platform-client bootstrap/request、Harness subprocess/inventory、安装目标校验与原子状态文件
- * [OUTPUT]: 对外提供企业可选目录、显式安装/版本切换/卸载、撤回调和、核心保护与库存状态
+ * [OUTPUT]: 对外提供企业可选目录、显式安装/版本切换/卸载、重启后卸载状态收敛、撤回调和、核心保护与库存状态
  * [POS]: plugin-distribution 的串行生命周期所有者，中心决定可用范围，用户确认固定版本，宿主 pnpm 安装及解析依赖，Loader 确认重启结果
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -353,7 +353,7 @@ export class EnterprisePluginDistributionService extends Service {
       const active = entry?.enabled === true && entry.fiberPhase === 'active'
       if (record.state === 'RESTART_REQUIRED') {
         if (record.restartMarker === this.runMarker) continue
-        if (record.desiredState === 'ABSENT' && entry === undefined) {
+        if (record.desiredState === 'ABSENT') {
           this.records.delete(record.packageName)
         } else if (record.desiredState === 'INSTALLED' && active) {
           this.records.set(record.packageName, {
@@ -370,6 +370,11 @@ export class EnterprisePluginDistributionService extends Service {
             restartMarker: null,
           })
         }
+        changed = true
+      } else if (record.desiredState === 'ABSENT' && record.state === 'FAILED'
+        && record.lastErrorCode === 'ENT_PLUGIN_LOADER_INACTIVE') {
+        // 旧版本曾把卸载后的非 active inventory 条目误记为失败；卸载意图已明确，重启后应归零。
+        this.records.delete(record.packageName)
         changed = true
       } else if (record.state === 'ACTIVE' && !active) {
         this.records.set(record.packageName, {

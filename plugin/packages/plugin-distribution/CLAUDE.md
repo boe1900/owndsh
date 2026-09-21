@@ -10,7 +10,7 @@ tsconfig.json: Node TypeScript 构建边界，从 `src/` 生成 ESM、声明与 
 src/cli.ts: Web 走官方 `ctx.subprocess`、Desktop 走公开 command port 的单一 argv 边界，显式透传 DSH_HOME 并限制诊断输出。
 src/errors.ts: 本地稳定分发错误码，状态文件和库存只持久化 code 而不保存中心正文。
 src/index.ts: package facade、Cordis Context 合并与公开类型出口。
-src/service.ts: 企业可选目录和显式安装/卸载的串行所有者；点击时重查授权，绑定版本 ID，委托宿主安装并核对结果、确认重启和上报库存。
+src/service.ts: 企业可选目录和显式安装/卸载的串行所有者；点击时重查授权，绑定版本 ID，委托宿主安装并核对结果，重启后将 ABSENT 记录收敛为未安装并上报库存。
 src/state-store.ts: plugin-installations.json 的严格解析与私有权限原子替换，不读取旧制品状态文件。
 src/types.ts: 官方平台/宿主窄 port、必填安装配置和版本 ID 状态，配置只包含运行参数。
 src/verification.ts: 校验 npm 精确版本、Git 固定 commit、tgz URL/绝对路径；绑定依赖键并核对安装后实际包名、版本和 bundle 文件。
