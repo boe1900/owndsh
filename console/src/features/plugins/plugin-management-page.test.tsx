@@ -77,6 +77,17 @@ describe('plugin registration', () => {
       }
     });
   });
+  it('shows the generated npm target and asks for a target only for other sources', () => {
+    render(<RegisterPluginVersionDialog categoryOptions={[]} categoriesLoading={false} categoriesError={false}
+      onRetryCategories={vi.fn()} onClose={vi.fn()} onSave={vi.fn()} saving={false} />);
+    fireEvent.change(screen.getByLabelText('包名'), { target: { value: '@company/plugin' } });
+    fireEvent.change(screen.getByLabelText('版本'), { target: { value: '1.2.3' } });
+    expect(screen.getByText('@company/plugin@1.2.3')).toBeDefined();
+    expect(screen.queryByLabelText('安装目标')).toBeNull();
+    fireEvent.change(screen.getByLabelText('安装方式'), { target: { value: 'github' } });
+    expect(screen.getByLabelText('安装目标')).toBeDefined();
+    expect(screen.getByText(/完整 40 位 commit/)).toBeDefined();
+  });
   it('keeps the installation target separate from repository metadata', () => {
     const spec = `github:company/repo#${'a'.repeat(40)}&path:/packages/plugin`;
     expect(registrationValue({ packageName: 'plugin', version: '1.0.0', spec,

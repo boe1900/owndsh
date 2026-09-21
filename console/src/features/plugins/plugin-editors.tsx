@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 React、共享 MemberSelect、ProductDialog、PluginCategorySelect、插件 DTO 与浏览器原生表单控件。
- * [OUTPUT]: 提供首次登记、锁定包名并继承资料的新增版本、发布并沿用指定旧版范围、范围编辑和退休确认；员工仍自主安装。
+ * [OUTPUT]: 提供首次登记、锁定包名并继承资料的新增版本、按 npm/Git/tgz/本地路径选择安装方式、发布并沿用指定旧版范围、范围编辑和退休确认；员工仍自主安装。
  * [POS]: features/plugins 的写入表单层，只收集产品语义，不解析包或执行安装命令，也不持有 mutation。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -20,6 +20,28 @@ import { MemberSelect } from '@/features/member-select';
 import { PluginCategorySelect } from './plugin-category-select';
 
 const inputClass = 'h-9 w-full rounded-lg border border-line bg-canvas px-3 text-[13px] text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent-tint';
+type InstallSource = 'npm' | 'github' | 'tgz' | 'path';
+
+const SOURCE_DETAILS: Record<InstallSource, { label: string; placeholder: string; help: string }> = {
+  npm: { label: 'npm 包', placeholder: '', help: '保存后按包名和版本安装，无需填写地址。' },
+  github: { label: 'GitHub 固定 commit', placeholder: 'github:组织/仓库#40 位 commit，可追加 &path:/子目录', help: '必须锁定完整 40 位 commit；私有仓库凭据使用宿主已有配置。' },
+  tgz: { label: 'tgz 下载地址', placeholder: 'https://registry.example.com/plugin-1.0.0.tgz', help: '填写客户端可以访问的 HTTP(S) .tgz 地址。' },
+  path: { label: '客户端本地路径', placeholder: '/绝对路径/plugin 或 plugin.tgz', help: '填写员工客户端机器上的绝对路径，路径必须在客户端上存在。' }
+};
+
+function sourceFor(spec: string, packageName: string, version: string): InstallSource {
+  if (!spec || spec === `${packageName}@${version}`) return 'npm';
+  if (spec.startsWith('github:')) return 'github';
+  if (/^https?:\/\/.*\.tgz(?:$|[?#])/.test(spec)) return 'tgz';
+  return 'path';
+}
+
+function specBelongsToSource(spec: string, source: InstallSource): boolean {
+  if (source === 'github') return spec.startsWith('github:');
+  if (source === 'tgz') return /^https?:\/\/.*\.tgz(?:$|[?#])/.test(spec);
+  if (source === 'path') return /^(?:\/|[A-Za-z]:[\\/])/.test(spec);
+  return false;
+}
 
 export type PluginRegistrationValue = PluginRegistrationRequest;
 
@@ -74,18 +96,20 @@ export function RegisterPluginVersionDialog({ baseVersion, versions = [], catego
   onSave: (value: PluginRegistrationValue) => void;
   saving: boolean;
 }) {
-  const npmSource = !baseVersion || baseVersion.installation.spec === `${baseVersion.packageName}@${baseVersion.version}`;
+  const inheritedSpec = baseVersion?.installation.spec ?? '';
+  const inheritedPackageName = baseVersion?.packageName ?? '';
+  const inheritedVersion = baseVersion?.version ?? '';
   const [values, setValues] = useState<Record<string, string>>(() => {
     if (!baseVersion) return {};
     const { categories: _categories, ...metadata } = baseVersion.installation;
-    return { ...metadata, packageName: baseVersion.packageName, version: '', spec: npmSource ? '' : metadata.spec };
+    return { ...metadata, packageName: baseVersion.packageName, version: '', spec: metadata.spec === `${baseVersion.packageName}@${baseVersion.version}` ? '' : metadata.spec };
   });
+  const [source, setSource] = useState<InstallSource>(() => sourceFor(inheritedSpec, inheritedPackageName, inheritedVersion));
   const [categories, setCategories] = useState<string[]>(baseVersion?.installation.categories ?? []);
   const [validationError, setValidationError] = useState<string>();
   const fields = [
     ['packageName', '包名', '@company/dsh-plugin', true, 214],
     ['version', '版本', '1.0.0', true, 64],
-    ['spec', '安装目标', npmSource && baseVersion ? `自动使用 ${baseVersion.packageName}@${values.version?.trim() || '新版本号'}` : '留空使用包名@版本，或填写 Git / .tgz 地址 / 客户端绝对路径', !npmSource, 2048],
     ['displayName', '显示名称', '留空使用包名', false, 120],
     ['description', '简介', '这个插件能做什么', false, 2000],
     ['author', '作者', '团队或作者名称', false, 120],
@@ -99,15 +123,21 @@ export function RegisterPluginVersionDialog({ baseVersion, versions = [], catego
       value={values[key] ?? ''} onChange={event => { setValidationError(undefined); setValues(current => ({ ...current, [key]: event.target.value })); }} />
   </label>;
   const metadata = <>
-    {fields.slice(3).map(renderField)}
+    {fields.slice(2).map(renderField)}
     <PluginCategorySelect options={categoryOptions} value={categories} onChange={setCategories} disabled={saving} />
     {categoriesLoading ? <p role="status" className="m-0 text-[12px] text-ink-3">正在加载已有分类…</p> : null}
     {categoriesError ? <p role="alert" className="m-0 text-[12px] text-red">已有分类加载失败。<button type="button" className="ml-1 underline" onClick={onRetryCategories}>重试</button></p> : null}
   </>;
+  const packageName = values.packageName?.trim() || baseVersion?.packageName || '包名';
+  const version = values.version?.trim() || '版本';
+  const sourceDetails = SOURCE_DETAILS[source];
   return <ProductDialog title={baseVersion ? '新增版本' : '添加插件'} onClose={onClose}>
     <form onSubmit={event => {
       event.preventDefault();
       const value = registrationValue({ ...values, ...(baseVersion ? { packageName: baseVersion.packageName } : {}) }, categories);
+      if (source !== 'npm' && !values.spec?.trim()) {
+        setValidationError(`请填写${sourceDetails.label}。`); return;
+      }
       if (baseVersion && (value.version === baseVersion.version || versions.some(item => item.version === value.version))) {
         setValidationError('这个版本已存在，请填写新的版本号。'); return;
       }
@@ -118,12 +148,37 @@ export function RegisterPluginVersionDialog({ baseVersion, versions = [], catego
     }}>
       <div className="grid gap-4 p-5">
         {baseVersion ? <p className="m-0 text-[12px] text-ink-3">基于 {baseVersion.installation.displayName} v{baseVersion.version}，已沿用插件资料。</p> : null}
-        {fields.slice(0, 3).map(renderField)}
+        {fields.slice(0, 2).map(renderField)}
+        <div className="grid gap-3 rounded-lg border border-line bg-hover/40 p-3">
+          <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
+            安装方式
+            <select className={inputClass} value={source} disabled={saving} onChange={event => {
+              const next = event.target.value as InstallSource;
+              setSource(next);
+              setValidationError(undefined);
+              setValues(current => ({ ...current, spec: next === 'npm' || !specBelongsToSource(current.spec ?? '', next) ? '' : current.spec }));
+            }}>
+              <option value="npm">npm 包（推荐，按包名和版本安装）</option>
+              <option value="github">GitHub 固定 commit</option>
+              <option value="tgz">tgz 下载地址</option>
+              <option value="path">客户端本地路径</option>
+            </select>
+          </label>
+          {source === 'npm' ? <div className="rounded-md border border-line bg-canvas px-3 py-2.5">
+            <p className="m-0 text-[12px] text-ink-3">将安装</p>
+            <p className="m-0 mt-1 break-all font-mono text-[13px] text-ink">{packageName}@{version}</p>
+            <p className="m-0 mt-1 text-[11.5px] text-ink-3">{sourceDetails.help}</p>
+          </div> : <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
+            {sourceDetails.label}
+            <input className={inputClass} name="spec" aria-label="安装目标" required maxLength={2048} disabled={saving}
+              placeholder={sourceDetails.placeholder} value={values.spec ?? ''} onChange={event => { setValidationError(undefined); setValues(current => ({ ...current, spec: event.target.value })); }} />
+            <span className="text-[11.5px] font-normal text-ink-3">{sourceDetails.help}</span>
+          </label>}
+        </div>
         {baseVersion ? <details className="rounded-lg border border-line p-3">
           <summary className="cursor-pointer text-[12.5px] font-medium text-ink-2">插件资料 · 已沿用，按需修改</summary>
           <div className="mt-4 grid gap-4">{metadata}</div>
         </details> : metadata}
-        <p className="m-0 text-[12px] text-ink-3">Git 格式：github:组织/仓库#完整 commit，可追加 &amp;path:/子目录。包地址由员工客户端访问；私有源使用宿主已有的认证配置。</p>
         {validationError || error ? <p role="alert" className="m-0 text-[12.5px] text-red">{validationError ?? error}</p> : null}
       </div>
       <footer className="flex justify-end gap-2 border-t border-line px-5 py-4">
