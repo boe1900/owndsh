@@ -43,7 +43,7 @@ P2-08C 将产品控制台会话收敛为服务端 Sa-Token 与 HttpOnly/SameSite
 
 员工 UI 入口：账号信息与退出登录集中在 OwnDsh 设置 → 账号；插件仅注册 settings.section 和 shell.overlay，不占用宿主 sidebar.footer.action。登录门禁、失效恢复与设置内确认退出保留。
 
-企业插件市场：管理员只登记 npm 精确版本、GitHub 固定 commit、tgz URL 或客户端绝对包路径，源码仓库与安装地址分离；卡片按产品原型组织无图标等高网格、分类/搜索与独立操作按钮，四色状态配悬停提示，只有更高版本以黄色微闪提醒；保留固定版本详情确认和安装后重启。平台只管理发布、ALL/USER 可见范围、逐次安装授权和库存，宿主 pnpm 独占依赖与构建策略。V34 清空旧上传目录/范围/库存并删除制品列，无旧协议兼容；客户端状态使用 plugin-installations.json。
+企业插件市场：管理员只登记 npm 精确版本、GitHub 固定 commit 或 tgz URL，源码仓库与安装地址分离；卡片按产品原型组织无图标等高网格、分类/搜索与独立操作按钮，四色状态配悬停提示，只有更高版本以黄色微闪提醒；保留固定版本详情确认和安装后重启。平台只管理发布、ALL/USER 可见范围、逐次安装授权和库存，宿主 pnpm 独占依赖与构建策略。V34 清空旧上传目录/范围/库存并删除制品列，无旧协议兼容；客户端状态使用 plugin-installations.json。
 
 
 MCP 员工能力仍在唯一 `owndsh-plugin` 的 OwnDsh 设置中；公共配置和服务授权归 Console/Server，用户秘密归 Host credentials。MCP/OAuth 各地址统一接受管理员指定的 HTTP(S)，沿用 PKCE、state 和 issuer/resource 绑定；协议由部署方选择。端侧复用官方 MCP client 的独立 fiber，按 Agent 搜索累加、显式释放和本步调用快照呈现工具，无自动 LRU/16工具/64KiB会话硬限；凭据绑定平台 origin、bootstrap 用户/设备/installation 与 MCP serverId/目标配置摘要，OAuth access token 仅存内存，平台身份失效先关调用门禁并取消在途授权。实现进度、OAuth 失效/重新授权和真实 Notion Web 验证边界见 docs/mcp-implementation-plan.md。

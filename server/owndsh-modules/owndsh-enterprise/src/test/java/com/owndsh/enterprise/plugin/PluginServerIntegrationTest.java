@@ -107,7 +107,7 @@ class PluginServerIntegrationTest {
         assertThat(duplicates).extracting(result -> result.version().id()).containsOnly(versionOne.id());
         assertThat(versionOne.installation().spec()).isEqualTo("@example/t13-tools@1.0.0");
         assertThatThrownBy(() -> catalog.register(mutation, "@example/t13-tools", "1.0.0",
-            new PluginInstallation("/different/package.tgz", "Changed", "", "", "", List.of())))
+            new PluginInstallation("https://registry.example/different.tgz", "Changed", "", "", "", List.of())))
             .isInstanceOf(IllegalArgumentException.class);
         assertThat(versionOne.status()).isEqualTo(PluginVersion.Status.VALIDATED);
         assertThat(versionOne.revision()).isEqualTo(0);

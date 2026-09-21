@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 React、共享 MemberSelect、ProductDialog、PluginCategorySelect、插件 DTO 与浏览器原生表单控件。
- * [OUTPUT]: 提供首次登记、锁定包名并继承资料的新增版本、按 npm/Git/tgz/本地路径选择安装方式、发布并沿用指定旧版范围、范围编辑和退休确认；员工仍自主安装。
+ * [OUTPUT]: 提供首次登记、锁定包名并继承资料的新增版本、按 npm/Git/tgz 选择安装方式、发布并沿用指定旧版范围、范围编辑和退休确认；员工仍自主安装。
  * [POS]: features/plugins 的写入表单层，只收集产品语义，不解析包或执行安装命令，也不持有 mutation。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -20,26 +20,24 @@ import { MemberSelect } from '@/features/member-select';
 import { PluginCategorySelect } from './plugin-category-select';
 
 const inputClass = 'h-9 w-full rounded-lg border border-line bg-canvas px-3 text-[13px] text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent-tint';
-type InstallSource = 'npm' | 'github' | 'tgz' | 'path';
+type InstallSource = 'npm' | 'github' | 'tgz';
 
 const SOURCE_DETAILS: Record<InstallSource, { label: string; placeholder: string; help: string }> = {
   npm: { label: 'npm 包', placeholder: '', help: '保存后按包名和版本安装，无需填写地址。' },
   github: { label: 'GitHub 固定 commit', placeholder: 'github:组织/仓库#40 位 commit，可追加 &path:/子目录', help: '必须锁定完整 40 位 commit；私有仓库凭据使用宿主已有配置。' },
   tgz: { label: 'tgz 下载地址', placeholder: 'https://registry.example.com/plugin-1.0.0.tgz', help: '填写客户端可以访问的 HTTP(S) .tgz 地址。' },
-  path: { label: '客户端本地路径', placeholder: '/绝对路径/plugin 或 plugin.tgz', help: '填写员工客户端机器上的绝对路径，路径必须在客户端上存在。' }
 };
 
 function sourceFor(spec: string, packageName: string, version: string): InstallSource {
   if (!spec || spec === `${packageName}@${version}`) return 'npm';
   if (spec.startsWith('github:')) return 'github';
   if (/^https?:\/\/.*\.tgz(?:$|[?#])/.test(spec)) return 'tgz';
-  return 'path';
+  return 'npm';
 }
 
 function specBelongsToSource(spec: string, source: InstallSource): boolean {
   if (source === 'github') return spec.startsWith('github:');
   if (source === 'tgz') return /^https?:\/\/.*\.tgz(?:$|[?#])/.test(spec);
-  if (source === 'path') return /^(?:\/|[A-Za-z]:[\\/])/.test(spec);
   return false;
 }
 
@@ -102,7 +100,9 @@ export function RegisterPluginVersionDialog({ baseVersion, versions = [], catego
   const [values, setValues] = useState<Record<string, string>>(() => {
     if (!baseVersion) return {};
     const { categories: _categories, ...metadata } = baseVersion.installation;
-    return { ...metadata, packageName: baseVersion.packageName, version: '', spec: metadata.spec === `${baseVersion.packageName}@${baseVersion.version}` ? '' : metadata.spec };
+    const spec = metadata.spec.startsWith('github:') || /^https?:\/\/.*\.tgz(?:$|[?#])/.test(metadata.spec)
+      ? metadata.spec : '';
+    return { ...metadata, packageName: baseVersion.packageName, version: '', spec };
   });
   const [source, setSource] = useState<InstallSource>(() => sourceFor(inheritedSpec, inheritedPackageName, inheritedVersion));
   const [categories, setCategories] = useState<string[]>(baseVersion?.installation.categories ?? []);
@@ -161,7 +161,6 @@ export function RegisterPluginVersionDialog({ baseVersion, versions = [], catego
               <option value="npm">npm 包（推荐，按包名和版本安装）</option>
               <option value="github">GitHub 固定 commit</option>
               <option value="tgz">tgz 下载地址</option>
-              <option value="path">客户端本地路径</option>
             </select>
           </label>
           {source === 'npm' ? <div className="rounded-md border border-line bg-canvas px-3 py-2.5">

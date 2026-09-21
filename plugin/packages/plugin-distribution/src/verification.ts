@@ -6,7 +6,7 @@
  */
 
 import { readFile, stat } from 'node:fs/promises'
-import { isAbsolute, join, win32 } from 'node:path'
+import { join, win32 } from 'node:path'
 import { PluginDistributionError } from './errors.js'
 import type { RuntimePluginAssignment } from './types.js'
 
@@ -15,19 +15,18 @@ export function verifyAssignmentMetadata(assignment: RuntimePluginAssignment): v
   let allowed = spec === `${assignment.packageName}@${assignment.version}`
     || /^github:[A-Za-z0-9-]+\/[A-Za-z0-9._-]+#[0-9a-f]{40}(?:&path:\/[A-Za-z0-9_./-]+)?$/.test(spec)
       && !spec.includes('/../') && !spec.endsWith('/..')
-    || isAbsolute(spec)
   try {
     const url = new URL(spec)
     allowed ||= ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password && !url.hash && url.pathname.endsWith('.tgz')
-  } catch { /* 本地路径与 npm spec 不必是 URL。 */ }
+  } catch { /* npm 与 Git spec 不必是 URL。 */ }
   if (!allowed || /[\x00-\x1f\x7f]/.test(spec)) throw new PluginDistributionError('ENT_PLUGIN_INCOMPATIBLE', 'plugin install target is invalid on this host')
 }
 
-/** 为路径/Git/tgz 固定依赖键，防止目标包名变化覆盖另一个宿主依赖。 */
+/** 为 Git/tgz 固定依赖键，防止目标包名变化覆盖另一个宿主依赖。 */
 export function installationTarget(assignment: RuntimePluginAssignment): string {
   const { spec } = assignment.installation
   if (spec === `${assignment.packageName}@${assignment.version}`) return spec
-  return `${assignment.packageName}@${isAbsolute(spec) ? `file:${spec}` : spec}`
+  return `${assignment.packageName}@${spec}`
 }
 
 /** 官方 CLI 完成后读取其安装结果；不自行下载、解包或安装依赖。 */
@@ -37,7 +36,7 @@ export async function verifyInstalledPlugin(dshHome: string, profile: string, as
     const manifest = JSON.parse(await readFile(join(directory, 'package.json'), 'utf8'))
     const patch = manifest.dsh?.bundle?.patch
     if (manifest.name !== assignment.packageName || manifest.version !== assignment.version
-      || typeof patch !== 'string' || !patch || isAbsolute(patch) || win32.isAbsolute(patch)
+      || typeof patch !== 'string' || !patch || win32.isAbsolute(patch)
       || patch.includes('\\') || patch.includes('\0') || patch.split('/').includes('..')
       || !(await stat(join(directory, patch))).isFile()) throw new Error('package identity or bundle mismatch')
   } catch (cause) {

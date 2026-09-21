@@ -131,7 +131,7 @@ pnpm --dir /path/to/deepseek-harness dsh \
 
 Server 地址和 Refresh Token 由 Harness Host 的官方 settings/credentials 服务持久化。Access Token 只存在 Host 内存，浏览器页面不会读取或保存 Token；正常重启会静默恢复登录。主动退出、设备撤销、成员停用、改密或 30 天有效期结束后需要重新登录。
 
-「OwnDsh 设置 → 插件」展示本人可见的插件，支持分类、搜索、详情确认、自主安装、更新和卸载；卡片不显示图标。管理员配置 npm 精确版本、GitHub 固定 commit、tgz 地址或客户端绝对路径，源码仓库单独填写。宿主 pnpm 负责包及其依赖，私有源使用宿主认证配置。安装后重启生效。V34 清空旧上传插件目录/范围/库存，不兼容旧制品协议；详见[安装说明](plugin/packages/plugin-distribution/README.md)。
+「OwnDsh 设置 → 插件」展示本人可见的插件，支持分类、搜索、详情确认、自主安装、更新和卸载；卡片不显示图标。管理员配置 npm 精确版本、GitHub 固定 commit 或 tgz 地址，源码仓库单独填写。宿主 pnpm 负责包及其依赖，私有源使用宿主认证配置。安装后重启生效。V34 清空旧上传插件目录/范围/库存，不兼容旧制品协议；详见[安装说明](plugin/packages/plugin-distribution/README.md)。
 
 OwnDsh 闲置时不建立企业 SSE、不定时拉配置或提前续期。用户请求时按需续期，服务端认证 401 最多续期重试一次；Refresh Token 失效或设备撤销时显示登录门禁，重新登录后可继续对话。网络暂不可达保留凭据，可再次发起请求或在 OwnDsh 设置点击刷新；模型与插件目录在打开设置或主动刷新时更新。
 

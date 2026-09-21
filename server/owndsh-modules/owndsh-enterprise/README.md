@@ -118,7 +118,7 @@ master key 的独立 `API_CURSOR` 用途进行 AES-GCM 认证，并绑定 tenant
 
 管理员通过 JSON 登记包名、精确版本、安装目标及名称/简介/作者/分类/源码仓库。相同包名/版本/配置幂等，修改配置需新版本；同包事务串行，发布/退休和范围替换保留 CAS 与审计。
 
-支持 npm 精确版本、固定 commit 的 GitHub 包、HTTP(S) tgz 和客户端绝对路径。服务端不接收、下载或签名插件包。普通 dependencies、peer 和脚本由宿主 pnpm 自己处理，私有源认证留在客户端宿主。
+支持 npm 精确版本、固定 commit 的 GitHub 包和 HTTP(S) tgz。服务端不接收、下载或签名插件包。普通 dependencies、peer 和脚本由宿主 pnpm 自己处理，私有源认证留在客户端宿主。
 
 管理入口 `/enterprise/admin/v1/plugins` 使用 `ent:plugin:read/write`。runtime 的 `/plugins/assignments` 每次重新确认 ACTIVE 用户和设备及有效范围，客户端显式安装前重新读取；库存替换和审计同事务。Bootstrap 与目录共用安装配置投影。
 

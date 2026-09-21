@@ -59,7 +59,7 @@ OwnDsh Server 由本项目自主维护，原始代码的 MIT 许可证保留在 
 | 模型 | Harness 官方 `dsh-llm-pi-ai` 负责三协议语义；企业网关只做治理和透明 upstream |
 | 密钥 | 上游模型密钥只在服务端加密保存和解密使用，不进入员工设备、浏览器、Session Event 或日志 |
 | 配额 | 支持默认、部门和用户三个作用域的日/月 Token、RPM 和并发限制；请求前预留，请求后结算 |
-| 插件 | 配置 npm 精确版本、固定 commit 的 GitHub 包、tgz URL 或客户端绝对路径；平台管理发布与可见范围，宿主 pnpm 安装依赖，重启后生效 |
+| 插件 | 配置 npm 精确版本、固定 commit 的 GitHub 包或 tgz URL；平台管理发布与可见范围，宿主 pnpm 安装依赖，重启后生效 |
 | 会话 | 本地持久化仍是真源；独立同步消费者上传完整 Session Event 日志，支持个人会话管理和恢复副本，不同步工作区文件 |
 | 数据保留 | Session 正文默认 90 天，审计元数据默认 365 天，均可由部署配置修改 |
 | 审计 | 使用应用级只追加审计表，不做哈希链、不可抵赖证明、风险发现或安全报告 |
@@ -601,7 +601,7 @@ RELEASED   CHARGED_MAX
 
 ### 11.1 安装配置
 
-管理员登记包名、精确版本和安装目标，不上传插件。目标支持 `包名@版本`、`github:owner/repo#完整40位commit`（可追加 `&path:/子目录`）、HTTP(S) `.tgz` URL、客户端绝对目录/包路径。显示名称、简介、作者、分类和源码仓库独立配置，卡片无图标；源码仓库一般填写 GitHub URL。
+管理员登记包名、精确版本和安装目标，不上传插件。目标支持 `包名@版本`、`github:owner/repo#完整40位commit`（可追加 `&path:/子目录`）或 HTTP(S) `.tgz` URL。显示名称、简介、作者、分类和源码仓库独立配置，卡片无图标；源码仓库一般填写 GitHub URL。
 
 正常 `dependencies`、peer 和构建脚本由宿主 pnpm 解析，OwnDsh 不要求零依赖、不强制精确 Harness commit、不附加 `--ignore-scripts`。企业私有 npm/Git 源使用宿主已有认证配置，平台不托管包内容或凭据。
 

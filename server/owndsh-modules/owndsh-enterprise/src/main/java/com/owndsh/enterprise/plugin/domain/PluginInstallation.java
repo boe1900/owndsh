@@ -46,8 +46,7 @@ public record PluginInstallation(
             URI uri = httpUrl(spec);
             if (uri.getPath().endsWith(".tgz")) return;
         }
-        if (spec.startsWith("/") || spec.matches("[A-Za-z]:[/\\\\].+")) return;
-        throw new IllegalArgumentException("请填写包名@精确版本、github:仓库#完整commit、.tgz 下载地址或客户端绝对路径");
+        throw new IllegalArgumentException("请填写包名@精确版本、github:仓库#完整commit 或 .tgz 下载地址");
     }
 
     private static URI httpUrl(String value) {

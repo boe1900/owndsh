@@ -101,7 +101,7 @@ async function environment(platform: Platform, options: {
 describe('source plugin installation', () => {
   it.each([
     '@example/review@1.2.0', `github:example/review#${'a'.repeat(40)}&path:/plugins/review`,
-    'https://registry.example/review.tgz', '/tmp/package with spaces.tgz',
+    'https://registry.example/review.tgz',
   ])('delegates %s to the host, keeps exact identity and waits for restart', async spec => {
     const desired = assignment(); desired.installation.spec = spec
     const platform = new Platform(bootstrap([desired]))
@@ -231,7 +231,7 @@ describe('source plugin installation', () => {
     expect(next.specs).toHaveLength(0)
   })
 
-  it.each(['--config.foo=bar', 'example/review#main', 'github:example/review#main', `github:example/review#${'a'.repeat(40)}&path:/../private`, 'https://user:secret@example.test/review.tgz'])('rejects unpinned or unsafe target %s', spec => {
+  it.each(['--config.foo=bar', 'example/review#main', 'github:example/review#main', `github:example/review#${'a'.repeat(40)}&path:/../private`, 'https://user:secret@example.test/review.tgz', '/tmp/package with spaces.tgz', 'C:\\plugins\\tools.tgz'])('rejects unpinned or unsafe target %s', spec => {
     const desired = assignment(); desired.installation.spec = spec
     expect(() => verifyAssignmentMetadata(desired)).toThrow()
   })

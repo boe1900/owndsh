@@ -13,7 +13,7 @@ src/index.ts: package facade、Cordis Context 合并与公开类型出口。
 src/service.ts: 企业可选目录和显式安装/卸载的串行所有者；点击时重查授权，绑定版本 ID，委托宿主安装并核对结果，重启后将 ABSENT 记录收敛为未安装并上报库存。
 src/state-store.ts: plugin-installations.json 的严格解析与私有权限原子替换，不读取旧制品状态文件。
 src/types.ts: 官方平台/宿主窄 port、必填安装配置和版本 ID 状态，配置只包含运行参数。
-src/verification.ts: 校验 npm 精确版本、Git 固定 commit、tgz URL/绝对路径；绑定依赖键并核对安装后实际包名、版本和 bundle 文件。
+src/verification.ts: 校验 npm 精确版本、Git 固定 commit、tgz URL；绑定依赖键并核对安装后实际包名、版本和 bundle 文件。
 tests/service.spec.ts: 覆盖四类安装源、授权复查、核心保护、错误包拒绝、失败重试、串行操作、版本切换/撤回与进程重启确认。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

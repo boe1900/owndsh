@@ -10,7 +10,7 @@
 
 - npm：`@company/plugin@1.2.0`，省略目标时管理端自动填入包名和版本。
 - GitHub：`github:owner/repo#完整40位commit`，子目录可追加 `&path:/plugins/example`。
-- 包文件：HTTP(S) `.tgz` URL，或员工客户端上的绝对目录/包文件路径。
+- 包文件：HTTP(S) `.tgz` URL。
 
 显示名称、简介、作者、分类和源码仓库独立于安装目标。源码仓库一般填写 GitHub URL，可留空。
 
