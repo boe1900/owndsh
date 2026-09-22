@@ -13,7 +13,8 @@ ExternalIdentityQueryService.java: 向管理端提供单个平台用户的脱敏
 IdentityAlreadyLinkedException.java: 外部 subject 或 source-user 唯一绑定冲突的稳定 ENT_IDENTITY_ALREADY_LINKED 异常。
 IdentityChangeMetadata.java: 身份源与组映射变更的显式审计 metadata。
 IdentityGroupMappingService.java: 外部组映射 keyset 查询、产品用户组校验、创建/删除 CAS、bootstrap revision 与审计事务。
-AccessGroupService.java: 产品用户组 CRUD、手工成员替换、模型/MCP 授权引用删除保护、revision/bootstrap revision 与审计事务编排。
+AccessGroupService.java: 产品用户组 CRUD、手工成员替换、模型/MCP 授权与外部组映射引用删除保护、revision/bootstrap revision 与审计事务编排。
+AccessGroupInUseException.java: 用户组仍被模型/MCP 授权或外部组映射引用时的稳定领域异常，携带删除阻塞计数。
 IdentityLinkMetadata.java: 用户绑定审计的计数与部门冲突白名单 metadata。
 IdentityLinkResult.java: 返回稳定 userId、是否新绑定和新建成员的最小结果。
 LdapDirectoryService.java: 限定启用 LDAP 身份源的用户/组有界搜索，并在单人导入前按浏览器提交的 DN 重读目录事实。

@@ -166,6 +166,17 @@ public final class JdbcQuotaPolicyStore implements QuotaPolicyStore {
     }
 
     @Override
+    public long windowCount(String tenantId, long id) {
+        Long count = jdbc.queryForObject("""
+            select count(*)
+              from ent_quota_window w
+              join ent_quota_policy p on p.id = w.policy_id
+             where p.tenant_id = ? and p.id = ?
+            """, Long.class, tenantId, id);
+        return count == null ? 0 : count;
+    }
+
+    @Override
     public boolean delete(String tenantId, long id, long expectedRevision) {
         return jdbc.update(
             "delete from ent_quota_policy where tenant_id = ? and id = ? and revision = ?",

@@ -41,7 +41,7 @@ Flyway `V8__enterprise_plugin_server.sql` 把 V2 历史 `ACTIVE/DISABLED` assign
 V1 到 V8 逐版本升级、V7 数据迁移和最终约束拒绝旧值。
 
 OpenAPI 新增六个管理 operation 和三个 runtime operation；bootstrap 引用同一个
-`RuntimePluginAssignments` schema。完整逻辑协议现有 63 个 operation、37 个正反 fixture、36 个稳定
+`RuntimePluginAssignments` schema。完整逻辑协议现有 63 个 operation、37 个正反 fixture、37 个稳定
 错误码，SHA-256 为：
 
 ```text

@@ -13,6 +13,7 @@ import com.owndsh.enterprise.audit.AuditResult;
 import com.owndsh.enterprise.audit.AuditSink;
 import com.owndsh.enterprise.audit.RevisionChangedMetadata;
 import com.owndsh.enterprise.model.domain.ModelSet;
+import com.owndsh.enterprise.model.persistence.ModelSetDeleteBlockers;
 import com.owndsh.enterprise.revision.BootstrapRevisionStore;
 import com.owndsh.enterprise.revision.RevisionConflictException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -137,14 +138,8 @@ public final class ModelSetService {
         transactions.executeWithoutResult(status -> {
             ModelSet current = lock(context.tenantId(), id);
             requireRevision(current, expectedRevision);
-            Boolean referenced = jdbc.queryForObject("""
-                select exists(
-                    select 1 from ent_model_grant where tenant_id = ? and resource_type = 'MODEL_SET' and resource_id = ?
-                    union all
-                    select 1 from ent_quota_policy where tenant_id = ? and resource_type = 'MODEL_SET' and resource_id = ?
-                )
-                """, Boolean.class, context.tenantId(), id, context.tenantId(), id);
-            if (Boolean.TRUE.equals(referenced)) throw new IllegalArgumentException("仍被策略引用的模型集不能删除");
+            ModelSetDeleteBlockers blockers = deleteBlockers(context.tenantId(), id);
+            if (!blockers.isEmpty()) throw new ModelSetInUseException(blockers);
             if (jdbc.update(
                 "delete from ent_model_set where tenant_id = ? and id = ? and revision = ?",
                 context.tenantId(), id, expectedRevision
@@ -154,6 +149,18 @@ public final class ModelSetService {
             revisions.increment(context.tenantId());
             audit(context, id, expectedRevision, expectedRevision + 1);
         });
+    }
+
+    private ModelSetDeleteBlockers deleteBlockers(String tenantId, long id) {
+        long modelGrantCount = jdbc.queryForObject(
+            "select count(*) from ent_model_grant where tenant_id = ? and resource_type = 'MODEL_SET' and resource_id = ?",
+            Long.class, tenantId, id
+        );
+        long quotaPolicyCount = jdbc.queryForObject(
+            "select count(*) from ent_quota_policy where tenant_id = ? and resource_type = 'MODEL_SET' and resource_id = ?",
+            Long.class, tenantId, id
+        );
+        return new ModelSetDeleteBlockers(modelGrantCount, quotaPolicyCount);
     }
 
     private ModelSet lock(String tenantId, long id) {

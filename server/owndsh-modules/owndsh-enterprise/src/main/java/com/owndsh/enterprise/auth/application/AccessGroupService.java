@@ -13,6 +13,7 @@ import com.owndsh.enterprise.audit.AuditResult;
 import com.owndsh.enterprise.audit.AuditSink;
 import com.owndsh.enterprise.audit.RevisionChangedMetadata;
 import com.owndsh.enterprise.auth.domain.AccessGroup;
+import com.owndsh.enterprise.auth.persistence.AccessGroupDeleteBlockers;
 import com.owndsh.enterprise.revision.BootstrapRevisionStore;
 import com.owndsh.enterprise.revision.RevisionConflictException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -138,25 +139,42 @@ public final class AccessGroupService {
     }
 
     public void delete(IdentityMutationContext context, long id, long expectedRevision) {
-        transactions.executeWithoutResult(status -> {
-            AccessGroup current = lock(context.tenantId(), id);
-            requireRevision(current, expectedRevision);
-            Boolean referenced = jdbc.queryForObject(
-                """
-                select exists(select 1 from ent_model_grant where tenant_id = ? and subject_type = 'ACCESS_GROUP' and subject_id = ?)
-                    or exists(select 1 from ent_mcp_grant where tenant_id = ? and subject_type = 'GROUP' and subject_id = ?)
-                """, Boolean.class, context.tenantId(), id, context.tenantId(), id
-            );
-            if (Boolean.TRUE.equals(referenced)) throw new IllegalArgumentException("仍被授权引用的用户组不能删除");
-            if (jdbc.update(
-                "delete from ent_access_group where tenant_id = ? and id = ? and revision = ?",
-                context.tenantId(), id, expectedRevision
-            ) != 1) {
-                throw new RevisionConflictException(expectedRevision, lock(context.tenantId(), id).revision());
-            }
-            revisions.increment(context.tenantId());
-            audit(context, id, expectedRevision, expectedRevision + 1);
-        });
+        try {
+            transactions.executeWithoutResult(status -> {
+                AccessGroup current = lock(context.tenantId(), id);
+                requireRevision(current, expectedRevision);
+                AccessGroupDeleteBlockers blockers = deleteBlockers(context.tenantId(), id);
+                if (!blockers.isEmpty()) throw new AccessGroupInUseException(blockers);
+                if (jdbc.update(
+                    "delete from ent_access_group where tenant_id = ? and id = ? and revision = ?",
+                    context.tenantId(), id, expectedRevision
+                ) != 1) {
+                    throw new RevisionConflictException(expectedRevision, lock(context.tenantId(), id).revision());
+                }
+                revisions.increment(context.tenantId());
+                audit(context, id, expectedRevision, expectedRevision + 1);
+            });
+        } catch (DataIntegrityViolationException exception) {
+            AccessGroupDeleteBlockers blockers = deleteBlockers(context.tenantId(), id);
+            if (!blockers.isEmpty()) throw new AccessGroupInUseException(blockers);
+            throw exception;
+        }
+    }
+
+    private AccessGroupDeleteBlockers deleteBlockers(String tenantId, long id) {
+        long modelGrantCount = jdbc.queryForObject(
+            "select count(*) from ent_model_grant where tenant_id = ? and subject_type = 'ACCESS_GROUP' and subject_id = ?",
+            Long.class, tenantId, id
+        );
+        long mcpGrantCount = jdbc.queryForObject(
+            "select count(*) from ent_mcp_grant where tenant_id = ? and subject_type = 'GROUP' and subject_id = ?",
+            Long.class, tenantId, id
+        );
+        long externalGroupMappingCount = jdbc.queryForObject(
+            "select count(*) from ent_external_group_mapping where tenant_id = ? and access_group_id = ?",
+            Long.class, tenantId, id
+        );
+        return new AccessGroupDeleteBlockers(modelGrantCount, mcpGrantCount, externalGroupMappingCount);
     }
 
     private AccessGroup lock(String tenantId, long id) {

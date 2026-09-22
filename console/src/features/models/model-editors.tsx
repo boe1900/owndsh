@@ -718,7 +718,7 @@ export function DeleteModelDialog({
   return (
     <ProductDialog title="确认删除" onClose={onClose}>
       <div className="space-y-5 p-5">
-        <p className="m-0 text-[13px] leading-6 text-ink-2">确定删除“{label}”？已有授权会阻止删除。</p>
+        <p className="m-0 text-[13px] leading-6 text-ink-2">仅能删除没有配置引用和使用记录的模型。已使用模型请停用或归档。</p>
         {error ? <p role="alert" className="m-0 rounded-md bg-red-tint px-3 py-2 text-[12.5px] text-red">{error}</p> : null}
         <footer className="flex justify-end gap-2 border-t border-line pt-4">
           <Button type="button" size="sm" onClick={onClose}>取消</Button>

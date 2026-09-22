@@ -56,7 +56,7 @@ provider route、credential 或 tenant 内部字段。员工本人用量每次�
 
 协议新增 `components/quota.yaml`、`paths/quota.yaml`、5 个成功 fixture 和 5 个独立 JSON Schema；
 bootstrap fixture 改为真实 DEFAULT 配额。TypeScript package facade 公开 quota/usage DTO 与 strict
-Zod，不要求业务包越过 facade 直接依赖生成文件。当前共有 31 个正反 fixture、36 个稳定错误码，
+Zod，不要求业务包越过 facade 直接依赖生成文件。当前共有 31 个正反 fixture、37 个稳定错误码，
 完整逻辑协议 SHA-256 为：
 
 ```text

@@ -84,7 +84,22 @@ const API_PROTOCOLS: Record<Provider['apiProtocol'], string> = {
 function errorMessage(error: unknown, fallback: string) {
   if (error && typeof error === 'object' && 'error' in error) {
     const payload = (error as EnterpriseErrorResponse).error;
-    if (payload?.message) return payload.message;
+    if (payload?.message) {
+      if (payload.code === 'ENT_RESOURCE_IN_USE' && payload.details
+        && typeof payload.details === 'object' && 'modelGrantCount' in payload.details
+        && 'usageLedgerCount' in payload.details) {
+        const details = payload.details;
+        const references = [
+          details.modelGrantCount > 0 ? `模型授权 ${details.modelGrantCount} 条` : undefined,
+          details.modelSetCount > 0 ? `模型集成员 ${details.modelSetCount} 条` : undefined,
+          details.modelQuotaPolicyCount > 0 ? `模型配额策略 ${details.modelQuotaPolicyCount} 条` : undefined,
+          details.usageReservationCount > 0 ? `请求记录 ${details.usageReservationCount} 条` : undefined,
+          details.usageLedgerCount > 0 ? `历史用量 ${details.usageLedgerCount} 条` : undefined
+        ].filter((value): value is string => value !== undefined);
+        return references.length > 0 ? `${payload.message}（${references.join('、')}）` : payload.message;
+      }
+      return payload.message;
+    }
   }
   if (error instanceof Error && error.message) return error.message;
   return fallback;
@@ -94,14 +109,14 @@ function unwrapData<T>(
   result: { data?: { data: T }; error?: EnterpriseErrorResponse },
   fallbackCode: string
 ) {
-  if (result.error !== undefined || result.data === undefined) {
-    throw new Error(errorMessage(result.error, fallbackCode));
-  }
+  if (result.error !== undefined) throw result.error;
+  if (result.data === undefined) throw new Error(fallbackCode);
   return result.data.data;
 }
 
-function requireSuccess(result: { error?: EnterpriseErrorResponse }, fallbackCode: string) {
-  if (result.error !== undefined) throw new Error(errorMessage(result.error, fallbackCode));
+function requireSuccess(result: { error?: EnterpriseErrorResponse } | undefined, fallbackCode: string) {
+  if (!result) throw new Error(fallbackCode);
+  if (result.error !== undefined) throw result.error;
 }
 
 async function loadModels(cursor?: string) {

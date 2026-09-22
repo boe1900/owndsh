@@ -16,6 +16,7 @@ import com.owndsh.enterprise.quota.domain.QuotaStatus;
 import com.owndsh.enterprise.quota.persistence.QuotaPolicyStore;
 import com.owndsh.enterprise.revision.BootstrapRevisionStore;
 import com.owndsh.enterprise.revision.RevisionConflictException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.support.TransactionOperations;
 
 import java.time.Clock;
@@ -118,15 +119,23 @@ public final class QuotaPolicyService {
     }
 
     public void delete(QuotaMutationContext context, long id, long expectedRevision) {
-        transactions.executeWithoutResult(status -> {
-            QuotaPolicy current = get(context.tenantId(), id);
-            requireRevision(current, expectedRevision);
-            if (!policies.delete(context.tenantId(), id, expectedRevision)) {
-                throw conflict(context.tenantId(), id, expectedRevision);
-            }
-            revisions.increment(context.tenantId());
-            appendAudit(context, current, expectedRevision, expectedRevision + 1);
-        });
+        try {
+            transactions.executeWithoutResult(status -> {
+                QuotaPolicy current = get(context.tenantId(), id);
+                requireRevision(current, expectedRevision);
+                long windowCount = policies.windowCount(context.tenantId(), id);
+                if (windowCount > 0) throw new QuotaPolicyInUseException(windowCount);
+                if (!policies.delete(context.tenantId(), id, expectedRevision)) {
+                    throw conflict(context.tenantId(), id, expectedRevision);
+                }
+                revisions.increment(context.tenantId());
+                appendAudit(context, current, expectedRevision, expectedRevision + 1);
+            });
+        } catch (DataIntegrityViolationException exception) {
+            long windowCount = policies.windowCount(context.tenantId(), id);
+            if (windowCount > 0) throw new QuotaPolicyInUseException(windowCount);
+            throw exception;
+        }
     }
 
     private void requireReferences(String tenantId, QuotaPolicySpec spec) {

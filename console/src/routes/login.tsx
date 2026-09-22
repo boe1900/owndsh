@@ -1,16 +1,17 @@
 /**
- * [INPUT]: 依赖 shadcn authentication 双栏外壳、Beautiful UI tokens、OwnDsh 鲸鱼品牌资源、公开身份源和 enterprise-admin Cookie 登录状态机。
+ * [INPUT]: 依赖 shadcn authentication 双栏外壳、Beautiful UI tokens、OwnDsh 鲸鱼品牌资源、公开身份源、enterprise-admin Cookie 登录状态机与 console bootstrap 会话检查。
  * [OUTPUT]: 提供动态沉浸式鲸鱼品牌宣言、LOCAL/LDAP Tab、OIDC 按钮、验证码及首次改密均留在产品内的管理端登录页。
  * [POS]: routes 的公开第一方登录入口，只有 OIDC 离开当前页面，登录结果只建立服务端 HttpOnly Cookie。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Eye, EyeOff, KeyRound, LoaderCircle, LogIn, RefreshCw } from 'lucide-react';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { completePasswordLogin } from '@/api/generated/sdk.gen';
 import type { AuthSourcesData, PasswordStepData, PublicIdentitySource } from '@/api/generated/types.gen';
 import { completeEnterpriseAdminLogin, normalizeReturnTo, startEnterpriseAdminLogin } from '@/auth/pkce';
+import { AuthRequiredError, loadConsoleBootstrap } from '@/auth/session';
 import { ThemeToggle } from '@/components/site/ThemeToggle';
 
 type LoginSearch = { redirect?: string };
@@ -43,6 +44,7 @@ function sourceLabel(source: PublicIdentitySource) {
 
 function LoginPage() {
   const { redirect } = Route.useSearch();
+  const navigate = useNavigate();
   const started = useRef(false);
   const [auth, setAuth] = useState<AuthSourcesData>();
   const [selectedSource, setSelectedSource] = useState<PublicIdentitySource>();
@@ -58,7 +60,6 @@ function LoginPage() {
   const [error, setError] = useState<string>();
 
   const refreshCaptcha = async () => {
-    setCaptcha(undefined);
     setCaptchaCode('');
     const response = await fetch('/auth/code', {
       cache: 'no-store',
@@ -72,6 +73,8 @@ function LoginPage() {
     if (payload.data?.captchaEnabled) {
       if (!payload.data.uuid || !payload.data.img) throw new Error('ENT_PLATFORM_UNAVAILABLE');
       setCaptcha({ id: payload.data.uuid, image: payload.data.img });
+    } else {
+      setCaptcha(undefined);
     }
   };
 
@@ -93,14 +96,21 @@ function LoginPage() {
   useEffect(() => {
     if (started.current) return;
     started.current = true;
-    startEnterpriseAdminLogin(redirect)
-      .then((data) => {
-        setAuth(data);
-        const firstPasswordSource = data.sources.find((source) => source.type !== 'OIDC');
-        if (firstPasswordSource) choosePasswordSource(firstPasswordSource);
+    loadConsoleBootstrap()
+      .then(() => navigate({ href: redirect ?? '/', replace: true }))
+      .catch((reason: unknown) => {
+        if (!(reason instanceof AuthRequiredError)) {
+          setError('暂时无法连接企业服务，请刷新后重试。');
+          return;
+        }
+        return startEnterpriseAdminLogin(redirect).then((data) => {
+          setAuth(data);
+          const firstPasswordSource = data.sources.find((source) => source.type !== 'OIDC');
+          if (firstPasswordSource) choosePasswordSource(firstPasswordSource);
+        });
       })
       .catch(() => setError('暂时无法连接企业服务，请刷新后重试。'));
-  }, [redirect]);
+  }, [navigate, redirect]);
 
   const finishLogin = async (redirectUri: string) => {
     const callback = new URL(redirectUri, window.location.origin);

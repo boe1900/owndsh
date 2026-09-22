@@ -23,7 +23,7 @@
         },
         "errorCodeCount": {
           "type": "integer",
-          "const": 36
+          "const": 37
         },
         "status": {
           "type": "string",

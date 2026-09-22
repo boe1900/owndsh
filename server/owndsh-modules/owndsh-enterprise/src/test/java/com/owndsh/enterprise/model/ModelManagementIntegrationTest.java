@@ -18,11 +18,13 @@ import com.owndsh.enterprise.device.persistence.JdbcDeviceStore;
 import com.owndsh.enterprise.model.application.BootstrapService;
 import com.owndsh.enterprise.model.application.EffectiveModelResolver;
 import com.owndsh.enterprise.model.application.ManagedModelService;
+import com.owndsh.enterprise.model.application.ManagedModelInUseException;
 import com.owndsh.enterprise.model.application.ManagedModelSpec;
 import com.owndsh.enterprise.model.application.ModelGrantService;
 import com.owndsh.enterprise.model.application.ModelGrantSpec;
 import com.owndsh.enterprise.model.application.ModelMutationContext;
 import com.owndsh.enterprise.model.application.ModelSetService;
+import com.owndsh.enterprise.model.application.ModelSetInUseException;
 import com.owndsh.enterprise.model.application.ProviderProbe;
 import com.owndsh.enterprise.model.application.ProviderSecretInput;
 import com.owndsh.enterprise.model.application.ProviderService;
@@ -214,9 +216,22 @@ class ModelManagementIntegrationTest {
         assertThat(resolver.resolve(TENANT, USER_ID + 1)).extracting(EffectiveModelResolver.EffectiveModel::alias)
             .containsExactly("deepseek-reasoner", "deepseek-batch");
         assertThatThrownBy(() -> sets.delete(context, batchSet.id(), batchSet.revision()))
-            .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("策略引用");
+            .isInstanceOf(ModelSetInUseException.class)
+            .satisfies(error -> assertThat(((ModelSetInUseException) error).blockers())
+                .satisfies(blockers -> {
+                    assertThat(blockers.modelGrantCount()).isEqualTo(1);
+                    assertThat(blockers.quotaPolicyCount()).isZero();
+                }));
         assertThatThrownBy(() -> models.delete(context, batchModel.id(), batchModel.revision()))
-            .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("引用");
+            .isInstanceOf(ManagedModelInUseException.class)
+            .satisfies(error -> assertThat(((ManagedModelInUseException) error).blockers())
+                .satisfies(blockers -> {
+                    assertThat(blockers.modelGrantCount()).isZero();
+                    assertThat(blockers.modelSetCount()).isEqualTo(1);
+                    assertThat(blockers.modelQuotaPolicyCount()).isZero();
+                    assertThat(blockers.usageReservationCount()).isZero();
+                    assertThat(blockers.usageLedgerCount()).isZero();
+                }));
         grants.delete(context, groupChat.id(), groupChat.revision());
         grants.delete(context, allMembersBatch.id(), allMembersBatch.revision());
         sets.delete(context, batchSet.id(), batchSet.revision());

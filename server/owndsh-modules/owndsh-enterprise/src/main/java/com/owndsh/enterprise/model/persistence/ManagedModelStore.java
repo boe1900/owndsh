@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 接收 tenant、ManagedModel 聚合与 expected revision。
- * [OUTPUT]: 对外提供模型 keyset/find/insert/update/status/delete CAS 持久化端口。
+ * [OUTPUT]: 对外提供模型 keyset/find/insert/update/status/delete CAS 与删除阻塞统计持久化端口。
  * [POS]: model/persistence 的模型 DIP 边界，provider 存在性由 application 显式校验。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -22,6 +22,8 @@ public interface ManagedModelStore {
     boolean update(ManagedModel model, long expectedRevision);
 
     boolean updateStatus(String tenantId, long modelId, ModelStatus status, long expectedRevision);
+
+    ManagedModelDeleteBlockers deleteBlockers(String tenantId, long modelId);
 
     boolean delete(String tenantId, long modelId, long expectedRevision);
 }

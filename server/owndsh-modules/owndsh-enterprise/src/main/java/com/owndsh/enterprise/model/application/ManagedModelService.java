@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖事务、ManagedModelStore、ProviderStore、bootstrap revision、AuditSink 与 ID generator。
- * [OUTPUT]: 对外提供含 reasoningEfforts/compat 的模型 list/get/create/update/delete/enable/disable 与 revision CAS。
+ * [OUTPUT]: 对外提供含 reasoningEfforts/compat 的模型 list/get/create/update/delete/enable/disable 与 revision CAS；删除返回配置/用量阻塞事实。
  * [POS]: model/application 的受管模型用例编排，排序作为模型字段更新且每次写入原子刷新 bootstrap。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -16,6 +16,7 @@ import com.owndsh.enterprise.model.domain.ModelProvider;
 import com.owndsh.enterprise.model.domain.ModelStatus;
 import com.owndsh.enterprise.model.domain.ProviderApiProtocol;
 import com.owndsh.enterprise.model.persistence.ManagedModelStore;
+import com.owndsh.enterprise.model.persistence.ManagedModelDeleteBlockers;
 import com.owndsh.enterprise.model.persistence.ProviderStore;
 import com.owndsh.enterprise.revision.BootstrapRevisionStore;
 import com.owndsh.enterprise.revision.RevisionConflictException;
@@ -151,6 +152,8 @@ public final class ManagedModelService {
         requireRevision(current, expectedRevision);
         try {
             transactions.executeWithoutResult(status -> {
+                ManagedModelDeleteBlockers blockers = models.deleteBlockers(context.tenantId(), modelId);
+                if (!blockers.isEmpty()) throw new ManagedModelInUseException(blockers);
                 if (!models.delete(context.tenantId(), modelId, expectedRevision)) {
                     ManagedModel actual = models.find(context.tenantId(), modelId).orElse(null);
                     if (actual == null) return;
@@ -160,7 +163,9 @@ public final class ManagedModelService {
                 audit(context, current, ManagedModelChangeMetadata.Operation.DELETE, bootstrapRevision);
             });
         } catch (DataIntegrityViolationException exception) {
-            throw new IllegalArgumentException("仍被授权或用量记录引用的模型不能删除", exception);
+            ManagedModelDeleteBlockers blockers = models.deleteBlockers(context.tenantId(), modelId);
+            if (!blockers.isEmpty()) throw new ManagedModelInUseException(blockers);
+            throw exception;
         }
     }
 

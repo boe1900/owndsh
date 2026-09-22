@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Testing Library、Vitest、内存 history、静态角色元数据与完整产品 routeTree。
- * [OUTPUT]: 在仅有 getRandomValues 的 HTTP 环境验证五角色矩阵、业务写入、插件分类登记、发布确认及双 revision 范围升级、read/write 分权及 Sign out。
+ * [OUTPUT]: 在仅有 getRandomValues 的 HTTP 环境验证五角色矩阵、登录页会话复用、业务写入、插件分类登记、发布确认及双 revision 范围升级、read/write 分权及 Sign out。
  * [POS]: routes 的产品壳最小集成门禁，覆盖前端可见性但不替代 Server ent:* 权限测试。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -72,10 +72,12 @@ function memberDetail(roles: AuthBuiltInRole[] = ['employee'], status = 'ACTIVE'
 
 function mockApi(role: AuthBuiltInRole, logoutStatus = 200, permissions: string[] = []) {
   const writes: CapturedWrite[] = [];
+  let sessionRevoked = false;
   vi.stubGlobal('fetch', vi.fn(async (request: Request) => {
     const url = new URL(request.url);
     const pathname = url.pathname;
     if (pathname.endsWith('/enterprise/admin/v1/bootstrap')) {
+      if (sessionRevoked) return json({ error: { code: 'ENT_AUTH_REQUIRED', message: '需要登录' } }, 401);
       return json({
         data: {
           member: {
@@ -603,6 +605,7 @@ function mockApi(role: AuthBuiltInRole, logoutStatus = 200, permissions: string[
           }
         }, 400);
       }
+      sessionRevoked = true;
       return json({ data: { changed: true }, requestId: 'req_password_changed' });
     }
     throw new Error(`unexpected request ${request.url}`);
@@ -1172,6 +1175,9 @@ describe('product console session', () => {
         ? input
         : new Request(new URL(String(input), window.location.origin), init);
       const pathname = new URL(request.url).pathname;
+      if (pathname.endsWith('/enterprise/admin/v1/bootstrap')) {
+        return json({ error: { code: 'ENT_AUTH_REQUIRED', message: '需要登录' } }, 401);
+      }
       if (pathname.endsWith('/enterprise/auth/v1/authorize')) {
         return json({
           data: {
@@ -1225,6 +1231,22 @@ describe('product console session', () => {
     expect(form.get('username')).toBe('alice');
     expect(form.get('password')).toBe('not-logged');
     expect(sessionStorage.getItem('enterprise-admin-pkce')).toContain('verifier');
+  });
+
+  it('redirects an authenticated user away from the login page', async () => {
+    mockApi('enterprise_admin');
+    const router = createRouter({
+      history: createMemoryHistory({ initialEntries: ['/login'] }),
+      routeTree
+    });
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    );
+
+    expect(await screen.findByRole('heading', { name: '模型' })).toBeTruthy();
+    expect(router.state.location.pathname).toBe('/');
   });
 
   it('opens account security as a real page and ends every browser session after password change', async () => {

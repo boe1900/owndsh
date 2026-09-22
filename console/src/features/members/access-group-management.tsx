@@ -33,7 +33,21 @@ const inputClass = 'h-9 w-full rounded-lg border border-line bg-canvas px-3 text
 function message(error: unknown, fallback: string) {
   if (error && typeof error === 'object' && 'error' in error) {
     const payload = (error as EnterpriseErrorResponse).error;
-    if (payload?.message) return payload.message;
+    if (payload?.message) {
+      if (payload.code === 'ENT_RESOURCE_IN_USE' && payload.details
+        && typeof payload.details === 'object'
+        && 'modelGrantCount' in payload.details && 'mcpGrantCount' in payload.details
+        && 'externalGroupMappingCount' in payload.details) {
+        const details = payload.details;
+        const references = [
+          details.modelGrantCount > 0 ? `模型访问授权 ${details.modelGrantCount} 条` : undefined,
+          details.mcpGrantCount > 0 ? `MCP 授权 ${details.mcpGrantCount} 条` : undefined,
+          details.externalGroupMappingCount > 0 ? `外部组映射 ${details.externalGroupMappingCount} 条` : undefined
+        ].filter((value): value is string => value !== undefined);
+        return references.length > 0 ? `${payload.message}（${references.join('、')}）` : payload.message;
+      }
+      return payload.message;
+    }
   }
   return error instanceof Error && error.message ? error.message : fallback;
 }
@@ -182,7 +196,7 @@ export function AccessGroupManagement({ canWrite }: { canWrite: boolean }) {
         toolbarAction={canWrite ? <Button variant="primary" size="xs" onClick={() => { save.reset(); setEditor('create'); }}><Plus aria-hidden className="size-3.5" />新建用户组</Button> : undefined}
       />
       {editor ? <GroupEditor key={editor === 'create' ? 'create' : editor.id} current={editor === 'create' ? undefined : editor} error={save.error ? message(save.error, '用户组保存失败') : undefined} saving={save.isPending} onClose={() => setEditor(undefined)} onSave={(value) => save.mutate({ current: editor === 'create' ? undefined : editor, value })} /> : null}
-      {deleting ? <ProductDialog title="确认删除" onClose={() => setDeleting(undefined)}><div className="grid gap-5 p-5"><p className="m-0 text-[13px] text-ink-2">确定删除“{deleting.name}”？</p>{remove.error ? <p role="alert" className="m-0 text-[12.5px] text-red">{message(remove.error, '用户组删除失败')}</p> : null}<footer className="flex justify-end gap-2 border-t border-line pt-4"><Button size="sm" onClick={() => setDeleting(undefined)}>取消</Button><Button variant="primary" size="sm" className="bg-red text-white" disabled={remove.isPending} onClick={() => remove.mutate(deleting)}>{remove.isPending ? '删除中' : '删除'}</Button></footer></div></ProductDialog> : null}
+      {deleting ? <ProductDialog title="确认删除" onClose={() => setDeleting(undefined)}><div className="grid gap-5 p-5"><p className="m-0 text-[13px] text-ink-2">确定删除“{deleting.name}”？</p><p className="m-0 text-[12px] leading-5 text-ink-3">如果该用户组已被模型/MCP 授权或外部组映射引用，需先解除关联。</p>{remove.error ? <p role="alert" className="m-0 text-[12.5px] text-red">{message(remove.error, '用户组删除失败')}</p> : null}<footer className="flex justify-end gap-2 border-t border-line pt-4"><Button size="sm" onClick={() => setDeleting(undefined)}>取消</Button><Button variant="primary" size="sm" className="bg-red text-white" disabled={remove.isPending} onClick={() => remove.mutate(deleting)}>{remove.isPending ? '删除中' : '删除'}</Button></footer></div></ProductDialog> : null}
     </>
   );
 }

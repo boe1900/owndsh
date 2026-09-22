@@ -8,6 +8,7 @@ package com.owndsh.enterprise.mcp;
 
 import com.owndsh.enterprise.audit.JdbcAuditSink;
 import com.owndsh.enterprise.auth.application.AccessGroupService;
+import com.owndsh.enterprise.auth.application.AccessGroupInUseException;
 import com.owndsh.enterprise.auth.application.IdentityMutationContext;
 import com.owndsh.enterprise.auth.web.EnterpriseRequestContext;
 import com.owndsh.enterprise.auth.web.IdentityAdminRequestContextResolver;
@@ -119,7 +120,9 @@ class McpGrantIntegrationTest {
         assertThat(service.assignments(TENANT, USER)).extracting(McpServer::id).contains(server.id());
         database.jdbc().update("delete from ent_access_group_member where group_id=? and source_type='IDENTITY_SOURCE'", group.id());
         assertThat(service.assignments(TENANT, USER)).extracting(McpServer::id).doesNotContain(server.id());
-        assertThatThrownBy(() -> groups.delete(context, group.id(), emptyManual.revision())).hasMessageContaining("授权引用");
+        assertThatThrownBy(() -> groups.delete(context, group.id(), emptyManual.revision()))
+            .isInstanceOf(AccessGroupInUseException.class)
+            .satisfies(error -> assertThat(((AccessGroupInUseException) error).blockers().mcpGrantCount()).isEqualTo(1));
 
         var restored = groups.update(context, group.id(), emptyManual.revision(), group.name(), List.of(USER));
         service.createGrants(TENANT, List.of(grant(server.id(), McpGrant.SubjectType.USER, USER), grant(server.id(), McpGrant.SubjectType.ALL, null)));

@@ -8,6 +8,7 @@ QuotaMutationContext.java: 管理策略写入的可信 tenant/actor/request 审�
 QuotaPolicySpec.java: TOKEN/RATE 字段互斥与 ORGANIZATION/MEMBER 主体、ALL_MODELS/MODEL_SET/MODEL 及组织级 PROVIDER RATE 资源不变量 command。
 QuotaPolicyChangeMetadata.java: QUOTA_CHANGED 审计白名单字段。
 QuotaResourceNotFoundException.java: 配额资源不存在稳定领域异常。
+QuotaPolicyInUseException.java: 配额策略已有历史窗口记录时的稳定领域异常，要求停用而非物理删除。
 QuotaPolicyService.java: 策略 CRUD/状态 CAS、subject 校验、revision 与审计事务编排。
 EffectiveQuotaResolver.java: ORGANIZATION/MEMBER 主体与可选模型资源 ACTIVE 策略按 ID 排序叠加解析器。
 QuotaWindowCalculator.java: 策略锚点连续 5 小时与冻结部署时区自然日/周/月 start/reset 计算器。

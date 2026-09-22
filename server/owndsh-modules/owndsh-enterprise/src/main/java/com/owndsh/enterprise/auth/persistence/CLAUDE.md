@@ -6,6 +6,7 @@
 
 AuthorizationCodeStore.java: 60 秒授权码创建、GETDEL 原子消费与取消端口。
 ExternalGroupMappingStore.java: 组映射 keyset/CAS、批量外部组解析与身份源成员关系整体同步端口。
+AccessGroupDeleteBlockers.java: 用户组删除前的模型/MCP 授权和外部组映射计数事实。
 ExternalIdentityStore.java: stable subject/source-user 绑定读写与 tenant/user 脱敏摘要查询端口。
 IdentitySourceStore.java: 身份源 keyset、查找、插入、更新、状态 CAS 与最近连接测试结果端口。
 JdbcExternalGroupMappingStore.java: PostgreSQL keyset 列表、CAS 删除、用户组存在性、数组批量解析与来源成员同步 adapter。

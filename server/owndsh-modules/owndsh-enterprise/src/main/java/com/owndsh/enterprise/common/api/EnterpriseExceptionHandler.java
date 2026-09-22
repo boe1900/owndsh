@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖企业业务（含 MCP）/revision 异常、Sa-Token、MVC 绑定与当前 requestId。
- * [OUTPUT]: 对外提供详细设计第 17 节稳定错误 envelope，并记录脱敏的入口校验原因。
+ * [OUTPUT]: 对外提供详细设计第 17 节稳定错误 envelope，向用户返回受控的参数/业务原因并记录脱敏校验日志。
  * [POS]: common/api 的企业 Controller 专用异常边界，优先于 Host 通用 R 响应处理器。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -16,6 +16,7 @@ import com.owndsh.enterprise.auth.adapter.IdentityAuthenticationException;
 import com.owndsh.enterprise.auth.adapter.IdentitySourceConfigurationException;
 import com.owndsh.enterprise.auth.adapter.LocalPasswordChangeRejectedException;
 import com.owndsh.enterprise.auth.application.IdentityAlreadyLinkedException;
+import com.owndsh.enterprise.auth.application.AccessGroupInUseException;
 import com.owndsh.enterprise.auth.application.IdentityResourceNotFoundException;
 import com.owndsh.enterprise.auth.application.MemberManagementException;
 import com.owndsh.enterprise.auth.application.AuthFlowException;
@@ -23,11 +24,14 @@ import com.owndsh.enterprise.device.application.DeviceAccessException;
 import com.owndsh.enterprise.device.application.DeviceBindingConflictException;
 import com.owndsh.enterprise.device.application.DeviceNotFoundException;
 import com.owndsh.enterprise.model.application.ModelResourceNotFoundException;
+import com.owndsh.enterprise.model.application.ManagedModelInUseException;
+import com.owndsh.enterprise.model.application.ModelSetInUseException;
 import com.owndsh.enterprise.mcp.application.McpResourceNotFoundException;
 import com.owndsh.enterprise.mcp.application.McpIdempotencyConflictException;
 import com.owndsh.enterprise.model.gateway.GatewayException;
 import com.owndsh.enterprise.quota.application.QuotaExceededException;
 import com.owndsh.enterprise.quota.application.QuotaResourceNotFoundException;
+import com.owndsh.enterprise.quota.application.QuotaPolicyInUseException;
 import com.owndsh.enterprise.plugin.application.PluginAccessException;
 import com.owndsh.enterprise.plugin.application.PluginResourceNotFoundException;
 import com.owndsh.enterprise.quota.application.RequestAlreadyCompletedException;
@@ -183,9 +187,82 @@ public final class EnterpriseExceptionHandler {
         return error(HttpStatus.NOT_FOUND, "ENT_RESOURCE_NOT_FOUND", "模型资源不存在", false, null, request);
     }
 
+    @ExceptionHandler(ManagedModelInUseException.class)
+    public ResponseEntity<EnterpriseErrorResponse> modelInUse(
+        ManagedModelInUseException exception,
+        HttpServletRequest request
+    ) {
+        var blockers = exception.blockers();
+        String message = blockers.usageLedgerCount() > 0
+            ? "该模型已有历史用量记录，不能删除，请保持停用或归档。"
+            : blockers.usageReservationCount() > 0
+                ? "该模型已有请求记录，不能删除，请保持停用或归档。"
+                : "该模型仍被配置引用，请先移除模型授权、模型集成员关系或模型配额策略。";
+        return error(
+            HttpStatus.CONFLICT,
+            ManagedModelInUseException.ERROR_CODE,
+            message,
+            false,
+            new ResourceInUseDetails(
+                blockers.modelGrantCount(), blockers.modelSetCount(), blockers.modelQuotaPolicyCount(),
+                blockers.usageReservationCount(), blockers.usageLedgerCount()
+            ),
+            request
+        );
+    }
+
+    @ExceptionHandler(ModelSetInUseException.class)
+    public ResponseEntity<EnterpriseErrorResponse> modelSetInUse(
+        ModelSetInUseException exception,
+        HttpServletRequest request
+    ) {
+        var blockers = exception.blockers();
+        return error(
+            HttpStatus.CONFLICT,
+            ModelSetInUseException.ERROR_CODE,
+            "该模型集仍被访问授权或配额策略引用，请先移除相关策略。",
+            false,
+            new ModelSetInUseDetails(blockers.modelGrantCount(), blockers.quotaPolicyCount()),
+            request
+        );
+    }
+
+    @ExceptionHandler(AccessGroupInUseException.class)
+    public ResponseEntity<EnterpriseErrorResponse> accessGroupInUse(
+        AccessGroupInUseException exception,
+        HttpServletRequest request
+    ) {
+        var blockers = exception.blockers();
+        return error(
+            HttpStatus.CONFLICT,
+            AccessGroupInUseException.ERROR_CODE,
+            "该用户组仍被授权或外部组映射引用，请先解除相关关联。",
+            false,
+            new AccessGroupInUseDetails(
+                blockers.modelGrantCount(), blockers.mcpGrantCount(), blockers.externalGroupMappingCount()
+            ),
+            request
+        );
+    }
+
     @ExceptionHandler(QuotaResourceNotFoundException.class)
     public ResponseEntity<EnterpriseErrorResponse> quotaNotFound(HttpServletRequest request) {
         return error(HttpStatus.NOT_FOUND, "ENT_RESOURCE_NOT_FOUND", "配额资源不存在", false, null, request);
+    }
+
+    @ExceptionHandler(QuotaPolicyInUseException.class)
+    public ResponseEntity<EnterpriseErrorResponse> quotaPolicyInUse(
+        QuotaPolicyInUseException exception,
+        HttpServletRequest request
+    ) {
+        return error(
+            HttpStatus.CONFLICT,
+            QuotaPolicyInUseException.ERROR_CODE,
+            "该配额策略已有使用窗口记录，不能删除，请停用该策略。",
+            false,
+            new QuotaPolicyInUseDetails(exception.quotaWindowCount()),
+            request
+        );
     }
 
     @ExceptionHandler(PluginResourceNotFoundException.class)
@@ -358,7 +435,17 @@ public final class EnterpriseExceptionHandler {
             exception.getCause() == null ? null : diagnosticMessage(exception.getCause()),
             request.getContentType(), request.getContentLengthLong()
         );
-        return error(HttpStatus.BAD_REQUEST, "ENT_INVALID_REQUEST", "请求参数不合法", false, null, request);
+        String message = exception instanceof IllegalArgumentException argument
+            ? clientMessage(argument)
+            : "请求参数不合法";
+        return error(
+            HttpStatus.BAD_REQUEST,
+            "ENT_INVALID_REQUEST",
+            message,
+            false,
+            null,
+            request
+        );
     }
 
     @ExceptionHandler(RuntimeException.class)
@@ -397,5 +484,16 @@ public final class EnterpriseExceptionHandler {
         if (message == null || message.isBlank()) return null;
         String compact = message.replace('\n', ' ').replace('\r', ' ');
         return compact.length() <= 256 ? compact : compact.substring(0, 256) + "…";
+    }
+
+    private static String clientMessage(IllegalArgumentException exception) {
+        String message = diagnosticMessage(exception);
+        if (message == null || message.length() > 200 || !message.matches(".*[\\u4e00-\\u9fff].*")) {
+            return "请求参数不合法";
+        }
+        if (message.matches("(?i).*\\b(sql|jdbc|select|insert|update|delete|secret|token|password|cipher|http)\\b.*")) {
+            return "请求参数不合法";
+        }
+        return message;
     }
 }

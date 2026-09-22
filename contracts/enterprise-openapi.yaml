@@ -208,6 +208,7 @@ x-enterprise-error-statuses:
     - ENT_SESSION_CONTENT_EXPIRED
   '409':
     - ENT_REVISION_CONFLICT
+    - ENT_RESOURCE_IN_USE
     - ENT_LAST_ENTERPRISE_ADMIN
     - ENT_LAST_MEMBER_IDENTITY
     - ENT_REQUEST_IN_PROGRESS
@@ -978,7 +979,7 @@ components:
           const: v1
         errorCodeCount:
           type: integer
-          const: 36
+          const: 37
         status:
           type: string
           const: ok
@@ -1030,6 +1031,7 @@ components:
         - ENT_RESOURCE_NOT_FOUND
         - ENT_SESSION_CONTENT_EXPIRED
         - ENT_REVISION_CONFLICT
+        - ENT_RESOURCE_IN_USE
         - ENT_LAST_ENTERPRISE_ADMIN
         - ENT_LAST_MEMBER_IDENTITY
         - ENT_REQUEST_IN_PROGRESS
@@ -1112,6 +1114,59 @@ components:
         result:
           type: string
           enum: [IN_PROGRESS, COMPLETED]
+    ResourceInUseDetails:
+      type: object
+      additionalProperties: false
+      required: [modelGrantCount, modelSetCount, modelQuotaPolicyCount, usageReservationCount, usageLedgerCount]
+      properties:
+        modelGrantCount:
+          type: integer
+          minimum: 0
+        modelSetCount:
+          type: integer
+          minimum: 0
+        modelQuotaPolicyCount:
+          type: integer
+          minimum: 0
+        usageReservationCount:
+          type: integer
+          minimum: 0
+        usageLedgerCount:
+          type: integer
+          minimum: 0
+    ModelSetInUseDetails:
+      type: object
+      additionalProperties: false
+      required: [modelGrantCount, quotaPolicyCount]
+      properties:
+        modelGrantCount:
+          type: integer
+          minimum: 0
+        quotaPolicyCount:
+          type: integer
+          minimum: 0
+    AccessGroupInUseDetails:
+      type: object
+      additionalProperties: false
+      required: [modelGrantCount, mcpGrantCount, externalGroupMappingCount]
+      properties:
+        modelGrantCount:
+          type: integer
+          minimum: 0
+        mcpGrantCount:
+          type: integer
+          minimum: 0
+        externalGroupMappingCount:
+          type: integer
+          minimum: 0
+    QuotaPolicyInUseDetails:
+      type: object
+      additionalProperties: false
+      required: [quotaWindowCount]
+      properties:
+        quotaWindowCount:
+          type: integer
+          minimum: 0
     EnterpriseError:
       type: object
       additionalProperties: false
@@ -1133,6 +1188,10 @@ components:
             - $ref: '#/components/schemas/RevisionConflictDetails'
             - $ref: '#/components/schemas/QuotaExceededDetails'
             - $ref: '#/components/schemas/RequestConflictDetails'
+            - $ref: '#/components/schemas/ResourceInUseDetails'
+            - $ref: '#/components/schemas/ModelSetInUseDetails'
+            - $ref: '#/components/schemas/AccessGroupInUseDetails'
+            - $ref: '#/components/schemas/QuotaPolicyInUseDetails'
     EnterpriseErrorResponse:
       type: object
       additionalProperties: false

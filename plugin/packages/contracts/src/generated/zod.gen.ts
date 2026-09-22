@@ -52,7 +52,7 @@ export const zRevisionedProtocolResource = z.object({
 
 export const zProtocolMetadata = z.object({
     contractVersion: z.literal('v1'),
-    errorCodeCount: z.literal(36),
+    errorCodeCount: z.literal(37),
     status: z.literal('ok')
 }).strict();
 
@@ -88,6 +88,7 @@ export const zEnterpriseErrorCode = z.enum([
     'ENT_RESOURCE_NOT_FOUND',
     'ENT_SESSION_CONTENT_EXPIRED',
     'ENT_REVISION_CONFLICT',
+    'ENT_RESOURCE_IN_USE',
     'ENT_LAST_ENTERPRISE_ADMIN',
     'ENT_LAST_MEMBER_IDENTITY',
     'ENT_REQUEST_IN_PROGRESS',
@@ -142,6 +143,29 @@ export const zRequestConflictDetails = z.object({
     result: z.enum(['IN_PROGRESS', 'COMPLETED'])
 }).strict();
 
+export const zResourceInUseDetails = z.object({
+    modelGrantCount: z.int().gte(0),
+    modelSetCount: z.int().gte(0),
+    modelQuotaPolicyCount: z.int().gte(0),
+    usageReservationCount: z.int().gte(0),
+    usageLedgerCount: z.int().gte(0)
+}).strict();
+
+export const zModelSetInUseDetails = z.object({
+    modelGrantCount: z.int().gte(0),
+    quotaPolicyCount: z.int().gte(0)
+}).strict();
+
+export const zAccessGroupInUseDetails = z.object({
+    modelGrantCount: z.int().gte(0),
+    mcpGrantCount: z.int().gte(0),
+    externalGroupMappingCount: z.int().gte(0)
+}).strict();
+
+export const zQuotaPolicyInUseDetails = z.object({
+    quotaWindowCount: z.int().gte(0)
+}).strict();
+
 export const zEnterpriseError = z.object({
     code: zEnterpriseErrorCode,
     message: z.string().min(1).max(500),
@@ -151,7 +175,11 @@ export const zEnterpriseError = z.object({
         zValidationErrorDetails,
         zRevisionConflictDetails,
         zQuotaExceededDetails,
-        zRequestConflictDetails
+        zRequestConflictDetails,
+        zResourceInUseDetails,
+        zModelSetInUseDetails,
+        zAccessGroupInUseDetails,
+        zQuotaPolicyInUseDetails
     ]).optional()
 }).strict();
 

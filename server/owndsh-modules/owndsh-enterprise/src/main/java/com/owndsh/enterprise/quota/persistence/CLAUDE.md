@@ -4,8 +4,8 @@
 
 成员清单
 
-QuotaPolicyStore.java: 策略 CRUD/CAS、主体/资源存在性和按模型生效查询端口。
-JdbcQuotaPolicyStore.java: 带 TOKEN/RATE 判别的 ent_quota_policy、成员、供应商、模型集与模型资源投影及按当前模型匹配 PostgreSQL adapter。
+QuotaPolicyStore.java: 策略 CRUD/CAS、历史窗口计数、主体/资源存在性和按模型生效查询端口。
+JdbcQuotaPolicyStore.java: 带 TOKEN/RATE 判别的 ent_quota_policy、历史窗口、成员、供应商、模型集与模型资源投影及按当前模型匹配 PostgreSQL adapter。
 QuotaSubjectStore.java: runtime 当前 ACTIVE Host 用户与部门最小事实查询端口。
 JdbcQuotaSubjectStore.java: 固定部署 sys_user 状态/删除标记约束的配额用户 adapter。
 QuotaWindowStore.java: 当前窗口创建/锁定、计数调整和读查询端口。

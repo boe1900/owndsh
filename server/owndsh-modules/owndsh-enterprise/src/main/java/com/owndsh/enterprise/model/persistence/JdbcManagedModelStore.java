@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Spring JdbcOperations、Jackson、V1/V15 ent_managed_model 与 ent_model_provider。
- * [OUTPUT]: 对外提供 provider-name/reasoning join、keyset 查询和模型 revision/status/delete CAS。
+ * [OUTPUT]: 对外提供 provider-name/reasoning join、keyset 查询、删除阻塞统计和模型 revision/status/delete CAS。
  * [POS]: model/persistence 的受管模型 PostgreSQL adapter，所有 join 显式绑定 tenant。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -54,6 +54,20 @@ public final class JdbcManagedModelStore implements ManagedModelStore {
     private static final String DELETE_SQL = """
         delete from ent_managed_model where tenant_id = ? and id = ? and revision = ?
         """;
+    private static final String DELETE_BLOCKERS_SQL = """
+        select
+            (select count(*) from ent_model_grant
+                where tenant_id = ? and resource_type = 'MODEL' and resource_id = ?) as model_grant_count,
+            (select count(*) from ent_model_set_member sm
+                join ent_model_set ms on ms.id = sm.model_set_id and ms.tenant_id = ?
+                where sm.model_id = ?) as model_set_count,
+            (select count(*) from ent_quota_policy
+                where tenant_id = ? and resource_type = 'MODEL' and resource_id = ?) as model_quota_policy_count,
+            (select count(*) from ent_usage_reservation
+                where tenant_id = ? and model_id = ?) as usage_reservation_count,
+            (select count(*) from ent_usage_ledger
+                where tenant_id = ? and model_id = ?) as usage_ledger_count
+        """;
 
     private final JdbcOperations jdbc;
     private final JsonMapper json;
@@ -98,6 +112,25 @@ public final class JdbcManagedModelStore implements ManagedModelStore {
     @Override
     public boolean updateStatus(String tenantId, long modelId, ModelStatus status, long expectedRevision) {
         return jdbc.update(STATUS_SQL, status.name(), tenantId, modelId, expectedRevision) == 1;
+    }
+
+    @Override
+    public ManagedModelDeleteBlockers deleteBlockers(String tenantId, long modelId) {
+        return jdbc.queryForObject(
+            DELETE_BLOCKERS_SQL,
+            (resultSet, rowNumber) -> new ManagedModelDeleteBlockers(
+                resultSet.getLong("model_grant_count"),
+                resultSet.getLong("model_set_count"),
+                resultSet.getLong("model_quota_policy_count"),
+                resultSet.getLong("usage_reservation_count"),
+                resultSet.getLong("usage_ledger_count")
+            ),
+            tenantId, modelId,
+            tenantId, modelId,
+            tenantId, modelId,
+            tenantId, modelId,
+            tenantId, modelId
+        );
     }
 
     @Override

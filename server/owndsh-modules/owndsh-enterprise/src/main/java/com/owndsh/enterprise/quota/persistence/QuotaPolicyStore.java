@@ -30,5 +30,7 @@ public interface QuotaPolicyStore {
 
     boolean setStatus(String tenantId, long id, long expectedRevision, QuotaStatus status);
 
+    long windowCount(String tenantId, long id);
+
     boolean delete(String tenantId, long id, long expectedRevision);
 }

@@ -35,7 +35,19 @@ const inputClass = 'h-9 w-full rounded-lg border border-line bg-canvas px-3 text
 function message(error: unknown, fallback: string) {
   if (error && typeof error === 'object' && 'error' in error) {
     const payload = (error as EnterpriseErrorResponse).error;
-    if (payload?.message) return payload.message;
+    if (payload?.message) {
+      if (payload.code === 'ENT_RESOURCE_IN_USE' && payload.details
+        && typeof payload.details === 'object'
+        && 'modelGrantCount' in payload.details && 'quotaPolicyCount' in payload.details) {
+        const details = payload.details;
+        const references = [
+          details.modelGrantCount > 0 ? `模型访问授权 ${details.modelGrantCount} 条` : undefined,
+          details.quotaPolicyCount > 0 ? `配额策略 ${details.quotaPolicyCount} 条` : undefined
+        ].filter((value): value is string => value !== undefined);
+        return references.length > 0 ? `${payload.message}（${references.join('、')}）` : payload.message;
+      }
+      return payload.message;
+    }
   }
   return error instanceof Error && error.message ? error.message : fallback;
 }
@@ -205,7 +217,7 @@ export function ModelSetManagement({ canWrite }: { canWrite: boolean }) {
         toolbarAction={canWrite ? <Button variant="primary" size="xs" disabled={models.isLoading || models.isError} onClick={() => { save.reset(); setEditor('create'); }}><Plus aria-hidden className="size-3.5" />新建模型集</Button> : undefined}
       />
       {editor ? <ModelSetEditor key={editor === 'create' ? 'create' : editor.id} current={editor === 'create' ? undefined : editor} error={save.error ? message(save.error, '模型集保存失败') : undefined} models={models.data ?? []} saving={save.isPending} onClose={() => setEditor(undefined)} onSave={(value) => save.mutate({ current: editor === 'create' ? undefined : editor, value })} /> : null}
-      {deleting ? <ProductDialog title="确认删除" onClose={() => setDeleting(undefined)}><div className="grid gap-5 p-5"><p className="m-0 text-[13px] text-ink-2">确定删除“{deleting.name}”？</p>{remove.error ? <p role="alert" className="m-0 text-[12.5px] text-red">{message(remove.error, '模型集删除失败')}</p> : null}<footer className="flex justify-end gap-2 border-t border-line pt-4"><Button size="sm" onClick={() => setDeleting(undefined)}>取消</Button><Button variant="primary" size="sm" className="bg-red text-white" disabled={remove.isPending} onClick={() => remove.mutate(deleting)}>{remove.isPending ? '删除中' : '删除'}</Button></footer></div></ProductDialog> : null}
+      {deleting ? <ProductDialog title="确认删除" onClose={() => setDeleting(undefined)}><div className="grid gap-5 p-5"><p className="m-0 text-[13px] text-ink-2">确定删除“{deleting.name}”？</p><p className="m-0 text-[12px] leading-5 text-ink-3">如果该模型集已被访问授权或配额策略引用，需先解除关联。</p>{remove.error ? <p role="alert" className="m-0 text-[12.5px] text-red">{message(remove.error, '模型集删除失败')}</p> : null}<footer className="flex justify-end gap-2 border-t border-line pt-4"><Button size="sm" onClick={() => setDeleting(undefined)}>取消</Button><Button variant="primary" size="sm" className="bg-red text-white" disabled={remove.isPending} onClick={() => remove.mutate(deleting)}>{remove.isPending ? '删除中' : '删除'}</Button></footer></div></ProductDialog> : null}
     </>
   );
 }

@@ -15,6 +15,8 @@ ProviderChangeMetadata.java: PROVIDER_CHANGED 审计 metadata 白名单。
 ManagedModelChangeMetadata.java: MODEL_CHANGED 审计 metadata 白名单。
 ModelGrantChangeMetadata.java: MODEL_GRANT_CHANGED 审计 metadata 白名单。
 ModelResourceNotFoundException.java: 模型纵向资源不存在的稳定领域异常。
+ManagedModelInUseException.java: 模型仍被配置或使用记录引用时的稳定领域异常，携带删除阻塞计数。
+ModelSetInUseException.java: 模型集仍被授权或配额策略引用时的稳定领域异常，携带删除阻塞计数。
 ProviderService.java: provider CRUD 子集、route/type/protocol 不可变约束、秘密加解密、CAS/bootstrap revision/审计事务与模型发现测试编排。
 ManagedModelService.java: 模型含 reasoning 配置的 CRUD/排序/启停、协议兼容校验及 CAS/bootstrap revision/审计事务编排。
 ModelGrantService.java: 单条/批量授权、重复约束、主体/资源校验、CAS/幂等删除和原子审计编排。

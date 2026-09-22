@@ -59,7 +59,14 @@ const STATUS_FILTER = {
 function errorMessage(error: unknown, fallback: string) {
   if (error && typeof error === 'object' && 'error' in error) {
     const payload = (error as EnterpriseErrorResponse).error;
-    if (payload?.message) return payload.message;
+    if (payload?.message) {
+      if (payload.code === 'ENT_RESOURCE_IN_USE' && payload.details
+        && typeof payload.details === 'object' && 'quotaWindowCount' in payload.details) {
+        const count = payload.details.quotaWindowCount;
+        return count > 0 ? `${payload.message}（历史窗口 ${count} 条）` : payload.message;
+      }
+      return payload.message;
+    }
   }
   return error instanceof Error && error.message ? error.message : fallback;
 }
@@ -389,7 +396,7 @@ export function AccessPolicyPage() {
       </div>
       {grantEditor ? <GrantEditorDialog key={grantEditor === 'create' ? 'create' : grantEditor.id} current={grantEditor === 'create' ? undefined : grantEditor} error={saveGrant.error ? errorMessage(saveGrant.error, '模型授权保存失败') : undefined} accessGroups={accessGroups.data ?? []} modelSets={modelSets.data ?? []} models={models.data ?? []} saving={saveGrant.isPending} onClose={() => setGrantEditor(null)} onSave={(value) => saveGrant.mutate({ current: grantEditor === 'create' ? undefined : grantEditor, value })} /> : null}
       {quotaEditor ? <QuotaEditorDialog key={quotaEditor === 'create' ? `create-${editingQuotaType}` : quotaEditor.id} current={quotaEditor === 'create' ? undefined : quotaEditor} error={saveQuota.error ? errorMessage(saveQuota.error, '配额策略保存失败') : quotaWindows.error ? errorMessage(quotaWindows.error, '当前配额用量加载失败') : undefined} modelSets={modelSets.data ?? []} models={models.data ?? []} policyType={editingQuotaType} windows={quotaWindows.data ?? []} windowsLoading={quotaWindows.isLoading} saving={saveQuota.isPending} onClose={() => setQuotaEditor(null)} onSave={(value) => saveQuota.mutate({ current: quotaEditor === 'create' ? undefined : quotaEditor, value })} /> : null}
-      {deleteTarget ? <DeletePolicyDialog error={remove.error ? errorMessage(remove.error, '策略删除失败') : undefined} label={deleteTarget.kind === 'grant' ? deleteTarget.value.resourceName : deleteTarget.value.name} saving={remove.isPending} onClose={() => setDeleteTarget(null)} onConfirm={() => remove.mutate(deleteTarget)} /> : null}
+      {deleteTarget ? <DeletePolicyDialog kind={deleteTarget.kind} error={remove.error ? errorMessage(remove.error, '策略删除失败') : undefined} label={deleteTarget.kind === 'grant' ? deleteTarget.value.resourceName : deleteTarget.value.name} saving={remove.isPending} onClose={() => setDeleteTarget(null)} onConfirm={() => remove.mutate(deleteTarget)} /> : null}
     </div>
   );
 }

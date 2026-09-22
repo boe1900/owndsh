@@ -17,6 +17,7 @@ import com.owndsh.enterprise.quota.application.EffectiveQuotaResolver;
 import com.owndsh.enterprise.quota.application.QuotaExceededException;
 import com.owndsh.enterprise.quota.application.QuotaMutationContext;
 import com.owndsh.enterprise.quota.application.QuotaPolicyService;
+import com.owndsh.enterprise.quota.application.QuotaPolicyInUseException;
 import com.owndsh.enterprise.quota.application.QuotaPolicySpec;
 import com.owndsh.enterprise.quota.application.QuotaRateLimiter;
 import com.owndsh.enterprise.quota.application.QuotaReservationCommand;
@@ -168,6 +169,19 @@ class QuotaManagementIntegrationTest {
         policyService.delete(mutation, temporary.id(), 0);
         assertThatThrownBy(() -> policyService.get(TENANT, temporary.id()))
             .isInstanceOf(RuntimeException.class).hasMessageContaining("不存在");
+
+        QuotaPolicy historical = policyService.create(mutation, rateSpec(
+            "T09 Historical", QuotaSubjectType.MEMBER, USER_ID, 1, null
+        ));
+        database.jdbc().update(
+            "insert into ent_quota_window(id, tenant_id, policy_id, window_type, window_start) values (?, ?, ?, 'DAY', now())",
+            SEQUENCE.incrementAndGet(), TENANT, historical.id()
+        );
+        assertThatThrownBy(() -> policyService.delete(mutation, historical.id(), historical.revision()))
+            .isInstanceOf(QuotaPolicyInUseException.class)
+            .satisfies(error -> assertThat(((QuotaPolicyInUseException) error).quotaWindowCount()).isEqualTo(1));
+        database.jdbc().update("delete from ent_quota_window where policy_id = ?", historical.id());
+        policyService.delete(mutation, historical.id(), historical.revision());
 
         QuotaPolicy organizationPolicy = policyService.get(TENANT, 1_900_100_000_000_000_002L);
         organizationPolicy = policyService.setStatus(
