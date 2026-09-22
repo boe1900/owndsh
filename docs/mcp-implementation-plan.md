@@ -7,7 +7,9 @@
 
 # MCP 开发任务与验收
 
-先读 [公共契约](mcp-management-design.md)，再读 [运行时规格](mcp-runtime-design.md)。本文件按依赖顺序直接开工；无需重新选 client/搜索/OAuth 方案。
+先读 [公共契约](mcp-management-design.md)，再读 [运行时规格](mcp-runtime-design.md)。本文件按依赖顺序直接开工；MCP transport/resources/OAuth 均以官方 Harness 与 MCP SDK v2 为唯一实现真源。
+
+2026-09-22 alpha.2 Web 验收：9 组真实浏览器/AgentLoop 场景通过，MCP/bundle 35 条与 UI 33 条回归通过。修复重复 resources row、补齐 SDK discovery state 回调绑定；MCP 尚未上线，不保留旧开发版凭据兼容。详见 [本轮证据与边界](mcp-alpha2-web-e2e-20260922.md)，下方早期“401 不重放”记录不代表 SDK v2 当前行为。
 
 ## 1. 需求与实现闭环
 
@@ -18,7 +20,7 @@
 | R03 | 用户/组/全员授予与撤销 | 公共5/端侧3 | S02-S05、H07 |
 | R04 | 不把全部schema塞给模型 | 端侧6/7 | P01-P09 |
 | R05 | 不改preset、不fork Harness | 端侧1/7 | G01-G04 |
-| R06 | 刷新/并发/关闭无重放 | 端侧4/5.4 | H05-H10、O05-O08 |
+| R06 | SDK 刷新/401 重试与并发关闭隔离 | 端侧4/5.4 | H05-H10、O05-O08 |
 | R07 | 操作UI、错误与重试可理解 | 公共7/端侧9 | U01-U07 |
 | R08 | 企业兼容与增量发布 | 公共6.2 | C02、D01-D04 |
 | R09 | 目录改变不自动扩大能力 | 公共5.3/端侧6 | S06、P06、H03 |
@@ -35,8 +37,8 @@
 | 协议 | contracts/enterprise-openapi.yaml、components/、paths/ | 新增 mcp.yaml schema/path 分片，沿用 envelope/Revision/Cursor/ID/error |
 | 生成 | plugin/packages/contracts | 同一 OpenAPI 生成 DTO/Zod/JSON Schema；禁止手改生成物 |
 | 平台请求 | plugin/packages/platform-client/src/platform-service.ts | 复用 request/subscribe/refresh；不把 MCP endpoint Bearer 发往外部URL |
-| PKCE/浏览器 | plugin/packages/platform-client/src/pkce.ts、browser.ts、index.ts | 复用公开 entropy/loopback/opener；如 callback 需要变更，只做最小原语扩展并回归原平台登录 |
-| 凭据 | platform-client/src/platform-credentials.ts | 借鉴 modifyRecord/generation 的已有规范；不修改平台 grant 的payload来塞MCP |
+| MCP OAuth 宿主 | plugin/packages/bundle/src/mcp-oauth.ts、platform-client 的 browser/loopback | 只提供官方 SDK v2 的 credential/state 记录、系统浏览器和 loopback callback；协议 discovery/PKCE/token exchange/refresh 不在 OwnDsh 实现 |
+| 凭据 | platform-client/src/platform-credentials.ts | 借鉴 modifyRecord/generation 的已有规范；MCP grant 独立绑定 owner/target，不修改平台 grant payload |
 | bundle | plugin/packages/bundle/src/index.ts、package.json、scripts/build.mjs | 组合 MCP、SDK dependencies 与官方 peers；不安装第二份 Cordis/tools 单例 |
 | 端侧UI | plugin/packages/ui/src/account-store.ts、account-view.tsx、local-api.ts | 增加 MCP tab/DTO/短时动作查询，复用现有UI tokens、门禁与重试 |
 | 管理UI | console/src/routes/_console.mcp.tsx、features/plugins/mcp-management-page.tsx | 独立 `/mcp` 一级菜单，标题右侧切换服务配置/访问授权；复用 SegmentedControl、ProductDataTable、ProductDialog 与 query/generated HTTP，插件/MCP 路由各自判权 |
@@ -53,8 +55,8 @@
 
 - index.ts：公开 runtime 入口与类型出口。
 - runtime.ts：assignment reconcile、fiber生命周期、lease和owner generation。
-- credentials.ts：MCP凭据payload、Key/refresh存储。
-- oauth.ts：SDK辅助函数、callback事务、授权/refresh错误分类。
+- credentials.ts：MCP凭据payload与 owner/target 绑定。
+- oauth.ts：官方 SDK v2 OAuthClientProvider 宿主接缝、callback 事务与凭据适配；不复制 OAuth 协议。
 - tools.ts：目录、摘要、search/hot/SDK/guard/hooks。
 - local-api.ts：同源UI动作/状态投影。
 - types.ts：本地状态与错误码；平台DTO从contracts引用。
@@ -67,12 +69,12 @@
 
 | 验证点 | 精确实验 | 失败处理 |
 |---|---|---|
-| 目标依赖 | 安装官方0.1.5-rc.2 tools/systemPrompt/client及必要peers；按public API加载 | 修正依赖/升级官方兼容版本，更新版本证据；不vendor旧源码 |
+| 目标依赖 | 安装官方 `0.1.6-alpha.2` tools/system-prompt/mcp-client/mcp-resources/ptc-runtime 与 MCP SDK v2；按 public API 加载 | 修正依赖/升级官方兼容版本，更新版本证据；不 vendor 旧源码 |
 | 双呈现 | 运行已有 design-spike，捕获native/PTC/both的schema+SDK | 使用官方renderer；若接口变化先修适配，不关闭PTC或发全量 |
 | 官方MCP挂载 | 一个SDK测试HTTP MCP提供echo工具，独立fiber activate/dispose/remount同名 | 使用正式Cordis effect生命周期，不读private registry |
 | 初次失败隔离 | failOnStartupError=true的child激活失败，平台bundle仍READY | 调整child任务归属与错误contain，不全局吞异常 |
 | 目录行为 | tools/list_changed后相同schema、新增、删除、冲突 | 按全代替注册处理，不能依赖未变化definition对象身份 |
-| SDK安全 | 描述含 `{{x}}`/反引号/注释结束符，最后renderPrompt正常且未变指令模板 | SDK文本通过变量值注入；保持官方语言renderer |
+| SDK安全 | 描述含 `{{x}}`/反引号/注释结束符，最后 assembly 正常且未变指令模板 | 适配 alpha.2 的 `tools:sdk` 非插值 section，直接写入官方 renderer 结果 |
 | 调用生命周期 | pre-execute刷新后同名重挂载，执行仍走当前官方definition与output schema | 若不支持，当前调用拒绝并提示下次重试；不得执行已dispose闭包 |
 | Host local权限 | 真实Web/Desktop跨站、无Origin、恶意Host头请求秘密写接口 | 收紧现有authenticated Client路由；未解决不发布远程Host OAuth |
 | callback | 本机随机 loopback 完成一次假 provider 流程；OAuth provider 必须接受 `http://127.0.0.1:<port>/callback` | 不兼容 provider 标为不支持并给配置修正；不引入公网 callback 或让用户配置域名 |
@@ -83,7 +85,7 @@
 node scripts/mcp-design-spike.mjs /absolute/path/to/built/deepseek-harness
 ```
 
-也接受安装官方 npm packages 的目录（有package.json和node_modules）。必要包：tools、system-prompt、code-runtime、Cordis；版本必须同目标运行树一致。
+也接受安装官方 npm packages 的目录（有package.json和node_modules）。必要包：tools、system-prompt、ptc-runtime、Cordis；版本必须同目标运行树一致。
 它不执行PTC程序，只验证生成SDK；不验证真实OAuth、远端取消、HTTP重放、管理Server和UI。
 
 ## 4. P2-MCP-01：契约、表、授权与候选目录
@@ -129,12 +131,12 @@ node scripts/mcp-design-spike.mjs /absolute/path/to/built/deepseek-harness
 
 前置：02生命周期可用，03对schema变化能收敛。
 
-1. 依赖MCP SDK auth helpers，不复制协议；manual和mcp discovery两分支。
-2. public预注册client与显式DCR；issuer/resource/PKCE/callback/token response严格验证。
-3. 复用平台PKCE/browser原语，state绑定owner/binding/flow、5分钟限时。
-4. credentials.modifyRecord轮换，accessToken内存，短TTL/无expires_in/无refresh路径。
-5. 30秒提前量上限、并发single-flight、drain后remount、不重放tools/call。
-6. 提前撤销但未知401保持可恢复错误；不靠字符串识别；完整密钥扫描。
+1. 使用官方 `@modelcontextprotocol/client@2.0.0` 的 `auth()`、`StreamableHTTPClientTransport` 和 `OAuthClientProvider`，OwnDsh 不实现 discovery、PKCE、token exchange 或 refresh。
+2. OwnDsh 只提供 owner/target 绑定的官方 client information/tokens 记录、SDK verifier 短生命周期存储、系统浏览器与本机 loopback callback。
+3. MCP `Client` 使用官方协议协商、tools/resources/resources-templates 分页和零工具服务器能力；资源转交官方 `dsh-mcp-resources`。
+4. 连接与重授权仍受 assignment revision、平台状态、AbortSignal 和 fiber 生命周期门禁；失效凭据由官方 auth/transport 触发重新授权。
+5. API Key 仍只交给官方 dsh-mcp-client；OAuth 不在 OwnDsh 预先拼接 Bearer 或维护第二套 token 计时器。
+6. 仅验证宿主接缝和官方 SDK 行为，不复制官方 discovery/PKCE/token/refresh 测试矩阵。
 
 完成标准：O01-O12。使用本地受控TLS OAuth fixture，不需要真实用户秘密；发布前再用一个受支持的真实provider人工确认。
 
@@ -269,13 +271,12 @@ Server按当前Maven父项目/test容器流程运行集成用例；Host使用现
 
 | 检查 | 当前状态 |
 |---|---|
-| 历史rc.2与目标0.1.5-rc.2源码差异 | 已核对：code→ptc、client静态headers、全代替重注册、公开renderer/guard |
-| 真实Harness rc.2无网络设计探针 | 已通过：native/code/both、按agent过滤、SDK重渲染、guard阻止执行 |
-| 目标0.1.5-rc.2无网络设计探针 | 已通过：官方npm tools/system-prompt/code-runtime 0.1.5-rc.2 + Cordis4.0.2；native/ptc/both、按agent过滤、SDK重渲染、模板字面量和guard |
-| 目标0.1.5-rc.2官方 client HTTP 接缝 | 已通过：独立本地 Streamable HTTP fixture；真实 tools/list、`mcp__probe__ping` 注册、静态 Authorization、tools/call=`pong`；坏服务 `failOnStartupError=false` 不阻断平台上下文 |
+| Harness `0.1.6-alpha.2` 兼容性 | 已适配：`codeRuntime`→`ptcRuntime`、PTC `session.header`、alpha.2 非插值 `tools:sdk` section |
+| 官方 SDK v2 OAuth 宿主接缝 | 已通过：官方 discovery/PKCE/token exchange、issuer/iss、loopback browser callback 与 token/client information 记录委托；OwnDsh 不实现协议 |
+| 官方 client/resources HTTP 接缝 | 已通过：本地 Streamable HTTP fixture；协议协商、tools/list 分页、resources/list、resource templates/read、instructions、OAuth Authorization 与 tools/call |
 | OAuth/并发 remount/撤销生命周期 | 真实 HTTP MCP 已验证发现、重挂载、撤回、凭据目标/账号隔离；受控 token 响应已覆盖 rotation、过期更新和 refresh/disconnect/账号切换/dispose 竞争；真实 OAuth provider 与在途工具调用竞争仍待验证 |
 | 管理Server/API/迁移/前后端页面 | Console 支持公共配置创建/启停、ALL/USER/GROUP 授权创建/启停/删除、按权限显示 Tab；Server 支持主体校验、组展开、原子批量创建、cursor 列表和授权 CAS。创建与授权批量已完成数据库幂等重放和脱敏管理审计 |
-| 真实provider+Web E2E | 已执行 Apifox 远程 API Key、OwnDsh fixture 与 Notion OAuth 连接后的 Harness Web 闭环；Desktop 不列入本项目发布门禁。OAuth 异常矩阵继续由本地真实 HTTP provider fixture 覆盖 |
+| 真实provider+Web E2E | 既有 Apifox/Notion 证据仍保留；本轮新增官方 SDK v2 本地闭环。Desktop 不列入本项目发布门禁，第三方 provider 的业务差异仍需单独验证 |
 
 “可直接开发”指主要产品与技术决策、协议、失败分支和验收责任已经清晰；不意味着能跳过00阶段或保证未来每个MCP服务实现都兼容。设计中发现的新事实必须回写三份文档；不能只在代码里加一条未记录的例外。
 
@@ -289,7 +290,7 @@ Server按当前Maven父项目/test容器流程运行集成用例；Host使用现
 
 2026-09-14 P2-MCP-05 用户组授权切片：Console 完整遍历服务/授权/用户组 cursor，支持 ALL/USER/GROUP 与主体切换清空、目录失败阻止提交和重试；read/write/grant 分权，成员目录请求另受 ent:member:read 限制。HTTP ID 保持字符串，ALL 的 subjectId=null。Server 通过既有 MANUAL/IDENTITY_SOURCE 成员表求授权并集，校验 tenant/主体并对批量写和 bootstrap revision 整体回滚；仍被 MCP 授权引用的组禁止删除。V30/V31 修正已删除字段残留、SQL 占位符、跨租户外键、ALL 重复授权以及权限菜单 ID/内置角色迁移问题。
 
-当前实现边界：端侧已将每个 assignment 挂载到独立官方 dsh-mcp-client Cordis fiber；撤权、停用、配置 revision/生效认证头变化、disconnect 和 Host 销毁都会调用并等待官方 `fiber.dispose()`，刷新通过 single-flight 串行化，OAuth/API Key 变化会触发重挂载。search 真实发现、per-Agent schema/SDK 预算、连接/目录代次 guard、凭据 owner/binding 隔离、OAuth discovery、固定 loopback callback、持久连接意愿和 CLEANUP_REQUIRED 均已实现并通过本地回归；Harness Web 主路径与 OAuth 验证事实见后文；后续接缝回归限于 OwnDsh 的工具投影、会话隔离和执行权限，不重复验收 Harness 会话压缩算法。管理端 server/grant 创建使用 PostgreSQL 幂等占位和 JCS 请求摘要，同 key 重放原资源，不同 body 返回 409。
+当前实现边界：端侧已将每个 assignment 挂载到独立官方 dsh-mcp-client Cordis fiber；撤权、停用、配置 revision/生效认证头变化、disconnect 和 Host 销毁都会调用并等待官方 `fiber.dispose()`。MCP client/resources/OAuth 均走 Harness `0.1.6-alpha.2` 与官方 MCP SDK v2：OwnDsh 只负责 owner/binding 凭据隔离、官方 client information/tokens 与短生命周期 verifier 存储、系统浏览器和 loopback callback。search 真实发现、per-Agent schema、连接/目录代次 guard、持久连接意愿和 CLEANUP_REQUIRED 均已实现并通过本地回归；Harness Web 主路径与 OAuth 验证事实见后文；后续接缝回归限于 OwnDsh 的工具投影、会话隔离和执行权限，不重复验收 Harness 会话压缩算法。管理端 server/grant 创建使用 PostgreSQL 幂等占位和 JCS 请求摘要，同 key 重放原资源，不同 body 返回 409。
 
 本轮验证（2026-09-14，本机 Node 24.14.1、Java 21、PostgreSQL 17.10）：McpGrantIntegrationTest 3 条、RbacSeedTest 3 条、EnterpriseMigrationTest 7 条均通过；新增 Console MCP 交互测试 6 条和既有插件路由回归 2 条通过。Console、bundle、plugin UI 的 TypeScript 检查和契约生成一致性检查通过。未执行真实 OAuth provider 或 Web/Desktop 端到端验收。
 

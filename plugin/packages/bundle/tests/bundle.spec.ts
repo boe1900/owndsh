@@ -26,15 +26,15 @@ describe('enterprise bundle', () => {
       '@deepseek-ai/dsh-client-ui-settings-general',
     ])
     expect(manifest.dependencies).toBeUndefined()
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-llm']).toBe('^0.1.5-rc.2')
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-credentials']).toBe('^0.1.5-rc.2')
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-llm-pi-ai']).toBe('^0.1.5-rc.2')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-llm']).toBe('^0.1.6-alpha.2')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-credentials']).toBe('^0.1.6-alpha.2')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-llm-pi-ai']).toBe('^0.1.6-alpha.2')
     expect(manifest.peerDependencies['@deepseek-ai/dsh-session']).toBeUndefined()
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-subprocess']).toBe('^0.1.5-rc.2')
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-host-plugin-inventory']).toBe('^0.1.5-rc.2')
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-mcp-client']).toBe('^0.1.5-rc.2')
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-tools']).toBe('^0.1.5-rc.2')
-    expect(manifest.peerDependencies['@deepseek-ai/schemastery']).toBe('^3.18.1')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-subprocess']).toBe('^0.1.6-alpha.2')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-host-plugin-inventory']).toBe('^0.1.6-alpha.2')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-mcp-client']).toBe('^0.1.6-alpha.2')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-tools']).toBe('^0.1.6-alpha.2')
+    expect(manifest.peerDependencies['@deepseek-ai/schemastery']).toBe('^3.18.2')
     expect(inject).toEqual([
       'webServer', 'credentials', 'llm', 'subprocess', 'pluginInventory', 'tools',
     ])
@@ -50,9 +50,10 @@ describe('enterprise bundle', () => {
     const patch = await readFile(resolve(ROOT, 'cordis.patch.yml'), 'utf8')
     expect(patch).toContain("name: 'owndsh-plugin'")
     expect(patch).toMatch(/id: agent-default-model[\s\S]*provider: enterprise[\s\S]*model: enterprise\/default/)
-    for (const id of ['llm-deepseek', 'llm-pi-ai', 'ui-settings-models']) {
+    for (const id of ['llm-deepseek', 'llm-pi-ai', 'ui-settings-models', 'ui-plugin-manager']) {
       expect(patch).toMatch(new RegExp(`id: ${id}\\n  disabled: true`))
     }
+    expect(patch).not.toContain('id: mcp-resources')
     expect(patch).not.toContain('deepseek-harness')
     const source = await readFile(resolve(ROOT, 'src/index.ts'), 'utf8')
     expect(source).toContain('const HARNESS_VERSION = APP_IDENTITY.version')

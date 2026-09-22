@@ -872,7 +872,7 @@ T01 必须在产品仓库的独立 `plugin` workspace 构建预编译 bundle，�
 
 Client 包通过 `settings.section` 注册一个 `enterprise` 设置页，通过 `sidebar.footer.action` 注册连接状态图标，并通过 `shell.overlay` 在 `UNCONFIGURED`、未登录、登录失败、登录过期或设备撤销时全屏阻断宿主。初装只要求 Server origin，登录成功后 overlay 返回 `null` 并恢复官方 UI。组件数据全部来自插件自有同源本地 API 的脱敏调用，不把 Host `ctx` 传入 React。
 
-`plugin/packages/bundle/cordis.patch.yml` 插入 platform client、官方 LLM profile bridge、plugin distribution 和 UI Client row；覆盖默认模型，禁用 base profile 的个人 provider 与个人模型设置页，V1 不启动 Session 同步。Server 地址保存在 `$DSH_HOME/settings.yaml` 的 `owndsh.serverUrl`；bundle `baseUrl` 只作可选安装默认值。私有包认证和依赖构建策略由宿主 pnpm 配置。
+`plugin/packages/bundle/cordis.patch.yml` 插入 platform client、官方 LLM profile bridge、plugin distribution 和 UI Client row；覆盖默认模型，禁用 base profile 的个人 provider、个人模型设置页与官方通用插件管理页，避免员工绕过企业插件 assignment 直接安装、卸载或启停 profile 插件；V1 不启动 Session 同步。官方 Host 的 plugin manager/CLI 能力仍保留，供 `plugin-distribution` 执行服务端授权后的精确安装与卸载。Server 地址保存在 `$DSH_HOME/settings.yaml` 的 `owndsh.serverUrl`；bundle `baseUrl` 只作可选安装默认值。私有包认证和依赖构建策略由宿主 pnpm 配置。
 
 ## 17. 错误与并发约定
 

@@ -7,7 +7,7 @@
 
 # MCP 端侧运行时详细设计
 
-父设计：[mcp-management-design.md](mcp-management-design.md)。目标 Harness 0.1.5-rc.2；旧 rc.2 探针证据不能代替目标版本验收。
+父设计：[mcp-management-design.md](mcp-management-design.md)。目标 Harness 0.1.6-alpha.2；旧 rc.2 探针证据不能代替目标版本验收。
 
 ## 1. 组件、依赖与作用域
 
@@ -50,25 +50,24 @@ Host 共享：assignment map、client fiber、用户 credential、当前授权�
 
 ```ts
 type McpCredentialPayload = {
-  version: 1
+  version: 2
   ownerDigest: string
   serverId: string
   bindingDigest: string
   updatedAt: number
 } & (
   | { kind: 'api-key'; apiKey: string }
-  | { kind: 'oauth'; refreshToken: string; clientId?: string }
+  | { kind: 'oauth'; state?: { tokens?: StoredOAuthTokens; clientInformation?: StoredOAuthClientInformation } }
 )
 ```
 
-这是当前 `McpCredentialManager` 的持久记录；accessToken/expiresAt 不入记录。预注册 OAuth 的 clientId 来自受绑定的公共 assignment；动态注册返回的 public clientId 与 refresh token 同一条记录原子保存，供重启后的 refresh 使用。issuer/resource/scopes 仍来自公共 assignment，discovery 元数据不持久化。旧版只按 serverName 保存且包含 accessToken 的 grant 不读取、不迁移；无法证明所属身份，升级后需用户重新连接。新记录保持在独立 `owndsh-mcp/` 命名空间。
+这是当前 `McpCredentialManager` 的持久记录；OAuth 分支只保存官方 SDK 的 `StoredOAuthTokens` 与 `StoredOAuthClientInformation`，不解释或改写 token、issuer、refresh 语义。MCP 尚未上线，只维护当前记录格式，存放于独立 `owndsh-mcp/` 命名空间。
 
 实际实现用 discriminated union，拒绝分支混用和未知字段。bindingDigest 是 URL/auth/公共 headers/transport 的稳定摘要；所有可能改变秘密发送目标的配置变化都使旧记录失效。
 摘要使用 bundle `mcp-oauth.ts` 内部的 `canonicalizeJson`，对象键顺序不影响绑定；auth 的 issuer/resource/clientId/scopes/endpoints 全部参与摘要。不会对新 URL 尝试旧 Key，不仅按 serverName 存秘密。显示名/呈现/超时/reconnect/revision 变化不丢 OAuth。
 
-OAuth accessToken、expiresAt（可未知）、state/verifier、授权 code 只在内存。当前 discovery 结果也只在本次授权/调和调用内存，不持久化 provider metadata。
-refresh token 在 `credentials.modifyRecord` 独占回调内读取、请求和轮换；刷新未返回新 refresh_token 则保留旧值。新的浏览器授权没有 refresh_token 时不能继承上次授权的 refresh token。官方 modifyRecord 返回 undefined 表示“不改动”，因此 `invalid_grant` 或新授权无 refresh token 时写 `{kind:grant,payload:null}` 原子清除旧秘密；该空记录不视为已配置。
-若 provider 不发 refresh_token：当前进程可以用 access token，重启后需重新授权；UI 明确说明，不承诺所有 OAuth 都免再次登录。
+SDK verifier 只在当前 `McpCredentialManager` 内存中保存，授权 code 和 discovery metadata 不由 OwnDsh 保存。官方 `auth()`、`StreamableHTTPClientTransport` 负责 discovery、PKCE、token exchange、refresh、issuer/resource 校验和失效策略；OwnDsh 不请求 OAuth endpoint、不计算 token 过期、不执行 single-flight refresh。`invalidateCredentials` 只按 SDK 要求删除 client/token 记录或清除 verifier，`discovery` scope 没有本地缓存可清理。
+显式断开删除该绑定的完整 credential record；平台失效、撤权和连接代次变化只关闭本地连接并阻止迟到写入，是否重授权由官方 SDK/transport 的结果交给 UI。
 
 一个共享 profile 只允许一个 MCP credential writer Host；credentials provider 是否提供跨进程互斥不能想当然。检测到共享 profile 多 Host 写入的部署必须使用独立 profile，否则不保证 refresh rotation 安全；不自建第二套凭据文件锁协议。
 
@@ -77,7 +76,7 @@ refresh token 在 `credentials.modifyRecord` 独占回调内读取、请求和�
 
 服务被撤权：停止连接并取消 flow，本地凭据保留隔离状态以便同用户同 binding 重新授权恢复；显式“断开连接”一定删除本机凭据但保留管理员下发的服务列表项。删除失败目标为 CLEANUP_REQUIRED 并禁止重新使用，允许重试；不得显示清理成功。runtime 返回固定错误，状态投影为待清理，端侧 UI 提供重试；持久连接意愿由端侧 `owndsh-mcp` settings 保存。
 
-## 3. 授权刷新与执行判定
+## 3. 授权执行判定
 
 ### 3.1 Fresh assignment snapshot
 
@@ -151,7 +150,7 @@ Full 模式不会跳过任一条件。Loaded membership 只管理搜索选择；
 5. 首次 activation 后读取目录并设置 READY。合法零工具列表也是 READY，不以工具数>0判断连接成功。
 6. 同一 server 只允许一个 mount/refresh/cleanup；不同 server 最大4个并发连接。旧 dispose 未完成绝不重用 namespace。
 
-当前 bundle 的 `src/mcp-runtime.ts` 使用一个 MCP 子 fiber 对应一个 server：官方 `apply()` 注册连接与工具，返回的 Cordis fiber 由 runtime 保存；assignment 撤回、revision 或生效认证头变化、用户 disconnect 以及 Host 销毁都会先 `await fiber.dispose()`，再允许同名 namespace 重新挂载。刷新通过单一 `refreshing` Promise 串行化，避免同一 server 重复连接；生效凭据签名包含 OAuth access token/API Key，因此 OAuth 返回新 access token 会触发旧 fiber 释放后重挂载；若 token 字符串不变、只延长 expiresAt，则保留 fiber 并更新执行门禁的有效期。挂载失败只记录该 server 的固定错误并清理其 fiber，不阻断 OwnDsh bundle。通过 platform.subscribe 感知登录与退出，prompt assembly、受管调用和 Settings 读取按需验证 60 秒租约；缓存仍有效时只调和端侧凭据，不发 assignment 网络请求。单次失败不续 lease，未知/过低 revision 不接受；当前调和仍按共享 Promise 串行，尚未达到每服务独立队列与四连接并发的目标。
+当前 bundle 的 `src/mcp-runtime.ts` 使用一个 MCP 子 fiber 对应一个 server：官方 `apply()` 注册 API Key 连接与工具，OAuth 连接由官方 MCP SDK v2 `Client`/`StreamableHTTPClientTransport` 管理，返回的 Cordis fiber 由 runtime 保存；assignment 撤回、revision 或生效认证配置变化、用户 disconnect 以及 Host 销毁都会先 `await fiber.dispose()`，再允许同名 namespace 重新挂载。`refreshing` 只串行化 assignment 快照刷新，不是 OAuth token refresh；OAuth token rotation 和重授权由官方 SDK/provider 完成。挂载失败只记录该 server 的固定错误并清理其 fiber，不阻断 OwnDsh bundle。通过 platform.subscribe 感知登录与退出，prompt assembly、受管调用和 Settings 读取按需验证 60 秒租约；缓存仍有效时只调和端侧凭据，不发 assignment 网络请求。单次失败不续 lease，未知/过低 revision 不接受；当前调和仍按共享 Promise 串行，尚未达到每服务独立队列与四连接并发的目标。
 
 服务显示名/presentation-only 变化：更新投影和 guard，不重连。URL/auth/headers 变化：清空 loaded 与旧 binding，需用户重新连接。显示名变化只刷新 UI。
 重连 token 不变时遵循官方 reconnect，不再叠加 OwnDsh 自动重试；重连耗尽无公开精确事件时 UI 用 DEGRADED/手动重连，不读官方 private supervisor 状态。
@@ -163,36 +162,33 @@ Full 模式不会跳过任一条件。Loaded membership 只管理搜索选择；
 
 单 server mutationQueue + refreshPromise + generation 足够，不引入任务调度系统。排队连接请求按最后一次 desired state 收敛；flowId 与 requestId 用 UUIDv4。
 在 tools/execute 开始计入 inFlight，在 finally 释放。pre-execute 自身不算 inFlight，否则等待 refresh drain 会死锁。
-令牌刷新：关新调用 → 等在途完成（最多 toolCallTimeoutMs + 5秒）→ 必要时 abort → 等 settle → dispose → 新 token activate。调用中断后远端是否完成可未知，返回 UNKNOWN_OUTCOME；不重放。
+OAuth refresh、token activation 和协议错误由官方 MCP SDK/client 管理；OwnDsh 只在 assignment、owner、generation 或 fiber dispose 变化时关闭执行门禁。调用中断后远端是否完成可未知，返回 UNKNOWN_OUTCOME；不重放。
 不持有 credentials.modifyRecord 锁去等待工具 drain；先完成独立 token 交换与原子记录，再处理 fiber。生命周期锁不要包围会递归获取自身锁的 hooks。
 实际工具调用的 client timeout 来自 toolCallTimeoutMs；连接/授权网络阶段超时10秒/请求，OAuth 交互事务5分钟。
 官方 teardown 若失效超时：CLEANUP_REQUIRED，不允许新实例重叠。Host 退出按现有 disposal owner 收敛；不 kill 无关进程。
 
 ## 5. OAuth 详细流程
 
-### 5.1 使用 SDK，自己拥有状态
+### 5.1 官方 SDK v2 负责 OAuth 协议
 
-直接声明 MCP SDK 的 auth helper 依赖；锁文件确认与官方 client 可复用版本。已有研究环境为1.29.0，实施时固定实际验证版本，不依赖未声明的 transitive import。
-使用 `discoverOAuthProtectedResourceMetadata`、`discoverAuthorizationServerMetadata`、`startAuthorization`、`exchangeAuthorization`、`refreshAuthorization`、`registerClient` 等公开 helpers；不另写 MCP JSON-RPC，不为 OAuth 开第二个 MCP 数据连接。
-OwnDsh 控制 fetchFn、issuer/resource/client 约束、凭据存储与浏览器 callback；不把自动 auth orchestration 当作无条件允许网络跳转。
+直接声明 `@modelcontextprotocol/client@2.0.0` 的 `auth()`、`StreamableHTTPClientTransport` 和 `OAuthClientProvider`。OwnDsh 不实现 discovery、PKCE、token exchange、refresh 或第二套 OAuth 状态机。
+
+`McpOAuthProvider` 只提供官方接口需要的宿主能力：
+
+- `clientInformation()/saveClientInformation()` 与 `tokens()/saveTokens()` 委托给 owner/target 绑定的 Harness credentials。
+- `saveCodeVerifier()/codeVerifier()` 与 `saveDiscoveryState()/discoveryState()` 在当前 manager 内存中保存 SDK 生成的 verifier 和发现结果，供 SDK 在回调阶段绑定原授权服务器；Host 重启取消未完成的授权事务。
+- `redirectToAuthorization()` 通过系统浏览器打开 SDK 给出的 URL，等待本机 loopback callback，再把 callback code/iss 交回官方 `auth()`。
+- `validateResourceURL()` 只校验管理员绑定的 resource 与 MCP server 一致；不替 SDK 发现或选择 authorization server。
+- `invalidateCredentials()` 接受 SDK 的失效范围；OwnDsh 只清理 client/token/verifier/discovery 记录，不执行发现协议。
 
 ### 5.2 授权步骤
 
-1. UI 请求 oauth/start。验证当前平台会话、有效 assignment 和 oauth 类型；锁定 bindingDigest、sessionGeneration、serverRevision。
-2. 复用 platform-client 导出的 createPkceS256/startLoopbackCallback、浏览器 opener；若 SDK startAuthorization 自带 verifier，选择同一份 verifier 持有，不生成两份。
-3. state 256bit 随机、单次使用。记录 `{flowId,owner,binding,issuer,redirectUri,state,verifier,startedAt}`，仅内存。
-4. mcp discovery：从配置的 resource 发现 PRM，再从其 authorization_servers 选择与配置 issuer 精确匹配的一项，发现该 AS 元数据。若无匹配/缺关键能力则拒绝；用户可以让管理员切换 manual，不自动跨 AS。
-5. 校验 PKCE S256、authorization code grant、token endpoint 认证方式 none；端点 HTTP(S)、无开放重定向。resource 参数固定为被管理资源，不按第三方任意建议更改。当前实现用 SDK discovery 校验 PRM 的 resource 与 authorization_servers，并精确比较配置 issuer；若管理员同时提供完整 authorizationEndpoint/tokenEndpoint，则保持 manual endpoint 兼容，不绕过其 HTTP(S) 协议/userinfo/片段/重定向校验。
-6. pre-registered 用配置 clientId；dynamic 必须显式开启且 AS 发布注册 endpoint，提交 public native/web client metadata，拒绝返回需要 client_secret 的注册。动态 clientId 按 issuer/resource/callback/设备绑定保存。
-7. 浏览器打开 authorizationUrl，带 response_type=code、client_id、state、code_challenge、S256、redirect_uri、scope、resource。
-8. callback 校验精确路径/Host、state 恒定时间比较、事务未过期、当前 owner/binding 没变。恶意错误 state 不消费合法事务；合法 response 仅结算一次。
-9. SDK exchange code + verifier + 同一 redirect_uri/resource；必须是 Bearer token。callback 页面不回显 code/error_description，不加载第三方资源；清理地址栏查询，Cache-Control no-store/Referrer-Policy no-referrer。
-10. 有效 token response 验证：access_token ≤16KiB、无控制字符，expires_in 正有限秒数（若给定）；grant scopes 必须是管理员声明的 scopes 子集。
-    scope缺省按本次请求scope处理；若返回则按空格分隔规范化后验证子集。expires_in计算后的毫秒时间必须是安全整数；refresh token没有标准期限字段时refreshExpiresAt保持缺省，不猜一个截止日期。
-11. refresh_token 原子保存成功后发布 accessToken；若持久化失败，终止 activation、清空 accessToken、提示本地存储故障。动态注册内容也遵守同一 owner。
-12. 对外只返回 flowId/state。官方 client 用 `Authorization: Bearer <token>` 连接。完成/取消/失败都关闭 callback、清理 verifier/code/state。
-
-禁止记录授权 URL 的完整 query、response body 和 token；trace/span 只记 phase/errorCode。code 交换网络结果未知时不盲目重试一次性 code，要求重开授权。
+1. runtime 校验平台会话、assignment revision、owner/target binding 和 OAuth 配置，创建一次性的 loopback callback。
+2. runtime 创建 provider 并调用官方 `auth(provider, { serverUrl, scope })`；协议发现、issuer/resource 校验、client registration、PKCE challenge、授权 URL 和 token request 全由 SDK 执行。
+3. SDK 调用 provider 的 `saveCodeVerifier` 与 `redirectToAuthorization`。Host 只打开 URL 并等待 callback，拒绝非预期 state、超时、取消或已失效 owner 的结果。
+4. callback code/iss 交回官方 `auth()`；SDK 完成 authorization-code exchange，并通过 provider 保存官方 client information/tokens。
+5. transport 直接接收同一个 OAuth provider；后续 token 读取、refresh、401 处理和重新授权由官方 SDK/client 决定。OwnDsh 不预先拼接 Bearer，不读取 token endpoint，也不维护 token timer。
+6. 成功或失败都关闭 callback、释放 flow 和 manager 的 verifier；assignment、owner 或 Host 生命周期变化时，迟到结果不得写入新 binding。
 
 ### 5.3 Callback 部署矩阵
 
@@ -207,24 +203,14 @@ OwnDsh 当前固定使用 `http://127.0.0.1:<random>/callback` loopback；不读
 
 API Key 模式只收一个用户输入的完整认证值，原样放入 `auth.headerName` 并与公共 `headers` 合并，不自动添加 Bearer 或按 Header 名称推断格式。OAuth 模式由协议流程获得 access token，继续按 OAuth Bearer 规范组装认证头。固定 Header 不包含用户秘密。
 
-### 5.4 Token 刷新
+### 5.4 Token refresh and invalidation
 
-- expiresAt 已知：提前量取 `min(30000ms, tokenLifetimeMs / 10)`，余量低于提前量时在 assembly/pre-execute 按需 refresh；同一新token不因工具timeout比TTL长而反复刷新。无法保证长调用期间token永不过期，失败不重放；不做闲置HTTP定时续期。
-- 每 server 单 refreshPromise；refreshToken 使用同一 issuer/clientId/resource 和最小 scopes。取消一个等待者不会取消其他会话共用刷新；owner dispose/授权撤回可以取消所有。
-- token 轮换成功但响应丢失：旧 refresh token 可能已失效。不要无限重试；进入 AUTH_REQUIRED，明确需要重连。
-- `invalid_grant` 等标准 OAuth 错误：停止使用并删除失效 refresh；网络/5xx/429 保留记录并冷却，最短5秒，遵守可解析 Retry-After（最大5分钟），下次用户活动重试。
-- 无 expires_in：expiresAt=null；当前进程可用，但不推断JWT exp，也不能保证提前刷新。有 refresh token 时手动 reconnect 执行 refresh；无 refresh 要重授权。
-- 官方 client 不保证把 HTTP 401 状态结构化传给管理插件。**第一版不依据 error.message 正则识别401，不承诺每次401自动刷新。** 过期已知由前置 refresh 解决；未知提前撤销显示连接失败，可手动重授权。
-- tools/call 无论何种失败都不由 adapter 自动重放；平台 API 的401重试策略不能复制到 MCP mutation。
-- 同名 remount 后保持 publicName；schema 改变时清理旧 loaded 定义，不能继续调用旧闭包。
+OwnDsh 不实现 refresh。官方 transport/auth 在需要时读取 provider 的 `tokens()`，并由 SDK 完成 refresh rotation、失效判断、401 重授权和最终 `saveTokens()`。OwnDsh 只在 credentials writer 内原子保存 SDK 传入的完整记录，不根据 `expires_in` 启动计时器，也不向 OAuth endpoint 发请求。
 
-当前验证边界（2026-09-15）：已实现上述身份/目标绑定、进程内 access token、动态 public clientId 与 refresh token 原子保存、原子 rotation、single-flight、invalid_grant 清秘密、生命周期 abort、30 秒 token HTTP 超时、拒绝重定向及 resource 在授权/交换/refresh 请求中的注入。仍使用固定提前量 30 秒并要求 `expires_in`；比例提前量、无有效期 token、429/5xx 冷却、远程固定 HTTPS callback 尚未完成。本轮已实现受控 PRM/AS discovery、resource/issuer 校验、manual endpoint 兼容和 RFC 7591 public DCR；confidential registration 会被拒绝。回调继续复用平台 PKCE 原语：真实 loopback 已验证 S256/state、取消和浏览器失败清理，但该原语遇错 state 会结束事务，尚不满足 5.2 的“错 state 不消费事务”和完整 Host 校验目标。受控 token HTTP 响应用 mock，不能视为真实 OAuth provider 或远程浏览器验证。
-
-2026-09-17 重新授权链路：`invalid_grant` 或已进入过期窗口且没有 refresh token 时，Host 撤回连接并投影 `MCP_AUTH_REQUIRED`；瞬时刷新故障保留 grant，不标成必须重新授权。模型已拿到 Schema 后失效，执行 guard 给出设置入口；搜索结果也可提示需要重新授权的服务。同一 Agent 完成授权后可重新加载并继续，不自动重放此前失败工具。OwnDsh 设置展示“需要重新授权”；即使当前仍标为已连接，OAuth 行也提供主动重新授权，供远端提前撤销使用。点击授权后仅临时查询本机 flow 状态（1 秒间隔、330 秒截止、单请求 10 秒超时），支持取消，成功后自动刷新 MCP 状态；闲置无轮询，账号切换/Store 卸载丢弃迟到结果。
-
-提前 401 接缝已由真实 HTTP MCP 验证：SDK 的 HTTP code 在官方 ToolRuntime 序列化时丢失，OwnDsh 得到工具错误而非结构化 401。因此不靠消息猜认证失效，不承诺自动改为“需要重新授权”，也不自动重放；用户可从 OAuth 行主动重新授权。提前 401 使用真实 Cordis/client、loopback 与本地 HTTP provider 的集成测试。另于 2026-09-17 完成真实 Notion Web/LLM 的过期自动刷新、invalid_grant 撤回、取消与同一会话重新授权恢复；细节见 mcp-implementation-plan.md，本轮没有把提前 401 的自动识别列为已完成。
-
-本轮 discovery/DCR 实现约束：只在缺少任一 manual endpoint 或显式开启 dynamicRegistration 时触发；PRM 和 AS metadata 请求均带 `MCP-Protocol-Version: 2025-03-26`，fetch 强制 `redirect:error`、10 秒超时和响应 URL 检查。PRM 仅接受 resource 精确等于配置 resource 且 authorization_servers 包含管理员 issuer；AS metadata 必须声明 code、S256，若声明 grant/auth method 列表则必须包含 authorization_code/none。DCR 使用 SDK `registerClient` 提交 loopback redirect、`token_endpoint_auth_method:none`、authorization_code/code 元数据；响应必须是 public client、回显唯一 redirect，client_secret 或 confidential method 一律拒绝。resource 同时加入 authorization URL、code exchange 和 refresh body；发现失败不会静默退回另一个 issuer。
+- 网络错误、`invalid_grant`、取消和重授权结果由官方 SDK 返回；runtime 只按 assignment/owner/generation 门禁连接和迟到写入。
+- `invalidateCredentials('tokens'|'client'|'all')` 删除 SDK 要求的持久记录；`'verifier'`/`'discovery'` 清除对应的内存状态，manager 释放时一并清理。
+- 工具调用不由 OwnDsh 自动重放；SDK v2 会对 HTTP 401 完成 refresh 后重试。不能沿用旧实现“401 不重放”的承诺。Web 组合验收用受控 HTTP 服务核对实际调用及模型工具定义，不复制 SDK 协议实现。
+- MCP 功能尚未发布，只使用当前凭据记录，不维护旧开发版本的兼容或迁移逻辑。
 
 ## 6. 工具目录、schema 摘要与搜索
 

@@ -214,14 +214,13 @@ export function mountMcpTools(ctx: Context, access: { fresh(): boolean; refresh(
     const sdk = output.sections.filter(section => section.name === 'tools:sdk' && section.text !== '')
     if (sdk.length > 1) throw new Error('MCP_PRESENTATION_UNSUPPORTED')
     if (sdk[0] !== undefined) {
-      const language = (ctx.get('codeRuntime') as { language?: string } | undefined)?.language
+      const language = (ctx.get('ptcRuntime') as { language?: string } | undefined)?.language
       const render = language === 'typescript' ? renderToolsSdk : language === 'python' ? renderToolsSdkPy : undefined
       if (render === undefined || sdk[0].text !== render(sdkBefore)) throw new Error('MCP_PRESENTATION_UNSUPPORTED')
       const schemas = ctx.tools.schemas(context.scope).filter(schema => schema.name !== 'run_code'
         && (!owned(schema.name) || allowed.has(schema.name)))
         .map(schema => ({ ...schema, output: ctx.tools.get(schema.name, context.scope)!.output.schema }))
-      output.variables.owndsh_mcp_sdk = render(schemas)
-      sdk[0].text = '{{owndsh_mcp_sdk}}'
+      sdk[0].text = render(schemas)
       for (const schema of schemas) visible.add(schema.name)
     }
     if (context.agent !== undefined) {

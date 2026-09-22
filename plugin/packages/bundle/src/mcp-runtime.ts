@@ -5,20 +5,33 @@
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import type { IncomingMessage } from 'node:http'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { performance } from 'node:perf_hooks'
 import type { Context } from '@deepseek-ai/cordis'
 import type { CredentialProvider } from '@deepseek-ai/dsh-credentials'
 import z from '@deepseek-ai/schemastery'
-import { apply as applyMcpClient, type Config as McpClientConfig, type ReconnectConfig } from '@deepseek-ai/dsh-mcp-client'
-import type { EnterprisePlatformService, WebServerRoutePort } from '@owndsh/platform-client'
-import { authorizeMcpOAuth, discoverMcpOAuth, McpCredentialManager, mcpCredentialBinding, mcpOwnerDigest } from './mcp-oauth.js'
+import { apply as applyMcpClient, createMcpToolDefinition, type Config as McpClientConfig, type ReconnectConfig } from '@deepseek-ai/dsh-mcp-client'
+import { auth as mcpOAuthAuth, Client, StreamableHTTPClientTransport, type Tool } from '@modelcontextprotocol/client'
+import type { McpResourceProvider, McpResourceRequest } from '@deepseek-ai/dsh-mcp-resources'
+import type { ToolExecution } from '@deepseek-ai/dsh-tools'
+import { startLoopbackCallback, type EnterprisePlatformService, type WebServerRoutePort } from '@owndsh/platform-client'
+import { McpCredentialManager, McpOAuthProvider, mcpCredentialBinding, mcpOwnerDigest } from './mcp-oauth.js'
 import { mountMcpTools, type McpConnection } from './mcp-tools.js'
 
 /**
  * 拉取服务端的公共 assignments，并把每个用户已授权的 MCP 交给官方 client。
  * 平台状态订阅负责失效，用户动作和 prompt/tool 活动按租约刷新；连接由官方 client 管理。
  */
+function publicMcpToolName(serverName: string, rawName: string): string {
+  const joined = `mcp__${serverName}__${rawName}`
+  const normalized = joined.replace(/[^A-Za-z0-9_-]/g, '_')
+  if (normalized === joined && normalized.length <= 64) return normalized
+  const hash = createHash('sha256').update(`${serverName}\0${rawName}`).digest('hex').slice(0, 12)
+  return `${normalized.slice(0, 51)}_${hash}`
+}
+
+type OAuthAssignment = { type?: string; clientId?: string; scopes?: string[]; resource?: string }
+
 export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }, platform: Pick<EnterprisePlatformService, 'request' | 'status' | 'subscribe' | 'bootstrap'>, credentials: CredentialProvider): void {
   type MountedMcp = { fiber: { dispose(): Promise<void> }; revision: number; signature: string; connection: McpConnection; disposal?: Promise<void> }
   const mounted = new Map<string, MountedMcp>()
@@ -89,9 +102,9 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
         const serverName = typeof input.serverName === 'string' ? input.serverName : ''
         await refresh()
         const assignment = latestAssignments.find(value => value.serverName === serverName)
-        const auth = assignment?.auth as { type?: string; issuer?: string; resource?: string; authorizationEndpoint?: string; tokenEndpoint?: string; clientId?: string; dynamicRegistration?: boolean; scopes?: string[] } | undefined
-        if (assignment === undefined || auth?.type !== 'oauth' || (auth.clientId === undefined && auth.dynamicRegistration !== true)
-          || ((auth.authorizationEndpoint === undefined || auth.tokenEndpoint === undefined) && (auth.issuer === undefined || auth.resource === undefined))) throw new Error('MCP OAuth 配置不存在')
+        const auth = assignment?.auth as OAuthAssignment | undefined
+        const url = typeof assignment?.url === 'string' ? assignment.url : undefined
+        if (assignment === undefined || auth?.type !== 'oauth' || url === undefined) throw new Error('MCP OAuth 配置不存在')
         const manager = managerFor(assignment)
         for (const pending of oauthFlows.values()) if (pending.serverName === serverName) pending.abort.abort()
         const flowId = randomUUID()
@@ -99,7 +112,10 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
         await saveDesired(serverName, true)
         const flow = { serverName, revision: assignment.revision, status: 'PENDING' as const, abort: new AbortController() }
         oauthFlows.set(flowId, flow)
-        void authorizeMcpOAuth(manager, { ...(auth.authorizationEndpoint === undefined ? {} : { authorizationEndpoint: auth.authorizationEndpoint }), ...(auth.tokenEndpoint === undefined ? {} : { tokenEndpoint: auth.tokenEndpoint }), ...(auth.issuer === undefined ? {} : { issuer: auth.issuer }), ...(auth.resource === undefined ? {} : { resource: auth.resource }), ...(auth.clientId === undefined ? {} : { clientId: auth.clientId }), ...(auth.dynamicRegistration === undefined ? {} : { dynamicRegistration: auth.dynamicRegistration }), ...(auth.scopes === undefined ? {} : { scopes: auth.scopes }), signal: flow.abort.signal }).then(() => {
+        const callback = await startLoopbackCallback({ expectedState: flowId, timeoutMs: 300_000, signal: flow.abort.signal })
+        void callback.result.catch(() => undefined)
+        const provider = new McpOAuthProvider(manager, { callback, clientId: auth.clientId, scopes: auth.scopes, resource: auth.resource, serverUrl: url, state: flowId, signal: flow.abort.signal })
+        void mcpOAuthAuth(provider, { serverUrl: url, ...(auth.scopes?.length ? { scope: auth.scopes.join(' ') } : {}) }).then(() => {
           if (oauthFlows.get(flowId) === flow && !flow.abort.signal.aborted && platformReady() && !stopped && managers.get(serverName) === manager
             && latestAssignments.some(value => value.serverName === serverName && value.revision === flow.revision)) {
             oauthFlows.set(flowId, { ...flow, status: 'SUCCEEDED' })
@@ -109,7 +125,7 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
         }).catch(() => {
           if (oauthFlows.get(flowId) !== flow) return
           oauthFlows.set(flowId, { ...flow, status: flow.abort.signal.aborted ? 'CANCELLED' : 'FAILED', ...(flow.abort.signal.aborted ? {} : { error: 'OAUTH_FAILED' }) })
-        })
+        }).finally(() => callback.cancel())
         response.writeHead(202, { 'cache-control': 'no-store', 'content-type': 'application/json' }).end(JSON.stringify({ data: { started: true, flowId } }))
       } catch { response.writeHead(400, { 'content-type': 'application/json' }).end(JSON.stringify({ error: { code: 'ENT_INVALID_REQUEST' } })) }
     },
@@ -248,6 +264,122 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
       }
     },
   })
+  const connectOAuth = async (assignment: Record<string, unknown>, manager: McpCredentialManager, connection: McpConnection): Promise<{ dispose(): Promise<void> }> => {
+    const serverName = assignment.serverName as string
+    const url = assignment.url as string
+    const auth = assignment.auth as OAuthAssignment
+    const timeout = typeof assignment.toolCallTimeoutMs === 'number' ? assignment.toolCallTimeoutMs : 60_000
+    const state = randomUUID()
+    const callback = await startLoopbackCallback({ expectedState: state, timeoutMs: 24 * 60 * 60 * 1000, signal: manager.abort.signal })
+    void callback.result.catch(() => undefined)
+    const provider = new McpOAuthProvider(manager, {
+      callback,
+      clientId: auth.clientId,
+      scopes: auth.scopes,
+      resource: auth.resource,
+      serverUrl: url,
+      state,
+      signal: manager.abort.signal,
+    })
+    const client = new Client({ name: 'owndsh-mcp-client', version: '0.1.6-alpha.2' }, {
+      capabilities: {},
+      versionNegotiation: { mode: 'auto' },
+      listChanged: { tools: { autoRefresh: false, debounceMs: 0, onChanged: () => { void enqueueSync() } } },
+    })
+    const transport = new StreamableHTTPClientTransport(new URL(url), {
+      authProvider: provider,
+      requestInit: { headers: (assignment.headers ?? {}) as Record<string, string> },
+    })
+    let disposers = new Map<string, () => void>()
+    let syncing = Promise.resolve()
+    let resourceDisposer = (): void => {}
+    let instructionDisposer = (): void => {}
+    let disposed = false
+    const sync = async (): Promise<void> => {
+      const response = client.getServerCapabilities()?.tools === undefined
+        ? { tools: [] as Tool[] }
+        : await client.listTools(undefined, { cacheMode: 'refresh' })
+      const definitions = new Map<string, ReturnType<typeof createMcpToolDefinition>>()
+      for (const tool of response.tools) {
+        const publicName = publicMcpToolName(serverName, tool.name)
+        if (definitions.has(publicName)) throw new Error('MCP_TOOL_NAME_CONFLICT')
+        definitions.set(publicName, createMcpToolDefinition(ctx, {
+          name: publicName,
+          rawName: tool.name,
+          description: tool.description ?? '',
+          inputSchema: tool.inputSchema as Record<string, unknown>,
+          outputSchema: tool.outputSchema,
+          taskRequired: tool.execution?.taskSupport === 'required',
+          call: (args, execution) => client.callTool({ name: tool.name, arguments: args }, {
+            signal: execution.signal,
+            timeout,
+            toolDefinition: tool,
+          }),
+        }))
+      }
+      for (const dispose of disposers.values()) dispose()
+      const next = new Map<string, () => void>()
+      try {
+        for (const [name, definition] of definitions) next.set(name, ctx.tools.register(definition))
+      } catch (error) {
+        for (const dispose of next.values()) dispose()
+        throw error
+      }
+      disposers = next
+    }
+    function enqueueSync(): Promise<void> {
+      const task = syncing.then(sync)
+      syncing = task.catch(() => undefined)
+      return task
+    }
+    try {
+      await client.connect(transport)
+      await enqueueSync()
+      const resources = ctx.get('mcpResources') as { register(server: string, provider: McpResourceProvider): () => void } | undefined
+      if (resources === undefined) throw new Error('MCP_RESOURCES_UNAVAILABLE')
+      const resourceProvider: McpResourceProvider = {
+        request: async (request: McpResourceRequest, execution: ToolExecution) => {
+          const options = { signal: execution.signal, timeout }
+          if (request.method === 'resources/list') return await client.listResources(request.cursor === undefined ? undefined : { cursor: request.cursor }, options) as never
+          if (request.method === 'resources/templates/list') return await client.listResourceTemplates(request.cursor === undefined ? undefined : { cursor: request.cursor }, options) as never
+          if (request.method === 'resources/read') return await client.readResource({ uri: request.uri }, options) as never
+          throw new Error('MCP_RESOURCE_METHOD_INVALID')
+        },
+      }
+      resourceDisposer = resources.register(serverName, resourceProvider)
+      const systemPrompt = ctx.get('systemPrompt') as { getSectionOrder(name: string): number; section(value: { name: string; order: number; interpolate: boolean; text: () => string }): () => void } | undefined
+      if (systemPrompt === undefined) throw new Error('MCP_SYSTEM_PROMPT_UNAVAILABLE')
+      const instructions = client.getInstructions()?.trimEnd() ?? ''
+      if (Buffer.byteLength(instructions) > 32 * 1024) throw new Error('MCP_INSTRUCTIONS_TOO_LARGE')
+      instructionDisposer = systemPrompt.section({
+        name: `mcp:${serverName}`,
+        order: systemPrompt.getSectionOrder('MCP_SERVERS'),
+        interpolate: false,
+        text: () => instructions ? `### MCP server: ${serverName}\n\n${instructions}` : '',
+      })
+      connection.ready = true
+      return {
+        async dispose(): Promise<void> {
+          if (disposed) return
+          disposed = true
+          connection.ready = false
+          resourceDisposer()
+          instructionDisposer()
+          for (const dispose of disposers.values()) dispose()
+          disposers = new Map()
+          await syncing.catch(() => undefined)
+          await client.close().catch(() => undefined)
+          await transport.close().catch(() => undefined)
+          callback.cancel()
+        },
+      }
+    } catch (error) {
+      callback.cancel()
+      await client.close().catch(() => undefined)
+      await transport.close().catch(() => undefined)
+      throw error
+    }
+  }
   const reconcile = async (assignments: Array<Record<string, unknown>>, generation: number): Promise<void> => {
     // 未连接的 OAuth flow 同样受快照撤权约束。
     for (const flow of oauthFlows.values()) {
@@ -282,22 +414,15 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
       if (serverName === undefined || url === undefined || isPaused(serverName)) continue
       const serverRevision = typeof assignment.revision === 'number' ? assignment.revision : 0
       let headers = (assignment.headers ?? {}) as Record<string, string>
-      let expiresAt: number | undefined
-        const auth = assignment.auth as { type?: string; issuer?: string; resource?: string; tokenEndpoint?: string; clientId?: string; headerName?: string } | undefined
+      const auth = assignment.auth as (OAuthAssignment & { headerName?: string }) | undefined
       try {
         if (auth?.type === 'oauth') {
           const manager = managerFor(assignment)
-          const discovered = auth.tokenEndpoint !== undefined
-            ? { tokenEndpoint: auth.tokenEndpoint }
-            : await discoverMcpOAuth(auth.resource ?? url, auth.issuer ?? '', manager.abort.signal)
-          const token = await manager.accessToken(discovered.tokenEndpoint, auth.clientId, auth.resource)
-          if (token === undefined) {
+          if (!await manager.configured('oauth')) {
             const current = mounted.get(serverName)
             if (current !== undefined) await retire(serverName, current)
             continue
           }
-          headers = { ...headers, Authorization: `Bearer ${token}` }
-          expiresAt = manager.expiresAt()
         } else if (auth?.type === 'api-key') {
           const manager = managerFor(assignment)
           const secret = await manager.apiKey()
@@ -315,19 +440,21 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
           failOnStartupError: true,
           reconnect: (assignment.reconnect ?? {}) as ReconnectConfig,
         }
-        const signature = JSON.stringify({ revision: serverRevision, ...clientConfig })
+        const signature = auth?.type === 'oauth'
+          ? JSON.stringify({ revision: serverRevision, url, headers, auth })
+          : JSON.stringify({ revision: serverRevision, ...clientConfig })
         const previous = mounted.get(serverName)
         if (previous?.signature === signature && !previous.connection.abort.signal.aborted) {
-          if (expiresAt !== undefined) previous.connection.expiresAt = expiresAt
           continue
         }
         if (previous !== undefined) await retire(serverName, previous)
         if (stopped || generation !== assignmentGeneration) return
         const connection = presentation.begin(serverName, typeof assignment.displayName === 'string' ? assignment.displayName : serverName,
           assignment.presentation === 'full' ? 'full' : 'search')
-        if (expiresAt !== undefined) connection.expiresAt = expiresAt
         try {
-          const fiber = ctx.plugin({ name: 'owndsh-mcp-client', inject: ['tools'], apply: applyMcpClient }, clientConfig)
+          const fiber = auth?.type === 'oauth'
+            ? await connectOAuth(assignment, managerFor(assignment), connection)
+            : ctx.plugin({ name: 'owndsh-mcp-client', inject: ['tools'], apply: applyMcpClient }, clientConfig)
           const current = { fiber, revision: serverRevision, signature, connection }
           mounted.set(serverName, current)
           await fiber

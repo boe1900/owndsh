@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Node crypto 生成 PKCE entropy，依赖 node:http 监听 127.0.0.1 回环 callback
- * [OUTPUT]: 对外提供 createPkceS256、可在监听启动期间取消的 startLoopbackCallback 与稳定 PkceLoopbackError
+ * [OUTPUT]: 对外提供 createPkceS256、可在监听启动期间取消的 startLoopbackCallback 与稳定 PkceLoopbackError；callback 保留官方 OAuth 的 iss
  * [POS]: platform-client 的浏览器登录事务原语，只管理 verifier/state/callback 生命周期，不接触平台 Token
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -37,6 +37,7 @@ export interface PkceS256Pair {
 export interface LoopbackCallbackResult {
   readonly code: string
   readonly state: string
+  readonly iss?: string
 }
 
 /** 正在运行的回环 listener 及其单次结算 Promise。 */
@@ -131,7 +132,8 @@ export async function startLoopbackCallback(
     response.end('Login completed. You can close this window.')
     if (settled) return
     settled = true
-    resolveResult({ code, state })
+    const iss = url.searchParams.get('iss') ?? undefined
+    resolveResult({ code, state, ...(iss === undefined ? {} : { iss }) })
     stop()
   })
 

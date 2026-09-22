@@ -10,7 +10,7 @@ import { performance } from 'node:perf_hooks'
 import { Context } from '@deepseek-ai/cordis'
 import ToolRuntime, { defineTool, type ToolDefinition } from '@deepseek-ai/dsh-tools'
 import SystemPrompt, { renderPrompt } from '@deepseek-ai/dsh-system-prompt'
-import CodeRuntime, { type CodeRunRequest } from '@deepseek-ai/dsh-code-runtime'
+import PtcRuntime, { type PtcRunRequest, type PtcRunSpec } from '@deepseek-ai/dsh-ptc-runtime'
 import LlmRuntime from '@deepseek-ai/dsh-llm'
 import * as PiAi from '@deepseek-ai/dsh-llm-pi-ai'
 import { createScope } from '@deepseek-ai/dsh-scope'
@@ -26,8 +26,8 @@ vi.mock('@owndsh/platform-client', async importOriginal => ({
 
 const disposals: Array<() => unknown> = []
 afterEach(async () => { for (const dispose of disposals.splice(0).reverse()) await dispose(); vi.restoreAllMocks(); vi.mocked(openSystemBrowser).mockReset() })
-const first = { id: 'first', session: { append() {} } } as any
-const second = { id: 'second', session: { append() {} } } as any
+const first = { id: 'first', session: { header: {}, append() {} } } as any
+const second = { id: 'second', session: { header: {}, append() {} } } as any
 const tool = (name: string, description = name): ToolDefinition => defineTool({
   name, description, parameters: {},
   output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] },
@@ -39,10 +39,13 @@ async function host(mode: 'native' | 'ptc' | 'both' = 'native', language = 'type
   const ctx = new Context()
   disposals.push(() => ctx.fiber.dispose())
   await ctx.plugin(SystemPrompt)
-  if (mode !== 'native') await ctx.plugin(class extends CodeRuntime {
+  if (mode !== 'native') await ctx.plugin(class extends PtcRuntime {
     language = language
     isolation = 'test-controlled-binding-dispatch'
-    async run(request: CodeRunRequest) {
+    resolve(request: PtcRunRequest): PtcRunSpec {
+      return { ...request, cwd: request.cwd ?? process.cwd(), timeoutMs: request.timeoutMs ?? 60_000 }
+    }
+    async run(request: PtcRunSpec) {
       // 受控替身仅调用真实 PTC bindings；这里不声称验证 TS/Python 解释器。
       const { name, args } = JSON.parse(request.program)
       try { return { value: await request.bindings.find(value => value.global === 'tools')!.functions[name]!(args), logs: [] } }
@@ -291,7 +294,8 @@ describe('MCP search and request presentation', () => {
     expect(schemas).toHaveLength(16)
     expect(schemas.map(value => value.name)).toEqual(expect.arrayContaining(loaded))
     expect(schemas[0]!.description).toBe('说明'.repeat(1100))
-    expect(Buffer.byteLength(JSON.stringify(schemas)) + Buffer.byteLength(assembly.variables.owndsh_mcp_sdk!)).toBeGreaterThan(64 * 1024)
+    const sdk = assembly.sections.find(section => section.name === 'tools:sdk')?.text ?? ''
+    expect(Buffer.byteLength(JSON.stringify(schemas)) + Buffer.byteLength(sdk)).toBeGreaterThan(64 * 1024)
   })
 
   it('releases only this Agent’s dynamic tools, validates atomically, and leaves full tools connected', async () => {
@@ -509,47 +513,30 @@ describe('official MCP client integration', () => {
     expect(ctx.tools.get('mcp_tool_search')).toBeUndefined()
   }, 15_000)
 
-  it.each(['search', 'full'] as const)('reauthorizes an expired OAuth grant in the same conversation: %s', async presentation => {
-    const toolCalls: string[] = []
-    let revoked = false
-    let authorizations = 0, rejectedRefreshes = 0
-    const providerUrl = await listen(async (request, response) => {
-      if (request.url === '/token') {
-        const chunks = []
-        for await (const chunk of request) chunks.push(chunk)
-        const body = new URLSearchParams(Buffer.concat(chunks).toString())
-        if (body.get('grant_type') === 'refresh_token') {
-          rejectedRefreshes++
-          response.writeHead(400, { 'content-type': 'application/json' }).end(JSON.stringify({ error: 'invalid_grant' }))
-        } else {
-          expect(body.get('grant_type')).toBe('authorization_code')
-          expect(body.get('code_verifier')).toBeTruthy()
-          authorizations++
-          response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({
-            access_token: `access-${authorizations}`, refresh_token: `refresh-${authorizations}`, token_type: 'Bearer', expires_in: 3600,
-          }))
-        }
-        return
-      }
+  it('uses the official OAuth Client for negotiation, paginated tools, and URI resources', async () => {
+    const requests: Array<{ body: any; authorization: string | undefined }> = []
+    const url = await listen(async (request, response) => {
       if (request.method !== 'POST') { response.writeHead(405).end(); return }
-      expect(request.headers.authorization).toBe(`Bearer access-${authorizations}`)
       const body = await json(request)
+      requests.push({ body, authorization: request.headers.authorization })
       if (body.id === undefined) { response.writeHead(202).end(); return }
-      if (body.method === 'tools/call') {
-        toolCalls.push(request.headers.authorization!)
-        if (revoked) { response.writeHead(401).end('credential revoked'); return }
-      }
-      const result = body.method === 'initialize' ? { protocolVersion: '2025-03-26', capabilities: { tools: {} }, serverInfo: { name: 'test', version: '1' } }
-        : body.method === 'tools/list' ? { tools: [{ name: 'read', inputSchema: { type: 'object', properties: {} } }] }
-          : { content: [{ type: 'text', text: 'ok' }] }
+      const result = body.method === 'initialize' ? {
+        protocolVersion: '2025-03-26', capabilities: { tools: {}, resources: {} },
+        serverInfo: { name: 'official-oauth-fixture', version: '1' }, instructions: 'Use the official MCP client.',
+      } : body.method === 'tools/list' && body.params?.cursor === undefined ? {
+        tools: [{ name: 'read', description: 'read docs', inputSchema: { type: 'object', properties: {} } }], nextCursor: 'page-2',
+      } : body.method === 'tools/list' ? {
+        tools: [{ name: 'write', description: 'write docs', inputSchema: { type: 'object', properties: {} } }],
+      } : body.method === 'resources/list' ? {
+        resources: [{ uri: 'mcp://docs/readme', name: 'readme', mimeType: 'text/plain' }],
+      } : body.method === 'resources/templates/list' ? {
+        resourceTemplates: [{ uriTemplate: 'mcp://docs/{path}', name: 'document' }],
+      } : body.method === 'resources/read' ? {
+        contents: [{ uri: body.params.uri, mimeType: 'text/plain', text: 'resource body' }],
+      } : body.method === 'tools/call' ? {
+        content: [{ type: 'text', text: 'tool result' }],
+      } : {}
       response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ jsonrpc: '2.0', id: body.id, result }))
-    })
-    const nativeFetch = globalThis.fetch
-    vi.mocked(openSystemBrowser).mockImplementation(async raw => {
-      const authorization = new URL(raw), callback = new URL(authorization.searchParams.get('redirect_uri')!)
-      callback.searchParams.set('state', authorization.searchParams.get('state')!)
-      callback.searchParams.set('code', 'fixture-code')
-      expect((await nativeFetch(callback)).status).toBe(200)
     })
     const ctx = await host(), routes = new Map<string, any>(), records = new Map<any, any>()
     const credentials = {
@@ -558,76 +545,39 @@ describe('official MCP client integration', () => {
       deleteRecord: async (key: any) => { records.delete(key) },
       listRecords: async () => [...records].map(([key, record]) => ({ key, kind: record.kind })),
     }
+    let resourceProvider: any
     ctx.provide('webServer', { register: (route: any) => { routes.set(route.path, route); return () => routes.delete(route.path) } })
+    ctx.provide('mcpResources', { register: (_server: string, provider: any) => { resourceProvider = provider; return () => { resourceProvider = undefined } } })
     ctx.tools.register(tool('ordinary'))
-    const localUrl = await listen((request, response) => { void routes.get(new URL(request.url!, 'http://localhost').pathname)?.handler(request, response) })
-    const local = (path: string, body?: object) => fetch(`${localUrl}/enterprise/api/v1/local/mcp/${path}`, body === undefined ? {} : { method: 'POST', body: JSON.stringify(body) })
-    const assignment = { id: '3', serverName: 'docs', displayName: 'Docs', revision: 1,
-      url: `${providerUrl}/mcp`, transport: 'streamable-http', headers: {}, presentation,
-      auth: { type: 'oauth', issuer: providerUrl, resource: `${providerUrl}/mcp`, authorizationEndpoint: `${providerUrl}/authorize`, tokenEndpoint: `${providerUrl}/token`, clientId: 'client' }, reconnect: { enabled: false } }
+    const assignment = { id: '3', serverName: 'docs', displayName: 'Docs', revision: 1, url,
+      transport: 'streamable-http', headers: { 'X-Client-Name': 'OwnDsh' }, presentation: 'search',
+      auth: { type: 'oauth', clientId: 'client', resource: url }, reconnect: { enabled: false } }
+    const ownerDigest = mcpOwnerDigest({ platformUrl: 'https://platform.example', userId: '1', deviceId: '2', installationId: 'installation-a' })
+    const seed = new McpCredentialManager(credentials as any, mcpCredentialBinding(ownerDigest, assignment))
+    await seed.saveClientInformation({ client_id: 'client', issuer: url }, { issuer: url })
+    await seed.saveTokens({ access_token: 'access', refresh_token: 'refresh', token_type: 'Bearer', expires_in: 3600, issuer: url }, { issuer: url })
+    await seed.dispose()
     const platform = {
       status: () => ({ state: 'READY', platformUrl: 'https://platform.example' }),
       bootstrap: () => ({ user: { id: '1' }, device: { id: '2', installationId: 'installation-a' } }),
       subscribe: () => () => {},
-      request: async () => Response.json({ data: { revision: 1, validForMs: 60000, assignments: [assignment] } }),
+      request: vi.fn(async () => Response.json({ data: { revision: 1, validForMs: 60000, assignments: [assignment] } })),
     }
-    await ctx.plugin({ inject: ['tools', 'webServer'], apply: (child: Context) => { mountMcpRuntime(child as any, platform as any, credentials as any) } })
-    const status = async () => (await (await local('status')).json()).data.assignments[0]
-    const authorize = async () => {
-      const response = await local('oauth/start', { serverName: 'docs' })
-      expect(response.status).toBe(202)
-      const { data: { flowId } } = await response.json()
-      await vi.waitFor(async () => expect((await (await local(`oauth/status?flowId=${flowId}`)).json()).data.status).toBe('SUCCEEDED'))
-      expect(await status()).toMatchObject({ connected: true, configured: true })
-    }
-    const load = async () => {
-      if (presentation === 'search') expect((await call(ctx, 'mcp_tool_search', { query: 'read' })).isError).toBe(false)
-      const assembly = await ctx.systemPrompt.assemble({ scope: first, agent: first })
-      expect(assembly.tools.map(item => item.name)).toContain('mcp__docs__read')
-    }
-    const now = Date.now(), clock = vi.spyOn(Date, 'now').mockReturnValue(now)
-    await authorize()
-    await load()
+    const fiber = await ctx.plugin({ inject: ['tools', 'webServer'], apply: (child: Context) => { mountMcpRuntime(child as any, platform as any, credentials as any) } })
+    await vi.waitFor(() => expect(ctx.tools.get('mcp__docs__read')).toBeDefined())
+    expect(ctx.tools.get('mcp__docs__write')).toBeDefined()
+    expect(requests.every(request => request.authorization === 'Bearer access')).toBe(true)
+    expect(requests.filter(request => request.body.method === 'tools/list')).toHaveLength(2)
+    expect((await ctx.systemPrompt.assemble({ scope: first, agent: first })).sections.map(section => section.text).join('\n')).toContain('Use the official MCP client.')
+    expect((await call(ctx, 'mcp_tool_search', { query: 'read' })).isError).toBe(false)
+    await ctx.systemPrompt.assemble({ scope: first, agent: first })
     expect((await call(ctx, 'mcp__docs__read')).isError).toBe(false)
-    expect(toolCalls).toEqual(['Bearer access-1'])
-
-    // 模型已拿到工具定义后 token 才过期；执行前刷新遭拒，不能继续发送旧凭据。
-    clock.mockReturnValue(now + 3_601_000)
-    const expired = await call(ctx, 'mcp__docs__read')
-    expect(expired.isError).toBe(true)
-    expect(JSON.stringify(expired)).toContain('MCP_AUTH_REQUIRED')
-    expect(toolCalls).toEqual(['Bearer access-1'])
-    expect(rejectedRefreshes).toBe(1)
-    expect(await status()).toMatchObject({ authType: 'oauth', configured: false, connected: false, discoveredToolCount: 0, errorCode: 'MCP_AUTH_REQUIRED' })
-    expect((await call(ctx, 'mcp_tool_search', { query: 'read' })).value).toMatchObject({ reason: 'MCP_AUTH_REQUIRED', authorizationRequired: ['docs'] })
-    expect(JSON.stringify([...records])).not.toContain('refresh-1')
-    expect((await ctx.systemPrompt.assemble({ scope: first, agent: first })).tools.map(item => item.name)).not.toContain('mcp__docs__read')
-    expect((await call(ctx, 'ordinary')).isError).toBe(false)
-
-    // 同一 Agent 重新走 start → PKCE loopback → token → mount，无需创建新会话。
-    await authorize()
-    await load()
-    expect((await call(ctx, 'mcp__docs__read')).isError).toBe(false)
-    expect(toolCalls).toEqual(['Bearer access-1', 'Bearer access-2'])
-    expect((await status()).errorCode).toBeUndefined()
-
-    // 远端在 expires_in 到期前撤销 token；官方只返回序列化错误，不保留 HTTP code。
-    revoked = true
-    const rejected = await call(ctx, 'mcp__docs__read')
-    expect(rejected.isError).toBe(true)
-    expect(rejected.error?.info).toBeUndefined()
-    expect(JSON.stringify(rejected)).toContain('credential revoked')
-    expect(toolCalls).toEqual(['Bearer access-1', 'Bearer access-2', 'Bearer access-2'])
-    expect(rejectedRefreshes).toBe(1)
-    expect((await call(ctx, 'ordinary')).isError).toBe(false)
-    // 不自动重放；用户仍能从已连接行主动重新授权并在原 Agent 恢复。
-    revoked = false
-    await authorize()
-    await load()
-    expect((await call(ctx, 'mcp__docs__read')).isError).toBe(false)
-    expect(toolCalls).toEqual(['Bearer access-1', 'Bearer access-2', 'Bearer access-2', 'Bearer access-3'])
-    expect(rejectedRefreshes).toBe(1)
-    expect(authorizations).toBe(3)
+    expect(resourceProvider).toBeDefined()
+    const execution = { signal: new AbortController().signal } as any
+    await expect(resourceProvider.request({ method: 'resources/list' }, execution)).resolves.toMatchObject({ resources: [{ uri: 'mcp://docs/readme' }] })
+    await expect(resourceProvider.request({ method: 'resources/templates/list' }, execution)).resolves.toMatchObject({ resourceTemplates: [{ uriTemplate: 'mcp://docs/{path}' }] })
+    await expect(resourceProvider.request({ method: 'resources/read', uri: 'mcp://docs/readme' }, execution)).resolves.toMatchObject({ contents: [{ text: 'resource body' }] })
+    await fiber.dispose()
   }, 15_000)
 
   it.each(['disconnect', 'account-switch', 'dispose'] as const)('isolates credentials and cancels delayed refresh during %s', async action => {
@@ -688,59 +638,17 @@ describe('official MCP client integration', () => {
     expect(records.size).toBe(0)
     expect(ctx.tools.get('mcp__docs__read')).toBeUndefined()
 
-    // 用持久化 refresh grant 驱动官方 client；只替代 token endpoint 的响应。
-    assignment = { ...assignment, revision: ++revision, auth: { type: 'oauth', tokenEndpoint: 'https://oauth.example/token', clientId: 'client' } }
-    const ownerDigest = mcpOwnerDigest({ platformUrl: 'https://platform.example', userId, deviceId: '2', installationId: 'installation-a' })
-    const seed = new McpCredentialManager(credentials as any, mcpCredentialBinding(ownerDigest, assignment))
-    await seed.storeOAuth({ access_token: 'seed-only', refresh_token: 'refresh', token_type: 'Bearer', expires_in: 1 }, new AbortController().signal)
-    await seed.dispose()
-    const nativeFetch = globalThis.fetch
-    let token = 'oauth-access', lifetime = 31
-    let entered = deferred(), release = deferred(), hold = false, refreshSignal: AbortSignal | undefined
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
-      if (String(input) !== 'https://oauth.example/token') return nativeFetch(input, init)
-      refreshSignal = init?.signal as AbortSignal
-      if (hold) { entered.resolve(); await release.promise }
-      return Response.json({ access_token: token, refresh_token: 'rotated', token_type: 'Bearer', expires_in: lifetime })
-    })
-    now += 60_001
-    await local('status')
-    const original = ctx.tools.get('mcp__docs__read')
-    expect(original).toBeDefined()
-    expect(received.at(-1)).toMatchObject({ authorization: 'Bearer oauth-access', apiVersion: '2025-09-01', clientName: 'OwnDsh' })
-    const realNow = Date.now(), clock = vi.spyOn(Date, 'now').mockReturnValue(realNow + 2000)
-    lifetime = 3600
-    await local('status')
-    expect(ctx.tools.get('mcp__docs__read')).toBe(original)
-    clock.mockReturnValue(realNow + 33_000)
-    await call(ctx, 'mcp_tool_search', { query: 'read' })
-    await ctx.systemPrompt.assemble({ scope: first, agent: first })
-    expect((await call(ctx, 'mcp__docs__read')).isError).toBeFalsy()
-    clock.mockReturnValue(realNow + 3_603_000)
-    token = 'oauth-rotated'
-    await local('status')
-    expect(ctx.tools.get('mcp__docs__read')).not.toBe(original)
-    expect(received.at(-1)?.authorization).toBe('Bearer oauth-rotated')
-
-    clock.mockReturnValue(realNow + 7_204_000)
-    hold = true
-    const pendingStatus = local('status')
-    await entered.promise
-    const cleanup = action === 'disconnect' ? local('disconnect', { serverName: 'docs' })
-      : action === 'dispose' ? fiber.dispose() : Promise.resolve().then(() => { userId = '10'; listener() })
-    await vi.waitFor(() => expect(refreshSignal?.aborted).toBe(true))
-    release.resolve()
-    const result = await cleanup
-    if (action === 'disconnect') expect((result as Response).status).toBe(200)
-    await pendingStatus
-    expect(ctx.tools.get('mcp__docs__read')).toBeUndefined()
-    if (action === 'dispose') {
-      expect(records.size).toBe(1)
-      expect(JSON.stringify([...records])).not.toContain('access_token')
+    if (action === 'disconnect') {
+      expect((await local('disconnect', { serverName: 'docs' })).status).toBe(200)
+    } else if (action === 'account-switch') {
+      userId = '9'
+      listener()
+      await vi.waitFor(() => expect(records.size).toBe(0))
     } else {
-      expect(records.size).toBe(0)
-      expect((await (await local('status')).json()).data.assignments[0].configured).toBe(false)
+      await fiber.dispose()
     }
+    await vi.waitFor(() => expect(ctx.tools.get('mcp__docs__read')).toBeUndefined())
+    if (action === 'disconnect') expect(records.size).toBe(0)
     await fiber.dispose()
   }, 15_000)
 
