@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖生成的 Provider/Quota/受管模型 operation、console 权限事实、TanStack Query、ProductDataTable 与模型编辑器，共享 lib/crypto 生成 HTTP/HTTPS 通用幂等键。
- * [OUTPUT]: 提供含共享上游容量的 Provider、受管模型与模型集紧凑列表及其管理动作。
+ * [OUTPUT]: 提供含共享上游容量的 Provider、受管模型与模型集紧凑列表及其管理动作；模型删除失败原因仅在删除确认对话框中呈现。
  * [POS]: features/models 的产品模型工作台；供应商容量复用 RATE 策略，页面不实现限流、模型协议、重试或上游适配。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -518,7 +518,10 @@ export function ModelCatalog() {
           });
       requireSuccess(result, 'ENT_MODEL_ACTION_FAILED');
     },
-    onError: (error) => setNotice({ error: true, text: errorMessage(error, '受管模型操作失败') }),
+    onError: (error, variables) => {
+      if (variables.action === 'delete') return;
+      setNotice({ error: true, text: errorMessage(error, '受管模型操作失败') });
+    },
     onSuccess: async (_data, variables) => {
       setDeleteTarget(null);
       setNotice({ error: false, text: variables.action === 'delete' ? '受管模型已删除' : '受管模型状态已更新' });
@@ -540,7 +543,11 @@ export function ModelCatalog() {
   const modelTableColumns = useMemo(() => modelColumnsWithActions(
     canWrite,
     modelAction.isPending,
-    setDeleteTarget,
+    (model) => {
+      modelAction.reset();
+      setNotice(undefined);
+      setDeleteTarget(model);
+    },
     (model) => {
       saveModel.reset();
       setModelEditor(model);
@@ -674,7 +681,10 @@ export function ModelCatalog() {
           error={modelAction.error ? errorMessage(modelAction.error, '受管模型删除失败') : undefined}
           label={deleteTarget.name ?? deleteTarget.alias}
           saving={modelAction.isPending}
-          onClose={() => setDeleteTarget(null)}
+          onClose={() => {
+            modelAction.reset();
+            setDeleteTarget(null);
+          }}
           onConfirm={() => modelAction.mutate({ action: 'delete', model: deleteTarget })}
         />
       ) : null}
