@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖生成的用户组 CRUD operation、TanStack Query/Form、成员目录与产品表格/对话框，共享 lib/crypto 生成 HTTP/HTTPS 通用幂等键。
- * [OUTPUT]: 提供扁平用户组列表、创建、成员整体替换、删除和 revision CAS 管理视图。
+ * [OUTPUT]: 提供扁平用户组列表、创建、成员整体替换、删除和 revision CAS 管理视图；删除失败只在当前确认弹窗呈现，关闭后清理状态。
  * [POS]: features/members 的批量授权主体管理器；只维护手工成员，身份源同步关系由 Server 独立持有。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -163,6 +163,11 @@ export function AccessGroupManagement({ canWrite }: { canWrite: boolean }) {
       await queryClient.invalidateQueries({ queryKey: ['members', 'access-groups'] });
     }
   });
+  const closeDelete = () => {
+    if (remove.isPending) return;
+    remove.reset();
+    setDeleting(undefined);
+  };
   const columns = useMemo<ReadonlyArray<ProductTableColumn<AccessGroup>>>(() => [
     { accessorKey: 'name', header: '用户组', cell: ({ getValue }) => <span className="block truncate font-medium" title={String(getValue())}>{String(getValue())}</span>, meta: { label: '用户组', className: 'w-[360px]', cellClassName: 'w-[360px]' } },
     { accessorKey: 'memberCount', header: '成员', meta: { label: '成员', className: 'w-[120px]', cellClassName: 'w-[120px]' } },
@@ -171,7 +176,7 @@ export function AccessGroupManagement({ canWrite }: { canWrite: boolean }) {
       id: 'actions', header: '操作', enableGlobalFilter: false, enableHiding: false, enableSorting: false,
       cell: ({ row }: { row: { original: AccessGroup } }) => <div className="flex items-center gap-1">
         <Button variant="quiet" size="xs" className="size-7 rounded-md p-0" aria-label={`编辑 ${row.original.name}`} title="编辑" onClick={() => { save.reset(); setEditor(row.original); }}><Pencil aria-hidden className="size-3.5" /></Button>
-        <Button variant="quiet" size="xs" className="size-7 rounded-md p-0 text-red" aria-label={`删除 ${row.original.name}`} title="删除" onClick={() => { remove.reset(); setDeleting(row.original); }}><Trash2 aria-hidden className="size-3.5" /></Button>
+        <Button variant="quiet" size="xs" className="size-7 rounded-md p-0 text-red" aria-label={`删除 ${row.original.name}`} title="删除" onClick={() => { remove.reset(); setNotice(undefined); setDeleting(row.original); }}><Trash2 aria-hidden className="size-3.5" /></Button>
       </div>,
       meta: { label: '操作', className: 'w-[90px]', cellClassName: 'w-[90px]' }
     } as ProductTableColumn<AccessGroup>] : [])
@@ -196,7 +201,7 @@ export function AccessGroupManagement({ canWrite }: { canWrite: boolean }) {
         toolbarAction={canWrite ? <Button variant="primary" size="xs" onClick={() => { save.reset(); setEditor('create'); }}><Plus aria-hidden className="size-3.5" />新建用户组</Button> : undefined}
       />
       {editor ? <GroupEditor key={editor === 'create' ? 'create' : editor.id} current={editor === 'create' ? undefined : editor} error={save.error ? message(save.error, '用户组保存失败') : undefined} saving={save.isPending} onClose={() => setEditor(undefined)} onSave={(value) => save.mutate({ current: editor === 'create' ? undefined : editor, value })} /> : null}
-      {deleting ? <ProductDialog title="确认删除" onClose={() => setDeleting(undefined)}><div className="grid gap-5 p-5"><p className="m-0 text-[13px] text-ink-2">确定删除“{deleting.name}”？</p><p className="m-0 text-[12px] leading-5 text-ink-3">如果该用户组已被模型/MCP 授权或外部组映射引用，需先解除关联。</p>{remove.error ? <p role="alert" className="m-0 text-[12.5px] text-red">{message(remove.error, '用户组删除失败')}</p> : null}<footer className="flex justify-end gap-2 border-t border-line pt-4"><Button size="sm" onClick={() => setDeleting(undefined)}>取消</Button><Button variant="primary" size="sm" className="bg-red text-white" disabled={remove.isPending} onClick={() => remove.mutate(deleting)}>{remove.isPending ? '删除中' : '删除'}</Button></footer></div></ProductDialog> : null}
+      {deleting ? <ProductDialog title="确认删除" onClose={closeDelete}><div className="grid gap-5 p-5"><p className="m-0 text-[13px] text-ink-2">确定删除“{deleting.name}”？</p><p className="m-0 text-[12px] leading-5 text-ink-3">如果该用户组已被模型/MCP 授权或外部组映射引用，需先解除关联。</p>{remove.error ? <p role="alert" className="m-0 text-[12.5px] text-red">{message(remove.error, '用户组删除失败')}</p> : null}<footer className="flex justify-end gap-2 border-t border-line pt-4"><Button size="sm" disabled={remove.isPending} onClick={closeDelete}>取消</Button><Button variant="primary" size="sm" className="bg-red text-white" disabled={remove.isPending} onClick={() => remove.mutate(deleting)}>{remove.isPending ? '删除中' : '删除'}</Button></footer></div></ProductDialog> : null}
     </>
   );
 }

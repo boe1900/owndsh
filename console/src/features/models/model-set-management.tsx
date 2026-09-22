@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖生成的模型集/受管模型 operation、TanStack Query/Form 与产品表格/对话框，共享 lib/crypto 生成 HTTP/HTTPS 通用幂等键。
- * [OUTPUT]: 提供带供应商/模型 ID 辨识的扁平模型集列表、创建、整体替换、删除和 revision CAS 管理视图。
+ * [OUTPUT]: 提供带供应商/模型 ID 辨识的扁平模型集列表、创建、整体替换、删除和 revision CAS 管理视图；删除失败只在当前确认弹窗呈现，关闭后清理状态。
  * [POS]: features/models 的批量授权资源管理器；内部只保存受管模型 ID，供应商信息来自目录投影。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -180,6 +180,11 @@ export function ModelSetManagement({ canWrite }: { canWrite: boolean }) {
       await queryClient.invalidateQueries({ queryKey: ['models', 'sets'] });
     }
   });
+  const closeDelete = () => {
+    if (remove.isPending) return;
+    remove.reset();
+    setDeleting(undefined);
+  };
   const columns = useMemo<ReadonlyArray<ProductTableColumn<ModelSet>>>(() => [
     { accessorKey: 'name', header: '模型集', cell: ({ getValue }) => <span className="block truncate font-medium" title={String(getValue())}>{String(getValue())}</span>, meta: { label: '模型集', className: 'w-[280px]', cellClassName: 'w-[280px]' } },
     { accessorKey: 'modelCount', header: '模型数', meta: { label: '模型数', className: 'w-[100px]', cellClassName: 'w-[100px]' } },
@@ -192,7 +197,7 @@ export function ModelSetManagement({ canWrite }: { canWrite: boolean }) {
       id: 'actions', header: '操作', enableGlobalFilter: false, enableHiding: false, enableSorting: false,
       cell: ({ row }: { row: { original: ModelSet } }) => <div className="flex items-center gap-1">
         <Button variant="quiet" size="xs" className="size-7 rounded-md p-0" aria-label={`编辑 ${row.original.name}`} title="编辑" onClick={() => { save.reset(); setEditor(row.original); }}><Pencil aria-hidden className="size-3.5" /></Button>
-        <Button variant="quiet" size="xs" className="size-7 rounded-md p-0 text-red" aria-label={`删除 ${row.original.name}`} title="删除" onClick={() => { remove.reset(); setDeleting(row.original); }}><Trash2 aria-hidden className="size-3.5" /></Button>
+        <Button variant="quiet" size="xs" className="size-7 rounded-md p-0 text-red" aria-label={`删除 ${row.original.name}`} title="删除" onClick={() => { remove.reset(); setNotice(undefined); setDeleting(row.original); }}><Trash2 aria-hidden className="size-3.5" /></Button>
       </div>,
       meta: { label: '操作', className: 'w-[90px]', cellClassName: 'w-[90px]' }
     } as ProductTableColumn<ModelSet>] : [])
@@ -217,7 +222,7 @@ export function ModelSetManagement({ canWrite }: { canWrite: boolean }) {
         toolbarAction={canWrite ? <Button variant="primary" size="xs" disabled={models.isLoading || models.isError} onClick={() => { save.reset(); setEditor('create'); }}><Plus aria-hidden className="size-3.5" />新建模型集</Button> : undefined}
       />
       {editor ? <ModelSetEditor key={editor === 'create' ? 'create' : editor.id} current={editor === 'create' ? undefined : editor} error={save.error ? message(save.error, '模型集保存失败') : undefined} models={models.data ?? []} saving={save.isPending} onClose={() => setEditor(undefined)} onSave={(value) => save.mutate({ current: editor === 'create' ? undefined : editor, value })} /> : null}
-      {deleting ? <ProductDialog title="确认删除" onClose={() => setDeleting(undefined)}><div className="grid gap-5 p-5"><p className="m-0 text-[13px] text-ink-2">确定删除“{deleting.name}”？</p><p className="m-0 text-[12px] leading-5 text-ink-3">如果该模型集已被访问授权或配额策略引用，需先解除关联。</p>{remove.error ? <p role="alert" className="m-0 text-[12.5px] text-red">{message(remove.error, '模型集删除失败')}</p> : null}<footer className="flex justify-end gap-2 border-t border-line pt-4"><Button size="sm" onClick={() => setDeleting(undefined)}>取消</Button><Button variant="primary" size="sm" className="bg-red text-white" disabled={remove.isPending} onClick={() => remove.mutate(deleting)}>{remove.isPending ? '删除中' : '删除'}</Button></footer></div></ProductDialog> : null}
+      {deleting ? <ProductDialog title="确认删除" onClose={closeDelete}><div className="grid gap-5 p-5"><p className="m-0 text-[13px] text-ink-2">确定删除“{deleting.name}”？</p><p className="m-0 text-[12px] leading-5 text-ink-3">如果该模型集已被访问授权或配额策略引用，需先解除关联。</p>{remove.error ? <p role="alert" className="m-0 text-[12.5px] text-red">{message(remove.error, '模型集删除失败')}</p> : null}<footer className="flex justify-end gap-2 border-t border-line pt-4"><Button size="sm" disabled={remove.isPending} onClick={closeDelete}>取消</Button><Button variant="primary" size="sm" className="bg-red text-white" disabled={remove.isPending} onClick={() => remove.mutate(deleting)}>{remove.isPending ? '删除中' : '删除'}</Button></footer></div></ProductDialog> : null}
     </>
   );
 }

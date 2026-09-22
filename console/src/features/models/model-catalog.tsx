@@ -682,6 +682,7 @@ export function ModelCatalog() {
           label={deleteTarget.name ?? deleteTarget.alias}
           saving={modelAction.isPending}
           onClose={() => {
+            if (modelAction.isPending) return;
             modelAction.reset();
             setDeleteTarget(null);
           }}

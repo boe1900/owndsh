@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖生成的授权/配额/用户组/模型集 operation、console 权限、TanStack Query、产品表格与策略编辑器，共享 lib/crypto 生成 HTTP/HTTPS 通用幂等键。
- * [OUTPUT]: 提供模型访问、互斥 TOKEN/RATE 三视图，以及幂等/CAS 管理动作与当前 Token 窗口读取。
+ * [OUTPUT]: 提供模型访问、互斥 TOKEN/RATE 三视图，以及幂等/CAS 管理动作与当前 Token 窗口读取；删除失败只在当前确认弹窗呈现，关闭后清理状态。
  * [POS]: features/access 的产品策略工作台；按 Server 策略类型分表分表单，不在浏览器计算有效规则。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -342,6 +342,11 @@ export function AccessPolicyPage() {
       await queryClient.invalidateQueries({ queryKey: target.kind === 'grant' ? ['access', 'model-grants'] : ['access', 'quotas'] });
     }
   });
+  const closeDelete = () => {
+    if (remove.isPending) return;
+    remove.reset();
+    setDeleteTarget(null);
+  };
   const grantRows = useMemo(() => grants.data?.pages.flatMap((page) => page.items) ?? [], [grants.data]);
   const quotaRows = useMemo(() => quotas.data?.pages.flatMap((page) => page.items) ?? [], [quotas.data]);
   const visibleQuotaRows = useMemo(
@@ -396,7 +401,7 @@ export function AccessPolicyPage() {
       </div>
       {grantEditor ? <GrantEditorDialog key={grantEditor === 'create' ? 'create' : grantEditor.id} current={grantEditor === 'create' ? undefined : grantEditor} error={saveGrant.error ? errorMessage(saveGrant.error, '模型授权保存失败') : undefined} accessGroups={accessGroups.data ?? []} modelSets={modelSets.data ?? []} models={models.data ?? []} saving={saveGrant.isPending} onClose={() => setGrantEditor(null)} onSave={(value) => saveGrant.mutate({ current: grantEditor === 'create' ? undefined : grantEditor, value })} /> : null}
       {quotaEditor ? <QuotaEditorDialog key={quotaEditor === 'create' ? `create-${editingQuotaType}` : quotaEditor.id} current={quotaEditor === 'create' ? undefined : quotaEditor} error={saveQuota.error ? errorMessage(saveQuota.error, '配额策略保存失败') : quotaWindows.error ? errorMessage(quotaWindows.error, '当前配额用量加载失败') : undefined} modelSets={modelSets.data ?? []} models={models.data ?? []} policyType={editingQuotaType} windows={quotaWindows.data ?? []} windowsLoading={quotaWindows.isLoading} saving={saveQuota.isPending} onClose={() => setQuotaEditor(null)} onSave={(value) => saveQuota.mutate({ current: quotaEditor === 'create' ? undefined : quotaEditor, value })} /> : null}
-      {deleteTarget ? <DeletePolicyDialog kind={deleteTarget.kind} error={remove.error ? errorMessage(remove.error, '策略删除失败') : undefined} label={deleteTarget.kind === 'grant' ? deleteTarget.value.resourceName : deleteTarget.value.name} saving={remove.isPending} onClose={() => setDeleteTarget(null)} onConfirm={() => remove.mutate(deleteTarget)} /> : null}
+      {deleteTarget ? <DeletePolicyDialog kind={deleteTarget.kind} error={remove.error ? errorMessage(remove.error, '策略删除失败') : undefined} label={deleteTarget.kind === 'grant' ? deleteTarget.value.resourceName : deleteTarget.value.name} saving={remove.isPending} onClose={closeDelete} onConfirm={() => remove.mutate(deleteTarget)} /> : null}
     </div>
   );
 }

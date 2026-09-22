@@ -285,7 +285,7 @@ export function DeletePolicyDialog({ error, kind, label, onClose, onConfirm, sav
         <p className="m-0 text-[13px] leading-6 text-ink-2">确定删除“{label}”？该操作会立即影响后续模型请求。</p>
         {kind === 'quota' ? <p className="m-0 text-[12px] leading-5 text-ink-3">已有使用窗口记录的配额策略不能删除，请改为停用。</p> : null}
         {error ? <p role="alert" className="m-0 rounded-md bg-red-tint px-3 py-2 text-[12.5px] text-red">{error}</p> : null}
-        <footer className="flex justify-end gap-2 border-t border-line pt-4"><Button type="button" size="sm" onClick={onClose}>取消</Button><Button type="button" variant="primary" size="sm" className="bg-red text-white hover:brightness-95" disabled={saving} onClick={onConfirm}>{saving ? '删除中' : '删除'}</Button></footer>
+        <footer className="flex justify-end gap-2 border-t border-line pt-4"><Button type="button" size="sm" disabled={saving} onClick={onClose}>取消</Button><Button type="button" variant="primary" size="sm" className="bg-red text-white hover:brightness-95" disabled={saving} onClick={onConfirm}>{saving ? '删除中' : '删除'}</Button></footer>
       </div>
     </ProductDialog>
   );

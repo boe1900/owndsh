@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖选定 LDAP 身份源、目录组发现、外部组映射、产品用户组 operation、TanStack Query 和产品对话框，共享 lib/crypto 生成 HTTP/HTTPS 通用幂等键。
- * [OUTPUT]: 提供绑定单个 LDAP 身份源的 Group DN 映射列表、创建和删除操作。
+ * [OUTPUT]: 提供绑定单个 LDAP 身份源的 Group DN 映射列表、创建和删除操作；操作失败留在当前表单或确认弹窗，关闭后清理状态。
  * [POS]: features/members 身份接入表格的 LDAP 行操作；只保存映射，不镜像目录成员、不展开嵌套组。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -59,8 +59,9 @@ function nextCursor(page: GroupMappingPageData) {
   return page.page.hasMore ? page.page.nextCursor ?? undefined : undefined;
 }
 
-function MappingEditor({ accessGroups, onClose, onSave, saving, source }: {
+function MappingEditor({ accessGroups, error, onClose, onSave, saving, source }: {
   accessGroups: AccessGroup[];
+  error?: string;
   onClose: () => void;
   onSave: (group: LdapDirectoryGroup, accessGroupId: string) => void;
   saving: boolean;
@@ -103,6 +104,7 @@ function MappingEditor({ accessGroups, onClose, onSave, saving, source }: {
         </label>
         {accessGroups.length === 0 ? <p className="m-0 text-[12.5px] text-ink-3">请先创建产品用户组</p> : null}
         {search.error ? <p role="alert" className="m-0 text-[12.5px] text-red">{message(search.error, 'LDAP 组搜索失败')}</p> : null}
+        {error ? <p role="alert" className="m-0 text-[12.5px] text-red">{error}</p> : null}
       </div>
       <footer className="flex justify-end gap-2 border-t border-line px-5 py-4">
         <Button type="button" size="sm" onClick={onClose}>取消</Button>
@@ -119,6 +121,7 @@ export function LdapGroupMappingDialog({ canWrite, onClose, source }: {
 }) {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState<GroupMapping>();
   const accessGroups = useQuery({ queryKey: ['members', 'access-groups', 'mapping'], queryFn: loadAccessGroups });
   const mappings = useInfiniteQuery({
     queryKey: ['members', 'ldap-group-mappings', source.id],
@@ -141,18 +144,41 @@ export function LdapGroupMappingDialog({ canWrite, onClose, source }: {
     mutationFn: async (mapping: GroupMapping) => unwrap(await deleteGroupMapping({
       headers: { 'If-Match': mapping.revision }, path: { mappingId: mapping.id }
     }), 'LDAP 组映射删除失败'),
-    onSuccess: async () => queryClient.invalidateQueries({ queryKey: ['members', 'ldap-group-mappings', source.id] })
+    onSuccess: async () => {
+      setDeleting(undefined);
+      await queryClient.invalidateQueries({ queryKey: ['members', 'ldap-group-mappings', source.id] });
+    }
   });
+  const closeDelete = () => {
+    if (remove.isPending) return;
+    remove.reset();
+    setDeleting(undefined);
+  };
   const accessGroupNames = useMemo(() => new Map(accessGroups.data?.map((group) => [group.id, group.name])), [accessGroups.data]);
   const columns = useMemo<ReadonlyArray<ProductTableColumn<GroupMapping>>>(() => [
     { accessorKey: 'externalGroup', header: 'LDAP Group DN', cell: ({ getValue }) => <span className="block truncate font-mono text-[11px]" title={String(getValue())}>{String(getValue())}</span>, meta: { label: 'LDAP Group DN', className: 'w-[560px]', cellClassName: 'w-[560px]' } },
     { id: 'accessGroup', accessorFn: (row) => accessGroupNames.get(row.accessGroupId) ?? row.accessGroupId, header: '产品用户组', meta: { label: '产品用户组', className: 'w-[220px]', cellClassName: 'w-[220px]' } },
-    ...(canWrite ? [{ id: 'actions', header: '', enableGlobalFilter: false, enableHiding: false, enableSorting: false, cell: ({ row }: { row: { original: GroupMapping } }) => <Button variant="quiet" size="xs" className="size-7 rounded-md p-0 text-red" disabled={remove.isPending} aria-label="删除组映射" title="删除组映射" onClick={() => { if (window.confirm(`确认删除 ${row.original.externalGroup} 的映射？`)) remove.mutate(row.original); }}><Trash2 aria-hidden className="size-3.5" /></Button>, meta: { label: '操作', className: 'w-16', cellClassName: 'w-16' } } as ProductTableColumn<GroupMapping>] : [])
+    ...(canWrite ? [{ id: 'actions', header: '', enableGlobalFilter: false, enableHiding: false, enableSorting: false, cell: ({ row }: { row: { original: GroupMapping } }) => <Button variant="quiet" size="xs" className="size-7 rounded-md p-0 text-red" disabled={remove.isPending} aria-label="删除组映射" title="删除组映射" onClick={() => { remove.reset(); setDeleting(row.original); }}><Trash2 aria-hidden className="size-3.5" /></Button>, meta: { label: '操作', className: 'w-16', cellClassName: 'w-16' } } as ProductTableColumn<GroupMapping>] : [])
   ], [accessGroupNames, canWrite, remove.isPending]);
-  const error = accessGroups.error ?? mappings.error ?? save.error ?? remove.error;
+  const error = accessGroups.error ?? mappings.error;
 
   if (editing) {
-    return <MappingEditor source={source} accessGroups={accessGroups.data ?? []} saving={save.isPending} onClose={() => setEditing(false)} onSave={(group, accessGroupId) => save.mutate({ group, accessGroupId })} />;
+    return <MappingEditor source={source} accessGroups={accessGroups.data ?? []} error={save.error ? message(save.error, 'LDAP 组映射保存失败') : undefined} saving={save.isPending} onClose={() => { save.reset(); setEditing(false); }} onSave={(group, accessGroupId) => save.mutate({ group, accessGroupId })} />;
+  }
+
+  if (deleting) {
+    return (
+      <ProductDialog title="确认删除" onClose={closeDelete}>
+        <div className="grid gap-5 p-5">
+          <p className="m-0 break-words text-[13px] text-ink-2">确定删除“{deleting.externalGroup}”的 LDAP 组映射？</p>
+          {remove.error ? <p role="alert" className="m-0 rounded-md bg-red-tint px-3 py-2 text-[12.5px] text-red">{message(remove.error, 'LDAP 组映射删除失败')}</p> : null}
+          <footer className="flex justify-end gap-2 border-t border-line pt-4">
+            <Button size="sm" disabled={remove.isPending} onClick={closeDelete}>取消</Button>
+            <Button variant="primary" size="sm" className="bg-red text-white" disabled={remove.isPending} onClick={() => remove.mutate(deleting)}>{remove.isPending ? '删除中' : '删除'}</Button>
+          </footer>
+        </div>
+      </ProductDialog>
+    );
   }
 
   return (
