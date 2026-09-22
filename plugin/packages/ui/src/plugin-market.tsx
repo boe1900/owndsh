@@ -31,7 +31,7 @@ const ERRORS: Record<string, string> = {
   ENT_PLUGIN_INCOMPATIBLE: '安装地址不可用，或实际包名、版本、插件入口与配置不符',
   ENT_PERMISSION_DENIED: '插件已下架或可见范围已变更，请刷新',
   ENT_PLUGIN_BUSY: '另一项插件操作正在进行',
-  ENT_PLUGIN_CLI_FAILED: '插件安装工具执行失败，请重试',
+  ENT_PLUGIN_MANAGER_FAILED: '官方插件管理器执行失败，请重试',
   ENT_PLUGIN_LOADER_INACTIVE: '插件未能启动，请重试或卸载',
   ENT_AUTH_REQUIRED: '请先登录企业账号',
 }
@@ -232,12 +232,13 @@ export function EnterprisePluginMarket({ store }: {
   const selectedItem = selectedCatalog
   const selectedLocal = selected === undefined ? undefined : local.get(selected)
   const selectedInstalling = selected !== undefined && snapshot.pluginBusy?.packageName === selected && snapshot.pluginBusy.action === 'install'
+  const selectedRemoving = selected !== undefined && snapshot.pluginBusy?.packageName === selected && snapshot.pluginBusy.action === 'remove'
   useEffect(() => {
-    // 安装按钮禁用会丢失焦点；移到关闭按钮，保持 Tab/Escape 在详情内。
-    if (selectedInstalling) details.current?.querySelector<HTMLButtonElement>('button')?.focus()
-  }, [selectedInstalling])
-  const selectedWaiting = !selectedInstalling && selectedLocal?.state === 'RESTART_REQUIRED'
-  const selectedError = selectedInstalling ? undefined : fatal
+    // 操作按钮禁用会丢失焦点；移到关闭按钮，保持 Tab/Escape 在详情内。
+    if (selectedInstalling || selectedRemoving) details.current?.querySelector<HTMLButtonElement>('button')?.focus()
+  }, [selectedInstalling, selectedRemoving])
+  const selectedWaiting = !selectedInstalling && !selectedRemoving && selectedLocal?.state === 'RESTART_REQUIRED'
+  const selectedError = selectedInstalling || selectedRemoving ? undefined : fatal
     ?? (installAttempt === selected ? snapshot.pluginErrorCode : undefined)
     ?? selectedLocal?.lastErrorCode ?? selectedItem?.installErrorCode
   const selectedVersion = (selectedLocal?.desiredState === 'INSTALLED' ? selectedLocal.version : undefined) ?? selectedItem?.version
@@ -252,12 +253,12 @@ export function EnterprisePluginMarket({ store }: {
     const sameVersion = record?.desiredState === 'INSTALLED' && record.version === item?.version && record.state === 'ACTIVE'
     return <div className="own-market-actions own-market-detail-footer">
       <Button size="sm" variant={selectedWaiting ? 'primary' : 'ghost'} className={selectedWaiting ? 'own-market-confirm' : undefined}
-        onClick={() => setSelected(undefined)}>{selectedWaiting ? '完成' : '关闭'}</Button>
+        disabled={busy} onClick={() => setSelected(undefined)}>{selectedWaiting ? '完成' : '关闭'}</Button>
       {!waiting && record?.version != null && (record.desiredState === 'INSTALLED' || record.state === 'FAILED') ? <ConfirmAction
         title="卸载企业插件" description={name} confirmLabel="确认卸载" disabled={busy || !connected || fatal !== undefined}
-        onConfirm={() => { setSelected(undefined); void store.removePlugin(name) }}>
+        onConfirm={() => { void store.removePlugin(name) }}>
         {open => <Button size="sm" variant="ghost" aria-label={`卸载 ${name}`} title="卸载" disabled={busy || !connected || fatal !== undefined}
-          icon={<Trash2 size={14} aria-hidden />} onClick={open}>卸载</Button>}
+          aria-busy={selectedRemoving} icon={selectedRemoving ? <StateDot state="ongoing" size={12} /> : <Trash2 size={14} aria-hidden />} onClick={open}>{selectedRemoving ? '卸载中…' : '卸载'}</Button>}
       </ConfirmAction> : null}
       {item && !sameVersion && !waiting ? <Button size="sm" variant="primary" className="own-market-confirm" data-tone={enterprisePluginCardPresentation(item, record).tone}
         disabled={busy || !connected || fatal !== undefined || item.installErrorCode !== undefined || item.pluginVersionId !== available.get(name)?.pluginVersionId}
@@ -308,7 +309,11 @@ export function EnterprisePluginMarket({ store }: {
         const source = metadata?.repositoryUrl ? repositoryHref(metadata.repositoryUrl) : undefined
         const sourceHost = source ? new URL(source).hostname.replace(/^www\./, '') : undefined
         const installing = snapshot.pluginBusy?.packageName === name && snapshot.pluginBusy.action === 'install'
-        const presentation = installing ? { tone: 'pending', hint: '正在安装：请稍候', action: '正在安装' } : enterprisePluginCardPresentation(item, record)
+        const removing = snapshot.pluginBusy?.packageName === name && snapshot.pluginBusy.action === 'remove'
+        const pending = installing || removing
+        const presentation = installing ? { tone: 'pending', hint: '正在安装：请稍候', action: '正在安装' }
+          : removing ? { tone: 'pending', hint: '正在卸载：请稍候', action: '正在卸载' }
+          : enterprisePluginCardPresentation(item, record)
         const title = metadata?.displayName ?? name
         const version = record?.version ?? item?.version
         return <article className="own-market-card" key={name} aria-label={title}
@@ -331,7 +336,7 @@ export function EnterprisePluginMarket({ store }: {
               {(metadata?.categories.length ? metadata.categories.slice(0, 2) : ['未分类']).map(value => <Pill key={value}>{value}</Pill>)}
             </div>
             <Button size="sm" className="own-market-card-action" data-tone={presentation.tone} aria-haspopup="dialog" aria-label={`${presentation.action}: ${title}`}
-              aria-busy={installing} icon={installing ? <StateDot state="ongoing" size={12} /> : undefined}
+              aria-busy={pending} icon={pending ? <StateDot state="ongoing" size={12} /> : undefined}
               disabled={busy || presentation.tone === 'pending' || item?.installErrorCode !== undefined} onClick={() => openDetails(name)}>
               {['enabled', 'update'].includes(presentation.tone) ? <span className="own-market-dot" data-tone={presentation.tone} aria-hidden /> : null}
               {presentation.action}
@@ -341,7 +346,7 @@ export function EnterprisePluginMarket({ store }: {
       })}
     </div>
     {connected && status ? <div className="own-market-summary">已展示 {rows.length} 个插件</div> : null}
-    <Modal open={connected && selected !== undefined} onClose={() => setSelected(undefined)} headless className="own-market-dialog own-market-detail" title={selectedItem?.installation?.displayName ?? '插件详情'}>
+    <Modal open={connected && selected !== undefined} onClose={() => { if (!busy) setSelected(undefined) }} headless className="own-market-dialog own-market-detail" title={selectedItem?.installation?.displayName ?? '插件详情'}>
       <div ref={details}>
         <div className="own-market-detail-header">
           <div>
@@ -351,7 +356,7 @@ export function EnterprisePluginMarket({ store }: {
             </div>
             <p className="own-market-detail-author">开发者：{selectedItem?.installation.author || '企业发布'}</p>
           </div>
-          <Button size="sm" variant="ghost" className="own-market-detail-close" aria-label="关闭详情" icon={<X size={18} aria-hidden />} onClick={() => setSelected(undefined)} />
+          <Button size="sm" variant="ghost" className="own-market-detail-close" aria-label="关闭详情" disabled={busy} icon={<X size={18} aria-hidden />} onClick={() => setSelected(undefined)} />
         </div>
         <div className="own-market-detail-body">
           <h4>功能说明</h4>
@@ -362,6 +367,7 @@ export function EnterprisePluginMarket({ store }: {
           </dl>
           {selectedItem && selectedItem.pluginVersionId !== available.get(selected ?? '')?.pluginVersionId ? <p className="own-market-detail-message" role="status">可用版本已变化，请关闭详情后重新选择。</p> : null}
           {selectedInstalling ? <div className="own-market-detail-feedback" role="status"><StateDot state="ongoing" size={14} /><span>正在安装中…</span></div>
+            : selectedRemoving ? <div className="own-market-detail-feedback" role="status"><StateDot state="ongoing" size={14} /><span>正在卸载中…</span></div>
             : selectedError ? <div className="own-market-detail-feedback" role="alert"><StateDot state="error" size={14} /><span>{errorMessage(selectedError)}</span></div>
             : selectedWaiting ? <div className="own-market-detail-feedback" role="status"><StateDot state="done" size={14} /><div>
               {selectedLocal?.desiredState === 'INSTALLED' ? '安装完成，重启客户端后生效。' : '插件变更已保存，重启客户端后生效。'}

@@ -24,7 +24,7 @@ Harness Host 的企业平台控制面。`EnterprisePlatformService` 通过 Cordi
 
 `baseUrl` 只是安装层可选默认值。未提供时 Service 进入 `UNCONFIGURED`，员工在全屏门禁中填写
 Server 地址；地址通过 `@deepseek-ai/dsh-settings` 持久化到 `$DSH_HOME/settings.yaml` 的
-`owndsh.serverUrl`。地址必须是不含 user-info、path、query 或 fragment 的 HTTP 或 HTTPS origin；
+`owndsh-plugin.baseUrl`。地址必须是不含 user-info、path、query 或 fragment 的 HTTP 或 HTTPS origin；
 账号设置只读显示地址，员工须先退出登录，再在门禁页修改。Host 拒绝已登录、授权、设备注册、
 恢复会话和退出过程中的修改；通用 settings 写入不可绕过此流程。初次配置或登录失败后仍可纠正地址，
 凭据清理失败时不写新地址，切回旧地址不会复活旧账号。运行时修改统一经 `setServerUrl()`；启动时仍读取磁盘配置。

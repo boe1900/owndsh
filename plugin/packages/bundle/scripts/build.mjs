@@ -32,6 +32,7 @@ await build({
     '@deepseek-ai/dsh-credentials',
     '@deepseek-ai/dsh-llm',
     '@deepseek-ai/dsh-llm-pi-ai',
+    '@deepseek-ai/dsh-plugin-manager',
     '@deepseek-ai/dsh-mcp-client',
     '@deepseek-ai/dsh-mcp-resources',
     '@modelcontextprotocol/client',

@@ -7,7 +7,7 @@
 
 # MCP 端侧运行时详细设计
 
-父设计：[mcp-management-design.md](mcp-management-design.md)。目标 Harness 0.1.6-alpha.2；旧 rc.2 探针证据不能代替目标版本验收。
+父设计：[mcp-management-design.md](mcp-management-design.md)。目标 Harness 0.1.7-alpha.1；旧 alpha.2/rc.2 探针证据不能代替目标版本验收。
 
 ## 1. 组件、依赖与作用域
 
@@ -61,7 +61,7 @@ type McpCredentialPayload = {
 )
 ```
 
-这是当前 `McpCredentialManager` 的持久记录；OAuth 分支只保存官方 SDK 的 `StoredOAuthTokens` 与 `StoredOAuthClientInformation`，不解释或改写 token、issuer、refresh 语义。MCP 尚未上线，只维护当前记录格式，存放于独立 `owndsh-mcp/` 命名空间。
+这是当前 `McpCredentialManager` 的持久记录；OAuth 分支只保存官方 SDK 的 `StoredOAuthTokens` 与 `StoredOAuthClientInformation`，不解释或改写 token、issuer、refresh 语义。MCP 尚未上线，只维护当前记录格式，存放于独立 `owndsh-mcp/` 凭据命名空间；连接意愿写入官方 bundle settings 的 `owndsh-plugin.mcp.desiredConnected`。
 
 实际实现用 discriminated union，拒绝分支混用和未知字段。bindingDigest 是 URL/auth/公共 headers/transport 的稳定摘要；所有可能改变秘密发送目标的配置变化都使旧记录失效。
 摘要使用 bundle `mcp-oauth.ts` 内部的 `canonicalizeJson`，对象键顺序不影响绑定；auth 的 issuer/resource/clientId/scopes/endpoints 全部参与摘要。不会对新 URL 尝试旧 Key，不仅按 serverName 存秘密。显示名/呈现/超时/reconnect/revision 变化不丢 OAuth。
@@ -74,7 +74,7 @@ SDK verifier 只在当前 `McpCredentialManager` 内存中保存，授权 code �
 注销/平台认证过期/切换 origin 或账号/明确设备撤销：先递增 session generation、关执行门禁、abort，再删除本身份 MCP 凭据与连接意愿。普通网络失败保留 credential，但过期授权 lease 禁止使用。
 当前 runtime 会等待旧 manager 的写入/refresh 和旧 fiber 清理，新身份再接受连接；退出按 owner 清理记录，包括先前已撤权或改绑定的孤立记录。Host 正常销毁只取消操作和清空内存，保留持久 grant 供同身份重启使用。浏览器取消发生在 provider 提交期间时，按本次写入的完整记录比较回退，避免迟到凭据复活或覆盖后续轮换。
 
-服务被撤权：停止连接并取消 flow，本地凭据保留隔离状态以便同用户同 binding 重新授权恢复；显式“断开连接”一定删除本机凭据但保留管理员下发的服务列表项。删除失败目标为 CLEANUP_REQUIRED 并禁止重新使用，允许重试；不得显示清理成功。runtime 返回固定错误，状态投影为待清理，端侧 UI 提供重试；持久连接意愿由端侧 `owndsh-mcp` settings 保存。
+服务被撤权：停止连接并取消 flow，本地凭据保留隔离状态以便同用户同 binding 重新授权恢复；显式“断开连接”一定删除本机凭据但保留管理员下发的服务列表项。删除失败目标为 CLEANUP_REQUIRED 并禁止重新使用，允许重试；不得显示清理成功。runtime 返回固定错误，状态投影为待清理，端侧 UI 提供重试；持久连接意愿由官方 `owndsh-plugin` bundle settings 保存。
 
 ## 3. 授权执行判定
 

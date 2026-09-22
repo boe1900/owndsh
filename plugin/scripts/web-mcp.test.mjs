@@ -23,7 +23,7 @@ const hash = value => createHash('sha256').update(value).digest('hex')
 const bundleHash = hash(await readFile(join(profile, 'node_modules/owndsh-plugin/lib/index.js')))
 assert.equal(bundleHash, hash(await readFile(new URL('../packages/bundle/lib/index.js', import.meta.url))), 'Installed profile must contain the current built bundle')
 const manifest = requireRuntime('@deepseek-ai/dsh/package.json')
-assert.equal(manifest.version, '0.1.6-alpha.2')
+assert.equal(manifest.version, '0.1.7-alpha.1')
 const dshEntry = join(dirname(requireRuntime.resolve('@deepseek-ai/dsh/package.json')), 'lib/bin.js')
 const { chromium } = await import(process.env.OWNDSH_PLAYWRIGHT_MODULE ?? 'playwright')
 const home = await mkdtemp(join(tmpdir(), 'owndsh-web-mcp-'))
@@ -203,7 +203,7 @@ async function handle(req, res) {
 const server = createServer((req, res) => { void handle(req, res).catch(error => { errors.push(error.stack); json(res, { error: 'fixture failure' }, 500) }) })
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
 origin = `http://127.0.0.1:${server.address().port}`
-await writeFile(join(home, 'profiles/web/cordis.patch.yml'), `- id: owndsh\n  config:\n    baseUrl: '${origin}'\n    profile: web\n- id: session-title-llm\n  disabled: true\n`)
+  await writeFile(join(home, 'profiles/web/cordis.patch.yml'), `- id: owndsh\n  config:\n    baseUrl: '${origin}'\n- id: session-title-llm\n  disabled: true\n`)
 const env = { ...process.env, DSH_HOME: home, OWNDSH_AUTH_URL_FILE: authorizeFile,
   SSH_TTY: 'web-mcp-e2e', DSH_PERMISSION_MODE: 'danger-full-access', PATH: `${join(home, 'opener')}:${dirname(process.execPath)}:${process.env.PATH}` }
 let harness, browser, page, output = ''

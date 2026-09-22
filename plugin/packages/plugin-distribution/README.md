@@ -16,11 +16,11 @@
 
 员工在设置的插件 tab 搜索/筛选分类，查看详情并确认固定版本后安装。每次安装重新读取当前授权；打开页面、刷新、发布新版本均不会自动安装。删除范围或退休只停止新安装，显式 ABSENT 才撤回受管插件。
 
-Web 调用官方 `dsh plugin --profile <profile> add --save-exact <target>`，Desktop 调用 `desktopPnpm.runPlugin()`。Git/URL/路径目标绑定到管理员指定的依赖键；安装完成后核对实际包名、版本和 `dsh.bundle.patch` 文件。版本切换使用同一安装流程。
+Web/Desktop 都调用官方 `pluginManager.installBundle()`、`removeBundle()` 和 `listBundles()`。Git/URL/路径目标绑定到管理员指定的依赖键；安装完成后核对实际包名、版本、启用状态和 `dsh.bundle.patch` 文件。版本切换使用官方 `installBundle()` 写入新的精确目标。
 
 允许正常 `dependencies`、peer dependencies 和构建脚本声明。获取依赖、registry、锁文件及脚本允许策略全部由宿主现有 pnpm 处理，不附加 `--ignore-scripts` 或自行安装依赖。企业私有包使用宿主已配置的 `.npmrc`、Git 凭据/SSH；Server 不保存或转发这些凭据。宿主若阻止构建脚本，应在其 pnpm 配置中授权对应依赖后重试。
 
-安装或卸载成功进入 `RESTART_REQUIRED`，下一进程读取官方 `pluginInventory.list()` 确认 Loader 后才标记 ACTIVE。支持 Desktop 官方重启按钮，其他宿主提示用户手动重启。失败记录稳定错误码，允许重试或卸载，不把命令退出码当作插件启用成功。
+官方结果为 `restart-required` 时进入 `RESTART_REQUIRED`，下一进程读取官方 `pluginInventory.list()` 确认 Loader 后才标记 ACTIVE。Desktop 有 `desktopActions.requestRestart()` 时显示官方立即/稍后重启操作，其他宿主提示用户手动重启。失败记录稳定错误码，允许重试或卸载，不把包管理退出码当作插件启用成功。
 
 本机选择写入 `$DSH_HOME/enterprise/plugin-installations.json`，不读旧 `managed-plugins.json`。V34 清空旧上传目录、可见范围和库存并删除制品列，需要重新登记插件并同步更新 Server/Console/员工插件；不迁移旧上传制品，不提供旧上传、下载或验签接口。历史审计账本保留。OwnDsh 与 Desktop 核心包禁止通过企业目录更新或卸载。
 

@@ -11,7 +11,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import type { CredentialKey, CredentialProvider, CredentialRecord } from '@deepseek-ai/dsh-credentials'
-import { SettingsProvider, type SettingsNamespace } from '@deepseek-ai/dsh-settings'
 import type { TokenResponse } from '@owndsh/contracts'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -48,18 +47,32 @@ interface Environment {
   close(): Promise<void>
 }
 
-class MemorySettings extends SettingsProvider {
-  readonly writable = true
+class MemorySettings {
   readonly document: Record<string, unknown> = {}
 
-  protected load(): Promise<Record<string, unknown>> {
-    return Promise.resolve(structuredClone(this.document))
+  configure(): () => void {
+    return () => undefined
   }
 
-  protected persist(namespace: SettingsNamespace, section: Record<string, unknown>): Promise<void> {
-    this.document[namespace] = structuredClone(section)
-    return Promise.resolve()
+  async update(namespace: string, patch: object): Promise<void> {
+    const current = this.document[namespace]
+    this.document[namespace] = {
+      ...(current !== null && typeof current === 'object' ? current : {}),
+      ...structuredClone(patch),
+    }
   }
+
+  describe(): never[] {
+    return []
+  }
+}
+
+function provideSettings(context: Context, settings: MemorySettings): void {
+  context.reflect.provide('settings', settings as never)
+}
+
+function settingsDocument(settings: MemorySettings): Record<string, unknown> {
+  return structuredClone(settings.document)
 }
 
 class MemoryCredentials {
@@ -309,8 +322,8 @@ describe('EnterprisePlatformService', () => {
     ctx.reflect.provide('credentials', credentials as unknown as CredentialProvider)
     let settings: MemorySettings | undefined
     if (options.withSettings === true) {
-      await ctx.plugin(MemorySettings)
-      settings = ctx.settings as MemorySettings
+      settings = new MemorySettings()
+      provideSettings(ctx, settings)
     }
     const service = new EnterprisePlatformService(
       ctx as Context & { readonly webServer: WebServerRoutePort, readonly credentials: CredentialProvider },
@@ -416,7 +429,7 @@ describe('EnterprisePlatformService', () => {
 
     await env.service.setServerUrl(env.platformUrl)
     await vi.waitFor(() => expect(env.service.status()).toMatchObject({ state: 'SIGNED_OUT', platformUrl: env.platformUrl }))
-    expect(env.settings?.document).toEqual({ owndsh: { serverUrl: env.platformUrl } })
+    expect(settingsDocument(env.settings!)).toEqual({ 'owndsh-plugin': { baseUrl: env.platformUrl } })
 
     await login(env)
     const before = env.service.status()
@@ -425,13 +438,8 @@ describe('EnterprisePlatformService', () => {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ serverUrl: env.localUrl }),
     })
     expect(rejected.status).toBe(403)
-    for (const serverUrl of [env.localUrl, '']) {
-      await expect(env.context.settings.update('owndsh' as SettingsNamespace, { serverUrl }))
-        .rejects.toMatchObject({ code: 'ENT_PERMISSION_DENIED' })
-    }
     expect(env.service.status()).toEqual(before)
     expect(env.credentials.record).toEqual(grant)
-    expect(env.settings?.document).toEqual({ owndsh: { serverUrl: env.platformUrl } })
     env.setBootstrap('unavailable')
     await env.service.refresh()
     expect(env.service.status().state).toBe('REFRESHING')

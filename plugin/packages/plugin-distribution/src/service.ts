@@ -1,20 +1,15 @@
 /**
- * [INPUT]: 依赖 platform-client bootstrap/request、Harness subprocess/inventory、安装目标校验与原子状态文件
+ * [INPUT]: 依赖 platform-client bootstrap/request、官方 pluginManager/inventory、安装目标校验与原子状态文件
  * [OUTPUT]: 对外提供企业可选目录、显式安装/版本切换/卸载、重启后卸载状态收敛、撤回调和、核心保护与库存状态
- * [POS]: plugin-distribution 的串行生命周期所有者，中心决定可用范围，用户确认固定版本，宿主 pnpm 安装及解析依赖，Loader 确认重启结果
+ * [POS]: plugin-distribution 的串行生命周期所有者，中心决定可用范围，官方插件管理器执行包变更，Loader 确认重启结果
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { randomUUID } from 'node:crypto'
-import { Service } from '@deepseek-ai/cordis'
+import { Service, type Context } from '@deepseek-ai/cordis'
+import type { ChangeResult } from '@deepseek-ai/dsh-plugin-manager'
 import { zPluginInventoryResponse, zRuntimePluginAssignmentsResponse, type ManagedPluginState } from '@owndsh/contracts'
 import { resolveEnterpriseDshHome, type BootstrapSnapshot } from '@owndsh/platform-client'
-import {
-  installManagedPlugin,
-  removeManagedPlugin,
-  type DshPluginCommandOptions,
-  type DshPluginCommandPort,
-} from './cli.js'
 import { distributionError, PluginDistributionError } from './errors.js'
 import { ManagedPluginStore } from './state-store.js'
 import type {
@@ -24,7 +19,7 @@ import type {
   PluginDistributionStatus,
   RuntimePluginAssignment,
 } from './types.js'
-import { verifyAssignmentMetadata, verifyInstalledPlugin, installationTarget } from './verification.js'
+import { verifyAssignmentMetadata, installationTarget } from './verification.js'
 
 /** 企业安装包拥有、通用分发绝不能更新或卸载的完整产品代码集合。 */
 export const PROTECTED_ENTERPRISE_PACKAGES = new Set([
@@ -40,36 +35,17 @@ export const PROTECTED_ENTERPRISE_PACKAGES = new Set([
 const OWNDSH_PACKAGE = 'owndsh-plugin'
 
 interface ResolvedConfig {
-  readonly profile: string
-  readonly dshCommand: string
   readonly dshHome: string
-  readonly subprocessGraceMs: number
 }
 
 export interface PluginDistributionInternals {
   readonly now?: () => Date
   readonly runMarker?: string
   readonly store?: ManagedPluginStore
-  readonly commandPort?: DshPluginCommandPort
 }
 
 function resolveConfig(config: PluginDistributionConfig): ResolvedConfig {
-  const profile = config.profile ?? 'enterprise'
-  if (profile === '' || profile === '.' || profile === '..' || profile.includes('/') || profile.includes('\\')) {
-    throw new TypeError('profile must be one Harness profile name')
-  }
-  const dshCommand = config.dshCommand ?? 'dsh'
-  if (dshCommand.trim().length === 0) throw new TypeError('dshCommand is required')
-  const subprocessGraceMs = config.subprocessGraceMs ?? 3_000
-  if (!Number.isSafeInteger(subprocessGraceMs) || subprocessGraceMs <= 0) {
-    throw new TypeError('subprocessGraceMs must be a positive safe integer')
-  }
-  return {
-    profile,
-    dshCommand,
-    dshHome: resolveEnterpriseDshHome(config.dshHome === undefined ? {} : { dshHome: config.dshHome }),
-    subprocessGraceMs,
-  }
+  return { dshHome: resolveEnterpriseDshHome(config.dshHome === undefined ? {} : { dshHome: config.dshHome }) }
 }
 
 function cloneRecord(record: ManagedPluginRecord): ManagedPluginRecord {
@@ -84,14 +60,13 @@ function sameVersion(record: ManagedPluginRecord | undefined, assignment: Runtim
 
 /** 受管插件调和 Service；同一时刻只有一个 revision worker 可以触碰文件或 CLI。 */
 export class EnterprisePluginDistributionService extends Service {
-  static inject = ['enterprisePlatform', 'subprocess', 'pluginInventory']
+  static inject = ['enterprisePlatform', 'pluginManager', 'pluginInventory']
 
   private readonly pluginContext: PluginDistributionContext
   private readonly config: ResolvedConfig
   private readonly store: ManagedPluginStore
   private readonly runMarker: string
   private readonly now: () => Date
-  private readonly commandPort: DshPluginCommandPort | undefined
   private readonly abort = new AbortController()
   private readonly records = new Map<string, ManagedPluginRecord>()
   private readonly unsubscribe: () => void
@@ -102,7 +77,7 @@ export class EnterprisePluginDistributionService extends Service {
   private pending: BootstrapSnapshot | undefined
   private worker: Promise<void> | undefined
   private pluginActionTask: Promise<void> | undefined
-  private uninstallTask: Promise<void> | undefined
+  private uninstallTask: Promise<{ readonly restartRequired: boolean }> | undefined
   private fatalErrorCode: string | undefined
   private lastReportErrorCode: string | undefined
   private uninstalling = false
@@ -113,13 +88,12 @@ export class EnterprisePluginDistributionService extends Service {
     config: PluginDistributionConfig,
     internals: PluginDistributionInternals = {},
   ) {
-    super(ctx, 'enterprisePluginDistribution')
+    super(ctx as unknown as Context, 'enterprisePluginDistribution')
     this.pluginContext = ctx
     this.config = resolveConfig(config)
     this.store = internals.store ?? new ManagedPluginStore(this.config.dshHome)
     this.runMarker = internals.runMarker ?? randomUUID()
     this.now = internals.now ?? (() => new Date())
-    this.commandPort = internals.commandPort
     this.startup = this.loadState().catch((error: unknown) => {
       this.fatalErrorCode = distributionError(
         error, 'ENT_PLUGIN_STATE_INVALID', 'managed plugin state could not be loaded',
@@ -203,15 +177,20 @@ export class EnterprisePluginDistributionService extends Service {
       this.records.set(packageName, { ...current, desiredState: 'ABSENT', state: 'REMOVING' })
       await this.persist()
       try {
-        await removeManagedPlugin(this.commandOptions(), packageName)
-        this.records.set(packageName, {
-          ...current, desiredState: 'ABSENT', state: 'RESTART_REQUIRED', lastErrorCode: null, restartMarker: this.runMarker,
-        })
+        const result = await this.removeBundle(packageName)
+        if (result.application === 'restart-required') {
+          this.records.set(packageName, {
+            ...current, desiredState: 'ABSENT', state: 'RESTART_REQUIRED', lastErrorCode: null, restartMarker: this.runMarker,
+          })
+        } else {
+          this.records.delete(packageName)
+        }
       } catch (error) {
+        const failure = distributionError(error, 'ENT_PLUGIN_MANAGER_FAILED', 'official plugin manager failed to remove the plugin')
         this.records.set(packageName, {
-          ...current, state: 'FAILED', lastErrorCode: 'ENT_PLUGIN_CLI_FAILED', restartMarker: null,
+          ...current, state: 'FAILED', lastErrorCode: failure.code, restartMarker: null,
         })
-        throw error
+        throw failure
       } finally {
         await this.persist()
       }
@@ -257,9 +236,9 @@ export class EnterprisePluginDistributionService extends Service {
   }
 
   /** 显式移除全部已安装受管包和 OwnDsh 自身；调用方在响应成功后负责请求宿主重启。 */
-  uninstall(): Promise<void> {
+  uninstall(): Promise<{ readonly restartRequired: boolean }> {
     if (this.disposed) return Promise.reject(new PluginDistributionError(
-      'ENT_PLUGIN_CLI_FAILED', 'plugin distribution is disposed',
+      'ENT_PLUGIN_MANAGER_FAILED', 'plugin distribution is disposed',
     ))
     if (this.uninstallTask !== undefined) return this.uninstallTask
     this.uninstalling = true
@@ -274,7 +253,7 @@ export class EnterprisePluginDistributionService extends Service {
     return operation
   }
 
-  /** 中止 CLI，取消平台订阅，并等待唯一 worker 退出。 */
+  /** 取消平台订阅，并等待唯一 worker 退出。 */
   async dispose(): Promise<void> {
     if (this.disposed) return
     this.disposed = true
@@ -288,7 +267,7 @@ export class EnterprisePluginDistributionService extends Service {
     this.assignmentRevision = state.assignmentRevision
     for (const record of state.plugins) {
       this.records.set(record.packageName, ['ACTIVE', 'FAILED', 'RESTART_REQUIRED'].includes(record.state)
-        ? record : { ...record, state: 'FAILED', lastErrorCode: 'ENT_PLUGIN_CLI_FAILED', restartMarker: null })
+        ? record : { ...record, state: 'FAILED', lastErrorCode: 'ENT_PLUGIN_MANAGER_FAILED', restartMarker: null })
     }
   }
 
@@ -416,13 +395,20 @@ export class EnterprisePluginDistributionService extends Service {
     }
     if (identity !== this.currentIdentity()) throw new PluginDistributionError('ENT_PERMISSION_DENIED', 'enterprise account changed')
     await this.put(assignment, 'INSTALLING')
-    await installManagedPlugin(this.commandOptions(), installationTarget(assignment))
+    const result = await this.installBundle(installationTarget(assignment))
     this.records.set(assignment.packageName, {
       ...this.records.get(assignment.packageName)!, version: assignment.version, pluginVersionId: assignment.pluginVersionId,
     })
     await this.persist()
-    await verifyInstalledPlugin(this.config.dshHome, this.config.profile, assignment)
-    await this.put(assignment, 'RESTART_REQUIRED', null, this.runMarker)
+    await this.verifyInstalledBundle(assignment, result)
+    if (result.application === 'restart-required') {
+      await this.put(assignment, 'RESTART_REQUIRED', null, this.runMarker)
+      return
+    }
+    if (!await this.loaderActive(assignment.packageName)) {
+      throw new PluginDistributionError('ENT_PLUGIN_LOADER_INACTIVE', 'plugin manager applied the bundle but its loader entry is inactive')
+    }
+    await this.put(assignment, 'ACTIVE')
   }
 
   private async refreshDesiredRevision(
@@ -447,37 +433,73 @@ export class EnterprisePluginDistributionService extends Service {
     }
     await this.put(assignment, 'REMOVE_PENDING')
     await this.put(assignment, 'REMOVING')
-    await removeManagedPlugin(this.commandOptions(), assignment.packageName)
-    await this.put(assignment, 'RESTART_REQUIRED', null, this.runMarker)
-  }
-
-  private commandOptions(): DshPluginCommandOptions {
-    return {
-      subprocess: this.pluginContext.subprocess,
-      ...(this.commandPort === undefined ? {} : { commandPort: this.commandPort }),
-      dshCommand: this.config.dshCommand,
-      profile: this.config.profile,
-      dshHome: this.config.dshHome,
-      graceMs: this.config.subprocessGraceMs,
-      signal: this.abort.signal,
+    const result = await this.removeBundle(assignment.packageName)
+    if (result.application === 'restart-required') {
+      await this.put(assignment, 'RESTART_REQUIRED', null, this.runMarker)
+    } else {
+      this.records.delete(assignment.packageName)
+      await this.persist()
     }
   }
 
-  private async runUninstall(): Promise<void> {
+  private async runUninstall(): Promise<{ readonly restartRequired: boolean }> {
     await this.settled()
     if (this.fatalErrorCode !== undefined) {
       throw new PluginDistributionError('ENT_PLUGIN_STATE_INVALID', 'managed plugin state is unavailable')
     }
     const records = [...this.records.values()].sort((left, right) => left.packageName.localeCompare(right.packageName))
+    let restartRequired = false
     for (const record of records) {
       if (record.desiredState === 'INSTALLED'
         || record.state === 'FAILED' && await this.loaderEntry(record.packageName) !== undefined) {
-        await removeManagedPlugin(this.commandOptions(), record.packageName)
+        const result = await this.removeBundle(record.packageName)
+        restartRequired ||= result.application === 'restart-required'
+        this.records.delete(record.packageName)
+        await this.persist()
       }
     }
-    this.records.clear()
-    await this.persist()
-    await removeManagedPlugin(this.commandOptions(), OWNDSH_PACKAGE)
+    const ownResult = await this.removeBundle(OWNDSH_PACKAGE)
+    return { restartRequired: restartRequired || ownResult.application === 'restart-required' }
+  }
+
+  private async installBundle(spec: string): Promise<ChangeResult> {
+    try {
+      return this.requireManagerChange(await this.pluginContext.pluginManager.installBundle(spec))
+    } catch (error) {
+      throw distributionError(error, 'ENT_PLUGIN_MANAGER_FAILED', 'official plugin manager failed to install the plugin')
+    }
+  }
+
+  private async removeBundle(packageName: string): Promise<ChangeResult> {
+    try {
+      return this.requireManagerChange(await this.pluginContext.pluginManager.removeBundle(packageName))
+    } catch (error) {
+      throw distributionError(error, 'ENT_PLUGIN_MANAGER_FAILED', 'official plugin manager failed to remove the plugin')
+    }
+  }
+
+  private requireManagerChange(result: ChangeResult): ChangeResult {
+    if (result.application === 'failed' || result.application === 'cancelled' || result.application === 'overridden') {
+      throw new PluginDistributionError('ENT_PLUGIN_MANAGER_FAILED', 'official plugin manager rejected the operation', {
+        cause: result.error ?? result.packageResult?.output,
+      })
+    }
+    return result
+  }
+
+  private async verifyInstalledBundle(assignment: RuntimePluginAssignment, result: ChangeResult): Promise<void> {
+    if (result.bundle !== assignment.packageName) {
+      throw new PluginDistributionError('ENT_PLUGIN_INCOMPATIBLE', 'official plugin manager installed a different bundle')
+    }
+    try {
+      const bundle = (await this.pluginContext.pluginManager.listBundles()).find(item => item.name === assignment.packageName)
+      if (bundle?.installed !== true || bundle.version !== assignment.version || bundle.enabled !== true) {
+        throw new Error('bundle identity or enablement mismatch')
+      }
+    } catch (cause) {
+      if (cause instanceof PluginDistributionError) throw cause
+      throw new PluginDistributionError('ENT_PLUGIN_INCOMPATIBLE', 'installed package does not match the approved DSH bundle', { cause })
+    }
   }
 
   private async put(
@@ -501,7 +523,7 @@ export class EnterprisePluginDistributionService extends Service {
   }
 
   private async fail(assignment: RuntimePluginAssignment, error: unknown): Promise<void> {
-    const failure = distributionError(error, 'ENT_PLUGIN_CLI_FAILED', 'plugin reconciliation failed')
+    const failure = distributionError(error, 'ENT_PLUGIN_MANAGER_FAILED', 'plugin reconciliation failed')
     await this.put(assignment, 'FAILED', failure.code)
   }
 
@@ -550,7 +572,7 @@ export class EnterprisePluginDistributionService extends Service {
     } catch (error) {
       if (!this.disposed) {
         this.lastReportErrorCode = distributionError(
-          error, 'ENT_PLUGIN_CLI_FAILED', 'plugin inventory report failed',
+          error, 'ENT_PLUGIN_MANAGER_FAILED', 'plugin inventory report failed',
         ).code
       }
     }

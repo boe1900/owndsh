@@ -100,7 +100,7 @@ test('packaged plugin uses Harness confirmation modals without native confirm', 
         calls.installPlugin++
         await new Promise(resolve => { installRequest.resolve(resolve) })
         if (calls.installPlugin === 1) {
-          await route.fulfill({ status: 500, json: { error: { code: 'ENT_PLUGIN_CLI_FAILED' } } })
+          await route.fulfill({ status: 500, json: { error: { code: 'ENT_PLUGIN_MANAGER_FAILED' } } })
           return
         }
         pluginStatus.plugins.push({ packageName: '@enterprise/code-review', version: '1.2.0', pluginVersionId: '881', desiredRevision: 1, desiredState: 'INSTALLED', state: 'RESTART_REQUIRED', lastErrorCode: null, restartMarker: 'test-run' })

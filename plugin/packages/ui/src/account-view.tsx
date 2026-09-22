@@ -400,11 +400,13 @@ function UninstallAction({ store, snapshot, quiet = false }: { store: Enterprise
     variant={quiet ? 'ghost' : 'outline'} size={quiet ? 'sm' : 'md'}
     className={quiet ? 'own-account-uninstall' : undefined}
     style={quiet ? undefined : { color: 'var(--dsw-alias-state-error-primary, #c4320a)' }}
-    icon={<Trash2 aria-hidden size={14} />}
+    icon={snapshot.busy === 'uninstall'
+      ? <LoaderCircle aria-hidden size={14} style={{ animation: 'own-refresh-spin 1s linear infinite' }} />
+      : <Trash2 aria-hidden size={14} />}
     disabled={snapshot.busy !== undefined}
     onClick={open}
   >
-    {snapshot.busy === 'uninstall' ? '正在卸载' : '卸载 OwnDsh'}
+    {snapshot.busy === 'uninstall' ? '正在卸载…' : '卸载 OwnDsh'}
   </Button>}</ConfirmAction>
 }
 

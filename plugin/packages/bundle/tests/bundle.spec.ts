@@ -26,23 +26,22 @@ describe('enterprise bundle', () => {
       '@deepseek-ai/dsh-client-ui-settings-general',
     ])
     expect(manifest.dependencies).toBeUndefined()
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-llm']).toBe('^0.1.6-alpha.2')
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-credentials']).toBe('^0.1.6-alpha.2')
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-llm-pi-ai']).toBe('^0.1.6-alpha.2')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-llm']).toBe('^0.1.7-alpha.1')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-credentials']).toBe('^0.1.7-alpha.1')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-llm-pi-ai']).toBe('^0.1.7-alpha.1')
     expect(manifest.peerDependencies['@deepseek-ai/dsh-session']).toBeUndefined()
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-subprocess']).toBe('^0.1.6-alpha.2')
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-host-plugin-inventory']).toBe('^0.1.6-alpha.2')
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-mcp-client']).toBe('^0.1.6-alpha.2')
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-tools']).toBe('^0.1.6-alpha.2')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-subprocess']).toBe('^0.1.7-alpha.1')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-host-plugin-inventory']).toBe('^0.1.7-alpha.1')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-plugin-manager']).toBe('^0.1.7-alpha.1')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-mcp-client']).toBe('^0.1.7-alpha.1')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-tools']).toBe('^0.1.7-alpha.1')
     expect(manifest.peerDependencies['@deepseek-ai/schemastery']).toBe('^3.18.2')
     expect(inject).toEqual([
-      'webServer', 'credentials', 'llm', 'subprocess', 'pluginInventory', 'tools',
+      'webServer', 'credentials', 'settings', 'llm', 'pluginInventory', 'pluginManager', 'tools',
     ])
     expect(Config({
       baseUrl: 'https://enterprise.example.com',
     })).toMatchObject({
-      profile: 'web',
-      dshCommand: 'dsh',
       requestTimeoutMs: 30_000,
       disposeTimeoutMs: 3_000,
     })

@@ -276,8 +276,6 @@ try {
     `    baseUrl: '${platformUrl}'`,
     '    requestTimeoutMs: 5000',
     '    disposeTimeoutMs: 10000',
-    "    profile: 'web'",
-    `    dshCommand: '${resolve(harnessRoot, 'apps', 'cli', 'lib', 'bin.js')}'`,
     '',
   ].join('\n'))
 

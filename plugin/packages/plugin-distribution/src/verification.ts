@@ -5,8 +5,6 @@
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
-import { readFile, stat } from 'node:fs/promises'
-import { join, win32 } from 'node:path'
 import { PluginDistributionError } from './errors.js'
 import type { RuntimePluginAssignment } from './types.js'
 
@@ -27,19 +25,4 @@ export function installationTarget(assignment: RuntimePluginAssignment): string 
   const { spec } = assignment.installation
   if (spec === `${assignment.packageName}@${assignment.version}`) return spec
   return `${assignment.packageName}@${spec}`
-}
-
-/** 官方 CLI 完成后读取其安装结果；不自行下载、解包或安装依赖。 */
-export async function verifyInstalledPlugin(dshHome: string, profile: string, assignment: RuntimePluginAssignment): Promise<void> {
-  try {
-    const directory = join(dshHome, 'profiles', profile, 'node_modules', assignment.packageName)
-    const manifest = JSON.parse(await readFile(join(directory, 'package.json'), 'utf8'))
-    const patch = manifest.dsh?.bundle?.patch
-    if (manifest.name !== assignment.packageName || manifest.version !== assignment.version
-      || typeof patch !== 'string' || !patch || win32.isAbsolute(patch)
-      || patch.includes('\\') || patch.includes('\0') || patch.split('/').includes('..')
-      || !(await stat(join(directory, patch))).isFile()) throw new Error('package identity or bundle mismatch')
-  } catch (cause) {
-    throw new PluginDistributionError('ENT_PLUGIN_INCOMPATIBLE', 'installed package does not match the approved DSH bundle', { cause })
-  }
 }

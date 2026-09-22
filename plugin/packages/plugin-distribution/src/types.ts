@@ -1,13 +1,13 @@
 /**
- * [INPUT]: 依赖 platform-client bootstrap、contracts 受管状态与兼容 Harness subprocess/inventory 公共类型
+ * [INPUT]: 依赖 platform-client bootstrap、contracts 受管状态与官方 pluginManager/inventory 类型
  * [OUTPUT]: 对外提供分发 Config、企业目录/本机安装快照及平台/官方运行时窄 port
- * [POS]: plugin-distribution 的依赖倒置层，使业务状态机只依赖官方能力契约而不耦合实现
+ * [POS]: plugin-distribution 的依赖倒置层，使企业状态机直接委托官方插件管理服务
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import type { Context } from '@deepseek-ai/cordis'
+import type { PluginManager } from '@deepseek-ai/dsh-plugin-manager'
 import type { PluginInventorySnapshot } from '@deepseek-ai/dsh-host-plugin-inventory'
-import type { SubprocessRuntime } from '@deepseek-ai/dsh-subprocess'
 import type { ManagedPluginState, PluginInstallation } from '@owndsh/contracts'
 import type {
   BootstrapSnapshot,
@@ -24,10 +24,13 @@ export interface EnterprisePlatformPort {
   request(input: string | URL, init?: RequestInit): Promise<Response>
 }
 
-/** 兼容 rc.2 同步与后续异步 Host plugin inventory 的只读投影。 */
+/** 官方 Host plugin inventory 的只读投影。 */
 export interface PluginInventoryPort {
   list(): PluginInventorySnapshot | Promise<PluginInventorySnapshot>
 }
+
+/** 企业层实际使用的官方插件管理最小面。 */
+export type PluginManagerPort = Pick<PluginManager, 'installBundle' | 'removeBundle' | 'listBundles'>
 
 /** 受管状态文件的一条中心 package 记录。 */
 export interface ManagedPluginRecord {
@@ -66,13 +69,10 @@ export interface PluginDistributionStatus {
 
 /** 宿主官方插件命令的运行参数。 */
 export interface PluginDistributionConfig {
-  readonly profile?: string
-  readonly dshCommand?: string
   readonly dshHome?: string
-  readonly subprocessGraceMs?: number
 }
 
-export interface PluginDistributionContext extends Context {
-  readonly subprocess: SubprocessRuntime
+export type PluginDistributionContext = Omit<Context, 'pluginManager' | 'pluginInventory'> & {
+  readonly pluginManager: PluginManagerPort
   readonly pluginInventory: PluginInventoryPort
 }

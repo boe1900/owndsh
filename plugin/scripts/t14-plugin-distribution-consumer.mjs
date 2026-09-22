@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖已构建 contracts/platform-client/plugin-distribution tgz、Corepack pnpm 与全新临时 consumer
- * [OUTPUT]: 提供无 ambient shim 的真实 package install/import、兼容 peer、安装参数、原子状态与发布清单验收
+ * [OUTPUT]: 提供无 ambient shim 的真实 package install/import、兼容 peer、官方管理器 peer、原子状态与发布清单验收
  * [POS]: plugin T14 树外包消费者门禁，证明发布产物不借用 workspace 或同级 Harness 源码
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -61,9 +61,9 @@ try {
     private: true,
     type: 'module',
     dependencies: {
-      '@deepseek-ai/cordis': '4.0.1',
-      '@deepseek-ai/dsh-host-plugin-inventory': '0.1.1-rc.2',
-      '@deepseek-ai/dsh-subprocess': '0.1.1-rc.2',
+      '@deepseek-ai/cordis': '4.0.3',
+      '@deepseek-ai/dsh-host-plugin-inventory': '0.1.7-alpha.1',
+      '@deepseek-ai/dsh-plugin-manager': '0.1.7-alpha.1',
       '@owndsh/contracts': `file:${contractsTgz}`,
       '@owndsh/platform-client': `file:${platformTgz}`,
       '@owndsh/plugin-distribution': `file:${distributionTgz}`,
@@ -83,8 +83,7 @@ try {
     '--input-type=module',
     '--eval',
     [
-      "import { installPluginArguments, ManagedPluginStore } from '@owndsh/plugin-distribution'",
-      "if (installPluginArguments('web', 'example@1.0.0').at(-1) !== 'example@1.0.0') process.exit(2)",
+      "import { ManagedPluginStore } from '@owndsh/plugin-distribution'",
       'const store = new ManagedPluginStore(process.env.DSH_HOME)',
       "await store.write({ formatVersion: 1, assignmentRevision: 7, plugins: [] })",
       'const state = await store.read()',
@@ -98,7 +97,7 @@ try {
   assert.equal(manifest.dependencies['@owndsh/contracts'], '0.1.0')
   assert.equal(manifest.dependencies['@owndsh/platform-client'], '0.1.0')
   assert.equal(manifest.dependencies.semver, '7.8.4')
-  assert.equal(manifest.peerDependencies['@deepseek-ai/dsh-subprocess'], '^0.1.1-rc.2')
+  assert.equal(manifest.peerDependencies['@deepseek-ai/dsh-plugin-manager'], '^0.1.7-alpha.1')
   const built = [
     await readFile(resolve(installedRoot, 'lib', 'index.js'), 'utf8'),
     await readFile(resolve(installedRoot, 'lib', 'service.js'), 'utf8'),

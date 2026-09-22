@@ -9,7 +9,6 @@ import { createHash, randomUUID } from 'node:crypto'
 import { performance } from 'node:perf_hooks'
 import type { Context } from '@deepseek-ai/cordis'
 import type { CredentialProvider } from '@deepseek-ai/dsh-credentials'
-import z from '@deepseek-ai/schemastery'
 import { apply as applyMcpClient, createMcpToolDefinition, type Config as McpClientConfig, type ReconnectConfig } from '@deepseek-ai/dsh-mcp-client'
 import { auth as mcpOAuthAuth, Client, StreamableHTTPClientTransport, type Tool } from '@modelcontextprotocol/client'
 import type { McpResourceProvider, McpResourceRequest } from '@deepseek-ai/dsh-mcp-resources'
@@ -32,7 +31,29 @@ function publicMcpToolName(serverName: string, rawName: string): string {
 
 type OAuthAssignment = { type?: string; clientId?: string; scopes?: string[]; resource?: string }
 
-export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }, platform: Pick<EnterprisePlatformService, 'request' | 'status' | 'subscribe' | 'bootstrap'>, credentials: CredentialProvider): void {
+declare module '@deepseek-ai/cordis' {
+  interface Events {
+    'loader/volatile-update'(paths: readonly (readonly string[])[]): void
+  }
+}
+
+type LiveValue<T> = T | { get(): T }
+
+interface McpRuntimeConfig {
+  readonly mcp?: LiveValue<{ readonly desiredConnected?: Record<string, boolean> }>
+}
+
+interface SettingsPort {
+  update(namespace: string, patch: object): Promise<void>
+}
+
+function readLiveValue<T>(value: LiveValue<T> | undefined): T | undefined {
+  if (value !== undefined && value !== null && typeof value === 'object' && 'get' in value
+    && typeof value.get === 'function') return value.get()
+  return value as T | undefined
+}
+
+export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }, platform: Pick<EnterprisePlatformService, 'request' | 'status' | 'subscribe' | 'bootstrap'>, credentials: CredentialProvider, config: McpRuntimeConfig = {}): void {
   type MountedMcp = { fiber: { dispose(): Promise<void> }; revision: number; signature: string; connection: McpConnection; disposal?: Promise<void> }
   const mounted = new Map<string, MountedMcp>()
   const managers = new Map<string, McpCredentialManager>()
@@ -63,22 +84,22 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
   }
   const disconnected = new Set<string>()
   const cleanupRequired = new Set<string>()
-  const desiredScope = (() => { try {
-    const service = ctx.get('settings') as { settings: { register: (ns: string, schema: unknown, options: unknown) => { get(): unknown; update(patch: object): Promise<void>; watch(callback: (next: unknown) => void): () => void } } }
-    return service.settings.register('owndsh-mcp', z.object({ desiredConnected: z.any().default({}) }), { base: { desiredConnected: {} } })
-  } catch { return undefined } })()
+  const settings = (() => {
+    try { return ctx.get('settings') as SettingsPort }
+    catch { return undefined }
+  })()
   const desiredConnected = new Map<string, boolean>()
   const desiredKey = (serverName: string): string => `${owner ?? 'none'}:${serverName}`
   const loadDesired = (): void => {
     desiredConnected.clear()
-    const value = desiredScope?.get() as { desiredConnected?: unknown } | undefined
+    const value = readLiveValue(config.mcp)
     if (value?.desiredConnected && typeof value.desiredConnected === 'object') for (const [key, state] of Object.entries(value.desiredConnected as Record<string, unknown>)) if (typeof state === 'boolean') desiredConnected.set(key, state)
   }
   loadDesired()
   const isPaused = (serverName: string): boolean => disconnected.has(serverName) || desiredConnected.get(desiredKey(serverName)) === false
   const saveDesired = async (serverName: string, connected: boolean): Promise<void> => {
     desiredConnected.set(desiredKey(serverName), connected)
-    if (desiredScope !== undefined) await desiredScope.update({ desiredConnected: Object.fromEntries(desiredConnected) })
+    if (settings !== undefined) await settings.update('owndsh-plugin', { mcp: { desiredConnected: Object.fromEntries(desiredConnected) } })
   }
   const platformReady = (): boolean => owner !== undefined && owner === currentOwner()
   const presentation = mountMcpTools(ctx, {
@@ -281,7 +302,7 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
       state,
       signal: manager.abort.signal,
     })
-    const client = new Client({ name: 'owndsh-mcp-client', version: '0.1.6-alpha.2' }, {
+    const client = new Client({ name: 'owndsh-mcp-client', version: '0.1.7-alpha.1' }, {
       capabilities: {},
       versionNegotiation: { mode: 'auto' },
       listChanged: { tools: { autoRefresh: false, debounceMs: 0, onChanged: () => { void enqueueSync() } } },
@@ -513,9 +534,10 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
     refreshing = task
     try { await task } finally { if (refreshing === task) refreshing = undefined }
   }
-  const unwatchDesired = desiredScope?.watch(next => {
+  const unwatchDesired = ctx.on('loader/volatile-update', paths => {
+    if (!paths.some(path => path[0] === 'mcp')) return
     desiredConnected.clear()
-    const value = next as { desiredConnected?: unknown }
+    const value = readLiveValue(config.mcp)
     if (value?.desiredConnected && typeof value.desiredConnected === 'object') for (const [key, state] of Object.entries(value.desiredConnected as Record<string, unknown>)) if (typeof state === 'boolean') desiredConnected.set(key, state)
     void refresh(true)
   })
@@ -557,7 +579,7 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
     assignmentGeneration += 1
     leaseUntil = 0
     unsubscribe()
-    unwatchDesired?.()
+    unwatchDesired()
     for (const flow of oauthFlows.values()) flow.abort.abort()
     const pending = [...managers.values()].map(manager => manager.dispose())
     for (const current of mounted.values()) presentation.revoke(current.connection)

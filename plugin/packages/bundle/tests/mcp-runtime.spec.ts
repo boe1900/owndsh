@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖真实 Cordis/tools/systemPrompt/pi-ai、可控 HTTP MCP/模型服务和端侧运行时。
- * [OUTPUT]: 验证目录不预热会话、search 去重/累加/显式释放与本步调用快照、native/PTC 请求正文、代次撤销、真实 client 连接、HTTP OAuth 同一会话失效恢复与提前 401 不重放。
+ * [OUTPUT]: 验证目录不预热会话、search 去重/累加/显式释放与本步调用快照、native/PTC 请求正文、代次撤销、官方 client/SDK OAuth 协商分页与资源、连接取消及凭据隔离。
  * [POS]: bundle 的 MCP 行为回归；使用受控工具与假凭据，不调用外部模型或真实 OAuth 服务。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */

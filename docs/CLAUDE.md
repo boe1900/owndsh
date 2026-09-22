@@ -4,6 +4,8 @@
 
 成员清单
 
+dsh-compatibility.md: DSH 升级检查入口，记录当前 npm/Web 基线、上游依赖契约与本地代码/测试映射、历史夹具边界、逐项验收流程及 OAuth 接缝删除条件。
+dsh-017-alpha1-compatibility-20260922.md: DSH 0.1.7-alpha.1 目标 runtime 的 Web/MCP 行为验收、当前 pluginManager/SettingsForms 适配及未覆盖范围。
 v1-product-feature-catalog.md: V1 产品功能真源，汇总身份、LDAP 用户/组目录接入、模型、授权、配额、限流、插件安装配置、设备与审计的交付状态、关键语义、发布门禁和明确非目标。
 plugin-signing-e2e-20260909.md: 已退役上传/验签链路的历史验收记录；当前安装配置模式以详细设计第 11 节为准，原复现脚本已删除。
 plugin-market-e2e-20260917.md: 当前 Server 与真实 npm Harness/Chromium 的插件联合验收，记录 10 项通过、原生 pnpm 构建审批前提、复现命令和安装源/原生窗口实测边界。
@@ -15,7 +17,7 @@ mcp-management-design.md: MCP 详细设计入口，明确版本差异、公共�
 mcp-runtime-design.md: MCP 端侧实施规格，记录身份/目标凭据隔离、官方 SDK v2 OAuth 宿主接缝与 401 刷新重试边界，以及连接与撤销状态机、search/release/PTC 呈现、本步快照、并发重挂载、local API 及诊断契约。
 mcp-implementation-plan.md: MCP 开发任务与验收矩阵，从官方接缝探针推进到契约/服务/客户端/UI/发布，区分已有证据和待实现门禁。
 mcp-alpha2-web-e2e-20260922.md: alpha.2 真实 Web/AgentLoop 兼容验收，记录分页/资源/按需加载/SDK OAuth/禁用管理页、接缝修复、升级差异与可复现证据。
-desktop-2.0.3-harness-rc2-migration.md: 当前 Desktop 发行基线迁移证据，记录 Desktop→Harness 派生锁、上游变化、企业适配、行为风险与 Web/Desktop 门禁结果。
+desktop-2.0.3-harness-rc2-migration.md: 历史 Desktop 2.0.3/Harness rc.2 迁移证据，记录当时的派生锁、上游变化、企业适配与门禁结果；当前兼容范围见 dsh-compatibility.md。
 gateway-real-model-validation-20260906.md: V29 与取消修复的 10 次真实 Responses 调用证据，记录 Spring flush 根因、667 毫秒取消清理、108 项后端回归及已获准请求超额结算规则。
 t00-baseline-acceptance.md: T00 独立验收证据，记录初始导入与 rc.7 重新基线的环境、命令、真实 consumer 和退出结论。
 t01-technical-spike-acceptance.md: T01 独立验收证据，保留 Typert 路线误判分析并记录官方插件路线、正式模块、测试与真实 Harness Web 结果。

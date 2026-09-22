@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 Cordis Service/WebServer/settings.register/credentials、T02 contracts、PKCE/installation/browser 原语与 Node fetch
+ * [INPUT]: 依赖 Cordis Service/WebServer/settings forms/credentials、T02 contracts、PKCE/installation/browser 原语与 Node fetch
  * [OUTPUT]: 提供 ctx.enterprisePlatform、启动恢复、按需刷新/Token 轮换；仅无活动会话时允许清理凭据并修改 Server
  * [POS]: platform-client 的 Host 业务核心，跨 Web/Desktop 复用官方凭据平面且不向 Client UI 暴露任何 Token
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -9,8 +9,7 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { platform as hostPlatform } from 'node:os'
 import { Context, Service } from '@deepseek-ai/cordis'
 import type { CredentialProvider } from '@deepseek-ai/dsh-credentials'
-import type { SettingsNamespace, SettingsScope } from '@deepseek-ai/dsh-settings'
-import z from '@deepseek-ai/schemastery'
+import type { SettingsForms } from '@deepseek-ai/dsh-settings'
 import {
   decodeEnterpriseError,
   zDeviceResponse,
@@ -42,12 +41,7 @@ import {
 
 const AUTH_PATH = '/enterprise/auth/v1'
 const API_PATH = '/enterprise/api/v1'
-// 固定合法命名兼容 rc.2 的 branded 类型与新版 register 的字符串校验。
-const SETTINGS_NAMESPACE = 'owndsh' as SettingsNamespace
-interface EnterpriseConnectionSettings { readonly serverUrl: string }
-const CONNECTION_SETTINGS: z<EnterpriseConnectionSettings> = z.object({
-  serverUrl: z.string().default(''),
-})
+const SETTINGS_ENTRY = 'owndsh-plugin'
 const TRANSITIONAL_REQUEST_PATHS = new Set([
   `${AUTH_PATH}/logout`,
   `${API_PATH}/bootstrap`,
@@ -58,6 +52,18 @@ declare module '@deepseek-ai/cordis' {
   interface Context {
     enterprisePlatform: EnterprisePlatformService
   }
+
+  interface Events {
+    'loader/volatile-update'(paths: readonly (readonly string[])[]): void
+  }
+}
+
+type LiveValue<T> = T | { get(): T }
+
+function readLiveValue<T>(value: LiveValue<T> | undefined): T | undefined {
+  if (value !== undefined && value !== null && typeof value === 'object' && 'get' in value
+    && typeof value.get === 'function') return value.get()
+  return value as T | undefined
 }
 
 interface ResolvedConfig {
@@ -137,11 +143,10 @@ export class EnterprisePlatformService extends Service {
   private readonly listeners = new Set<(status: EnterprisePlatformStatus) => void>()
   private readonly disposeLocalApi: () => void
   private readonly logger: Context['logger']
-  private readonly compositionServerUrl: string
 
   private currentStatus: EnterprisePlatformStatus
   private baseUrl: URL | undefined
-  private settingsScope: SettingsScope<EnterpriseConnectionSettings> | undefined
+  private settings: SettingsForms | undefined
   private bootstrapSnapshot: BootstrapSnapshot | undefined
   private connectedAt: string | undefined
   private login: LoginTransaction | undefined
@@ -160,11 +165,10 @@ export class EnterprisePlatformService extends Service {
     internals: EnterprisePlatformInternals = {},
   ) {
     const resolvedConfig = resolveConfig(config)
-    const baseUrl = resolveBaseUrl(config.baseUrl)
+    const baseUrl = resolveBaseUrl(readLiveValue(config.baseUrl as LiveValue<string>))
     super(ctx, 'enterprisePlatform')
     this.config = resolvedConfig
     this.baseUrl = baseUrl
-    this.compositionServerUrl = baseUrl?.origin ?? ''
     this.fetch = internals.fetch ?? globalThis.fetch
     this.openBrowser = internals.openBrowser ?? openSystemBrowser
     this.logger = ctx.logger
@@ -220,24 +224,18 @@ export class EnterprisePlatformService extends Service {
       ...(internals.uninstallPlugin === undefined ? {} : { uninstallPlugin: internals.uninstallPlugin }),
     })
     ctx.inject(['settings'], (settingsContext) => {
-      const scope = settingsContext.settings.register(SETTINGS_NAMESPACE, CONNECTION_SETTINGS, {
-        base: { serverUrl: this.compositionServerUrl },
-        validate: value => {
-          const next = resolveBaseUrl(value.serverUrl)?.origin
-          if (this.settingsScope !== undefined && next !== this.baseUrl?.origin && (this.configuring === undefined || next !== this.configuring)) {
-            throw new EnterprisePlatformError('ENT_PERMISSION_DENIED', 'use the signed-out Server editor')
-          }
-        },
-      })
-      this.settingsScope = scope
-      this.applyServerUrl(scope.get().serverUrl)
-      const unwatch = scope.watch(next => { this.applyServerUrl(next.serverUrl) })
+      const settings = settingsContext.settings
+      this.settings = settings
+      const unregisterGeneratedPage = settings.configure({ auto: false }, ctx.fiber)
       settingsContext.effect(() => () => {
-        unwatch()
-        if (this.settingsScope !== scope) return
-        this.settingsScope = undefined
-        if (!this.disposed) this.applyServerUrl(this.compositionServerUrl)
+        unregisterGeneratedPage()
+        if (this.settings === settings) this.settings = undefined
       }, 'enterprisePlatform.settings')
+    })
+    ctx.on('loader/volatile-update', paths => {
+      if (paths.some(path => path.length === 1 && path[0] === 'baseUrl')) {
+        this.applyServerUrl(readLiveValue(config.baseUrl as LiveValue<string>))
+      }
     })
     ctx.effect(() => () => this.dispose(), 'enterprisePlatform.dispose()')
     this.startSessionRestore()
@@ -252,14 +250,14 @@ export class EnterprisePlatformService extends Service {
     }
     const resolved = resolveBaseUrl(serverUrl)
     if (resolved === undefined) throw new TypeError('serverUrl is required')
-    const scope = this.settingsScope
-    if (scope === undefined) {
+    const settings = this.settings
+    if (settings === undefined) {
       throw new EnterprisePlatformError('ENT_PLATFORM_UNAVAILABLE', 'Harness settings are unavailable', true)
     }
     this.configuring = resolved.origin
     try {
       await this.platformCredentials.delete()
-      await scope.update({ serverUrl: resolved.origin })
+      await settings.update(SETTINGS_ENTRY, { baseUrl: resolved.origin })
       this.applyServerUrl(resolved.origin)
       return { serverUrl: resolved.origin }
     } finally { this.configuring = undefined }
@@ -744,7 +742,7 @@ export class EnterprisePlatformService extends Service {
     this.connectedAt = undefined
   }
 
-  private applyServerUrl(serverUrl: string): void {
+  private applyServerUrl(serverUrl: string | undefined): void {
     const next = resolveBaseUrl(serverUrl)
     if (next?.origin === this.baseUrl?.origin) return
     this.cancelLogin(true)
