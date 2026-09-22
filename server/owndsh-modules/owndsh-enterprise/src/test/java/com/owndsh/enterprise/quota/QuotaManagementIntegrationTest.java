@@ -1,12 +1,13 @@
 /**
  * [INPUT]: 依赖真实 PostgreSQL 17、完整 migrations、显式活动用户 fixture、quota JDBC adapters、事务、审计与并发连接。
- * [OUTPUT]: 验证 TOKEN/RATE 互斥、策略叠加、并发预留、在途超额全额结算后拒绝新请求、恢复和用量查询。
+ * [OUTPUT]: 验证 TOKEN/RATE 互斥、策略叠加、并发预留、在途超额全额结算后拒绝新请求、恢复和时间/ID 倒序用量查询。
  * [POS]: T09 主要数据库验收；Redis 原子/TTL 由独立真实 Redis 测试覆盖，T10 网关不在此实现。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.quota;
 
 import com.owndsh.enterprise.audit.JdbcAuditSink;
+import com.owndsh.enterprise.common.api.EnterpriseCursorCodec.TimePosition;
 import com.owndsh.enterprise.device.domain.DeviceStatus;
 import com.owndsh.enterprise.device.domain.EnterpriseDevice;
 import com.owndsh.enterprise.model.application.BootstrapService;
@@ -33,6 +34,7 @@ import com.owndsh.enterprise.quota.domain.QuotaResourceType;
 import com.owndsh.enterprise.quota.domain.QuotaStatus;
 import com.owndsh.enterprise.quota.domain.QuotaSubjectType;
 import com.owndsh.enterprise.quota.domain.ReservationState;
+import com.owndsh.enterprise.quota.domain.UsageLedgerMetadata;
 import com.owndsh.enterprise.quota.domain.UsageResult;
 import com.owndsh.enterprise.quota.persistence.JdbcQuotaPolicyStore;
 import com.owndsh.enterprise.quota.persistence.JdbcQuotaRuntimeConfigStore;
@@ -123,6 +125,34 @@ class QuotaManagementIntegrationTest {
             rates, audit, ids
         );
         usageQuery = new QuotaUsageQueryService(resolver, calculator, windows, rates, ledgerStore);
+    }
+
+    @Test
+    void pagesUsageByTimeThenIdWithAnExclusiveBoundary() {
+        Instant time = Instant.parse("2026-09-20T12:00:00.123456Z");
+        String requestId = "req_01ARZ3NDEKTSV4RRFFQ69G5FZZ";
+        for (long id : List.of(101L, 102L, 103L)) {
+            UUID reservationId = UUID.randomUUID();
+            database.jdbc().update("""
+                insert into ent_usage_reservation(id, tenant_id, user_id, device_id, model_id,
+                    idempotency_key, state, estimated_tokens, reserved_windows_json, expires_at, request_id)
+                values (?, ?, ?, ?, ?, ?, 'SETTLED', 0, '[]', now(), ?)
+                """, reservationId, TENANT, USER_ID, DEVICE_ID, MODEL_ID, reservationId.toString(), requestId);
+            ledgerStore.insert(new com.owndsh.enterprise.quota.domain.UsageLedger(
+                id, TENANT, reservationId, USER_ID, MODEL_ID, requestId,
+                0, 0, 0, 0, 0, UsageResult.SETTLED, null, id == 103 ? time.minusSeconds(1) : time
+            ));
+        }
+        var filter = new UsageLedgerStore.UsageLedgerFilter(null, null, null, requestId, null, null);
+        var first = ledgerStore.list(TENANT, null, 1, filter).getFirst();
+        assertThat(first.id()).isEqualTo(102);
+        var rest = ledgerStore.list(TENANT, new TimePosition(first.ledger().createdAt(), first.id()), 10, filter);
+        assertThat(rest).extracting(UsageLedgerMetadata::id).containsExactly(101L, 103L);
+        var last = rest.getLast();
+        assertThat(ledgerStore.list(TENANT, new TimePosition(last.ledger().createdAt(), last.id()), 10, filter)).isEmpty();
+        assertThat(ledgerStore.list("other", null, 10, filter)).isEmpty();
+        database.jdbc().update("delete from ent_usage_ledger where request_id = ?", requestId);
+        database.jdbc().update("delete from ent_usage_reservation where request_id = ?", requestId);
     }
 
     @Test
@@ -261,7 +291,7 @@ class QuotaManagementIntegrationTest {
             assertThat(value.daily().reservedTokens()).isZero();
         });
         var filtered = usageQuery.listUsage(
-            TENANT, 0, 10,
+            TENANT, null, 10,
             new UsageLedgerStore.UsageLedgerFilter(null, null, MODEL_ID, ledger.requestId(), null, null)
         );
         assertThat(filtered.items()).singleElement().extracting("id").isEqualTo(ledger.id());

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Testing Library、Vitest 与 ProductDataTable 的 TanStack Table v9 行为。
- * [OUTPUT]: 验证搜索、精确筛选、行选择、列显隐和分页共享语义。
+ * [OUTPUT]: 验证业务默认筛选、搜索、精确筛选、行选择、列显隐和分页共享语义。
  * [POS]: components/product 的最小行为门禁，防止资源页面各自重复或破坏表格状态机。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -33,6 +33,32 @@ const data: Item[] = Array.from({ length: 11 }, (_, index) => ({
 afterEach(cleanup);
 
 describe('ProductDataTable', () => {
+  it('applies a business-provided default filter without changing the shared default', () => {
+    render(
+      <ProductDataTable
+        ariaLabel="资源"
+        columns={columns}
+        data={data}
+        emptyText="暂无资源"
+        filter={{
+          columnId: 'status',
+          defaultFilterValue: 'ACTIVE',
+          label: '全部状态',
+          options: [
+            { label: '启用', value: 'ACTIVE' },
+            { label: '停用', value: 'DISABLED' }
+          ]
+        }}
+        getRowId={(row) => row.id}
+        searchPlaceholder="搜索资源"
+      />
+    );
+
+    expect((screen.getByRole('combobox', { name: '全部状态' }) as HTMLSelectElement).value).toBe('ACTIVE');
+    expect(screen.getByText('Item 01')).toBeTruthy();
+    expect(screen.queryByText('Item 02')).toBeNull();
+  });
+
   it('keeps rich table behavior in one shared component', () => {
     render(
       <ProductDataTable

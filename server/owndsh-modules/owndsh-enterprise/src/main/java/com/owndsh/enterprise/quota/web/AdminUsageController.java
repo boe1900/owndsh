@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 QuotaUsageQueryService、管理员可信上下文、认证 cursor、canonical requestId 与 ent:usage:read。
- * [OUTPUT]: 提供 GET `/enterprise/admin/v1/usage` 多维筛选、keyset page 与聚合。
+ * [OUTPUT]: 提供 GET `/enterprise/admin/v1/usage` 多维筛选、时间/ID 倒序 keyset page 与聚合。
  * [POS]: quota/web 的 prompt-free 用量管理入口，cursor AAD 绑定全部筛选条件。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -68,13 +68,14 @@ public final class AdminUsageController {
             userId, departmentId, modelId, normalizeRequestId(requestId), from, to
         );
         String scope = cursorScope(filter);
-        long afterId = cursors.decode(cursor, context.tenantId(), scope);
+        var before = cursors.decodeTime(cursor, context.tenantId(), scope);
         QuotaUsageQueryService.UsagePage result = usage.listUsage(
-            context.tenantId(), afterId, pageLimit + 1, filter
+            context.tenantId(), before, pageLimit + 1, filter
         );
         boolean hasMore = result.items().size() > pageLimit;
         List<UsageLedgerMetadata> pageItems = hasMore ? result.items().subList(0, pageLimit) : result.items();
-        String next = hasMore ? cursors.encode(context.tenantId(), scope, pageItems.getLast().id()) : null;
+        String next = hasMore ? cursors.encodeTime(context.tenantId(), scope,
+            new EnterpriseCursorCodec.TimePosition(pageItems.getLast().ledger().createdAt(), pageItems.getLast().id())) : null;
         UsageLedgerPageView data = new UsageLedgerPageView(
             pageItems.stream().map(UsageLedgerView::from).toList(),
             new CursorPageMetadata(hasMore, pageLimit, next),

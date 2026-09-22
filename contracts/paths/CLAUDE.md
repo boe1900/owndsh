@@ -9,11 +9,11 @@ device.yaml: T05 Runtime enroll/heartbeat 与管理员 list/get/revoke 五个设
 identity.yaml: 身份源、LDAP 用户/组发现与单人导入、扁平产品用户组和外部组映射 Path Item，保留 revision、来源隔离、权限码和脱敏边界。
 member.yaml: LOCAL 成员幂等创建及产品成员 cursor/list/detail、状态、固定角色、身份解绑与绑定事务 operation，保持 read/write 权限、revision CAS 和新鲜认证边界。
 model.yaml: T08/P2-08A provider/model/model set/grant 管理与 ACTIVE 设备 bootstrap operation，保持幂等键、revision、集合资源和脱敏边界。
-quota.yaml: T09/P2-08A quota CRUD/状态/四窗口、本人用量及管理员 ledger operation，保持资源范围、ACTIVE 设备和 prompt-free 边界。
+quota.yaml: T09/P2-08A quota CRUD/状态/四窗口、本人用量及管理员最新优先 ledger operation，保持资源范围、ACTIVE 设备和 prompt-free 边界。
 gateway.yaml: T10/T11 Completions、Responses、Anthropic Messages 三个原生 SSE operation 与首字节前错误矩阵。
 plugin.yaml: 六个管理与两个 runtime operation；发布可携带旧版 ID 和包 revision，与 If-Match 的版本 revision 一起保护原子发布/范围迁移，省略请求体仅发布；保留 JSON 登记、范围与设备授权目录。
 mcp.yaml: MCP 配置/授权 CRUD 与 assignment/catalog operation；授权启停/删除统一 If-Match、400/404/409 和 Cookie 权限边界。
 session.yaml: T16 三个管理与五个 runtime operation，冻结设备源绑定、正文独立权限、导出 hash 与 tombstone 边界。
-audit.yaml: T19 单一管理只读 operation，冻结九维筛选、cursor 和 ent:audit:read 权限边界。
+audit.yaml: T19 单一管理只读 operation，冻结九维筛选、最新优先时间/ID cursor 和 ent:audit:read 权限边界。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

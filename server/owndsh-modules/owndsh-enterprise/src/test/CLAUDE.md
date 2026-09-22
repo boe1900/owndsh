@@ -1,6 +1,6 @@
 # test/
 
-> L2 | 父级: ../CLAUDE.md
+> L2 | 父级: ../../CLAUDE.md
 
 成员清单
 
@@ -21,6 +21,7 @@ java/com/owndsh/enterprise/model/gateway/GatewayUsageInspectorTest.java: 验证�
 java/com/owndsh/enterprise/model/gateway/ModelGatewayServiceTest.java: 验证输出上限、发送前意图、响应头及阻塞心跳期间续租、静默上游取消的关闭顺序与幂等、usage 保留及三协议错误。
 java/com/owndsh/enterprise/model/gateway/ModelGatewayTransactionIntegrationTest.java: 真实 PostgreSQL 验证结算/usage 快照恢复；Jetty/MVC 与 JDK HTTP 重现静默上游，验证 SSE 心跳、断开/超时 10 秒内关闭与唯一结算。
 java/com/owndsh/enterprise/model/gateway/T10GatewayApiContractTest.java: 以 MockMvc/JSON Schema 验证 gateway SSE/JSON 内容协商、严格输入、体积和全部首字节前错误映射。
+java/com/owndsh/enterprise/quota/: 配额策略、预留/结算、真实 Redis 与时间/ID 倒序用量门禁；局部地图见 java/com/owndsh/enterprise/quota/CLAUDE.md。
 java/com/owndsh/enterprise/quota/QuotaWindowCalculatorTest.java: 验证策略锚点连续 5 小时、冻结部署时区自然日/周/月边界和 UTF-8 字节除三向上估算。
 java/com/owndsh/enterprise/quota/application/QuotaOrderingTest.java: 验证有效策略和预留/结算窗口共享 policy/type 固定锁序，阻止历史 window ID 造成反向加锁。
 java/com/owndsh/enterprise/quota/RedisQuotaRateLimiterTest.java: 使用真实 Redis 8 验证多策略 Lua 全成全败、RPM、并发续租与 TTL 回收。
@@ -30,10 +31,10 @@ java/com/owndsh/enterprise/plugin/PluginServerIntegrationTest.java: PostgreSQL �
 java/com/owndsh/enterprise/plugin/T13ApiContractTest.java: MockMvc/JSON Schema 验证八个插件 operation、JSON 登记、发布升级参数与缺失/非法字段拒绝，以及固定权限码。
 java/com/owndsh/enterprise/session/: T16 精确 JSONL/hash、并发远端副本、正文权限、tombstone 与 V9 协议纵向门禁；局部地图见 session/CLAUDE.md。
 java/com/owndsh/enterprise/audit/: 31-action metadata 白名单、requestId 关联、用户治理接缝与 365 天 retention 门禁；局部地图见 audit/CLAUDE.md。
-java/com/owndsh/enterprise/common/api/: T20 有界 JSON 请求、稳定 413/503、删除阻塞 409 与故障日志秘密隔离门禁；局部地图见 common/api/CLAUDE.md。
+java/com/owndsh/enterprise/common/api/: 认证游标格式/租户/筛选隔离、T20 有界 JSON 请求、稳定 413/503、删除阻塞 409 与故障日志秘密隔离门禁；局部地图见 common/api/CLAUDE.md。
 java/com/owndsh/enterprise/test/OpenLdapTestServer.java: 共享 OpenLDAP Testcontainer 与测试专用 TLS trust，集中管理 LDAP 集成环境。
 java/com/owndsh/enterprise/test/RedisTestServer.java: 共享 Redis 8 Testcontainer，并为每项认证测试清理隔离 keyspace。
-java/com/owndsh/enterprise/database/EnterpriseMigrationTest.java: 从空库及已有库验证 V0–V34 前向迁移、种子幂等、计量与 MCP 数据约束。
+java/com/owndsh/enterprise/database/EnterpriseMigrationTest.java: 从空库及已有库验证 V0–V35 前向迁移、种子幂等、计量与 MCP 数据约束。
 java/com/owndsh/enterprise/deployment/DeploymentBootstrapServiceTest.java: 以真实 PostgreSQL 验证缺配置失败、事务回滚、幂等管理员/角色/marker，以及分步认证和 JDBC 条件首次改密。
 java/com/owndsh/enterprise/database/RbacSeedTest.java: 验证五个 built-in 角色、20 个冻结权限码、MCP 管理员全权/审计员只读与数据库不可变 trigger。
 java/com/owndsh/enterprise/revision/RevisionAuditIntegrationTest.java: 验证 BOOTSTRAP CAS、稳定冲突码、显式 metadata、只追加审计及同事务回滚。

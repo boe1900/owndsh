@@ -148,7 +148,7 @@ class T09ApiContractTest {
         when(subjects.findActiveUser(USER_ID))
             .thenReturn(Optional.of(new QuotaSubjectStore.QuotaUser(USER_ID, DEPARTMENT_ID)));
         when(usage.myUsage(TENANT, USER_ID)).thenReturn(List.of(policyUsage()));
-        when(usage.listUsage(anyString(), anyLong(), anyInt(), any())).thenReturn(usagePage());
+        when(usage.listUsage(anyString(), any(), anyInt(), any())).thenReturn(usagePage());
     }
 
     @Test

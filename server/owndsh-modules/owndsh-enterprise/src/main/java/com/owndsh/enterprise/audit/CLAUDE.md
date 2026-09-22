@@ -1,6 +1,6 @@
 # audit/
 
-> L2 | 父级: ../../../../CLAUDE.md
+> L2 | 父级: ../../../../../../../CLAUDE.md
 
 成员清单
 
@@ -15,8 +15,8 @@ EmptyAuditMetadata.java: DEVICE_REVOKED 的显式空 metadata。
 RevisionChangedMetadata.java: CONFIG_CHANGED 的 revision 白名单。
 AuditEventRecord.java: 不含原始 user-agent 的只读账本投影。
 AuditFilter.java: action/actor/resource/result/reason/requestId/时间筛选值对象。
-AuditQueryStore.java: 审计 keyset 查询和 retention 批量删除端口。
-JdbcAuditQueryStore.java: 参数化筛选、metadata JSON 读取与按截止时间批量清理 adapter。
+AuditQueryStore.java: 审计时间/ID 倒序 keyset 查询和 retention 批量删除端口。
+JdbcAuditQueryStore.java: 按 occurred_at/id 最新优先执行参数化筛选、metadata JSON 读取与按截止时间批量清理 adapter。
 AuditQueryService.java: 管理查询和保留清理应用边界。
 AuditRetentionJob.java: 每日按固定 tenant 分批删除超过保留期的审计。
 EnterpriseAuditProperties.java: audit 365 天保留期与批量配置。

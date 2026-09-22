@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 TanStack Table v9 headless 行为、Beautiful UI tokens、现有 Button 与 Lucide 图标。
- * [OUTPUT]: 提供产品资源列表共享的 ProductDataTable、列定义和筛选类型。
+ * [OUTPUT]: 提供产品资源列表共享的 ProductDataTable、列定义和业务显式默认值的筛选类型。
  * [POS]: components/product 的表格唯一实现，保留上游 RecordsTable 原样作为视觉参考，不持有领域查询或 mutation。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -74,6 +74,7 @@ export type ProductTableColumn<TData extends object> = ColumnDef<
 
 export type ProductTableFilter = {
   columnId: string;
+  defaultFilterValue?: string;
   label: string;
   options: ReadonlyArray<{ label: string; value: string }>;
 };
@@ -176,7 +177,12 @@ export function ProductDataTable<TData extends object>({
       data,
       getRowId,
       globalFilterFn: 'includesString',
-      initialState: { pagination: { pageIndex: 0, pageSize: 10 } },
+      initialState: {
+        columnFilters: filter?.defaultFilterValue
+          ? [{ id: filter.columnId, value: filter.defaultFilterValue }]
+          : [],
+        pagination: { pageIndex: 0, pageSize: 10 }
+      },
       autoResetPageIndex: true
     },
     (state) => ({

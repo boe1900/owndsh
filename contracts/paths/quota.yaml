@@ -151,6 +151,7 @@ MyUsage:
 AdminUsage:
   get:
     operationId: listUsageLedger
+    description: Returns newest records first (createdAt DESC, id DESC). The opaque cursor advances toward older records and is bound to the query filters.
     parameters:
       - $ref: '../enterprise-openapi.yaml#/components/parameters/Cursor'
       - $ref: '../enterprise-openapi.yaml#/components/parameters/Limit'

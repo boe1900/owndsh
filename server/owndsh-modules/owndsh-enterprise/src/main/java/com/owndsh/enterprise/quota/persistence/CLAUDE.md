@@ -14,8 +14,8 @@ QuotaRuntimeConfigStore.java: tenant 部署时区首次写入与后续一致性�
 JdbcQuotaRuntimeConfigStore.java: V6 不可变时区事实的 PostgreSQL adapter，不暴露修改能力。
 UsageReservationStore.java: 幂等 reservation、状态 CAS、最终 usage 快照与过期 SKIP LOCKED 领取端口。
 JdbcUsageReservationStore.java: PostgreSQL 窗口快照与最终 usage 分类持久化，恢复不依赖已退出请求的内存。
-UsageLedgerStore.java: 唯一账本、分页及实测 Token、配额扣额和未知请求数的独立聚合端口。
-JdbcUsageLedgerStore.java: prompt-free 账本写入、当前显示语义 join 和实测量/扣额分离汇总。
+UsageLedgerStore.java: 唯一账本、时间/ID 倒序分页及实测 Token、配额扣额和未知请求数的独立聚合端口。
+JdbcUsageLedgerStore.java: prompt-free 账本写入、created_at/id 最新优先显示语义 join 和实测量/扣额分离汇总。
 RedisQuotaRateLimiter.java: 单 Lua 原子获取全部 policy RPM/并发 lease，并提供续租、释放与实时计数。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

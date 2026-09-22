@@ -16,7 +16,7 @@ T19 已完成，且没有进入 T20。第 13 节冻结的 30 个 action 现在�
 
 - `AuditMetadata` 为每个 DTO 声明唯一 action，`AuditMetadataPolicyTest` 枚举全部 30 个冻结 action；action 声明本身不进入 JSONB，错配在构造 `AuditEvent` 时失败。
 - `GET /enterprise/admin/v1/audit-events` 支持 actor、action、resource、result、reason、requestId 和半开时间区间筛选。cursor AAD 绑定 tenant 与完整筛选条件，不能跨筛选重放。
-- PostgreSQL 查询按 tenant 与单调 ID keyset 分页；retention 按 `(tenant_id, occurred_at, id)` 有界删除。`V10` 只补索引，不削弱 V4 的 update 拒绝触发器。
+- PostgreSQL 查询按 tenant 与 `occurred_at DESC, id DESC` 时间/ID keyset 分页；retention 按 `(tenant_id, occurred_at, id)` 有界删除。`V10` 只补索引，不削弱 V4 的 update 拒绝触发器。
 - `SysUserServiceImpl` 在写成功后通知 system 内的治理事件发布器；发布器只读取角色数量或状态前后值，不把角色 ID 集合、用户名、邮箱或密码交给 enterprise audit，监听器在业务事务提交前写入同一账本。
 - `V11` 为设备增加 `last_heartbeat_audit_at`。heartbeat 更新和审计判定共享设备行锁，重复成功、并发心跳和多实例部署不会绕过限频。
 - 管理端 API 信任边界只接受协议允许的扁平 metadata key/value；未知 key、嵌套对象和数组在进入 React 状态前被拒绝。
@@ -96,7 +96,7 @@ git diff --check
 
 - 审计写入仍跟随业务事务，查询/retention 是独立端口；没有把只追加 sink 扩成万能 repository。
 - system 模块发布业务事实，enterprise 模块负责审计投影，依赖方向没有反转，也没有让基础用户模块认识审计 DTO。
-- cursor 只携带单调 ID，筛选事实经认证 AAD 绑定；数据库 SQL 参数化且不拼接输入。
+- cursor 携带时间/ID 倒序位置，筛选事实经认证 AAD 绑定；数据库 SQL 参数化且不拼接输入。
 - metadata 白名单是类型系统和总覆盖测试共同执行的边界，不依赖字段名黑名单在运行时补漏。
 - 企业请求日志采用整段省略，而不是尝试枚举正文中的未来敏感字段；非企业 query 仅保留安全参数，Token 不能借 SSE 参数绕过。
 - heartbeat 限频状态落在业务事实同一行并受行锁保护，没有引入 Redis 双写、内存窗口或额外调度状态。

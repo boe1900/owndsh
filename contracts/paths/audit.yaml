@@ -6,6 +6,7 @@
 AdminAuditCollection:
   get:
     operationId: listAuditEvents
+    description: Returns newest records first (occurredAt DESC, id DESC). The opaque cursor advances toward older records and is bound to the query filters.
     parameters:
       - $ref: '../enterprise-openapi.yaml#/components/parameters/Cursor'
       - $ref: '../enterprise-openapi.yaml#/components/parameters/Limit'

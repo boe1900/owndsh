@@ -1,11 +1,12 @@
 /**
- * [INPUT]: 依赖 JdbcOperations、JsonMapper 与 ent_audit_event 的 tenant/keyset/retention 索引
+ * [INPUT]: 依赖 JdbcOperations、JsonMapper 与 ent_audit_event 的 tenant/时间/ID 倒序 keyset/retention 索引
  * [OUTPUT]: 提供参数化多维筛选、JSON object 投影和按截止时间有界删除
  * [POS]: audit 查询/保留 PostgreSQL adapter，不提供 update 且不拼接用户输入
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.audit;
 
+import com.owndsh.enterprise.common.api.EnterpriseCursorCodec.TimePosition;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.RowMapper;
 import tools.jackson.databind.json.JsonMapper;
@@ -47,15 +48,19 @@ public final class JdbcAuditQueryStore implements AuditQueryStore {
     }
 
     @Override
-    public List<AuditEventRecord> list(String tenantId, long afterId, int limit, AuditFilter filter) {
+    public List<AuditEventRecord> list(String tenantId, TimePosition before, int limit, AuditFilter filter) {
         Objects.requireNonNull(filter, "filter");
-        if (tenantId == null || tenantId.isBlank() || afterId < 0 || limit < 1 || limit > 201) {
+        if (tenantId == null || tenantId.isBlank() || limit < 1 || limit > 201) {
             throw new IllegalArgumentException("审计查询边界非法");
         }
-        StringBuilder where = new StringBuilder(" where tenant_id = ? and id > ?");
+        StringBuilder where = new StringBuilder(" where tenant_id = ?");
         List<Object> arguments = new ArrayList<>();
         arguments.add(tenantId);
-        arguments.add(afterId);
+        if (before != null) {
+            where.append(" and (occurred_at, id) < (?, ?)");
+            arguments.add(Timestamp.from(before.time()));
+            arguments.add(before.id());
+        }
         append(where, arguments, " and actor_id = ?", filter.actorId());
         append(where, arguments, " and action = ?", name(filter.action()));
         append(where, arguments, " and resource_type = ?", filter.resourceType());
@@ -65,7 +70,7 @@ public final class JdbcAuditQueryStore implements AuditQueryStore {
         append(where, arguments, " and request_id = ?", filter.requestId());
         append(where, arguments, " and occurred_at >= ?", timestamp(filter.from()));
         append(where, arguments, " and occurred_at < ?", timestamp(filter.to()));
-        where.append(" order by id limit ?");
+        where.append(" order by occurred_at desc, id desc limit ?");
         arguments.add(limit);
         return jdbc.query(SELECT + where, mapper, arguments.toArray());
     }

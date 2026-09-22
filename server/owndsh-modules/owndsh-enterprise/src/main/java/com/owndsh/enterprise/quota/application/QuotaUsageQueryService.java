@@ -1,11 +1,12 @@
 /**
  * [INPUT]: 依赖有效策略、窗口 store/calculator、Redis counter snapshot 与 prompt-free ledger store。
- * [OUTPUT]: 对外提供四类当前策略窗口、本人实时用量及管理员筛选分页/聚合查询。
+ * [OUTPUT]: 对外提供四类当前策略窗口、本人实时用量及管理员时间/ID 倒序筛选分页/聚合查询。
  * [POS]: quota/application 的只读组合服务，不创建窗口也不改变 reservation 状态。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.quota.application;
 
+import com.owndsh.enterprise.common.api.EnterpriseCursorCodec.TimePosition;
 import com.owndsh.enterprise.quota.domain.QuotaPolicy;
 import com.owndsh.enterprise.quota.domain.QuotaPolicyType;
 import com.owndsh.enterprise.quota.domain.QuotaWindow;
@@ -78,12 +79,12 @@ public final class QuotaUsageQueryService {
 
     public UsagePage listUsage(
         String tenantId,
-        long afterId,
+        TimePosition before,
         int limit,
         UsageLedgerStore.UsageLedgerFilter filter
     ) {
         return new UsagePage(
-            ledgers.list(tenantId, afterId, limit, filter),
+            ledgers.list(tenantId, before, limit, filter),
             ledgers.summarize(tenantId, filter)
         );
     }

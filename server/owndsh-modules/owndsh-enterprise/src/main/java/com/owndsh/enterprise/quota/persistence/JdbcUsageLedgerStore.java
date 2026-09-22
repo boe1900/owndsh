@@ -1,11 +1,12 @@
 /**
  * [INPUT]: 依赖 JdbcOperations 与 ent_usage_ledger/sys_user/sys_dept/ent_managed_model 的索引和外键。
- * [OUTPUT]: 对外提供唯一 ledger 插入、显示语义 join、keyset 分页与实测 Token/配额扣额/未知请求独立聚合。
+ * [OUTPUT]: 对外提供唯一 ledger 插入、显示语义 join、时间/ID 倒序 keyset 分页与实测 Token/配额扣额/未知请求独立聚合。
  * [POS]: quota/persistence 的 prompt-free 用量 adapter，显示 join 和筛选字段白名单固定且不拼接用户输入。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.quota.persistence;
 
+import com.owndsh.enterprise.common.api.EnterpriseCursorCodec.TimePosition;
 import com.owndsh.enterprise.quota.domain.UsageLedger;
 import com.owndsh.enterprise.quota.domain.UsageLedgerMetadata;
 import com.owndsh.enterprise.quota.domain.UsageResult;
@@ -79,10 +80,14 @@ public final class JdbcUsageLedgerStore implements UsageLedgerStore {
     }
 
     @Override
-    public List<UsageLedgerMetadata> list(String tenantId, long afterId, int limit, UsageLedgerFilter filter) {
+    public List<UsageLedgerMetadata> list(String tenantId, TimePosition before, int limit, UsageLedgerFilter filter) {
         Query query = query(tenantId, filter);
-        query.where.append(" and l.id > ? order by l.id limit ?");
-        query.arguments.add(afterId);
+        if (before != null) {
+            query.where.append(" and (l.created_at, l.id) < (?, ?)");
+            query.arguments.add(Timestamp.from(before.time()));
+            query.arguments.add(before.id());
+        }
+        query.where.append(" order by l.created_at desc, l.id desc limit ?");
         query.arguments.add(limit);
         return jdbc.query(METADATA_SELECT + query.where, METADATA_MAPPER, query.arguments.toArray());
     }

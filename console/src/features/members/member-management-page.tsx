@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖成员/身份源 operation、用户组/身份接入管理器、console 权限、TanStack Query 与产品表格/对话框，共享 lib/crypto 生成 HTTP/HTTPS 通用幂等键。
- * [OUTPUT]: 提供 LOCAL 成员创建、成员目录、LDAP 单人导入、用户组、身份接入、角色/状态和身份绑定治理。
+ * [OUTPUT]: 提供默认筛选启用成员的目录、LOCAL 创建、LDAP 单人导入、用户组、身份接入、角色/状态和身份绑定治理。
  * [POS]: features/members 的产品治理工作台；Server 独占 revision、身份源组同步、最后管理员和设备撤销裁决。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -52,6 +52,7 @@ const ROLE_LABELS: Record<AuthBuiltInRole, string> = {
 
 const STATUS_FILTER = {
   columnId: 'status',
+  defaultFilterValue: 'ACTIVE',
   label: '全部状态',
   options: [
     { label: '启用', value: 'ACTIVE' },

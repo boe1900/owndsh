@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖用量、审计、插件库存 operation，console 权限、TanStack Query 与产品表格。
- * [OUTPUT]: 提供按 ent:* 权限裁剪的活动分段；实测 Token、配额扣额和未知用量独立展示。
+ * [OUTPUT]: 提供按 ent:* 权限裁剪的活动分段，用量和审计最新优先；实测 Token、配额扣额和未知用量独立展示。
  * [POS]: features/activity 的产品观测工作台；V1 只呈现用量、审计和插件运行异常。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */

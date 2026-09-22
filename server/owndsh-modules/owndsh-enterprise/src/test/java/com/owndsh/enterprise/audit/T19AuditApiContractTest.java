@@ -65,7 +65,7 @@ class T19AuditApiContractTest {
             .setControllerAdvice(new EnterpriseExceptionHandler())
             .addFilters(new EnterpriseRequestIdFilter())
             .build();
-        when(audit.list(anyString(),anyLong(),anyInt(),any())).thenReturn(List.of(
+        when(audit.list(anyString(),any(),anyInt(),any())).thenReturn(List.of(
             record(101,AuditAction.MODEL_REQUEST_ACCEPTED,acceptedMetadata()),
             record(102,AuditAction.MODEL_REQUEST_FINISHED,finishedMetadata()),
             record(103,AuditAction.MODEL_REQUEST_FINISHED,finishedMetadata())

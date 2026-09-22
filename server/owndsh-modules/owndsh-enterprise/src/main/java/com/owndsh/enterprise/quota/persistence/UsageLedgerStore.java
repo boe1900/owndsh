@@ -1,11 +1,12 @@
 /**
- * [INPUT]: 接收终态 ledger、tenant 筛选、keyset 与时间范围。
+ * [INPUT]: 接收终态 ledger、tenant 筛选、时间/ID 倒序 keyset 与时间范围。
  * [OUTPUT]: 对外提供 reservation 唯一账本、prompt-free 管理分页及实测用量/扣额/未知请求分开的聚合端口。
  * [POS]: quota/application 的不可重复计费与只读用量查询抽象。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.quota.persistence;
 
+import com.owndsh.enterprise.common.api.EnterpriseCursorCodec.TimePosition;
 import com.owndsh.enterprise.quota.domain.UsageLedger;
 import com.owndsh.enterprise.quota.domain.UsageLedgerMetadata;
 
@@ -19,7 +20,7 @@ public interface UsageLedgerStore {
 
     Optional<UsageLedger> findByReservation(UUID reservationId);
 
-    List<UsageLedgerMetadata> list(String tenantId, long afterId, int limit, UsageLedgerFilter filter);
+    List<UsageLedgerMetadata> list(String tenantId, TimePosition before, int limit, UsageLedgerFilter filter);
 
     UsageTotals summarize(String tenantId, UsageLedgerFilter filter);
 

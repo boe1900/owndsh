@@ -41,5 +41,6 @@ V32__enterprise_mcp_idempotency.sql: 持久化 MCP server/grant 创建的幂等�
 V33__mcp_raw_auth_value.sql: 移除旧 API Key 的 valuePrefix 配置，仅推进受影响的服务与租户 revision，端侧重新连接后原样发送用户输入。
 
 V34__plugin_installation_sources.sql: 清空旧上传插件目录/范围/库存并删除制品列；必填安装配置交给宿主 pnpm，新增登记审计事件。
+V35__usage_chronological_pagination.sql: 为用量账本补齐 tenant+created_at+id 复合索引，支持最新记录优先的时间/ID 游标查询。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

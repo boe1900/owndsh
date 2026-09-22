@@ -1,11 +1,12 @@
 /**
  * [INPUT]: 依赖 V1-V10 PostgreSQL、JdbcAuditSink/JdbcAuditQueryStore 与固定 UTC clock
- * [OUTPUT]: 验证 requestId 双记录关联、筛选隔离、metadata 白名单 JSON 和 365 天 retention
+ * [OUTPUT]: 验证 requestId 双记录关联、时间/ID 续页、筛选隔离、metadata 白名单 JSON 和 365 天 retention
  * [POS]: T19 审计闭环的真实数据库门禁，同时证明 retention 不触碰保留期内记录
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.audit;
 
+import com.owndsh.enterprise.common.api.EnterpriseCursorCodec.TimePosition;
 import com.owndsh.enterprise.model.gateway.GatewayAcceptedMetadata;
 import com.owndsh.enterprise.model.gateway.GatewayFinishedMetadata;
 import com.owndsh.enterprise.test.PostgresTestDatabase;
@@ -68,10 +69,14 @@ class AuditIntegrationTest {
         ));
 
         AuditFilter filter = new AuditFilter(null, null, null, null, null, null, REQUEST_ID, null, null);
-        var records = audit.list("000000", 0, 10, filter);
+        var records = audit.list("000000", null, 10, filter);
 
         assertThat(records).extracting(AuditEventRecord::action)
-            .containsExactly(AuditAction.MODEL_REQUEST_ACCEPTED, AuditAction.MODEL_REQUEST_FINISHED);
+            .containsExactly(AuditAction.MODEL_REQUEST_FINISHED, AuditAction.MODEL_REQUEST_ACCEPTED);
+        assertThat(audit.list("000000", new TimePosition(
+            records.getFirst().occurredAt(), records.getFirst().id()
+        ), 10, filter)).extracting(AuditEventRecord::action)
+            .containsExactly(AuditAction.MODEL_REQUEST_ACCEPTED);
         assertThat(records).allSatisfy(record -> {
             assertThat(record.requestId()).isEqualTo(REQUEST_ID);
             assertThat(record.metadata().toString())
@@ -81,9 +86,27 @@ class AuditIntegrationTest {
                 .doesNotContainIgnoringCase("stack");
         });
         assertThat(audit.list(
-            "000000", 0, 10,
+            "000000", null, 10,
             new AuditFilter(null, AuditAction.MODEL_REQUEST_FINISHED, null, null, null, null, null, null, null)
         )).hasSize(1);
+    }
+
+    @Test
+    void pagesByTimeThenIdEvenWhenIdsAreOutOfOrderAndBoundaryIsDeleted() {
+        Instant time = NOW.plusNanos(123456000);
+        sink.append(event(101, time, AuditAction.CONFIG_CHANGED, AuditResult.SUCCESS, null,
+            new RevisionChangedMetadata(0, 1)));
+        sink.append(event(102, time, AuditAction.CONFIG_CHANGED, AuditResult.SUCCESS, null,
+            new RevisionChangedMetadata(1, 2)));
+        sink.append(event(103, time.minusSeconds(1), AuditAction.CONFIG_CHANGED, AuditResult.SUCCESS, null,
+            new RevisionChangedMetadata(2, 3)));
+        AuditFilter filter = new AuditFilter(null, null, null, null, null, null, null, null, null);
+        var first = audit.list("000000", null, 1, filter).getFirst();
+        assertThat(first.id()).isEqualTo(102);
+        database.jdbc().update("delete from ent_audit_event where id = ?", first.id());
+        var rest = audit.list("000000", new TimePosition(first.occurredAt(), first.id()), 10, filter);
+        assertThat(rest).extracting(AuditEventRecord::id).containsExactly(101L, 103L);
+        assertThat(audit.list("other", null, 10, filter)).isEmpty();
     }
 
     @Test

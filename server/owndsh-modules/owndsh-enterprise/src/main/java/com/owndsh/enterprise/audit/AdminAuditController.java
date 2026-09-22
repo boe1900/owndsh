@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 AuditQueryService、enterprise-admin 可信上下文、认证 cursor 与 ent:audit:read
- * [OUTPUT]: 提供 GET `/enterprise/admin/v1/audit-events` 多维筛选和 keyset page
+ * [OUTPUT]: 提供 GET `/enterprise/admin/v1/audit-events` 多维筛选和时间/ID 倒序 keyset page
  * [POS]: audit 管理只读入口；cursor AAD 绑定全部筛选且响应裁掉 IP/user-agent hash
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -75,11 +75,12 @@ public final class AdminAuditController {
             to
         );
         String scope = scope(filter);
-        long afterId = cursors.decode(cursor, context.tenantId(), scope);
-        List<AuditEventRecord> records = audit.list(context.tenantId(), afterId, pageLimit + 1, filter);
+        var before = cursors.decodeTime(cursor, context.tenantId(), scope);
+        List<AuditEventRecord> records = audit.list(context.tenantId(), before, pageLimit + 1, filter);
         boolean hasMore = records.size() > pageLimit;
         List<AuditEventRecord> page = hasMore ? records.subList(0, pageLimit) : records;
-        String next = hasMore ? cursors.encode(context.tenantId(), scope, page.getLast().id()) : null;
+        String next = hasMore ? cursors.encodeTime(context.tenantId(), scope,
+            new EnterpriseCursorCodec.TimePosition(page.getLast().occurredAt(), page.getLast().id())) : null;
         return new EnterpriseResponse<>(
             new CursorPageData<>(
                 page.stream().map(AuditEventView::from).toList(),

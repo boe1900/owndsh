@@ -7,7 +7,7 @@
 CursorPageData.java: 所有列表统一使用的 items/page 成功载荷。
 CursorPageMetadata.java: 强制 hasMore 与 nextCursor 同构的分页元数据。
 EnterpriseApiValidation.java: UUID v4 Idempotency-Key 与 1..200 page limit 公共校验。
-EnterpriseCursorCodec.java: 先以 SHA-256 规范化任意 filter scope，再使用 API_CURSOR AES-GCM 与 tenant AAD 认证 keyset cursor。
+EnterpriseCursorCodec.java: 先以 SHA-256 规范化任意 filter scope，再使用 API_CURSOR AES-GCM 与 tenant AAD 认证 ID 游标和时间/ID 倒序复合游标。
 EnterpriseError.java: 稳定 code/message/requestId/retryable/details 错误对象。
 EnterpriseErrorResponse.java: 企业错误 envelope 根。
 EnterpriseExceptionHandler.java: 业务异常到稳定 status/code 的统一映射，MCP 查无资源固定 404、设备撤销 403、上游 429 保留 Retry-After；入口校验记录原因链，并只向用户返回受控的中文参数/业务原因。

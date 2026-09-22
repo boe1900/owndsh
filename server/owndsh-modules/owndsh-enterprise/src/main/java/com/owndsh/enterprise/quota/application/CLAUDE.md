@@ -22,7 +22,7 @@ RequestAlreadyCompletedException.java: 幂等键命中终态 reservation 的 409
 QuotaReservationCommand.java: T10 到预留服务的可信请求/资源/估算 command。
 UsageTokens.java: 上游 usage 的 input/output/cache 非负分类值。
 QuotaReservationService.java: PostgreSQL 预留与 Redis lease 编排；发送意图先落库，usage 在独立事务保存，实测量与扣额分离，兜底与恢复统一优先使用快照且 Redis 清理不回滚账本。
-QuotaUsageQueryService.java: 按策略类型读取四类窗口或 RPM/并发快照，并组合本人有效策略和管理员 ledger 查询。
+QuotaUsageQueryService.java: 按策略类型读取四类窗口或 RPM/并发快照，并组合本人有效策略和管理员时间/ID 倒序 ledger 查询。
 QuotaRecoveryJob.java: 每分钟领取过期 reservation，按是否发送及是否已有 usage 快照恢复为 RELEASED/SETTLED/CHARGED_MAX。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

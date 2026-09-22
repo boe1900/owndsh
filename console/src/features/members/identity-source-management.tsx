@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖身份源 operation、TanStack Query、产品表格/编辑器与 LDAP 组映射弹窗，共享 lib/crypto 生成 HTTP/HTTPS 通用幂等键。
- * [OUTPUT]: 提供 OIDC/LDAP/LOCAL 身份接入、连接测试、启停，以及绑定具体 LDAP 来源的组映射入口。
+ * [OUTPUT]: 提供默认筛选启用项的 OIDC/LDAP/LOCAL 身份接入、连接测试、启停，以及绑定具体 LDAP 来源的组映射入口。
  * [POS]: features/members 的身份接入工作台；Server 独占 secret、endpoint、revision 和身份源状态裁决。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -119,7 +119,7 @@ export function IdentitySourceManagement({ canWrite }: { canWrite: boolean }) {
     <div className="grid gap-4">
       {notice ? <div role="status" className="rounded-lg bg-green-tint px-3 py-2 text-[12.5px] text-green">{notice}</div> : null}
       {mutationError ? <p role="alert" className="m-0 text-[12.5px] text-red">{errorMessage(mutationError, '身份源操作失败')}</p> : null}
-      <ProductDataTable ariaLabel="身份源" columns={columns} data={rows} emptyText="暂无身份源" error={sources.error} filter={{ columnId: 'status', label: '全部状态', options: [{ label: '启用', value: 'ACTIVE' }, { label: '停用', value: 'DISABLED' }] }} getRowId={(row) => row.id} hasMore={sources.hasNextPage} isLoading={sources.isLoading} isLoadingMore={sources.isFetchingNextPage} onLoadMore={() => void sources.fetchNextPage()} onRetry={() => void sources.refetch()} searchPlaceholder="搜索名称、类型或端点" toolbarAction={canWrite ? <Button variant="primary" size="xs" onClick={() => { save.reset(); setEditor('new'); }}><Plus aria-hidden className="size-3.5" />新建身份源</Button> : undefined} />
+      <ProductDataTable ariaLabel="身份源" columns={columns} data={rows} emptyText="暂无身份源" error={sources.error} filter={{ columnId: 'status', defaultFilterValue: 'ACTIVE', label: '全部状态', options: [{ label: '启用', value: 'ACTIVE' }, { label: '停用', value: 'DISABLED' }] }} getRowId={(row) => row.id} hasMore={sources.hasNextPage} isLoading={sources.isLoading} isLoadingMore={sources.isFetchingNextPage} onLoadMore={() => void sources.fetchNextPage()} onRetry={() => void sources.refetch()} searchPlaceholder="搜索名称、类型或端点" toolbarAction={canWrite ? <Button variant="primary" size="xs" onClick={() => { save.reset(); setEditor('new'); }}><Plus aria-hidden className="size-3.5" />新建身份源</Button> : undefined} />
       {editor ? <IdentitySourceEditorDialog current={editor === 'new' ? undefined : editor} error={save.error ? errorMessage(save.error, '身份源保存失败') : undefined} saving={save.isPending} onClose={() => setEditor(undefined)} onSave={(value) => save.mutate({ current: editor === 'new' ? undefined : editor, value })} /> : null}
       {mappingSource ? <LdapGroupMappingDialog source={mappingSource} canWrite={canWrite} onClose={() => setMappingSource(undefined)} /> : null}
     </div>

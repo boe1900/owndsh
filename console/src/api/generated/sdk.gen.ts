@@ -921,6 +921,9 @@ export const getMyQuotaUsage = <ThrowOnError extends boolean = false>(options?: 
     ...options
 });
 
+/**
+ * Returns newest records first (createdAt DESC, id DESC). The opaque cursor advances toward older records and is bound to the query filters.
+ */
 export const listUsageLedger = <ThrowOnError extends boolean = false>(options?: Options<ListUsageLedgerData, ThrowOnError>): RequestResult<ListUsageLedgerResponses, ListUsageLedgerErrors, ThrowOnError> => (options?.client ?? client).get<ListUsageLedgerResponses, ListUsageLedgerErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
@@ -1157,6 +1160,9 @@ export const deleteAdminSession = <ThrowOnError extends boolean = false>(options
     ...options
 });
 
+/**
+ * Returns newest records first (occurredAt DESC, id DESC). The opaque cursor advances toward older records and is bound to the query filters.
+ */
 export const listAuditEvents = <ThrowOnError extends boolean = false>(options?: Options<ListAuditEventsData, ThrowOnError>): RequestResult<ListAuditEventsResponses, ListAuditEventsErrors, ThrowOnError> => (options?.client ?? client).get<ListAuditEventsResponses, ListAuditEventsErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, {
             in: 'cookie',
