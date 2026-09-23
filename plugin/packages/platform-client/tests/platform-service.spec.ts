@@ -429,7 +429,7 @@ describe('EnterprisePlatformService', () => {
 
     await env.service.setServerUrl(env.platformUrl)
     await vi.waitFor(() => expect(env.service.status()).toMatchObject({ state: 'SIGNED_OUT', platformUrl: env.platformUrl }))
-    expect(settingsDocument(env.settings!)).toEqual({ 'owndsh-plugin': { baseUrl: env.platformUrl } })
+    expect(settingsDocument(env.settings!)).toEqual({ owndsh: { baseUrl: env.platformUrl } })
 
     await login(env)
     const before = env.service.status()

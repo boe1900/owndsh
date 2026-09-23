@@ -61,7 +61,7 @@ type McpCredentialPayload = {
 )
 ```
 
-这是当前 `McpCredentialManager` 的持久记录；OAuth 分支只保存官方 SDK 的 `StoredOAuthTokens` 与 `StoredOAuthClientInformation`，不解释或改写 token、issuer、refresh 语义。MCP 尚未上线，只维护当前记录格式，存放于独立 `owndsh-mcp/` 凭据命名空间；连接意愿写入官方 bundle settings 的 `owndsh-plugin.mcp.desiredConnected`。
+这是当前 `McpCredentialManager` 的持久记录；OAuth 分支只保存官方 SDK 的 `StoredOAuthTokens` 与 `StoredOAuthClientInformation`，不解释或改写 token、issuer、refresh 语义。MCP 尚未上线，只维护当前记录格式，存放于独立 `owndsh-mcp/` 凭据命名空间；连接意愿写入官方 bundle settings 的 `owndsh.mcp.desiredConnected`。
 
 实际实现用 discriminated union，拒绝分支混用和未知字段。bindingDigest 是 URL/auth/公共 headers/transport 的稳定摘要；所有可能改变秘密发送目标的配置变化都使旧记录失效。
 摘要使用 bundle `mcp-oauth.ts` 内部的 `canonicalizeJson`，对象键顺序不影响绑定；auth 的 issuer/resource/clientId/scopes/endpoints 全部参与摘要。不会对新 URL 尝试旧 Key，不仅按 serverName 存秘密。显示名/呈现/超时/reconnect/revision 变化不丢 OAuth。

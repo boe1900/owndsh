@@ -13,7 +13,7 @@ import { apply as applyMcpClient, createMcpToolDefinition, type Config as McpCli
 import { auth as mcpOAuthAuth, Client, StreamableHTTPClientTransport, type Tool } from '@modelcontextprotocol/client'
 import type { McpResourceProvider, McpResourceRequest } from '@deepseek-ai/dsh-mcp-resources'
 import type { ToolExecution } from '@deepseek-ai/dsh-tools'
-import { startLoopbackCallback, type EnterprisePlatformService, type WebServerRoutePort } from '@owndsh/platform-client'
+import { OWNDSH_SETTINGS_ENTRY, startLoopbackCallback, type EnterprisePlatformService, type WebServerRoutePort } from '@owndsh/platform-client'
 import { McpCredentialManager, McpOAuthProvider, mcpCredentialBinding, mcpOwnerDigest } from './mcp-oauth.js'
 import { mountMcpTools, type McpConnection } from './mcp-tools.js'
 
@@ -99,7 +99,7 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
   const isPaused = (serverName: string): boolean => disconnected.has(serverName) || desiredConnected.get(desiredKey(serverName)) === false
   const saveDesired = async (serverName: string, connected: boolean): Promise<void> => {
     desiredConnected.set(desiredKey(serverName), connected)
-    if (settings !== undefined) await settings.update('owndsh-plugin', { mcp: { desiredConnected: Object.fromEntries(desiredConnected) } })
+    if (settings !== undefined) await settings.update(OWNDSH_SETTINGS_ENTRY, { mcp: { desiredConnected: Object.fromEntries(desiredConnected) } })
   }
   const platformReady = (): boolean => owner !== undefined && owner === currentOwner()
   const presentation = mountMcpTools(ctx, {

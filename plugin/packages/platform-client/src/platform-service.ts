@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Cordis Service/WebServer/settings forms/credentials、T02 contracts、PKCE/installation/browser 原语与 Node fetch
- * [OUTPUT]: 提供 ctx.enterprisePlatform、启动恢复、按需刷新/Token 轮换；仅无活动会话时允许清理凭据并修改 Server
+ * [OUTPUT]: 提供 ctx.enterprisePlatform、OwnDsh Settings 命名空间、启动恢复与按需刷新/Token 轮换；仅无活动会话时允许清理凭据并修改 Server
  * [POS]: platform-client 的 Host 业务核心，跨 Web/Desktop 复用官方凭据平面且不向 Client UI 暴露任何 Token
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -41,7 +41,7 @@ import {
 
 const AUTH_PATH = '/enterprise/auth/v1'
 const API_PATH = '/enterprise/api/v1'
-const SETTINGS_ENTRY = 'owndsh-plugin'
+export const OWNDSH_SETTINGS_ENTRY = 'owndsh'
 const TRANSITIONAL_REQUEST_PATHS = new Set([
   `${AUTH_PATH}/logout`,
   `${API_PATH}/bootstrap`,
@@ -257,7 +257,7 @@ export class EnterprisePlatformService extends Service {
     this.configuring = resolved.origin
     try {
       await this.platformCredentials.delete()
-      await settings.update(SETTINGS_ENTRY, { baseUrl: resolved.origin })
+      await settings.update(OWNDSH_SETTINGS_ENTRY, { baseUrl: resolved.origin })
       this.applyServerUrl(resolved.origin)
       return { serverUrl: resolved.origin }
     } finally { this.configuring = undefined }

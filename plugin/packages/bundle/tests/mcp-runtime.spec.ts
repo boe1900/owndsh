@@ -423,6 +423,8 @@ describe('official MCP client integration', () => {
       response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ jsonrpc: '2.0', id: body.id, result }))
     })
     const ctx = await host()
+    const settings = { update: vi.fn(async () => undefined) }
+    ctx.provide('settings', settings as never)
     const routes = new Map<string, any>()
     ctx.provide('webServer', { register: (route: any) => { routes.set(route.path, route); return () => routes.delete(route.path) } })
     const localUrl = await listen((request, response) => { void routes.get(request.url)?.handler(request, response) })
@@ -455,6 +457,9 @@ describe('official MCP client integration', () => {
     expect(platform.request).toHaveBeenCalledTimes(1)
     const pause = await fetch(`${localUrl}/enterprise/api/v1/local/mcp/pause`, { method: 'POST', body: JSON.stringify({ serverName: 'docs' }) })
     expect(pause.status).toBe(200)
+    const settingNamespaces = settings.update.mock.calls.map(call => call[0])
+    expect(settingNamespaces).toContain('owndsh')
+    expect(settingNamespaces).not.toContain('owndsh-plugin')
     expect(ctx.tools.get('mcp__docs__read')).toBeUndefined()
     expect((await (await fetch(`${localUrl}/enterprise/api/v1/local/mcp/status`)).json()).data.assignments[0]).toMatchObject({ discoveredToolCount: 0, tools: [] })
     const reconnect = await fetch(`${localUrl}/enterprise/api/v1/local/mcp/reconnect`, { method: 'POST', body: JSON.stringify({ serverName: 'docs' }) })
