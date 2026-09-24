@@ -60,9 +60,9 @@ MCP 继续属于 **OwnDsh 标准插件**。发布物只有现有的 `owndsh-plug
 ### 2.1 版本真相
 
 历史 checkout/`upstream/deepseek-harness.lock.json`：`0.1.1-rc.2`，commit `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`。
-当前 `plugin/packages/bundle/package.json` 的官方 peers/devDependencies：`0.1.5-rc.2`，bundle 的运行时映射为 commit `fb2c4b9e698e30edb738bca4cf0618587db7d203`。两者不一致是现状，本设计不改已有版本锁。
-MCP 新能力以 **0.1.5-rc.2** 为目标；开发前确认实际发行运行树。不能拿旧 checkout 测试通过声称新版组合完成。老版只保留研究证据，不新增双版本兼容分支；不满足新 MCP 依赖的 Host 提示升级，既有平台功能仍可用。
-官方 npm `dsh-tools@0.1.5-rc.2` 的 Cordis peer 是 `^4.0.2`；现有 workspace 开发锁 `4.0.1` 不能直接用于目标组合。P2-MCP-00 应同步升级官方 peer/dev 锁并验证唯一实例，不用 --force/legacy-peer-deps 掩盖冲突；本次文档任务不修改依赖清单。
+当前 `plugin/packages/bundle/package.json` 的官方 peers/devDependencies：`0.1.7-rc.1`，目标发行 tag commit 为 `46a7f68b0922371ce7144b668b90e377d8e799f4`。历史 0.1.5-rc.2 记录只作为探针证据，不代表当前支持基线。
+MCP 新能力以 **0.1.7-rc.1** 为目标；开发和验收必须使用该发行运行树。不能拿旧 checkout 测试通过声称新版组合完成。老版只保留研究证据，不新增双版本兼容分支；不满足新 MCP 依赖的 Host 提示升级，既有平台功能仍可用。
+官方 npm `dsh-tools@0.1.7-rc.1` 与 Cordis `4.0.4` 已由 workspace 锁定；升级时继续验证唯一实例，不用 `--force`/`legacy-peer-deps` 掩盖冲突。
 
 | 事实 | 源码核对结果 |
 |---|---|
@@ -71,7 +71,7 @@ MCP 新能力以 **0.1.5-rc.2** 为目标；开发前确认实际发行运行树
 | 工具重同步 | `syncTools` 获取完整列表后 dispose 旧注册、注册新世代；不能承诺“未变化工具不重新注册” |
 | 命名 | `serverName` 需满足 `[A-Za-z0-9_-]{1,32}`；publicName 最长 64，可能带 hash；不能反向解析 rawName |
 | tools.restrict | 可撤销的 scoped 可见性/查找/执行 mask，不会销毁全局定义；不能称作全局注销 |
-| 呈现版本 | rc.2 是 native/code/both；0.1.5-rc.2 是 native/ptc/both |
+| 呈现版本 | 0.1.7-rc.1 使用 native/ptc/both；历史 rc.2 证据中的 code 模式不作为当前承诺 |
 | Code/PTC | `tools:sdk` 独立包含工具定义；仅过滤 `assembly.tools` 不足以减少 SDK 上下文 |
 | 连接可观测性 | public apply 返回激活完成，无连接健康/HTTP 401 的标准状态服务；UI 不推断实时健康 |
 | 扩展边界 | `systemPrompt.tools` 是添加 provider，不是替换已有 tools provider；本设计用 assemble waterfall |

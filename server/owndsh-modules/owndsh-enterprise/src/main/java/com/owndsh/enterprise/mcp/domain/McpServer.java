@@ -34,7 +34,12 @@ public record McpServer(
         if (!NAME.matcher(serverName).matches()) throw new IllegalArgumentException("serverName 非法");
         displayName = text(displayName, "displayName", 120); description = Objects.requireNonNull(description, "description");
         if (description.length() > 1000 || !"streamable-http".equals(transport)) throw new IllegalArgumentException("MCP transport/description 非法");
-        url = text(url, "url", 2048); headers = Map.copyOf(Objects.requireNonNull(headers, "headers"));
+        url = text(url, "url", 2048);
+        URI endpoint = httpUri(url, "url");
+        if (allowInsecureTransport != "http".equalsIgnoreCase(endpoint.getScheme())) {
+            throw new IllegalArgumentException("MCP allowInsecureTransport 必须与 URL 协议一致");
+        }
+        headers = Map.copyOf(Objects.requireNonNull(headers, "headers"));
         auth = Map.copyOf(Objects.requireNonNull(auth, "auth")); validateAuth(auth); validateHeaders(headers, auth); reconnect = Map.copyOf(Objects.requireNonNull(reconnect, "reconnect"));
         if (toolCallTimeoutMs < 1000 || toolCallTimeoutMs > 300000) throw new IllegalArgumentException("MCP timeout 非法");
         if (!presentation.equals("search") && !presentation.equals("full")) throw new IllegalArgumentException("MCP presentation 非法");
@@ -77,12 +82,19 @@ public record McpServer(
         }
         if (bytes > 8192) throw new IllegalArgumentException("固定请求头合计不能超过 8 KiB");
     }
-    private static boolean httpUrl(String value) {
+    private static URI httpUri(String value, String field) {
         try {
             URI u = URI.create(value);
-            return ("http".equalsIgnoreCase(u.getScheme()) || "https".equalsIgnoreCase(u.getScheme()))
-                && u.getHost() != null && u.getUserInfo() == null && u.getFragment() == null;
-        } catch (RuntimeException e) { return false; }
+            if (("http".equalsIgnoreCase(u.getScheme()) || "https".equalsIgnoreCase(u.getScheme()))
+                && u.getHost() != null && u.getUserInfo() == null && u.getFragment() == null) return u;
+        } catch (RuntimeException ignored) { }
+        throw new IllegalArgumentException("MCP " + field + " 必须是无 userinfo/fragment 的 HTTP(S) 地址");
+    }
+    private static boolean httpUrl(String value) {
+        try {
+            httpUri(value, "OAuth");
+            return true;
+        } catch (IllegalArgumentException e) { return false; }
     }
     public enum Status { ACTIVE, DISABLED }
 }

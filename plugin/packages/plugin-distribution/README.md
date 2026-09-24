@@ -24,4 +24,4 @@ Web/Desktop 都调用官方 `pluginManager.installBundle()`、`removeBundle()` �
 
 本机选择写入 `$DSH_HOME/enterprise/plugin-installations.json`，不读旧 `managed-plugins.json`。V34 清空旧上传目录、可见范围和库存并删除制品列，需要重新登记插件并同步更新 Server/Console/员工插件；不迁移旧上传制品，不提供旧上传、下载或验签接口。历史审计账本保留。OwnDsh 与 Desktop 核心包禁止通过企业目录更新或卸载。
 
-2026-09-17 验证：客户端 147 项单元/集成测试、服务端迁移/契约/安全 24 项、部署 14 项、控制台 34 项及 production build 通过。锁定 Harness CLI 在带空格路径安装普通 `semver` 依赖、切换版本和卸载通过；Harness 0.1.5-rc.2 桌面运行包的隔离浏览器回归覆盖分类搜索、详情确认后才安装、重启提示、卸载与窄屏布局。浏览器 API 使用测试目录，真实私有 registry/Git 认证未在本轮实测。
+2026-09-24 复核：当前官方依赖与发布 peer 基线为 Harness `0.1.7-rc.1`；客户端、服务端迁移/契约/安全、部署、控制台与 production build 门禁通过。历史浏览器回归使用 `0.1.5-rc.2` 运行包，覆盖分类搜索、详情确认后才安装、重启提示、卸载与窄屏布局；真实私有 registry/Git 认证和 RC1 Desktop 原生安装链路仍需单独验收。

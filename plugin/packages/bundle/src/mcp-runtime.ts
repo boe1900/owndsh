@@ -54,6 +54,17 @@ function readLiveValue<T>(value: LiveValue<T> | undefined): T | undefined {
   return value as T | undefined
 }
 
+function parseMcpEndpoint(value: unknown, allowInsecureTransport: unknown): URL {
+  if (typeof value !== 'string') throw new Error('MCP_URL_INVALID')
+  let url: URL
+  try { url = new URL(value) } catch { throw new Error('MCP_URL_INVALID') }
+  if ((url.protocol !== 'http:' && url.protocol !== 'https:') || url.username !== '' || url.password !== '' || url.hash !== '') {
+    throw new Error('MCP_URL_INVALID')
+  }
+  if (allowInsecureTransport !== (url.protocol === 'http:')) throw new Error('MCP_TRANSPORT_SECURITY_MISMATCH')
+  return url
+}
+
 export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }, platform: Pick<EnterprisePlatformService, 'request' | 'status' | 'subscribe' | 'bootstrap'>, credentials: CredentialProvider, config: McpRuntimeConfig = {}): void {
   type MountedMcp = { fiber: { dispose(): Promise<void> }; revision: number; signature: string; connection: McpConnection; disposal?: Promise<void> }
   const mounted = new Map<string, MountedMcp>()
@@ -288,7 +299,7 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
   })
   const connectOAuth = async (assignment: Record<string, unknown>, manager: McpCredentialManager, connection: McpConnection): Promise<{ dispose(): Promise<void> }> => {
     const serverName = assignment.serverName as string
-    const url = assignment.url as string
+    const url = parseMcpEndpoint(assignment.url, assignment.allowInsecureTransport).toString()
     const auth = assignment.auth as OAuthAssignment
     const timeout = typeof assignment.toolCallTimeoutMs === 'number' ? assignment.toolCallTimeoutMs : 60_000
     const state = randomUUID()
@@ -432,12 +443,12 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
     for (const assignment of assignments) {
       if (stopped || generation !== assignmentGeneration || !platformReady()) return
       const serverName = typeof assignment.serverName === 'string' ? assignment.serverName : undefined
-      const url = typeof assignment.url === 'string' ? assignment.url : undefined
-      if (serverName === undefined || url === undefined || isPaused(serverName)) continue
+      if (serverName === undefined || typeof assignment.url !== 'string' || isPaused(serverName)) continue
       const serverRevision = typeof assignment.revision === 'number' ? assignment.revision : 0
       let headers = (assignment.headers ?? {}) as Record<string, string>
       const auth = assignment.auth as (OAuthAssignment & { headerName?: string }) | undefined
       try {
+        const url = parseMcpEndpoint(assignment.url, assignment.allowInsecureTransport).toString()
         if (auth?.type === 'oauth') {
           const manager = managerFor(assignment)
           if (!await manager.configured('oauth')) {

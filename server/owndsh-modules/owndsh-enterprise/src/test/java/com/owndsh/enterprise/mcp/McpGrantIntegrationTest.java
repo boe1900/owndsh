@@ -240,6 +240,19 @@ class McpGrantIntegrationTest {
         service.createGrants(TENANT, List.of(grant(id, McpGrant.SubjectType.ALL, null)));
         var assignment = service.assignments(TENANT, USER).stream().filter(item -> item.id() == id).findFirst().orElseThrow();
         assertThat(assignment.auth()).containsEntry("tokenEndpoint", "http://auth.internal/auth/token-v2");
+        for (String invalid : List.of("ftp://mcp.internal/mcp", "http://user:password@mcp.internal/mcp", "http://mcp.internal/mcp#fragment")) {
+            mvc.perform(put("/enterprise/admin/v1/mcp-servers/" + id).header("If-Match", 2)
+                .contentType(MediaType.APPLICATION_JSON).content(body.replace("http://localhost:8090/mcp", invalid)))
+                .andExpect(status().isBadRequest());
+        }
+        mvc.perform(put("/enterprise/admin/v1/mcp-servers/" + id).header("If-Match", 2)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(body.replace("http://localhost:8090/mcp", "https://mcp.internal/mcp")))
+            .andExpect(status().isBadRequest());
+        mvc.perform(put("/enterprise/admin/v1/mcp-servers/" + id).header("If-Match", 2)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(body.replace("\"allowInsecureTransport\":true", "\"allowInsecureTransport\":false")))
+            .andExpect(status().isBadRequest());
         for (String invalid : List.of("ftp://auth.internal/auth", "http://user:password@auth.internal/auth", "http://auth.internal/auth#fragment", "http:/missing-host")) {
             mvc.perform(put("/enterprise/admin/v1/mcp-servers/" + id).header("If-Match", 2)
                 .contentType(MediaType.APPLICATION_JSON).content(body.replace("http://auth.internal/auth", invalid)))

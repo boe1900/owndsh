@@ -40,5 +40,5 @@ SDK、认证代理和企业网关均不叠加重试。每次重试仍是独立�
 上游 API Key 不进入 Harness 环境、settings 或磁盘；平台 Token 仍只有
 `EnterprisePlatformService.request()` 能读取。
 
-运行时 peer 从已验证的 `0.1.1-rc.2` 起采用 Harness 官方一致的 caret 兼容范围。实际版本由宿主提供，Desktop 版本号不参与模型桥装载判断。本包与 bundle 的
+运行时 peer 从已验证的 `0.1.7-rc.1` 起采用 Harness 官方一致的 caret 兼容范围。实际版本由宿主提供，Desktop 版本号不参与模型桥装载判断。本包与 bundle 的
 `skipLibCheck` 只隔离链接上游 `@anthropic-ai/sdk` 的损坏声明文件，自有 TypeScript 仍在严格模式下检查。

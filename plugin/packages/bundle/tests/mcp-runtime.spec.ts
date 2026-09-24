@@ -431,6 +431,7 @@ describe('official MCP client integration', () => {
     let state = 'READY'
     let revision = 1
     let granted = true
+    let allowInsecureTransport = true
     let now = performance.now()
     vi.spyOn(performance, 'now').mockImplementation(() => now)
     let listener!: (status: any) => void
@@ -439,7 +440,7 @@ describe('official MCP client integration', () => {
       bootstrap: () => ({ user: { id: '1' }, device: { id: '2', installationId: 'installation-a' } }),
       subscribe: (callback: typeof listener) => { listener = callback; return () => {} },
       request: vi.fn(async () => Response.json({ data: { revision, validForMs: 60000, assignments: granted ? [
-        { id: '3', serverName: 'docs', displayName: 'Docs', revision, url, transport: 'streamable-http', headers: {}, presentation: 'search', auth: { type: 'none' }, reconnect: { enabled: false } },
+        { id: '3', serverName: 'docs', displayName: 'Docs', revision, url, allowInsecureTransport, transport: 'streamable-http', headers: {}, presentation: 'search', auth: { type: 'none' }, reconnect: { enabled: false } },
       ] : [] } })),
     }
     const fiber = await ctx.plugin({ inject: ['tools', 'webServer'], apply: async (child: Context) => { mountMcpRuntime(child as any, platform as any, { listRecords: async () => [] } as any) } })
@@ -508,6 +509,11 @@ describe('official MCP client integration', () => {
     now += 60_001
     await ctx.systemPrompt.assemble({ scope: first, agent: first })
     expect(ctx.tools.get('mcp__docs__read')).toBeDefined()
+    allowInsecureTransport = false
+    revision++
+    now += 60_001
+    await ctx.systemPrompt.assemble({ scope: first, agent: first })
+    expect(ctx.tools.get('mcp__docs__read')).toBeUndefined()
     state = 'SIGNED_OUT'
     listener({ state })
     expect((await call(ctx, 'mcp__docs__read')).isError).toBe(true)
@@ -554,7 +560,7 @@ describe('official MCP client integration', () => {
     ctx.provide('webServer', { register: (route: any) => { routes.set(route.path, route); return () => routes.delete(route.path) } })
     ctx.provide('mcpResources', { register: (_server: string, provider: any) => { resourceProvider = provider; return () => { resourceProvider = undefined } } })
     ctx.tools.register(tool('ordinary'))
-    const assignment = { id: '3', serverName: 'docs', displayName: 'Docs', revision: 1, url,
+    const assignment = { id: '3', serverName: 'docs', displayName: 'Docs', revision: 1, url, allowInsecureTransport: true,
       transport: 'streamable-http', headers: { 'X-Client-Name': 'OwnDsh' }, presentation: 'search',
       auth: { type: 'oauth', clientId: 'client', resource: url }, reconnect: { enabled: false } }
     const ownerDigest = mcpOwnerDigest({ platformUrl: 'https://platform.example', userId: '1', deviceId: '2', installationId: 'installation-a' })
@@ -611,7 +617,7 @@ describe('official MCP client integration', () => {
     const local = (path: string, body?: object) => fetch(`${localUrl}/enterprise/api/v1/local/mcp/${path}`, body === undefined ? {} : { method: 'POST', body: JSON.stringify(body) })
     let state = 'READY', userId = '1', revision = 1, now = performance.now()
     let assignment: Record<string, unknown> = { id: '3', serverName: 'docs', displayName: 'Docs', revision,
-      url, transport: 'streamable-http', headers: { 'X-Apifox-Api-Version': '2025-09-01', 'X-Client-Name': 'OwnDsh' }, presentation: 'search', auth: { type: 'api-key', headerName }, reconnect: { enabled: false } }
+      url, allowInsecureTransport: true, transport: 'streamable-http', headers: { 'X-Apifox-Api-Version': '2025-09-01', 'X-Client-Name': 'OwnDsh' }, presentation: 'search', auth: { type: 'api-key', headerName }, reconnect: { enabled: false } }
     vi.spyOn(performance, 'now').mockImplementation(() => now)
     let listener!: () => void
     const platform = {

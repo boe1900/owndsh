@@ -19,7 +19,7 @@ MCP 重点链路在真实 DSH Web AgentLoop 中通过：协议协商、工具分
 
 | 项目 | 实际值 |
 |---|---|
-| OwnDsh 基线 | commit `d1de444` 的隔离工作树与本轮 RC1 适配改动 |
+| OwnDsh 基线 | commit `5fcd3df` 与本轮工作树的 MCP 安全校验改动 |
 | DSH runtime | `@deepseek-ai/dsh@0.1.7-rc.1`，隔离 runtime `/tmp/owndsh-dsh-rc1-runtime` |
 | 官方依赖 | Harness 全套 `0.1.7-rc.1`、Cordis `4.0.4`、Schemastery `3.18.4`、`@modelcontextprotocol/client@2.0.0` |
 | 运行面 | 隔离 `DSH_HOME`、DSH Web、Chromium、本地企业平台/MCP/OAuth 服务和确定性模型桩 |
@@ -37,6 +37,18 @@ MCP 重点链路在真实 DSH Web AgentLoop 中通过：协议协商、工具分
 | OAuth 恢复 | 通过；401 刷新轮换、`invalid_grant` 阻止失败调用、重新授权后恢复同一会话 |
 | 启停和重启 | 通过；暂停撤回工具，恢复有效，新 Agent 不继承旧集合，Host 重启恢复凭据 |
 
+## 五模块审计
+
+| 模块 | 功能检查 | RC1 最佳实践 | 结论与边界 |
+|---|---|---|---|
+| 企业登录 | 通过；LOCAL/LDAP/OIDC、PKCE、HttpOnly 会话、失效/退出/重启恢复均有 Web/服务端门禁 | 通过；浏览器不持有 Bearer Token，Web 复用官方 settings/Host 会话，Desktop/Harness 使用官方 credentials Refresh Grant | 实现沿官方 Host 接缝收敛；真实供应商 OIDC、RC1 Desktop 原生外壳仍未验收 |
+| 企业模型 | 通过；动态模型/default、三协议代理、流式响应、瞬时失败恢复和终态配额重试策略通过 | 通过；直接使用官方 `dsh-llm-pi-ai`/profile/AgentLoop，企业层只做认证代理、授权、配额和审计，不复制 provider 协议 | 结构没有补丁式第二套 AI 抽象；真实供应商矩阵与取消/网络故障仍需发布前补测 |
+| 企业访问策略/配额 | 通过；组织/成员/模型集授权、TOKEN/RATE/并发窗口、Redis lease、结算恢复和重叠策略已有后端与控制台门禁 | 通过；授权解析、预留、结算和审计分层，沿 PostgreSQL/Redis 现有边界，不把额度判断塞进客户端 | 真实 Harness 重叠配额 E2E 和供应商长时压测仍是独立发布门禁 |
+| 企业 MCP | 通过；none/API Key/OAuth、分页/资源、按需加载、撤销、Agent 隔离和恢复通过；本轮补齐 URL 与传输安全一致性 | 通过；协议、OAuth、资源和工具生命周期继续交给官方 SDK/client；服务端与端侧双重拒绝非 HTTP(S)、userinfo、fragment 及协议不一致配置 | 真实第三方 OAuth、动态注册、真实 PTC 解释器未覆盖；旧 rc.2 checkout 只保留历史证据 |
+| 企业插件管理 | 通过；企业市场授权、精确版本、安装/更新/卸载状态、重启提示和官方 `pluginManager` 路径通过 | 通过；复用官方 plugin manager/inventory/profile，不维护第二套 CLI/pnpm 状态机，官方管理页只按产品策略关闭入口 | 真实私有 registry/Git 网络故障与 RC1 Desktop 原生安装/重启链路仍需单独验收 |
+
+本表把“功能通过”限定在已执行的 Web、服务端和受控协议桩证据内；未验证项不会由旧版本源码 checkout 或 peer 可安装性推导为兼容。
+
 ## Release notes 对照
 
 - MCP 升级到官方 SDK v2 的协议协商、工具分页和无工具服务器能力已被本地 `dsh-mcp-client`/SDK v2 路径覆盖；资源、模板和读取由官方 `dsh-mcp-resources` 路径覆盖。OwnDsh 不新增第二套协议实现。
@@ -51,6 +63,7 @@ MCP 重点链路在真实 DSH Web AgentLoop 中通过：协议协商、工具分
 1. 所有官方 Harness 包升级到 `0.1.7-rc.1`，Cordis 升级到 `4.0.4`，Schemastery 升级到 `3.18.4`，并补齐 RC1 所需的 Cordis group/include/loader 依赖。
 2. MCP `Client` 的 `clientInfo.version` 改为读取官方 `APP_IDENTITY.version`，不再硬编码 alpha 版本。
 3. Bundle 测试读取 RC1 Schemastery `volatile` 默认值包装对象；Web E2E 更新 RC1 版本、双语按钮和已移除的 workspace 路径操作。
+4. MCP 管理端在服务端拒绝非 HTTP(S)、userinfo、fragment 及 `allowInsecureTransport` 与 URL 协议不一致的配置；端侧 runtime 对同一 assignment 再校验并隔离非法服务。
 
 ## 未覆盖范围
 

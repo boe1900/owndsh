@@ -23,10 +23,10 @@ overlay blocks the official UI until a Server address is configured and the
 enterprise session is ready; both surfaces share one browser store over
 the T06 local control plane. The Server address is persisted by the official
 Harness settings service, so a normal installation requires no profile edit.
-T11 directly mounts the official rc.2 `@deepseek-ai/dsh-llm-pi-ai` adapter with
+T11 directly mounts the official `@deepseek-ai/dsh-llm-pi-ai` adapter with
 enterprise-managed profiles and an ephemeral Host-only loopback authentication proxy. The enterprise
 plugin stores no upstream API key and implements no model wire protocol.
-T14 adds `ctx.enterprisePluginDistribution` through the official rc.2
+T14 adds `ctx.enterprisePluginDistribution` through the official plugin-manager
 `ctx.subprocess`/`ctx.pluginInventory` services and Desktop's public plugin command service. It downloads and verifies
 center-managed tgz artifacts, invokes the environment-native official command with fixed argv, keeps
 atomic local state, and waits for a new process to confirm the Loader row.
@@ -55,7 +55,7 @@ temporary real Harness profile for the full-screen setup/login/expiry/revocation
 acceptance; stop it with SIGINT so it can verify upstream cleanliness and remove
 its temporary `DSH_HOME`.
 `pnpm run accept:t11-model` is fully automatic: it installs the tgz into a
-temporary rc.2 `web` profile, logs in through PKCE, drives the real `ctx.llm`
+temporary Harness `web` profile, logs in through PKCE, drives the real `ctx.llm`
 runtime, verifies dynamic models and stable failures, scans local files for the
 platform Token/provider keys, and confirms the sibling checkout remains clean.
 `pnpm run smoke:plugin-distribution` installs the three release tarballs into a

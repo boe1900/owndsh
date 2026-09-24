@@ -369,7 +369,7 @@ Hook 采用明确 compose 顺序，完成后由实际请求捕获验证。不能
 
 pre-execute 保存该调用看到的定义和目录代次，guard 与 dispatch 再核对最新租约/连接、作用域可见性及本步 presented 快照，不以可变 loaded 决定本步能否调用；连接撤销会 abort 在途调用，不自动重放；guard 之后的 tools/execute 等待期间若定义被替换，也通过同步 tools/change 取消该次 dispatch，防止最后一次 lookup 执行新定义。相同 schema 的官方重新注册不清空加载集合/快照，但已经进入异步 gate 的旧调用仍拒绝；新调用使用当前官方定义。仅 OwnDsh 保留的 namespace 参与过滤，其他插件的 MCP 与普通工具保留；重叠 namespace 明确报冲突。
 
-验收使用官方 `dsh-tools/system-prompt/mcp-client/llm-pi-ai@0.1.5-rc.2` 与本地模型 HTTP 服务捕获真实出站请求：100 工具冷启动无 schema/SDK 泄漏，搜索后一轮只发命中定义，另一 Agent 仍冷态；native、PTC、both 和 TypeScript/Python renderer 均已覆盖。PTC 测试用受控 CodeRuntime 调用官方 bindings，未执行真实 TS/Python 解释器；尚未验证全部宿主与其他 manager 的 hook 组合。集成回归限于 OwnDsh 的请求投影、Agent 隔离和执行门禁；AgentLoop、会话重建与 compaction 的实现和算法验收由 Harness 负责。未知语言、重复 SDK、下游改写 SDK 均阻断本次呈现，不静默发全量。
+历史探针曾使用官方 `dsh-tools/system-prompt/mcp-client/llm-pi-ai@0.1.5-rc.2` 与本地模型 HTTP 服务捕获真实出站请求：100 工具冷启动无 schema/SDK 泄漏，搜索后一轮只发命中定义，另一 Agent 仍冷态；native、PTC、both 和 TypeScript/Python renderer 均已覆盖。当前 0.1.7-rc.1 的行为证据见 [RC1 兼容性报告](dsh-017-rc1-compatibility-20260924.md)。PTC 测试用受控 CodeRuntime 调用官方 bindings，未执行真实 TS/Python 解释器；尚未验证全部宿主与其他 manager 的 hook 组合。集成回归限于 OwnDsh 的请求投影、Agent 隔离和执行门禁；AgentLoop、会话重建与 compaction 的实现和算法验收由 Harness 负责。未知语言、重复 SDK、下游改写 SDK 均阻断本次呈现，不静默发全量。
 
 ## 8. API Key、OAuth 与网络边界
 

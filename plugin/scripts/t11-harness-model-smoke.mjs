@@ -514,7 +514,7 @@ try {
     assert.match(dump.stdout, new RegExp(`id: ${id}[\\s\\S]{0,160}disabled: true`))
   }
   const profileLock = await readFile(resolve(profileDir, 'pnpm-lock.yaml'), 'utf8')
-  assert.match(profileLock, /'@deepseek-ai\/dsh-llm': \^0\.1\.1-rc\.2/)
+  assert.match(profileLock, new RegExp(`'@deepseek-ai/dsh-llm': \\^${harnessLock.version.replaceAll('.', '\\.').replaceAll('-', '\\-')}`))
 
   harness = spawn('corepack', [
     'pnpm@11.7.0', '--dir', harnessRoot, 'dsh', '--profile', 'web', '--port', '0',
@@ -667,7 +667,7 @@ try {
   for (const gatewayRequest of gatewayRequests) {
     assert.equal(gatewayRequest.headers.authorization, `Bearer ${PLATFORM_TOKEN}`)
     assert.equal(gatewayRequest.headers.accept, 'text/event-stream, application/json')
-    assert.equal(gatewayRequest.headers['x-harness-version'], '0.1.1-rc.2')
+    assert.equal(gatewayRequest.headers['x-harness-version'], harnessLock.version)
     assert.equal(gatewayRequest.headers['x-enterprise-bundle-version'], '0.1.0')
     assert.match(gatewayRequest.headers['idempotency-key'], /^[0-9a-f-]{36}$/i)
     assert.equal(gatewayRequest.headers['x-api-key'], undefined)
@@ -706,7 +706,7 @@ try {
     retryRecovery: '503 -> Harness llm/retry -> success',
     platformAuthorization: 'memory-token-observed-at-center-only',
     profile: 'web',
-    profileLlmPeer: '0.1.1-rc.2',
+    profileLlmPeer: harnessLock.version,
     removedCredentialVariables,
     temporaryDshHome: keep ? temporaryDshHome : undefined,
   }, null, 2)}\n`)

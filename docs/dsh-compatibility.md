@@ -13,7 +13,7 @@
 
 ## 1. 当前基线与证据
 
-最后核对：2026-09-24。接入代码以提交 `d1de444` 为基线，本轮 RC1 适配与验收见 [RC1 报告](dsh-017-rc1-compatibility-20260924.md)。
+最后核对：2026-09-24。接入代码以提交 `5fcd3df` 与本轮工作树的 MCP 安全校验改动为基线，本轮 RC1 适配与验收见 [RC1 报告](dsh-017-rc1-compatibility-20260924.md)。
 
 | 项目 | 当前事实与真源 |
 |---|---|
@@ -99,7 +99,7 @@ pnpm --dir plugin run pack:bundle
 
 - Web/MCP 脚本读取 `OWNDSH_TEST_RUNTIME`（含目标 npm dsh 的目录）、`OWNDSH_TEST_PROFILE`（已装本次 tgz 的 web profile），可通过 `OWNDSH_PLAYWRIGHT_MODULE`、`OWNDSH_CHROMIUM_PATH` 指定浏览器依赖，通过 `OWNDSH_E2E_OUTPUT` 隔离证据。它复制 profile，并比对安装包 Host bundle 与当前构建产物的哈希；当前脚本精确断言 `0.1.7-rc.1`。测试新版本前显式更新预期版本并核对接口，不能只换目录或删除版本检查。准备 profile 时也必须显式传 DSH_HOME。
 - [Desktop 测试入口](../plugin/package.json) `test:desktop` 消费 `OWNDSH_TEST_RUNTIME`，要求符合脚本预期的桌面启动器布局；它不等于任意 npm dsh 的测试入口。
-- [T11 模型脚本](../plugin/scripts/t11-harness-model-smoke.mjs)、[T14 CLI 脚本](../plugin/scripts/t14-dsh-plugin-smoke.mjs)、[T15 浏览器脚本](../plugin/scripts/t15-browser-harness.mjs)仍绑定旧源码锁或 rc.2 断言。它们可复用场景，迁到目标发行 runtime 并核对版本后才算本轮证据。不要为让旧脚本通过而更改无关的历史锁。
+- [T11 模型脚本](../plugin/scripts/t11-harness-model-smoke.mjs)、[T14 CLI 脚本](../plugin/scripts/t14-dsh-plugin-smoke.mjs)、[T15 浏览器脚本](../plugin/scripts/t15-browser-harness.mjs)仍绑定历史源码锁；T11 的版本断言已改为跟随锁文件，仍不能把旧 checkout 结果当作 RC1 证据。它们可复用场景，迁到目标发行 runtime 并核对版本后才算本轮证据。不要为让旧脚本通过而更改无关的历史锁。
 - 同版本 tgz 重装可能命中 pnpm 缓存；使用新的临时制品路径，并核对安装内容。发布 CI 会注入版本，报告须区分发布前构建包与正式制品；若只检查正式制品的完整性，不写成“正式包已跑浏览器 E2E”。
 
 ### 3.3 留下可审查结论
