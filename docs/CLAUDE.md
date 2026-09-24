@@ -6,6 +6,7 @@
 
 dsh-compatibility.md: DSH 升级检查入口，记录当前 npm/Web 基线、上游依赖契约与本地代码/测试映射、历史夹具边界、逐项验收流程及 OAuth 接缝删除条件。
 dsh-017-alpha1-compatibility-20260922.md: DSH 0.1.7-alpha.1 目标 runtime 的 Web/MCP 行为验收、当前 pluginManager/SettingsForms 适配及未覆盖范围。
+dsh-017-rc1-compatibility-20260924.md: DSH 0.1.7-rc.1 目标 runtime 的 Web/MCP 行为验收、Release notes 对照、必要依赖适配及未覆盖范围。
 v1-product-feature-catalog.md: V1 产品功能真源，汇总身份、LDAP 用户/组目录接入、模型、授权、配额、限流、插件安装配置、设备与审计的交付状态、关键语义、发布门禁和明确非目标。
 plugin-signing-e2e-20260909.md: 已退役上传/验签链路的历史验收记录；当前安装配置模式以详细设计第 11 节为准，原复现脚本已删除。
 plugin-market-e2e-20260917.md: 当前 Server 与真实 npm Harness/Chromium 的插件联合验收，记录 10 项通过、原生 pnpm 构建审批前提、复现命令和安装源/原生窗口实测边界。

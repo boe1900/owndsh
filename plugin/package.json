@@ -26,7 +26,10 @@
     "test:desktop": "node --test scripts/desktop-auth.test.mjs scripts/desktop-confirm.test.mjs"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "4.0.3",
+    "@deepseek-ai/cordis": "4.0.4",
+    "@deepseek-ai/cordis-plugin-group": "1.0.4",
+    "@deepseek-ai/cordis-plugin-include": "1.0.9",
+    "@deepseek-ai/cordis-plugin-loader": "1.0.5",
     "@types/node": "22.20.0",
     "@types/react": "18.3.28",
     "esbuild": "0.28.1",

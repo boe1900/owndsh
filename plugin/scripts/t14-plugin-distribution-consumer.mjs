@@ -61,9 +61,9 @@ try {
     private: true,
     type: 'module',
     dependencies: {
-      '@deepseek-ai/cordis': '4.0.3',
-      '@deepseek-ai/dsh-host-plugin-inventory': '0.1.7-alpha.1',
-      '@deepseek-ai/dsh-plugin-manager': '0.1.7-alpha.1',
+      '@deepseek-ai/cordis': '4.0.4',
+      '@deepseek-ai/dsh-host-plugin-inventory': '0.1.7-rc.1',
+      '@deepseek-ai/dsh-plugin-manager': '0.1.7-rc.1',
       '@owndsh/contracts': `file:${contractsTgz}`,
       '@owndsh/platform-client': `file:${platformTgz}`,
       '@owndsh/plugin-distribution': `file:${distributionTgz}`,
@@ -97,7 +97,7 @@ try {
   assert.equal(manifest.dependencies['@owndsh/contracts'], '0.1.0')
   assert.equal(manifest.dependencies['@owndsh/platform-client'], '0.1.0')
   assert.equal(manifest.dependencies.semver, '7.8.4')
-  assert.equal(manifest.peerDependencies['@deepseek-ai/dsh-plugin-manager'], '^0.1.7-alpha.1')
+  assert.equal(manifest.peerDependencies['@deepseek-ai/dsh-plugin-manager'], '^0.1.7-rc.1')
   const built = [
     await readFile(resolve(installedRoot, 'lib', 'index.js'), 'utf8'),
     await readFile(resolve(installedRoot, 'lib', 'service.js'), 'utf8'),

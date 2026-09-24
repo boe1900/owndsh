@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖平台 bootstrap 身份/授权快照、绑定身份与目标的 credentials、官方 MCP client 与 mcp-tools 门禁。
+ * [INPUT]: 依赖平台 bootstrap 身份/授权快照、绑定身份与目标的 credentials、官方 Harness 身份、MCP client 与 mcp-tools 门禁。
  * [OUTPUT]: 提供 mountMcpRuntime，组合用户连接路由、OAuth 失效状态、快照租约与可撤销的 MCP 子 fiber；认证值原样发送，OAuth 使用本机 loopback callback。
  * [POS]: bundle 的端侧 MCP 组合器；公共配置来自平台，秘密与连接只留在当前 Host。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -8,6 +8,7 @@ import type { IncomingMessage } from 'node:http'
 import { createHash, randomUUID } from 'node:crypto'
 import { performance } from 'node:perf_hooks'
 import type { Context } from '@deepseek-ai/cordis'
+import { APP_IDENTITY } from '@deepseek-ai/dsh-llm'
 import type { CredentialProvider } from '@deepseek-ai/dsh-credentials'
 import { apply as applyMcpClient, createMcpToolDefinition, type Config as McpClientConfig, type ReconnectConfig } from '@deepseek-ai/dsh-mcp-client'
 import { auth as mcpOAuthAuth, Client, StreamableHTTPClientTransport, type Tool } from '@modelcontextprotocol/client'
@@ -302,7 +303,7 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
       state,
       signal: manager.abort.signal,
     })
-    const client = new Client({ name: 'owndsh-mcp-client', version: '0.1.7-alpha.1' }, {
+    const client = new Client({ name: 'owndsh-mcp-client', version: APP_IDENTITY.version }, {
       capabilities: {},
       versionNegotiation: { mode: 'auto' },
       listChanged: { tools: { autoRefresh: false, debounceMs: 0, onChanged: () => { void enqueueSync() } } },

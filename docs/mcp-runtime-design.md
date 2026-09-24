@@ -7,7 +7,7 @@
 
 # MCP 端侧运行时详细设计
 
-父设计：[mcp-management-design.md](mcp-management-design.md)。目标 Harness 0.1.7-alpha.1；旧 alpha.2/rc.2 探针证据不能代替目标版本验收。
+父设计：[mcp-management-design.md](mcp-management-design.md)。目标 Harness 0.1.7-rc.1；旧 alpha.2/rc.2 探针证据不能代替目标版本验收。
 
 ## 1. 组件、依赖与作用域
 

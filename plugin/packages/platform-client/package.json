@@ -22,14 +22,14 @@
     "zod": "4.4.3"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "^4.0.3",
-    "@deepseek-ai/dsh-credentials": "^0.1.7-alpha.1",
-    "@deepseek-ai/dsh-settings": "^0.1.7-alpha.1",
-    "@deepseek-ai/schemastery": "^3.18.2"
+    "@deepseek-ai/cordis": "^4.0.4",
+    "@deepseek-ai/dsh-credentials": "^0.1.7-rc.1",
+    "@deepseek-ai/dsh-settings": "^0.1.7-rc.1",
+    "@deepseek-ai/schemastery": "^3.18.4"
   },
   "devDependencies": {
-    "@deepseek-ai/dsh-credentials": "0.1.7-alpha.1",
-    "@deepseek-ai/dsh-settings": "0.1.7-alpha.1",
-    "@deepseek-ai/schemastery": "3.18.2"
+    "@deepseek-ai/dsh-credentials": "0.1.7-rc.1",
+    "@deepseek-ai/dsh-settings": "0.1.7-rc.1",
+    "@deepseek-ai/schemastery": "3.18.4"
   }
 }

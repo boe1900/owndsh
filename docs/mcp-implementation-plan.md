@@ -9,7 +9,7 @@
 
 先读 [公共契约](mcp-management-design.md)，再读 [运行时规格](mcp-runtime-design.md)。本文件按依赖顺序直接开工；MCP transport/resources/OAuth 均以官方 Harness 与 MCP SDK v2 为唯一实现真源。
 
-2026-09-23 0.1.7-alpha.1 收口：官方 MCP client/resources、SettingsForms 和 pluginManager 已切换到目标版本；15 个模块测试文件、135 条 Vitest、TypeScript 检查和 Bundle 构建通过。Web/MCP 行为证据见 [0.1.7-alpha.1 报告](dsh-017-alpha1-compatibility-20260922.md)；当前桌面封装仍是 alpha.2，不能作为目标 Desktop 证据。MCP 尚未上线，不保留旧开发版凭据兼容。
+2026-09-24 0.1.7-rc.1 收口：官方 MCP client/resources、SettingsForms 和 pluginManager 已切换到目标版本；15 个模块测试文件、135 条 Vitest、TypeScript 检查和 Bundle 构建通过。Web/MCP 行为证据见 [0.1.7-rc.1 报告](dsh-017-rc1-compatibility-20260924.md)；本轮未把 Desktop 原生外壳作为目标证据。MCP 尚未上线，不保留旧开发版凭据兼容。
 
 ## 1. 需求与实现闭环
 
@@ -69,12 +69,12 @@
 
 | 验证点 | 精确实验 | 失败处理 |
 |---|---|---|
-| 目标依赖 | 安装官方 `0.1.7-alpha.1` tools/system-prompt/mcp-client/mcp-resources/ptc-runtime 与 MCP SDK v2；按 public API 加载 | 修正依赖/升级官方兼容版本，更新版本证据；不 vendor 旧源码 |
+| 目标依赖 | 安装官方 `0.1.7-rc.1` tools/system-prompt/mcp-client/mcp-resources/ptc-runtime 与 MCP SDK v2；按 public API 加载 | 修正依赖/升级官方兼容版本，更新版本证据；不 vendor 旧源码 |
 | 双呈现 | 运行已有 design-spike，捕获native/PTC/both的schema+SDK | 使用官方renderer；若接口变化先修适配，不关闭PTC或发全量 |
 | 官方MCP挂载 | 一个SDK测试HTTP MCP提供echo工具，独立fiber activate/dispose/remount同名 | 使用正式Cordis effect生命周期，不读private registry |
 | 初次失败隔离 | failOnStartupError=true的child激活失败，平台bundle仍READY | 调整child任务归属与错误contain，不全局吞异常 |
 | 目录行为 | tools/list_changed后相同schema、新增、删除、冲突 | 按全代替注册处理，不能依赖未变化definition对象身份 |
-| SDK安全 | 描述含 `{{x}}`/反引号/注释结束符，最后 assembly 正常且未变指令模板 | 适配 0.1.7-alpha.1 的 `tools:sdk` section，直接写入官方 renderer 结果 |
+| SDK安全 | 描述含 `{{x}}`/反引号/注释结束符，最后 assembly 正常且未变指令模板 | 适配 0.1.7-rc.1 的 `tools:sdk` section，直接写入官方 renderer 结果 |
 | 调用生命周期 | pre-execute刷新后同名重挂载，执行仍走当前官方definition与output schema | 若不支持，当前调用拒绝并提示下次重试；不得执行已dispose闭包 |
 | Host local权限 | 真实Web/Desktop跨站、无Origin、恶意Host头请求秘密写接口 | 收紧现有authenticated Client路由；未解决不发布远程Host OAuth |
 | callback | 本机随机 loopback 完成一次假 provider 流程；OAuth provider 必须接受 `http://127.0.0.1:<port>/callback` | 不兼容 provider 标为不支持并给配置修正；不引入公网 callback 或让用户配置域名 |
@@ -271,7 +271,7 @@ Server按当前Maven父项目/test容器流程运行集成用例；Host使用现
 
 | 检查 | 当前状态 |
 |---|---|
-| Harness `0.1.7-alpha.1` 兼容性 | 已适配：`codeRuntime`→`ptcRuntime`、PTC `session.header`、官方 `tools:sdk` section |
+| Harness `0.1.7-rc.1` 兼容性 | 已适配：`codeRuntime`→`ptcRuntime`、PTC `session.header`、官方 `tools:sdk` section；RC1 的 `volatile` 配置默认值通过官方 `get()` 读取 |
 | 官方 SDK v2 OAuth 宿主接缝 | 已通过：官方 discovery/PKCE/token exchange、issuer/iss、loopback browser callback 与 token/client information 记录委托；OwnDsh 不实现协议 |
 | 官方 client/resources HTTP 接缝 | 已通过：本地 Streamable HTTP fixture；协议协商、tools/list 分页、resources/list、resource templates/read、instructions、OAuth Authorization 与 tools/call |
 | OAuth/并发 remount/撤销生命周期 | 真实 HTTP MCP 已验证发现、重挂载、撤回、凭据目标/账号隔离；受控 token 响应已覆盖 rotation、过期更新和 refresh/disconnect/账号切换/dispose 竞争；真实 OAuth provider 与在途工具调用竞争仍待验证 |
@@ -290,7 +290,7 @@ Server按当前Maven父项目/test容器流程运行集成用例；Host使用现
 
 2026-09-14 P2-MCP-05 用户组授权切片：Console 完整遍历服务/授权/用户组 cursor，支持 ALL/USER/GROUP 与主体切换清空、目录失败阻止提交和重试；read/write/grant 分权，成员目录请求另受 ent:member:read 限制。HTTP ID 保持字符串，ALL 的 subjectId=null。Server 通过既有 MANUAL/IDENTITY_SOURCE 成员表求授权并集，校验 tenant/主体并对批量写和 bootstrap revision 整体回滚；仍被 MCP 授权引用的组禁止删除。V30/V31 修正已删除字段残留、SQL 占位符、跨租户外键、ALL 重复授权以及权限菜单 ID/内置角色迁移问题。
 
-当前实现边界：端侧已将每个 assignment 挂载到独立官方 dsh-mcp-client Cordis fiber；撤权、停用、配置 revision/生效认证头变化、disconnect 和 Host 销毁都会调用并等待官方 `fiber.dispose()`。MCP client/resources/OAuth 均走 Harness `0.1.7-alpha.1` 与官方 MCP SDK v2：OwnDsh 只负责 owner/binding 凭据隔离、官方 client information/tokens 与短生命周期 verifier 存储、系统浏览器和 loopback callback。search 真实发现、per-Agent schema、连接/目录代次 guard、持久连接意愿和 CLEANUP_REQUIRED 均已实现并通过本地回归；Harness Web 主路径与 OAuth 验证事实见后文；后续接缝回归限于 OwnDsh 的工具投影、会话隔离和执行权限，不重复验收 Harness 会话压缩算法。管理端 server/grant 创建使用 PostgreSQL 幂等占位和 JCS 请求摘要，同 key 重放原资源，不同 body 返回 409。
+当前实现边界：端侧已将每个 assignment 挂载到独立官方 dsh-mcp-client Cordis fiber；撤权、停用、配置 revision/生效认证头变化、disconnect 和 Host 销毁都会调用并等待官方 `fiber.dispose()`。MCP client/resources/OAuth 均走 Harness `0.1.7-rc.1` 与官方 MCP SDK v2：OwnDsh 只负责 owner/binding 凭据隔离、官方 client information/tokens 与短生命周期 verifier 存储、系统浏览器和 loopback callback。search 真实发现、per-Agent schema、连接/目录代次 guard、持久连接意愿和 CLEANUP_REQUIRED 均已实现并通过本地回归；RC1 Web 主路径与 OAuth 验证事实见 [RC1 报告](dsh-017-rc1-compatibility-20260924.md)；后续接缝回归限于 OwnDsh 的工具投影、会话隔离和执行权限，不重复验收 Harness 会话压缩算法。管理端 server/grant 创建使用 PostgreSQL 幂等占位和 JCS 请求摘要，同 key 重放原资源，不同 body 返回 409。
 
 本轮验证（2026-09-14，本机 Node 24.14.1、Java 21、PostgreSQL 17.10）：McpGrantIntegrationTest 3 条、RbacSeedTest 3 条、EnterpriseMigrationTest 7 条均通过；新增 Console MCP 交互测试 6 条和既有插件路由回归 2 条通过。Console、bundle、plugin UI 的 TypeScript 检查和契约生成一致性检查通过。未执行真实 OAuth provider 或 Web/Desktop 端到端验收。
 

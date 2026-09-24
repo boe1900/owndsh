@@ -23,7 +23,7 @@ const hash = value => createHash('sha256').update(value).digest('hex')
 const bundleHash = hash(await readFile(join(profile, 'node_modules/owndsh-plugin/lib/index.js')))
 assert.equal(bundleHash, hash(await readFile(new URL('../packages/bundle/lib/index.js', import.meta.url))), 'Installed profile must contain the current built bundle')
 const manifest = requireRuntime('@deepseek-ai/dsh/package.json')
-assert.equal(manifest.version, '0.1.7-alpha.1')
+assert.equal(manifest.version, '0.1.7-rc.1')
 const dshEntry = join(dirname(requireRuntime.resolve('@deepseek-ai/dsh/package.json')), 'lib/bin.js')
 const { chromium } = await import(process.env.OWNDSH_PLAYWRIGHT_MODULE ?? 'playwright')
 const home = await mkdtemp(join(tmpdir(), 'owndsh-web-mcp-'))
@@ -232,7 +232,7 @@ async function authorize(button) {
   try { await login.goto(url); await login.getByRole('link', { name: '确认登录' }).click() } finally { await login.close() }
 }
 async function settings() {
-  await page.getByRole('button', { name: '设置', exact: true }).click()
+  await page.getByRole('button', { name: /^(设置|Settings)$/ }).click()
   await page.getByRole('button', { name: 'OwnDsh 设置', exact: true }).click()
   await page.getByRole('tab', { name: 'MCP', exact: true }).click()
 }
@@ -268,12 +268,7 @@ try {
   await api.getByRole('button', { name: '禁用', exact: true }).waitFor()
   checks.push('no-auth/API-key/OAuth connection; paginated discovery; resource-only server')
   await page.screenshot({ path: join(evidence, 'mcp-connected.png') })
-  await page.getByRole('button', { name: '关闭', exact: true }).click()
-  await page.getByRole('button', { name: '选择工作区', exact: true }).click()
-  await page.getByRole('button', { name: /编辑路径|Edit path/, exact: true }).click()
-  const path = page.getByRole('textbox', { name: /编辑路径|Edit path/, exact: true })
-  await path.fill(join(home, 'workspace')); await path.press('Enter')
-  await page.getByRole('button', { name: /打开|Open/, exact: true }).click()
+  await page.getByRole('button', { name: /^(关闭|Close)$/ }).click()
   await prompt('E2E load', 'MCP E2E load PASS')
   checks.push('real AgentLoop: cold/search/accumulate/deduplicate/release/current-step call; API-key/OAuth calls; shared URI resources/templates/read')
   rejectedAccess = mcpAccess; scenario = 'refresh'; step = 0
@@ -289,7 +284,7 @@ try {
   rejectRefresh = false
   await authorize(oauth.getByRole('button', { name: '重新授权', exact: true }))
   await oauth.getByRole('button', { name: '禁用', exact: true }).waitFor()
-  await page.getByRole('button', { name: '关闭', exact: true }).click()
+  await page.getByRole('button', { name: /^(关闭|Close)$/ }).click()
   scenario = 'recover'; step = 0
   await prompt('E2E recover the same conversation', 'MCP E2E recovery PASS')
   assert.ok(methods.some(m => m.method === 'tools/call' && m.params.arguments.text === 'reauthorized'))
@@ -298,15 +293,15 @@ try {
   const docs = page.getByRole('region', { name: 'MCP docs', exact: true })
   await docs.getByRole('button', { name: '禁用', exact: true }).click()
   await docs.getByRole('button', { name: '启用', exact: true }).waitFor()
-  await page.getByRole('button', { name: '关闭', exact: true }).click()
+  await page.getByRole('button', { name: /^(关闭|Close)$/ }).click()
   scenario = 'paused'; step = 0
   await prompt('E2E paused', 'MCP E2E paused PASS')
   checks.push('pause removes tools from the existing conversation; ordinary chat remains usable')
   await settings(); await docs.getByRole('button', { name: '启用', exact: true }).click()
   await docs.getByRole('button', { name: '禁用', exact: true }).waitFor()
-  await page.getByRole('button', { name: '关闭', exact: true }).click()
+  await page.getByRole('button', { name: /^(关闭|Close)$/ }).click()
   await page.getByRole('button', { name: /^(New session|新建会话)$/ }).first().click()
-  await page.getByText('探索未至之境', { exact: true }).waitFor()
+  await page.getByText(/^(探索未至之境|Into the Unknown)$/).waitFor()
   scenario = 'new-agent'; step = 0
   await prompt('E2E new agent', 'MCP E2E isolation PASS')
   checks.push('reenable works; a new Agent does not inherit loaded tools')

@@ -26,16 +26,16 @@ describe('enterprise bundle', () => {
       '@deepseek-ai/dsh-client-ui-settings-general',
     ])
     expect(manifest.dependencies).toBeUndefined()
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-llm']).toBe('^0.1.7-alpha.1')
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-credentials']).toBe('^0.1.7-alpha.1')
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-llm-pi-ai']).toBe('^0.1.7-alpha.1')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-llm']).toBe('^0.1.7-rc.1')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-credentials']).toBe('^0.1.7-rc.1')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-llm-pi-ai']).toBe('^0.1.7-rc.1')
     expect(manifest.peerDependencies['@deepseek-ai/dsh-session']).toBeUndefined()
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-subprocess']).toBe('^0.1.7-alpha.1')
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-host-plugin-inventory']).toBe('^0.1.7-alpha.1')
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-plugin-manager']).toBe('^0.1.7-alpha.1')
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-mcp-client']).toBe('^0.1.7-alpha.1')
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-tools']).toBe('^0.1.7-alpha.1')
-    expect(manifest.peerDependencies['@deepseek-ai/schemastery']).toBe('^3.18.2')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-subprocess']).toBe('^0.1.7-rc.1')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-host-plugin-inventory']).toBe('^0.1.7-rc.1')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-plugin-manager']).toBe('^0.1.7-rc.1')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-mcp-client']).toBe('^0.1.7-rc.1')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-tools']).toBe('^0.1.7-rc.1')
+    expect(manifest.peerDependencies['@deepseek-ai/schemastery']).toBe('^3.18.4')
     expect(inject).toEqual([
       'webServer', 'credentials', 'settings', 'llm', 'pluginInventory', 'pluginManager', 'tools',
     ])
@@ -45,7 +45,8 @@ describe('enterprise bundle', () => {
       requestTimeoutMs: 30_000,
       disposeTimeoutMs: 3_000,
     })
-    expect(Config({})).toMatchObject({ baseUrl: '' })
+    const defaultConfig = Config({})
+    expect((defaultConfig.baseUrl as unknown as { get(): string }).get()).toBe('')
     const patch = await readFile(resolve(ROOT, 'cordis.patch.yml'), 'utf8')
     expect(patch).toContain("name: 'owndsh-plugin'")
     expect(patch).toMatch(/id: agent-default-model[\s\S]*provider: enterprise[\s\S]*model: enterprise\/default/)
