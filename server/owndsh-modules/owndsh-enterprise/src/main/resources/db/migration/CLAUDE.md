@@ -42,6 +42,4 @@ V33__mcp_raw_auth_value.sql: 移除旧 API Key 的 valuePrefix 配置，仅推�
 
 V34__plugin_installation_sources.sql: 清空旧上传插件目录/范围/库存并删除制品列；必填安装配置交给宿主 pnpm，新增登记审计事件。
 V35__usage_chronological_pagination.sql: 为用量账本补齐 tenant+created_at+id 复合索引，支持最新记录优先的时间/ID 游标查询。
-V36__deepseek_messages_provider.sql: 将 DeepSeek 官方 provider 从旧 OpenAI Completions 配置迁移为 RC1 Messages API，已知官方地址统一到 `/anthropic`，自定义提供商协议不变。
-
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

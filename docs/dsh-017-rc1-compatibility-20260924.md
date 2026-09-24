@@ -56,7 +56,7 @@ MCP 重点链路在真实 DSH Web AgentLoop 中通过：协议协商、工具分
 - Profile 设置迁移到当前插件配置、声明字段支持实时更新。OwnDsh 已把 `baseUrl` 和 `mcp.desiredConnected` 声明为 `volatile`，RC1 只要求测试按 Schemastery 的实时配置包装对象读取，生产路径已经统一使用 `get()`。
 - PTC 包名和服务名统一到 `ptc-runtime`，当前 bundle 已使用 RC1 的 `dsh-ptc-runtime` 与 `ptcRuntime`；没有旧名称兼容代码需要保留。
 - 插件安装和启动增加 Harness 版本兼容检查。本轮 bundle peer/dev 依赖与锁文件统一到 `0.1.7-rc.1`，Web E2E 也显式断言目标 runtime 版本。
-- 官方 DeepSeek adapter 在 RC1 只接受 Messages API，不再接受 `protocol`；OwnDsh 虽然停用该 adapter、继续使用官方 `dsh-llm-pi-ai`，企业模型的 `DEEPSEEK_OFFICIAL` 仍同步收敛为 `anthropic-messages`，默认地址为 `https://api.deepseek.com/anthropic`，并由 V36 迁移旧官方配置。
+- 官方 DeepSeek adapter 在 RC1 只接受 Messages API，不再接受 `protocol`；OwnDsh 虽然停用该 adapter、继续使用官方 `dsh-llm-pi-ai`，企业模型的 `DEEPSEEK_OFFICIAL` 直接按 `anthropic-messages` 建模，默认地址为 `https://api.deepseek.com/anthropic`。
 - 终端、Agent Team、浏览器后端、Session V4、Remote `readBytes` 等变化没有命中 OwnDsh 当前导入、slot、hook 或产品入口；本轮没有为未使用能力增加适配层。
 
 ## 必要改动
