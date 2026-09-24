@@ -1,6 +1,6 @@
 {
   "name": "owndsh-plugin",
-  "version": "0.1.0",
+  "version": "0.1.0-beta.12",
   "description": "Self-hosted enterprise control plane plugin for DeepSeek Harness",
   "keywords": [
     "deepseek",
@@ -114,5 +114,8 @@
     "@owndsh/platform-client": "workspace:*",
     "@owndsh/plugin-distribution": "workspace:*",
     "@owndsh/ui": "workspace:*"
+  },
+  "dependencies": {
+    "@orama/orama": "3.1.18"
   }
 }

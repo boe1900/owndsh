@@ -17,7 +17,7 @@ import { Config, inject } from '../src/index.js'
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
 describe('enterprise bundle', () => {
-  it('declares the official bundle and Client module manifests without runtime dependencies', async () => {
+  it('declares the official bundle and Client module manifests', async () => {
     const manifest = JSON.parse(await readFile(resolve(ROOT, 'package.json'), 'utf8')) as Record<string, any>
     expect(manifest.dsh.bundle.patch).toBe('./cordis.patch.yml')
     expect(manifest.dsh.client).toMatchObject({ platform: 'web' })
@@ -25,7 +25,7 @@ describe('enterprise bundle', () => {
       '@deepseek-ai/dsh-client-ui-layout',
       '@deepseek-ai/dsh-client-ui-settings-general',
     ])
-    expect(manifest.dependencies).toBeUndefined()
+    expect(manifest.dependencies).toEqual({ '@orama/orama': '3.1.18' })
     expect(manifest.peerDependencies['@deepseek-ai/dsh-llm']).toBe('^0.1.7-rc.1')
     expect(manifest.peerDependencies['@deepseek-ai/dsh-credentials']).toBe('^0.1.7-rc.1')
     expect(manifest.peerDependencies['@deepseek-ai/dsh-llm-pi-ai']).toBe('^0.1.7-rc.1')

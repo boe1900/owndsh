@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖真实 Cordis/tools/systemPrompt/pi-ai、可控 HTTP MCP/模型服务和端侧运行时。
- * [OUTPUT]: 验证目录不预热会话、search 去重/累加/显式释放与本步调用快照、native/PTC 请求正文、代次撤销、官方 client/SDK OAuth 协商分页与资源、连接取消及凭据隔离。
+ * [OUTPUT]: 验证目录不预热会话、Orama 搜索 golden 的停用词/中文/精确名称/serverName/Precision@8/MRR@8/稳定排序、search 去重/累加/显式释放与本步调用快照、native/PTC 请求正文、代次撤销、官方 client/SDK OAuth 协商分页与资源、连接取消及凭据隔离。
  * [POS]: bundle 的 MCP 行为回归；使用受控工具与假凭据，不调用外部模型或真实 OAuth 服务。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -19,6 +19,7 @@ import { openSystemBrowser } from '@owndsh/platform-client'
 import { mountMcpTools } from '../src/mcp-tools.js'
 import { mountMcpRuntime } from '../src/mcp-runtime.js'
 import { McpCredentialManager, mcpCredentialBinding, mcpOwnerDigest } from '../src/mcp-oauth.js'
+import { goldenRelevance, notionGoldenFixture } from './mcp-search-golden.js'
 
 vi.mock('@owndsh/platform-client', async importOriginal => ({
   ...await importOriginal<object>(), openSystemBrowser: vi.fn(),
@@ -273,6 +274,49 @@ describe('MCP search and request presentation', () => {
     expect((await call(ctx, 'mcp_tool_search', { query: 'read', serverName: 'missing' })).value).toMatchObject({ reason: 'NO_MATCH' })
     expect((await call(ctx, 'mcp_tool_search', { query: 'x'.repeat(257) })).isError).toBe(true)
     expect((await call(ctx, 'mcp_tool_search', { query: 'read', limit: 9 })).isError).toBe(true)
+  })
+
+  it('keeps the redacted Notion golden search precise and stable', async () => {
+    const ctx = await host()
+    const surface = mountMcpTools(ctx, { fresh: () => true, refresh: async () => {} })
+    disposals.push(() => surface.dispose())
+    const connections = new Map<string, ReturnType<typeof surface.begin>>()
+    for (const item of notionGoldenFixture) {
+      if (!connections.has(item.serverName)) connections.set(item.serverName, surface.begin(item.serverName, item.displayName, 'search'))
+      ctx.tools.register(tool(`mcp__${item.serverName}__${item.publicName}`, item.description))
+    }
+    for (const connection of connections.values()) surface.ready(connection)
+
+    for (const query of ['the', 'tool', 'zzzz_nonexistent_tool_query']) {
+      expect((await call(ctx, 'mcp_tool_search', { query })).value).toMatchObject({ reason: 'NO_MATCH', matches: [] })
+    }
+
+    const natural = await call(ctx, 'mcp_tool_search', { query: 'notion workspace info name', limit: 8 })
+    const naturalNames = (natural.value as any).loadedNames as string[]
+    expect(goldenRelevance.workspaceInfo.has(naturalNames[0]!)).toBe(true)
+    expect(naturalNames).toEqual(expect.arrayContaining([...goldenRelevance.workspaceInfo]))
+
+    const chinese = await call(ctx, 'mcp_tool_search', { query: '查询工作区名称', limit: 8 })
+    expect(goldenRelevance.chineseWorkspaceInfo.has((chinese.value as any).loadedNames[0])).toBe(true)
+
+    const exact = await call(ctx, 'mcp_tool_search', { query: 'mcp__notion__fetch', limit: 8 })
+    expect((exact.value as any).loadedNames[0]).toBe('mcp__notion__fetch')
+
+    const scoped = await call(ctx, 'mcp_tool_search', { query: 'fetch', serverName: 'notion', limit: 8 })
+    expect((scoped.value as any).matches.every((item: any) => item.serverName === 'notion')).toBe(true)
+    expect((scoped.value as any).loadedNames).toContain('mcp__notion__fetch')
+
+    const stable = await call(ctx, 'mcp_tool_search', { query: 'utility', serverName: 'notion', limit: 8 })
+    expect((stable.value as any).loadedNames).toEqual([
+      'mcp__notion__utility-alpha', 'mcp__notion__utility-bravo', 'mcp__notion__utility-charlie',
+    ])
+
+    const precision = naturalNames.filter(name => goldenRelevance.workspaceInfo.has(name)).length / 8
+    const firstRelevant = naturalNames.findIndex(name => goldenRelevance.workspaceInfo.has(name))
+    const mrr = firstRelevant < 0 ? 0 : 1 / (firstRelevant + 1)
+    expect(precision).toBeGreaterThanOrEqual(0.75)
+    expect(mrr).toBeGreaterThanOrEqual(0.5)
+    expect((await call(ctx, 'mcp_tool_search', { query: 'zzzz_nonexistent_tool_query', serverName: 'notion' })).value).toMatchObject({ reason: 'NO_MATCH' })
   })
 
   it('preserves full mode and original descriptions beyond the former 64 KiB limit', async () => {

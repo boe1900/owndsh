@@ -4,7 +4,7 @@
 
 成员清单
 
-web-mcp.test.mjs: alpha.2 真实 Web/AgentLoop 回归，复制已安装 profile，以本地模型/MCP/OAuth 桩覆盖分页、无工具资源服务器、搜索累加/释放/隔离、凭据重启恢复和官方管理页禁用；证据写入 .build。
+web-mcp.test.mjs: 0.1.7-rc.1 真实 Web/AgentLoop 回归，复制已安装 profile，以本地模型/MCP/OAuth 桩覆盖分页、无工具资源服务器、Orama Notion-shaped 自然语言/停用词/中文召回、搜索累加/释放/隔离、凭据重启恢复和官方管理页禁用；证据写入输出目录。
 desktop-auth.test.mjs: 消费显式 OWNDSH_TEST_RUNTIME 的 macOS/Chromium 认证闭环，验证闲置零请求、过期续期、网络恢复与设备撤销；使用隔离 profile。
 desktop-confirm.test.mjs: 消费显式 OWNDSH_TEST_RUNTIME 的插件页面验收，覆盖只读账号地址、退出后修改/失败保留/授权锁定，以及原型卡片/四色气泡/键盘聚焦/减少动态效果、精简详情和固定版本确认；受控安装请求验证保留详情与动画、关闭后重新查看进度、失败就地重试、成功后手动重启提示及重启前不误报启用，同时覆盖可重启宿主与卸载确认；记录进度/失败/完成及明暗/窄屏截图，finally 回收浏览器、Harness 和临时 profile。
 

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: npm Harness Web runtime、已安装 OwnDsh 的隔离 profile、Playwright 与本地 HTTP 协议桩。
- * [OUTPUT]: 浏览器登录/MCP 操作和真实 AgentLoop 的搜索累加、释放、资源、SDK OAuth 回归证据。
+ * [OUTPUT]: 浏览器登录/MCP 操作和真实 AgentLoop 的搜索累加、Orama golden 召回、释放、资源、SDK OAuth 回归证据。
  * [POS]: 跨版本组合验收；复制 profile 后运行，模型只返回确定性工具调用，所有外部服务均在回环地址。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -44,14 +44,27 @@ const errors = [], methods = [], modelRequests = [], oauthEvents = [], checks = 
 const codes = new Map()
 let origin, installationId, refreshGrant, mcpAccess, mcpRefresh, tokenIndex = 0, rejectedAccess, rejectRefresh = false
 let scenario = 'load', step = 0
-const tool = name => ({ name, description: `${name} for E2E`, inputSchema: { type: 'object', properties: { text: { type: 'string' } } } })
-const assignment = (id, name, auth) => ({ id, revision: 1, serverName: name, displayName: name, description: 'Web E2E',
+const tool = (name, description = `${name} for E2E`) => ({ name, description, inputSchema: { type: 'object', properties: { text: { type: 'string' } } } })
+const goldenTools = [
+  tool('fetch', 'Fetch workspace information, the current workspace name, a page, or a database by ID；查询当前工作区名称。'),
+  tool('get-users', 'List users and workspace members for the current workspace；列出当前工作区用户。'),
+  tool('create-page', 'Create a page in a workspace or in a database.'),
+  tool('update-page', 'Update page properties and content in a workspace.'),
+  tool('query-data-source', 'Query rows from a data source or database.'),
+  tool('retrieve-a-block', 'Retrieve a block and its content from a workspace page.'),
+  tool('append-block-children', 'Append block children to a page in a workspace.'),
+  tool('create-database', 'Create a database in a workspace and configure its properties.'),
+  tool('utility-alpha', 'Maintenance helper.'),
+  tool('utility-bravo', 'Maintenance helper.'),
+  tool('utility-charlie', 'Maintenance helper.'),
+]
+const assignment = (id, name, auth, displayName = name) => ({ id, revision: 1, serverName: name, displayName, description: 'Web E2E',
   transport: 'streamable-http', url: `${origin}/${name}`, allowInsecureTransport: true, headers: {}, auth,
   toolCallTimeoutMs: 5000, reconnect: { enabled: false, initialDelayMs: 100, maxDelayMs: 1000, maxAttempts: 1 }, presentation: 'search' })
 function assignments() {
   return [assignment('1', 'docs', { type: 'none' }), assignment('2', 'resourceonly', { type: 'none' }),
     assignment('3', 'oauth', { type: 'oauth', issuer: origin, resource: `${origin}/oauth`, clientId: 'e2e', scopes: ['read'] }),
-    assignment('4', 'apikey', { type: 'api-key', headerName: 'X-API-Key' })]
+    assignment('4', 'apikey', { type: 'api-key', headerName: 'X-API-Key' }), assignment('5', 'golden', { type: 'none' }, 'Notion')]
 }
 const tc = (name, args = {}) => ({ name, arguments: JSON.stringify(args) })
 function modelResponse(input) {
@@ -99,6 +112,25 @@ function modelResponse(input) {
     return 'MCP E2E paused PASS'
   }
   if (scenario === 'new-agent') { expectNames([]); return 'MCP E2E isolation PASS' }
+  if (scenario === 'golden') {
+    if (step === 0) { step++; expectNames([]); return [tc('mcp_tool_search', { query: 'notion workspace info name', serverName: 'golden', limit: 8 })] }
+    if (step === 1) {
+      step++
+      const result = input.messages.filter(m => m.role === 'tool').at(-1)
+      assert.ok(result && JSON.stringify(result.content).includes('mcp__golden__fetch'))
+      assert.ok(result && !JSON.stringify(result.content).includes('mcp__golden__utility-'))
+      return [tc('mcp_tool_search', { query: 'the', serverName: 'golden', limit: 8 })]
+    }
+    if (step === 2) {
+      step++
+      assert.ok(input.messages.some(m => m.role === 'tool' && JSON.stringify(m.content).includes('NO_MATCH')))
+      return [tc('mcp_tool_search', { query: '查询工作区名称', serverName: 'golden', limit: 8 })]
+    }
+    const result = input.messages.filter(m => m.role === 'tool').at(-1)
+    assert.ok(result && JSON.stringify(result.content).includes('mcp__golden__fetch'))
+    assert.ok(result && JSON.stringify(result.content).includes('mcp__golden__get-users'))
+    return 'MCP E2E golden PASS'
+  }
   return 'MCP E2E ordinary PASS'
 }
 async function handle(req, res) {
@@ -147,7 +179,7 @@ async function handle(req, res) {
     mcpAccess = `mcp-access-${++tokenIndex}`; mcpRefresh = `mcp-refresh-${tokenIndex}`
     return json(res, { access_token: mcpAccess, refresh_token: mcpRefresh, token_type: 'Bearer', expires_in: 3600 })
   }
-  if (['/docs', '/resourceonly', '/oauth', '/apikey'].includes(pathname)) {
+  if (['/docs', '/resourceonly', '/oauth', '/apikey', '/golden'].includes(pathname)) {
     if (pathname === '/oauth' && (!mcpAccess || req.headers.authorization !== `Bearer ${mcpAccess}` || mcpAccess === rejectedAccess)) {
       res.setHeader('WWW-Authenticate', `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource/oauth"`)
       return json(res, { error: 'unauthorized' }, 401)
@@ -163,7 +195,8 @@ async function handle(req, res) {
     if (input.method === 'initialize') result = { protocolVersion: '2025-03-26', capabilities: { ...(pathname === '/resourceonly' ? {} : { tools: {} }), resources: {} }, serverInfo: { name: pathname.slice(1), version: '1' } }
     else if (input.method === 'tools/list') {
       assert.notEqual(pathname, '/resourceonly', 'resource-only server must never receive tools/list')
-      result = input.params?.cursor ? { tools: [tool('write')] } : { tools: [tool('echo')], nextCursor: 'page-2' }
+      result = pathname === '/golden' ? { tools: goldenTools }
+        : input.params?.cursor ? { tools: [tool('write')] } : { tools: [tool('echo')], nextCursor: 'page-2' }
     } else if (input.method === 'tools/call') result = { content: [{ type: 'text', text: `${input.params.name} result ${input.params.arguments.text}` }] }
     else if (input.method === 'resources/list') result = { resources: [{ uri: 'mcp://docs/readme', name: 'readme', mimeType: 'text/plain' }] }
     else if (input.method === 'resources/templates/list') result = { resourceTemplates: [{ uriTemplate: 'mcp://docs/{path}', name: 'document' }] }
@@ -305,6 +338,9 @@ try {
   scenario = 'new-agent'; step = 0
   await prompt('E2E new agent', 'MCP E2E isolation PASS')
   checks.push('reenable works; a new Agent does not inherit loaded tools')
+  scenario = 'golden'; step = 0
+  await prompt('E2E search golden', 'MCP E2E golden PASS')
+  checks.push('real AgentLoop: Notion-shaped BM25 natural-language, stopword, Chinese, exact server filter, and next-step injection')
   await page.screenshot({ path: join(evidence, 'chat-tools.png') })
   await stop(); await page.goto(await boot()); await settings()
   await page.getByRole('region', { name: 'MCP oauth', exact: true }).getByRole('button', { name: '禁用', exact: true }).waitFor()

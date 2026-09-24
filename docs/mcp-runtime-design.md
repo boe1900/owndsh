@@ -248,8 +248,8 @@ search 冷态只增加 search/release 两个控制工具；当前不注入全目
 
 ### 6.3 最小可用检索
 
-NFKC + lowercase；Latin/digit 词、按 `_`/`-`/camelCase 边界切分；中文连续段保留整段并加双字片段。无需外部向量服务。
-稳定排序规则：完全 publicName 命中最高；工具名命中权重3，serverName/displayName权重2，description权重1；同分 publicName 升序。没有有效 token 返回 NO_MATCH，不能让中文查询落为“前N个工具”。
+NFKC + lowercase；复用项目侧 `terms()` 做 Latin/digit 词、`_`/`-`/camelCase 边界切分，并为中文连续段保留整段和双字片段；`processTerm` 过滤产品侧停用词（如 `the`、`tool`）。Orama 仅保存 `publicName`、`displayName`、`description` 三个字段，使用 BM25 与字段权重 `publicName: 8`、`displayName: 2`、`description: 1`，不把 `serverName` 当文本字段。无需外部向量服务。
+稳定排序规则：完整 namespaced publicName 先走 exact-name 快速路径；其余由 Orama BM25 召回，再按分数降序、完整 publicName 升序稳定排序。serverName 仍是精确过滤条件，scope 仍在 catalog 上求交。没有有效 token 返回 NO_MATCH，不能让中文查询落为“前N个工具”。
 允许 serverName filter + 通用 query（如 list/read）；中文检索质量不足时改善服务显示名或 MCP Server 返回的工具描述，不在管理端增加 Tool 配置，不自动把查询发给另一模型/外部服务。
 
 ### 6.4 累加集合与显式释放
@@ -361,11 +361,11 @@ SDK 必须用公开 `renderToolsSdk` 或 `renderToolsSdkPy`，以 `tools.schemas
 
 Hook 采用明确 compose 顺序，完成后由实际请求捕获验证。不能仅验证 assembly 中 schema 少了；还要验证模型 adapter 收到的 tools 和完整 system text 没有冷工具定义，structured output/complete prompt 仍保持原协议。
 
-### 7.1 当前实现与已验证边界（2026-09-17）
+### 7.1 当前实现与已验证边界（2026-09-24）
 
-`src/mcp-tools.ts` 在挂载官方 client 前安装搜索、assembly hook 与 guard，再保留对应 namespace；成功 activation 后读取 `ctx.tools.schemas()`/`get()` 的真实定义。`tools/change` 合并到 microtask 重扫；输入、输出和描述结构相同时保留加载集合键，定义变化/移除/连接重挂载使旧键失效。通过标准库 `isDeepStrictEqual` 判断结构等价（包括不同对象键顺序），无需另造一份命名或 schema hash 算法；持久诊断用 canonical digest 仍由后续目录上报切片实现。
+`src/mcp-tools.ts` 在挂载官方 client 前安装搜索、assembly hook 与 guard，再保留对应 namespace；成功 activation 后读取 `ctx.tools.schemas()`/`get()` 的真实定义。`tools/change` 合并到 microtask 重扫；输入、输出和描述结构相同时保留加载集合键，定义变化/移除/连接重挂载使旧键失效。通过标准库 `isDeepStrictEqual` 判断结构等价（包括不同对象键顺序），无需另造一份命名或 schema hash 算法；持久诊断用 canonical digest 仍由后续目录上报切片实现。召回索引由 Orama BM25 重建，索引文档只保存去 namespace 的 `publicName`、`displayName`、`description`，项目侧 tokenizer 负责 `terms()`、停用词和中文双字词。
 
-搜索先取当前 Agent 的官方可见目录交集，返回精简 name/description/serverName 和实际 loadedNames；无自动淘汰、无 full 预算降级。release 仅修改该 Agent 的下步集合；native/PTC/both 共享相同选择，完整定义交给对应官方 renderer。单定义16KiB、目录512个/1MiB、单次搜索最多8个/8KiB仍是输入保护。
+搜索先取当前 Agent 的官方可见目录交集，Orama 只负责候选 BM25 排序，随后与 scope、精确 serverName 过滤和 catalog 求交；返回精简 name/description/serverName 和实际 loadedNames。无自动淘汰、无 full 预算降级。release 仅修改该 Agent 的下步集合；native/PTC/both 共享相同选择，完整定义交给对应官方 renderer。单定义16KiB、目录512个/1MiB、单次搜索最多8个/8KiB仍是输入保护。
 
 pre-execute 保存该调用看到的定义和目录代次，guard 与 dispatch 再核对最新租约/连接、作用域可见性及本步 presented 快照，不以可变 loaded 决定本步能否调用；连接撤销会 abort 在途调用，不自动重放；guard 之后的 tools/execute 等待期间若定义被替换，也通过同步 tools/change 取消该次 dispatch，防止最后一次 lookup 执行新定义。相同 schema 的官方重新注册不清空加载集合/快照，但已经进入异步 gate 的旧调用仍拒绝；新调用使用当前官方定义。仅 OwnDsh 保留的 namespace 参与过滤，其他插件的 MCP 与普通工具保留；重叠 namespace 明确报冲突。
 

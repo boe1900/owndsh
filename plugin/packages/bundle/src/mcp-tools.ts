@@ -1,10 +1,11 @@
 /**
- * [INPUT]: 依赖官方 ToolRuntime 注册表/guard、SystemPrompt assembly、TS/Python SDK renderer 与 runtime 的有效授权租约。
- * [OUTPUT]: 提供 mountMcpTools 与 MCP 连接代次，分离本步可调用快照与下步加载集合，支持去重累加、显式释放和即时撤销。
+ * [INPUT]: 依赖官方 ToolRuntime 注册表/guard、SystemPrompt assembly、TS/Python SDK renderer、Orama BM25 索引与 runtime 的有效授权租约。
+ * [OUTPUT]: 提供 mountMcpTools 与 MCP 连接代次，使用三字段词法索引召回工具并稳定排序；分离本步可调用快照与下步加载集合，支持去重累加、显式释放和即时撤销。
  * [POS]: bundle 的 MCP 呈现与执行边界；保持官方注册表和 preset 限制，只管理 OwnDsh 保留的 namespaces。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { isDeepStrictEqual } from 'node:util'
+import { create, insert, search as searchIndexDocuments } from '@orama/orama'
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool, renderToolsSdk, renderToolsSdkPy, type ToolDefinition, type ToolExecution } from '@deepseek-ai/dsh-tools'
 import type { AssembleContext } from '@deepseek-ai/dsh-system-prompt'
@@ -21,7 +22,10 @@ export interface McpConnection {
 
 type SdkSchema = Parameters<typeof renderToolsSdk>[0][number]
 type Entry = { connection: McpConnection; definition: ToolDefinition; schema: ToolSchema; sdk: SdkSchema; key: object }
+const SEARCH_SCHEMA = { publicName: 'string', displayName: 'string', description: 'string' } as const
+type SearchIndex = ReturnType<typeof create<typeof SEARCH_SCHEMA>>
 const LIMITS = { definition: 16 * 1024, catalog: 512, catalogBytes: 1024 * 1024, result: 8 * 1024 }
+const SEARCH_STOP_WORDS = new Set(['a', 'an', 'and', 'are', 'as', 'at', 'by', 'for', 'from', 'in', 'into', 'is', 'of', 'on', 'or', 'the', 'to', 'tool', 'tools', 'with', 'query', 'name'])
 const bytes = (value: unknown): number => Buffer.byteLength(typeof value === 'string' ? value : JSON.stringify(value), 'utf8')
 const prefix = (serverName: string): string => `mcp__${serverName}__`
 const compare = (a: string, b: string): number => a < b ? -1 : a > b ? 1 : 0
@@ -34,6 +38,20 @@ function terms(value: string): string[] {
     return /\p{Script=Han}/u.test(part) ? [part, ...chars.slice(1).map((char, i) => chars[i]! + char)] : [part]
   }))]
 }
+
+function processTerm(value: string): string | undefined {
+  return SEARCH_STOP_WORDS.has(value) ? undefined : value
+}
+
+const SEARCH_TOKENIZER = {
+  language: 'english',
+  normalizationCache: new Map<string, string>(),
+  tokenize(raw: string): string[] {
+    return terms(raw).map(processTerm).filter((value): value is string => value !== undefined)
+  },
+}
+
+const createSearchIndex = (): SearchIndex => create({ schema: SEARCH_SCHEMA, components: { tokenizer: SEARCH_TOKENIZER } })
 
 function bounded(value: unknown, depth = 0, count = { value: 0 }): boolean {
   if (depth > 32 || ++count.value > 4096) return false
@@ -48,6 +66,7 @@ export function mountMcpTools(ctx: Context, access: { fresh(): boolean; refresh(
   const executions = new WeakMap<object, Entry>()
   const dispatching = new Map<Readonly<ToolExecution>, { entry: Entry; abort: AbortController }>()
   let catalog = new Map<string, Entry>()
+  let searchIndex: SearchIndex = createSearchIndex()
   let dirty = false
   let stopped = false
   const owned = (name: string): boolean => [...namespaces].some(value => name.startsWith(value))
@@ -69,7 +88,15 @@ export function mountMcpTools(ctx: Context, access: { fresh(): boolean; refresh(
       next.set(schema.name, { connection, definition, schema, sdk,
         key: previous?.connection === connection && isDeepStrictEqual(previous.sdk, sdk) ? previous.key : {} })
     }
+    const index = createSearchIndex()
+    for (const [name, item] of next) insert(index, {
+      id: name,
+      publicName: name.slice(prefix(item.connection.serverName).length),
+      displayName: item.connection.displayName,
+      description: item.schema.description,
+    })
     catalog = next
+    searchIndex = index
   }
 
   function eligible(scope?: object): Entry[] {
@@ -125,15 +152,25 @@ export function mountMcpTools(ctx: Context, access: { fresh(): boolean; refresh(
       await access.refresh()
       if (!access.fresh()) return empty('POLICY_STALE')
       const entries = eligible(exec.agent)
-      const tokens = terms(query)
-      const ranked = entries.filter(item => scopedServerName === undefined || item.connection.serverName === scopedServerName).map(item => {
-        const name = item.schema.name.normalize('NFKC').toLowerCase()
-        const server = `${item.connection.serverName} ${item.connection.displayName}`.normalize('NFKC').toLowerCase()
-        const description = item.schema.description.normalize('NFKC').toLowerCase()
-        const score = name === query.trim().normalize('NFKC').toLowerCase() ? 1000 : tokens.reduce((sum, token) =>
-          sum + (name.includes(token) ? 3 : 0) + (server.includes(token) ? 2 : 0) + (description.includes(token) ? 1 : 0), 0)
-        return { item, score }
-      }).filter(item => item.score > 0).sort((a, b) => b.score - a.score || compare(a.item.schema.name, b.item.schema.name))
+      const normalizedQuery = query.trim().normalize('NFKC').toLowerCase()
+      const candidates = entries.filter(item => scopedServerName === undefined || item.connection.serverName === scopedServerName)
+      const exact = candidates.find(item => item.schema.name.normalize('NFKC').toLowerCase() === normalizedQuery)
+      const tokens = terms(query).map(processTerm).filter((value): value is string => value !== undefined)
+      const scores = new Map<string, number>()
+      if (exact !== undefined) {
+        // 完整 namespaced 名称直接命中，避免把前缀拆词后再走全文索引。
+        scores.set(exact.schema.name, 1000)
+      } else if (tokens.length) {
+        // 产品策略：多 token 查询允许部分覆盖；停用词过滤和空命中仍由本层决定。
+        const result = await searchIndexDocuments(searchIndex, {
+          term: tokens.join(' '), properties: ['publicName', 'displayName', 'description'],
+          boost: { publicName: 8, displayName: 2, description: 1 }, limit: LIMITS.catalog, threshold: 1,
+        })
+        for (const hit of result.hits) scores.set(hit.id, hit.score)
+      }
+      const candidateNames = new Set(candidates.map(item => item.schema.name))
+      const ranked = [...scores].filter(([name]) => candidateNames.has(name)).map(([name, score]) => ({ item: catalog.get(name)!, score }))
+        .sort((a, b) => b.score - a.score || compare(a.item.schema.name, b.item.schema.name))
       selection(exec.agent, entries)
       const current = new Map(loaded.get(exec.agent))
       const matches: Array<{ name: string; description: string; serverName: string }> = []

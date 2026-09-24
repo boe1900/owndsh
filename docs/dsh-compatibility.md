@@ -13,15 +13,15 @@
 
 ## 1. 当前基线与证据
 
-最后核对：2026-09-24。接入代码以提交 `5fcd3df` 与本轮工作树的 MCP 安全校验改动为基线，本轮 RC1 适配与验收见 [RC1 报告](dsh-017-rc1-compatibility-20260924.md)。
+最后核对：2026-09-24。接入代码以 beta.12 发布提交为基线，本轮 RC1 适配与验收见 [RC1 报告](dsh-017-rc1-compatibility-20260924.md)。
 
 | 项目 | 当前事实与真源 |
 |---|---|
-| 插件发布 | [v0.1.0-beta.11](https://github.com/boe1900/owndsh/releases/tag/v0.1.0-beta.11)。[发布流水线](../.github/workflows/release.yml)从 Git tag 注入发布版本，因此工作树 manifest 的 `0.1.0` 不能代替实际 tgz 版本。 |
+| 插件发布 | [v0.1.0-beta.12](https://github.com/boe1900/owndsh/releases/tag/v0.1.0-beta.12)。[发布流水线](../.github/workflows/release.yml)从 Git tag 注入发布版本；本轮工作树 manifest 与本地 tgz 同步为 `0.1.0-beta.12`。 |
 | Harness / MCP SDK | 开发依赖为 Harness `0.1.7-rc.1`、Cordis `4.0.4`、Schemastery `3.18.4` 与 `@modelcontextprotocol/client` `2.0.0`。完整直接依赖与 peer 范围见 [bundle manifest](../plugin/packages/bundle/package.json)及其它 workspace manifest；实际解析图见 [pnpm-lock.yaml](../plugin/pnpm-lock.yaml)。不在本文复制全量版本清单。 |
-| 完整插件检查 | RC1 隔离运行树通过依赖安装、类型检查、构建、135 条模块测试和 workspace 检查；本轮必要适配见 [RC1 报告](dsh-017-rc1-compatibility-20260924.md)。 |
-| 当前 Web 行为证据 | [0.1.7-rc.1 报告](dsh-017-rc1-compatibility-20260924.md)：9 组场景，真实浏览器、Host、AgentLoop 和官方 adapter；平台、模型、MCP/OAuth 为本地协议桩。 |
-| 当前模块验证 | RC1 隔离运行树的 15 个测试文件、135 条 Vitest、TypeScript 检查和 Bundle 构建通过；Desktop 脚本需要外部 `OWNDSH_TEST_RUNTIME`，本轮未把 Desktop 原生外壳作为 RC1 证据。 |
+| 完整插件检查 | RC1 隔离运行树通过依赖安装、类型检查、构建、136 条模块测试和 workspace 检查；本轮必要适配见 [RC1 报告](dsh-017-rc1-compatibility-20260924.md)。 |
+| 当前 Web 行为证据 | [0.1.7-rc.1 报告](dsh-017-rc1-compatibility-20260924.md)：10 组场景，真实浏览器、Host、AgentLoop 和官方 adapter；平台、模型、MCP/OAuth 为本地协议桩。 |
+| 当前模块验证 | RC1 隔离运行树的 15 个测试文件、136 条 Vitest、TypeScript 检查和 Bundle 构建通过；Desktop 脚本需要外部 `OWNDSH_TEST_RUNTIME`，本轮未把 Desktop 原生外壳作为 RC1 证据。 |
 | 已覆盖范围 | Web 登录/重启恢复、插件页面入口、MCP 三种认证、工具分页、协议协商、无工具服务器、资源与 URI 模板、按需加载/释放/Agent 隔离、OAuth 刷新与重新授权。 |
 | 本基线未覆盖 | 真实供应商 OAuth、手工 endpoint/动态注册、远端回调、真实 PTC 解释器、`0.1.7-rc.1` Desktop 原生外壳、智能体团队，以及企业插件安装/卸载的真实包管理链路。PTC/both × TS/Python 的模块回归使用受控 bindings，不能代替解释器 E2E。 |
 

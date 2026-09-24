@@ -9,7 +9,7 @@
 
 先读 [公共契约](mcp-management-design.md)，再读 [运行时规格](mcp-runtime-design.md)。本文件按依赖顺序直接开工；MCP transport/resources/OAuth 均以官方 Harness 与 MCP SDK v2 为唯一实现真源。
 
-2026-09-24 0.1.7-rc.1 收口：官方 MCP client/resources、SettingsForms 和 pluginManager 已切换到目标版本；15 个模块测试文件、135 条 Vitest、TypeScript 检查和 Bundle 构建通过。Web/MCP 行为证据见 [0.1.7-rc.1 报告](dsh-017-rc1-compatibility-20260924.md)；本轮未把 Desktop 原生外壳作为目标证据。MCP 尚未上线，不保留旧开发版凭据兼容。
+2026-09-24 0.1.7-rc.1 收口：官方 MCP client/resources、SettingsForms 和 pluginManager 已切换到目标版本；15 个模块测试文件、136 条 Vitest、TypeScript 检查和 Bundle 构建通过。Web/MCP 行为证据见 [0.1.7-rc.1 报告](dsh-017-rc1-compatibility-20260924.md)；本轮未把 Desktop 原生外壳作为目标证据。MCP 尚未上线，不保留旧开发版凭据兼容。
 
 ## 1. 需求与实现闭环
 

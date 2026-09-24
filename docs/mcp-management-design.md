@@ -23,6 +23,7 @@
 | OAuth | OwnDsh 组织流程；复用 MCP TypeScript SDK 的发现/授权辅助函数；token 生成静态 headers 后重挂载官方 client |
 | MCP 连接 | 单用户 Host 复用连接；用户首次点击连接，assignment 不自动发起 OAuth |
 | 工具目录 | 端侧通过 tools/list 动态发现；保留单定义/目录输入保护，完整定义不改写 |
+| 资源访问 | 复用官方 dsh-mcp-resources，按需列出/读取当前 Agent 可见服务器的资源；不进入工具目录或 Orama 索引 |
 | 呈现 | 默认 search，累加去重并显式释放；full 全量呈现有效目录，不自动降级 |
 | 会话 | 每个 live agent 独立 loaded 与本步 presented；不写入 preset，无16工具/64KiB会话硬限 |
 | 宿主会话能力 | AgentLoop、会话保存/恢复、compaction/spill 由 Harness 实现；OwnDsh 只负责 MCP 工具投影、会话隔离和执行权限的接缝回归 |
@@ -31,7 +32,7 @@
 | 撤销 | 无闲置轮询；活动时授权快照最多有效 60 秒，过期无法刷新则拒绝新 MCP 调用 |
 | 信任 | 端侧是合作式治理，不是对恶意本机管理员/插件的安全沙箱；强制审计和网络隔离需要未来代理 |
 
-第一版明确不做：stdio 分发、legacy HTTP+SSE、resources/prompts、MCP server 发起的 sampling/elicitation、client_credentials/confidential OAuth client、组织共享 token、向量检索、跨设备凭据同步、MCP 服务端代理。出现这些配置时返回不支持，不能静默降级。
+第一版明确不做：stdio 分发、legacy HTTP+SSE、MCP prompts、MCP server 发起的 sampling/elicitation、client_credentials/confidential OAuth client、组织共享 token、向量检索、跨设备凭据同步、MCP 服务端代理。MCP resources 仅提供官方共享工具支持的按需只读访问；不做资源全文检索、订阅、二进制媒体渲染或资源级管理配置。出现不支持的配置时返回不支持，不能静默降级。
 
 ### 1.1 产品形态与页面归属
 
