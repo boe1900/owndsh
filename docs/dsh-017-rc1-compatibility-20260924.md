@@ -42,7 +42,7 @@ MCP 重点链路在真实 DSH Web AgentLoop 中通过：协议协商、工具分
 | 模块 | 功能检查 | RC1 最佳实践 | 结论与边界 |
 |---|---|---|---|
 | 企业登录 | 通过；LOCAL/LDAP/OIDC、PKCE、HttpOnly 会话、失效/退出/重启恢复均有 Web/服务端门禁 | 通过；浏览器不持有 Bearer Token，Web 复用官方 settings/Host 会话，Desktop/Harness 使用官方 credentials Refresh Grant | 实现沿官方 Host 接缝收敛；真实供应商 OIDC、RC1 Desktop 原生外壳仍未验收 |
-| 企业模型 | 通过；动态模型/default、三协议代理、流式响应、瞬时失败恢复和终态配额重试策略通过 | 通过；直接使用官方 `dsh-llm-pi-ai`/profile/AgentLoop，企业层只做认证代理、授权、配额和审计，不复制 provider 协议 | 结构没有补丁式第二套 AI 抽象；真实供应商矩阵与取消/网络故障仍需发布前补测 |
+| 企业模型 | 通过；动态模型/default、三协议代理、流式响应、瞬时失败恢复和终态配额重试策略通过；官方 DeepSeek provider 已迁移到 Messages | 通过；直接使用官方 `dsh-llm-pi-ai`/profile/AgentLoop，企业层只做认证代理、授权、配额和审计，不复制 provider 协议；官方类型固定 `anthropic-messages` 与 `/anthropic` 根地址 | 自定义提供商仍保留三协议；真实供应商矩阵与取消/网络故障仍需发布前补测 |
 | 企业访问策略/配额 | 通过；组织/成员/模型集授权、TOKEN/RATE/并发窗口、Redis lease、结算恢复和重叠策略已有后端与控制台门禁 | 通过；授权解析、预留、结算和审计分层，沿 PostgreSQL/Redis 现有边界，不把额度判断塞进客户端 | 真实 Harness 重叠配额 E2E 和供应商长时压测仍是独立发布门禁 |
 | 企业 MCP | 通过；none/API Key/OAuth、分页/资源、按需加载、撤销、Agent 隔离和恢复通过；本轮补齐 URL 与传输安全一致性 | 通过；协议、OAuth、资源和工具生命周期继续交给官方 SDK/client；服务端与端侧双重拒绝非 HTTP(S)、userinfo、fragment 及协议不一致配置 | 真实第三方 OAuth、动态注册、真实 PTC 解释器未覆盖；旧 rc.2 checkout 只保留历史证据 |
 | 企业插件管理 | 通过；企业市场授权、精确版本、安装/更新/卸载状态、重启提示和官方 `pluginManager` 路径通过 | 通过；复用官方 plugin manager/inventory/profile，不维护第二套 CLI/pnpm 状态机，官方管理页只按产品策略关闭入口 | 真实私有 registry/Git 网络故障与 RC1 Desktop 原生安装/重启链路仍需单独验收 |
@@ -56,6 +56,7 @@ MCP 重点链路在真实 DSH Web AgentLoop 中通过：协议协商、工具分
 - Profile 设置迁移到当前插件配置、声明字段支持实时更新。OwnDsh 已把 `baseUrl` 和 `mcp.desiredConnected` 声明为 `volatile`，RC1 只要求测试按 Schemastery 的实时配置包装对象读取，生产路径已经统一使用 `get()`。
 - PTC 包名和服务名统一到 `ptc-runtime`，当前 bundle 已使用 RC1 的 `dsh-ptc-runtime` 与 `ptcRuntime`；没有旧名称兼容代码需要保留。
 - 插件安装和启动增加 Harness 版本兼容检查。本轮 bundle peer/dev 依赖与锁文件统一到 `0.1.7-rc.1`，Web E2E 也显式断言目标 runtime 版本。
+- 官方 DeepSeek adapter 在 RC1 只接受 Messages API，不再接受 `protocol`；OwnDsh 虽然停用该 adapter、继续使用官方 `dsh-llm-pi-ai`，企业模型的 `DEEPSEEK_OFFICIAL` 仍同步收敛为 `anthropic-messages`，默认地址为 `https://api.deepseek.com/anthropic`，并由 V36 迁移旧官方配置。
 - 终端、Agent Team、浏览器后端、Session V4、Remote `readBytes` 等变化没有命中 OwnDsh 当前导入、slot、hook 或产品入口；本轮没有为未使用能力增加适配层。
 
 ## 必要改动

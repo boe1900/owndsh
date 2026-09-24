@@ -320,7 +320,7 @@ class T08ApiContractTest {
     void clearsCredentialRequestAndRedactsStringRepresentation() {
         ProviderWriteRequest request = new ProviderWriteRequest(
             "deepseek-official", "DeepSeek", ProviderType.DEEPSEEK_OFFICIAL,
-            "openai-completions", URI.create("https://api.deepseek.com"),
+            "anthropic-messages", URI.create("https://api.deepseek.com/anthropic"),
             true, SECRET.toCharArray(), 5000, 30000
         );
         assertThat(request.toString())
@@ -375,8 +375,8 @@ class T08ApiContractTest {
     private static ModelProvider provider() {
         return new ModelProvider(
             Long.parseLong(PROVIDER_ID), "000000", "deepseek-official", "DeepSeek",
-            ProviderType.DEEPSEEK_OFFICIAL, ProviderApiProtocol.OPENAI_COMPLETIONS,
-            URI.create("https://api.deepseek.com"), new EncryptedSecret(new byte[16], new byte[12], 1),
+            ProviderType.DEEPSEEK_OFFICIAL, ProviderApiProtocol.ANTHROPIC_MESSAGES,
+            URI.create("https://api.deepseek.com/anthropic"), new EncryptedSecret(new byte[16], new byte[12], 1),
             ModelStatus.ACTIVE, 5000, 30000, 0
         );
     }
@@ -407,7 +407,7 @@ class T08ApiContractTest {
             device,
             List.of(new EffectiveModelResolver.EffectiveModel(
                 Long.parseLong(MODEL_ID), "deepseek-chat", "DeepSeek Chat", 65536, 8192, 10,
-                ProviderApiProtocol.OPENAI_COMPLETIONS, null, null, true
+                ProviderApiProtocol.ANTHROPIC_MESSAGES, null, null, true
             )),
             List.of(),
             new EffectivePluginResolver.ResolvedAssignments(9, List.of())
@@ -428,8 +428,8 @@ class T08ApiContractTest {
               "providerKey":"deepseek-official",
               "name":"DeepSeek",
               "providerType":"DEEPSEEK_OFFICIAL",
-              "apiProtocol":"openai-completions",
-              "baseUrl":"https://api.deepseek.com",
+              "apiProtocol":"anthropic-messages",
+              "baseUrl":"https://api.deepseek.com/anthropic",
               %s
               %s
               "connectTimeoutMs":5000,

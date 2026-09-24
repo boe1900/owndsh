@@ -36,6 +36,10 @@ public record ModelProvider(
         name = requireText(name, "name", 120);
         Objects.requireNonNull(providerType, "providerType");
         Objects.requireNonNull(apiProtocol, "apiProtocol");
+        if (providerType == ProviderType.DEEPSEEK_OFFICIAL
+            && apiProtocol != ProviderApiProtocol.ANTHROPIC_MESSAGES) {
+            throw new IllegalArgumentException("DeepSeek 官方只支持 anthropic-messages");
+        }
         Objects.requireNonNull(baseUrl, "baseUrl");
         Objects.requireNonNull(encryptedCredential, "encryptedCredential");
         Objects.requireNonNull(status, "status");

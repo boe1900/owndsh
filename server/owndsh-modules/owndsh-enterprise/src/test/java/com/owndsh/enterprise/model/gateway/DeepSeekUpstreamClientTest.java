@@ -105,6 +105,18 @@ class DeepSeekUpstreamClientTest {
         )) {
             assertThat(exchange.next().done()).isTrue();
         }
+
+        server.stubFor(post(urlEqualTo("/anthropic/v1/messages"))
+            .withHeader("x-api-key", equalTo(SECRET))
+            .withHeader("anthropic-version", equalTo("2023-06-01"))
+            .willReturn(aResponse().withStatus(200).withHeader("Content-Type", "text/event-stream")
+                .withBody("data: [DONE]\n\n")));
+        try (var exchange = client.open(
+            URI.create(server.baseUrl() + "/anthropic"), ProviderApiProtocol.ANTHROPIC_MESSAGES,
+            SECRET.toCharArray(), Map.of(), "{}".getBytes(StandardCharsets.UTF_8), 2_000, 2_000
+        )) {
+            assertThat(exchange.next().done()).isTrue();
+        }
     }
 
     @Test

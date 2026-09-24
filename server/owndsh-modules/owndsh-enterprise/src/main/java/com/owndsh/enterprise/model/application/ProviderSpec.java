@@ -39,8 +39,8 @@ public record ProviderSpec(
             throw new IllegalArgumentException("DeepSeek 官方 providerKey 必须为 deepseek-official");
         }
         if (providerType == ProviderType.DEEPSEEK_OFFICIAL
-            && apiProtocol != ProviderApiProtocol.OPENAI_COMPLETIONS) {
-            throw new IllegalArgumentException("DeepSeek 官方只支持 openai-completions");
+            && apiProtocol != ProviderApiProtocol.ANTHROPIC_MESSAGES) {
+            throw new IllegalArgumentException("DeepSeek 官方只支持 anthropic-messages");
         }
         baseUrl = requireEndpoint(baseUrl);
         requireTimeout(connectTimeoutMs, "connectTimeoutMs");

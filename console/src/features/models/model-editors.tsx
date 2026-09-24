@@ -29,8 +29,9 @@ import {
   TOKEN_CAPACITY_ERROR
 } from './token-capacity';
 
-const DEEPSEEK_OFFICIAL_URL = 'https://api.deepseek.com';
+const DEEPSEEK_OFFICIAL_URL = 'https://api.deepseek.com/anthropic';
 const OPENAI_COMPLETIONS = 'openai-completions' as const;
+const ANTHROPIC_MESSAGES = 'anthropic-messages' as const;
 const REASONING_LEVELS = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const;
 const THINKING_FORMATS = ['openai', 'deepseek', 'openrouter', 'together', 'zai', 'qwen', 'string-thinking', 'ant-ling'] as const;
 const inputClass = 'h-9 w-full rounded-lg border border-line bg-canvas px-3 text-[13px] text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent-tint disabled:cursor-not-allowed disabled:bg-inset disabled:text-ink-3';
@@ -86,7 +87,7 @@ function providerDefaults(current?: Provider, capacity?: QuotaPolicy): ProviderF
     providerType: current?.providerType ?? 'DEEPSEEK_OFFICIAL',
     providerKey: current?.providerKey ?? 'deepseek-official',
     name: current?.name ?? 'DeepSeek',
-    apiProtocol: current?.apiProtocol ?? OPENAI_COMPLETIONS,
+    apiProtocol: current?.apiProtocol ?? ANTHROPIC_MESSAGES,
     baseUrl: current?.baseUrl ?? DEEPSEEK_OFFICIAL_URL,
     credential: '',
     replaceSecret: false,
@@ -171,7 +172,7 @@ export function ProviderEditorDialog({
                   field.handleChange(type);
                   form.setFieldValue('providerKey', type === 'DEEPSEEK_OFFICIAL' ? 'deepseek-official' : '');
                   form.setFieldValue('name', type === 'DEEPSEEK_OFFICIAL' ? 'DeepSeek' : '');
-                  form.setFieldValue('apiProtocol', OPENAI_COMPLETIONS);
+                  form.setFieldValue('apiProtocol', type === 'DEEPSEEK_OFFICIAL' ? ANTHROPIC_MESSAGES : OPENAI_COMPLETIONS);
                   form.setFieldValue('baseUrl', type === 'DEEPSEEK_OFFICIAL' ? DEEPSEEK_OFFICIAL_URL : '');
                 }}
               >

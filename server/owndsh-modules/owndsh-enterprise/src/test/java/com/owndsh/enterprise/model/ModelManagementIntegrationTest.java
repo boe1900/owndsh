@@ -11,6 +11,7 @@ import com.owndsh.enterprise.auth.application.PlatformSession;
 import com.owndsh.enterprise.auth.application.PlatformSessionGateway;
 import com.owndsh.enterprise.auth.domain.PlatformClient;
 import com.owndsh.enterprise.crypto.SecretCipher;
+import com.owndsh.enterprise.crypto.EncryptedSecret;
 import com.owndsh.enterprise.device.application.DeviceAccessException;
 import com.owndsh.enterprise.device.application.DeviceCallContext;
 import com.owndsh.enterprise.device.application.DeviceService;
@@ -34,7 +35,6 @@ import com.owndsh.enterprise.model.domain.GrantResourceType;
 import com.owndsh.enterprise.model.domain.ManagedModel;
 import com.owndsh.enterprise.model.domain.ModelGrant;
 import com.owndsh.enterprise.model.domain.ModelProvider;
-import com.owndsh.enterprise.model.domain.ModelReasoningCompat;
 import com.owndsh.enterprise.model.domain.ModelReasoningEfforts;
 import com.owndsh.enterprise.model.domain.ModelSet;
 import com.owndsh.enterprise.model.domain.ModelStatus;
@@ -113,8 +113,17 @@ class ModelManagementIntegrationTest {
         )).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new ProviderSpec(
             "deepseek-official", "DeepSeek", ProviderType.DEEPSEEK_OFFICIAL,
+            ProviderApiProtocol.OPENAI_COMPLETIONS, URI.create("https://api.deepseek.com"), 5_000, 30_000
+        )).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("anthropic-messages");
+        assertThatThrownBy(() -> new ProviderSpec(
+            "deepseek-official", "DeepSeek", ProviderType.DEEPSEEK_OFFICIAL,
             ProviderApiProtocol.OPENAI_RESPONSES, URI.create("https://api.deepseek.com"), 5_000, 30_000
-        )).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("openai-completions");
+        )).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("anthropic-messages");
+        assertThatThrownBy(() -> new ModelProvider(
+            1, "000000", "deepseek-official", "DeepSeek", ProviderType.DEEPSEEK_OFFICIAL,
+            ProviderApiProtocol.OPENAI_COMPLETIONS, URI.create("https://api.deepseek.com"),
+            new EncryptedSecret(new byte[16], new byte[12], 1), ModelStatus.ACTIVE, 5_000, 30_000, 0
+        )).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("anthropic-messages");
     }
 
     @Test
@@ -286,7 +295,7 @@ class ModelManagementIntegrationTest {
         assertThat(snapshot.user().departmentId()).isEqualTo(user.departmentId());
         assertThat(snapshot.models()).singleElement().satisfies(value -> {
             assertThat(value.alias()).isEqualTo("deepseek-reasoner");
-            assertThat(value.apiProtocol()).isEqualTo(ProviderApiProtocol.OPENAI_COMPLETIONS);
+            assertThat(value.apiProtocol()).isEqualTo(ProviderApiProtocol.ANTHROPIC_MESSAGES);
             assertThat(value.isDefault()).isTrue();
             assertThat(value.reasoningEfforts().supports("max")).isTrue();
         });
@@ -360,7 +369,7 @@ class ModelManagementIntegrationTest {
     private static ProviderSpec providerSpec() {
         return new ProviderSpec(
             "deepseek-official", "T08 DeepSeek", ProviderType.DEEPSEEK_OFFICIAL,
-            ProviderApiProtocol.OPENAI_COMPLETIONS, URI.create("https://api.deepseek.com"),
+            ProviderApiProtocol.ANTHROPIC_MESSAGES, URI.create("https://api.deepseek.com/anthropic"),
             5_000, 30_000
         );
     }
@@ -375,7 +384,7 @@ class ModelManagementIntegrationTest {
         efforts.put("max", "max");
         return new ManagedModelSpec(
             providerId, alias, alias, alias, 65_536, 8_192,
-            new ModelReasoningEfforts(efforts), new ModelReasoningCompat("deepseek", true), sortOrder
+            new ModelReasoningEfforts(efforts), null, sortOrder
         );
     }
 

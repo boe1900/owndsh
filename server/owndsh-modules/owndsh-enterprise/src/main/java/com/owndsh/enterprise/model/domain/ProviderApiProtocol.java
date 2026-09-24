@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 对齐 DeepSeek Harness 自定义提供商的 wire protocol 标识。
+ * [INPUT]: 对齐 DeepSeek Harness 官方与自定义提供商的 wire protocol 标识。
  * [OUTPUT]: 对外提供 Harness 自定义路由支持的三种 API 协议及严格字符串转换。
  * [POS]: model/domain 的上游 API 协议真源，避免提供商来源类型与传输协议混为一谈。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

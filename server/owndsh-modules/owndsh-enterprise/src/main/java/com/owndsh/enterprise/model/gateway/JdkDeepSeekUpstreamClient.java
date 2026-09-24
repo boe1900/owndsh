@@ -173,7 +173,7 @@ public final class JdkDeepSeekUpstreamClient implements DeepSeekUpstreamClient {
         String operation = switch (protocol) {
             case OPENAI_COMPLETIONS -> "/chat/completions";
             case OPENAI_RESPONSES -> "/responses";
-            case ANTHROPIC_MESSAGES -> "/messages";
+            case ANTHROPIC_MESSAGES -> prefix.endsWith("/v1") ? "/messages" : "/v1/messages";
         };
         try {
             return new URI(

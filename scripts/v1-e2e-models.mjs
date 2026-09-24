@@ -202,8 +202,8 @@ export async function runModelAndQuotaScenarios({
         providerKey: 'deepseek-official',
         name: 'DeepSeek Official',
         providerType: 'DEEPSEEK_OFFICIAL',
-        apiProtocol: 'openai-completions',
-        baseUrl: 'https://api.deepseek.com/v1',
+        apiProtocol: 'anthropic-messages',
+        baseUrl: 'https://api.deepseek.com/anthropic',
         credential: fixture.modelKey,
         connectTimeoutMs: 2_000,
         readTimeoutMs: 10_000,
@@ -211,7 +211,7 @@ export async function runModelAndQuotaScenarios({
       state.providers.push(official.id);
     }
     assert.equal(official.providerKey, 'deepseek-official');
-    assert.equal(official.apiProtocol, 'openai-completions');
+    assert.equal(official.apiProtocol, 'anthropic-messages');
 
     for (const [key, apiProtocol] of Object.entries({
       completions: 'openai-completions',

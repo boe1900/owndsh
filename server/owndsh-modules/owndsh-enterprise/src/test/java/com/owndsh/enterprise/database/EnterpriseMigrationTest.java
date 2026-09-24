@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖普通数据库所有者、空数据库、classpath V0-V35 migration 与旧版 baseline 0 历史。
- * [OUTPUT]: 验证空库建表、旧库接管/升级、重复启动、字符串时间参数、数据库计量迁移与 MCP 原样认证值迁移约束。
+ * [INPUT]: 依赖普通数据库所有者、空数据库、classpath V0-V36 migration 与旧版 baseline 0 历史。
+ * [OUTPUT]: 验证空库建表、旧库接管/升级、DeepSeek Messages 配置迁移、重复启动、字符串时间参数、数据库计量迁移与 MCP 原样认证值迁移约束。
  * [POS]: database 的持续 migration 门禁，防止后续任务只验证最终 schema 而遗漏中间版本不可升级。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -52,6 +52,37 @@ class EnterpriseMigrationTest {
     }
 
     @Test
+    void migratesOfficialDeepSeekProvidersToMessagesApi() {
+        var database = PostgresTestDatabase.create("deepseek_messages_provider");
+        PostgresTestDatabase.migrate(database, "35");
+        database.jdbc().update("""
+            insert into ent_model_provider(
+                id,tenant_id,provider_key,name,provider_type,api_protocol,base_url,status,
+                connect_timeout_ms,read_timeout_ms,revision
+            ) values
+                (1903600000000000001,'000000','deepseek-official','DeepSeek','DEEPSEEK_OFFICIAL',
+                 'openai-completions','https://api.deepseek.com/v1','ACTIVE',5000,30000,0),
+                (1903600000000000002,'000000','custom-route','Custom','CUSTOM',
+                 'openai-completions','https://gateway.example/v1','ACTIVE',5000,30000,0)
+            """);
+
+        Flyway flyway = PostgresTestDatabase.migrate(database, null);
+
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("36");
+        assertThat(database.jdbc().queryForMap("""
+            select api_protocol,base_url from ent_model_provider where provider_key='deepseek-official'
+            """)).containsEntry("api_protocol", "anthropic-messages")
+            .containsEntry("base_url", "https://api.deepseek.com/anthropic");
+        assertThat(database.jdbc().queryForObject(
+            "select api_protocol from ent_model_provider where provider_key='custom-route'", String.class
+        )).isEqualTo("openai-completions");
+        assertThatThrownBy(() -> database.jdbc().update("""
+            update ent_model_provider set api_protocol='openai-completions'
+            where provider_key='deepseek-official'
+            """)).isInstanceOf(RuntimeException.class);
+    }
+
+    @Test
     void migratesAnEmptyDatabaseToLatestWithoutSuperuserPrivileges() {
         var database = PostgresTestDatabase.create("empty_enterprise");
         assertThat(database.jdbc().queryForObject(
@@ -66,7 +97,7 @@ class EnterpriseMigrationTest {
         assertThat(database.jdbc().queryForObject(
             "select type from flyway_schema_history where version='0'", String.class
         )).isEqualTo("SQL");
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("35");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("36");
         Integer tableCount = database.jdbc().queryForObject("""
             select count(*) from information_schema.tables
             where table_schema = 'public' and table_name like 'ent_%'
@@ -206,7 +237,7 @@ class EnterpriseMigrationTest {
 
         Flyway flyway = PostgresTestDatabase.migrate(database, null);
 
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("35");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("36");
         assertThat(database.jdbc().queryForObject(
             "select type from flyway_schema_history where version='0'", String.class
         )).isEqualTo("BASELINE");
@@ -587,7 +618,7 @@ class EnterpriseMigrationTest {
             .run(context -> {
                 assertThat(context).hasSingleBean(Flyway.class);
                 assertThat(context.getBean(Flyway.class).info().current().getVersion().getVersion())
-                    .isEqualTo("35");
+                    .isEqualTo("36");
             });
     }
 }

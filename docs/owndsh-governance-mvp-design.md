@@ -509,7 +509,7 @@ SIGNED_OUT -> AUTHORIZING -> ENROLLING -> BOOTSTRAPPING -> READY
 
 ### 9.1 模型对象
 
-`ent_model_provider` 表示一个上游端点及密钥，`provider_type` 区分 `DEEPSEEK_OFFICIAL` 与 `CUSTOM`，稳定 `provider_key` 和 `api_protocol` 对齐 DeepSeek Harness 路由配置；自定义提供商可选择 `openai-completions`、`openai-responses`、`anthropic-messages`，DeepSeek 官方路由固定为 `openai-completions`。`ent_managed_model` 表示员工可选择的模型别名，包含 `alias`、上游模型名、上下文、最大输出和启用状态。`alias` 在固定 tenant 内唯一，员工请求只携带 alias。
+`ent_model_provider` 表示一个上游端点及密钥，`provider_type` 区分 `DEEPSEEK_OFFICIAL` 与 `CUSTOM`，稳定 `provider_key` 和 `api_protocol` 对齐 DeepSeek Harness 路由配置；自定义提供商可选择 `openai-completions`、`openai-responses`、`anthropic-messages`，DeepSeek 官方路由固定为 RC1 的 `anthropic-messages`，默认根地址为 `https://api.deepseek.com/anthropic`，请求落到 `/v1/messages`。`ent_managed_model` 表示员工可选择的模型别名，包含 `alias`、上游模型名、上下文、最大输出和启用状态。`alias` 在固定 tenant 内唯一，员工请求只携带 alias。
 
 `ent_model_grant` 把模型分给 `USER` 或 `DEPT`。有效授权是用户授权与当前部门授权的并集；模型和 provider 都必须为 `ACTIVE`。同一优先级最多一个 `is_default=true`，用户默认优先于部门默认；没有显式默认时按管理端排序最小的有效模型作为默认。无有效模型时 bootstrap 返回空数组，Host 显示“未分配企业模型”并拒绝调用。
 
@@ -724,7 +724,7 @@ MVP 必须产生以下 action：
 | `ent_external_group_mapping` | `id,tenant_id,source_id,external_group,dept_id,revision` | 唯一 `(source_id,external_group)` |
 | `ent_platform_revision` | `tenant_id,scope,revision,updated_at` | 主键 `(tenant_id,scope)`；MVP 固定一行 `scope=BOOTSTRAP`，管理写事务原子加一 |
 | `ent_device` | `id,tenant_id,user_id,installation_id,name,platform,harness_version,bundle_version,status,last_seen_at,last_heartbeat_audit_at,revoked_at,revision` | 唯一 `(tenant_id,installation_id)`；索引 `(user_id,status)` 和 `last_seen_at`；`last_heartbeat_audit_at` 只用于行锁内 heartbeat 审计限频 |
-| `ent_model_provider` | `id,tenant_id,provider_key,name,provider_type,api_protocol,base_url,credential_ciphertext,credential_nonce,key_version,status,connect_timeout_ms,read_timeout_ms,revision` | 唯一 `(tenant_id,name)` 与 `(tenant_id,provider_key)`；type 检查 `DEEPSEEK_OFFICIAL/CUSTOM`；自定义路由协议检查三种 Harness wire protocol，官方路由固定 `openai-completions`；密钥字段同时空或同时非空 |
+| `ent_model_provider` | `id,tenant_id,provider_key,name,provider_type,api_protocol,base_url,credential_ciphertext,credential_nonce,key_version,status,connect_timeout_ms,read_timeout_ms,revision` | 唯一 `(tenant_id,name)` 与 `(tenant_id,provider_key)`；type 检查 `DEEPSEEK_OFFICIAL/CUSTOM`；自定义路由协议检查三种 Harness wire protocol，官方路由固定 `anthropic-messages`；密钥字段同时空或同时非空 |
 | `ent_managed_model` | `id,tenant_id,provider_id,alias,display_name,upstream_model,context_window,max_output_tokens,sort_order,status,revision` | 唯一 `(tenant_id,alias)`；`display_name/context_window/max_output_tokens` 可空并按 Harness 缺省解析，容量有值时为正数；索引 `(provider_id,status)` |
 | `ent_model_grant` | `id,tenant_id,model_id,subject_type,subject_id,is_default,status,revision` | 唯一 `(model_id,subject_type,subject_id)`；type 检查 `USER/DEPT`；部分唯一索引限制同一 subject 一个有效默认 |
 | `ent_quota_policy` | `id,tenant_id,name,subject_type,subject_id,daily_token_limit,monthly_token_limit,rpm,concurrency,status,revision` | type 检查 `DEFAULT/DEPT/USER`；DEFAULT 的 subject 为空，其他非空；至少一个 limit 非空且为正 |

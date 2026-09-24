@@ -34,7 +34,7 @@ java/com/owndsh/enterprise/audit/: 31-action metadata 白名单、requestId 关�
 java/com/owndsh/enterprise/common/api/: 认证游标格式/租户/筛选隔离、T20 有界 JSON 请求、稳定 413/503、删除阻塞 409 与故障日志秘密隔离门禁；局部地图见 common/api/CLAUDE.md。
 java/com/owndsh/enterprise/test/OpenLdapTestServer.java: 共享 OpenLDAP Testcontainer 与测试专用 TLS trust，集中管理 LDAP 集成环境。
 java/com/owndsh/enterprise/test/RedisTestServer.java: 共享 Redis 8 Testcontainer，并为每项认证测试清理隔离 keyspace。
-java/com/owndsh/enterprise/database/EnterpriseMigrationTest.java: 从空库及已有库验证 V0–V35 前向迁移、种子幂等、计量与 MCP 数据约束。
+java/com/owndsh/enterprise/database/EnterpriseMigrationTest.java: 从空库及已有库验证 V0–V36 前向迁移、DeepSeek Messages 配置迁移、种子幂等、计量与 MCP 数据约束。
 java/com/owndsh/enterprise/deployment/DeploymentBootstrapServiceTest.java: 以真实 PostgreSQL 验证缺配置失败、事务回滚、幂等管理员/角色/marker，以及分步认证和 JDBC 条件首次改密。
 java/com/owndsh/enterprise/database/RbacSeedTest.java: 验证五个 built-in 角色、20 个冻结权限码、MCP 管理员全权/审计员只读与数据库不可变 trigger。
 java/com/owndsh/enterprise/revision/RevisionAuditIntegrationTest.java: 验证 BOOTSTRAP CAS、稳定冲突码、显式 metadata、只追加审计及同事务回滚。

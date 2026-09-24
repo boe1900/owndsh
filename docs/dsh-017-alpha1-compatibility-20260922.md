@@ -44,7 +44,7 @@
 
 ## Release notes 对照
 
-- 官方 DeepSeek adapter 改为 Messages-only 不影响当前 OwnDsh 企业模型路径：插件使用 `dsh-llm-pi-ai`，并通过 patch 禁用 `llm-deepseek`；本次未把该变化误判为 `pi-ai` 断点。
+- 官方 DeepSeek adapter 改为 Messages-only 不会造成 OwnDsh 插件装载断点：插件使用 `dsh-llm-pi-ai`，并通过 patch 禁用 `llm-deepseek`。但这条结论不适用于企业模型的 provider 语义；`DEEPSEEK_OFFICIAL` 仍必须跟随官方 API，不能继续默认 OpenAI Completions。RC1 复核已在 V36 将官方 provider 迁移为 `anthropic-messages` 与 `/anthropic` 根地址。
 - `dsh-mcp-client`、`dsh-mcp-resources` 和 SDK v2 的协议协商、分页、资源读取在真实 Web AgentLoop 中工作；静态核对目标 `dsh-mcp-client` 的 exports 和类型也未发现 OAuth provider 接管层，因此 OwnDsh OAuth 仍只实现 SDK 要求的 provider、凭据记录、系统浏览器和回环回调宿主接缝。
 - Profile 插件配置 settings、官方插件管理页以及配置/插件加载变化均未破坏 OwnDsh 当前 patch 和自有设置入口；企业插件的官方 `pluginManager` 安装/更新/卸载由模块回归覆盖，Web 内置浏览器默认值本次未单独验收。
 - Session 日志 V4、仅保存于自定义事件的附件导出、Agent preset 迁移、Desktop 原生外壳、真实供应商和真实 PTC 解释器未在本次验证，因此保持未验证。

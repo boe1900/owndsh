@@ -6,7 +6,7 @@
 
 ModelMutationContext.java: 管理写事务的可信 tenant/actor/request 审计上下文。
 ProviderSecretInput.java: 一次性 provider credential 字符容器，提供防御性复制、脱敏与清零。
-ProviderSpec.java: 不含密钥的 provider 写 command，统一校验 Harness route ID、官方保留路由、协议、endpoint 与 timeout。
+ProviderSpec.java: 不含密钥的 provider 写 command，统一校验 Harness route ID、官方保留路由、RC1 官方 Messages 协议、endpoint 与 timeout。
 ManagedModelSpec.java: 模型写 command，约束 alias、上游标识、容量、reasoningEfforts/compat、排序和 default sentinel 边界。
 ModelGrantSpec.java: 授权写 command，封装模型/模型集资源、全员/用户组/成员主体与状态事实。
 ProviderProbe.java: provider `/models` 探测端口，只允许分类、延迟与脱敏模型 ID 候选越过边界。
