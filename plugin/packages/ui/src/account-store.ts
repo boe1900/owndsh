@@ -14,7 +14,7 @@ import type {
 } from './local-api.js'
 import { EnterpriseLocalApiError } from './local-api.js'
 
-export type EnterpriseAccountAction = 'configure' | 'login' | 'cancel' | 'logout' | 'uninstall' | 'refresh' | 'restart'
+export type EnterpriseAccountAction = 'configure' | 'login' | 'cancel' | 'logout' | 'uninstall' | 'refresh'
 
 export interface EnterpriseAccountSnapshot {
   readonly phase: 'loading' | 'ready' | 'error'
@@ -27,7 +27,6 @@ export interface EnterpriseAccountSnapshot {
   readonly mcpOAuth?: { readonly serverName: string; readonly flowId?: string }
   readonly pluginsLoading?: boolean
   readonly pluginErrorCode?: string
-  readonly pluginBusy?: { readonly action: 'install' | 'remove'; readonly packageName: string }
   readonly busy?: EnterpriseAccountAction
   readonly errorCode?: string
   readonly uninstallRestartRequested?: boolean
@@ -170,47 +169,6 @@ export class EnterpriseAccountStore {
     catch (error) { if (!this.#accountSignal().aborted) this.#set({ ...this.#snapshot, mcpErrorCode: failureCode(error) }) }
   }
 
-  async restartPlugins(): Promise<void> {
-    if (!this.#api.restartPlugins || !this.#snapshot.pluginStatus?.canRestart) return
-    await this.#action('restart', signal => this.#api.restartPlugins!(signal))
-  }
-
-  async installPlugin(packageName: string, pluginVersionId: string): Promise<void> {
-    await this.#pluginAction('install', packageName, signal => this.#api.installPlugin(packageName, pluginVersionId, signal))
-  }
-
-  async removePlugin(packageName: string): Promise<void> {
-    await this.#pluginAction('remove', packageName, signal => this.#api.removePlugin(packageName, signal))
-  }
-
-  async #pluginAction(
-    action: 'install' | 'remove', packageName: string,
-    operation: (signal: AbortSignal) => Promise<EnterprisePluginStatus>,
-  ): Promise<void> {
-    if (this.#snapshot.pluginBusy !== undefined || this.#snapshot.busy !== undefined
-      || this.#snapshot.status === undefined || !connected(this.#snapshot.status)) return
-    const signal = this.#accountSignal()
-    const { pluginErrorCode: _error, ...snapshot } = this.#snapshot
-    this.#set({ ...snapshot, pluginBusy: { action, packageName } })
-    try {
-      const pluginStatus = await operation(signal)
-      if (!signal.aborted && this.#snapshot.status !== undefined && connected(this.#snapshot.status)) {
-        this.#set({ ...this.#snapshot, pluginStatus })
-      }
-    } catch (error) {
-      if (signal.aborted) return
-      await this.refresh()
-      if (signal.aborted) return
-      if (this.#snapshot.status !== undefined && connected(this.#snapshot.status)) await this.#loadPlugins()
-      if (!signal.aborted) this.#set({ ...this.#snapshot, pluginErrorCode: failureCode(error) })
-    } finally {
-      if (!signal.aborted) {
-        const { pluginBusy: _busy, ...settled } = this.#snapshot
-        this.#set(settled)
-      }
-    }
-  }
-
   async startLogin(): Promise<void> {
     await this.#action('login', signal => this.#api.startLogin(signal))
   }
@@ -286,13 +244,13 @@ export class EnterpriseAccountStore {
     action: EnterpriseAccountAction,
     operation: (signal: AbortSignal) => Promise<unknown>,
   ): Promise<boolean> {
-    if (this.#snapshot.busy !== undefined || this.#snapshot.pluginBusy !== undefined) return false
+    if (this.#snapshot.busy !== undefined) return false
     const signal = this.#signal()
     const { errorCode: _errorCode, ...withoutError } = this.#snapshot
     this.#set({ ...withoutError, busy: action })
     try {
       await operation(signal)
-      if (!signal.aborted && action !== 'uninstall' && action !== 'refresh' && action !== 'restart') await this.refresh()
+      if (!signal.aborted && action !== 'uninstall' && action !== 'refresh') await this.refresh()
       return !signal.aborted
     } catch (error) {
       if (!signal.aborted && action === 'logout') await this.refresh()
@@ -330,7 +288,6 @@ export class EnterpriseAccountStore {
       ...(retain && this.#snapshot.pluginErrorCode !== undefined
         ? { pluginErrorCode: this.#snapshot.pluginErrorCode }
         : {}),
-      ...(retain && this.#snapshot.pluginBusy !== undefined ? { pluginBusy: this.#snapshot.pluginBusy } : {}),
       ...(this.#snapshot.busy === undefined ? {} : { busy: this.#snapshot.busy }),
       ...(status.errorCode === undefined ? {} : { errorCode: status.errorCode }),
     })

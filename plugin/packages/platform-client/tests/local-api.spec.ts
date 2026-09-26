@@ -21,7 +21,6 @@ describe('enterprise local API', () => {
   let webServer: WebServerRoutePort
   let currentStatus: EnterprisePlatformStatus
   let platform: EnterpriseLocalPlatformPort
-  let pluginStatus: ReturnType<typeof vi.fn>
 
   beforeEach(async () => {
     routes = new Map()
@@ -40,19 +39,6 @@ describe('enterprise local API', () => {
       logout: vi.fn(async () => undefined),
       bootstrap: vi.fn(() => undefined),
     }
-    pluginStatus = vi.fn(() => ({
-      assignmentRevision: 7,
-      plugins: [{
-        packageName: '@example/dsh-code-review',
-        version: '1.2.0',
-        pluginVersionId: '880',
-        desiredRevision: 7,
-        desiredState: 'INSTALLED',
-        state: 'RESTART_REQUIRED',
-        lastErrorCode: null,
-        restartMarker: null,
-      }],
-    }))
     webServer = {
       register: (route) => {
         const key = `${route.kind}:${route.path}`
@@ -80,21 +66,15 @@ describe('enterprise local API', () => {
     await new Promise<void>(resolve => server.close(() => resolve()))
   })
 
-  it('restarts only after an explicit empty-object POST and acknowledges before invoking the host', async () => {
-    const restart = vi.fn(); const restartPlugins = vi.fn(async () => ({ restart }));
-    registerEnterpriseLocalApi(webServer, { platform, pluginStatus, restartPlugins });
-    const url = `${baseUrl}/enterprise/api/v1/local/plugins/restart`;
-    expect((await fetch(url)).status).toBe(405);
-    expect((await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"force":true}' })).status).toBe(400);
-    expect(restart).not.toHaveBeenCalled();
-    const result = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
-    expect(result.status).toBe(200);
-    expect(await result.json()).toEqual({ data: { restartRequested: true } });
-    expect(restart).toHaveBeenCalledOnce();
+  it('does not expose arbitrary or legacy plugin mutation routes', async () => {
+    registerEnterpriseLocalApi(webServer, { platform });
+    for (const action of ['restart', 'install', 'remove']) {
+      expect((await fetch(`${baseUrl}/enterprise/api/v1/local/plugins/${action}`, { method: 'POST' })).status).toBe(404)
+    }
   });
 
   it('serves desensitized state and bootstrap without CORS or Token fields', async () => {
-    registerEnterpriseLocalApi(webServer, { platform, pluginStatus })
+    registerEnterpriseLocalApi(webServer, { platform })
     const response = await fetch(`${baseUrl}/enterprise/api/v1/local/status`)
     expect(response.headers.get('access-control-allow-origin')).toBeNull()
     const body = await response.json()
@@ -105,16 +85,31 @@ describe('enterprise local API', () => {
     await expect(bootstrap.json()).resolves.toEqual({ data: null })
     const plugins = await fetch(`${baseUrl}/enterprise/api/v1/local/plugins`)
     expect(plugins.headers.get('cache-control')).toBe('no-store')
-    await expect(plugins.json()).resolves.toEqual({ data: pluginStatus.mock.results[0]?.value })
-    expect(pluginStatus).toHaveBeenCalledOnce()
-    expect(JSON.stringify(pluginStatus.mock.results[0]?.value)).not.toMatch(/token|authorization|publicKey/i)
+    await expect(plugins.json()).resolves.toEqual({ data: { assignmentRevision: 0, catalog: [] } })
     const rejected = await fetch(`${baseUrl}/enterprise/api/v1/local/status`, { method: 'POST' })
     expect(rejected.status).toBe(405)
     expect(rejected.headers.get('allow')).toBe('GET')
   })
 
+  it('projects only assigned enterprise metadata and never exposes runtime installation facts', async () => {
+    currentStatus = { ...currentStatus, state: 'READY' }
+    const assignment = {
+      pluginVersionId: '880', packageName: '@example/tools', version: '1.0.0', required: false,
+      desiredState: 'INSTALLED',
+      installation: {
+        spec: '@example/tools@1.0.0', displayName: 'Tools', description: 'Tools', author: 'OwnDsh',
+        repositoryUrl: 'https://github.com/example/tools', categories: ['productivity'],
+      },
+    }
+    vi.mocked(platform.bootstrap).mockReturnValue({ plugins: { revision: 7, assignments: [assignment] } } as any)
+    registerEnterpriseLocalApi(webServer, { platform })
+    await expect((await fetch(`${baseUrl}/enterprise/api/v1/local/plugins`)).json()).resolves.toEqual({
+      data: { assignmentRevision: 7, catalog: [{ pluginVersionId: '880', packageName: '@example/tools', version: '1.0.0', installation: assignment.installation }] },
+    })
+  })
+
   it('validates empty JSON action DTOs and dispatches login, cancel, and logout', async () => {
-    registerEnterpriseLocalApi(webServer, { platform, pluginStatus })
+    registerEnterpriseLocalApi(webServer, { platform })
     const start = await fetch(`${baseUrl}/enterprise/api/v1/local/auth/start`, {
       body: '{}', headers: { 'content-type': 'application/json' }, method: 'POST',
     })
@@ -143,31 +138,10 @@ describe('enterprise local API', () => {
     expect(unknownField.status).toBe(400)
   })
 
-  it('accepts only explicit package/version actions and rejects executable or unknown fields', async () => {
-    const pluginAction = vi.fn(async () => undefined)
-    registerEnterpriseLocalApi(webServer, { platform, pluginStatus, pluginAction })
-    const post = (action: string, body: unknown) => fetch(`${baseUrl}/enterprise/api/v1/local/plugins/${action}`, {
-      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
-    })
-    for (const body of [
-      {}, { packageName: '--eval', pluginVersionId: '880' },
-      { packageName: '@example/tools', pluginVersionId: '880', command: 'dsh' },
-      { packageName: '@example/tools', pluginVersionId: '../880' },
-    ]) expect((await post('install', body)).status).toBe(400)
-    expect(pluginAction).not.toHaveBeenCalled()
-    expect((await post('install', { packageName: '@example/tools', pluginVersionId: '880' })).status).toBe(200)
-    expect(pluginAction).toHaveBeenCalledWith('install', '@example/tools', '880')
-    expect((await post('remove', { packageName: '@example/tools' })).status).toBe(200)
-    expect(pluginAction).toHaveBeenCalledWith('remove', '@example/tools', undefined)
-    pluginAction.mockRejectedValueOnce(Object.assign(new Error('busy'), { code: 'ENT_PLUGIN_BUSY' }))
-    expect((await post('remove', { packageName: '@example/tools' })).status).toBe(409)
-  })
-
   it('updates the Server origin and responds before invoking the optional restart after uninstall', async () => {
     const calls: string[] = []
     registerEnterpriseLocalApi(webServer, {
       platform,
-      pluginStatus,
       uninstallPlugin: async () => ({ restart: () => { calls.push('restart') } }),
     })
     const server = await fetch(`${baseUrl}/enterprise/api/v1/local/server`, {
@@ -188,7 +162,7 @@ describe('enterprise local API', () => {
   })
 
   it('refreshes on demand and has no resident SSE endpoint', async () => {
-    const dispose = registerEnterpriseLocalApi(webServer, { platform, pluginStatus })
+    const dispose = registerEnterpriseLocalApi(webServer, { platform })
     expect((await fetch(`${baseUrl}/enterprise/api/v1/local/events`)).status).toBe(404)
     expect(platform.refresh).not.toHaveBeenCalled()
     const response = await fetch(`${baseUrl}/enterprise/api/v1/local/refresh`, {
@@ -201,7 +175,7 @@ describe('enterprise local API', () => {
   })
 
   it('rejects invalid and oversized Server DTOs, omits the retired probe, and removes every route', async () => {
-    const dispose = registerEnterpriseLocalApi(webServer, { platform, pluginStatus })
+    const dispose = registerEnterpriseLocalApi(webServer, { platform })
     const probe = await fetch(`${baseUrl}/enterprise/api/v1/local/session-copies`, { method: 'POST' })
     expect(probe.status).toBe(404)
     const invalid = await fetch(`${baseUrl}/enterprise/api/v1/local/server`, {

@@ -38,8 +38,6 @@ import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { EnterpriseAccountSnapshot } from './account-store.js'
 import { EnterpriseAccountStore } from './account-store.js'
 import { ConfirmAction } from './confirm-action.js'
-import { EnterprisePluginMarket } from './plugin-market.js'
-export { enterprisePluginStatePresentation } from './plugin-market.js'
 import type {
   EnterpriseConnectionState,
 } from './local-api.js'
@@ -519,10 +517,9 @@ export function EnterpriseSettingsSection(props: EnterpriseSettingsSectionProps)
   const headingId = useId()
   const tabsId = useId()
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
-  const [activeTab, setActiveTab] = useState<'account' | 'plugins' | 'mcp'>('account')
+  const [activeTab, setActiveTab] = useState<'account' | 'mcp'>('account')
   const rows = [
     { id: 'account', label: '账号' },
-    { id: 'plugins', label: '插件' },
     { id: 'mcp', label: 'MCP' },
   ] as const
   return <section className="own-settings" style={page} aria-labelledby={headingId}>
@@ -561,7 +558,6 @@ export function EnterpriseSettingsSection(props: EnterpriseSettingsSectionProps)
           style={tabStyle(selected)}
           onClick={() => {
             setActiveTab(row.id)
-            if (row.id === 'plugins') void props.store.refreshPlugins()
             if (row.id === 'mcp') void props.store.refreshMcp()
           }}
           onKeyDown={(event) => {
@@ -577,7 +573,6 @@ export function EnterpriseSettingsSection(props: EnterpriseSettingsSectionProps)
             const next = rows[nextIndex]
             if (next === undefined) return
             setActiveTab(next.id)
-            if (next.id === 'plugins') void props.store.refreshPlugins()
             if (next.id === 'mcp') void props.store.refreshMcp()
             tabRefs.current[nextIndex]?.focus()
           }}
@@ -586,9 +581,6 @@ export function EnterpriseSettingsSection(props: EnterpriseSettingsSectionProps)
     </div>
     <div id={`${tabsId}-panel-account`} role="tabpanel" aria-labelledby={`${tabsId}-tab-account`} hidden={activeTab !== 'account'}>
       <EnterpriseAccountContent store={props.store} />
-    </div>
-    <div id={`${tabsId}-panel-plugins`} role="tabpanel" aria-labelledby={`${tabsId}-tab-plugins`} hidden={activeTab !== 'plugins'}>
-      {activeTab === 'plugins' ? <EnterprisePluginMarket store={props.store} /> : null}
     </div>
     <div id={`${tabsId}-panel-mcp`} role="tabpanel" aria-labelledby={`${tabsId}-tab-mcp`} hidden={activeTab !== 'mcp'}>
       {activeTab === 'mcp' ? <EnterpriseMcpSettings store={props.store} /> : null}

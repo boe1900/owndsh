@@ -10,7 +10,7 @@ website/ - 独立零依赖静态官网，复用品牌与真实产品截图，以
 contracts/ - OpenAPI 3.1 协议真源、跨语言 schema 和 fixture 验收
 deploy/ - Linux amd64 单机 release、HTTP Compose、一次性初始化与备份/恢复/升级/回滚交付；TLS 由部署方终止
 docs/ - 产品预研、MVP 实施规格与逐任务验收证据
-plugin/ - 独立 pnpm workspace，构建标准 `owndsh-plugin`；独立安装或由外部 owndsh-desktop 消费 npm 包，只使用官方扩展点，不维护 Harness Web UI 分叉
+plugin/ - 独立 pnpm workspace，构建标准 `owndsh-plugin`；独立安装或由外部 owndsh-desktop 消费 npm 包；按 `0.1.7-rc.1` 官方 `ui-plugin-manager` 实现受控页面同步，安装事实仍归官方 Host
 scripts/ - 开发环境初始化脚本（PowerShell、POSIX shell）
 upstream/ - 以 DSH Desktop 为发行真源的第三方源码地址与精确派生版本锁，不保存第三方源码
 </directory>

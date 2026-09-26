@@ -10,7 +10,7 @@ tsconfig.json: Host TypeScript 构建边界，从 `src/` 生成 ESM、声明与 
 src/browser.ts: 通过无 shell argv 调用系统 URL opener，向 PKCE 事务提供可取消桌面浏览器交接。
 src/index.ts: package 公开入口，集中导出 Service、PKCE、installation、bootstrap 与本地 API 契约。
 src/installation.ts: 统一解析 DSH_HOME 并原子维护 `enterprise/device.json`，严格限定 UUID v4、显示名和创建时间。
-src/local-api.ts: exact/prefix 同源路由暴露企业目录、严格 package/version 安装与 package 卸载动作，显式重启，以及 Server/账号/Session JSON 与显式刷新；执行端口由 bundle 反向注入以避免依赖环。
+src/local-api.ts: exact/prefix 同源路由暴露企业目录元数据、整包卸载以及 Server/账号/Session JSON 与显式刷新；插件安装、更新、启停和卸载均由官方 Host Remote 承担，执行端口由 bundle 反向注入以避免依赖环。
 src/pkce.ts: PKCE S256 生成、仅绑定 `127.0.0.1` 的 callback、state/取消/超时生命周期；保留回调 iss 供官方 MCP OAuth SDK 校验，启动前或监听期间取消也由 callback.result 返回稳定失败，不泄漏未处理拒绝。
 src/platform-credentials.ts: 独占官方 GrantRecord 与内存 Access Token，在 credentials 原子修改边界内轮换 Refresh Token，并阻止过期 origin 或已销毁 Service 重新装载认证态。
 src/platform-service.ts: 注册 `ctx.enterprisePlatform`，通过官方 SettingsForms 写入 volatile `owndsh.baseUrl`，将运行时 Server 修改收敛到无活动会话时的凭据清理与 settings 写入，保存期间禁止登录；编排登出、启动恢复、按需续期/401 单次重放、会话代次隔离与显式 bootstrap 刷新。

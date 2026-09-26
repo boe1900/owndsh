@@ -11,7 +11,6 @@ import {
   decodeEnterprisePluginStatus,
   decodeEnterpriseLocalStatus,
   ENTERPRISE_CONNECTION_STATES,
-  MANAGED_PLUGIN_STATES,
 } from '../src/local-api.js'
 
 const STATUS = {
@@ -25,11 +24,14 @@ const PLUGIN = {
   packageName: '@example/dsh-code-review',
   version: '1.2.0',
   pluginVersionId: '880',
-  desiredRevision: 7,
-  desiredState: 'INSTALLED' as const,
-  state: 'RESTART_REQUIRED' as const,
-  lastErrorCode: null,
-  restartMarker: 'run-20260819',
+  installation: {
+    spec: '@example/dsh-code-review@1.2.0',
+    displayName: 'Code Review',
+    description: 'Review code changes',
+    author: 'OwnDsh',
+    repositoryUrl: 'https://github.com/example/dsh-code-review',
+    categories: ['productivity'],
+  },
 }
 
 function ok(data: unknown): Response {
@@ -103,37 +105,24 @@ describe('enterprise local browser API', () => {
     })
   })
 
-  it('strictly validates plugin records and drops SHA and restart markers from the browser projection', async () => {
-    for (const state of MANAGED_PLUGIN_STATES) {
-      expect(decodeEnterprisePluginStatus({ assignmentRevision: 7, plugins: [{ ...PLUGIN, state }] }))
-        .toEqual({
-          assignmentRevision: 7,
-          plugins: [{
-            packageName: PLUGIN.packageName,
-            version: PLUGIN.version,
-            desiredRevision: 7,
-            desiredState: 'INSTALLED',
-            state,
-            lastErrorCode: null,
-          }],
-        })
-    }
+  it('strictly validates the enterprise catalog and never accepts runtime secrets', async () => {
+    expect(decodeEnterprisePluginStatus({ assignmentRevision: 7, catalog: [PLUGIN] }))
+      .toEqual({ assignmentRevision: 7, catalog: [PLUGIN] })
     expect(() => decodeEnterprisePluginStatus({
       assignmentRevision: 7,
-      plugins: [{ ...PLUGIN, tgzPath: '/private/plugin.tgz' }],
+      catalog: [{ ...PLUGIN, tgzPath: '/private/plugin.tgz' }],
     })).toThrow('ENT_LOCAL_RESPONSE_INVALID')
     expect(() => decodeEnterprisePluginStatus({
       assignmentRevision: 7,
-      plugins: [{ ...PLUGIN, accessToken: 'must-not-cross' }],
+      catalog: [{ ...PLUGIN, accessToken: 'must-not-cross' }],
     })).toThrow('ENT_LOCAL_RESPONSE_INVALID')
 
     const fetcher = vi.fn(async () => ok({
       assignmentRevision: 7,
-      plugins: [PLUGIN],
-      lastReportErrorCode: 'ENT_PLATFORM_UNAVAILABLE',
+      catalog: [PLUGIN],
     }))
     const projected = await createEnterpriseLocalApi(fetcher).plugins(new AbortController().signal)
-    expect(projected).toMatchObject({ assignmentRevision: 7, lastReportErrorCode: 'ENT_PLATFORM_UNAVAILABLE' })
+    expect(projected).toEqual({ assignmentRevision: 7, catalog: [PLUGIN] })
     expect(JSON.stringify(projected)).not.toMatch(/sha256|restartMarker|tgz|token|publicKey|cli/i)
     expect(fetcher).toHaveBeenCalledWith(
       '/enterprise/api/v1/local/plugins',
@@ -141,9 +130,9 @@ describe('enterprise local browser API', () => {
     )
   })
 
-  it('keeps catalog metadata separate from installation facts and sends explicit version-bound commands', async () => {
+  it('keeps catalog metadata separate from Host installation facts', async () => {
     const item = { pluginVersionId: '880', packageName: '@example/tools', version: '1.0.0', installation: { spec: '@example/tools@1.0.0', displayName: 'Tools', description: '', author: '', repositoryUrl: '', categories: [] } }
-    const status = { assignmentRevision: 7, catalog: [item], plugins: [] }
+    const status = { assignmentRevision: 7, catalog: [item] }
     expect(decodeEnterprisePluginStatus(status)).toEqual(status)
     for (const catalog of [[{ ...item, accessToken: 'secret' }], [{ ...item, downloadUrl: 'https://invalid' }], [item, item], [{ ...item, installation: undefined }]]) {
       expect(() => decodeEnterprisePluginStatus({ ...status, catalog })).toThrow('ENT_LOCAL_RESPONSE_INVALID')
@@ -151,14 +140,8 @@ describe('enterprise local browser API', () => {
     const fetcher = vi.fn(async () => ok(status))
     const api = createEnterpriseLocalApi(fetcher)
     const signal = new AbortController().signal
-    await api.installPlugin(item.packageName, item.pluginVersionId, signal)
-    expect(fetcher).toHaveBeenLastCalledWith('/enterprise/api/v1/local/plugins/install', expect.objectContaining({
-      method: 'POST', body: JSON.stringify({ packageName: item.packageName, pluginVersionId: '880' }), signal,
-    }))
-    await api.removePlugin(item.packageName, signal)
-    expect(fetcher).toHaveBeenLastCalledWith('/enterprise/api/v1/local/plugins/remove', expect.objectContaining({
-      method: 'POST', body: JSON.stringify({ packageName: item.packageName }), signal,
-    }))
+    await expect(api.plugins(signal)).resolves.toEqual(status)
+    expect(fetcher).toHaveBeenLastCalledWith('/enterprise/api/v1/local/plugins', expect.objectContaining({ cache: 'no-store', signal }))
   })
 
   it('uses same-origin fixed paths and strict empty-object POST actions', async () => {

@@ -16,6 +16,20 @@ const base = {
   transport: 'webServer.register' as const,
 }
 
+const enterpriseCatalog = [{
+  pluginVersionId: '880',
+  packageName: '@example/dsh-code-review',
+  version: '1.2.0',
+  installation: {
+    spec: '@example/dsh-code-review@1.2.0',
+    displayName: 'Code Review',
+    description: 'Review code changes',
+    author: 'OwnDsh',
+    repositoryUrl: 'https://github.com/example/dsh-code-review',
+    categories: ['productivity'],
+  },
+}] as const
+
 describe('EnterpriseAccountStore', () => {
   it('serializes manual refresh and distinguishes success, request failure, and Host error status', async () => {
     const ready: EnterpriseLocalStatus = { ...base, state: 'READY' }
@@ -121,7 +135,7 @@ describe('EnterpriseAccountStore', () => {
       status: vi.fn(async () => status), refresh: vi.fn(), bootstrap: vi.fn(), plugins: vi.fn(),
       setServerUrl: vi.fn(async () => { throw new EnterpriseLocalApiError('ENT_INVALID_REQUEST', 400) }),
       logout: vi.fn(async () => { status = { ...base, state: 'SIGNED_OUT' }; throw new EnterpriseLocalApiError('ENT_PLATFORM_UNAVAILABLE', 503) }),
-      startLogin: vi.fn(), cancelLogin: vi.fn(), uninstall: vi.fn(), installPlugin: vi.fn(), removePlugin: vi.fn(),
+      startLogin: vi.fn(), cancelLogin: vi.fn(), uninstall: vi.fn(),
     }
     const store = new EnterpriseAccountStore(api)
     await store.refresh()
@@ -146,7 +160,7 @@ describe('EnterpriseAccountStore', () => {
         device: { id: '90018', installationId: '4c96d076-a80a-4b6c-8df6-f0db804b6f0a', status: 'ACTIVE' },
       }
       const next = { ...old, user: { ...old.user, id: '10032', username: 'new' } }
-      const nextPlugins = { assignmentRevision: 8, plugins: [] }
+      const nextPlugins = { assignmentRevision: 8, catalog: [] }
       let status: EnterpriseLocalStatus = { ...base, state: 'READY', revision: 7, user: old.user }
       let resolveOld!: (value: EnterpriseAccountBootstrap) => void
       let rejectOld!: (error: Error) => void
@@ -160,7 +174,6 @@ describe('EnterpriseAccountStore', () => {
         }).mockResolvedValue(next),
         plugins: vi.fn().mockImplementationOnce(() => new Promise(resolve => { resolvePlugins = resolve })).mockResolvedValue(nextPlugins),
         setServerUrl: vi.fn(), startLogin: vi.fn(), cancelLogin: vi.fn(), logout: vi.fn(), uninstall: vi.fn(),
-        installPlugin: vi.fn(), removePlugin: vi.fn(),
       }
       const store = new EnterpriseAccountStore(api)
       await store.refresh()
@@ -171,7 +184,7 @@ describe('EnterpriseAccountStore', () => {
       expect(oldSignal.aborted).toBe(true)
       if (change === 'old failure') rejectOld(new EnterpriseLocalApiError('ENT_PLATFORM_UNAVAILABLE', 503))
       else resolveOld(old)
-      resolvePlugins({ assignmentRevision: 1, plugins: [] })
+      resolvePlugins({ assignmentRevision: 1, catalog: [] })
       await new Promise(resolve => setTimeout(resolve, 0))
       expect(store.getSnapshot().bootstrap).toEqual(next)
       expect(store.getSnapshot().pluginStatus).toEqual(nextPlugins)
@@ -185,7 +198,7 @@ describe('EnterpriseAccountStore', () => {
     vi.useFakeTimers()
     const api: EnterpriseLocalApi = {
       status: vi.fn(async () => ({ ...base, state: 'AUTHORIZING' as const })), refresh: vi.fn(),
-      setServerUrl: vi.fn(), bootstrap: vi.fn(), plugins: vi.fn(), installPlugin: vi.fn(), removePlugin: vi.fn(),
+      setServerUrl: vi.fn(), bootstrap: vi.fn(), plugins: vi.fn(),
       startLogin: vi.fn(), cancelLogin: vi.fn(), logout: vi.fn(), uninstall: vi.fn(),
     }
     const store = new EnterpriseAccountStore(api)
@@ -231,17 +244,8 @@ describe('EnterpriseAccountStore', () => {
       })),
       plugins: vi.fn(async () => ({
         assignmentRevision: 7,
-        plugins: [{
-          packageName: '@example/dsh-code-review',
-          version: '1.2.0',
-          desiredRevision: 7,
-          desiredState: 'INSTALLED',
-          state: 'RESTART_REQUIRED',
-          lastErrorCode: null,
-        }],
+        catalog: enterpriseCatalog,
       })),
-      installPlugin: vi.fn(async () => ({ assignmentRevision: 7, plugins: [] })),
-      removePlugin: vi.fn(async () => ({ assignmentRevision: 7, plugins: [] })),
       startLogin: vi.fn(async () => { current = { ...base, state: 'AUTHORIZING', flowId: 'flow-1' }; return { flowId: 'flow-1' } }),
       cancelLogin: vi.fn(async () => { current = { ...base, state: 'CANCELLED', errorCode: 'ENT_AUTH_CANCELLED' }; return { cancelled: true } }),
       logout: vi.fn(async () => { current = { ...base, state: 'SIGNED_OUT' }; return { loggedOut: true } }),
@@ -275,12 +279,6 @@ describe('EnterpriseAccountStore', () => {
     await vi.waitFor(() => { expect(api.plugins).toHaveBeenCalledTimes(2) })
     await store.refreshPlugins()
     expect(api.plugins).toHaveBeenCalledTimes(3)
-    expect(api.installPlugin).not.toHaveBeenCalled()
-    expect(api.removePlugin).not.toHaveBeenCalled()
-    await store.installPlugin('@example/dsh-code-review', '880')
-    expect(api.installPlugin).toHaveBeenCalledWith('@example/dsh-code-review', '880', expect.any(AbortSignal))
-    await store.removePlugin('@example/dsh-code-review')
-    expect(api.removePlugin).toHaveBeenCalledOnce()
     await store.logout()
     expect(store.getSnapshot().status?.state).toBe('SIGNED_OUT')
     expect(store.getSnapshot().bootstrap).toBeUndefined()
@@ -300,8 +298,6 @@ describe('EnterpriseAccountStore', () => {
       setServerUrl: vi.fn(),
       bootstrap: vi.fn(),
       plugins: vi.fn(),
-      installPlugin: vi.fn(),
-      removePlugin: vi.fn(),
       startLogin: vi.fn(),
       cancelLogin: vi.fn(),
       logout: vi.fn(),

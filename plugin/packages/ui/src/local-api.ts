@@ -25,19 +25,6 @@ export const ENTERPRISE_CONNECTION_STATES = [
 
 export type EnterpriseConnectionState = typeof ENTERPRISE_CONNECTION_STATES[number]
 
-export const MANAGED_PLUGIN_STATES = [
-  'EXPECTED',
-  'INSTALLING',
-  'RESTART_REQUIRED',
-  'ACTIVE',
-  'REMOVE_PENDING',
-  'REMOVING',
-  'FAILED',
-  'ROLLBACK',
-] as const
-
-export type ManagedPluginState = typeof MANAGED_PLUGIN_STATES[number]
-
 export interface EnterpriseStatusUser {
   readonly id: string
   readonly username: string
@@ -66,22 +53,9 @@ export interface EnterpriseAccountBootstrap {
   }
 }
 
-export interface EnterprisePluginItem {
-  readonly packageName: string
-  readonly version: string | null
-  readonly desiredRevision: number
-  readonly desiredState: 'INSTALLED' | 'ABSENT'
-  readonly state: ManagedPluginState
-  readonly lastErrorCode: string | null
-}
-
 export interface EnterprisePluginStatus {
   readonly assignmentRevision: number
-  readonly plugins: readonly EnterprisePluginItem[]
-  readonly canRestart?: boolean
-  readonly catalog?: readonly EnterprisePluginCatalogItem[]
-  readonly fatalErrorCode?: string
-  readonly lastReportErrorCode?: string
+  readonly catalog: readonly EnterprisePluginCatalogItem[]
 }
 
 export interface EnterpriseMcpAssignment {
@@ -107,7 +81,6 @@ export interface EnterprisePluginCatalogItem {
   readonly packageName: string
   readonly version: string
   readonly installation: PluginInstallation
-  readonly installErrorCode?: string
 }
 
 export interface EnterpriseLocalApi {
@@ -115,10 +88,7 @@ export interface EnterpriseLocalApi {
   refresh(signal: AbortSignal): Promise<EnterpriseLocalStatus>
   setServerUrl(serverUrl: string, signal: AbortSignal): Promise<{ readonly serverUrl: string }>
   bootstrap(signal: AbortSignal): Promise<EnterpriseAccountBootstrap | undefined>
-  restartPlugins?(signal: AbortSignal): Promise<void>
   plugins(signal: AbortSignal): Promise<EnterprisePluginStatus>
-  installPlugin(packageName: string, pluginVersionId: string, signal: AbortSignal): Promise<EnterprisePluginStatus>
-  removePlugin(packageName: string, signal: AbortSignal): Promise<EnterprisePluginStatus>
   startLogin(signal: AbortSignal): Promise<{ readonly flowId: string }>
   cancelLogin(signal: AbortSignal): Promise<{ readonly cancelled: boolean }>
   logout(signal: AbortSignal): Promise<{ readonly loggedOut: true }>
@@ -260,70 +230,23 @@ function enterpriseId(value: unknown): value is string {
   return typeof value === 'string' && /^[1-9][0-9]{0,18}$/.test(value)
 }
 
-function decodePluginItem(value: unknown): EnterprisePluginItem | undefined {
-  const item = record(value)
-  if (item === undefined
-    || !hasExactKeys(item, [
-      'packageName', 'version', 'pluginVersionId', 'desiredRevision', 'desiredState', 'state',
-      'lastErrorCode', 'restartMarker',
-    ])
-    || !nonEmptyString(item['packageName'])
-    || !nullableString(item['version'])
-    || !(item['pluginVersionId'] === null || enterpriseId(item['pluginVersionId']))
-    || !Number.isSafeInteger(item['desiredRevision']) || Number(item['desiredRevision']) < 0
-    || !(item['desiredState'] === 'INSTALLED' || item['desiredState'] === 'ABSENT')
-    || !MANAGED_PLUGIN_STATES.includes(item['state'] as ManagedPluginState)
-    || !nullableString(item['lastErrorCode'])
-    || !nullableString(item['restartMarker'])) return undefined
-  return {
-    packageName: item['packageName'],
-    version: item['version'],
-    desiredRevision: Number(item['desiredRevision']),
-    desiredState: item['desiredState'],
-    state: item['state'] as ManagedPluginState,
-    lastErrorCode: item['lastErrorCode'],
-  }
-}
-
-/** 严格校验 Host 分发状态，并删除内部版本 ID、进程 marker 与任何未声明字段。 */
+/** 企业端只提供目录元数据；安装与启用事实从官方 pluginManager 获取。 */
 export function decodeEnterprisePluginStatus(value: unknown): EnterprisePluginStatus {
   const source = record(value)
-  if (source === undefined
-    || !hasExactKeys(source, ['assignmentRevision', 'plugins'], ['catalog', 'fatalErrorCode', 'lastReportErrorCode', 'canRestart'])
-    || (source['canRestart'] !== undefined && typeof source['canRestart'] !== 'boolean')
+  if (!source || !hasExactKeys(source, ['assignmentRevision', 'catalog'])
     || !Number.isSafeInteger(source['assignmentRevision']) || Number(source['assignmentRevision']) < 0
-    || !Array.isArray(source['plugins']) || source['plugins'].length > 500
-    || (source['fatalErrorCode'] !== undefined && !nonEmptyString(source['fatalErrorCode']))
-    || (source['lastReportErrorCode'] !== undefined && !nonEmptyString(source['lastReportErrorCode']))) {
+    || !Array.isArray(source['catalog']) || source['catalog'].length > 500) {
     throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
   }
-  const plugins = source['plugins'].map(decodePluginItem)
-  if (plugins.some(item => item === undefined)) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
-  const catalog = source['catalog'] ?? []
-  if (!Array.isArray(catalog) || catalog.length > 500) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
-  const entries = catalog.map(value => {
+  const catalog = source['catalog'].map(value => {
     const item = record(value)
-    if (item === undefined || !hasExactKeys(item,
-      ['pluginVersionId', 'packageName', 'version', 'installation'], ['installErrorCode'])
-      || !enterpriseId(item['pluginVersionId']) || !nonEmptyString(item['packageName'])
-      || !nonEmptyString(item['version'])
-      || !zPluginInstallation.safeParse(item['installation']).success
-      || item['installErrorCode'] !== undefined && !nonEmptyString(item['installErrorCode'])) {
-      throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
-    }
+    if (!item || !hasExactKeys(item, ['pluginVersionId', 'packageName', 'version', 'installation'])
+      || !enterpriseId(item['pluginVersionId']) || !nonEmptyString(item['packageName']) || !nonEmptyString(item['version'])
+      || !zPluginInstallation.safeParse(item['installation']).success) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
     return item as unknown as EnterprisePluginCatalogItem
   })
-  if (new Set(entries.map(item => item.packageName)).size !== entries.length) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
-  return {
-    assignmentRevision: Number(source['assignmentRevision']),
-    ...(source['canRestart'] === undefined ? {} : { canRestart: source['canRestart'] as boolean }),
-    plugins: plugins as EnterprisePluginItem[],
-    ...(source['catalog'] === undefined ? {} : { catalog: entries }),
-    ...(source['fatalErrorCode'] === undefined ? {} : { fatalErrorCode: source['fatalErrorCode'] as string }),
-    ...(source['lastReportErrorCode'] === undefined
-      ? {}
-      : { lastReportErrorCode: source['lastReportErrorCode'] as string }),
-  }
+  if (new Set(catalog.map(item => item.packageName)).size !== catalog.length) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+  return { assignmentRevision: Number(source['assignmentRevision']), catalog }
 }
 
 function errorCode(value: unknown): string {
@@ -424,17 +347,7 @@ export function createEnterpriseLocalApi(
       return { serverUrl: data['serverUrl'] }
     },
     bootstrap: async signal => decodeBootstrap(await requestJson('/bootstrap', getInit(signal), fetcher)),
-    restartPlugins: async signal => {
-      const result = record(await requestJson('/plugins/restart', postInit(signal), fetcher))
-      if (result?.['restartRequested'] !== true || !hasExactKeys(result, ['restartRequested'])) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
-    },
     plugins: async signal => decodeEnterprisePluginStatus(await requestJson('/plugins', getInit(signal), fetcher)),
-    installPlugin: async (packageName, pluginVersionId, signal) => decodeEnterprisePluginStatus(
-      await requestJson('/plugins/install', jsonInit('POST', { packageName, pluginVersionId }, signal), fetcher),
-    ),
-    removePlugin: async (packageName, signal) => decodeEnterprisePluginStatus(
-      await requestJson('/plugins/remove', jsonInit('POST', { packageName }, signal), fetcher),
-    ),
     startLogin: async (signal) => {
       const data = record(await requestJson('/auth/start', postInit(signal), fetcher))
       if (data === undefined || !hasExactKeys(data, ['flowId']) || !nonEmptyString(data['flowId'])) {

@@ -6,7 +6,7 @@
  */
 
 import { execFileSync } from 'node:child_process'
-import { mkdir, rm } from 'node:fs/promises'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { build } from 'esbuild'
@@ -32,7 +32,6 @@ await build({
     '@deepseek-ai/dsh-credentials',
     '@deepseek-ai/dsh-llm',
     '@deepseek-ai/dsh-llm-pi-ai',
-    '@deepseek-ai/dsh-plugin-manager',
     '@deepseek-ai/dsh-mcp-client',
     '@deepseek-ai/dsh-mcp-resources',
     '@modelcontextprotocol/client',
@@ -54,7 +53,20 @@ await build({
   },
   bundle: true,
   entryPoints: ['../ui/src/client.tsx'],
-  external: ['react', '@deepseek-ai/dsh-client-ui-primitives'],
+  external: [
+    'react', 'react-dom',
+    '@deepseek-ai/cordis',
+    '@deepseek-ai/dsh-api-remotes',
+    '@deepseek-ai/dsh-client-locale',
+    '@deepseek-ai/dsh-client-store',
+    '@deepseek-ai/dsh-client-ui-layout',
+    '@deepseek-ai/dsh-client-ui-primitives',
+    '@deepseek-ai/dsh-client-ui-renderer',
+    '@deepseek-ai/dsh-client-ui-settings',
+    '@deepseek-ai/dsh-client-ui-sidebar',
+    '@deepseek-ai/dsh-client-ui-slots',
+    '@deepseek-ai/dsh-package-manifest',
+  ],
   footer: { js: 'return module.exports } })' },
   format: 'cjs',
   outfile: 'lib/client.js',
@@ -62,3 +74,13 @@ await build({
   sourcemap: true,
   target: ['chrome120', 'safari17'],
 })
+
+// The Host loads one lazy-CJS file. Inline the CSS emitted by esbuild so the
+// published bundle cannot silently omit the page's module stylesheet.
+const clientPath = resolve(LIB_ROOT, 'client.js')
+const clientCssPath = resolve(LIB_ROOT, 'client.css')
+const clientCss = (await readFile(clientCssPath, 'utf8')).replace(/\n?\/\*# sourceMappingURL=.*\*\/\s*$/, '')
+const cssInjection = `;(() => { if (typeof document === 'undefined') return; const id = 'owndsh-plugin-client'; if (document.querySelector('style[data-plugin-css="' + id + '"]') !== null) return; const style = document.createElement('style'); style.dataset.pluginCss = id; style.textContent = ${JSON.stringify(clientCss)}; (document.head ?? document.documentElement).appendChild(style) })()\n`
+await writeFile(clientPath, cssInjection + await readFile(clientPath, 'utf8'))
+await rm(clientCssPath, { force: true })
+await rm(`${clientCssPath}.map`, { force: true })

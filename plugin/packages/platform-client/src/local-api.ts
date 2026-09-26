@@ -40,10 +40,6 @@ export interface EnterpriseLocalPlatformPort {
 
 export interface EnterpriseLocalApiOptions {
   readonly platform: EnterpriseLocalPlatformPort
-  /** 由组合层绑定 distribution，避免 platform-client 反向依赖具体插件包。 */
-  readonly pluginStatus: () => unknown
-  readonly restartPlugins?: () => Promise<{ readonly restart: () => void }>
-  readonly pluginAction?: (action: 'install' | 'remove', packageName: string, pluginVersionId?: string) => Promise<void>
   /** 由组合层绑定整包卸载；返回的重启动作必须在 HTTP 成功响应写出后才执行。 */
   readonly uninstallPlugin?: () => Promise<{ readonly restart?: () => void }>
 }
@@ -236,52 +232,6 @@ export function registerEnterpriseLocalApi(
     }))
 
     disposers.push(webServer.register({
-      kind: 'exact', path: `${LOCAL_API_PREFIX}/plugins/restart`,
-      handler: async (request, response) => {
-        if (request.method !== 'POST') { methodNotAllowed(response, 'POST'); return }
-        try {
-          await requireEmptyObject(request)
-          if (options.restartPlugins === undefined) throw new Error('restart is unavailable')
-          const result = await options.restartPlugins()
-          writeJson(response, 200, { data: { restartRequested: true } })
-          result.restart()
-        } catch (error) {
-          const status = actionErrorStatus(error)
-          writeJson(response, status, { error: { code: status === 400 ? 'ENT_INVALID_REQUEST' : errorCode(error) } })
-        }
-      },
-    }))
-
-    for (const action of ['install', 'remove'] as const) {
-      disposers.push(webServer.register({
-        kind: 'exact',
-        path: `${LOCAL_API_PREFIX}/plugins/${action}`,
-        handler: async (request, response) => {
-          if (request.method !== 'POST') { methodNotAllowed(response, 'POST'); return }
-          try {
-            const value = await readJson(request)
-            if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new TypeError('invalid plugin action')
-            const body = value as Record<string, unknown>
-            if (Object.keys(body).sort().join(',') !== (action === 'install' ? 'packageName,pluginVersionId' : 'packageName')
-              || typeof body['packageName'] !== 'string' || body['packageName'].length > 214
-              || !/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/.test(body['packageName'])
-              || action === 'install' && (typeof body['pluginVersionId'] !== 'string' || !/^[1-9][0-9]{0,18}$/.test(body['pluginVersionId']))) {
-              throw new TypeError('invalid plugin action')
-            }
-            if (options.pluginAction === undefined) throw new Error('plugin distribution is unavailable')
-            await options.pluginAction(action, body['packageName'], body['pluginVersionId'] as string | undefined)
-            writeJson(response, 200, { data: options.pluginStatus() })
-          } catch (error) {
-            const status = actionErrorStatus(error)
-            writeJson(response, status, { error: {
-              code: status === 413 ? 'ENT_REQUEST_TOO_LARGE' : status === 400 ? 'ENT_INVALID_REQUEST' : errorCode(error),
-            } })
-          }
-        },
-      }))
-    }
-
-    disposers.push(webServer.register({
       kind: 'exact',
       path: `${LOCAL_API_PREFIX}/plugins`,
       handler: (request, response) => {
@@ -289,7 +239,15 @@ export function registerEnterpriseLocalApi(
           methodNotAllowed(response, 'GET')
           return
         }
-        writeJson(response, 200, { data: options.pluginStatus() })
+        const connected = ['READY', 'REFRESHING'].includes(options.platform.status().state)
+        const plugins = connected ? options.platform.bootstrap()?.plugins : undefined
+        writeJson(response, 200, { data: {
+          assignmentRevision: plugins?.revision ?? 0,
+          catalog: (plugins?.assignments ?? []).filter(item => item.desiredState === 'INSTALLED').map(item => ({
+            pluginVersionId: item.pluginVersionId, packageName: item.packageName,
+            version: item.version, installation: item.installation,
+          })),
+        } })
       },
     }))
 

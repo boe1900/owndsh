@@ -12,15 +12,12 @@ import { APP_IDENTITY, type LlmRuntime } from '@deepseek-ai/dsh-llm'
 import z from '@deepseek-ai/schemastery'
 import { registerEnterpriseGateway } from '@owndsh/llm-gateway'
 import {
-  EnterprisePluginDistributionService,
-  type PluginDistributionContext,
-} from '@owndsh/plugin-distribution'
-import {
   EnterprisePlatformService,
   type WebServerRoutePort,
 } from '@owndsh/platform-client'
 import { mountMcpRuntime } from './mcp-runtime.js'
 import type { ToolRuntime } from '@deepseek-ai/dsh-tools'
+import type { PluginManager } from '@deepseek-ai/dsh-plugin-manager'
 
 export const name = 'owndsh'
 export const inject = ['webServer', 'credentials', 'settings', 'llm', 'pluginInventory', 'pluginManager', 'tools']
@@ -55,6 +52,7 @@ type EnterpriseHostContext = Context & {
   readonly credentials: CredentialProvider
   readonly llm: LlmRuntime
   readonly tools: ToolRuntime
+  readonly pluginManager: PluginManager
 }
 
 interface DesktopActionsPort {
@@ -63,7 +61,6 @@ interface DesktopActionsPort {
 
 /** 在 Harness 官方 Service 上挂载平台控制面并配置官方 dsh-llm-pi-ai。 */
 export function apply(ctx: EnterpriseHostContext, config: Config): void {
-  let pluginDistribution: EnterprisePluginDistributionService | undefined
   const platform = new EnterprisePlatformService(ctx, {
     ...(config.baseUrl === undefined ? {} : { baseUrl: config.baseUrl }),
     harnessVersion: HARNESS_VERSION,
@@ -71,29 +68,11 @@ export function apply(ctx: EnterpriseHostContext, config: Config): void {
     requestTimeoutMs: config.requestTimeoutMs,
     disposeTimeoutMs: config.disposeTimeoutMs,
   }, {
-    pluginStatus: () => ({
-      ...(pluginDistribution?.status() ?? { assignmentRevision: 0, plugins: [] }),
-      canRestart: ctx.get('desktopActions') !== undefined,
-    }),
-    restartPlugins: async () => {
-      await pluginDistribution?.settled()
-      const actions = ctx.get('desktopActions') as DesktopActionsPort | undefined
-      if (actions === undefined || !['READY', 'REFRESHING'].includes(platform.status().state)
-        || !pluginDistribution?.status().plugins.some(item => item.state === 'RESTART_REQUIRED')) {
-        throw new Error('plugin restart is unavailable')
-      }
-      return { restart: () => { void actions.requestRestart().catch(() => ctx.logger.error('owndsh: plugin restart failed')) } }
-    },
-    pluginAction: async (action, packageName, pluginVersionId) => {
-      if (pluginDistribution === undefined) throw new Error('OwnDsh plugin distribution is unavailable')
-      if (action === 'install') await pluginDistribution.install(packageName, pluginVersionId!)
-      else await pluginDistribution.remove(packageName)
-    },
     uninstallPlugin: async () => {
-      if (pluginDistribution === undefined) throw new Error('OwnDsh plugin distribution is unavailable')
-      const result = await pluginDistribution.uninstall()
+      const result = await ctx.pluginManager.removeBundle('owndsh-plugin')
+      if (result.application === 'failed') throw new Error(result.error?.diagnostic ?? 'OwnDsh uninstall failed')
       const desktopActions = ctx.get('desktopActions') as DesktopActionsPort | undefined
-      return desktopActions === undefined || !result.restartRequired ? {} : {
+      return desktopActions === undefined || result.application !== 'restart-required' ? {} : {
         restart: () => {
           void desktopActions.requestRestart().catch(() => {
             ctx.logger.error('owndsh: desktop restart request failed after uninstall')
@@ -108,8 +87,4 @@ export function apply(ctx: EnterpriseHostContext, config: Config): void {
     harnessVersion: HARNESS_VERSION,
     bundleVersion: BUNDLE_VERSION,
   }), 'enterpriseGateway.registration')
-  const mountPluginDistribution = (distributionContext: PluginDistributionContext): void => {
-    pluginDistribution = new EnterprisePluginDistributionService(distributionContext, {})
-  }
-  mountPluginDistribution(ctx as unknown as PluginDistributionContext)
 }

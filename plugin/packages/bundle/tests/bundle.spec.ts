@@ -8,6 +8,7 @@
 import { readFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { runInNewContext } from 'node:vm'
+import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import * as React from 'react'
 import * as ReactJsxRuntime from 'react/jsx-runtime'
@@ -22,8 +23,15 @@ describe('enterprise bundle', () => {
     expect(manifest.dsh.bundle.patch).toBe('./cordis.patch.yml')
     expect(manifest.dsh.client).toMatchObject({ platform: 'web' })
     expect(manifest.dsh.client.inject).toEqual([
+      '@deepseek-ai/dsh-api-remotes',
+      '@deepseek-ai/dsh-client-locale',
+      '@deepseek-ai/dsh-client-store',
       '@deepseek-ai/dsh-client-ui-layout',
+      '@deepseek-ai/dsh-client-ui-renderer',
+      '@deepseek-ai/dsh-client-ui-settings',
       '@deepseek-ai/dsh-client-ui-settings-general',
+      '@deepseek-ai/dsh-client-ui-sidebar',
+      '@deepseek-ai/dsh-client-ui-slots',
     ])
     expect(manifest.dependencies).toEqual({ '@orama/orama': '3.1.18' })
     expect(manifest.peerDependencies['@deepseek-ai/dsh-llm']).toBe('^0.1.7-rc.1')
@@ -61,7 +69,7 @@ describe('enterprise bundle', () => {
     expect(source).not.toContain("const HARNESS_VERSION = '0.1.1-rc.2'")
   })
 
-  it('materializes the built lazy-CJS Client factory and only registers settings and the access gate', async () => {
+  it('materializes the built lazy-CJS Client factory and registers the official page plus OwnDsh slots', async () => {
     const source = await readFile(resolve(ROOT, 'lib/client.js'), 'utf8')
     expect(source).toContain("id: 'owndsh-plugin'")
     expect(source).not.toContain('@deepseek-ai/dsh-typert-protocol')
@@ -76,16 +84,22 @@ describe('enterprise bundle', () => {
         },
       },
     })
+    const nodeRequire = createRequire(import.meta.url)
     const client = factory?.((id) => {
       if (id === 'react') return React
       if (id === 'react/jsx-runtime') return ReactJsxRuntime
       if (id === '@deepseek-ai/dsh-client-ui-primitives') return { Modal: vi.fn(), Button: vi.fn() }
-      throw new Error(`unexpected Client external: ${id}`)
+      return nodeRequire(id)
     }) as { apply?: (ctx: unknown) => void } | undefined
     expect(client?.apply).toBeTypeOf('function')
     const register = vi.fn((_options: { name: string }) => () => undefined)
-    client?.apply?.({ effect: () => undefined, slots: { inject: (_name: string, callback: () => unknown) => callback(), register } })
-    expect(register.mock.calls.map(call => call[0].name)).toEqual(['settings.section', 'shell.overlay'])
+    const locale = { register: () => undefined, bind: () => (key: string) => key, resolveText: (value: unknown) => String(value), getSnapshot: () => ({ revision: 0 }), subscribe: () => () => undefined }
+    const slots = { inject: (_name: string, callback: () => unknown) => callback(), register, entries: () => [], getVersion: () => 0, subscribe: () => () => undefined }
+    client?.apply?.({ effect: (effect: () => unknown) => effect(), slots, locale,
+      remote: { $on: () => () => undefined }, on: () => () => undefined,
+      configForms: { describe: () => ({ view: { namespaces: [] } }), get: () => undefined } })
+    expect(register.mock.calls.map(call => call[0].name)).toEqual(['main', 'sidebar.panellist', 'shell.overlay', 'settings.section', 'shell.overlay'])
+    expect(source).toContain("data-plugin-css=\"' + id + '\"")
   })
 
   it('contains no ambient Remote shim or sibling source import', async () => {
@@ -103,9 +117,10 @@ describe('enterprise bundle', () => {
     expect(combined).toMatch(/from ["']@deepseek-ai\/dsh-llm-pi-ai["']/)
     expect(combined).not.toContain("from '@deepseek-ai/dsh-session'")
     expect(combined).toContain("from '@deepseek-ai/schemastery'")
-    expect(combined).toContain('enterprisePluginDistribution')
+    expect(combined).not.toContain('enterprisePluginDistribution')
+    expect(combined).toContain('removeBundle("owndsh-plugin")')
     expect(combined).not.toContain('enterpriseSessionSync')
-    expect(combined).toContain('ENT_PLUGIN_CORE_PROTECTED')
+    expect(combined).not.toContain('ENT_PLUGIN_CORE_PROTECTED')
     expect(combined).toContain('require("@deepseek-ai/dsh-client-ui-primitives")')
     expect(combined).not.toContain('globalThis.confirm(')
   })

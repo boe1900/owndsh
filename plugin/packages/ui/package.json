@@ -25,13 +25,29 @@
     "test": "vitest run tests"
   },
   "peerDependencies": {
-    "react": "^18.2.0"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.4",
+    "@deepseek-ai/dsh-api-remotes": "0.1.7-rc.1",
+    "@deepseek-ai/dsh-client-locale": "0.1.7-rc.1",
     "@deepseek-ai/dsh-client-store": "0.1.7-rc.1",
+    "@deepseek-ai/dsh-client-ui-layout": "0.1.7-rc.1",
     "@deepseek-ai/dsh-client-ui-primitives": "0.1.7-rc.1",
+    "@deepseek-ai/dsh-client-ui-renderer": "0.1.7-rc.1",
+    "@deepseek-ai/dsh-client-ui-settings": "0.1.7-rc.1",
+    "@deepseek-ai/dsh-client-ui-sidebar": "0.1.7-rc.1",
+    "@deepseek-ai/dsh-client-ui-slots": "0.1.7-rc.1",
+    "@deepseek-ai/dsh-package-manifest": "0.1.7-rc.1",
+    "@deepseek-ai/dsh-plugin-manager": "0.1.7-rc.1",
+    "@deepseek-ai/dsh-util-crypto": "0.1.7-rc.1",
     "@types/mdast": "4.0.4",
-    "@types/semver": "7.7.1"
+    "@types/react-dom": "18.3.7",
+    "@types/semver": "7.7.1",
+    "immer": "10.2.0",
+    "react-dom": "18.3.1",
+    "zustand": "4.4.7"
   },
   "dependencies": {
     "@owndsh/contracts": "workspace:*",

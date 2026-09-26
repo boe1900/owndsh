@@ -1,0 +1,204 @@
+/*
+ * [INPUT]: 依赖官方 Modal/Tag/Pill/Button/Input 的结构与 ui-plugin-manager 行列表 tokens
+ * [OUTPUT]: 提供固定高度的插件市场弹窗、搜索与刷新同排的工具栏、分类筛选栏与两行行式列表样式
+ * [POS]: 官方插件页按钮打开的市场视图样式，不修改宿主或官方插件页样式
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
+.dialog {
+  width: min(720px, 100%);
+  height: min(640px, 100%);
+  max-height: 100%;
+}
+
+.content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.content > div:last-child {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.market {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+}
+
+.filters {
+  padding-bottom: 12px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.searchRow,
+.categories {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.searchRow {
+  min-width: 0;
+}
+
+.search {
+  flex: 1;
+  min-width: 0;
+}
+
+.categories {
+  padding: 12px 1px 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.filterLabel {
+  flex: none;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.row {
+  padding: 12px 2px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.rowLine {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.rowIcon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: 10px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.rowMain {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.rowTitle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.rowTitle strong {
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.category {
+  flex: none;
+  height: 18px;
+  padding: 0 7px;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.description {
+  margin: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13.5px;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.versionTag {
+  flex: none;
+  height: 18px;
+  padding: 0 7px;
+  font-size: 10px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.rowActions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+}
+
+.empty,
+.notice {
+  margin: 24px 0 8px;
+  color: var(--dsw-alias-label-tertiary);
+  line-height: 20px;
+}
+
+.notice {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent);
+  color: var(--dsw-alias-state-error-primary);
+}
+
+@media (max-width: 680px) {
+  .rowLine {
+    align-items: flex-start;
+  }
+
+  .rowActions {
+    flex-direction: column;
+  }
+
+  .description {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+}

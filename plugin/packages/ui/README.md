@@ -23,8 +23,8 @@ navigation cannot reach the official shell underneath. Its brand, single-line
 Server editor, connection strip, and version use Host theme tokens; Desktop
 chrome and theme controls remain owned by the surrounding official shell.
 
-The OwnDsh Settings section contains Account, Plugins, and MCP tabs aligned with the
-native DSH Plugins tab rhythm and keyboard navigation. Account information and
+The OwnDsh Settings section contains Account and MCP tabs aligned with the
+native DSH settings rhythm and keyboard navigation. Account information and
 sign-out are available only in the Account tab; OwnDsh registers no sidebar footer
 entry, leaving that space to Harness. Sign-out requires an in-page Harness
 `Modal` and `Button` confirmation before clearing the session. Uninstall uses the same component;
@@ -44,22 +44,20 @@ value on hover; the connection timestamp is omitted because authentication runs 
 Grouped surfaces pair Host background and border tokens to avoid transparent superellipse border artifacts.
 When the account becomes blocked, the OwnDsh Settings section uses the official
 slot's `close` callback so the login gate remains the active surface.
-The Settings Plugins tab directly contains search, package cards, an installed filter,
-version details, explicit install/update actions, and confirmed uninstall. There is no
-separate sidebar launcher or market overlay. On narrow screens, styles scoped to the
-active OwnDsh section place the Host settings navigation in a horizontal row so content
-remains usable. Detail and confirmation dialogs keep keyboard focus inside and restore
-focus when closed; Escape leaves the surrounding Settings page open. Data and execution
-belong to OwnDsh.
-The fixed same-origin `/enterprise/api/v1/local/plugins` projection separates the catalog
-from local installation facts. `/plugins/install` binds a package and version ID;
-`/plugins/remove` removes a locally managed package. Opening or refreshing never installs
-anything. New versions require a click, and uninstall survives refresh and restart.
-Incompatible runtimes disable installation. Signature verification is off by default;
-when explicitly enabled, missing trust configuration or invalid signatures also block installation.
-SHA-256, restart markers, tgz
-paths, trust keys, CLI output, and platform credentials are validated or removed
-before the snapshot reaches React.
+The official Plugins page is registered through the Host's `main` and
+`sidebar.panellist` slots. OwnDsh carries the RC1 page implementation unchanged
+apart from its header button: the official “Add plugin” button is labelled
+“Plugin market” and opens the OwnDsh enterprise catalog. The catalog is the
+only controlled entry for enterprise packages; it uses the official default
+artwork and invokes the Host's official `pluginManager` Remote for install,
+update, enable/disable, and uninstall. The page itself remains the source of
+truth for cards, details, progress, restart, and configuration slots.
+
+The fixed same-origin `/enterprise/api/v1/local/plugins` projection contains only
+the enterprise assignment revision, package name, exact version, installation
+spec and display metadata. The local API has no plugin install, remove or restart
+mutation routes. Opening or refreshing never installs anything, and invalid
+catalog targets are disabled before reaching the official Remote.
 
 Both official slot registrations share one `EnterpriseAccountStore`. Its browser API uses
 only fixed same-origin `/enterprise/api/v1/local/*` paths, sends strict JSON for

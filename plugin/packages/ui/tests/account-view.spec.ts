@@ -8,12 +8,11 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   enterpriseAccessBlocked,
-  enterprisePluginStatePresentation,
   enterpriseServerEditable,
   enterpriseStatePresentation,
 } from '../src/account-view.js'
-import { ENTERPRISE_CONNECTION_STATES, MANAGED_PLUGIN_STATES } from '../src/local-api.js'
-import { enterprisePluginCardPresentation } from '../src/plugin-market.js'
+import { ENTERPRISE_CONNECTION_STATES } from '../src/local-api.js'
+import { currentAction } from '../src/plugin-market.js'
 
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({ Modal: vi.fn(), Button: vi.fn() }))
 
@@ -39,33 +38,12 @@ describe('enterprise plugin state presentation', () => {
     }
   })
 
-  it('covers all managed states with stable employee-facing language', () => {
-    for (const state of MANAGED_PLUGIN_STATES) {
-      expect(enterprisePluginStatePresentation(state)).toMatchObject({
-        title: expect.any(String),
-        description: expect.any(String),
-        color: expect.any(String),
-      })
-    }
-    expect(enterprisePluginStatePresentation('RESTART_REQUIRED').description).toBe('重启 Harness 后生效')
-    expect(enterprisePluginStatePresentation('FAILED').title).toBe('处理失败')
+  it('offers install for new catalog items and update only for higher versions', () => {
+    const item = { packageName: '@test/plugin', pluginVersionId: '1', version: '1.2.0', installation: { spec: '@test/plugin@1.2.0', displayName: 'Test', description: '', author: '', repositoryUrl: '', categories: [] } }
+    const installed = { name: item.packageName, version: '1.2.0', installed: true, enabled: true, optional: false, rows: [] }
+    expect(currentAction(item)).toBe('install')
+    expect(currentAction({ ...item, version: '1.10.0' }, installed)).toBe('update')
+    expect(currentAction({ ...item, version: '1.1.0' }, installed)).toBeUndefined()
   })
 
-  it('only pulses for a newer semantic version and preserves unavailable and transitional facts', () => {
-    const item = { packageName: '@test/plugin', pluginVersionId: '1', version: '1.2.0', installation: { spec: '@test/plugin@1.2.0', displayName: 'Test', description: '', author: '', repositoryUrl: '', categories: [] } }
-    const record = { packageName: item.packageName, version: '1.2.0', desiredRevision: 1, desiredState: 'INSTALLED' as const, state: 'ACTIVE' as const, lastErrorCode: null }
-    expect(enterprisePluginCardPresentation(item).tone).toBe('uninstalled')
-    expect(enterprisePluginCardPresentation(item, record).tone).toBe('enabled')
-    for (const [version, tone] of [['1.10.0', 'update'], ['1.2.1-beta.1', 'update'], ['1.2.0-beta.1', 'enabled'], ['1.2.0+build.2', 'enabled'], ['1.1.0', 'enabled'], ['invalid', 'enabled']]) {
-      expect(enterprisePluginCardPresentation({ ...item, version: version! }, record).tone).toBe(tone)
-    }
-    expect(enterprisePluginCardPresentation({ ...item, version: '1.1.0' }, record).action).toBe('切换版本')
-    expect(enterprisePluginCardPresentation(item, { ...record, version: '1.2.0-beta.2' }).tone).toBe('update')
-    expect(enterprisePluginCardPresentation(item, { ...record, desiredState: 'ABSENT' }).label).toBe('已停用')
-    expect(enterprisePluginCardPresentation({ ...item, installErrorCode: 'ENT_PLUGIN_INCOMPATIBLE' }).label).toBe('环境不兼容')
-    expect(enterprisePluginCardPresentation(item, { ...record, state: 'FAILED', lastErrorCode: 'ENT_PLUGIN_LOADER_INACTIVE' }).label).toBe('已停用')
-    for (const state of ['INSTALLING', 'RESTART_REQUIRED', 'REMOVE_PENDING', 'REMOVING', 'ROLLBACK'] as const) {
-      expect(enterprisePluginCardPresentation({ ...item, version: '2.0.0' }, { ...record, state }).tone).toBe('pending')
-    }
-  })
 })

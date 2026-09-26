@@ -8,7 +8,6 @@
 import { z } from 'zod'
 import { zBootstrapQuota, zRuntimePluginAssignment, zRequestId, zRevision, type EnterpriseErrorCode } from '@owndsh/contracts'
 import type { InstallationOptions } from './installation.js'
-import type { EnterpriseLocalApiOptions } from './local-api.js'
 
 /** 不携带响应主体或凭据的稳定 Service 失败，并保留经过 Fetch 校验的 Retry-After。 */
 export class EnterprisePlatformError extends Error {
@@ -45,9 +44,6 @@ export interface EnterprisePlatformInternals {
   readonly createFlowId?: () => string
   readonly createState?: () => string
   readonly installation?: Omit<InstallationOptions, 'dshHome' | 'name'>
-  readonly pluginStatus?: () => unknown
-  readonly pluginAction?: EnterpriseLocalApiOptions['pluginAction']
-  readonly restartPlugins?: EnterpriseLocalApiOptions['restartPlugins']
   readonly uninstallPlugin?: () => Promise<{ readonly restart?: () => void }>
 }
 

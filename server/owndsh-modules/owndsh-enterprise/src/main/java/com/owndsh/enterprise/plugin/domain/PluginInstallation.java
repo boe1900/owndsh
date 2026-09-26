@@ -16,7 +16,7 @@ public record PluginInstallation(
     String repositoryUrl, List<String> categories
 ) {
     private static final Set<String> PROTECTED = Set.of(
-        "owndsh-plugin", "@owndsh/contracts", "@owndsh/platform-client", "@owndsh/plugin-distribution",
+        "owndsh-plugin", "@owndsh/contracts", "@owndsh/platform-client",
         "@owndsh/llm-gateway", "@owndsh/ui", "dsh-plugin-desktop", "dsh-plugin-desktop-beta"
     );
 

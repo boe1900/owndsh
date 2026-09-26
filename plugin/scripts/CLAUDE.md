@@ -13,8 +13,5 @@ t02-contract-consumer.mjs: T02 真实包验收器，把 contracts tgz 安装到�
 t06-platform-client-consumer.mjs: T06 真实包验收器，安装 platform-client/contracts tgz 后验证 built-lib 导入、非秘密 installation 与无 ambient/Harness 源码依赖。
 t07-browser-harness.mjs: T07 真实浏览器组合载体，以零业务配置临时 profile 启动可控回环假平台与锁定 Harness，覆盖 Server 设置、全局门禁、READY、认证过期和设备撤销。
 t11-harness-model-smoke.mjs: T11 真实模型组合验收器，验证 bundle caret peer 安装，并在临时 Harness web profile 通过官方 ctx.llm 与 Agent 恢复层覆盖动态目录、default、三协议流、xhigh、瞬时 503 重试、终态 quota 零重试、错误矩阵与无本地上游 Key；实际运行版本以 Harness 锁定文件为准。
-t14-dsh-plugin-smoke.mjs: T14 真实 CLI 验收器，在带空格的临时制品路径和 DSH_HOME 上验证 enterprise profile exact add、正常 dependencies 解析、回滚、remove 与上游只读。
-t14-plugin-distribution-consumer.mjs: T14 树外 consumer，安装三个发布 tgz 并验证 Harness 兼容 peer、built-lib import、安装 argv、原子非秘密状态与无 ambient shim。
-t15-browser-harness.mjs: T15 真实浏览器载体，使用锁定 built CLI，安装配置目录同时提供 bootstrap 与点击时授权复查，用户显式安装后验证真实 CLI/Loader，并由控制端点收口清理。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

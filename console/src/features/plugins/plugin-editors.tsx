@@ -123,7 +123,11 @@ export function RegisterPluginVersionDialog({ baseVersion, versions = [], catego
       value={values[key] ?? ''} onChange={event => { setValidationError(undefined); setValues(current => ({ ...current, [key]: event.target.value })); }} />
   </label>;
   const metadata = <>
-    {fields.slice(2).map(renderField)}
+    {fields.slice(2, 4).map(renderField)}
+    <details className="rounded-lg border border-line p-3">
+      <summary className="cursor-pointer text-[12.5px] font-medium text-ink-2">更多资料（可选）</summary>
+      <div className="mt-4 grid gap-4">{fields.slice(4).map(renderField)}</div>
+    </details>
     <PluginCategorySelect options={categoryOptions} value={categories} onChange={setCategories} disabled={saving} />
     {categoriesLoading ? <p role="status" className="m-0 text-[12px] text-ink-3">正在加载已有分类…</p> : null}
     {categoriesError ? <p role="alert" className="m-0 text-[12px] text-red">已有分类加载失败。<button type="button" className="ml-1 underline" onClick={onRetryCategories}>重试</button></p> : null}
