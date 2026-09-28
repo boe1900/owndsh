@@ -1,6 +1,6 @@
 {
   "name": "owndsh-plugin",
-  "version": "0.1.0-beta.12",
+  "version": "0.1.0-beta.13",
   "description": "Self-hosted enterprise control plane plugin for DeepSeek Harness",
   "keywords": [
     "deepseek",

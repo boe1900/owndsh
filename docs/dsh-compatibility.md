@@ -13,11 +13,11 @@
 
 ## 1. 当前基线与证据
 
-最后核对：2026-09-24。接入代码以 beta.12 发布提交为基线，本轮 RC1 适配与验收见 [RC1 报告](dsh-017-rc1-compatibility-20260924.md)。
+发布版本核对：2026-09-28。beta.13 在 beta.12 的 RC1 基线上加入官方插件管理页 fork 与企业插件市场；此前 RC1 适配与验收见 [RC1 报告](dsh-017-rc1-compatibility-20260924.md)。
 
 | 项目 | 当前事实与真源 |
 |---|---|
-| 插件发布 | [v0.1.0-beta.12](https://github.com/boe1900/owndsh/releases/tag/v0.1.0-beta.12)。[发布流水线](../.github/workflows/release.yml)从 Git tag 注入发布版本；本轮工作树 manifest 与本地 tgz 同步为 `0.1.0-beta.12`。 |
+| 插件发布 | [owndsh-plugin@0.1.0-beta.13](https://www.npmjs.com/package/owndsh-plugin/v/0.1.0-beta.13)，使用 npm `next` 标签。[发布流水线](../.github/workflows/release.yml)从 Git tag 注入发布版本；manifest 与 tgz 同步为 `0.1.0-beta.13`。 |
 | Harness / MCP SDK | 开发依赖为 Harness `0.1.7-rc.1`、Cordis `4.0.4`、Schemastery `3.18.4` 与 `@modelcontextprotocol/client` `2.0.0`。完整直接依赖与 peer 范围见 [bundle manifest](../plugin/packages/bundle/package.json)及其它 workspace manifest；实际解析图见 [pnpm-lock.yaml](../plugin/pnpm-lock.yaml)。不在本文复制全量版本清单。 |
 | 完整插件检查 | RC1 隔离运行树通过依赖安装、类型检查、构建、136 条模块测试和 workspace 检查；本轮必要适配见 [RC1 报告](dsh-017-rc1-compatibility-20260924.md)。 |
 | 当前 Web 行为证据 | [0.1.7-rc.1 报告](dsh-017-rc1-compatibility-20260924.md)：10 组场景，真实浏览器、Host、AgentLoop 和官方 adapter；平台、模型、MCP/OAuth 为本地协议桩。 |
