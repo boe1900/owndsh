@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 React、Lucide、Harness Button/Settings close、ConfirmAction、OwnDsh 品牌鲸图与 EnterpriseAccountStore 的脱敏 snapshot 和动作
+ * [INPUT]: 依赖 React、Lucide、Harness Button/Settings close、ConfirmAction、EnterprisePluginMarket、OwnDsh 品牌鲸图与 EnterpriseAccountStore 的脱敏 snapshot 和动作
  * [OUTPUT]: 提供账号/插件/MCP 设置与全局门禁、手动刷新进度/结果；独立 MCP 卡片支持数字入口与三行工具预览、仅截断时可展开全文、启用/禁用和断开连接；Server 仅在无活动会话时编辑
  * [POS]: dsh-ui 的账号设置与门禁呈现层，账号信息与退出操作的唯一常驻入口，不接触 Host Context、Token 或执行细节
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -38,6 +38,7 @@ import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { EnterpriseAccountSnapshot } from './account-store.js'
 import { EnterpriseAccountStore } from './account-store.js'
 import { ConfirmAction } from './confirm-action.js'
+import { EnterprisePluginMarket, type EnterprisePluginMarketProps } from './plugin-market.js'
 import type {
   EnterpriseConnectionState,
 } from './local-api.js'
@@ -52,6 +53,7 @@ export interface EnterpriseStoreInjected {
 
 export interface EnterpriseSettingsSectionProps extends EnterpriseStoreInjected {
   readonly close: () => void
+  readonly pluginManager: EnterprisePluginMarketProps['pluginManager']
 }
 
 export interface EnterpriseAccessGateProps extends EnterpriseStoreInjected {}
@@ -507,7 +509,7 @@ function EnterpriseAccountContent({ store }: EnterpriseStoreInjected): ReactNode
   </div>
 }
 
-/** 官方 `settings.section` 内的 OwnDsh 账号与插件 tabs。 */
+/** 官方 `settings.section` 内的 OwnDsh 账号、企业插件和 MCP tabs。 */
 export function EnterpriseSettingsSection(props: EnterpriseSettingsSectionProps): ReactNode {
   useEffect(() => { void props.store.refresh(true) }, [props.store])
   const state = useAccount(props.store).status?.state
@@ -517,9 +519,10 @@ export function EnterpriseSettingsSection(props: EnterpriseSettingsSectionProps)
   const headingId = useId()
   const tabsId = useId()
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
-  const [activeTab, setActiveTab] = useState<'account' | 'mcp'>('account')
+  const [activeTab, setActiveTab] = useState<'account' | 'plugins' | 'mcp'>('account')
   const rows = [
     { id: 'account', label: '账号' },
+    { id: 'plugins', label: '插件' },
     { id: 'mcp', label: 'MCP' },
   ] as const
   return <section className="own-settings" style={page} aria-labelledby={headingId}>
@@ -581,6 +584,9 @@ export function EnterpriseSettingsSection(props: EnterpriseSettingsSectionProps)
     </div>
     <div id={`${tabsId}-panel-account`} role="tabpanel" aria-labelledby={`${tabsId}-tab-account`} hidden={activeTab !== 'account'}>
       <EnterpriseAccountContent store={props.store} />
+    </div>
+    <div id={`${tabsId}-panel-plugins`} role="tabpanel" aria-labelledby={`${tabsId}-tab-plugins`} hidden={activeTab !== 'plugins'}>
+      <EnterprisePluginMarket store={props.store} pluginManager={props.pluginManager} active={activeTab === 'plugins'} />
     </div>
     <div id={`${tabsId}-panel-mcp`} role="tabpanel" aria-labelledby={`${tabsId}-tab-mcp`} hidden={activeTab !== 'mcp'}>
       {activeTab === 'mcp' ? <EnterpriseMcpSettings store={props.store} /> : null}

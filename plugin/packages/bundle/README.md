@@ -60,7 +60,7 @@ dsh plugin --profile web add --ignore-scripts owndsh-plugin@latest
 
 当前验证基线是 DeepSeek Harness `0.1.7-rc.1`。OwnDsh 不替换官方 Web/Desktop UI，不访问员工工作区，也不实现第二套模型协议。MCP 工具、资源和 OAuth 连接均使用官方 client：OwnDsh 只提供 OAuth SDK 所需的凭据记录、系统浏览器和本机 loopback callback 宿主接缝。
 
-登录和企业模型只需安装本包。管理员登记安装地址、发布并配置可见范围后，员工在官方「插件」页面的「企业插件」页签中查看可用插件。通用的“添加插件”入口被移除，员工只能安装管理端下发的企业插件；安装、更新、卸载和启停都由官方 `pluginManager` 负责，必要时由官方页面提示重启，其他设备独立选择。
+登录和企业模型只需安装本包。管理员登记安装地址、发布并配置可见范围后，员工在「OwnDsh 设置 → 插件」查看企业目录，按分类或关键词筛选，并确认安装、更新或卸载。官方「插件」页面保持原样，保留“添加插件”自由安装入口、插件配置和启停操作；两处操作都使用官方 `pluginManager`，其他设备独立选择。
 
 
 

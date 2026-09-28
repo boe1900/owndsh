@@ -24,14 +24,8 @@ describe('enterprise bundle', () => {
     expect(manifest.dsh.client).toMatchObject({ platform: 'web' })
     expect(manifest.dsh.client.inject).toEqual([
       '@deepseek-ai/dsh-api-remotes',
-      '@deepseek-ai/dsh-client-locale',
-      '@deepseek-ai/dsh-client-store',
       '@deepseek-ai/dsh-client-ui-layout',
-      '@deepseek-ai/dsh-client-ui-renderer',
-      '@deepseek-ai/dsh-client-ui-settings',
       '@deepseek-ai/dsh-client-ui-settings-general',
-      '@deepseek-ai/dsh-client-ui-sidebar',
-      '@deepseek-ai/dsh-client-ui-slots',
     ])
     expect(manifest.dependencies).toEqual({ '@orama/orama': '3.1.18' })
     expect(manifest.peerDependencies['@deepseek-ai/dsh-llm']).toBe('^0.1.7-rc.1')
@@ -58,10 +52,11 @@ describe('enterprise bundle', () => {
     const patch = await readFile(resolve(ROOT, 'cordis.patch.yml'), 'utf8')
     expect(patch).toContain("name: 'owndsh-plugin'")
     expect(patch).toMatch(/id: agent-default-model[\s\S]*provider: enterprise[\s\S]*model: enterprise\/default/)
-    for (const id of ['llm-deepseek', 'llm-pi-ai', 'ui-settings-models', 'ui-plugin-manager']) {
+    for (const id of ['llm-deepseek', 'llm-pi-ai', 'ui-settings-models']) {
       expect(patch).toMatch(new RegExp(`id: ${id}\\n  disabled: true`))
     }
     expect(patch).not.toContain('id: mcp-resources')
+    expect(patch).not.toContain('id: ui-plugin-manager')
     expect(patch).not.toContain('deepseek-harness')
     const source = await readFile(resolve(ROOT, 'src/index.ts'), 'utf8')
     expect(source).toContain('const HARNESS_VERSION = APP_IDENTITY.version')
@@ -69,7 +64,7 @@ describe('enterprise bundle', () => {
     expect(source).not.toContain("const HARNESS_VERSION = '0.1.1-rc.2'")
   })
 
-  it('materializes the built lazy-CJS Client factory and registers the official page plus OwnDsh slots', async () => {
+  it('materializes the built lazy-CJS Client factory and registers only OwnDsh settings and access slots', async () => {
     const source = await readFile(resolve(ROOT, 'lib/client.js'), 'utf8')
     expect(source).toContain("id: 'owndsh-plugin'")
     expect(source).not.toContain('@deepseek-ai/dsh-typert-protocol')
@@ -93,12 +88,10 @@ describe('enterprise bundle', () => {
     }) as { apply?: (ctx: unknown) => void } | undefined
     expect(client?.apply).toBeTypeOf('function')
     const register = vi.fn((_options: { name: string }) => () => undefined)
-    const locale = { register: () => undefined, bind: () => (key: string) => key, resolveText: (value: unknown) => String(value), getSnapshot: () => ({ revision: 0 }), subscribe: () => () => undefined }
-    const slots = { inject: (_name: string, callback: () => unknown) => callback(), register, entries: () => [], getVersion: () => 0, subscribe: () => () => undefined }
-    client?.apply?.({ effect: (effect: () => unknown) => effect(), slots, locale,
-      remote: { $on: () => () => undefined }, on: () => () => undefined,
-      configForms: { describe: () => ({ view: { namespaces: [] } }), get: () => undefined } })
-    expect(register.mock.calls.map(call => call[0].name)).toEqual(['main', 'sidebar.panellist', 'shell.overlay', 'settings.section', 'shell.overlay'])
+    const slots = { inject: (_name: string, callback: () => unknown) => callback(), register }
+    client?.apply?.({ effect: (effect: () => unknown) => effect(), slots,
+      remote: { $on: () => () => undefined }, on: () => () => undefined })
+    expect(register.mock.calls.map(call => call[0].name)).toEqual(['settings.section', 'shell.overlay'])
     expect(source).toContain("data-plugin-css=\"' + id + '\"")
   })
 

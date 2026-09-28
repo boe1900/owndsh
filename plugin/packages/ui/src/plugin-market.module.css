@@ -1,35 +1,12 @@
 /*
- * [INPUT]: 依赖官方 Modal/Tag/Pill/Button/Input 的结构与 ui-plugin-manager 行列表 tokens
- * [OUTPUT]: 提供固定高度的插件市场弹窗、搜索与刷新同排的工具栏、分类筛选栏与两行行式列表样式
- * [POS]: 官方插件页按钮打开的市场视图样式，不修改宿主或官方插件页样式
+ * [INPUT]: 依赖官方 Tag/Pill/Button/Input 结构与 Harness 主题 tokens
+ * [OUTPUT]: 提供搜索与刷新同排的工具栏、分类筛选栏与两行列表，滚动交给设置页容器
+ * [POS]: OwnDsh 设置插件 tab 的局部样式，不修改宿主或官方插件页样式
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
-.dialog {
-  width: min(720px, 100%);
-  height: min(640px, 100%);
-  max-height: 100%;
-}
-
-.content {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.content > div:last-child {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
-}
-
 .market {
   display: flex;
-  flex: 1;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
@@ -73,12 +50,10 @@
 
 .list {
   display: flex;
-  flex: 1;
   flex-direction: column;
   min-height: 0;
   margin: 0;
   padding: 0;
-  overflow-y: auto;
   list-style: none;
 }
 

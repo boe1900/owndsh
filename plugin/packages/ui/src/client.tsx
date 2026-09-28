@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖官方 slots/remote/connection 生命周期事件与 EnterpriseAccountStore，不创建传输连接
- * [OUTPUT]: 注册 OwnDsh 设置/访问门禁与官方插件管理页 fork；市场由官方页唯一按钮打开为弹窗
+ * [OUTPUT]: 注册 OwnDsh 设置与访问门禁；企业市场放在设置的插件 tab，官方插件页独立提供自由安装和配置
  * [POS]: dsh-ui 的浏览器组合根，只向 React 注入共享脱敏 store，不传递 Host Context
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -12,8 +12,6 @@ import {
   EnterpriseSettingsSection,
 } from './account-view.js'
 import { createEnterpriseLocalApi } from './local-api.js'
-import { createMarketController, EnterprisePluginMarket } from './plugin-market.js'
-import { apply as applyPluginManager } from './plugin-manager/index.js'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 
 interface ClientRuntime {
@@ -33,22 +31,13 @@ export * from './plugin-market.js'
 
 /** Required Client service; target declaration lifetime is handled by `slots.inject()`. */
 export const inject = [
-  'slots', 'locale', 'configForms', 'remote',
-  'remote.pluginManager', 'remote.pluginInventory', 'remote.pluginRegistryProbe',
+  'slots', 'remote', 'remote.pluginManager',
 ]
 
-/** 复用官方插件页，只替换添加按钮的行为；网络能力只封装在共享 store 内。 */
+/** 企业设置与门禁共享账号状态，插件操作委托官方 Remote。 */
 export function apply(ctx: ClientContext): void {
   const runtime = ctx as unknown as ClientRuntime
   const store = new EnterpriseAccountStore(createEnterpriseLocalApi())
-  const market = createMarketController()
-  applyPluginManager(ctx, market.open)
-  runtime.slots.inject('shell.overlay', () => runtime.slots.register({
-    name: 'shell.overlay',
-    id: 'enterprise-plugin-market',
-    order: -90,
-    inject: () => ({ store, pluginManager: runtime.remote.pluginManager, controller: market }),
-  }, EnterprisePluginMarket))
   runtime.effect(() => {
     const refresh = () => { void store.refresh() }
     const disposers = [
@@ -64,7 +53,7 @@ export function apply(ctx: ClientContext): void {
     id: 'enterprise',
     order: 25,
     label: 'OwnDsh 设置',
-    inject: () => ({ store }),
+    inject: () => ({ store, pluginManager: runtime.remote.pluginManager }),
   }, EnterpriseSettingsSection as (props: never) => ReactNode))
   runtime.slots.inject('shell.overlay', () => runtime.slots.register({
     name: 'shell.overlay',

@@ -10,7 +10,7 @@ website/ - 独立零依赖静态官网，复用品牌与真实产品截图，以
 contracts/ - OpenAPI 3.1 协议真源、跨语言 schema 和 fixture 验收
 deploy/ - Linux amd64 单机 release、HTTP Compose、一次性初始化与备份/恢复/升级/回滚交付；TLS 由部署方终止
 docs/ - 产品预研、MVP 实施规格与逐任务验收证据
-plugin/ - 独立 pnpm workspace，构建标准 `owndsh-plugin`；独立安装或由外部 owndsh-desktop 消费 npm 包；按 `0.1.7-rc.1` 官方 `ui-plugin-manager` 实现受控页面同步，安装事实仍归官方 Host
+plugin/ - 独立 pnpm workspace，构建标准 `owndsh-plugin`；独立安装或由外部 owndsh-desktop 消费 npm 包；OwnDsh 设置提供企业插件目录，官方插件页保留自由安装与配置，安装事实归官方 Host
 scripts/ - 开发环境初始化脚本（PowerShell、POSIX shell）
 upstream/ - 以 DSH Desktop 为发行真源的第三方源码地址与精确派生版本锁，不保存第三方源码
 </directory>
@@ -43,9 +43,9 @@ P2-08C 将产品控制台会话收敛为服务端 Sa-Token 与 HttpOnly/SameSite
 
 服务地址边界：账号设置只读显示 Server；退出登录后在门禁修改。Host 将运行时修改收敛到无活动会话时的凭据清理与官方 settings 写入，保存与登录互斥；浏览器在服务/账号切换时丢弃旧请求结果。
 
-员工 UI 入口：账号信息与退出登录集中在 OwnDsh 设置 → 账号；插件仅注册 settings.section 和 shell.overlay，不占用宿主 sidebar.footer.action。登录门禁、失效恢复与设置内确认退出保留。
+员工 UI 入口：OwnDsh 设置包含账号、插件、MCP tabs，账号信息与退出登录集中于账号 tab，企业目录位于插件 tab；仅注册 settings.section 和 shell.overlay，不替换官方插件页。登录门禁、失效恢复与设置内确认退出保留。
 
-企业插件市场：管理员只登记 npm 精确版本、GitHub 固定 commit 或 tgz URL，源码仓库与安装地址分离；卡片按产品原型组织无图标等高网格、分类/搜索与独立操作按钮，四色状态配悬停提示，只有更高版本以黄色微闪提醒；保留固定版本详情确认和安装后重启。平台只管理发布、ALL/USER 可见范围、逐次安装授权和库存，宿主 pnpm 独占依赖与构建策略。V34 清空旧上传目录/范围/库存并删除制品列，无旧协议兼容；客户端状态使用 plugin-installations.json。
+企业插件市场：管理端提供 npm 精确版本、GitHub 固定 commit 或 tgz URL 及展示元数据；OwnDsh 设置 → 插件以两行列表呈现分类/版本标签、搜索、分类筛选和操作确认，只对更高 semver 提供更新。安装/更新/卸载调用官方 pluginManager，本机安装事实由官方 Host 管理。官方插件页保留自由安装、配置和启停，OwnDsh 不维护页面 fork 或隐藏入口的适配。
 
 
 MCP 员工能力仍在唯一 `owndsh-plugin` 的 OwnDsh 设置中；公共配置和服务授权归 Console/Server，用户秘密归 Host credentials。MCP/OAuth 各地址统一接受管理员指定的 HTTP(S)，协议、发现、PKCE、token exchange、refresh、协商与分页均由官方 SDK/client 执行。端侧复用 Harness `0.1.7-rc.1` 官方 MCP client 的独立 fiber，并挂载官方 `dsh-mcp-resources`，按 Agent 搜索累加、显式释放和本步调用快照呈现工具；无自动 LRU/16工具/64KiB会话硬限。OwnDsh 只绑定凭据 owner/target、保存官方 SDK 的 client information/tokens 与短生命周期 discovery state/verifier，并提供系统浏览器和本机 loopback callback，不复制第二套 OAuth 协议。实现进度与官方 SDK v2 兼容性见 docs/mcp-implementation-plan.md。

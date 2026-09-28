@@ -13,11 +13,11 @@
 
 ## 1. 当前基线与证据
 
-发布版本核对：2026-09-28。beta.13 在 beta.12 的 RC1 基线上加入官方插件管理页 fork 与企业插件市场；此前 RC1 适配与验收见 [RC1 报告](dsh-017-rc1-compatibility-20260924.md)。
+发布版本核对：2026-09-28。beta.14 移除官方插件管理页 fork，企业目录改放 OwnDsh 设置的插件 tab，官方页面保留自由安装和配置入口。此前 RC1 适配与验收见 [RC1 报告](dsh-017-rc1-compatibility-20260924.md)。
 
 | 项目 | 当前事实与真源 |
 |---|---|
-| 插件发布 | [owndsh-plugin@0.1.0-beta.13](https://www.npmjs.com/package/owndsh-plugin/v/0.1.0-beta.13)，使用 npm `next` 标签。[发布流水线](../.github/workflows/release.yml)从 Git tag 注入发布版本；manifest 与 tgz 同步为 `0.1.0-beta.13`。 |
+| 插件发布 | [owndsh-plugin@0.1.0-beta.14](https://www.npmjs.com/package/owndsh-plugin/v/0.1.0-beta.14)，使用 npm `next` 标签。[发布流水线](../.github/workflows/release.yml)从 Git tag 注入发布版本；manifest 与 tgz 同步为 `0.1.0-beta.14`。 |
 | Harness / MCP SDK | 开发依赖为 Harness `0.1.7-rc.1`、Cordis `4.0.4`、Schemastery `3.18.4` 与 `@modelcontextprotocol/client` `2.0.0`。完整直接依赖与 peer 范围见 [bundle manifest](../plugin/packages/bundle/package.json)及其它 workspace manifest；实际解析图见 [pnpm-lock.yaml](../plugin/pnpm-lock.yaml)。不在本文复制全量版本清单。 |
 | 完整插件检查 | RC1 隔离运行树通过依赖安装、类型检查、构建、136 条模块测试和 workspace 检查；本轮必要适配见 [RC1 报告](dsh-017-rc1-compatibility-20260924.md)。 |
 | 当前 Web 行为证据 | [0.1.7-rc.1 报告](dsh-017-rc1-compatibility-20260924.md)：10 组场景，真实浏览器、Host、AgentLoop 和官方 adapter；平台、模型、MCP/OAuth 为本地协议桩。 |
@@ -36,7 +36,7 @@
 | 编号 / 上游依赖 | 当前依赖的契约 | 本地位置与验证入口 | 变化影响与升级检查 |
 |---|---|---|---|
 | D01 插件 manifest / Client loader / 包导出 | `dsh.bundle.patch`、`dsh.client.platform: web` 及 Client inject；浏览器通过 `window.__ModuleLoader__.load()` 装载 lazy-CJS factory。官方 Host 服务、React 和 UI primitives 使用宿主共享实例。 | [manifest](../plugin/packages/bundle/package.json)、[build.mjs](../plugin/packages/bundle/scripts/build.mjs)；[bundle 回归](../plugin/packages/bundle/tests/bundle.spec.ts)、目标 Host 启动。 | 导出路径、扫描方式、模块格式或服务身份变化会让插件不加载或产生重复实例。核对 exports、peers、external 和 Client 注入项，并用实际 tgz 安装。 |
-| D02 base/web profile 与 row ID | 覆盖 `agent-default-model`；停用 `llm-deepseek`、`llm-pi-ai`、`ui-settings-models`、`ui-plugin-manager`；插入 `owndsh`。`mcp-resources` 由 0.1.7-rc.1 base 提供，不重复插入。 | [cordis.patch.yml](../plugin/packages/bundle/cordis.patch.yml)；bundle 回归、[Web E2E](../plugin/scripts/web-mcp.test.mjs)。 | 上游新增默认插件、改 row ID 或 layer 合并规则时，逐项检查目标 profile。alpha.2 曾因重复 resources row 无法启动。禁用管理页只收口页面入口，Host/CLI 仍保留；智能体团队另验入口和功能。 |
+| D02 base/web profile 与 row ID | 覆盖 `agent-default-model`；停用 `llm-deepseek`、`llm-pi-ai`、`ui-settings-models`；插入 `owndsh`。`mcp-resources` 由 0.1.7-rc.1 base 提供，不重复插入。 | [cordis.patch.yml](../plugin/packages/bundle/cordis.patch.yml)；bundle 回归、[Web E2E](../plugin/scripts/web-mcp.test.mjs)。 | 上游新增默认插件、改 row ID 或 layer 合并规则时，逐项检查目标 profile。alpha.2 曾因重复 resources row 无法启动。官方插件管理页保持启用，自由安装与企业目录并存；智能体团队另验入口和功能。 |
 | D03 Cordis / Schemastery / fiber | `inject`、`ctx.plugin/isolate/effect/on`、fiber 等待/更新/释放和 schema 默认值；异步释放必须撤回工具、路由及旧身份连接。 | [Host 组合入口](../plugin/packages/bundle/src/index.ts)、[模型注册](../plugin/packages/llm-gateway/src/registration.ts)、[MCP runtime](../plugin/packages/bundle/src/mcp-runtime.ts)；完整检查、MCP/平台生命周期回归。 | 生命周期函数或更新语义变化可能留下旧能力或重复挂载。验证更新、登出、取消和 dispose；同一个服务不能解析成两份运行实例。 |
 | D04 credentials provider | `credentialKey`、`readRecord/modifyRecord/deleteRecord` 与 GrantRecord；依赖 provider 原子修改语义。企业登录 Grant 和 MCP owner/target 记录分开，迟到写入受生命周期约束。 | [平台凭据](../plugin/packages/platform-client/src/platform-credentials.ts)、[MCP 凭据](../plugin/packages/bundle/src/mcp-oauth.ts)；[平台回归](../plugin/packages/platform-client/tests/platform-service.spec.ts)、[OAuth 回归](../plugin/packages/bundle/tests/mcp-oauth.spec.ts)、Web 重启恢复。 | 记录格式、原子性或持久化边界变化需验证刷新轮换、账号/目标隔离、撤销与重启恢复。不得把平台 Token 交给 MCP 或浏览器。 |
 | D05 settings | 通过官方 `SettingsForms.configure({ auto: false })` 与 `update()` 写入 bundle Config 的 `baseUrl`、`mcp.desiredConnected`；volatile 更新由 `loader/volatile-update` 接收，账号状态仍由 OwnDsh Service 约束。 | [平台服务](../plugin/packages/platform-client/src/platform-service.ts)、[MCP runtime](../plugin/packages/bundle/src/mcp-runtime.ts)；平台回归、目标 Host 修改地址和重启。 | `SettingsForms` schema、volatile 标记或事件路径变化会造成配置丢失、连接意愿不生效或旧账号复活。核对保存失败、授权中修改、退出后修改及重启恢复。 |
@@ -58,9 +58,9 @@
 
 | 编号 / 上游依赖 | 当前依赖的契约 | 本地位置与验证入口 | 变化影响与升级检查 |
 |---|---|---|---|
-| D14 Client slots / remote / ui-primitives | 注册官方 `main`、`sidebar.panellist`、`settings.section`、`shell.overlay`；监听 `plugin-manager/changed`、安装日志/状态及既有账号事件；复用官方页面组件、主题和配置槽位。 | [client.tsx](../plugin/packages/ui/src/client.tsx)、[plugin-manager](../plugin/packages/ui/src/plugin-manager/)、[account-view](../plugin/packages/ui/src/account-view.tsx)；[Client 回归](../plugin/packages/ui/tests/client.spec.ts)、UI 模块回归、目标浏览器。 | slot/事件名、Remote 或 Modal 行为变化可能使插件页、门禁、认证失效刷新或配置页失效。检查官方页导航、企业页签、安装进度、启停/卸载、配置槽位、登录前后和断线恢复。 |
-| D15 官方 pluginManager / inventory / profile 布局 | 官方同步页读取 `pluginInventory.list()`、`pluginManager.listBundles()`/`listPlugins()`；企业目录只投影服务端元数据，固定 spec 通过 `pluginManager.installBundle()` 安装或更新，启停/卸载直接调用官方 Remote，不维护第二套安装状态或 CLI。 | [manager-store.ts](../plugin/packages/ui/src/plugin-manager/manager-store.ts)、[EnterprisePluginDirectory.tsx](../plugin/packages/ui/src/plugin-manager/EnterprisePluginDirectory.tsx)、[local-api.ts](../plugin/packages/platform-client/src/local-api.ts)；UI/platform-client/bundle 回归、目标版本真实页面。 | `ChangeResult.application`、包版本事实、inventory 管理能力或官方配置槽位变化会造成假成功、误报更新或安装后状态丢失。企业页面只在更高 semver 时显示更新，非法 spec 在进入官方 Remote 前拒绝。 |
-| D16 官方重启与安装进度 | `restart-required`、安装日志/状态、取消和结果恢复全部显示在官方同步页；Desktop 有公开重启动作时复用官方交互，普通 Web 保留官方待重启状态。 | [InstallDialog.tsx](../plugin/packages/ui/src/plugin-manager/InstallDialog.tsx)、[bundle](../plugin/packages/bundle/src/index.ts)；UI/bundle 回归和显式 `OWNDSH_TEST_RUNTIME` 的目标 Desktop。 | Remote 返回时序、安装事件或重启语义变化会使操作完成但页面误报。Web 与 Desktop 需分别验证，不能用旧 Harness 运行树代替 RC1 证据。 |
+| D14 Client slots / remote / ui-primitives | 仅注册 `settings.section` 和访问门禁 `shell.overlay`，复用既有账号事件。设置包含账号/插件/MCP tabs，企业市场内嵌插件 tab。官方页面由宿主提供。 | [client.tsx](../plugin/packages/ui/src/client.tsx)、[account-view.tsx](../plugin/packages/ui/src/account-view.tsx)；Client/UI/bundle 回归。 | 检查设置 tab、键盘导航、确认弹窗、登录前后和断线恢复；官方插件页与自由安装入口必须仍可用。 |
+| D15 官方 pluginManager / profile 布局 | 企业市场用 `listBundles()` 读取安装事实，固定 spec 经 `installBundle()` 安装/更新，再调用 `setBundleEnabled()`；卸载走 `removeBundle()`。官方自由安装不受企业目录约束。 | [plugin-market.tsx](../plugin/packages/ui/src/plugin-market.tsx)、[local-api.ts](../plugin/packages/platform-client/src/local-api.ts)；UI/platform-client/bundle 回归。 | 检查 `ChangeResult`、包版本事实与安装/启用结果；仅更高 semver 显示更新，进入插件 tab 时重新读取本机事实。 |
+| D16 官方重启与安装进度 | 官方页面自行管理其安装日志、取消、恢复和重启交互；企业市场保留确认与处理中状态，OwnDsh 整包卸载仍使用宿主重启动作。 | [plugin-market.tsx](../plugin/packages/ui/src/plugin-market.tsx)、[bundle](../plugin/packages/bundle/src/index.ts)；UI/bundle 回归和目标 Desktop。 | 不把企业市场操作等同于官方安装对话框的完整进度交互；Web/Desktop 的安装与重启语义需分别验证。 |
 
 未启用的历史 Session 同步实现不作为当前发布能力验收；上游 Session/Agent 变化若影响 D12/D13 的执行上下文，仍必须检查。新增上游接入时补矩阵，不能只补 manifest。
 
@@ -92,8 +92,8 @@ pnpm --dir plugin run pack:bundle
 | D03–D06、D11、D14 | 登录、取消、失效、登出/切换账号、修改 Server、重启恢复；检查路由和授权状态真实联动。 |
 | D07 | 三协议模型、动态模型/default、流错误/取消、瞬时失败重试与终态 quota；记录请求而不只检查最终聊天文案。 |
 | D08–D13 | none/API Key/OAuth 分开验证；分页、协商、资源/模板/读取、无工具服务器；搜索/释放/快照/撤销/隔离和 OAuth 失效恢复。涉及 PTC 则追加真实 TS/Python 解释器场景。 |
-| D02、D14–D16 | 官方入口关闭、自有入口保留；安装/更新/卸载、实际 profile、库存、重启生效。涉及团队插件则单独验证团队启用与页面入口。 |
-| D16 或桌面发行升级 | 使用桌面实际分发 runtime，验证原生外壳与目标 OS；分别记录 Web 与 Desktop 结论。 |
+| D02、D14–D16 | 官方自由安装入口与 OwnDsh 插件 tab 同时可用；企业目录的搜索/分类、安装/更新/卸载与实际 profile 版本事实一致。涉及团队插件则单独验证团队启用与页面入口。 |
+| D16 | 官方自由安装的日志、取消、失败与重启交互；企业市场的确认、操作结果，以及切换 tab 后状态与安装事实一致。 |
 
 已有入口的适用范围：
 
@@ -127,7 +127,7 @@ pnpm --dir plugin run pack:bundle
 | `connectOAuth` 中的 SDK Client/transport 组合及工具、资源、instructions 注册 | 当前 dsh-mcp-client 的接入尚未承接 OwnDsh 所需的 OAuth provider。协议始终由官方 SDK 执行，但连接到 Harness 的组合由 OwnDsh 完成。 | 官方 client 提供所需 OAuth provider 接入口且 D08–D13 验收通过后，改用官方 client，删除这段连接与注册组合，避免同时维护两条 OAuth 连接路径。 |
 | `McpOAuthProvider`、短期授权状态、浏览器/loopback 桥及 SDK 凭据适配 | SDK 需要宿主提供记录和用户授权交接；现有 Harness client 尚未完整接管。 | 官方完整承接这些宿主职责，并能保持企业 owner/target 隔离、取消、回调校验及重启恢复后删除对应接缝。只新增一个 authProvider 参数不足以删除仍被 SDK 要求的宿主实现。 |
 
-MCP 搜索/释放和企业凭据隔离属于产品策略，禁用通用插件管理页属于入口策略；它们不因官方发布新版本而自动删除。官方提供等价能力时，先按矩阵证明策略保持，再收敛实现。
+MCP 搜索/释放和企业凭据隔离属于产品策略；企业插件目录与官方自由安装入口并存，不再维护禁用管理页或页面 fork 的入口策略。官方提供等价能力时，先按矩阵证明策略保持，再收敛实现。
 
 当前已知差异：SDK 会在 401 后刷新并重试；invalid_grant 后未完成授权的在途调用可能先超时，随后页面提示重新授权。详细证据见 [0.1.7-rc.1 报告](dsh-017-rc1-compatibility-20260924.md)。
 

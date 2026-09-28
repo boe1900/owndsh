@@ -26,12 +26,11 @@ Harness settings service, so a normal installation requires no profile edit.
 T11 directly mounts the official `@deepseek-ai/dsh-llm-pi-ai` adapter with
 enterprise-managed profiles and an ephemeral Host-only loopback authentication proxy. The enterprise
 plugin stores no upstream API key and implements no model wire protocol.
-The RC1 employee Client carries a synchronized copy of the official
-`ui-plugin-manager` page. OwnDsh changes one official header button to
-“Plugin market”; that button opens the controlled enterprise catalog while
-the official page and `pluginManager`/inventory services continue to own cards,
-details, install progress, enable/disable, update, uninstall, restart, and
-configuration.
+The employee Client presents the enterprise catalog in OwnDsh Settings → Plugins,
+with search, categories and confirmed install/update/uninstall actions through
+the official `pluginManager` Remote. The official Plugins page remains enabled
+and unchanged, including free-form installation and plugin configuration.
+OwnDsh does not carry a copy of that page.
 
 Run the workspace gate with:
 

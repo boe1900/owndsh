@@ -1,6 +1,6 @@
 {
   "name": "owndsh-plugin",
-  "version": "0.1.0-beta.13",
+  "version": "0.1.0-beta.14",
   "description": "Self-hosted enterprise control plane plugin for DeepSeek Harness",
   "keywords": [
     "deepseek",
@@ -50,14 +50,8 @@
       "platform": "web",
       "inject": [
         "@deepseek-ai/dsh-api-remotes",
-        "@deepseek-ai/dsh-client-locale",
-        "@deepseek-ai/dsh-client-store",
         "@deepseek-ai/dsh-client-ui-layout",
-        "@deepseek-ai/dsh-client-ui-renderer",
-        "@deepseek-ai/dsh-client-ui-settings",
-        "@deepseek-ai/dsh-client-ui-settings-general",
-        "@deepseek-ai/dsh-client-ui-sidebar",
-        "@deepseek-ai/dsh-client-ui-slots"
+        "@deepseek-ai/dsh-client-ui-settings-general"
       ]
     }
   },

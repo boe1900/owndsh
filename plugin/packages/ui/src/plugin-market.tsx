@@ -1,14 +1,13 @@
 /**
- * [INPUT]: 依赖企业插件元数据、本机官方 pluginManager Remote、Input/Icon/Tag/Button/ConfirmAction primitives 与市场可见性控制器
- * [OUTPUT]: 提供企业插件市场弹窗与官方两行行式列表；搜索与刷新同排、分类另起一行，确认后的安装/更新/卸载委托官方 Remote
- * [POS]: 官方插件页唯一按钮展开的 OwnDsh 弹窗，不复制官方插件页及安装状态机
+ * [INPUT]: 依赖企业插件元数据、本机官方 pluginManager Remote、Input/Icon/Tag/Button/ConfirmAction primitives 与设置 tab 激活状态
+ * [OUTPUT]: 提供企业插件市场两行列表；进入插件 tab 时刷新，搜索与刷新同排、分类另起一行，确认后的安装/更新/卸载委托官方 Remote
+ * [POS]: OwnDsh 设置的插件 tab 内容，与官方自由安装和配置页面并存，不复制官方页面
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
-import { Button, IconSearchOutlineRegular, Input, Modal, Pill, PluginArtworkDefault, StateDot, Tag } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, IconSearchOutlineRegular, Input, Pill, PluginArtworkDefault, StateDot, Tag } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { BundleInfo, ChangeResult, PluginInstallRequestId } from '@deepseek-ai/dsh-plugin-manager/types'
 import gt from 'semver/functions/gt.js'
 import valid from 'semver/functions/valid.js'
@@ -23,27 +22,10 @@ import type {} from '@deepseek-ai/dsh-plugin-manager/remote'
 
 type PluginManagerRemote = ClientContext['remote']['pluginManager']
 
-export interface MarketController {
-  readonly subscribe: (listener: () => void) => () => void
-  readonly getSnapshot: () => boolean
-  readonly open: () => void
-  readonly close: () => void
-}
-
-export function createMarketController(): MarketController {
-  const state = createSnapshotStore(false)
-  return {
-    subscribe: state.subscribe,
-    getSnapshot: state.getSnapshot,
-    open: () => { state.set(true) },
-    close: () => { state.set(false) },
-  }
-}
-
-interface EnterprisePluginMarketProps {
+export interface EnterprisePluginMarketProps {
   readonly store: EnterpriseAccountStore
   readonly pluginManager: PluginManagerRemote
-  readonly controller: MarketController
+  readonly active: boolean
 }
 
 interface MarketRowProps {
@@ -106,9 +88,8 @@ function MarketRow({ item, bundle, busy, onInstall, onRemove }: MarketRowProps):
   )
 }
 
-/** 官方插件页按钮展开的市场弹窗；默认展示全部企业插件。 */
-export function EnterprisePluginMarket({ store, pluginManager, controller }: EnterprisePluginMarketProps): ReactNode {
-  const open = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot)
+/** 插件 tab 内的企业目录；切换 tab 保留搜索、筛选和进行中的操作。 */
+export function EnterprisePluginMarket({ store, pluginManager, active }: EnterprisePluginMarketProps): ReactNode {
   const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot)
   const [bundles, setBundles] = useState<readonly BundleInfo[]>([])
   const [busy, setBusy] = useState<string>()
@@ -123,7 +104,7 @@ export function EnterprisePluginMarket({ store, pluginManager, controller }: Ent
     else setNotice(result.error.message)
   }
 
-  useEffect(() => { if (open) void refresh() }, [open, store, pluginManager])
+  useEffect(() => { if (active) void refresh() }, [active, store, pluginManager])
 
   const catalog = snapshot.pluginStatus?.catalog ?? []
   const installed = useMemo(() => new Map(bundles.map(bundle => [bundle.name, bundle])), [bundles])
@@ -165,35 +146,32 @@ export function EnterprisePluginMarket({ store, pluginManager, controller }: Ent
     }
   }
 
-  const close = (): void => { if (busy === undefined) controller.close() }
   return (
-    <Modal open={open} onClose={close} title="插件市场" closeLabel="关闭" description="企业统一提供的插件，安装和更新由官方插件管理器执行。" className={css.dialog as string} contentClassName={css.content as string}>
-      <section className={css.market} aria-label="插件市场">
-        <div className={css.filters}>
-          <div className={css.searchRow}>
-            <Input
-              className={css.search as string}
-              icon={<IconSearchOutlineRegular aria-hidden="true" />}
-              type="search"
-              aria-label="搜索企业插件"
-              placeholder="搜索插件名称、包名、描述或分类"
-              value={query}
-              onChange={event => setQuery(event.currentTarget.value)}
-            />
-            <Button size="sm" variant="outline" disabled={busy !== undefined} onClick={() => { void refresh() }}>刷新</Button>
-          </div>
-          {categories.length === 0 ? null : <div className={css.categories} role="group" aria-label="插件分类">
-            <span className={css.filterLabel}>分类</span>
-            {['', ...categories].map(value => <Pill key={value} active={category === value} aria-pressed={category === value} onClick={() => setCategory(value)}>{value || '全部分类'}</Pill>)}
-          </div>}
+    <section className={css.market} aria-label="企业插件市场">
+      <div className={css.filters}>
+        <div className={css.searchRow}>
+          <Input
+            className={css.search as string}
+            icon={<IconSearchOutlineRegular aria-hidden="true" />}
+            type="search"
+            aria-label="搜索企业插件"
+            placeholder="搜索插件名称、包名、描述或分类"
+            value={query}
+            onChange={event => setQuery(event.currentTarget.value)}
+          />
+          <Button size="sm" variant="outline" disabled={busy !== undefined} onClick={() => { void refresh() }}>刷新</Button>
         </div>
-        {notice === undefined ? null : <p className={css.notice} role="alert">{notice}</p>}
-        {snapshot.status?.state !== 'READY' && snapshot.status?.state !== 'REFRESHING'
-          ? <p className={css.empty}>登录企业账号后可用。</p>
-          : rows.length === 0
-            ? <p className={css.empty}>暂无匹配的企业插件。</p>
-            : <ul className={css.list}>{rows.map(item => <MarketRow key={item.packageName} item={item} bundle={installed.get(item.packageName)} busy={busy === item.packageName} onInstall={() => { void operate(item, currentAction(item, installed.get(item.packageName)) ?? 'install') }} onRemove={() => { void operate(item, 'remove') }} />)}</ul>}
-      </section>
-    </Modal>
+        {categories.length === 0 ? null : <div className={css.categories} role="group" aria-label="插件分类">
+          <span className={css.filterLabel}>分类</span>
+          {['', ...categories].map(value => <Pill key={value} active={category === value} aria-pressed={category === value} onClick={() => setCategory(value)}>{value || '全部分类'}</Pill>)}
+        </div>}
+      </div>
+      {notice === undefined ? null : <p className={css.notice} role="alert">{notice}</p>}
+      {snapshot.status?.state !== 'READY' && snapshot.status?.state !== 'REFRESHING'
+        ? <p className={css.empty}>登录企业账号后可用。</p>
+        : rows.length === 0
+          ? <p className={css.empty}>暂无匹配的企业插件。</p>
+          : <ul className={css.list}>{rows.map(item => <MarketRow key={item.packageName} item={item} bundle={installed.get(item.packageName)} busy={busy === item.packageName} onInstall={() => { void operate(item, currentAction(item, installed.get(item.packageName)) ?? 'install') }} onRemove={() => { void operate(item, 'remove') }} />)}</ul>}
+    </section>
   )
 }

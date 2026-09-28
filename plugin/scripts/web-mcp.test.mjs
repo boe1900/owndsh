@@ -1,6 +1,6 @@
 /**
  * [INPUT]: npm Harness Web runtime、已安装 OwnDsh 的隔离 profile、Playwright 与本地 HTTP 协议桩。
- * [OUTPUT]: 浏览器登录/MCP 操作和真实 AgentLoop 的搜索累加、Orama golden 召回、释放、资源、SDK OAuth 回归证据。
+ * [OUTPUT]: 浏览器登录、官方插件入口与企业目录并存、MCP 操作和真实 AgentLoop 的搜索累加、Orama golden 召回、释放、资源、SDK OAuth 回归证据。
  * [POS]: 跨版本组合验收；复制 profile 后运行，模型只返回确定性工具调用，所有外部服务均在回环地址。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -282,11 +282,11 @@ try {
   const gate = page.getByRole('dialog', { name: 'OwnDsh', exact: true })
   await authorize(gate.getByRole('button', { name: '登录企业账号', exact: true }))
   await gate.waitFor({ state: 'hidden' })
-  assert.equal(await page.getByRole('button', { name: '插件', exact: true }).count(), 0)
-  checks.push('enterprise browser login; official plugin manager hidden')
+  assert.equal(await page.getByRole('button', { name: '插件', exact: true }).count(), 1)
+  checks.push('enterprise browser login; official plugin manager available')
   await settings()
   await page.getByRole('tab', { name: '插件', exact: true }).click()
-  await page.getByRole('region', { name: '企业插件市场', exact: true }).getByText('暂无可用企业插件', { exact: true }).waitFor()
+  await page.getByRole('region', { name: '企业插件市场', exact: true }).getByText('暂无匹配的企业插件。', { exact: true }).waitFor()
   await page.getByRole('tab', { name: 'MCP', exact: true }).click()
   checks.push('OwnDsh plugin market remains accessible')
   await page.getByRole('button', { name: '查看 docs 的 2 个工具' }).click()

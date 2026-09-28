@@ -23,7 +23,7 @@ navigation cannot reach the official shell underneath. Its brand, single-line
 Server editor, connection strip, and version use Host theme tokens; Desktop
 chrome and theme controls remain owned by the surrounding official shell.
 
-The OwnDsh Settings section contains Account and MCP tabs aligned with the
+The OwnDsh Settings section contains Account, Plugins and MCP tabs aligned with the
 native DSH settings rhythm and keyboard navigation. Account information and
 sign-out are available only in the Account tab; OwnDsh registers no sidebar footer
 entry, leaving that space to Harness. Sign-out requires an in-page Harness
@@ -44,14 +44,15 @@ value on hover; the connection timestamp is omitted because authentication runs 
 Grouped surfaces pair Host background and border tokens to avoid transparent superellipse border artifacts.
 When the account becomes blocked, the OwnDsh Settings section uses the official
 slot's `close` callback so the login gate remains the active surface.
-The official Plugins page is registered through the Host's `main` and
-`sidebar.panellist` slots. OwnDsh carries the RC1 page implementation unchanged
-apart from its header button: the official “Add plugin” button is labelled
-“Plugin market” and opens the OwnDsh enterprise catalog. The catalog is the
-only controlled entry for enterprise packages; it uses the official default
-artwork and invokes the Host's official `pluginManager` Remote for install,
-update, enable/disable, and uninstall. The page itself remains the source of
-truth for cards, details, progress, restart, and configuration slots.
+The Plugins tab embeds the enterprise catalog with search, category filters,
+version tags and two-line rows using official default artwork. It refreshes on
+entry and retains filters and pending operations across tab switches. Install,
+update and uninstall require confirmation and use the official `pluginManager`
+Remote. Scrolling belongs to the surrounding settings page.
+
+The official Plugins page remains enabled and unchanged, including its free-form
+“Add plugin” entry, details, configuration, switches and uninstall controls.
+OwnDsh registers no replacement main/sidebar panel and maintains no fork.
 
 The fixed same-origin `/enterprise/api/v1/local/plugins` projection contains only
 the enterprise assignment revision, package name, exact version, installation
