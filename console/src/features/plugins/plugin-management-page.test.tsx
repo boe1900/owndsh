@@ -1,11 +1,11 @@
 /**
  * [INPUT]: 依赖插件编辑器/管理页、生成 SDK、Query 与 Testing Library，HTTP 使用可控响应。
- * [OUTPUT]: 验证新增版本身份锁定/资料继承、npm 目标、Git commit、保存后发布衔接、双 revision 范围迁移和失败草稿保留。
+ * [OUTPUT]: 验证 npm 表单、插件聚合行、历史版本操作、保存后发布衔接、双 revision 范围迁移和失败草稿保留。
  * [POS]: features/plugins 的升级交互回归；真实事务与规则保留由服务端 PostgreSQL 验收。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { client } from '@/api/generated/client.gen';
 import type { PluginPackage, PluginRegistrationRequest, PluginVersion } from '@/api/generated/types.gen';
@@ -77,36 +77,40 @@ describe('plugin registration', () => {
       }
     });
   });
-  it('shows the generated npm target and asks for a target only for other sources', () => {
+  it('keeps registration to an npm package, exact version, and product metadata', () => {
+    const onSave = vi.fn();
     render(<RegisterPluginVersionDialog categoryOptions={[]} categoriesLoading={false} categoriesError={false}
-      onRetryCategories={vi.fn()} onClose={vi.fn()} onSave={vi.fn()} saving={false} />);
+      onRetryCategories={vi.fn()} onClose={vi.fn()} onSave={onSave} saving={false} />);
     fireEvent.change(screen.getByLabelText('包名'), { target: { value: '@company/plugin' } });
     fireEvent.change(screen.getByLabelText('版本'), { target: { value: '1.2.3' } });
-    expect(screen.getByText('@company/plugin@1.2.3')).toBeDefined();
     expect(screen.queryByLabelText('安装目标')).toBeNull();
-    fireEvent.change(screen.getByLabelText('安装方式'), { target: { value: 'github' } });
-    expect(screen.getByLabelText('安装目标')).toBeDefined();
-    expect(screen.getByText(/完整 40 位 commit/)).toBeDefined();
+    expect(screen.queryByLabelText('安装方式')).toBeNull();
+    expect(screen.queryByLabelText('作者')).toBeNull();
+    expect(screen.queryByLabelText('源码仓库')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '保存版本' }));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      packageName: '@company/plugin', version: '1.2.3',
+      installation: expect.objectContaining({ spec: '@company/plugin@1.2.3' })
+    }));
   });
-  it('keeps the installation target separate from repository metadata', () => {
-    const spec = `github:company/repo#${'a'.repeat(40)}&path:/packages/plugin`;
-    expect(registrationValue({ packageName: 'plugin', version: '1.0.0', spec,
+  it('always derives the installation target from package name and version', () => {
+    expect(registrationValue({ packageName: 'plugin', version: '1.0.0', spec: 'github:company/repo#main',
       repositoryUrl: 'https://github.com/company/repo' }, ['tools', ' ui ', 'tools']).installation)
-      .toMatchObject({ spec, repositoryUrl: 'https://github.com/company/repo', categories: ['tools', 'ui'] });
+      .toMatchObject({ spec: 'plugin@1.0.0', repositoryUrl: 'https://github.com/company/repo', categories: ['tools', 'ui'] });
   });
 });
 
 it('inherits metadata, locks package identity, and publishes with the chosen predecessor scope in one request', async () => {
   show();
-  fireEvent.click(await screen.findByRole('button', { name: '基于 @company/plugin@1.0.0 新增版本' }));
+  fireEvent.click(await screen.findByRole('button', { name: '查看 @company/plugin 历史版本' }));
+  fireEvent.click(screen.getByRole('button', { name: '基于 @company/plugin@1.0.0 新增版本' }));
   expect(screen.getByRole('dialog', { name: '新增版本' })).toBeDefined();
   expect(screen.getByLabelText('包名')).toHaveProperty('readOnly', true);
   expect(screen.getByLabelText('包名')).toHaveProperty('value', base.packageName);
-  expect(screen.getByLabelText('显示名称')).toHaveProperty('value', base.installation.displayName);
   expect(screen.getByLabelText('简介')).toHaveProperty('value', base.installation.description);
-  expect(screen.getByLabelText('作者')).toHaveProperty('value', base.installation.author);
-  expect(screen.getByLabelText('源码仓库')).toHaveProperty('value', base.installation.repositoryUrl);
-  expect(screen.getByLabelText('显示名称').closest('details')).toHaveProperty('open', false);
+  expect(screen.queryByLabelText('显示名称')).toBeNull();
+  expect(screen.queryByLabelText('作者')).toBeNull();
+  expect(screen.queryByLabelText('源码仓库')).toBeNull();
   fireEvent.change(screen.getByRole('textbox', { name: '版本' }), { target: { value: '2.0.0' } });
   fireEvent.click(screen.getByRole('button', { name: '保存版本' }));
   await screen.findByRole('dialog', { name: '发布插件版本' });
@@ -119,30 +123,24 @@ it('inherits metadata, locks package identity, and publishes with the chosen pre
   expect(writes).toHaveLength(2);
 });
 
-it('requires a new version and commit for Git sources without dropping inherited metadata', () => {
+it('requires a new version without dropping inherited npm metadata', () => {
   const onSave = vi.fn();
-  const original = `github:company/plugin#${'a'.repeat(40)}&path:/packages/plugin`;
-  const target = `github:company/plugin#${'b'.repeat(40)}&path:/packages/plugin`;
-  render(<RegisterPluginVersionDialog baseVersion={{ ...base, installation: { ...base.installation, spec: original } }}
+  render(<RegisterPluginVersionDialog baseVersion={base}
     versions={pluginPackage.versions} categoryOptions={[]} categoriesLoading={false} categoriesError={false}
     onRetryCategories={vi.fn()} onClose={vi.fn()} onSave={onSave} saving={false} />);
-  expect(screen.getByLabelText('安装目标')).toHaveProperty('value', original);
   fireEvent.change(screen.getByRole('textbox', { name: '版本' }), { target: { value: '1.1.0' } });
   fireEvent.click(screen.getByRole('button', { name: '保存版本' }));
   expect(screen.getByRole('alert').textContent).toContain('版本已存在');
   fireEvent.change(screen.getByRole('textbox', { name: '版本' }), { target: { value: '2.0.0' } });
   fireEvent.click(screen.getByRole('button', { name: '保存版本' }));
-  expect(screen.getByRole('alert').textContent).toContain('Git commit');
-  expect(onSave).not.toHaveBeenCalled();
-  fireEvent.change(screen.getByLabelText('安装目标'), { target: { value: target } });
-  fireEvent.click(screen.getByRole('button', { name: '保存版本' }));
-  expect(onSave).toHaveBeenCalledWith({ packageName: base.packageName, version: '2.0.0', installation: { ...base.installation, spec: target } });
+  expect(onSave).toHaveBeenCalledWith({ packageName: base.packageName, version: '2.0.0', installation: { ...base.installation, spec: '@company/plugin@2.0.0' } });
 });
 
 it('retains the new version draft when registration fails', async () => {
   saveFailure = true;
   show();
-  fireEvent.click(await screen.findByRole('button', { name: '基于 @company/plugin@1.0.0 新增版本' }));
+  fireEvent.click(await screen.findByRole('button', { name: '查看 @company/plugin 历史版本' }));
+  fireEvent.click(within(screen.getByRole('dialog', { name: /历史版本/ })).getByRole('button', { name: '基于 @company/plugin@1.1.0 新增版本' }));
   fireEvent.change(screen.getByRole('textbox', { name: '版本' }), { target: { value: '2.0.0' } });
   fireEvent.click(screen.getByRole('button', { name: '保存版本' }));
   expect(await screen.findByRole('alert')).toHaveProperty('textContent', '安装目标不可用');
@@ -173,12 +171,12 @@ it('allows publication without moving scopes and retains the empty first-registr
   expect(writes[0]?.body).toBeUndefined();
   fireEvent.click(screen.getByRole('button', { name: '添加插件' }));
   expect(screen.getByLabelText('包名')).toHaveProperty('readOnly', false);
-  expect(screen.getByLabelText('显示名称')).toHaveProperty('value', '');
+  expect(screen.queryByLabelText('作者')).toBeNull();
 });
 
 it('does not expose version creation to read-only administrators', async () => {
   access.permissions = ['ent:plugin:read'];
   show();
-  await screen.findByText('1.0.0');
+  await screen.findByText('1.1.0');
   expect(screen.queryByRole('button', { name: /新增版本|添加插件|发布 @/ })).toBeNull();
 });

@@ -51,7 +51,14 @@ function errorMessage(value: unknown): string {
 }
 
 function resultError(result: ChangeResult): string | undefined {
-  return result.application === 'failed' ? result.error?.diagnostic ?? '官方插件管理器执行失败' : undefined
+  if (result.application !== 'failed') return undefined
+  if (result.error?.code === 'incompatible-version' && result.error.incompatible?.length) {
+    return result.error.incompatible.map(item => {
+      const peers = Object.entries(item.peers).map(([name, range]) => `${name} ${range}`).join('、')
+      return `${item.name}@${item.version} 不兼容当前 DSH ${item.runtimeVersion}，需要 ${peers}`
+    }).join('；')
+  }
+  return result.error?.diagnostic ?? '官方插件管理器执行失败'
 }
 
 function MarketRow({ item, bundle, busy, onInstall, onRemove }: MarketRowProps): ReactNode {

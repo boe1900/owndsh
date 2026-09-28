@@ -45,7 +45,7 @@ P2-08C 将产品控制台会话收敛为服务端 Sa-Token 与 HttpOnly/SameSite
 
 员工 UI 入口：OwnDsh 设置包含账号、插件、MCP tabs，账号信息与退出登录集中于账号 tab，企业目录位于插件 tab；仅注册 settings.section 和 shell.overlay，不替换官方插件页。登录门禁、失效恢复与设置内确认退出保留。
 
-企业插件市场：管理端提供 npm 精确版本、GitHub 固定 commit 或 tgz URL 及展示元数据；OwnDsh 设置 → 插件以两行列表呈现分类/版本标签、搜索、分类筛选和操作确认，只对更高 semver 提供更新。安装/更新/卸载调用官方 pluginManager，本机安装事实由官方 Host 管理。官方插件页保留自由安装、配置和启停，OwnDsh 不维护页面 fork 或隐藏入口的适配。
+企业插件市场：管理端只登记 npm 精确包名和版本及必要展示元数据；OwnDsh 设置 → 插件以两行列表呈现分类/版本标签、搜索、分类筛选和操作确认，只对更高 semver 提供更新。安装/更新/卸载调用官方 pluginManager，由插件 manifest 的 peerDependencies 和官方 Host 执行 DSH 兼容门禁，本机安装事实由官方 Host 管理并同步设备库存。官方插件页保留自由安装、配置和启停，OwnDsh 不维护页面 fork 或隐藏入口的适配。
 
 
 MCP 员工能力仍在唯一 `owndsh-plugin` 的 OwnDsh 设置中；公共配置和服务授权归 Console/Server，用户秘密归 Host credentials。MCP/OAuth 各地址统一接受管理员指定的 HTTP(S)，协议、发现、PKCE、token exchange、refresh、协商与分页均由官方 SDK/client 执行。端侧复用 Harness `0.1.7-rc.1` 官方 MCP client 的独立 fiber，并挂载官方 `dsh-mcp-resources`，按 Agent 搜索累加、显式释放和本步调用快照呈现工具；无自动 LRU/16工具/64KiB会话硬限。OwnDsh 只绑定凭据 owner/target、保存官方 SDK 的 client information/tokens 与短生命周期 discovery state/verifier，并提供系统浏览器和本机 loopback callback，不复制第二套 OAuth 协议。实现进度与官方 SDK v2 兼容性见 docs/mcp-implementation-plan.md。

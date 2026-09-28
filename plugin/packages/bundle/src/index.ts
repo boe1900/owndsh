@@ -8,16 +8,18 @@
 import { createRequire } from 'node:module'
 import type { Context } from '@deepseek-ai/cordis'
 import type { CredentialProvider } from '@deepseek-ai/dsh-credentials'
+import type { PluginInventoryGateway } from '@deepseek-ai/dsh-host-plugin-inventory'
+import type { BundleInfo, PluginManager } from '@deepseek-ai/dsh-plugin-manager'
 import { APP_IDENTITY, type LlmRuntime } from '@deepseek-ai/dsh-llm'
 import z from '@deepseek-ai/schemastery'
 import { registerEnterpriseGateway } from '@owndsh/llm-gateway'
 import {
   EnterprisePlatformService,
+  type EnterprisePluginInventoryItem,
   type WebServerRoutePort,
 } from '@owndsh/platform-client'
 import { mountMcpRuntime } from './mcp-runtime.js'
 import type { ToolRuntime } from '@deepseek-ai/dsh-tools'
-import type { PluginManager } from '@deepseek-ai/dsh-plugin-manager'
 
 export const name = 'owndsh'
 export const inject = ['webServer', 'credentials', 'settings', 'llm', 'pluginInventory', 'pluginManager', 'tools']
@@ -52,11 +54,60 @@ type EnterpriseHostContext = Context & {
   readonly credentials: CredentialProvider
   readonly llm: LlmRuntime
   readonly tools: ToolRuntime
+  readonly pluginInventory: PluginInventoryGateway
   readonly pluginManager: PluginManager
 }
 
 interface DesktopActionsPort {
   requestRestart(): Promise<void>
+}
+
+function inventoryState(
+  assignment: NonNullable<ReturnType<EnterprisePlatformService['bootstrap']>>['plugins']['assignments'][number],
+  bundle: BundleInfo | undefined,
+  phase: string | null,
+): EnterprisePluginInventoryItem['state'] {
+  if (assignment.desiredState === 'ABSENT') return 'REMOVE_PENDING'
+  if (bundle?.error !== undefined || (bundle?.version !== undefined && bundle.version !== assignment.version)) return 'FAILED'
+  if (bundle === undefined) return 'EXPECTED'
+  if (bundle.enabled && phase === 'active') return 'ACTIVE'
+  return 'RESTART_REQUIRED'
+}
+
+async function reportPluginInventory(
+  platform: EnterprisePlatformService,
+  pluginManager: PluginManager,
+  pluginInventory: PluginInventoryGateway,
+  logger: Context['logger'],
+): Promise<void> {
+  if (!['READY', 'REFRESHING'].includes(platform.status().state)) return
+  const snapshot = platform.bootstrap()
+  if (snapshot === undefined) return
+  const [bundles, loader] = await Promise.all([pluginManager.listBundles(), pluginInventory.list()])
+  const items: EnterprisePluginInventoryItem[] = []
+  for (const assignment of snapshot.plugins.assignments) {
+    const bundle = bundles.find(item => item.name === assignment.packageName)
+    if (assignment.desiredState === 'ABSENT' && bundle === undefined) continue
+    const entries = loader.entries.filter(item => item.moduleName === assignment.packageName)
+    const entry = entries.find(item => item.enabled && item.fiberPhase === 'active') ?? entries[0]
+    const state = inventoryState(assignment, bundle, entry?.fiberPhase ?? null)
+    const lastErrorCode = bundle?.error?.code
+      ?? (bundle?.version !== undefined && bundle.version !== assignment.version ? 'ENT_PLUGIN_VERSION_MISMATCH' : null)
+    items.push({
+      packageName: assignment.packageName,
+      version: bundle?.version ?? null,
+      desiredRevision: snapshot.plugins.revision,
+      state,
+      loaderPhase: entry?.fiberPhase ?? null,
+      lastErrorCode,
+      observedAt: new Date().toISOString(),
+    })
+  }
+  try {
+    await platform.reportPluginInventory(items)
+  } catch (error) {
+    logger.warn('owndsh: plugin inventory report failed %s', error instanceof Error ? error.message : String(error))
+  }
 }
 
 /** 在 Harness 官方 Service 上挂载平台控制面并配置官方 dsh-llm-pi-ai。 */
@@ -87,4 +138,23 @@ export function apply(ctx: EnterpriseHostContext, config: Config): void {
     harnessVersion: HARNESS_VERSION,
     bundleVersion: BUNDLE_VERSION,
   }), 'enterpriseGateway.registration')
+  let inventoryTask: Promise<void> | undefined
+  let disposed = false
+  const scheduleInventory = (): void => {
+    if (inventoryTask !== undefined || disposed) return
+    const task = reportPluginInventory(platform, ctx.pluginManager, ctx.pluginInventory, ctx.logger)
+      .catch(error => ctx.logger.warn('owndsh: plugin inventory task failed %s', error instanceof Error ? error.message : String(error)))
+      .finally(() => { if (inventoryTask === task) inventoryTask = undefined })
+    inventoryTask = task
+  }
+  const disposePluginChange = ctx.on('plugin-manager/changed', scheduleInventory)
+  const disposePlatformStatus = platform.subscribe(status => {
+    if (status.state === 'READY' || status.state === 'REFRESHING') scheduleInventory()
+  })
+  ctx.effect(() => () => {
+    disposed = true
+    disposePluginChange()
+    disposePlatformStatus()
+  }, 'owndsh.pluginInventory')
+  scheduleInventory()
 }

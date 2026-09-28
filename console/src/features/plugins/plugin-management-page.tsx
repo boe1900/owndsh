@@ -1,13 +1,13 @@
 /**
  * [INPUT]: 依赖生成的插件管理 operation、JSON 安装配置、成员目录、console 权限事实、TanStack Query、ProductDataTable 与插件编辑器，共享 lib/crypto 生成 HTTP/HTTPS 通用幂等键。
- * [OUTPUT]: 提供插件版本/范围/设备三视图；从已有版本继承配置，保存后衔接发布确认，以版本与包 revision 原子发布并更新范围。
+ * [OUTPUT]: 提供按插件聚合的版本/范围/设备三视图；历史版本仍可单独查看和操作。
  * [POS]: features/plugins 的产品插件工作台；服务端负责目录、状态机和分配裁决，宿主负责包安装及依赖。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { useInfiniteQuery, useMutation, useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { useRouteContext } from '@tanstack/react-router';
-import { Archive, Send, Settings2, Plus } from 'lucide-react';
+import { Archive, History, Send, Settings2, Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import {
   listPluginInventory,
@@ -32,6 +32,7 @@ import { Button } from '@/components/atoms/Button';
 import { SegmentedControl } from '@/components/atoms/SegmentedControl';
 import { StatusPill } from '@/components/atoms/StatusPill';
 import { ProductDataTable, type ProductTableColumn } from '@/components/product/DataTable';
+import { ProductDialog } from '@/components/product/Dialog';
 import { useMembers } from '@/features/member-select';
 import {
   PluginAssignmentDialog,
@@ -44,10 +45,7 @@ import {
 
 const SECTIONS = ['插件版本', '可见范围', '设备状态'] as const;
 
-type PluginVersionRow = PluginVersion & {
-  displayName: string;
-  packageRevision: number;
-};
+type PluginPackageRow = PluginPackage & { latestVersion: PluginVersion };
 
 type PluginAssignmentRow = PluginAssignment & {
   displayName: string;
@@ -126,7 +124,7 @@ function VersionStatus({ status }: { status: PluginVersion['status'] }) {
   return <StatusPill tone={item.tone}>{item.label}</StatusPill>;
 }
 
-const versionColumns: ReadonlyArray<ProductTableColumn<PluginVersionRow>> = [
+const packageColumns: ReadonlyArray<ProductTableColumn<PluginPackageRow>> = [
   {
     accessorKey: 'displayName',
     header: '插件',
@@ -136,46 +134,51 @@ const versionColumns: ReadonlyArray<ProductTableColumn<PluginVersionRow>> = [
         <div className="truncate font-mono text-[11px] text-ink-3" title={row.original.packageName}>{row.original.packageName}</div>
       </div>
     ),
-    meta: { label: '插件', className: 'w-[220px]', cellClassName: 'w-[220px]' }
+    meta: { label: '插件', className: 'w-[250px]', cellClassName: 'w-[250px]' }
   },
-  { accessorKey: 'version', header: '版本', meta: { label: '版本', className: 'w-[110px]', cellClassName: 'w-[110px]' } },
   {
-    accessorKey: 'status',
+    id: 'version',
+    accessorFn: row => row.latestVersion.version,
+    header: '当前版本',
+    meta: { label: '当前版本', className: 'w-[110px]', cellClassName: 'w-[110px]' }
+  },
+  {
+    id: 'status',
+    accessorFn: row => row.latestVersion.status,
     header: '状态',
-    cell: ({ getValue }) => <VersionStatus status={getValue() as PluginVersion['status']} />,
+    cell: ({ row }) => <VersionStatus status={row.original.latestVersion.status} />,
     filterFn: 'equalsString',
     meta: { label: '状态', className: 'w-[105px]', cellClassName: 'w-[105px]' }
   },
   {
-    id: 'installation',
-    accessorFn: (row) => row.installation.spec,
-    header: '安装地址',
-    cell: ({ getValue }) => <span className="block truncate font-mono text-[11px]" title={String(getValue())}>{String(getValue())}</span>,
-    meta: { label: '安装地址', className: 'w-[240px]', cellClassName: 'w-[240px]' }
-  },
-  {
     id: 'categories',
-    accessorFn: (row) => row.installation.categories.join(' / ') || '未分类',
+    accessorFn: row => row.latestVersion.installation.categories.join(' / ') || '未分类',
     header: '分类',
     meta: { label: '分类', className: 'w-[140px]', cellClassName: 'w-[140px]' }
   },
   {
+    id: 'history',
+    accessorFn: row => row.versions.length,
+    header: '版本数',
+    meta: { label: '版本数', className: 'w-[90px]', cellClassName: 'w-[90px]' }
+  },
+  {
     id: 'createdAt',
-    accessorFn: (row) => formatDate(row.createdAt),
-    header: '添加时间',
+    accessorFn: row => formatDate(row.latestVersion.createdAt),
+    header: '最近更新',
     meta: { label: '添加时间', className: 'w-[160px]', cellClassName: 'w-[160px]' }
   }
 ];
 
-function versionColumnsWithActions(
+function packageColumnsWithActions(
   canWrite: boolean,
   disabled: boolean,
+  onHistory: (pluginPackage: PluginPackageRow) => void,
   onPublish: (version: PluginVersion) => void,
   onRetire: (version: PluginVersion) => void,
   onNewVersion: (version: PluginVersion) => void
-): ReadonlyArray<ProductTableColumn<PluginVersionRow>> {
-  if (!canWrite) return versionColumns;
-  return [...versionColumns, {
+): ReadonlyArray<ProductTableColumn<PluginPackageRow>> {
+  return [...packageColumns, {
     id: 'actions',
     header: '操作',
     enableGlobalFilter: false,
@@ -183,20 +186,67 @@ function versionColumnsWithActions(
     enableSorting: false,
     cell: ({ row }) => <div className="flex items-center gap-1">
       <Button variant="quiet" size="xs" className="h-7 gap-1 rounded-md px-2" disabled={disabled}
-        aria-label={`基于 ${row.original.packageName}@${row.original.version} 新增版本`} onClick={() => onNewVersion(row.original)}>
-        <Plus aria-hidden className="size-3.5" />新增版本
+        aria-label={`查看 ${row.original.packageName} 历史版本`} onClick={() => onHistory(row.original)}>
+        <History aria-hidden className="size-3.5" />历史版本
       </Button>
-      {row.original.status === 'VALIDATED' ? (
-      <Button variant="quiet" size="xs" className="size-7 rounded-md p-0" disabled={disabled} aria-label={`发布 ${row.original.packageName}@${row.original.version}`} title="发布" onClick={() => onPublish(row.original)}>
+      {canWrite ? <Button variant="quiet" size="xs" className="h-7 gap-1 rounded-md px-2" disabled={disabled}
+        aria-label={`基于 ${row.original.packageName}@${row.original.latestVersion.version} 新增版本`} onClick={() => onNewVersion(row.original.latestVersion)}>
+        <Plus aria-hidden className="size-3.5" />新增版本
+      </Button> : null}
+      {canWrite && row.original.latestVersion.status === 'VALIDATED' ? (
+      <Button variant="quiet" size="xs" className="size-7 rounded-md p-0" disabled={disabled} aria-label={`发布 ${row.original.packageName}@${row.original.latestVersion.version}`} title="发布" onClick={() => onPublish(row.original.latestVersion)}>
         <Send aria-hidden className="size-3.5" />
       </Button>
-    ) : row.original.status === 'PUBLISHED' ? (
-      <Button variant="quiet" size="xs" className="size-7 rounded-md p-0" disabled={disabled} aria-label={`退休 ${row.original.packageName}@${row.original.version}`} title="退休" onClick={() => onRetire(row.original)}>
+    ) : canWrite && row.original.latestVersion.status === 'PUBLISHED' ? (
+      <Button variant="quiet" size="xs" className="size-7 rounded-md p-0" disabled={disabled} aria-label={`退休 ${row.original.packageName}@${row.original.latestVersion.version}`} title="退休" onClick={() => onRetire(row.original.latestVersion)}>
         <Archive aria-hidden className="size-3.5" />
       </Button>
     ) : null}</div>,
     meta: { label: '操作', className: 'w-[145px]', cellClassName: 'w-[145px]' }
   }];
+}
+
+function PluginHistoryDialog({
+  pluginPackage,
+  disabled,
+  canWrite,
+  onClose,
+  onPublish,
+  onRetire,
+  onNewVersion
+}: {
+  pluginPackage: PluginPackage;
+  disabled: boolean;
+  canWrite: boolean;
+  onClose: () => void;
+  onPublish: (version: PluginVersion) => void;
+  onRetire: (version: PluginVersion) => void;
+  onNewVersion: (version: PluginVersion) => void;
+}) {
+  return <ProductDialog title={`${pluginPackage.displayName} · 历史版本`} onClose={onClose} className="max-w-[680px]">
+    <div className="grid gap-2 p-5">
+      {pluginPackage.versions.map(version => <div key={version.id} className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-lg border border-line px-3 py-2.5">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <strong className="font-mono text-[13px] text-ink">v{version.version}</strong>
+            <VersionStatus status={version.status} />
+          </div>
+          <p className="m-0 mt-1 truncate font-mono text-[11px] text-ink-3" title={version.installation.spec}>{version.installation.spec}</p>
+          <p className="m-0 mt-1 text-[11px] text-ink-3">{formatDate(version.createdAt)}</p>
+        </div>
+        {canWrite ? <div className="flex items-center gap-1">
+          <Button variant="quiet" size="xs" className="h-7 gap-1 rounded-md px-2" disabled={disabled}
+            aria-label={`基于 ${pluginPackage.packageName}@${version.version} 新增版本`} onClick={() => onNewVersion(version)}>
+            <Plus aria-hidden className="size-3.5" />新增版本
+          </Button>
+          {version.status === 'VALIDATED' ? <Button variant="quiet" size="xs" className="size-7 rounded-md p-0" disabled={disabled}
+            aria-label={`发布 ${pluginPackage.packageName}@${version.version}`} title="发布" onClick={() => onPublish(version)}><Send aria-hidden className="size-3.5" /></Button> : null}
+          {version.status === 'PUBLISHED' ? <Button variant="quiet" size="xs" className="size-7 rounded-md p-0" disabled={disabled}
+            aria-label={`退休 ${pluginPackage.packageName}@${version.version}`} title="退休" onClick={() => onRetire(version)}><Archive aria-hidden className="size-3.5" /></Button> : null}
+        </div> : null}
+      </div>)}
+    </div>
+  </ProductDialog>;
 }
 
 const assignmentColumns: ReadonlyArray<ProductTableColumn<PluginAssignmentRow>> = [
@@ -289,6 +339,7 @@ export function PluginManagementPage() {
   const [section, setSection] = useState<(typeof SECTIONS)[number]>('插件版本');
   const [registrationOpen, setRegistrationOpen] = useState(false);
   const [registrationBase, setRegistrationBase] = useState<PluginVersion>();
+  const [historyTarget, setHistoryTarget] = useState<PluginPackage>();
   const [publishTarget, setPublishTarget] = useState<{ version: PluginVersion; pluginPackage: PluginPackage; sourceVersionId?: string }>();
   const [assignmentOpen, setAssignmentOpen] = useState(false);
   const [retireTarget, setRetireTarget] = useState<PluginVersion>();
@@ -361,13 +412,10 @@ export function PluginManagementPage() {
       await queryClient.invalidateQueries({ queryKey: ['plugins', 'packages'] });
     }
   });
-  const packageRows = useMemo(() => packages.data?.pages.flatMap((page) => page.items) ?? [], [packages.data]);
-  const versionRows = useMemo(() => packageRows.flatMap((pluginPackage) => pluginPackage.versions.map((version) => ({
-    ...version,
-    displayName: version.installation.displayName,
-    packageRevision: pluginPackage.revision
-  }))), [packageRows]);
-  const categoryOptions = useMemo(() => [...new Set(versionRows.flatMap(version => version.installation.categories))], [versionRows]);
+  const packageRows = useMemo(() => (packages.data?.pages.flatMap((page) => page.items) ?? [])
+    .filter(pluginPackage => pluginPackage.versions.length > 0)
+    .map(pluginPackage => ({ ...pluginPackage, latestVersion: pluginPackage.versions[0] })), [packages.data]);
+  const categoryOptions = useMemo(() => [...new Set(packageRows.flatMap(pluginPackage => pluginPackage.versions.flatMap(version => version.installation.categories)))], [packageRows]);
   const memberNames = useMemo(() => new Map(members.data?.map((member) => [member.id, member.displayName]) ?? []), [members.data]);
   const assignmentRows = useMemo(() => packageRows.flatMap((pluginPackage) => pluginPackage.assignments
     .filter((assignment) => assignment.subjectType !== 'DEPT')
@@ -385,9 +433,10 @@ export function PluginManagementPage() {
   const table = section === '插件版本' ? (
     <ProductDataTable
       ariaLabel="插件版本"
-      columns={versionColumnsWithActions(
+      columns={packageColumnsWithActions(
         canWrite,
         changeVersion.isPending,
+        setHistoryTarget,
         (version) => {
           const pluginPackage = packageRows.find(item => item.id === version.packageId);
           if (pluginPackage) { changeVersion.reset(); setPublishTarget({ version, pluginPackage }); }
@@ -395,7 +444,7 @@ export function PluginManagementPage() {
         setRetireTarget,
         (version) => { registration.reset(); setRegistrationBase(version); setRegistrationOpen(true); }
       )}
-      data={versionRows}
+      data={packageRows}
       emptyText="暂无插件版本"
       error={packages.error}
       filter={VERSION_FILTER}
@@ -477,6 +526,28 @@ export function PluginManagementPage() {
           onSave={(value) => registration.mutate(value)}
         />
       ) : null}
+      {historyTarget ? <PluginHistoryDialog
+        pluginPackage={historyTarget}
+        canWrite={canWrite}
+        disabled={registration.isPending || changeVersion.isPending}
+        onClose={() => setHistoryTarget(undefined)}
+        onPublish={version => {
+          setHistoryTarget(undefined);
+          changeVersion.reset();
+          setPublishTarget({ version, pluginPackage: historyTarget });
+        }}
+        onRetire={version => {
+          setHistoryTarget(undefined);
+          changeVersion.reset();
+          setRetireTarget(version);
+        }}
+        onNewVersion={version => {
+          setHistoryTarget(undefined);
+          registration.reset();
+          setRegistrationBase(version);
+          setRegistrationOpen(true);
+        }}
+      /> : null}
       {publishTarget ? <PublishPluginVersionDialog
         {...publishTarget}
         error={changeVersion.error?.message}

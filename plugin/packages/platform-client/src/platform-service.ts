@@ -13,6 +13,7 @@ import type { SettingsForms } from '@deepseek-ai/dsh-settings'
 import {
   decodeEnterpriseError,
   zDeviceResponse,
+  zPluginInventoryResponse,
   zTokenResponse,
   type DeviceEnrollRequest,
   type EnterpriseErrorCode,
@@ -36,6 +37,7 @@ import {
   type EnterpriseLoginFlow,
   type EnterprisePlatformConfig,
   type EnterprisePlatformInternals,
+  type EnterprisePluginInventoryItem,
   type EnterprisePlatformStatus,
 } from './types.js'
 
@@ -335,6 +337,26 @@ export class EnterprisePlatformService extends Service {
       try { await task } finally { if (this.refreshTask === task) this.refreshTask = undefined }
     }
     return this.status()
+  }
+
+  /** 将官方 Host 的受管插件观测替换到企业设备库存。 */
+  async reportPluginInventory(items: readonly EnterprisePluginInventoryItem[]): Promise<void> {
+    if (items.length > 500) throw new TypeError('plugin inventory is too large')
+    const response = await this.request(`${API_PATH}/plugins/inventory`, {
+      body: JSON.stringify({ items }),
+      headers: { 'content-type': 'application/json' },
+      method: 'PUT',
+    })
+    let value: unknown
+    try {
+      value = await response.json()
+    } catch {
+      throw new EnterprisePlatformError('ENT_PLATFORM_UNAVAILABLE', 'platform returned invalid plugin inventory JSON', true)
+    }
+    const parsed = zPluginInventoryResponse.safeParse(value)
+    if (!parsed.success || parsed.data.data.reported !== items.length) {
+      throw new EnterprisePlatformError('ENT_PLATFORM_UNAVAILABLE', 'platform returned an invalid plugin inventory acknowledgement', true)
+    }
   }
 
   /** 订阅 Host 内存状态快照；disposer 幂等移除监听器且不会暴露 Token。 */

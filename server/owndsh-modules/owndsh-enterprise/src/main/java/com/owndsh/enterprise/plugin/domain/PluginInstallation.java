@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 接收管理员配置的包管理器安装目标与插件展示信息。
- * [OUTPUT]: 提供经过结构校验的不可变安装配置，版本和依赖解析交给宿主 pnpm。
+ * [OUTPUT]: 提供经过结构校验的不可变 npm 精确安装配置，版本兼容和依赖解析交给官方 Host。
  * [POS]: plugin/domain 的引用安装边界；目录元数据不能变成任意命令参数。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -37,16 +37,9 @@ public record PluginInstallation(
 
     public void validateTarget(String packageName, String version) {
         if (PROTECTED.contains(packageName)) throw new IllegalArgumentException("不能通过插件目录修改产品核心包");
-        if (spec.equals(packageName + "@" + version)) return;
-        if (spec.matches("github:[A-Za-z0-9-]+/[A-Za-z0-9._-]+#[0-9a-f]{40}(?:&path:/[A-Za-z0-9_./-]+)?")) {
-            if (spec.contains("/../") || spec.endsWith("/..")) throw new IllegalArgumentException("Git 子目录非法");
-            return;
+        if (!spec.equals(packageName + "@" + version)) {
+            throw new IllegalArgumentException("请填写包名@精确版本");
         }
-        if (spec.startsWith("https://") || spec.startsWith("http://")) {
-            URI uri = httpUrl(spec);
-            if (uri.getPath().endsWith(".tgz")) return;
-        }
-        throw new IllegalArgumentException("请填写包名@精确版本、github:仓库#完整commit 或 .tgz 下载地址");
     }
 
     private static URI httpUrl(String value) {

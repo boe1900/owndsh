@@ -6,7 +6,7 @@
  */
 
 import { z } from 'zod'
-import { zBootstrapQuota, zRuntimePluginAssignment, zRequestId, zRevision, type EnterpriseErrorCode } from '@owndsh/contracts'
+import { zBootstrapQuota, zRuntimePluginAssignment, zRequestId, zRevision, type EnterpriseErrorCode, type PluginInventoryItem } from '@owndsh/contracts'
 import type { InstallationOptions } from './installation.js'
 
 /** 不携带响应主体或凭据的稳定 Service 失败，并保留经过 Fetch 校验的 Retry-After。 */
@@ -35,6 +35,8 @@ export interface EnterprisePlatformConfig {
   readonly dshHome?: string
   readonly installationName?: string
 }
+
+export type EnterprisePluginInventoryItem = PluginInventoryItem
 
 /** 不进入可序列化 bundle Config 的测试与 carrier seam。 */
 export interface EnterprisePlatformInternals {
