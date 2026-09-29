@@ -13,17 +13,17 @@
 
 ## 1. 当前基线与证据
 
-发布版本核对：2026-09-28。beta.14 移除官方插件管理页 fork，企业目录改放 OwnDsh 设置的插件 tab，官方页面保留自由安装和配置入口。此前 RC1 适配与验收见 [RC1 报告](dsh-017-rc1-compatibility-20260924.md)。
+升级核对：2026-09-29。当前代码与本地验收制品为 beta.15，目标 DSH `0.2.0-rc.1`，见 [0.2.0 RC1 验收报告](dsh-020-rc1-compatibility-20260929.md)。发布标签为 `v0.1.0-beta.15`，npm 渠道为 `next`，发布结果以对应流水线和 npm registry 为准。官方插件页继续保留自由安装与配置，企业目录仍位于 OwnDsh 设置的插件 tab。此前版本证据保留在 [0.1.7 RC1 报告](dsh-017-rc1-compatibility-20260924.md)。
 
 | 项目 | 当前事实与真源 |
 |---|---|
-| 插件发布 | [owndsh-plugin@0.1.0-beta.14](https://www.npmjs.com/package/owndsh-plugin/v/0.1.0-beta.14)，使用 npm `next` 标签。[发布流水线](../.github/workflows/release.yml)从 Git tag 注入发布版本；manifest 与 tgz 同步为 `0.1.0-beta.14`。 |
-| Harness / MCP SDK | 开发依赖为 Harness `0.1.7-rc.1`、Cordis `4.0.4`、Schemastery `3.18.4` 与 `@modelcontextprotocol/client` `2.0.0`。完整直接依赖与 peer 范围见 [bundle manifest](../plugin/packages/bundle/package.json)及其它 workspace manifest；实际解析图见 [pnpm-lock.yaml](../plugin/pnpm-lock.yaml)。不在本文复制全量版本清单。 |
-| 完整插件检查 | RC1 隔离运行树通过依赖安装、类型检查、构建、136 条模块测试和 workspace 检查；本轮必要适配见 [RC1 报告](dsh-017-rc1-compatibility-20260924.md)。 |
-| 当前 Web 行为证据 | [0.1.7-rc.1 报告](dsh-017-rc1-compatibility-20260924.md)：10 组场景，真实浏览器、Host、AgentLoop 和官方 adapter；平台、模型、MCP/OAuth 为本地协议桩。 |
-| 当前模块验证 | RC1 隔离运行树的 15 个测试文件、136 条 Vitest、TypeScript 检查和 Bundle 构建通过；Desktop 脚本需要外部 `OWNDSH_TEST_RUNTIME`，本轮未把 Desktop 原生外壳作为 RC1 证据。 |
+| 插件制品 | manifest 与本地验收 tgz 为 `0.1.0-beta.15`。[发布流水线](../.github/workflows/release.yml)从 Git tag 注入版本，在 CI 检查后将其构建的同一 tgz 发布到 npm `next`；本地验收制品与正式 CI 制品分别核对。 |
+| Harness / MCP SDK | 开发依赖为 Harness `0.2.0-rc.1`、Cordis `4.0.4`、Schemastery `3.18.4` 与 `@modelcontextprotocol/client` `2.0.0`。完整直接依赖与 peer 范围见 [bundle manifest](../plugin/packages/bundle/package.json)及其它 workspace manifest；实际解析图见 [pnpm-lock.yaml](../plugin/pnpm-lock.yaml)。不在本文复制全量版本清单。 |
+| 完整插件检查 | `0.2.0-rc.1` 开发依赖通过 frozen-lockfile 安装、全量 TypeScript、构建、117 条模块测试和 4 条 workspace 检查。 |
+| 当前 Web 行为证据 | [0.2.0-rc.1 报告](dsh-020-rc1-compatibility-20260929.md)：10 组场景通过，真实浏览器、Host、AgentLoop 和官方 adapter；平台、模型、MCP/OAuth 为本地协议桩。 |
+| 当前模块验证 | 14 个测试文件、117 条 Vitest 全通过，覆盖平台认证、三协议 profile/代理、UI、官方服务组合与 MCP 生命周期。Desktop 原生外壳未作为本轮证据。 |
 | 已覆盖范围 | Web 登录/重启恢复、插件页面入口、MCP 三种认证、工具分页、协议协商、无工具服务器、资源与 URI 模板、按需加载/释放/Agent 隔离、OAuth 刷新与重新授权。 |
-| 本基线未覆盖 | 真实供应商 OAuth、手工 endpoint/动态注册、远端回调、真实 PTC 解释器、`0.1.7-rc.1` Desktop 原生外壳、智能体团队，以及企业插件安装/卸载的真实包管理链路。PTC/both × TS/Python 的模块回归使用受控 bindings，不能代替解释器 E2E。 |
+| 本基线未覆盖 | 真实供应商 OAuth、手工 endpoint/动态注册、远端回调、真实 PTC 解释器、`0.2.0-rc.1` Desktop 原生外壳、智能体团队，以及企业目录内其他插件完整安装/更新/卸载的包管理链路和确认弹窗。本轮已验证 OwnDsh tgz 的官方 CLI 安装；PTC/both × TS/Python 的模块回归使用受控 bindings，不能代替解释器 E2E。 |
 
 `upstream/` 中的 [Desktop 锁](../upstream/dsh-desktop.lock.json)与 [Harness 锁](../upstream/deepseek-harness.lock.json)仍描述早期 Desktop `2.0.3` / Harness `0.1.1-rc.2` 源码夹具，参见[历史迁移记录](desktop-2.0.3-harness-rc2-migration.md)。它们不是当前 npm/Web 验证基线，也不证明当前插件兼容该旧版本。独立 OwnDsh Desktop 的发行运行时由桌面仓库管理，升级时必须记录其实际内置 Harness 版本。
 
@@ -36,7 +36,7 @@
 | 编号 / 上游依赖 | 当前依赖的契约 | 本地位置与验证入口 | 变化影响与升级检查 |
 |---|---|---|---|
 | D01 插件 manifest / Client loader / 包导出 | `dsh.bundle.patch`、`dsh.client.platform: web` 及 Client inject；浏览器通过 `window.__ModuleLoader__.load()` 装载 lazy-CJS factory。官方 Host 服务、React 和 UI primitives 使用宿主共享实例。 | [manifest](../plugin/packages/bundle/package.json)、[build.mjs](../plugin/packages/bundle/scripts/build.mjs)；[bundle 回归](../plugin/packages/bundle/tests/bundle.spec.ts)、目标 Host 启动。 | 导出路径、扫描方式、模块格式或服务身份变化会让插件不加载或产生重复实例。核对 exports、peers、external 和 Client 注入项，并用实际 tgz 安装。 |
-| D02 base/web profile 与 row ID | 覆盖 `agent-default-model`；停用 `llm-deepseek`、`llm-pi-ai`、`ui-settings-models`；插入 `owndsh`。`mcp-resources` 由 0.1.7-rc.1 base 提供，不重复插入。 | [cordis.patch.yml](../plugin/packages/bundle/cordis.patch.yml)；bundle 回归、[Web E2E](../plugin/scripts/web-mcp.test.mjs)。 | 上游新增默认插件、改 row ID 或 layer 合并规则时，逐项检查目标 profile。alpha.2 曾因重复 resources row 无法启动。官方插件管理页保持启用，自由安装与企业目录并存；智能体团队另验入口和功能。 |
+| D02 base/web profile 与 row ID | 覆盖 `agent-default-model`；停用 `llm-deepseek`、`llm-deepseek-account`、`llm-pi-ai`、`ui-settings-models`；插入 `owndsh`。`mcp-resources` 由目标 base 提供，不重复插入。 | [cordis.patch.yml](../plugin/packages/bundle/cordis.patch.yml)；bundle 回归、[Web E2E](../plugin/scripts/web-mcp.test.mjs)。 | 上游新增默认插件、改 row ID 或 layer 合并规则时，逐项检查目标 profile。alpha.2 曾因重复 resources row 无法启动。官方插件管理页保持启用，自由安装与企业目录并存；智能体团队另验入口和功能。 |
 | D03 Cordis / Schemastery / fiber | `inject`、`ctx.plugin/isolate/effect/on`、fiber 等待/更新/释放和 schema 默认值；异步释放必须撤回工具、路由及旧身份连接。 | [Host 组合入口](../plugin/packages/bundle/src/index.ts)、[模型注册](../plugin/packages/llm-gateway/src/registration.ts)、[MCP runtime](../plugin/packages/bundle/src/mcp-runtime.ts)；完整检查、MCP/平台生命周期回归。 | 生命周期函数或更新语义变化可能留下旧能力或重复挂载。验证更新、登出、取消和 dispose；同一个服务不能解析成两份运行实例。 |
 | D04 credentials provider | `credentialKey`、`readRecord/modifyRecord/deleteRecord` 与 GrantRecord；依赖 provider 原子修改语义。企业登录 Grant 和 MCP owner/target 记录分开，迟到写入受生命周期约束。 | [平台凭据](../plugin/packages/platform-client/src/platform-credentials.ts)、[MCP 凭据](../plugin/packages/bundle/src/mcp-oauth.ts)；[平台回归](../plugin/packages/platform-client/tests/platform-service.spec.ts)、[OAuth 回归](../plugin/packages/bundle/tests/mcp-oauth.spec.ts)、Web 重启恢复。 | 记录格式、原子性或持久化边界变化需验证刷新轮换、账号/目标隔离、撤销与重启恢复。不得把平台 Token 交给 MCP 或浏览器。 |
 | D05 settings | 通过官方 `SettingsForms.configure({ auto: false })` 与 `update()` 写入 bundle Config 的 `baseUrl`、`mcp.desiredConnected`；volatile 更新由 `loader/volatile-update` 接收，账号状态仍由 OwnDsh Service 约束。 | [平台服务](../plugin/packages/platform-client/src/platform-service.ts)、[MCP runtime](../plugin/packages/bundle/src/mcp-runtime.ts)；平台回归、目标 Host 修改地址和重启。 | `SettingsForms` schema、volatile 标记或事件路径变化会造成配置丢失、连接意愿不生效或旧账号复活。核对保存失败、授权中修改、退出后修改及重启恢复。 |
@@ -97,9 +97,9 @@ pnpm --dir plugin run pack:bundle
 
 已有入口的适用范围：
 
-- Web/MCP 脚本读取 `OWNDSH_TEST_RUNTIME`（含目标 npm dsh 的目录）、`OWNDSH_TEST_PROFILE`（已装本次 tgz 的 web profile），可通过 `OWNDSH_PLAYWRIGHT_MODULE`、`OWNDSH_CHROMIUM_PATH` 指定浏览器依赖，通过 `OWNDSH_E2E_OUTPUT` 隔离证据。它复制 profile，并比对安装包 Host bundle 与当前构建产物的哈希；当前脚本精确断言 `0.1.7-rc.1`。测试新版本前显式更新预期版本并核对接口，不能只换目录或删除版本检查。准备 profile 时也必须显式传 DSH_HOME。
+- Web/MCP 脚本读取 `OWNDSH_TEST_RUNTIME`（含目标 npm dsh 的目录）、`OWNDSH_TEST_PROFILE`（已装本次 tgz 的 web profile），可通过 `OWNDSH_PLAYWRIGHT_MODULE`、`OWNDSH_CHROMIUM_PATH` 指定浏览器依赖，通过 `OWNDSH_E2E_OUTPUT` 隔离证据。它复制 profile，并比对安装包 Host bundle 与当前构建产物的哈希；当前脚本精确断言 `0.2.0-rc.1`。测试新版本前显式更新预期版本并核对接口，不能只换目录或删除版本检查。准备 profile 时也必须显式传 DSH_HOME。
 - [Desktop 测试入口](../plugin/package.json) `test:desktop` 消费 `OWNDSH_TEST_RUNTIME`，要求符合脚本预期的桌面启动器布局；它不等于任意 npm dsh 的测试入口。
-- [T11 模型脚本](../plugin/scripts/t11-harness-model-smoke.mjs)、[T14 CLI 脚本](../plugin/scripts/t14-dsh-plugin-smoke.mjs)、[T15 浏览器脚本](../plugin/scripts/t15-browser-harness.mjs)仍绑定历史源码锁；T11 的版本断言已改为跟随锁文件，仍不能把旧 checkout 结果当作 RC1 证据。它们可复用场景，迁到目标发行 runtime 并核对版本后才算本轮证据。不要为让旧脚本通过而更改无关的历史锁。
+- [T11 模型脚本](../plugin/scripts/t11-harness-model-smoke.mjs)、[T14 CLI 脚本](../plugin/scripts/t14-dsh-plugin-smoke.mjs)、[T15 浏览器脚本](../plugin/scripts/t15-browser-harness.mjs)仍绑定历史源码锁；T11 的版本断言已改为跟随锁文件，仍不能把旧 checkout 结果当作当前目标版本证据。它们可复用场景，迁到目标发行 runtime 并核对版本后才算本轮证据。不要为让旧脚本通过而更改无关的历史锁。
 - 同版本 tgz 重装可能命中 pnpm 缓存；使用新的临时制品路径，并核对安装内容。发布 CI 会注入版本，报告须区分发布前构建包与正式制品；若只检查正式制品的完整性，不写成“正式包已跑浏览器 E2E”。
 
 ### 3.3 留下可审查结论

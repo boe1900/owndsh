@@ -1,5 +1,5 @@
 # [INPUT]: 依赖官方 dsh.bundle patch 覆盖、裸包名 Loader 与 base/web 既有 row id
-# [OUTPUT]: 覆盖企业默认模型、停用个人模型并插入 owndsh Host/Client row，保留官方插件页
+# [OUTPUT]: 覆盖企业默认模型、停用 API Key/个人账号模型并插入 owndsh Host/Client row，保留官方插件页
 # [POS]: bundle 的企业 profile 策略层；企业目录与官方自由安装入口并存，插件生命周期仍归官方 Host
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 - id: agent-default-model
@@ -8,6 +8,9 @@
     model: enterprise/default
 
 - id: llm-deepseek
+  disabled: true
+
+- id: llm-deepseek-account
   disabled: true
 
 - id: llm-pi-ai

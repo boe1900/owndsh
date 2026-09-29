@@ -9,7 +9,7 @@
 
 OwnDsh 的 DeepSeek Harness 官方扩展点插件。它把 DSH Desktop 或 Harness Web 连接到自托管 OwnDsh Server，让员工使用企业身份、受管模型和受管插件，而不在本机保存供应商 API Key。
 
-> 当前稳定包为 `0.1.0`，Harness `0.1.7-rc.1` 为验证基线。
+> 本包版本为 `0.1.0-beta.15`，面向 Harness `0.2.0-rc.1`，发布渠道为 npm `next`。
 
 ## 安装
 
@@ -24,17 +24,17 @@ corepack install --global pnpm@11.7.0
 
 ```sh
 # Harness Web
-dsh plugin --profile web add --ignore-scripts owndsh-plugin@latest
+dsh plugin --profile web add --ignore-scripts owndsh-plugin@next
 
 # DSH Desktop
-dsh plugin --profile desktop add --ignore-scripts owndsh-plugin@latest
+dsh plugin --profile desktop add --ignore-scripts owndsh-plugin@next
 ```
 
 从 Harness 源码运行 CLI 时：
 
 ```sh
 pnpm --dir /path/to/deepseek-harness dsh \
-  plugin --profile web add --ignore-scripts owndsh-plugin@latest
+  plugin --profile web add --ignore-scripts owndsh-plugin@next
 ```
 
 安装后重启对应 profile。填写管理员提供的 OwnDsh Server HTTP(S) 地址并完成企业登录。
@@ -51,16 +51,16 @@ Server 地址由 Harness 官方 settings 服务保存；轮换 Refresh Token 由
 
 ```sh
 dsh plugin --profile web remove owndsh-plugin
-dsh plugin --profile web add --ignore-scripts owndsh-plugin@latest
+dsh plugin --profile web add --ignore-scripts owndsh-plugin@next
 ```
 
 完全卸载只执行第一条命令。把 `web` 换成实际 profile。
 
 ## 兼容性与边界
 
-当前验证基线是 DeepSeek Harness `0.1.7-rc.1`。OwnDsh 不替换官方 Web/Desktop UI，不访问员工工作区，也不实现第二套模型协议。MCP 工具、资源和 OAuth 连接均使用官方 client：OwnDsh 只提供 OAuth SDK 所需的凭据记录、系统浏览器和本机 loopback callback 宿主接缝。
+当前验证基线是 DeepSeek Harness `0.2.0-rc.1`。OwnDsh 不替换官方 Web/Desktop UI，不访问员工工作区，也不实现第二套模型协议。MCP 工具、资源和 OAuth 连接均使用官方 client：OwnDsh 只提供 OAuth SDK 所需的凭据记录、系统浏览器和本机 loopback callback 宿主接缝。
 
-登录和企业模型只需安装本包。管理员登记安装地址、发布并配置可见范围后，员工在「OwnDsh 设置 → 插件」查看企业目录，按分类或关键词筛选，并确认安装、更新或卸载。官方「插件」页面保持原样，保留“添加插件”自由安装入口、插件配置和启停操作；两处操作都使用官方 `pluginManager`，其他设备独立选择。
+登录和企业模型只需安装本包。管理员登记 npm 包名、精确版本，发布并配置可见范围后，员工在「OwnDsh 设置 → 插件」查看企业目录，按分类或关键词筛选，并确认安装、更新或卸载。官方「插件」页面保持原样，保留“添加插件”自由安装入口、插件配置和启停操作；两处操作都使用官方 `pluginManager`，其他设备独立选择。
 
 
 

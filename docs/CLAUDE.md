@@ -5,6 +5,7 @@
 成员清单
 
 dsh-compatibility.md: DSH 升级检查入口，记录当前 npm/Web 基线、上游依赖契约与本地代码/测试映射、历史夹具边界、逐项验收流程及 OAuth 接缝删除条件。
+dsh-020-rc1-compatibility-20260929.md: DSH 0.2.0-rc.1 兼容门禁、个人账号模型 row 适配与 beta.15 隔离验证证据，区分本地制品和 npm 发布状态。
 dsh-017-alpha1-compatibility-20260922.md: DSH 0.1.7-alpha.1 目标 runtime 的 Web/MCP 行为验收、当前 pluginManager/SettingsForms 适配及未覆盖范围。
 dsh-017-rc1-compatibility-20260924.md: DSH 0.1.7-rc.1 目标 runtime 的 Web/MCP 行为验收、Release notes 对照、必要依赖适配及未覆盖范围。
 v1-product-feature-catalog.md: V1 产品功能真源，汇总身份、LDAP 用户/组目录接入、模型、授权、配额、限流、插件安装配置、设备与审计的交付状态、关键语义、发布门禁和明确非目标。

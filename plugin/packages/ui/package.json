@@ -29,11 +29,11 @@
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.4",
-    "@deepseek-ai/dsh-api-remotes": "0.1.7-rc.1",
-    "@deepseek-ai/dsh-client-store": "0.1.7-rc.1",
-    "@deepseek-ai/dsh-client-ui-primitives": "0.1.7-rc.1",
-    "@deepseek-ai/dsh-plugin-manager": "0.1.7-rc.1",
-    "@deepseek-ai/dsh-util-crypto": "0.1.7-rc.1",
+    "@deepseek-ai/dsh-api-remotes": "0.2.0-rc.1",
+    "@deepseek-ai/dsh-client-store": "0.2.0-rc.1",
+    "@deepseek-ai/dsh-client-ui-primitives": "0.2.0-rc.1",
+    "@deepseek-ai/dsh-plugin-manager": "0.2.0-rc.1",
+    "@deepseek-ai/dsh-util-crypto": "0.2.0-rc.1",
     "@types/mdast": "4.0.4",
     "@types/semver": "7.7.1"
   },

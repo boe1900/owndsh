@@ -4,11 +4,11 @@
 
 成员清单
 
-README.md: npm 员工用户入口，说明 `latest` 安装、Server 登录、企业目录安装、更新卸载与兼容基线。
-package.json: npm 发布清单与 `dsh.bundle`/`dsh.client` 双入口，官方 Harness 依赖锁定 `0.1.7-rc.1`，MCP OAuth/transport 使用官方 `@modelcontextprotocol/client` v2，词法检索使用 `@orama/orama` 3.1.18。
+README.md: npm 员工用户入口，说明 `next` 安装、Server 登录、企业目录安装、更新卸载与兼容基线。
+package.json: npm 发布清单与 `dsh.bundle`/`dsh.client` 双入口，官方 Harness 依赖锁定 `0.2.0-rc.1`，MCP OAuth/transport 使用官方 `@modelcontextprotocol/client` v2，词法检索使用 `@orama/orama` 3.1.18。
 screenshots.json: 社区市场从插件源码目录读取的四张原始截图清单，通过 GitHub 固定提交 URL 复用 docs/assets 媒体并控制展示顺序，不改变 npm 运行包。
 tsconfig.json: bundle Host 公开声明的 emit-only TypeScript 边界，通过 workspace 声明消费产品模块，并局部跳过链接上游损坏声明检查。
-cordis.patch.yml: 官方 profile layer，覆盖企业 default、停用个人 provider/模型设置并插入 OwnDsh；官方插件管理页与自由安装入口保留，MCP resources 复用 0.1.7-rc.1 base 已有 row。
+cordis.patch.yml: 官方 profile layer，覆盖企业 default、停用 API Key/个人账号 provider 与模型设置并插入 OwnDsh；官方插件管理页与自由安装入口保留，MCP resources 复用 0.2.0-rc.1 base 已有 row。
 scripts/build.mjs: 内联产品模块但 externalize 官方 Cordis/credentials/LLM/MCP client/resources、MCP SDK v2、tools/settings/Schemastery 与 Client ui-primitives 单例的双端构建器。
 src/index.ts: Web/Desktop 共用 Host 组合入口，绑定 credentials/pi-ai/官方 pluginManager、插件 inventory 上报、整包卸载重启与 mcp-runtime；企业插件安装/更新/卸载由 Client 官方 Remote 执行，MCP 仍属于唯一 owndsh-plugin，不新增 Loader row。
 src/mcp-runtime.ts: 本地 MCP 路由与官方 client 子 fiber 组合器，按可信身份、公共快照、连接意愿和凭据调和；提供 connect/pause/reconnect/disconnect 与 MCP_AUTH_REQUIRED 状态；活动触发 60 秒租约验证，平台失效先关门禁，再释放连接；API Key 认证值原样放入指定 Header 并合并公共固定 headers，OAuth 固定使用本机 loopback callback。
