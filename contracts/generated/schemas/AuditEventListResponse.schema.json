@@ -99,6 +99,7 @@
                   "PLUGIN_REGISTERED",
                   "PLUGIN_UPLOADED",
                   "PLUGIN_PUBLISHED",
+                  "PLUGIN_DELETED",
                   "PLUGIN_ASSIGNED",
                   "PLUGIN_DOWNLOADED",
                   "PLUGIN_INVENTORY_REPORTED",
@@ -620,6 +621,7 @@
                           "UPLOAD",
                           "PUBLISH",
                           "RETIRE",
+                          "DELETE",
                           "ASSIGN",
                           "DOWNLOAD",
                           "INVENTORY"

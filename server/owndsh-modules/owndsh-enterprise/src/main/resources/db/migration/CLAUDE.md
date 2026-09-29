@@ -43,4 +43,6 @@ V33__mcp_raw_auth_value.sql: 移除旧 API Key 的 valuePrefix 配置，仅推�
 V34__plugin_installation_sources.sql: 清空旧上传插件目录/范围/库存并删除制品列；必填安装配置交给宿主 pnpm，新增登记审计事件。
 V35__usage_chronological_pagination.sql: 为用量账本补齐 tenant+created_at+id 复合索引，支持最新记录优先的时间/ID 游标查询。
 V36__deepseek_messages_protocol.sql: 保留 V13 checksum，前向将 DeepSeek 官方 provider 迁移到 RC1 Messages API 并更新已知官方 endpoint。
+V37__plugin_deletion_audit.sql: 仅扩充插件删除审计 action 白名单，保留既有目录、库存和历史审计数据。
+
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

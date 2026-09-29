@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Spring JdbcOperations、Jackson 3 与 V34 安装配置表、sys_user/sys_dept 主体事实。
- * [OUTPUT]: 实现 catalog/version CAS、幂等、可见范围优先级与库存；升级仅迁移旧版 ACTIVE/INSTALLED 范围，保留撤回和其他版本规则。
+ * [OUTPUT]: 实现 catalog/version CAS、幂等、可见范围优先级与库存；包/版本删除按外键顺序清理范围，保留独立的设备库存。
  * [POS]: plugin/persistence 的 PostgreSQL adapter，所有业务查询同时限定 tenant 与 package ownership。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -220,6 +220,21 @@ public final class JdbcPluginStore implements PluginStore {
     @Override
     public void deleteAssignments(String tenantId, long packageId) {
         jdbc.update(DELETE_ASSIGNMENTS, tenantId, packageId);
+    }
+
+    @Override
+    public void deletePackage(String tenantId, long packageId) {
+        deleteAssignments(tenantId, packageId);
+        jdbc.update("delete from ent_plugin_version where tenant_id=? and package_id=?", tenantId, packageId);
+        jdbc.update("delete from ent_plugin_package where tenant_id=? and id=?", tenantId, packageId);
+    }
+
+    @Override
+    public void deleteVersion(String tenantId, long packageId, long versionId) {
+        jdbc.update("delete from ent_plugin_assignment where tenant_id=? and package_id=? and plugin_version_id=?",
+            tenantId, packageId, versionId);
+        jdbc.update("delete from ent_plugin_version where tenant_id=? and package_id=? and id=?",
+            tenantId, packageId, versionId);
     }
 
     @Override

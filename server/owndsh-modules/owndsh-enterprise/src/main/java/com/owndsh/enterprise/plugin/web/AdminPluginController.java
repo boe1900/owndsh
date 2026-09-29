@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 PluginCatalogService、可信 enterprise-admin 上下文、认证 cursor 与 ent:plugin 权限码。
- * [OUTPUT]: 提供 catalog、配置登记、版本发布/退休、可选双 revision 原子发布升级、范围和库存入口。
+ * [OUTPUT]: 提供 catalog、登记、发布/退休、原子发布升级、包/版本删除、范围和库存入口；删除使用包 revision。
  * [POS]: plugin/web 的管理 HTTP 入口，只接收安装配置，包内容由客户端宿主获取。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -9,6 +9,7 @@ package com.owndsh.enterprise.plugin.web;
 import cn.dev33.satoken.annotation.SaCheckPermission;
 import jakarta.servlet.http.HttpServletRequest;
 import com.owndsh.enterprise.auth.web.EnterpriseRequestContext;
+import com.owndsh.enterprise.auth.web.DeletedResourceView;
 import com.owndsh.enterprise.auth.web.IdentityAdminRequestContextResolver;
 import com.owndsh.enterprise.common.api.CursorPageData;
 import com.owndsh.enterprise.common.api.CursorPageMetadata;
@@ -21,6 +22,7 @@ import com.owndsh.enterprise.plugin.domain.DevicePluginInventory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -135,6 +137,31 @@ public final class AdminPluginController {
                 .stream().map(PluginViews::assignment).toList(),
             context
         );
+    }
+
+    @DeleteMapping("/{packageId}")
+    @SaCheckPermission("ent:plugin:write")
+    public EnterpriseResponse<DeletedResourceView> deletePackage(
+        @PathVariable long packageId,
+        @RequestHeader("If-Match") long expectedRevision,
+        HttpServletRequest request
+    ) {
+        EnterpriseRequestContext context = contexts.resolve(request);
+        catalog.deletePackage(mutation(context), packageId, expectedRevision);
+        return response(DeletedResourceView.of(packageId), context);
+    }
+
+    @DeleteMapping("/{packageId}/versions/{versionId}")
+    @SaCheckPermission("ent:plugin:write")
+    public EnterpriseResponse<DeletedResourceView> deleteVersion(
+        @PathVariable long packageId,
+        @PathVariable long versionId,
+        @RequestHeader("If-Match") long expectedRevision,
+        HttpServletRequest request
+    ) {
+        EnterpriseRequestContext context = contexts.resolve(request);
+        catalog.deleteVersion(mutation(context), packageId, versionId, expectedRevision);
+        return response(DeletedResourceView.of(versionId), context);
     }
 
     @GetMapping("/inventory")

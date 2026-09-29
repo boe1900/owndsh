@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖事务、PluginStore、revision、审计与 ID。
- * [OUTPUT]: 提供幂等配置登记、发布/退休、原子发布并迁移指定旧版可见范围及范围替换；双 revision 防止覆盖并发版本/范围变更。
+ * [OUTPUT]: 提供幂等配置登记、发布/退休、范围迁移及替换、包/版本删除；删除以包 revision 保护完整聚合并保留设备库存。
  * [POS]: plugin/application 的管理状态编排，版本不可变，发布与可见范围共用 revision/审计事务。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -200,6 +200,40 @@ public final class PluginCatalogService {
 
     public List<DevicePluginInventory> listInventory(String tenantId, long afterId, int limit) {
         return plugins.listInventory(tenantId, afterId, limit);
+    }
+
+    public void deletePackage(PluginMutationContext context, long packageId, long expectedRevision) {
+        delete(context, packageId, null, expectedRevision);
+    }
+
+    public void deleteVersion(PluginMutationContext context, long packageId, long versionId, long expectedRevision) {
+        delete(context, packageId, versionId, expectedRevision);
+    }
+
+    private void delete(PluginMutationContext context, long packageId, Long versionId, long expectedRevision) {
+        transactions.executeWithoutResult(status -> {
+            PluginPackage pluginPackage = plugins.findPackageByIdForUpdate(context.tenantId(), packageId)
+                .orElseThrow(PluginResourceNotFoundException::new);
+            requireRevision(pluginPackage.revision(), expectedRevision);
+            if (versionId == null) {
+                plugins.deletePackage(context.tenantId(), packageId);
+            } else {
+                PluginVersion version = plugins.findVersion(context.tenantId(), versionId)
+                    .orElseThrow(PluginResourceNotFoundException::new);
+                if (version.packageId() != packageId) throw new PluginResourceNotFoundException();
+                plugins.deleteVersion(context.tenantId(), packageId, versionId);
+                if (plugins.listVersions(context.tenantId(), packageId).isEmpty()) {
+                    plugins.deletePackage(context.tenantId(), packageId);
+                } else if (!plugins.incrementPackageRevision(context.tenantId(), packageId, expectedRevision)) {
+                    throw packageConflict(context.tenantId(), packageId, expectedRevision);
+                }
+            }
+            long bootstrapRevision = revisions.increment(context.tenantId());
+            audit(context, null, AuditAction.PLUGIN_DELETED,
+                versionId == null ? "PLUGIN_PACKAGE" : "PLUGIN_VERSION", versionId == null ? packageId : versionId,
+                new PluginAuditMetadata(PluginAuditMetadata.Operation.DELETE, expectedRevision + 1,
+                    bootstrapRevision, 1, false));
+        });
     }
 
     private PluginVersion changeStatus(

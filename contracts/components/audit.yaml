@@ -30,6 +30,7 @@ AuditAction:
     - PLUGIN_REGISTERED
     - PLUGIN_UPLOADED
     - PLUGIN_PUBLISHED
+    - PLUGIN_DELETED
     - PLUGIN_ASSIGNED
     - PLUGIN_DOWNLOADED
     - PLUGIN_INVENTORY_REPORTED
@@ -173,7 +174,7 @@ PluginAuditMetadata:
   additionalProperties: false
   required: [operation, resourceRevision, bootstrapRevision, itemCount, required]
   properties:
-    operation: {type: string, enum: [REGISTER, UPLOAD, PUBLISH, RETIRE, ASSIGN, DOWNLOAD, INVENTORY]}
+    operation: {type: string, enum: [REGISTER, UPLOAD, PUBLISH, RETIRE, DELETE, ASSIGN, DOWNLOAD, INVENTORY]}
     resourceRevision: {type: integer, minimum: 0}
     bootstrapRevision: {type: integer, minimum: 0}
     itemCount: {type: integer, minimum: 0, maximum: 500}

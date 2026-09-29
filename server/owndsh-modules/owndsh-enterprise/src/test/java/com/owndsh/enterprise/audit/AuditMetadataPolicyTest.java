@@ -114,6 +114,7 @@ class AuditMetadataPolicyTest {
             new ReservationRecoveredMetadata(ReservationState.RESERVED, ReservationState.RELEASED),
             plugin(PluginAuditMetadata.Operation.REGISTER),
             plugin(PluginAuditMetadata.Operation.PUBLISH),
+            plugin(PluginAuditMetadata.Operation.DELETE),
             plugin(PluginAuditMetadata.Operation.ASSIGN),
             plugin(PluginAuditMetadata.Operation.INVENTORY),
             new SessionAuditMetadata.BatchAppended(0, 1, 2),

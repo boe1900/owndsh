@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖插件管理/runtime Controller、MockMvc、权限注解与派生 OpenAPI schemas。
- * [OUTPUT]: 验证八个插件 operation、可选原子发布升级的请求校验与参数、完整 assignment 投影、稳定错误和权限码。
+ * [OUTPUT]: 验证十个插件 operation、发布升级与删除参数、完整 assignment 投影、稳定错误和权限码。
  * [POS]: T13 Server/OpenAPI 同步门禁，application services 使用 mock 以隔离 HTTP 翻译与安装配置。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -26,6 +26,8 @@ import com.owndsh.enterprise.plugin.application.EffectivePluginResolver;
 import com.owndsh.enterprise.plugin.application.PluginAccessException;
 import com.owndsh.enterprise.plugin.application.PluginCatalogService;
 import com.owndsh.enterprise.plugin.application.PluginRuntimeService;
+import com.owndsh.enterprise.plugin.application.PluginResourceNotFoundException;
+import com.owndsh.enterprise.revision.RevisionConflictException;
 import com.owndsh.enterprise.plugin.domain.DevicePluginInventory;
 import com.owndsh.enterprise.plugin.domain.PluginAssignment;
 import com.owndsh.enterprise.plugin.domain.PluginPackage;
@@ -64,6 +66,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
@@ -152,6 +155,28 @@ class T13ApiContractTest {
     }
 
     @Test
+    void deletesPackagesAndVersionsWithTheReviewedPackageRevision() throws Exception {
+        String packagePath = "/enterprise/admin/v1/plugins/" + PACKAGE_ID;
+        String versionPath = packagePath + "/versions/" + VERSION_ID;
+        String deletedPackage = response(delete(packagePath).header("If-Match", "7"), 200);
+        assertSchema(deletedPackage, "DeletedResourceResponse");
+        assertThat(deletedPackage).contains("\"id\":\"" + PACKAGE_ID + "\"");
+        String deletedVersion = response(delete(versionPath).header("If-Match", "8"), 200);
+        assertSchema(deletedVersion, "DeletedResourceResponse");
+        assertThat(deletedVersion).contains("\"id\":\"" + VERSION_ID + "\"");
+        verify(catalog).deletePackage(any(), eq(PACKAGE_ID), eq(7L));
+        verify(catalog).deleteVersion(any(), eq(PACKAGE_ID), eq(VERSION_ID), eq(8L));
+        for (String path : List.of(packagePath, versionPath)) {
+            assertError(delete(path), 400, "ENT_INVALID_REQUEST");
+            assertError(delete(path).header("If-Match", "invalid"), 400, "ENT_INVALID_REQUEST");
+        }
+        doThrow(new RevisionConflictException(7, 8)).when(catalog).deletePackage(any(), anyLong(), anyLong());
+        assertError(delete(packagePath).header("If-Match", "7"), 409, "ENT_REVISION_CONFLICT");
+        doThrow(new PluginResourceNotFoundException()).when(catalog).deleteVersion(any(), anyLong(), anyLong(), anyLong());
+        assertError(delete(versionPath).header("If-Match", "8"), 404, "ENT_RESOURCE_NOT_FOUND");
+    }
+
+    @Test
     void publishesWithAnExplicitSourceVersionAndPackageRevision() throws Exception {
         when(catalog.publishAndUpgrade(any(), anyLong(), anyLong(), anyLong(), anyLong()))
             .thenReturn(version(PluginVersion.Status.PUBLISHED, 2));
@@ -213,6 +238,8 @@ class T13ApiContractTest {
             "register", "ent:plugin:write",
             "publish", "ent:plugin:write",
             "retire", "ent:plugin:write",
+            "deletePackage", "ent:plugin:write",
+            "deleteVersion", "ent:plugin:write",
             "replaceAssignments", "ent:plugin:write",
             "inventory", "ent:plugin:read"
         ));

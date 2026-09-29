@@ -135,6 +135,10 @@ paths:
     $ref: './paths/gateway.yaml#/AnthropicMessages'
   /enterprise/admin/v1/plugins:
     $ref: './paths/plugin.yaml#/PluginCollection'
+  /enterprise/admin/v1/plugins/{pluginPackageId}:
+    $ref: './paths/plugin.yaml#/PluginPackageDelete'
+  /enterprise/admin/v1/plugins/{pluginPackageId}/versions/{pluginVersionId}:
+    $ref: './paths/plugin.yaml#/PluginVersionDelete'
   /enterprise/admin/v1/plugins/versions:
     $ref: './paths/plugin.yaml#/PluginVersionRegistration'
   /enterprise/admin/v1/plugins/versions/{pluginVersionId}/actions/publish:

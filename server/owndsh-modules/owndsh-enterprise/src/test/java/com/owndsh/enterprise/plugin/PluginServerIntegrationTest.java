@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖真实 PostgreSQL 17/Flyway 最新迁移、三个活动用户、设备与插件 JDBC/application 服务。
- * [OUTPUT]: 验证登记/并发幂等、范围优先级、发布升级的双 revision 与精确迁移、安装授权、库存及审计失败全事务回滚。
+ * [INPUT]: 依赖真实 PostgreSQL 17/Flyway V36→V37 迁移、三个活动用户、设备与插件 JDBC/application 服务。
+ * [OUTPUT]: 验证登记/并发幂等、范围优先级、发布升级、删除的租户隔离/revision/关联清理/库存保留及审计失败回滚。
  * [POS]: T13 服务端纵向验收，跨越 domain、persistence 与 application 的真实事务边界。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -18,6 +18,7 @@ import com.owndsh.enterprise.plugin.application.EffectivePluginResolver;
 import com.owndsh.enterprise.plugin.application.PluginCatalogService;
 import com.owndsh.enterprise.plugin.application.PluginMutationContext;
 import com.owndsh.enterprise.plugin.application.PluginRuntimeService;
+import com.owndsh.enterprise.plugin.application.PluginResourceNotFoundException;
 import com.owndsh.enterprise.plugin.domain.DevicePluginInventory;
 import com.owndsh.enterprise.plugin.domain.PluginAssignment;
 import com.owndsh.enterprise.plugin.domain.PluginVersion;
@@ -68,7 +69,7 @@ class PluginServerIntegrationTest {
     @BeforeAll
     static void createDatabase() {
         database = PostgresTestDatabase.create("t13_plugin_server");
-        PostgresTestDatabase.migrate(database, null);
+        PostgresTestDatabase.migrate(database, "36");
         PostgresTestDatabase.insertActiveUser(
             database, ADMIN_USER, ADMIN_DEPT, "t13-admin", "T13 Admin"
         );
@@ -252,6 +253,65 @@ class PluginServerIntegrationTest {
         assertThat(store.findVersion(TENANT, versionFour.id()).orElseThrow()).isEqualTo(versionFour);
         assertThat(store.findPackageById(TENANT, packageId).orElseThrow().revision()).isEqualTo(emptySourceRevision);
         assertThat(store.listAssignments(TENANT, packageId)).containsExactlyElementsOf(afterUpgrade);
+
+        // ---- 删除以包 revision 保护版本与范围，失败必须回滚完整聚合 ----
+        long beforeDelete = revisions.current(TENANT);
+        var inventoryBeforeDelete = catalog.listInventory(TENANT, 0, 10);
+        // 已有目录、范围、库存和历史审计通过 V37 前向迁移保持原样。
+        long auditCount = jdbc.queryForObject("select count(*) from ent_audit_event", Long.class);
+        PostgresTestDatabase.migrate(database, null);
+        assertThat(jdbc.queryForObject("select count(*) from ent_audit_event", Long.class)).isEqualTo(auditCount);
+        assertThat(catalog.listInventory(TENANT, 0, 10)).containsExactlyElementsOf(inventoryBeforeDelete);
+        PluginMutationContext otherTenant = new PluginMutationContext(
+            "other", ADMIN_USER, mutation.requestId(), mutation.sourceIp(), mutation.userAgentHash());
+        assertThatThrownBy(() -> catalog.deletePackage(otherTenant, packageId, emptySourceRevision))
+            .isInstanceOf(PluginResourceNotFoundException.class);
+        assertThatThrownBy(() -> catalog.deleteVersion(otherTenant, packageId, publishedOne.id(), emptySourceRevision))
+            .isInstanceOf(PluginResourceNotFoundException.class);
+        assertThatThrownBy(() -> catalog.deletePackage(mutation, packageId, emptySourceRevision - 1))
+            .isInstanceOf(RevisionConflictException.class);
+        assertThatThrownBy(() -> catalog.deleteVersion(mutation, packageId, publishedOne.id(), -1))
+            .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> catalog.deleteVersion(mutation, packageId, publishedOne.id(), emptySourceRevision - 1))
+            .isInstanceOf(RevisionConflictException.class);
+
+        PluginVersion otherVersion = catalog.register(mutation, "@example/other", "1.0.0",
+            new PluginInstallation("@example/other@1.0.0", "Other", "", "", "", List.of())).version();
+        assertThatThrownBy(() -> catalog.deleteVersion(mutation, packageId, otherVersion.id(), emptySourceRevision))
+            .isInstanceOf(PluginResourceNotFoundException.class);
+        assertThatThrownBy(() -> failingCatalog.deleteVersion(mutation, packageId, publishedOne.id(), emptySourceRevision))
+            .isInstanceOf(IllegalStateException.class).hasMessage("forced audit rollback");
+        assertThatThrownBy(() -> failingCatalog.deletePackage(mutation, packageId, emptySourceRevision))
+            .isInstanceOf(IllegalStateException.class).hasMessage("forced audit rollback");
+        assertThat(store.listVersions(TENANT, packageId)).hasSize(4);
+        assertThat(store.listAssignments(TENANT, packageId)).containsExactlyElementsOf(afterUpgrade);
+        assertThat(store.findPackageById(TENANT, packageId).orElseThrow().revision()).isEqualTo(emptySourceRevision);
+        assertThat(revisions.current(TENANT)).isEqualTo(beforeDelete);
+        assertThat(jdbc.queryForObject("select count(*) from ent_audit_event where action='PLUGIN_DELETED'", Long.class)).isZero();
+
+        catalog.deleteVersion(mutation, packageId, publishedOne.id(), emptySourceRevision);
+        assertThat(store.findVersion(TENANT, publishedOne.id())).isEmpty();
+        assertThat(store.listVersions(TENANT, packageId)).hasSize(3);
+        assertThat(store.listAssignments(TENANT, packageId)).containsExactlyElementsOf(afterUpgrade.stream()
+            .filter(item -> item.pluginVersionId() != publishedOne.id()).toList());
+        assertThat(store.findPackageById(TENANT, packageId).orElseThrow().revision()).isEqualTo(emptySourceRevision + 1);
+        assertThat(revisions.current(TENANT)).isEqualTo(beforeDelete + 1);
+
+        catalog.deletePackage(mutation, packageId, emptySourceRevision + 1);
+        assertThat(store.findPackageById(TENANT, packageId)).isEmpty();
+        assertThat(store.listVersions(TENANT, packageId)).isEmpty();
+        assertThat(store.listAssignments(TENANT, packageId)).isEmpty();
+        assertThat(resolver.resolve(TENANT, OTHER_USER, OTHER_DEPT).assignments()).isEmpty();
+        assertThat(catalog.listInventory(TENANT, 0, 10)).containsExactlyElementsOf(inventoryBeforeDelete);
+        assertThat(store.findVersion(TENANT, otherVersion.id())).contains(otherVersion);
+        assertThat(revisions.current(TENANT)).isEqualTo(beforeDelete + 2);
+
+        catalog.deleteVersion(mutation, otherVersion.packageId(), otherVersion.id(), 0);
+        assertThat(store.findPackageById(TENANT, otherVersion.packageId())).isEmpty();
+        assertThat(jdbc.queryForObject("select count(*) from ent_audit_event where action='PLUGIN_DELETED'", Long.class)).isEqualTo(3);
+        assertThat(revisions.current(TENANT)).isEqualTo(beforeDelete + 3);
+        assertThat(catalog.register(mutation, "@example/t13-tools", "1.0.0", installation("1.0.0")).created()).isTrue();
+        assertThat(catalog.register(mutation, "@example/other", "1.0.0", otherVersion.installation()).created()).isTrue();
     }
 
     private static List<PluginCatalogService.RegistrationResult> concurrentRegistrations(

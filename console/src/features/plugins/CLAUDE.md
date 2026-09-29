@@ -4,8 +4,8 @@
 
 成员清单
 
-plugin-management-page.tsx: 通过生成 JSON API、Query 与产品表格管理插件版本/范围/设备；版本列表按 package 聚合为一行，历史版本弹窗保留新增、发布、退休操作，保存后刷新目录并衔接发布确认，提交版本及包双 revision，失败保留草稿并刷新列表；目录分页收集完整分类。
-plugin-management-page.test.tsx: 验证 npm 表单、package 聚合行与历史版本操作、资料继承、重复版本、保存后发布、双 revision 范围迁移、失败/冲突草稿保留和只读权限。
+plugin-management-page.tsx: 通过生成 JSON API、Query 与产品表格管理插件版本/范围/设备；版本列表按 package 聚合为一行，历史版本弹窗保留新增、发布、退休和单版本删除；主列表可删除整个插件；删除确认明确范围，以包 revision 防并发覆盖，提交期间阻止关闭及重复操作，保存后刷新目录并衔接发布确认，提交版本及包双 revision，失败保留草稿并刷新列表；目录分页收集完整分类。
+plugin-management-page.test.tsx: 验证 npm 表单、package 聚合行与历史版本操作、资料继承、重复版本、保存后发布、双 revision 范围迁移、失败/冲突草稿保留、删除确认/取消/重复提交拦截、历史刷新、删除冲突与只读权限。
 plugin-editors.tsx: 首次登记与新增版本共用 npm 包名/精确版本/简介/分类表单，新增时锁定包名并沿用隐藏展示元数据；安装目标固定由包名和版本生成，发布明确选择沿用某旧版 ACTIVE/INSTALLED 范围或仅发布，携带已查看的包 revision；分类多选/自定义、范围编辑与退休沿用现有组件。
 plugin-category-select.tsx: 采用 shadcn Combobox 同源 Base UI 多选原语，组合已有/常用分类、搜索、新名称创建和可删除标签，遵守 12 项/40 字符边界并隔离 Enter/Escape 与外层表单。
 plugin-category-select.test.tsx: 验证分类选择、创建、去重、删除、键盘与表单隔离、数量上限和跨目录分页复用。

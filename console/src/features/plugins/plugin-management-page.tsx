@@ -1,15 +1,17 @@
 /**
  * [INPUT]: 依赖生成的插件管理 operation、JSON 安装配置、成员目录、console 权限事实、TanStack Query、ProductDataTable 与插件编辑器，共享 lib/crypto 生成 HTTP/HTTPS 通用幂等键。
- * [OUTPUT]: 提供按插件聚合的版本/范围/设备三视图；历史版本仍可单独查看和操作。
+ * [OUTPUT]: 提供按插件聚合的版本/范围/设备三视图；包和历史版本删除须确认范围，并携带包 revision。
  * [POS]: features/plugins 的产品插件工作台；服务端负责目录、状态机和分配裁决，宿主负责包安装及依赖。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { useInfiniteQuery, useMutation, useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { useRouteContext } from '@tanstack/react-router';
-import { Archive, History, Send, Settings2, Plus } from 'lucide-react';
+import { Archive, History, Send, Settings2, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import {
+  deletePluginPackage,
+  deletePluginVersion,
   listPluginInventory,
   listPluginPackages,
   publishPluginVersion,
@@ -46,6 +48,7 @@ import {
 const SECTIONS = ['插件版本', '可见范围', '设备状态'] as const;
 
 type PluginPackageRow = PluginPackage & { latestVersion: PluginVersion };
+type PluginDeleteTarget = { pluginPackage: PluginPackage; version?: PluginVersion };
 
 type PluginAssignmentRow = PluginAssignment & {
   displayName: string;
@@ -176,7 +179,8 @@ function packageColumnsWithActions(
   onHistory: (pluginPackage: PluginPackageRow) => void,
   onPublish: (version: PluginVersion) => void,
   onRetire: (version: PluginVersion) => void,
-  onNewVersion: (version: PluginVersion) => void
+  onNewVersion: (version: PluginVersion) => void,
+  onDelete: (pluginPackage: PluginPackage) => void
 ): ReadonlyArray<ProductTableColumn<PluginPackageRow>> {
   return [...packageColumns, {
     id: 'actions',
@@ -201,8 +205,13 @@ function packageColumnsWithActions(
       <Button variant="quiet" size="xs" className="size-7 rounded-md p-0" disabled={disabled} aria-label={`退休 ${row.original.packageName}@${row.original.latestVersion.version}`} title="退休" onClick={() => onRetire(row.original.latestVersion)}>
         <Archive aria-hidden className="size-3.5" />
       </Button>
-    ) : null}</div>,
-    meta: { label: '操作', className: 'w-[145px]', cellClassName: 'w-[145px]' }
+    ) : null}
+      {canWrite ? <Button variant="quiet" size="xs" className="size-7 rounded-md p-0 text-red" disabled={disabled}
+        aria-label={`删除插件 ${row.original.packageName}`} title="删除插件" onClick={() => onDelete(row.original)}>
+        <Trash2 aria-hidden className="size-3.5" />
+      </Button> : null}
+    </div>,
+    meta: { label: '操作', className: 'w-[250px]', cellClassName: 'w-[250px]' }
   }];
 }
 
@@ -213,7 +222,8 @@ function PluginHistoryDialog({
   onClose,
   onPublish,
   onRetire,
-  onNewVersion
+  onNewVersion,
+  onDelete
 }: {
   pluginPackage: PluginPackage;
   disabled: boolean;
@@ -222,6 +232,7 @@ function PluginHistoryDialog({
   onPublish: (version: PluginVersion) => void;
   onRetire: (version: PluginVersion) => void;
   onNewVersion: (version: PluginVersion) => void;
+  onDelete: (version: PluginVersion) => void;
 }) {
   return <ProductDialog title={`${pluginPackage.displayName} · 历史版本`} onClose={onClose} className="max-w-[680px]">
     <div className="grid gap-2 p-5">
@@ -243,6 +254,10 @@ function PluginHistoryDialog({
             aria-label={`发布 ${pluginPackage.packageName}@${version.version}`} title="发布" onClick={() => onPublish(version)}><Send aria-hidden className="size-3.5" /></Button> : null}
           {version.status === 'PUBLISHED' ? <Button variant="quiet" size="xs" className="size-7 rounded-md p-0" disabled={disabled}
             aria-label={`退休 ${pluginPackage.packageName}@${version.version}`} title="退休" onClick={() => onRetire(version)}><Archive aria-hidden className="size-3.5" /></Button> : null}
+          <Button variant="quiet" size="xs" className="size-7 rounded-md p-0 text-red" disabled={disabled}
+            aria-label={`删除版本 ${pluginPackage.packageName}@${version.version}`} title="删除版本" onClick={() => onDelete(version)}>
+            <Trash2 aria-hidden className="size-3.5" />
+          </Button>
         </div> : null}
       </div>)}
     </div>
@@ -343,6 +358,7 @@ export function PluginManagementPage() {
   const [publishTarget, setPublishTarget] = useState<{ version: PluginVersion; pluginPackage: PluginPackage; sourceVersionId?: string }>();
   const [assignmentOpen, setAssignmentOpen] = useState(false);
   const [retireTarget, setRetireTarget] = useState<PluginVersion>();
+  const [deleteTarget, setDeleteTarget] = useState<PluginDeleteTarget>();
   const members = useMembers(section === '可见范围' || assignmentOpen);
   const packages = useInfiniteQuery({
     queryKey: ['plugins', 'packages'],
@@ -398,6 +414,25 @@ export function PluginManagementPage() {
     },
     onError: () => { void queryClient.invalidateQueries({ queryKey: ['plugins', 'packages'] }); }
   });
+  const deletion = useMutation({
+    mutationFn: async ({ pluginPackage, version }: PluginDeleteTarget) => {
+      const headers = { 'If-Match': pluginPackage.revision };
+      const result = version
+        ? await deletePluginVersion({ headers, path: { pluginPackageId: pluginPackage.id, pluginVersionId: version.id } })
+        : await deletePluginPackage({ headers, path: { pluginPackageId: pluginPackage.id } });
+      requireSuccess(result, '插件删除失败');
+    },
+    onSuccess: async () => {
+      setDeleteTarget(undefined);
+      await queryClient.invalidateQueries({ queryKey: ['plugins', 'packages'] });
+    },
+    onError: () => { void queryClient.invalidateQueries({ queryKey: ['plugins', 'packages'] }); }
+  });
+  function closeDelete() {
+    if (deletion.isPending) return;
+    setDeleteTarget(undefined);
+    deletion.reset();
+  }
   const saveAssignments = useMutation({
     mutationFn: async (value: PluginAssignmentValue) => {
       const result = await replacePluginAssignments({
@@ -435,14 +470,15 @@ export function PluginManagementPage() {
       ariaLabel="插件版本"
       columns={packageColumnsWithActions(
         canWrite,
-        changeVersion.isPending,
+        changeVersion.isPending || deletion.isPending,
         setHistoryTarget,
         (version) => {
           const pluginPackage = packageRows.find(item => item.id === version.packageId);
           if (pluginPackage) { changeVersion.reset(); setPublishTarget({ version, pluginPackage }); }
         },
         setRetireTarget,
-        (version) => { registration.reset(); setRegistrationBase(version); setRegistrationOpen(true); }
+        (version) => { registration.reset(); setRegistrationBase(version); setRegistrationOpen(true); },
+        (pluginPackage) => { deletion.reset(); setDeleteTarget({ pluginPackage }); }
       )}
       data={packageRows}
       emptyText="暂无插件版本"
@@ -529,7 +565,7 @@ export function PluginManagementPage() {
       {historyTarget ? <PluginHistoryDialog
         pluginPackage={historyTarget}
         canWrite={canWrite}
-        disabled={registration.isPending || changeVersion.isPending}
+        disabled={registration.isPending || changeVersion.isPending || deletion.isPending}
         onClose={() => setHistoryTarget(undefined)}
         onPublish={version => {
           setHistoryTarget(undefined);
@@ -546,6 +582,11 @@ export function PluginManagementPage() {
           registration.reset();
           setRegistrationBase(version);
           setRegistrationOpen(true);
+        }}
+        onDelete={version => {
+          setHistoryTarget(undefined);
+          deletion.reset();
+          setDeleteTarget({ pluginPackage: historyTarget, version });
         }}
       /> : null}
       {publishTarget ? <PublishPluginVersionDialog
@@ -564,6 +605,25 @@ export function PluginManagementPage() {
           onSave={(value) => saveAssignments.mutate(value)}
         />
       ) : null}
+      {deleteTarget ? <ProductDialog title={deleteTarget.version ? '删除插件版本' : '删除插件'} onClose={closeDelete}>
+        <div className="grid gap-4 p-5">
+          <p className="m-0 break-all text-sm text-ink">
+            确认删除 {deleteTarget.pluginPackage.packageName}{deleteTarget.version ? `@${deleteTarget.version.version}` : ''}？
+          </p>
+          <p className="m-0 text-[12.5px] text-ink-2">
+            {deleteTarget.version
+              ? '将删除此版本及其可见范围；如果这是最后一个版本，插件记录也会删除。'
+              : '将删除此插件的全部版本及可见范围。'}
+            删除后无法恢复，设备上已安装的插件不会卸载。
+          </p>
+          {deletion.error ? <p role="alert" className="m-0 rounded-md bg-red-tint px-3 py-2 text-[12.5px] text-red">{deletion.error.message}</p> : null}
+          <footer className="flex justify-end gap-2 border-t border-line pt-4">
+            <Button size="sm" autoFocus disabled={deletion.isPending} onClick={closeDelete}>取消</Button>
+            <Button variant="primary" size="sm" className="bg-red text-white" disabled={deletion.isPending}
+              onClick={() => deletion.mutate(deleteTarget)}>{deletion.isPending ? '删除中' : '确认删除'}</Button>
+          </footer>
+        </div>
+      </ProductDialog> : null}
       {retireTarget ? (
         <RetirePluginVersionDialog
           error={changeVersion.error?.message}

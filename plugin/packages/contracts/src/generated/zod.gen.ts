@@ -208,6 +208,7 @@ export const zAuditAuditAction = z.enum([
     'PLUGIN_REGISTERED',
     'PLUGIN_UPLOADED',
     'PLUGIN_PUBLISHED',
+    'PLUGIN_DELETED',
     'PLUGIN_ASSIGNED',
     'PLUGIN_DOWNLOADED',
     'PLUGIN_INVENTORY_REPORTED',
@@ -362,6 +363,7 @@ export const zPluginAuditMetadata = z.object({
         'UPLOAD',
         'PUBLISH',
         'RETIRE',
+        'DELETE',
         'ASSIGN',
         'DOWNLOAD',
         'INVENTORY'
@@ -2739,6 +2741,10 @@ export const zPluginAssignmentBatch = z.unknown();
 
 export const zPluginCollection = z.unknown();
 
+export const zPluginPackageDelete = z.unknown();
+
+export const zPluginVersionDelete = z.unknown();
+
 export const zPluginVersionPublish = z.unknown();
 
 export const zPluginVersionRegistration = z.unknown();
@@ -3962,6 +3968,33 @@ export const zListPluginPackagesQuery = z.object({
  * Plugin package page with versions.
  */
 export const zListPluginPackagesResponse = zPluginPluginPackageListResponse;
+
+export const zDeletePluginPackageHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zDeletePluginPackagePath = z.object({
+    pluginPackageId: zPluginPluginPackageId
+});
+
+/**
+ * Deleted resource identity.
+ */
+export const zDeletePluginPackageResponse = zIdentityDeletedResourceResponse;
+
+export const zDeletePluginVersionHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zDeletePluginVersionPath = z.object({
+    pluginPackageId: zPluginPluginPackageId,
+    pluginVersionId: zPluginPluginVersionId
+});
+
+/**
+ * Deleted resource identity.
+ */
+export const zDeletePluginVersionResponse = zIdentityDeletedResourceResponse;
 
 export const zRegisterPluginVersionBody = zPluginPluginRegistrationRequest;
 

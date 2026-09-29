@@ -1,5 +1,5 @@
 # [INPUT]: 依赖 plugin.yaml DTO 与根协议的 ID、cursor、revision、幂等键和统一错误响应
-# [OUTPUT]: 提供配置登记、发布/退休、原子发布并迁移旧版范围、库存及 runtime 分配/上报 Path Item
+# [OUTPUT]: 提供配置登记、发布/退休、原子发布并迁移旧版范围、包/版本删除、库存及 runtime 分配/上报 Path Item
 # [POS]: contracts/paths 的插件纵向分片，每次读取目录重算 assignment，客户端安装前必须重新读取授权
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -153,3 +153,44 @@ RuntimePluginInventory:
       '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
       '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
       '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+
+PluginPackageDelete:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/PluginPackageIdPath'
+  delete:
+    operationId: deletePluginPackage
+    description: Delete the package, all versions and assignments; keep device inventory and installed plugins. If-Match checks the package revision.
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    responses:
+      '200':
+        description: Deleted resource identity.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/DeletedResourceResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+
+PluginVersionDelete:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/PluginPackageIdPath'
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/PluginVersionIdPath'
+  delete:
+    operationId: deletePluginVersion
+    description: Delete only this version and its assignments; delete the empty package when no versions remain. Keep device inventory and installed plugins. If-Match checks the parent package revision, not the version revision.
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    responses:
+      '200':
+        description: Deleted resource identity.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/DeletedResourceResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}

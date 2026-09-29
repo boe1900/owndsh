@@ -610,7 +610,7 @@ export type EnterpriseErrorResponse = {
     error: EnterpriseError;
 };
 
-export type AuditAuditAction = 'LOGIN_SUCCEEDED' | 'LOGIN_FAILED' | 'LOGOUT' | 'IDENTITY_SOURCE_CHANGED' | 'USER_LINKED' | 'USER_UNLINKED' | 'DEVICE_ENROLLED' | 'DEVICE_HEARTBEAT' | 'DEVICE_REVOKED' | 'PROVIDER_CHANGED' | 'MODEL_CHANGED' | 'MODEL_GRANT_CHANGED' | 'MODEL_REQUEST_ACCEPTED' | 'MODEL_REQUEST_FINISHED' | 'QUOTA_CHANGED' | 'QUOTA_REJECTED' | 'RESERVATION_RECOVERED' | 'PLUGIN_REGISTERED' | 'PLUGIN_UPLOADED' | 'PLUGIN_PUBLISHED' | 'PLUGIN_ASSIGNED' | 'PLUGIN_DOWNLOADED' | 'PLUGIN_INVENTORY_REPORTED' | 'SESSION_BATCH_APPENDED' | 'SESSION_EXPORTED' | 'SESSION_RESTORED' | 'SESSION_CONTENT_READ' | 'SESSION_DELETED' | 'SESSION_EXPIRED' | 'ROLE_ASSIGNED' | 'USER_STATUS_CHANGED' | 'CONFIG_CHANGED';
+export type AuditAuditAction = 'LOGIN_SUCCEEDED' | 'LOGIN_FAILED' | 'LOGOUT' | 'IDENTITY_SOURCE_CHANGED' | 'USER_LINKED' | 'USER_UNLINKED' | 'DEVICE_ENROLLED' | 'DEVICE_HEARTBEAT' | 'DEVICE_REVOKED' | 'PROVIDER_CHANGED' | 'MODEL_CHANGED' | 'MODEL_GRANT_CHANGED' | 'MODEL_REQUEST_ACCEPTED' | 'MODEL_REQUEST_FINISHED' | 'QUOTA_CHANGED' | 'QUOTA_REJECTED' | 'RESERVATION_RECOVERED' | 'PLUGIN_REGISTERED' | 'PLUGIN_UPLOADED' | 'PLUGIN_PUBLISHED' | 'PLUGIN_DELETED' | 'PLUGIN_ASSIGNED' | 'PLUGIN_DOWNLOADED' | 'PLUGIN_INVENTORY_REPORTED' | 'SESSION_BATCH_APPENDED' | 'SESSION_EXPORTED' | 'SESSION_RESTORED' | 'SESSION_CONTENT_READ' | 'SESSION_DELETED' | 'SESSION_EXPIRED' | 'ROLE_ASSIGNED' | 'USER_STATUS_CHANGED' | 'CONFIG_CHANGED';
 
 export type AuditAuditActorType = 'USER' | 'SYSTEM';
 
@@ -720,7 +720,7 @@ export type ModelGrantChangeAuditMetadata = {
 };
 
 export type PluginAuditMetadata = {
-    operation: 'REGISTER' | 'UPLOAD' | 'PUBLISH' | 'RETIRE' | 'ASSIGN' | 'DOWNLOAD' | 'INVENTORY';
+    operation: 'REGISTER' | 'UPLOAD' | 'PUBLISH' | 'RETIRE' | 'DELETE' | 'ASSIGN' | 'DOWNLOAD' | 'INVENTORY';
     resourceRevision: number;
     bootstrapRevision: number;
     itemCount: number;
@@ -2503,6 +2503,10 @@ export type AdminPluginInventory = unknown;
 export type PluginAssignmentBatch = unknown;
 
 export type PluginCollection = unknown;
+
+export type PluginPackageDelete = unknown;
+
+export type PluginVersionDelete = unknown;
 
 export type PluginVersionPublish = unknown;
 
@@ -6103,6 +6107,105 @@ export type ListPluginPackagesResponses = {
 };
 
 export type ListPluginPackagesResponse = ListPluginPackagesResponses[keyof ListPluginPackagesResponses];
+
+export type DeletePluginPackageData = {
+    body?: never;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        pluginPackageId: PluginPluginPackageId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/plugins/{pluginPackageId}';
+};
+
+export type DeletePluginPackageErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type DeletePluginPackageError = DeletePluginPackageErrors[keyof DeletePluginPackageErrors];
+
+export type DeletePluginPackageResponses = {
+    /**
+     * Deleted resource identity.
+     */
+    200: IdentityDeletedResourceResponse;
+};
+
+export type DeletePluginPackageResponse = DeletePluginPackageResponses[keyof DeletePluginPackageResponses];
+
+export type DeletePluginVersionData = {
+    body?: never;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        pluginPackageId: PluginPluginPackageId;
+        pluginVersionId: PluginPluginVersionId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/plugins/{pluginPackageId}/versions/{pluginVersionId}';
+};
+
+export type DeletePluginVersionErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type DeletePluginVersionError = DeletePluginVersionErrors[keyof DeletePluginVersionErrors];
+
+export type DeletePluginVersionResponses = {
+    /**
+     * Deleted resource identity.
+     */
+    200: IdentityDeletedResourceResponse;
+};
+
+export type DeletePluginVersionResponse = DeletePluginVersionResponses[keyof DeletePluginVersionResponses];
 
 export type RegisterPluginVersionData = {
     body: PluginPluginRegistrationRequest;

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖插件编辑器/管理页、生成 SDK、Query 与 Testing Library，HTTP 使用可控响应。
- * [OUTPUT]: 验证 npm 表单、插件聚合行、历史版本操作、保存后发布衔接、双 revision 范围迁移和失败草稿保留。
+ * [OUTPUT]: 验证 npm 表单、历史操作、发布迁移及删除确认、取消、防重复提交、包 revision、失败保留和只读权限。
  * [POS]: features/plugins 的升级交互回归；真实事务与规则保留由服务端 PostgreSQL 验收。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -25,10 +25,14 @@ let pluginPackage: PluginPackage;
 let writes: Array<{ path: string; revision: string | null; body?: unknown }>;
 let saveFailure = false;
 let publishConflict = false;
+let deleteConflict = false;
+let deleteWait: Promise<void> | undefined;
+let packageDeleted = false;
 
 beforeEach(() => {
   access.permissions = ['ent:plugin:read', 'ent:plugin:write'];
   writes = []; saveFailure = false; publishConflict = false;
+  deleteConflict = false; deleteWait = undefined; packageDeleted = false;
   pluginPackage = {
     id: '1', packageName: base.packageName, displayName: base.installation.displayName, status: 'ACTIVE', revision: 7,
     versions: [{ ...base, id: '12', version: '1.1.0', installation: { ...base.installation, spec: '@company/plugin@1.1.0' } }, structuredClone(base)],
@@ -43,6 +47,21 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn(async (request: Request) => {
     const path = new URL(request.url).pathname;
     const respond = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+    if (request.method === 'DELETE') {
+      writes.push({ path, revision: request.headers.get('If-Match') });
+      await deleteWait;
+      if (deleteConflict) {
+        pluginPackage = { ...pluginPackage, revision: 8 };
+        return respond({ error: { code: 'ENT_REVISION_CONFLICT', message: '插件已被修改，请关闭后重试。' } }, 409);
+      }
+      const id = path.split('/').at(-1);
+      if (path.includes('/versions/')) {
+        pluginPackage = { ...pluginPackage, revision: pluginPackage.revision + 1,
+          versions: pluginPackage.versions.filter(version => version.id !== id),
+          assignments: pluginPackage.assignments.filter(assignment => assignment.pluginVersionId !== id) };
+      } else packageDeleted = true;
+      return respond({ data: { id, deleted: true } });
+    }
     if (request.method === 'POST') {
       const text = await request.text();
       const body = text ? JSON.parse(text) : undefined;
@@ -59,7 +78,7 @@ beforeEach(() => {
       }
       throw new Error(`Unexpected write: ${path}`);
     }
-    return respond({ data: { items: path.endsWith('/plugins') ? [pluginPackage] : [], page: { hasMore: false, nextCursor: null, limit: 100 } } });
+    return respond({ data: { items: path.endsWith('/plugins') && !packageDeleted ? [pluginPackage] : [], page: { hasMore: false, nextCursor: null, limit: 100 } } });
   }));
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
@@ -174,9 +193,69 @@ it('allows publication without moving scopes and retains the empty first-registr
   expect(screen.queryByLabelText('作者')).toBeNull();
 });
 
-it('does not expose version creation to read-only administrators', async () => {
+it('requires confirmation for package deletion, allows cancellation, and blocks duplicate submits and closing while pending', async () => {
+  let finish!: () => void;
+  deleteWait = new Promise(resolve => { finish = resolve; });
+  show();
+  fireEvent.click(await screen.findByRole('button', { name: '删除插件 @company/plugin' }));
+  expect(screen.getByRole('dialog', { name: '删除插件' }).textContent).toContain('全部版本及可见范围');
+  expect(writes).toHaveLength(0);
+  fireEvent.click(screen.getByRole('button', { name: '取消' }));
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(writes).toHaveLength(0);
+  fireEvent.click(screen.getByRole('button', { name: '删除插件 @company/plugin' }));
+  fireEvent.click(screen.getByRole('button', { name: '确认删除' }));
+  const pending = await screen.findByRole('button', { name: '删除中' });
+  expect(pending).toHaveProperty('disabled', true);
+  expect(screen.getByRole('button', { name: '取消' })).toHaveProperty('disabled', true);
+  fireEvent.click(pending);
+  fireEvent.click(screen.getByRole('button', { name: '关闭' }));
+  fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+  expect(screen.getByRole('dialog')).toBeDefined();
+  expect(writes).toEqual([{ path: '/enterprise/admin/v1/plugins/1', revision: '7' }]);
+  finish();
+  await screen.findByText('暂无插件版本');
+  expect(screen.queryByRole('dialog')).toBeNull();
+});
+
+it('deletes only the selected historical version with the package revision and refreshes remaining history', async () => {
+  show();
+  fireEvent.click(await screen.findByRole('button', { name: '查看 @company/plugin 历史版本' }));
+  fireEvent.click(screen.getByRole('button', { name: '删除版本 @company/plugin@1.0.0' }));
+  const dialog = screen.getByRole('dialog', { name: '删除插件版本' });
+  expect(dialog.textContent).toContain('@company/plugin@1.0.0');
+  expect(dialog.textContent).toContain('此版本及其可见范围');
+  expect(writes).toHaveLength(0);
+  fireEvent.click(screen.getByRole('button', { name: '确认删除' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  expect(writes).toEqual([{ path: '/enterprise/admin/v1/plugins/1/versions/11', revision: '7' }]);
+  fireEvent.click(screen.getByRole('button', { name: '查看 @company/plugin 历史版本' }));
+  await waitFor(() => expect(screen.queryByRole('button', { name: '删除版本 @company/plugin@1.0.0' })).toBeNull());
+  expect(screen.getByRole('button', { name: '删除版本 @company/plugin@1.1.0' })).toBeDefined();
+});
+
+it('retains the delete target on conflict and requires reopening to review the refreshed package', async () => {
+  deleteConflict = true;
+  show();
+  fireEvent.click(await screen.findByRole('button', { name: '删除插件 @company/plugin' }));
+  fireEvent.click(screen.getByRole('button', { name: '确认删除' }));
+  expect(await screen.findByRole('alert')).toHaveProperty('textContent', '插件已被修改，请关闭后重试。');
+  expect(screen.getByRole('dialog', { name: '删除插件' }).textContent).toContain('@company/plugin');
+  expect(writes).toEqual([{ path: '/enterprise/admin/v1/plugins/1', revision: '7' }]);
+  fireEvent.click(screen.getByRole('button', { name: '取消' }));
+  deleteConflict = false;
+  fireEvent.click(screen.getByRole('button', { name: '删除插件 @company/plugin' }));
+  expect(screen.queryByRole('alert')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: '确认删除' }));
+  await screen.findByText('暂无插件版本');
+  expect(writes[1]?.revision).toBe('8');
+});
+
+it('does not expose writes to read-only administrators in the list or history', async () => {
   access.permissions = ['ent:plugin:read'];
   show();
   await screen.findByText('1.1.0');
-  expect(screen.queryByRole('button', { name: /新增版本|添加插件|发布 @/ })).toBeNull();
+  expect(screen.queryByRole('button', { name: /新增版本|添加插件|发布 @|删除/ })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: '查看 @company/plugin 历史版本' }));
+  expect(screen.queryByRole('button', { name: /新增版本|发布 @|退休 @|删除/ })).toBeNull();
 });
