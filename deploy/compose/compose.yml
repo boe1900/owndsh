@@ -1,4 +1,4 @@
-# [INPUT]: 依赖带默认值的环境变量、PostgreSQL、Redis 两个持久卷、可写临时目录与锁定 Linux amd64 镜像。
+# [INPUT]: 依赖带默认值的环境变量、PostgreSQL、Redis 两个持久卷、可写临时目录与锁定 Linux amd64/arm64 镜像。
 # [OUTPUT]: 提供默认拉取 GHCR next 镜像、`admin/owndsh` 幂等初始化、应用日志仅写 stdout/stderr、HTTP Console、单 Server、PostgreSQL 17.6 和 Redis 7.4.5 拓扑。
 # [POS]: T21 部署运行时事实源；OwnDsh 不终止 TLS，PostgreSQL 创建数据库与账号，Server 内 Flyway 执行 V0 基础初始化及后续版本。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -8,7 +8,6 @@ name: ${OWNDSH_COMPOSE_PROJECT_NAME:-owndsh}
 services:
   postgres:
     image: ${OWNDSH_BASE_IMAGE_REGISTRY:-docker.io/library}/postgres:17.6-alpine3.22@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
-    platform: linux/amd64
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${ENT_POSTGRES_DATABASE:-owndsh}
@@ -28,7 +27,6 @@ services:
 
   redis:
     image: ${OWNDSH_BASE_IMAGE_REGISTRY:-docker.io/library}/redis:7.4.5-alpine3.21@sha256:bb186d083732f669da90be8b0f975a37812b15e913465bb14d845db72a4e3e08
-    platform: linux/amd64
     restart: unless-stopped
     environment:
       REDIS_PASSWORD: ${ENT_REDIS_PASSWORD:-owndsh}
@@ -49,7 +47,6 @@ services:
 
   server:
     image: ${OWNDSH_SERVER_IMAGE:-ghcr.io/boe1900/owndsh-server:next}
-    platform: linux/amd64
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: deploy
@@ -91,7 +88,6 @@ services:
 
   console:
     image: ${OWNDSH_CONSOLE_IMAGE:-ghcr.io/boe1900/owndsh-console:next}
-    platform: linux/amd64
     user: "101:101"
     restart: unless-stopped
     ports:

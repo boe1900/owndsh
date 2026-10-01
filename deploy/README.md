@@ -7,7 +7,7 @@
 
 # OwnDsh 部署与运维
 
-普通联网环境直接使用根目录 [Docker Compose 快速开始](../README.md#docker-compose-部署)，从 GHCR 拉取 `next` 前后端镜像。本文后续内容面向需要离线制品、完整校验、备份恢复与应用回滚的单机 Linux `amd64` 环境。
+普通联网环境直接使用根目录 [Docker Compose 快速开始](../README.md#docker-compose-部署)，从 GHCR 拉取 `next` 前后端多架构镜像。本文后续离线制品、完整校验、备份恢复与应用回滚内容面向单机 Linux `amd64` 环境。
 
 两种方式共用同一生产 Compose 拓扑。对外只有 Console 的 HTTP `8080`；Server、PostgreSQL 和 Redis 没有宿主端口。Console 与管理 API 同域。OwnDsh 不管理证书或终止 TLS；需要 HTTPS 时，由部署方现有的 Nginx、Ingress、负载均衡或零信任网关代理到该 HTTP 入口。
 

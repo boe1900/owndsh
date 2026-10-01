@@ -15,13 +15,13 @@ HTTP 拓扑收敛日期：2026-09-04（Asia/Shanghai）
 
 ## 结论
 
-当前 Linux `amd64` release 的 Compose 只通过 Console 发布 HTTP `8080`；Nginx 提供静态资源、API/SSE 代理和健康检查，不管理证书、TLS 或 HSTS。需要 HTTPS 时由部署方已有 Nginx、Ingress 或负载均衡在外层终止。一次性初始化管理员、部署 secret、数据与 key 分离备份、恢复、前向升级和仅应用回滚保持不变。
+当前 Linux `amd64`/`arm64` Compose 只通过 Console 发布 HTTP `8080`；离线 release 仍为 Linux `amd64`。Nginx 提供静态资源、API/SSE 代理和健康检查，不管理证书、TLS 或 HSTS。需要 HTTPS 时由部署方已有 Nginx、Ingress 或负载均衡在外层终止。一次性初始化管理员、部署 secret、数据与 key 分离备份、恢复、前向升级和仅应用回滚保持不变。
 
 2026-08-20 曾对旧 TLS 拓扑完整执行全新安装、无 bootstrap overlay 重启、数据/key 恢复、`0.1.0 -> 0.1.1` 升级和应用回滚；这些证据继续证明数据与运维脚本边界，但不证明 2026-09-04 的 HTTP 镜像已重新构建并完成全量安装。当前 HTTP 收敛只记录本轮实际运行的静态 Compose、脚本、协议和认证回归。
 
 ## 核心实现
 
-- `deploy/compose/compose.yml` 固定 PostgreSQL 17.6、Redis 7.4.5 及全部 build/runtime 基础镜像 digest，强制 `linux/amd64`。PostgreSQL、Redis 和 Server 不发布宿主端口；Console 只发布 HTTP `8080`，Server/Console 使用只读根文件系统、最小 capability、`no-new-privileges`、tmpfs 和健康检查。
+- `deploy/compose/compose.yml` 固定 PostgreSQL 17.6、Redis 7.4.5 及全部 build/runtime 基础镜像多架构 digest，按宿主选择 `linux/amd64` 或 `linux/arm64`。PostgreSQL、Redis 和 Server 不发布宿主端口；Console 只发布 HTTP `8080`，Server/Console 使用只读根文件系统、最小 capability、`no-new-privileges`、tmpfs 和健康检查。
 - `deploy/nginx/nginx.conf` 提供 HTTP 同源入口，规范传递可选上级代理的 HTTP(S) 协议与端口，模型 SSE 关闭 buffering。Nginx 全部临时目录位于 `/tmp`，因此只读根文件系统可正常运行。
 - 唯一 `application.yml` 通过环境变量消费 PostgreSQL、Redis、JWT、master/signing key 与 bootstrap 配置，默认只暴露无详情 health，并关闭 OpenAPI、消息和 API 加密样例能力。
 - Flyway V12 仅在匹配上游精确已知 hash 时退役 `admin/test/test1` 与两个已知 client，不删除用户主键；新增 `password_change_required` 和无 secret 的 `ent_deployment_state`。

@@ -34,7 +34,7 @@ OwnDsh 不 fork 官方 Harness Web UI，不接管员工工作区，也不远程�
 
 ## Docker Compose 部署
 
-当前镜像目标为 Linux `amd64`。准备 Docker Engine、Docker Compose `2.20.3+` 和 Git。
+当前镜像目标为 Linux `amd64` 和 `arm64`。准备 Docker Engine、Docker Compose `2.20.3+` 和 Git。
 
 ### 1. 启动
 

@@ -8,7 +8,7 @@ server/ - OwnDsh 后端锁定源码，T03 起承载 owndsh-enterprise 模块
 console/ - 第二阶段独立 Vite/TanStack 产品控制台，使用静态路由与 OpenAPI Fetch client，不依赖旧 Umi 管理端
 website/ - 独立零依赖静态官网，复用品牌与真实产品截图，以 Node 白名单构建发布到 Cloudflare Pages，不依赖控制台或后端运行时
 contracts/ - OpenAPI 3.1 协议真源、跨语言 schema 和 fixture 验收
-deploy/ - Linux amd64 单机 release、HTTP Compose、一次性初始化与备份/恢复/升级/回滚交付；TLS 由部署方终止
+deploy/ - Linux amd64/arm64 单机 Compose 与 amd64 离线 release、一次性初始化与备份/恢复/升级/回滚交付；TLS 由部署方终止
 docs/ - 产品预研、MVP 实施规格与逐任务验收证据
 plugin/ - 独立 pnpm workspace，构建标准 `owndsh-plugin`；独立安装或由外部 owndsh-desktop 消费 npm 包；OwnDsh 设置提供企业插件目录，官方插件页保留自由安装与配置，安装事实归官方 Host
 scripts/ - 开发环境初始化脚本（PowerShell、POSIX shell）
