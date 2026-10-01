@@ -21,7 +21,7 @@ public record McpServer(
     long id, String tenantId, String serverName, String displayName, String description,
     String transport, String url, boolean allowInsecureTransport, Map<String, String> headers,
     Map<String, Object> auth, int toolCallTimeoutMs, Map<String, Object> reconnect,
-    String presentation, Status status, long revision,
+    Status status, long revision,
     long createdBy, Instant createdAt, Instant updatedAt
 ) {
     private static final Pattern NAME = Pattern.compile("^[a-z][a-z0-9_-]*$");
@@ -42,7 +42,6 @@ public record McpServer(
         headers = Map.copyOf(Objects.requireNonNull(headers, "headers"));
         auth = Map.copyOf(Objects.requireNonNull(auth, "auth")); validateAuth(auth); validateHeaders(headers, auth); reconnect = Map.copyOf(Objects.requireNonNull(reconnect, "reconnect"));
         if (toolCallTimeoutMs < 1000 || toolCallTimeoutMs > 300000) throw new IllegalArgumentException("MCP timeout 非法");
-        if (!presentation.equals("search") && !presentation.equals("full")) throw new IllegalArgumentException("MCP presentation 非法");
         Objects.requireNonNull(status, "status"); Objects.requireNonNull(createdAt, "createdAt"); Objects.requireNonNull(updatedAt, "updatedAt");
     }
 

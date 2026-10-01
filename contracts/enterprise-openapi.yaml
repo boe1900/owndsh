@@ -847,7 +847,6 @@ components:
     McpServerId: {$ref: './components/mcp.yaml#/McpServerId'}
     McpServerStatus: {$ref: './components/mcp.yaml#/McpServerStatus'}
     McpTransport: {$ref: './components/mcp.yaml#/McpTransport'}
-    McpPresentation: {$ref: './components/mcp.yaml#/McpPresentation'}
     McpAuth: {$ref: './components/mcp.yaml#/McpAuth'}
     McpReconnectPolicy: {$ref: './components/mcp.yaml#/McpReconnectPolicy'}
     McpServerCreateRequest: {$ref: './components/mcp.yaml#/McpServerCreateRequest'}

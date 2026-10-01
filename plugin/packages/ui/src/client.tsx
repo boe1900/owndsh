@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖官方 slots/remote/connection 生命周期事件与 EnterpriseAccountStore，不创建传输连接
- * [OUTPUT]: 注册 OwnDsh 设置与访问门禁；企业市场放在设置的插件 tab，官方插件页独立提供自由安装和配置
- * [POS]: dsh-ui 的浏览器组合根，只向 React 注入共享脱敏 store，不传递 Host Context
+ * [INPUT]: 依赖官方 slots/remote/configForms/connection 生命周期事件与 EnterpriseAccountStore，不创建传输连接
+ * [OUTPUT]: 注册 OwnDsh 设置与访问门禁；企业市场放在设置的插件 tab，MCP exposure 通过官方 configForms 写入，官方插件页独立提供自由安装和配置
+ * [POS]: dsh-ui 的浏览器组合根，只向 React 注入共享脱敏 store、插件管理器和配置表单，不传递 Host Context
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -10,6 +10,7 @@ import { EnterpriseAccountStore } from './account-store.js'
 import {
   EnterpriseAccessGate,
   EnterpriseSettingsSection,
+  type EnterpriseConfigForm,
 } from './account-view.js'
 import { createEnterpriseLocalApi } from './local-api.js'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
@@ -20,6 +21,9 @@ interface ClientRuntime {
     register(options: Readonly<Record<string, unknown>>, component: (props: never) => ReactNode): unknown
   }
   readonly remote: ClientContext['remote']
+  readonly configForms: {
+    get(namespace: string): EnterpriseConfigForm
+  }
   effect(effect: () => () => void, label: string): void
   on(event: string, listener: () => void): () => void
 }
@@ -31,7 +35,7 @@ export * from './plugin-market.js'
 
 /** Required Client service; target declaration lifetime is handled by `slots.inject()`. */
 export const inject = [
-  'slots', 'remote', 'remote.pluginManager',
+  'slots', 'remote', 'remote.pluginManager', 'configForms',
 ]
 
 /** 企业设置与门禁共享账号状态，插件操作委托官方 Remote。 */
@@ -53,7 +57,11 @@ export function apply(ctx: ClientContext): void {
     id: 'enterprise',
     order: 25,
     label: 'OwnDsh 设置',
-    inject: () => ({ store, pluginManager: runtime.remote.pluginManager }),
+    inject: () => ({
+      store,
+      pluginManager: runtime.remote.pluginManager,
+      configForm: runtime.configForms.get('owndsh'),
+    }),
   }, EnterpriseSettingsSection as (props: never) => ReactNode))
   runtime.slots.inject('shell.overlay', () => runtime.slots.register({
     name: 'shell.overlay',

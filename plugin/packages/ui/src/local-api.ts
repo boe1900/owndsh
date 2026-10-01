@@ -24,6 +24,7 @@ export const ENTERPRISE_CONNECTION_STATES = [
 ] as const
 
 export type EnterpriseConnectionState = typeof ENTERPRISE_CONNECTION_STATES[number]
+export type McpExposure = 'codemode' | 'deferred' | 'direct' | 'hidden'
 
 export interface EnterpriseStatusUser {
   readonly id: string
@@ -61,14 +62,13 @@ export interface EnterprisePluginStatus {
 export interface EnterpriseMcpAssignment {
   readonly serverName: string
   readonly displayName: string
-  readonly presentation: 'search' | 'full'
   readonly authType: 'none' | 'api-key' | 'oauth'
   readonly configured: boolean
   readonly desiredConnected?: boolean
   readonly connected?: boolean
   readonly discoveredToolCount?: number
-  readonly tools?: readonly { readonly name: string; readonly description: string }[]
-  readonly effectivePresentation?: 'search' | 'full'
+  readonly exposure?: McpExposure
+  readonly tools?: readonly { readonly name: string; readonly description: string; readonly exposure?: McpExposure }[]
   readonly errorCode?: 'MCP_BUDGET_EXCEEDED' | 'MCP_CLEANUP_REQUIRED' | 'MCP_AUTH_REQUIRED'
 }
 
@@ -261,23 +261,23 @@ function decodeMcpStatus(value: unknown): EnterpriseMcpStatus {
   }
   const assignments = source['assignments'].map(item => {
     const row = record(item)
-    if (row === undefined || !hasExactKeys(row, ['serverName', 'displayName', 'presentation', 'authType', 'configured'], ['connected', 'desiredConnected', 'discoveredToolCount', 'tools', 'effectivePresentation', 'errorCode'])
+    if (row === undefined || !hasExactKeys(row, ['serverName', 'displayName', 'authType', 'configured'], ['connected', 'desiredConnected', 'discoveredToolCount', 'exposure', 'tools', 'errorCode'])
       || !nonEmptyString(row['serverName']) || !nonEmptyString(row['displayName'])
-      || !(['search', 'full'] as const).includes(row['presentation'] as 'search' | 'full')
       || !(['none', 'api-key', 'oauth'] as const).includes(row['authType'] as 'none' | 'api-key' | 'oauth')
       || typeof row['configured'] !== 'boolean'
       || (row['desiredConnected'] !== undefined && typeof row['desiredConnected'] !== 'boolean')
       || (row['connected'] !== undefined && typeof row['connected'] !== 'boolean')
       || (row['discoveredToolCount'] !== undefined && (!Number.isSafeInteger(row['discoveredToolCount']) || (row['discoveredToolCount'] as number) < 0 || (row['discoveredToolCount'] as number) > 512))
-      || (row['effectivePresentation'] !== undefined && !['search', 'full'].includes(row['effectivePresentation'] as string))
       || (row['errorCode'] !== undefined && !['MCP_BUDGET_EXCEEDED', 'MCP_CLEANUP_REQUIRED', 'MCP_AUTH_REQUIRED'].includes(row['errorCode'] as string))) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+    if (row['exposure'] !== undefined && !['codemode', 'deferred', 'direct', 'hidden'].includes(row['exposure'] as string)) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
     if (row['tools'] !== undefined) {
       if (!Array.isArray(row['tools']) || row['tools'].length > 512 || row['tools'].length !== row['discoveredToolCount']) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
       const names = new Set<string>()
       for (const value of row['tools']) {
         const tool = record(value)
-        if (tool === undefined || !hasExactKeys(tool, ['name', 'description']) || !nonEmptyString(tool['name'])
+        if (tool === undefined || !hasExactKeys(tool, ['name', 'description'], ['exposure']) || !nonEmptyString(tool['name'])
           || tool['name'].length > 16 * 1024 || typeof tool['description'] !== 'string' || tool['description'].length > 16 * 1024
+          || (tool['exposure'] !== undefined && !['codemode', 'deferred', 'direct', 'hidden'].includes(tool['exposure'] as string))
           || names.has(tool['name'])) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
         names.add(tool['name'])
       }

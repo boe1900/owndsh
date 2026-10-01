@@ -5,9 +5,9 @@
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
 
-# MCP 开发任务与验收
+# MCP 开发任务与验收（历史基线）
 
-先读 [公共契约](mcp-management-design.md)，再读 [运行时规格](mcp-runtime-design.md)。本文件按依赖顺序直接开工；MCP transport/resources/OAuth 均以官方 Harness 与 MCP SDK v2 为唯一实现真源。
+先读 [Pi 适配设计](mcp-pi-adaptation-design.md)，再读 [公共契约](mcp-management-design.md) 与 [运行时规格](mcp-runtime-design.md)。本文件保留已完成连接/OAuth/资源验收记录；曝光、检索和 DSH 模式矩阵以 Pi 适配设计与当前代码为准。下方带日期的旧记录是当时事实，不代表当前 full/search、Orama 或 release 语义。
 
 2026-09-24 0.1.7-rc.1 收口：官方 MCP client/resources、SettingsForms 和 pluginManager 已切换到目标版本；15 个模块测试文件、136 条 Vitest、TypeScript 检查和 Bundle 构建通过。Web/MCP 行为证据见 [0.1.7-rc.1 报告](dsh-017-rc1-compatibility-20260924.md)；本轮未把 Desktop 原生外壳作为目标证据。MCP 尚未上线，不保留旧开发版凭据兼容。
 
@@ -107,7 +107,7 @@ node scripts/mcp-design-spike.mjs /absolute/path/to/built/deepseek-harness
 
 1. 新mcp-runtime包，平台READY订阅、单flight snapshot、60秒lease与generation。
 2. 用户settings连接意愿；Key专用credential payload；独立child fiber挂载官方client。
-3. 统一tools准入predicate/guard、目录snapshot；在发布可执行MCP前先装guard和presentation，杜绝启动期间全量暴露窗口。
+3. 统一tools准入predicate/guard、目录snapshot；在发布可执行MCP前先装guard和曝光过滤，杜绝启动期间全量暴露窗口。
 4. assignment差异处理、首次失败隔离、掉线/停用/退出、timeout/drain/cleanup。
 5. 同源local API支持connect/pause/disconnect/reconnect，先用无UI HTTP测试链路。
 6. candidate 目录仅用于诊断；Tool 能力由端侧动态发现和 Host 安全策略决定。
@@ -119,8 +119,8 @@ node scripts/mcp-design-spike.mjs /absolute/path/to/built/deepseek-harness
 前置：02已能安全连接注册。此阶段是第一版必需项，不后置到“规模大了再做”。
 
 1. 端侧 Tool metadata 采用稳定 canonical 结构；目录仅用于诊断。
-2. search工具：输入验证、Unicode/英文拆词、名称/描述权重、稳定排序；返回compact metadata。
-3. WeakMap<Agent,LoadedSet>去重累加，mcp_tool_release显式释放；presented固定本步调用许可，删除16工具/64KiB及LRU。
+2. `tool_search`：复用 Pi 英文 tokenizer、schema 文档构造与 BM25；返回 compact metadata。
+3. WeakMap<Agent,SelectedSet> 去重累加；选择只在下一轮 assembly 生效，presented 固定本步调用许可，不提供 release。
 4. 修改assembly.tools并以官方renderer替换tools:sdk，保留run_code及非受管工具与PTC-only指导。
 5. 现有scope restrict交集、session/fork/resume冷启动、撤权/变更移出hot。
 6. 真实LLM适配器的捕获服务断言wire payload，而不只测试中间数组。
@@ -219,13 +219,13 @@ node scripts/mcp-design-spike.mjs /absolute/path/to/built/deepseek-harness
 
 | ID | 输入/故障 | 必须观察到 |
 |---|---|---|
-| P01 | 连接含100个工具，新agent | 冷启动请求仅search/release控制工具，没有100个schema |
-| P02 | search命中5个 | 下一次推理仅加载5个；search返回不重复带完整schema |
+| P01 | 连接含100个工具，新agent | 冷启动请求仅 `tool_search` 控制工具，没有100个schema |
+| P02 | `tool_search` 命中5个 | 下一次推理仅加载5个；搜索返回不重复带完整schema |
 | P03 | A会话热5个，B会话冷 | B请求无A的schema，连接实例不重复建立 |
 | P04 | native/ptc/both × TS/Python renderer | wire schema和SDK均过滤，run_code与非MCP能力保留 |
 | P05 | 中文查询、alias、无结果、server过滤 | 不退成前N项；stable排序；不泄露未授权工具名 |
 | P06 | hot工具撤权/摘要改变/远端删除 | 后续请求移除，旧历史name调用被guard拒绝 |
-| P07 | 多次搜索累计24个/超过64KiB/多个full服务/显式释放 | 无隐式淘汰或降级；去重累加，释放仅下步生效、可重搜、full不释放 |
+| P07 | 多次搜索累计24个/多个服务 | 无隐式淘汰或降级；去重累加，选择仅下步生效，native/PTC/both 投影一致 |
 | P08 | description含HTML、NUL、`{{x}}`、代码围栏 | 无DOM执行、无模板变量注入、工具结构未被错误截断 |
 | P09 | 宿主重新组装请求、工具代次变化、其他 manager 改写 hook | OwnDsh 按当前授权和 Agent 热集合投影工具，不泄漏冷工具；不支持的呈现组合明确拒绝。Harness 压缩算法本身不属于本项验收 |
 | G01 | 实际standard/minimal及自定义restrict preset | 与Harness scope规则一致，broker不能绕过restrict |

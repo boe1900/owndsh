@@ -178,7 +178,7 @@ class McpGrantIntegrationTest {
                 {"serverName":"http-fixture","displayName":"HTTP fixture","description":"",
                  "transport":"streamable-http","url":"https://mcp.example.test","allowInsecureTransport":false,
                  "headers":{"X-Apifox-Api-Version":"2025-09-01"},"auth":{"type":"api-key","headerName":"Authorization"},"toolCallTimeoutMs":60000,
-                 "reconnect":{"enabled":true,"initialDelayMs":1000,"maxDelayMs":30000,"maxAttempts":5},"presentation":"search"}
+                 "reconnect":{"enabled":true,"initialDelayMs":1000,"maxDelayMs":30000,"maxAttempts":5}}
                 """))
             .andExpect(status().isCreated()).andExpect(jsonPath("$.data.id").isString())
             .andExpect(jsonPath("$.data.headers['X-Apifox-Api-Version']").value("2025-09-01"))
@@ -225,7 +225,7 @@ class McpGrantIntegrationTest {
              "transport":"streamable-http","url":"http://localhost:8090/mcp","allowInsecureTransport":true,
              "headers":{},"auth":{"type":"oauth","issuer":"http://auth.internal/auth","resource":"http://localhost:8090/mcp",
              "clientId":"public-client","scopes":["server"],"authorizationEndpoint":"http://auth.internal/auth/authorize","tokenEndpoint":"http://auth.internal/auth/token"},
-             "toolCallTimeoutMs":60000,"reconnect":{"enabled":true,"initialDelayMs":1000,"maxDelayMs":30000,"maxAttempts":5},"presentation":"search"}
+             "toolCallTimeoutMs":60000,"reconnect":{"enabled":true,"initialDelayMs":1000,"maxDelayMs":30000,"maxAttempts":5}}
             """;
         String response = mvc.perform(post("/enterprise/admin/v1/mcp-servers").header("Idempotency-Key", UUID.randomUUID())
             .contentType(MediaType.APPLICATION_JSON).content(body))
@@ -266,7 +266,7 @@ class McpGrantIntegrationTest {
             {"serverName":"headers-fixture","displayName":"Headers fixture","description":"",
              "transport":"streamable-http","url":"https://mcp.example.test","allowInsecureTransport":false,
              "headers":%s,"auth":%s,"toolCallTimeoutMs":60000,
-             "reconnect":{"enabled":true,"initialDelayMs":1000,"maxDelayMs":30000,"maxAttempts":5},"presentation":"search"}
+             "reconnect":{"enabled":true,"initialDelayMs":1000,"maxDelayMs":30000,"maxAttempts":5}}
             """;
         String auth = "{\"type\":\"api-key\",\"headerName\":\"X-Api-Key\"}";
         for (String headers : List.of("{\"Authorization\":\"test\"}", "{\"X-API-KEY\":\"test\"}", "{\"X-Version\":\"1\",\"x-version\":\"2\"}", "{\"Bad Header\":\"test\"}", "{\"X-Version\":\"bad\\r\\nvalue\"}")) {
@@ -398,7 +398,7 @@ class McpGrantIntegrationTest {
             {"serverName":"idempotent-mcp","displayName":"Idempotent MCP","description":"",
              "transport":"streamable-http","url":"https://mcp.idempotent.test","allowInsecureTransport":false,
              "headers":{},"auth":{"type":"none"},"toolCallTimeoutMs":60000,
-             "reconnect":{"enabled":true,"initialDelayMs":1000,"maxDelayMs":30000,"maxAttempts":5},"presentation":"search"}
+             "reconnect":{"enabled":true,"initialDelayMs":1000,"maxDelayMs":30000,"maxAttempts":5}}
             """;
         String first = mvc.perform(post("/enterprise/admin/v1/mcp-servers").header("Idempotency-Key", serverKey)
                 .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isCreated()).andReturn()
@@ -425,7 +425,7 @@ class McpGrantIntegrationTest {
     private McpServer server(String tenant) {
         long id = IDS.incrementAndGet();
         return new McpServer(id, tenant, "fixture-" + id, "MCP fixture", "", "streamable-http", "https://mcp.example.test",
-            false, Map.of(), Map.of("type", "none"), 60_000, Map.of("enabled", true), "search", McpServer.Status.ACTIVE,
+            false, Map.of(), Map.of("type", "none"), 60_000, Map.of("enabled", true), McpServer.Status.ACTIVE,
             0, USER, Instant.now(), Instant.now());
     }
 

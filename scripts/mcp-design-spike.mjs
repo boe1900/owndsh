@@ -20,7 +20,7 @@ const { default: SystemPrompt, renderPrompt } = await load('@deepseek-ai/dsh-sys
 const { default: ToolRuntime, renderToolsSdk, renderToolsSdkPy } = await load('@deepseek-ai/dsh-tools');
 const { default: CodeRuntime } = await load('@deepseek-ai/dsh-code-runtime');
 const version = requireHarness('@deepseek-ai/dsh-tools/package.json').version;
-assert(['0.1.1-rc.2', '0.1.5-rc.2'].includes(version), 'Verify the public presentation API before probing a new Harness version');
+assert(['0.1.1-rc.2', '0.1.5-rc.2', '0.1.7-rc.1', '0.2.0-rc.1'].includes(version), 'Verify the public presentation API before probing a new Harness version');
 const codeMode = version === '0.1.1-rc.2' ? 'code' : 'ptc';
 const findings = [];
 
@@ -41,9 +41,9 @@ for (const mode of ['native', codeMode, 'both']) {
     const second = { id: 'design-session-b' };
     const active = new WeakMap([[first, new Set()], [second, new Set()]]);
     let calls = 0;
-    for (const name of ['mcp_tool_search', 'mcp__design__read']) {
+    for (const name of ['tool_search', 'mcp__design__read']) {
       ctx.tools.register({
-        name, description: name === 'mcp_tool_search' ? name : 'literal {{remote_marker}}',
+        name, description: name === 'tool_search' ? name : 'literal {{remote_marker}}',
         parameters: { type: 'object', properties: {} },
         output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] },
         execute: async () => { calls++; return 'ok'; },

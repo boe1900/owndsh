@@ -15,10 +15,12 @@ v1-e2e-acceptance.md: V1 发布验收执行真源，以真实部署、LDAP/OIDC�
 owndsh-work-platform.md: 产品预研，定义企业工作平台形态、能力边界、演进阶段与商业方向。
 owndsh-governance-mvp-design.md: MVP 实施真源，定义冻结决策、模块、API、数据表、测试、T00-T23 顺序和验收标准；插件已切换到安装配置模式，早期上传记录仅作历史证据。
 phase-2-product-console-design.md: 第二阶段产品化实施真源，冻结 TanStack/Beautiful UI 控制台、成员多身份、LDAP 目录组映射、集合授权，以及 TOKEN 多窗口、组织级供应商与其他资源 RATE 瞬时限流结构。
-mcp-management-design.md: MCP 详细设计入口，明确版本差异、公共字段、服务访问授权、数据库、管理/runtime 契约、RBAC 与第一版边界。
-mcp-runtime-design.md: MCP 端侧实施规格，记录身份/目标凭据隔离、官方 SDK v2 OAuth 宿主接缝与 401 刷新重试边界，以及连接与撤销状态机、search/release/PTC 呈现、本步快照、并发重挂载、local API 及诊断契约。
-mcp-implementation-plan.md: MCP 开发任务与验收矩阵，从官方接缝探针推进到契约/服务/客户端/UI/发布，区分已有证据和待实现门禁。
+mcp-management-design.md: MCP 历史详细设计入口，保留公共连接、授权、数据库和管理面背景；曝光与检索以 mcp-pi-adaptation-design.md 为现行真源。
+mcp-runtime-design.md: MCP 历史端侧实施规格，保留身份/凭据、官方 SDK v2 OAuth、连接与撤销状态机及 local API 边界；曝光与检索以 Pi 适配设计为准。
+mcp-implementation-plan.md: MCP 历史开发任务与验收记录，保留连接/OAuth/资源证据；新的曝光、检索和 DSH 模式矩阵以 mcp-pi-adaptation-design.md 为准。
+mcp-pi-adaptation-design.md: 借鉴 Pi 的 MCP 曝光与检索目标设计，以 DSH 策略和实际可用性为准，定义 full/search 退役、模式适配、英文检索、结构化字段映射与 DSH 错误契约，不要求 Pi 完全兼容。
 mcp-alpha2-web-e2e-20260922.md: alpha.2 真实 Web/AgentLoop 兼容验收，记录分页/资源/按需加载/SDK OAuth/禁用管理页、接缝修复、升级差异与可复现证据。
+mcp-structured-web-e2e-20261001.md: 当前 MCP structuredContent Web/AgentLoop 专项验收，记录 native/ptc/both 模式、outputSchema、A→B 字段组合、无 schema 对象保留、isError 处理、执行命令和证据边界。
 desktop-2.0.3-harness-rc2-migration.md: 历史 Desktop 2.0.3/Harness rc.2 迁移证据，记录当时的派生锁、上游变化、企业适配与门禁结果；当前兼容范围见 dsh-compatibility.md。
 gateway-real-model-validation-20260906.md: V29 与取消修复的 10 次真实 Responses 调用证据，记录 Spring flush 根因、667 毫秒取消清理、108 项后端回归及已获准请求超额结算规则。
 t00-baseline-acceptance.md: T00 独立验收证据，记录初始导入与 rc.7 重新基线的环境、命令、真实 consumer 和退出结论。

@@ -1155,10 +1155,6 @@ export const zMcpGrantUpdateRequest = zMcpMcpGrantUpdateRequest;
 
 export const zMcpHeaderMap = z.record(z.string(), z.string().max(1024));
 
-export const zMcpMcpPresentation = z.enum(['search', 'full']);
-
-export const zMcpPresentation = zMcpMcpPresentation;
-
 export const zMcpMcpReconnectPolicy = z.object({
     enabled: z.boolean(),
     initialDelayMs: z.int().gte(100).lte(30000),
@@ -1248,8 +1244,7 @@ export const zMcpMcpAssignment = z.object({
     headers: zMcpHeaderMap,
     auth: zMcpMcpAuth,
     toolCallTimeoutMs: z.int().gte(1000).lte(300000),
-    reconnect: zMcpMcpReconnectPolicy,
-    presentation: zMcpMcpPresentation
+    reconnect: zMcpMcpReconnectPolicy
 }).strict();
 
 export const zMcpAssignment = zMcpMcpAssignment;
@@ -1267,7 +1262,6 @@ export const zMcpMcpServer = z.object({
     auth: zMcpMcpAuth,
     toolCallTimeoutMs: z.int().gte(1000).lte(300000),
     reconnect: zMcpMcpReconnectPolicy,
-    presentation: zMcpMcpPresentation,
     status: zMcpMcpServerStatus,
     createdAt: z.iso.datetime({ offset: true }),
     updatedAt: z.iso.datetime({ offset: true })
@@ -1285,8 +1279,7 @@ export const zMcpMcpServerCreateRequest = z.object({
     headers: zMcpHeaderMap,
     auth: zMcpMcpAuth,
     toolCallTimeoutMs: z.int().gte(1000).lte(300000),
-    reconnect: zMcpMcpReconnectPolicy,
-    presentation: zMcpMcpPresentation
+    reconnect: zMcpMcpReconnectPolicy
 }).strict();
 
 export const zMcpServerCreateRequest = zMcpMcpServerCreateRequest;
@@ -2850,8 +2843,6 @@ export const zMcpServerIdWritable = zMcpMcpServerId;
 export const zMcpServerStatusWritable = zMcpMcpServerStatus;
 
 export const zMcpTransportWritable = zMcpMcpTransport;
-
-export const zMcpPresentationWritable = zMcpMcpPresentation;
 
 export const zSessionIdWritable = zSessionSessionId;
 

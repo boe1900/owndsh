@@ -44,5 +44,6 @@ V34__plugin_installation_sources.sql: 清空旧上传插件目录/范围/库存�
 V35__usage_chronological_pagination.sql: 为用量账本补齐 tenant+created_at+id 复合索引，支持最新记录优先的时间/ID 游标查询。
 V36__deepseek_messages_protocol.sql: 保留 V13 checksum，前向将 DeepSeek 官方 provider 迁移到 RC1 Messages API 并更新已知官方 endpoint。
 V37__plugin_deletion_audit.sql: 仅扩充插件删除审计 action 白名单，保留既有目录、库存和历史审计数据。
+V38__remove_mcp_presentation.sql: 删除已废弃的 MCP presentation 列与约束，推进受影响租户 bootstrap revision；曝光策略改由插件端本地配置负责。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

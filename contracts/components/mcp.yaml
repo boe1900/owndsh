@@ -12,9 +12,6 @@ McpServerStatus:
 McpTransport:
   type: string
   const: streamable-http
-McpPresentation:
-  type: string
-  enum: [search, full]
 McpHeaderMap:
   type: object
   additionalProperties:
@@ -81,7 +78,7 @@ McpReconnectPolicy:
 McpServerCreateRequest:
   type: object
   additionalProperties: false
-  required: [serverName, displayName, description, transport, url, allowInsecureTransport, headers, auth, toolCallTimeoutMs, reconnect, presentation]
+  required: [serverName, displayName, description, transport, url, allowInsecureTransport, headers, auth, toolCallTimeoutMs, reconnect]
   properties:
     serverName: {type: string, minLength: 1, maxLength: 32, pattern: '^[a-z][a-z0-9_-]*$'}
     displayName: {type: string, minLength: 1, maxLength: 120}
@@ -93,13 +90,12 @@ McpServerCreateRequest:
     auth: {$ref: '#/McpAuth'}
     toolCallTimeoutMs: {type: integer, minimum: 1000, maximum: 300000}
     reconnect: {$ref: '#/McpReconnectPolicy'}
-    presentation: {$ref: '#/McpPresentation'}
 McpServerUpdateRequest:
   allOf: [{$ref: '#/McpServerCreateRequest'}]
 McpServer:
   type: object
   additionalProperties: false
-  required: [id, revision, serverName, displayName, description, transport, url, allowInsecureTransport, headers, auth, toolCallTimeoutMs, reconnect, presentation, status, createdAt, updatedAt]
+  required: [id, revision, serverName, displayName, description, transport, url, allowInsecureTransport, headers, auth, toolCallTimeoutMs, reconnect, status, createdAt, updatedAt]
   properties:
     id: {$ref: '#/McpServerId'}
     revision: {$ref: '../enterprise-openapi.yaml#/components/schemas/Revision'}
@@ -113,7 +109,6 @@ McpServer:
     auth: {$ref: '#/McpAuth'}
     toolCallTimeoutMs: {type: integer, minimum: 1000, maximum: 300000}
     reconnect: {$ref: '#/McpReconnectPolicy'}
-    presentation: {$ref: '#/McpPresentation'}
     status: {$ref: '#/McpServerStatus'}
     createdAt: {type: string, format: date-time}
     updatedAt: {type: string, format: date-time}
@@ -236,7 +231,7 @@ McpGrantBatchResponse:
 McpAssignment:
   type: object
   additionalProperties: false
-  required: [id, revision, serverName, displayName, description, transport, url, allowInsecureTransport, headers, auth, toolCallTimeoutMs, reconnect, presentation]
+  required: [id, revision, serverName, displayName, description, transport, url, allowInsecureTransport, headers, auth, toolCallTimeoutMs, reconnect]
   properties:
     id: {$ref: '#/McpServerId'}
     revision: {$ref: '../enterprise-openapi.yaml#/components/schemas/Revision'}
@@ -250,7 +245,6 @@ McpAssignment:
     auth: {$ref: '#/McpAuth'}
     toolCallTimeoutMs: {type: integer, minimum: 1000, maximum: 300000}
     reconnect: {$ref: '#/McpReconnectPolicy'}
-    presentation: {$ref: '#/McpPresentation'}
 McpSnapshot:
   type: object
   additionalProperties: false

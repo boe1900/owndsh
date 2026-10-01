@@ -24,9 +24,11 @@ describe('enterprise Client plugin', () => {
     const inject = vi.fn((_name, callback: () => unknown) => callback())
     const slots = { inject, register }
     const pluginManager = { listBundles: vi.fn(), installBundle: vi.fn() }
+    const configForm = { getSnapshot: vi.fn(), subscribe: vi.fn(), mutate: vi.fn() }
     const remoteEvents: string[] = []
     apply({
       slots,
+      configForms: { get: vi.fn(() => configForm) },
       remote: { pluginManager, $on: (event) => { remoteEvents.push(event); return () => undefined } },
       on: vi.fn(() => () => undefined),
       effect: effect => { effect() },
@@ -47,5 +49,6 @@ describe('enterprise Client plugin', () => {
     expect(stores[0]).toBe(stores[1])
     const settings = registrations.find(item => item.options['id'] === 'enterprise')!
     expect((settings.options['inject'] as () => { pluginManager: unknown })().pluginManager).toBe(pluginManager)
+    expect((settings.options['inject'] as () => { configForm: unknown })().configForm).toBe(configForm)
   })
 })

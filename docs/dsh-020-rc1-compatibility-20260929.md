@@ -5,7 +5,7 @@
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
 
-# DSH 0.2.0-rc.1 兼容性验收
+# DSH 0.2.0-rc.1 兼容性验收（含迁移前检索证据）
 
 日期：2026-09-29。目标为官方 [dsh-v0.2.0-rc.1](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.0-rc.1)，tag commit `4878cdabd87d4041bdaff61d04c966883b9fd07a`。OwnDsh 基于 `f8e8ca2` 加本轮适配，制品版本 `0.1.0-beta.15`。本报告记录本地构建与验收；正式制品由 `v0.1.0-beta.15` 标签触发 CI 检查、构建并发布至 npm `next`。
 
@@ -51,7 +51,7 @@ Web E2E 使用真实 `@deepseek-ai/dsh@0.2.0-rc.1`、Chromium、官方 pi-ai 与
 | 真实 AgentLoop、工具搜索与资源 | 通过；冷启动不暴露业务工具，搜索累加去重、释放、本步调用、资源/URI 模板/读取均正常。 |
 | OAuth 401 与失效恢复 | 通过；官方 SDK 轮换 Refresh Token；invalid_grant 阻止失败调用，重新授权后恢复同一会话。 |
 | 禁用/启用与 Agent 隔离 | 通过；禁用撤回工具，普通模型请求正常，新 Agent 不继承旧加载集合。 |
-| Orama 工具召回 | 通过；自然语言、停用词、中文查询、精确服务器过滤与下一步工具注入正常。 |
+| 迁移前 Orama 工具召回 | 通过；自然语言、停用词、中文查询、精确服务器过滤与下一步工具注入正常。该行是 beta.15 验收时的历史证据；当前实现使用 Pi vendored 英文 BM25，不承诺中文检索。 |
 | Host 重启 | 通过；企业登录与 OAuth 凭据自动恢复，不重复打开登录页面。 |
 
 复现入口：`plugin/scripts/web-mcp.test.mjs`。`OWNDSH_TEST_RUNTIME` 指向隔离目录的 `runtime`，`OWNDSH_TEST_PROFILE` 指向 `profile-home/profiles/web`，`OWNDSH_E2E_OUTPUT` 指向 `web-e2e`；浏览器依赖使用 `OWNDSH_PLAYWRIGHT_MODULE` 与 `OWNDSH_CHROMIUM_PATH` 显式指定。脚本再复制 profile 运行，不启动用户配置。

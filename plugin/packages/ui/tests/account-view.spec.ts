@@ -11,6 +11,7 @@ import {
   enterpriseServerEditable,
   enterpriseStatePresentation,
 } from '../src/account-view.js'
+import { readMcpServerPreference } from '../src/mcp-exposure-settings.js'
 import { ENTERPRISE_CONNECTION_STATES } from '../src/local-api.js'
 import { currentAction } from '../src/plugin-market.js'
 
@@ -44,6 +45,12 @@ describe('enterprise plugin state presentation', () => {
     expect(currentAction(item)).toBe('install')
     expect(currentAction({ ...item, version: '1.10.0' }, installed)).toBe('update')
     expect(currentAction({ ...item, version: '1.1.0' }, installed)).toBeUndefined()
+  })
+
+  it('reads only valid MCP exposure overrides from the Host config snapshot', () => {
+    const value = { mcp: { servers: { docs: { exposure: 'codemode-deferred', toolExposure: { search: 'direct', hidden: 'invalid' } } } } }
+    expect(readMcpServerPreference(value, 'docs')).toEqual({ exposure: 'codemode', toolExposure: { search: 'direct' } })
+    expect(readMcpServerPreference(value, 'missing')).toEqual({})
   })
 
 })

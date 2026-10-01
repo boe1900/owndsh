@@ -114,8 +114,5 @@
     "@owndsh/llm-gateway": "workspace:*",
     "@owndsh/platform-client": "workspace:*",
     "@owndsh/ui": "workspace:*"
-  },
-  "dependencies": {
-    "@orama/orama": "3.1.18"
   }
 }

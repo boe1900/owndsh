@@ -323,8 +323,6 @@ export type McpServerStatus = McpMcpServerStatus;
 
 export type McpTransport = McpMcpTransport;
 
-export type McpPresentation = McpMcpPresentation;
-
 export type McpAuth = McpMcpAuth;
 
 export type McpReconnectPolicy = McpMcpReconnectPolicy;
@@ -1268,7 +1266,6 @@ export type McpMcpAssignment = {
     auth: McpMcpAuth;
     toolCallTimeoutMs: number;
     reconnect: McpMcpReconnectPolicy;
-    presentation: McpMcpPresentation;
 };
 
 export type McpMcpAuth = {
@@ -1396,8 +1393,6 @@ export type McpHeaderMap = {
     [key: string]: string;
 };
 
-export type McpMcpPresentation = 'search' | 'full';
-
 export type McpMcpReconnectPolicy = {
     enabled: boolean;
     initialDelayMs: number;
@@ -1418,7 +1413,6 @@ export type McpMcpServer = {
     auth: McpMcpAuth;
     toolCallTimeoutMs: number;
     reconnect: McpMcpReconnectPolicy;
-    presentation: McpMcpPresentation;
     status: McpMcpServerStatus;
     createdAt: string;
     updatedAt: string;
@@ -1435,7 +1429,6 @@ export type McpMcpServerCreateRequest = {
     auth: McpMcpAuth;
     toolCallTimeoutMs: number;
     reconnect: McpMcpReconnectPolicy;
-    presentation: McpMcpPresentation;
 };
 
 export type McpMcpServerId = string;
@@ -2631,8 +2624,6 @@ export type McpServerIdWritable = McpMcpServerId;
 export type McpServerStatusWritable = McpMcpServerStatus;
 
 export type McpTransportWritable = McpMcpTransport;
-
-export type McpPresentationWritable = McpMcpPresentation;
 
 export type SessionIdWritable = SessionSessionId;
 

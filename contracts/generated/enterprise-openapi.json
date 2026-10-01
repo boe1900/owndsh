@@ -125748,7 +125748,6 @@
                               "auth",
                               "toolCallTimeoutMs",
                               "reconnect",
-                              "presentation",
                               "status",
                               "createdAt",
                               "updatedAt"
@@ -125980,13 +125979,6 @@
                                     "maximum": 20
                                   }
                                 }
-                              },
-                              "presentation": {
-                                "type": "string",
-                                "enum": [
-                                  "search",
-                                  "full"
-                                ]
                               },
                               "status": {
                                 "type": "string",
@@ -126699,8 +126691,7 @@
                   "headers",
                   "auth",
                   "toolCallTimeoutMs",
-                  "reconnect",
-                  "presentation"
+                  "reconnect"
                 ],
                 "properties": {
                   "serverName": {
@@ -126916,13 +126907,6 @@
                         "maximum": 20
                       }
                     }
-                  },
-                  "presentation": {
-                    "type": "string",
-                    "enum": [
-                      "search",
-                      "full"
-                    ]
                   }
                 }
               }
@@ -126958,7 +126942,6 @@
                         "auth",
                         "toolCallTimeoutMs",
                         "reconnect",
-                        "presentation",
                         "status",
                         "createdAt",
                         "updatedAt"
@@ -127190,13 +127173,6 @@
                               "maximum": 20
                             }
                           }
-                        },
-                        "presentation": {
-                          "type": "string",
-                          "enum": [
-                            "search",
-                            "full"
-                          ]
                         },
                         "status": {
                           "type": "string",
@@ -128490,7 +128466,6 @@
                         "auth",
                         "toolCallTimeoutMs",
                         "reconnect",
-                        "presentation",
                         "status",
                         "createdAt",
                         "updatedAt"
@@ -128722,13 +128697,6 @@
                               "maximum": 20
                             }
                           }
-                        },
-                        "presentation": {
-                          "type": "string",
-                          "enum": [
-                            "search",
-                            "full"
-                          ]
                         },
                         "status": {
                           "type": "string",
@@ -129712,8 +129680,7 @@
                       "headers",
                       "auth",
                       "toolCallTimeoutMs",
-                      "reconnect",
-                      "presentation"
+                      "reconnect"
                     ],
                     "properties": {
                       "serverName": {
@@ -129929,13 +129896,6 @@
                             "maximum": 20
                           }
                         }
-                      },
-                      "presentation": {
-                        "type": "string",
-                        "enum": [
-                          "search",
-                          "full"
-                        ]
                       }
                     }
                   }
@@ -129973,7 +129933,6 @@
                         "auth",
                         "toolCallTimeoutMs",
                         "reconnect",
-                        "presentation",
                         "status",
                         "createdAt",
                         "updatedAt"
@@ -130205,13 +130164,6 @@
                               "maximum": 20
                             }
                           }
-                        },
-                        "presentation": {
-                          "type": "string",
-                          "enum": [
-                            "search",
-                            "full"
-                          ]
                         },
                         "status": {
                           "type": "string",
@@ -131837,7 +131789,6 @@
                         "auth",
                         "toolCallTimeoutMs",
                         "reconnect",
-                        "presentation",
                         "status",
                         "createdAt",
                         "updatedAt"
@@ -132069,13 +132020,6 @@
                               "maximum": 20
                             }
                           }
-                        },
-                        "presentation": {
-                          "type": "string",
-                          "enum": [
-                            "search",
-                            "full"
-                          ]
                         },
                         "status": {
                           "type": "string",
@@ -133397,7 +133341,6 @@
                         "auth",
                         "toolCallTimeoutMs",
                         "reconnect",
-                        "presentation",
                         "status",
                         "createdAt",
                         "updatedAt"
@@ -133629,13 +133572,6 @@
                               "maximum": 20
                             }
                           }
-                        },
-                        "presentation": {
-                          "type": "string",
-                          "enum": [
-                            "search",
-                            "full"
-                          ]
                         },
                         "status": {
                           "type": "string",
@@ -141456,8 +141392,7 @@
                               "headers",
                               "auth",
                               "toolCallTimeoutMs",
-                              "reconnect",
-                              "presentation"
+                              "reconnect"
                             ],
                             "properties": {
                               "id": {
@@ -141686,13 +141621,6 @@
                                     "maximum": 20
                                   }
                                 }
-                              },
-                              "presentation": {
-                                "type": "string",
-                                "enum": [
-                                  "search",
-                                  "full"
-                                ]
                               }
                             }
                           }
@@ -159149,13 +159077,6 @@
         "type": "string",
         "const": "streamable-http"
       },
-      "McpPresentation": {
-        "type": "string",
-        "enum": [
-          "search",
-          "full"
-        ]
-      },
       "McpAuth": {
         "oneOf": [
           {
@@ -159343,8 +159264,7 @@
           "headers",
           "auth",
           "toolCallTimeoutMs",
-          "reconnect",
-          "presentation"
+          "reconnect"
         ],
         "properties": {
           "serverName": {
@@ -159560,13 +159480,6 @@
                 "maximum": 20
               }
             }
-          },
-          "presentation": {
-            "type": "string",
-            "enum": [
-              "search",
-              "full"
-            ]
           }
         }
       },
@@ -159585,8 +159498,7 @@
               "headers",
               "auth",
               "toolCallTimeoutMs",
-              "reconnect",
-              "presentation"
+              "reconnect"
             ],
             "properties": {
               "serverName": {
@@ -159802,13 +159714,6 @@
                     "maximum": 20
                   }
                 }
-              },
-              "presentation": {
-                "type": "string",
-                "enum": [
-                  "search",
-                  "full"
-                ]
               }
             }
           }
@@ -159830,7 +159735,6 @@
           "auth",
           "toolCallTimeoutMs",
           "reconnect",
-          "presentation",
           "status",
           "createdAt",
           "updatedAt"
@@ -160063,13 +159967,6 @@
               }
             }
           },
-          "presentation": {
-            "type": "string",
-            "enum": [
-              "search",
-              "full"
-            ]
-          },
           "status": {
             "type": "string",
             "enum": [
@@ -160111,7 +160008,6 @@
               "auth",
               "toolCallTimeoutMs",
               "reconnect",
-              "presentation",
               "status",
               "createdAt",
               "updatedAt"
@@ -160344,13 +160240,6 @@
                   }
                 }
               },
-              "presentation": {
-                "type": "string",
-                "enum": [
-                  "search",
-                  "full"
-                ]
-              },
               "status": {
                 "type": "string",
                 "enum": [
@@ -160405,7 +160294,6 @@
                 "auth",
                 "toolCallTimeoutMs",
                 "reconnect",
-                "presentation",
                 "status",
                 "createdAt",
                 "updatedAt"
@@ -160638,13 +160526,6 @@
                     }
                   }
                 },
-                "presentation": {
-                  "type": "string",
-                  "enum": [
-                    "search",
-                    "full"
-                  ]
-                },
                 "status": {
                   "type": "string",
                   "enum": [
@@ -160734,7 +160615,6 @@
                     "auth",
                     "toolCallTimeoutMs",
                     "reconnect",
-                    "presentation",
                     "status",
                     "createdAt",
                     "updatedAt"
@@ -160966,13 +160846,6 @@
                           "maximum": 20
                         }
                       }
-                    },
-                    "presentation": {
-                      "type": "string",
-                      "enum": [
-                        "search",
-                        "full"
-                      ]
                     },
                     "status": {
                       "type": "string",
@@ -161890,8 +161763,7 @@
           "headers",
           "auth",
           "toolCallTimeoutMs",
-          "reconnect",
-          "presentation"
+          "reconnect"
         ],
         "properties": {
           "id": {
@@ -162120,13 +161992,6 @@
                 "maximum": 20
               }
             }
-          },
-          "presentation": {
-            "type": "string",
-            "enum": [
-              "search",
-              "full"
-            ]
           }
         }
       },
@@ -162175,8 +162040,7 @@
                 "headers",
                 "auth",
                 "toolCallTimeoutMs",
-                "reconnect",
-                "presentation"
+                "reconnect"
               ],
               "properties": {
                 "id": {
@@ -162405,13 +162269,6 @@
                       "maximum": 20
                     }
                   }
-                },
-                "presentation": {
-                  "type": "string",
-                  "enum": [
-                    "search",
-                    "full"
-                  ]
                 }
               }
             }
@@ -162471,8 +162328,7 @@
                     "headers",
                     "auth",
                     "toolCallTimeoutMs",
-                    "reconnect",
-                    "presentation"
+                    "reconnect"
                   ],
                   "properties": {
                     "id": {
@@ -162701,13 +162557,6 @@
                           "maximum": 20
                         }
                       }
-                    },
-                    "presentation": {
-                      "type": "string",
-                      "enum": [
-                        "search",
-                        "full"
-                      ]
                     }
                   }
                 }

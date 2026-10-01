@@ -5,7 +5,7 @@
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
 
-# DSH 0.1.7-rc.1 兼容性验收
+# DSH 0.1.7-rc.1 兼容性验收（迁移前检索基线）
 
 日期：2026-09-24。目标版本为 [dsh-v0.1.7-rc.1](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.1.7-rc.1)，上游 tag commit 为 `46a7f68b0922371ce7144b668b90e377d8e799f4`。
 
@@ -15,13 +15,13 @@ OwnDsh 当前功能与 DSH `0.1.7-rc.1` 兼容。本轮没有发现需要改动 
 
 MCP 重点链路在真实 DSH Web AgentLoop 中通过：协议协商、工具分页、资源/URI 模板、无工具服务器、none/API Key/OAuth、搜索累加去重、显式释放、本步调用、401 刷新、`invalid_grant` 重新授权、暂停/恢复、Agent 隔离和 Host 重启凭据恢复。
 
-本轮 Orama 召回改动随后在同一条 RC1 Web E2E 上补验：脱敏 Notion-shaped 目录的自然语言、停用词、中文查询、精确 `serverName` 过滤和下一轮工具注入均通过。
+本轮记录的是迁移前 Orama 召回基线：脱敏 Notion-shaped 目录的自然语言、停用词、中文查询、精确 `serverName` 过滤和下一轮工具注入均通过。当前实现已迁移到 Pi vendored 的英文 tokenizer/schema 文档/BM25，中文检索不再作为能力承诺；本段只保留历史验收事实。
 
 ## 验证环境
 
 | 项目 | 实际值 |
 |---|---|
-| OwnDsh 基线 | beta.12 发布提交，包含本轮 MCP 安全校验、Orama 召回与 RC1 验收改动 |
+| OwnDsh 基线 | beta.12 发布提交，包含本轮 MCP 安全校验、迁移前 Orama 召回与 RC1 验收改动 |
 | DSH runtime | `@deepseek-ai/dsh@0.1.7-rc.1`，隔离 runtime `/tmp/owndsh-dsh-rc1-runtime` |
 | 官方依赖 | Harness 全套 `0.1.7-rc.1`、Cordis `4.0.4`、Schemastery `3.18.4`、`@modelcontextprotocol/client@2.0.0` |
 | 运行面 | 隔离 `DSH_HOME`、DSH Web、Chromium、本地企业平台/MCP/OAuth 服务和确定性模型桩 |
@@ -36,7 +36,7 @@ MCP 重点链路在真实 DSH Web AgentLoop 中通过：协议协商、工具分
 | none/API Key/OAuth MCP | 通过；认证秘密仍只进入官方 client/credentials 边界 |
 | 协议协商、工具分页、资源/URI 模板、无工具服务器 | 通过；资源-only server 不强行请求 `tools/list` |
 | MCP 按需加载 | 通过；cold/search/累加/去重/release/本步调用/跨 Agent 隔离均通过 |
-| Orama 召回 | 通过；真实 Web AgentLoop 用 Notion-shaped 目录验证 `notion workspace info name`、`the`、中文查询、精确 `serverName` 过滤和下一轮工具注入；噪声 utility 工具未进入自然语言前 8 个结果 |
+| 迁移前 Orama 召回 | 通过；真实 Web AgentLoop 用 Notion-shaped 目录验证 `notion workspace info name`、`the`、中文查询、精确 `serverName` 过滤和下一轮工具注入；噪声 utility 工具未进入自然语言前 8 个结果。当前检索以 Pi vendored 英文 BM25 为准 |
 | OAuth 恢复 | 通过；401 刷新轮换、`invalid_grant` 阻止失败调用、重新授权后恢复同一会话 |
 | 启停和重启 | 通过；暂停撤回工具，恢复有效，新 Agent 不继承旧集合，Host 重启恢复凭据 |
 

@@ -20,6 +20,7 @@ import {
 } from '@owndsh/platform-client'
 import { mountMcpRuntime } from './mcp-runtime.js'
 import type { ToolRuntime } from '@deepseek-ai/dsh-tools'
+import type { McpExposureInput } from './mcp-pi-search.js'
 
 export const name = 'owndsh'
 export const inject = ['webServer', 'credentials', 'settings', 'llm', 'pluginInventory', 'pluginManager', 'tools']
@@ -35,15 +36,28 @@ export interface Config {
   /** 可选安装默认值；用户可在欢迎页写入 Harness 官方 settings。 */
   readonly baseUrl?: string
   /** MCP 用户连接偏好；通过 Harness 官方 settings forms 持久化。 */
-  readonly mcp: { readonly desiredConnected: Record<string, boolean> }
+  readonly mcp: {
+    readonly desiredConnected: Record<string, boolean>
+    readonly exposure: McpExposureInput | undefined
+    readonly toolExposure: Record<string, McpExposureInput>
+    readonly servers: Record<string, { readonly exposure: McpExposureInput | undefined; readonly toolExposure: Record<string, McpExposureInput> }>
+  }
   readonly requestTimeoutMs: number
   readonly disposeTimeoutMs: number
 }
+
+const mcpExposure: z<McpExposureInput> = z.union([
+  z.const('codemode'), z.const('deferred'), z.const('direct'), z.const('hidden'), z.const('codemode-deferred'),
+])
+const mcpExposureOptional = z.union([mcpExposure, z.const(undefined)])
 
 export const Config: z<Config> = z.object({
   baseUrl: volatile(z.string().default('')),
   mcp: volatile(z.object({
     desiredConnected: z.dict(z.boolean()).default({}),
+    exposure: mcpExposureOptional,
+    toolExposure: z.dict(mcpExposure).default({}),
+    servers: z.dict(z.object({ exposure: mcpExposureOptional, toolExposure: z.dict(mcpExposure).default({}) })).default({}),
   }).default({ desiredConnected: {} })),
   requestTimeoutMs: z.number().step(1).min(1).default(30_000),
   disposeTimeoutMs: z.number().step(1).min(1).default(3_000),

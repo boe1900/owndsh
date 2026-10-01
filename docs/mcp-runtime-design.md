@@ -5,9 +5,9 @@
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
 
-# MCP 端侧运行时详细设计
+# MCP 端侧运行时详细设计（历史基线）
 
-父设计：[mcp-management-design.md](mcp-management-design.md)。目标 Harness 0.1.7-rc.1；旧 alpha.2/rc.2 探针证据不能代替目标版本验收。
+父设计：[mcp-management-design.md](mcp-management-design.md)。曝光、检索和 DSH 模式矩阵以 [Pi 适配设计](mcp-pi-adaptation-design.md) 为准；本文件保留连接/OAuth/资源的历史边界。目标 Harness 0.1.7-rc.1；旧 alpha.2/rc.2 探针证据不能代替目标版本验收。
 
 ## 1. 组件、依赖与作用域
 
@@ -152,7 +152,7 @@ Full 模式不会跳过任一条件。Loaded membership 只管理搜索选择；
 
 当前 bundle 的 `src/mcp-runtime.ts` 使用一个 MCP 子 fiber 对应一个 server：官方 `apply()` 注册 API Key 连接与工具，OAuth 连接由官方 MCP SDK v2 `Client`/`StreamableHTTPClientTransport` 管理，返回的 Cordis fiber 由 runtime 保存；assignment 撤回、revision 或生效认证配置变化、用户 disconnect 以及 Host 销毁都会先 `await fiber.dispose()`，再允许同名 namespace 重新挂载。`refreshing` 只串行化 assignment 快照刷新，不是 OAuth token refresh；OAuth token rotation 和重授权由官方 SDK/provider 完成。挂载失败只记录该 server 的固定错误并清理其 fiber，不阻断 OwnDsh bundle。通过 platform.subscribe 感知登录与退出，prompt assembly、受管调用和 Settings 读取按需验证 60 秒租约；缓存仍有效时只调和端侧凭据，不发 assignment 网络请求。单次失败不续 lease，未知/过低 revision 不接受；当前调和仍按共享 Promise 串行，尚未达到每服务独立队列与四连接并发的目标。
 
-服务显示名/presentation-only 变化：更新投影和 guard，不重连。URL/auth/headers 变化：清空 loaded 与旧 binding，需用户重新连接。显示名变化只刷新 UI。
+服务显示名或用户 exposure 偏好变化：更新投影和 guard，不重连。URL/auth/headers 变化：清空选择与旧 binding，需用户重新连接。显示名变化只刷新 UI。
 重连 token 不变时遵循官方 reconnect，不再叠加 OwnDsh 自动重试；重连耗尽无公开精确事件时 UI 用 DEGRADED/手动重连，不读官方 private supervisor 状态。
 
 官方 tools/list_changed 是全代替注册。重扫完成后比较官方定义的结构等价性，不仅比较 JS definition 对象地址；删除或结构变更即移出当前 loaded 集合，等待下一次搜索加载最新定义。
@@ -220,74 +220,44 @@ OwnDsh 不实现 refresh。官方 transport/auth 在需要时读取 provider 的
 单工具定义 UTF-8 JSON≤16KiB、深度≤32、节点≤4096；不合格工具不进入目录/搜索/请求且 guard 拒绝。目录最多512条/1MiB，按 publicName code-unit 顺序准入。这些是 OwnDsh 投影的异常输入保护，不是模型上下文预算；官方 client 在投影前已经发现完整列表，**不能声称它们限制了网络接收内存**。
 Server 候选目录的 canonical digest 属于独立诊断契约，不用于重写模型 Schema。MCP 描述当作 untrusted data；UI 按纯文本渲染，SDK 文本通过独立变量注入，不能作为模板递归执行。
 
-### 6.2 模型工具 mcp_tool_search
+### 6.2 模型工具 tool_search
 
-注册一次，名称冲突则受管 MCP 不启动。`isConcurrencySafe` 不声明 true（search/release 都改变会话集合，采用官方默认独占）。
+注册一次，名称冲突则受管 MCP 不启动。它是唯一的 MCP 检索入口。
 
 ```ts
 // JSON Schema 对应语义；落地使用 Harness defineTool。
-Input = {
-  query: string,       // 1..256，trim 后非空
-  serverName?: string, // 精确过滤，非自由URL
-  limit?: number      // 默认5，整数1..8
-}
+Input = { query: string, limit?: number } // limit 默认8，范围1..8
 Output = {
-  matches: Array<{name:string,description:string,serverName:string}>,
-  loadedNames: string[],
+  matches: Array<{name:string,description:string}>,
+  loaded: string[],
   truncated: boolean,
-  reason?: 'NO_MATCH' | 'AUTH_REQUIRED' | 'MCP_AUTH_REQUIRED' | 'POLICY_STALE'
-  authorizationRequired?: string[] // 最多 8 个当前分配且需要重新授权的 serverName
-  message?: string // OwnDsh 设置 → MCP 的恢复指引
+  reason?: 'NO_MATCH' | 'AUTH_REQUIRED' | 'MCP_AUTH_REQUIRED' | 'MCP_CODEMODE_UNAVAILABLE' | 'POLICY_STALE',
+  authorizationRequired?: string[]
 }
 ```
 
-搜索仅遍历当前 agent 有权看见且由端侧动态发现的目录。不返回未授权 server 名称、候选工具和认证 token。
-输出 description≤220字符、整体≤8KiB；不重复返回完整 parameters，避免 schema 同时进入工具历史和下轮 tools 字段。模型在下一次 inference 才收到真实定义。
-Prompt 固定说明：外部能力先搜索；匹配加载只影响当前对话；加载成功后按实际 native/PTC 方式调用；搜索失败不得猜测隐藏工具。
-search 冷态只增加 search/release 两个控制工具；当前不注入全目录名称索引或额外服务摘要。full 工具和其他插件工具遵循各自呈现规则。
+搜索仅遍历当前 Agent 有权看见且由端侧动态发现的目录。`direct` 已进入对应声明面，不重复推荐；`codemode`/`deferred` 才可检索，`hidden` 和 DSH 策略不可用的工具永不进入候选。结果只返回名称和首行描述，完整 schema 在下一轮 assembly 进入 native 或 PTC 面。选择状态只对当前 Agent 生效，不提供 release 接口。
 
 ### 6.3 最小可用检索
 
-NFKC + lowercase；复用项目侧 `terms()` 做 Latin/digit 词、`_`/`-`/camelCase 边界切分，并为中文连续段保留整段和双字片段；`processTerm` 过滤产品侧停用词（如 `the`、`tool`）。Orama 仅保存 `publicName`、`displayName`、`description` 三个字段，使用 BM25 与字段权重 `publicName: 8`、`displayName: 2`、`description: 1`，不把 `serverName` 当文本字段。无需外部向量服务。
-稳定排序规则：完整 namespaced publicName 先走 exact-name 快速路径；其余由 Orama BM25 召回，再按分数降序、完整 publicName 升序稳定排序。serverName 仍是精确过滤条件，scope 仍在 catalog 上求交。没有有效 token 返回 NO_MATCH，不能让中文查询落为“前N个工具”。
-允许 serverName filter + 通用 query（如 list/read）；中文检索质量不足时改善服务显示名或 MCP Server 返回的工具描述，不在管理端增加 Tool 配置，不自动把查询发给另一模型/外部服务。
+检索纯逻辑直接采用 Pi 的英文 tokenizer、schema 文档递归收集和 BM25（`k1=1.2`、`b=0.75`）：ASCII 字母/数字、小写化、camelCase 拆分、停用词和简单词干化。文档包含工具名、描述、递归 schema 属性名/描述、MCP namespace 名称和描述；server instructions 仍由 DSH system prompt 独立承载。中文不做分词、翻译或向量召回；中文 MCP 可直接调用，但不保证被中文查询找到。OwnDsh 不再依赖 Orama。
+候选先按 exposure、当前 Agent 通道和授权过滤，再由 BM25 稳定排名；重复名称按连接代次去重。没有有效 token 或没有可见候选返回 `NO_MATCH`，不能退化成前 N 个工具。
 
-### 6.4 累加集合与显式释放
+### 6.4 选择集合与失效
 
-2026-09-17 收敛：删除每 Agent 16 个工具/64KiB 的人为会话硬限、自动 LRU、pending 保留层、调用成功 touch 和 full 超限降级。不要用其他数字替换这套上限，也不引入 native/PTC 分模式预算计算。
+`selected: WeakMap<Agent, Map<publicName, generationKey>>` 保存当前 Agent 的下一轮选择。多次搜索做并集，同名同代次只有一份；没有自动 LRU 或 release 接口。每次 assembly 都重新求交实时授权、连接租约、scope、当前 exposure 和 schema 代次，失效项自动丢弃。搜索当前步骤不改变当前已呈现快照，下一轮才可调用。
 
-保留的边界集中在 `mcp-tools.ts`：search 默认5个、最多8个，单次结果≤8KiB；单定义和目录边界见6.1。这些值是 OwnDsh 自定的查询/输入保护，不是厂商规定，也不是 token 预算。
-
-`loaded: WeakMap<Agent, Map<publicName, generationKey>>` 保存当前 Agent 按需加载的选择。多次搜索做并集，同名同代次只有一份；没有时间过期或容量淘汰。请求始终按名称稳定排序。搜索写入后立即返回实际 loadedNames；下一次成功 assembly 结合实时授权与目录生成可调用定义。
-
-`mcp_tool_release` 负责上下文清理：
-
-```ts
-Input = { names: string[] } // 1..512项；每项合法工具名1..64字符；整个数组JSON≤7936 UTF-8 bytes
-Output = {
-  releasedNames: string[],
-  ignoredNames: string[], // 原输入中的重复名去重；未加载/非OwnDsh/full固定工具不修改
-  reason?: 'AUTH_REQUIRED' | 'POLICY_STALE'
-}
-```
-
-先完整校验批次再修改，非法参数没有部分提交；重复名称去重，重复释放幂等。只删除当前 Agent 的 loaded 项，下次 assembly 生效，不删除历史消息、不注销注册表、不断开 MCP、不清凭据、不改管理员配置。被释放的 search 工具可再次搜索加载。full 是管理员选择的固定呈现项，不由 release 移除。
-
-**没有会话硬限不等于无限上下文。** 搜索的全部命中最终仍可能累积为整个有效目录；模型应只加载任务需要的工具，并显式释放不再需要的工具。完整定义仍计入模型输入，受具体模型和 API 限制。Harness 负责历史与总上下文机制，但 compaction 不会因此自动清空 OwnDsh loaded。此实现不承诺模型一定及时释放，也不承诺满上下文后仍能靠 release 自救。
-
-full 将全部有效、授权且符合输入保护的定义加入每次请求，包括无关提问；不再自动切回 search。目录较大的 MCP 应使用 search。稳定排序不能消除集合变更带来的 prompt cache 成本。
+这不是 Pi 的 active set/loadout：它只服务 DSH 的 assembly 和执行守卫，不成为公共工具运行时抽象。选择状态不持久化到服务器，也不改变 MCP 连接、凭据或企业授权。
 
 ### 6.5 加载与调用流程图（Review 入口）
 
 ```mermaid
 flowchart TD
     A[官方 MCP client 连接并注册工具] --> C[Host 目录：名称 / 定义 / 连接代次]
-    C --> S[模型调用 mcp_tool_search]
+    C --> S[模型调用 tool_search]
     S --> L[当前 Agent loaded 按名称去重累加]
-    R[模型调用 mcp_tool_release] --> L
     L --> N[下一步 assembly]
     C --> N
-    F[full 固定项] --> N
     N --> V[交集：有效连接、授权、scope、代次]
     V --> P[native Schema / PTC SDK]
     P --> K[记录本步 presented 快照]
@@ -296,7 +266,6 @@ flowchart TD
     G -->|是| E[官方 tools pipeline 调用 MCP]
     G -->|否| D[拒绝并返回原因]
     M --> S
-    M --> R
     X[撤权 / 断开 / 过期 / 定义变化] --> G
     X --> V
 ```
@@ -308,23 +277,20 @@ flowchart TD
 | 状态 | 归属 | 写入时机 | 职责 |
 |---|---|---|---|
 | catalog | Host | 连接就绪、tools/change、撤销 | 官方定义及稳定代次键；不等于模型已加载 |
-| loaded | 每 Agent | 搜索、显式释放、失效清理 | 为下一步保留选择；名称去重，无自动淘汰 |
+| loaded | 每 Agent | 搜索、失效清理 | 为下一步保留选择；名称去重，无自动淘汰 |
 | presented | 每 Agent | 成功 assembly | 本步实际 Schema/SDK 中的名称与代次；执行门禁依据 |
 
 1. 连续搜索 A/B 和 B/C，集合为 A/B/C，同一个 B 只有一份。
-2. 本步搜索 D，D 下步才能调用；即使搜索返回 loadedNames，也不能在同一个 run_code 内猜名调用。
-3. 本步释放 A，当前响应中的 A 仍可按原快照执行；下步不再呈现且 guard 拒绝。释放不是撤权。
-4. 同一步先加载再释放，以最后显式操作为准；释放后重新搜索同理。官方独占调度串行提交，批次验证失败不部分更新。
-5. 撤权、断开、OAuth 失效、目录移除、定义改变和重挂载优先于所有历史 loadedNames/快照。旧名称不能绕过实时校验，不自动重放业务调用。
-6. Agent 隔离；新建、恢复、fork 得到新 Agent 时冷启动。相同名称在不同服务有不同 namespace；其他插件的 MCP 不参与本集合。
-7. full 与 loaded 做并集后按名称排序；查看设置页工具目录不会加载工具，显式释放也不会改变设置页发现数量。
+2. 本步搜索 D，D 下步才能调用；即使搜索返回 loaded，也不能在同一个 run_code 内猜名调用。
+3. 撤权、断开、OAuth 失效、目录移除、定义改变和重挂载优先于所有历史 loaded/快照。旧名称不能绕过实时校验，不自动重放业务调用。
+4. Agent 隔离；新建、恢复、fork 得到新 Agent 时冷启动。相同名称在不同服务有不同 namespace；其他插件的 MCP 不参与本集合。
+5. direct 按当前模式直接投影；deferred/codemode 只有选中后在对应通道投影；hidden 永不投影。
 
 | 时刻 | 本步 presented | 下步 loaded | 结果 |
 |---|---|---|---|
 | 第一步请求 | A、B、C | A、B、C | A/B/C 可调用 |
 | 本步搜索 D、再次搜索 C/D | 仍为 A、B、C | A、B、C、D | 无淘汰、无重复，D 暂不能调用 |
-| 本步显式释放 A | 仍为 A、B、C | B、C、D | 本步 A 调用仍合法 |
-| 第二步 assembly | B、C、D | B、C、D | D 可调用，A 需重新搜索 |
+| 下一步 assembly | A、B、C、D | A、B、C、D | D 可调用 |
 | 任意时刻撤权 | 可能仍记有旧名称 | 失效项清理 | 立即拒绝，不等下一步 |
 
 ### 6.7 Claude / OpenAI 公开机制与本项目的区别
@@ -335,11 +301,11 @@ flowchart TD
 |---|---|---|
 | [Anthropic Tool Search](https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-search-tool) | `defer_loading` 延迟模型可见性，搜索返回 `tool_reference`，API 展开完整定义；保留历史引用后，后续轮次可复用 | 每请求最多10,000个 deferred 定义；每次搜索默认5，limit允许1..10,000；regex≤200字符/BM25≤500字符。目录容量不代表同时载入规模；定义计入输入token |
 | [OpenAI Tool Search](https://developers.openai.com/api/docs/guides/tools-tool-search) | 搜索返回 `tool_search_output.tools`，后续轮次仍可调用；定义追加到上下文末尾以保持前缀缓存 | 此工具搜索指南未列统一的已加载集合数量/字节硬限；推荐按 namespace/MCP 组织、每namespace少于10个函数。这是建议，不是模型/API无限制的承诺 |
-| OwnDsh + Harness | 插件保存 Agent 选择，在每次 assembly 过滤 native Schema/SDK；全局注册不等于每会话发送 | 默认5/最多8个搜索结果；没有16工具/64KiB会话硬限；用显式release减少后续请求定义，输入保护仍保留 |
+| OwnDsh + Harness | 插件保存 Agent 选择，在每次 assembly 过滤 native Schema/SDK；全局注册不等于每会话发送 | 默认最多8个搜索结果；选择状态只影响后续 assembly，输入保护仍保留 |
 
 两家文档都没有给出“会话满16个/64KiB就自动LRU淘汰”的通用规则，不能据此声称厂商没有其他限制。OpenAI 文档明确，禁用已加载工具需修改对应 search output，且会使该位置后的缓存失效；OwnDsh 不改历史，只改变后续 assembly。
 
-我们借鉴的是按需发现、完整定义、跨轮复用；不复制厂商专用 wire 字段，不自建第二套协议 adapter。`mcp_tool_release` 是本项目显式清理选择，不声称两家有相同工具。原生 tool_reference/末尾追加保缓存需要 Harness 官方适配层支持，当前通用 assembly 方案不具备这项缓存保证。
+我们借鉴的是按需发现、完整定义、跨轮复用；不复制厂商专用 wire 字段，不自建第二套协议 adapter。原生 tool_reference/末尾追加保缓存需要 Harness 官方适配层支持，当前通用 assembly 方案不具备这项缓存保证。
 
 本地 Notion 41个工具仅 description 合计53,682 UTF-8 bytes（52.4KiB），尚不含参数/输出Schema；不能把它当完整请求大小或token数。描述较长正是按需加载的理由，不能截短原始工具契约来凑预算。
 
@@ -349,11 +315,11 @@ flowchart TD
 
 | 模式 | assembly.tools | tools:sdk |
 |---|---|---|
-| native | 原有非受管 tools + search/release + 允许的 loaded/full MCP | 无 |
-| ptc | 保留官方 run_code，不把 MCP/search/release 强行增加为 native schemas | 官方 renderer 重生成：非受管 bindings + search/release + loaded/full MCP |
+| native | 原有非受管 tools + tool_search + 当前允许的 MCP | 无 |
+| ptc | 保留官方 run_code，不把 MCP/tool_search 强行增加为 native schemas | 官方 renderer 重生成：非受管 bindings + tool_search + 当前允许的 MCP |
 | both | native 的受限集合 + run_code | 与 native 同一允许集合的 bindings |
 
-PTC 中模型使用 `await tools.mcp_tool_search(...)`；搜索结果返回后结束这次 run_code，下轮看到候选 binding 才编排调用。registry 仍保留授权能力，adapter 不直接调用 MCP client 私有方法。
+PTC 中模型使用 `await tools.tool_search(...)`；搜索结果返回后结束这次 run_code，下轮看到候选 binding 才编排调用。registry 仍保留授权能力，adapter 不直接调用 MCP client 私有方法。
 如果本次assembly等待refresh导致client世代改变，本次丢弃旧世代的受管schema，保留search并在下一次inference读取新目录；不能把旧input schema交给新定义执行。对旧历史工具调用仍由最新schema验证和guard裁决。
 SDK 必须用公开 `renderToolsSdk` 或 `renderToolsSdkPy`，以 `tools.schemas(scope)` 和对应 `get(...).output.schema` 建 renderer 输入，排除 run_code 自身；不正则删除生成代码、不丢非 MCP 工具、不删 `tools:ptc-only` 规则。
 输出 SDK 文本通过 assembly.variables 的独立变量 `owndsh_mcp_sdk` 注入，section.text 只写该变量引用，防止远端描述/JSON 中的 `{{...}}` 被 system prompt 模板再次解释。renderer 输出不得被当成新的指令模板递归展开。
@@ -363,9 +329,9 @@ Hook 采用明确 compose 顺序，完成后由实际请求捕获验证。不能
 
 ### 7.1 当前实现与已验证边界（2026-09-24）
 
-`src/mcp-tools.ts` 在挂载官方 client 前安装搜索、assembly hook 与 guard，再保留对应 namespace；成功 activation 后读取 `ctx.tools.schemas()`/`get()` 的真实定义。`tools/change` 合并到 microtask 重扫；输入、输出和描述结构相同时保留加载集合键，定义变化/移除/连接重挂载使旧键失效。通过标准库 `isDeepStrictEqual` 判断结构等价（包括不同对象键顺序），无需另造一份命名或 schema hash 算法；持久诊断用 canonical digest 仍由后续目录上报切片实现。召回索引由 Orama BM25 重建，索引文档只保存去 namespace 的 `publicName`、`displayName`、`description`，项目侧 tokenizer 负责 `terms()`、停用词和中文双字词。
+`src/mcp-tools.ts` 在挂载官方 client 前安装搜索、assembly hook 与 guard，再保留对应 namespace；成功 activation 后读取 `ctx.tools.schemas()`/`get()` 的真实定义。`tools/change` 合并到 microtask 重扫；输入、输出和描述结构相同时保留选择集合键，定义变化/移除/连接重挂载使旧键失效。通过标准库 `isDeepStrictEqual` 判断结构等价（包括不同对象键顺序），无需另造一份命名或 schema hash 算法；持久诊断用 canonical digest 仍由后续目录上报切片实现。召回使用 Pi vendored 英文 BM25 文档，不依赖 Orama，不做中文双字分词。
 
-搜索先取当前 Agent 的官方可见目录交集，Orama 只负责候选 BM25 排序，随后与 scope、精确 serverName 过滤和 catalog 求交；返回精简 name/description/serverName 和实际 loadedNames。无自动淘汰、无 full 预算降级。release 仅修改该 Agent 的下步集合；native/PTC/both 共享相同选择，完整定义交给对应官方 renderer。单定义16KiB、目录512个/1MiB、单次搜索最多8个/8KiB仍是输入保护。
+搜索先取当前 Agent 的官方可见目录交集，Pi BM25 只负责候选排序，随后与 scope 和 catalog 求交；返回精简 name/description 和实际 loaded。无自动淘汰；native/PTC/both 共享相同选择，完整定义交给对应官方 renderer。单定义16KiB、目录512个/1MiB、单次搜索最多8个/8KiB仍是输入保护。
 
 pre-execute 保存该调用看到的定义和目录代次，guard 与 dispatch 再核对最新租约/连接、作用域可见性及本步 presented 快照，不以可变 loaded 决定本步能否调用；连接撤销会 abort 在途调用，不自动重放；guard 之后的 tools/execute 等待期间若定义被替换，也通过同步 tools/change 取消该次 dispatch，防止最后一次 lookup 执行新定义。相同 schema 的官方重新注册不清空加载集合/快照，但已经进入异步 gate 的旧调用仍拒绝；新调用使用当前官方定义。仅 OwnDsh 保留的 namespace 参与过滤，其他插件的 MCP 与普通工具保留；重叠 namespace 明确报冲突。
 
@@ -400,7 +366,7 @@ MCP 与 OAuth 的发现、注册、授权、交换及刷新都接受管理员指
 
 候选目录超过7天时，下次用户主动连接/刷新允许重报相同digest以更新receivedAt；后台没有定时连接。
 
-McpLocalView：`id,displayName,authType,state,desiredConnected,credentialConfigured,discoveredToolCount,lastDiscoveredAt?,lastCallAt?,effectivePresentation,errorCode?,retryAfterMs?`。没有 secret、完整 OAuth URL、stack、raw callback query。
+McpLocalView：`id,displayName,authType,state,desiredConnected,credentialConfigured,discoveredToolCount,lastDiscoveredAt?,lastCallAt?,exposure?,errorCode?,retryAfterMs?`。没有 secret、完整 OAuth URL、stack、raw callback query。
 操作状态 PENDING/SUCCEEDED/FAILED/CANCELLED；只内存保留10分钟、最多100项。重启失去 operation 时UI重新 GET 列表，不反复提交。对同 server 的相同动作返回进行中 operation；相反动作更新 desired state 并取消前者。
 当前身份改变清空 UI store、abort 请求，比较 view generation 防迟到结果。MCP settings tab 新增到现有 account-store/account-view，不新增 sidebar 或修改宿主私有状态。
 UI 从现有宿主事件触发刷新；操作进行中允许1秒临时轮询，5分钟截止，页面关闭停止；闲置无轮询。
@@ -439,7 +405,7 @@ Client event：`eventId(UUID),type,serverId,publicName?,sessionId?,occurredAt,du
 本机批量队列≤200，丢最旧并增加 droppedCount，不落调用正文文件；活动时每30秒或满50项批量发，退出 best effort；Server按(tenant,device,eventId)去重。runtime上报仅记 telemetry/observed audit 分类，不能与 Server 权限变更审计混同。
 
 工具调用是否 ask 沿用当前 Harness 的执行审批策略，OwnDsh 不新增一套逐调用确认 UI，也不覆盖已有 deny/ask。组织准入不自动替代用户对具体副作用的授权；readOnlyHint不可信，不能据此更改审批策略。无审批服务时原有 ask→deny 行为保留。
-`tools/pre-execute` 保持下游 deny/ask，不把它改为 allow；审批后 guard 再查最新授权，审批等待期间撤权必须拒绝。search/release只修改会话呈现，本身不额外发起用户确认。
+`tools/pre-execute` 保持下游 deny/ask，不把它改为 allow；审批后 guard 再查最新授权，审批等待期间撤权必须拒绝。`tool_search` 只修改下一轮选择，本身不额外发起用户确认。
 
 工具结果保持官方 image/structuredContent 投影；spill/compaction 的实现和开关属于 Harness，OwnDsh 不增加压缩模块，不截断 canonical programmatic value 冒充完整结果。search 只治理定义，不解决无限 tools/list、超大返回值或用户历史总上下文。
 

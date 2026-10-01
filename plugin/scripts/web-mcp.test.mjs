@@ -1,6 +1,6 @@
 /**
  * [INPUT]: npm Harness Web runtime、已安装 OwnDsh 的隔离 profile、Playwright 与本地 HTTP 协议桩。
- * [OUTPUT]: 浏览器登录、官方插件入口与企业目录并存、MCP 操作和真实 AgentLoop 的搜索累加、Orama golden 召回、释放、资源、SDK OAuth 回归证据。
+ * [OUTPUT]: 浏览器登录、官方插件入口与企业目录并存、MCP 操作和真实 AgentLoop 的 tool_search、结构化结果、资源与 SDK OAuth 回归证据。
  * [POS]: 跨版本组合验收；复制 profile 后运行，模型只返回确定性工具调用，所有外部服务均在回环地址。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -18,6 +18,9 @@ import { createRequire } from 'node:module'
 const runtime = process.env.OWNDSH_TEST_RUNTIME
 const profile = process.env.OWNDSH_TEST_PROFILE
 assert.ok(runtime && profile, 'Set OWNDSH_TEST_RUNTIME and OWNDSH_TEST_PROFILE (installed web profile directory)')
+const toolsMode = process.env.OWNDSH_E2E_TOOLS_MODE ?? 'native'
+const structuredOnly = process.env.OWNDSH_E2E_SCENARIO === 'structured'
+assert.ok(['native', 'ptc', 'both'].includes(toolsMode), `Unsupported OWNDSH_E2E_TOOLS_MODE: ${toolsMode}`)
 const requireRuntime = createRequire(join(runtime, 'package.json'))
 const hash = value => createHash('sha256').update(value).digest('hex')
 const bundleHash = hash(await readFile(join(profile, 'node_modules/owndsh-plugin/lib/index.js')))
@@ -45,6 +48,26 @@ const codes = new Map()
 let origin, installationId, refreshGrant, mcpAccess, mcpRefresh, tokenIndex = 0, rejectedAccess, rejectRefresh = false
 let scenario = 'load', step = 0
 const tool = (name, description = `${name} for E2E`) => ({ name, description, inputSchema: { type: 'object', properties: { text: { type: 'string' } } } })
+const structuredTools = [
+  {
+    name: 'lookup_user', description: 'Look up a user and return a structured user record.',
+    inputSchema: { type: 'object', properties: { email: { type: 'string' } }, required: ['email'], additionalProperties: false },
+    outputSchema: { type: 'object', properties: { id: { type: 'string' }, status: { type: 'string' } }, required: ['id', 'status'], additionalProperties: false },
+  },
+  {
+    name: 'update_user', description: 'Update a user by id and return the updated structured record.',
+    inputSchema: { type: 'object', properties: { userId: { type: 'string' }, status: { type: 'string' } }, required: ['userId', 'status'], additionalProperties: false },
+    outputSchema: { type: 'object', properties: { ok: { type: 'boolean' }, userId: { type: 'string' } }, required: ['ok', 'userId'], additionalProperties: false },
+  },
+  {
+    name: 'unknown_record', description: 'Inspect an unknown user record without an output schema.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
+    name: 'fail_user', description: 'Return a user error result for error handling tests.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+]
 const goldenTools = [
   tool('fetch', 'Fetch workspace information, the current workspace name, a page, or a database by ID；查询当前工作区名称。'),
   tool('get-users', 'List users and workspace members for the current workspace；列出当前工作区用户。'),
@@ -60,35 +83,86 @@ const goldenTools = [
 ]
 const assignment = (id, name, auth, displayName = name) => ({ id, revision: 1, serverName: name, displayName, description: 'Web E2E',
   transport: 'streamable-http', url: `${origin}/${name}`, allowInsecureTransport: true, headers: {}, auth,
-  toolCallTimeoutMs: 5000, reconnect: { enabled: false, initialDelayMs: 100, maxDelayMs: 1000, maxAttempts: 1 }, presentation: 'search' })
+  toolCallTimeoutMs: 5000, reconnect: { enabled: false, initialDelayMs: 100, maxDelayMs: 1000, maxAttempts: 1 } })
 function assignments() {
   return [assignment('1', 'docs', { type: 'none' }), assignment('2', 'resourceonly', { type: 'none' }),
     assignment('3', 'oauth', { type: 'oauth', issuer: origin, resource: `${origin}/oauth`, clientId: 'e2e', scopes: ['read'] }),
-    assignment('4', 'apikey', { type: 'api-key', headerName: 'X-API-Key' }), assignment('5', 'golden', { type: 'none' }, 'Notion')]
+    assignment('4', 'apikey', { type: 'api-key', headerName: 'X-API-Key' }), assignment('5', 'golden', { type: 'none' }, 'Notion'),
+    assignment('6', 'structured', { type: 'none' }, 'Structured')]
 }
 const tc = (name, args = {}) => ({ name, arguments: JSON.stringify(args) })
 function modelResponse(input) {
   const names = input.tools?.map(t => t.function.name) ?? []
   const active = names.filter(n => n.startsWith('mcp__'))
-  modelRequests.push({ scenario, step, names: active, toolResults: input.messages.filter(m => m.role === 'tool') })
+  const system = [typeof input.system === 'string' ? input.system : '', ...(input.messages ?? [])
+    .filter(message => message.role === 'system')
+    .map(message => typeof message.content === 'string' ? message.content : JSON.stringify(message.content))].join('\n')
+  modelRequests.push({ scenario, step, names: active, allNames: names, hasStructuredSdk: system.includes('mcp__structured__lookup_user'), toolResults: input.messages.filter(m => m.role === 'tool') })
   assert.equal(new Set(names).size, names.length)
-  for (const name of ['mcp_tool_search', 'mcp_tool_release', 'list_mcp_resources', 'list_mcp_resource_templates', 'read_mcp_resource']) assert.ok(names.includes(name), name)
+  if (!(scenario === 'structured' && toolsMode === 'ptc')) {
+    for (const name of ['tool_search', 'list_mcp_resources', 'list_mcp_resource_templates', 'read_mcp_resource']) assert.ok(names.includes(name), name)
+  }
   const expectNames = expected => assert.deepEqual(active.sort(), expected.sort(), `${scenario} step ${step}`)
+  if (scenario === 'structured') {
+    const latest = JSON.stringify(input.messages.filter(m => m.role === 'tool').at(-1)?.content ?? '')
+    if (toolsMode === 'native') {
+      switch (step++) {
+        case 0: expectNames([]); return [tc('tool_search', { query: 'look up user', limit: 1 })]
+        case 1: expectNames(['mcp__structured__lookup_user']); return [tc('mcp__structured__lookup_user', { email: 'user@example.com' })]
+        case 2:
+          expectNames(['mcp__structured__lookup_user'])
+          assert.match(latest, /user-1/)
+          return [tc('tool_search', { query: 'update user', limit: 1 })]
+        case 3: {
+          expectNames(['mcp__structured__lookup_user', 'mcp__structured__update_user'])
+          const lookup = input.messages.findLast(message => message.role === 'tool' && String(message.content).includes('lookup_user result'))
+          const userId = String(lookup?.content).match(/user-\d+/)?.[0]
+          assert.equal(userId, 'user-1')
+          return [tc('mcp__structured__update_user', { userId, status: 'verified' })]
+        }
+        case 4: expectNames(['mcp__structured__lookup_user', 'mcp__structured__update_user']); return [tc('tool_search', { query: 'unknown user record', limit: 1 })]
+        case 5: expectNames(['mcp__structured__lookup_user', 'mcp__structured__update_user', 'mcp__structured__unknown_record']); return [tc('mcp__structured__unknown_record')]
+        case 6: expectNames(['mcp__structured__lookup_user', 'mcp__structured__update_user', 'mcp__structured__unknown_record']); return [tc('tool_search', { query: 'user error', limit: 1 })]
+        case 7: expectNames(['mcp__structured__lookup_user', 'mcp__structured__update_user', 'mcp__structured__unknown_record', 'mcp__structured__fail_user']); return [tc('mcp__structured__fail_user')]
+        case 8: assert.match(latest, /MCP|error|fail/i); return 'MCP E2E structured native PASS'
+        default: throw new Error('Unexpected structured native model loop')
+      }
+    }
+    assert.ok(names.includes('run_code'), `${toolsMode} must expose run_code`)
+    assert.ok(system.includes('mcp__structured__lookup_user') === (step > 0), `${toolsMode} structured SDK visibility at step ${step}`)
+    if (step === 0) {
+      step = 1
+      return [tc('run_code', { code: 'return await tools.tool_search({ query: "structured user", limit: 8 })', description: 'Discover structured user tools' })]
+    }
+    if (step === 1) {
+      step = 2
+      return [tc('run_code', { code: 'const user = await tools.mcp__structured__lookup_user({ email: "user@example.com" });\nconst updated = await tools.mcp__structured__update_user({ userId: user.structuredContent.id, status: "verified" });\nconst unknown = await tools.mcp__structured__unknown_record({});\nlet failed = false; try { await tools.mcp__structured__fail_user({}); } catch { failed = true; }\nif (!failed) throw new Error("expected MCP error");\nreturn { id: user.structuredContent.id, updated: updated.structuredContent, unknown: unknown.structuredContent, failed };', description: 'Compose structured MCP user operations' })]
+    }
+    assert.match(latest, /user-1/)
+    assert.match(latest, /kept|unknown|failed|true/i)
+    assert.ok(methods.some(m => m.server === 'structured' && m.method === 'tools/call' && m.params.name === 'update_user' && m.params.arguments.userId === 'user-1'))
+    assert.ok(methods.some(m => m.server === 'structured' && m.method === 'tools/call' && m.params.name === 'unknown_record'))
+    assert.ok(methods.some(m => m.server === 'structured' && m.method === 'tools/call' && m.params.name === 'fail_user'))
+    return `MCP E2E structured ${toolsMode} PASS`
+  }
   if (scenario === 'load') {
     switch (step++) {
-      case 0: expectNames([]); return [tc('mcp_tool_search', { query: 'echo', serverName: 'docs' })]
-      case 1: expectNames(['mcp__docs__echo']); return [tc('mcp_tool_search', { query: 'write', serverName: 'docs' }), tc('mcp__docs__echo', { text: 'first' })]
-      case 2: expectNames(['mcp__docs__echo', 'mcp__docs__write']); return [tc('mcp_tool_search', { query: 'echo', serverName: 'docs' })]
-      case 3: expectNames(['mcp__docs__echo', 'mcp__docs__write']); return [tc('mcp_tool_release', { names: ['mcp__docs__echo'] }), tc('mcp__docs__echo', { text: 'same-step' })]
-      case 4: expectNames(['mcp__docs__write']); return [tc('mcp__docs__write', { text: 'last' }), tc('mcp_tool_search', { query: 'echo', serverName: 'oauth' })]
-      case 5: expectNames(['mcp__docs__write', 'mcp__oauth__echo']); return [tc('mcp__oauth__echo', { text: 'oauth' }), tc('mcp_tool_search', { query: 'echo', serverName: 'apikey' })]
-      case 6: expectNames(['mcp__docs__write', 'mcp__oauth__echo', 'mcp__apikey__echo']); return [tc('mcp__apikey__echo', { text: 'key' }),
+      case 0: expectNames([]); return [tc('tool_search', { query: 'docs echo', limit: 1 })]
+      case 1: expectNames(['mcp__docs__echo']); return [tc('tool_search', { query: 'docs write', limit: 1 }), tc('mcp__docs__echo', { text: 'first' })]
+      case 2: expectNames(['mcp__docs__echo', 'mcp__docs__write']); return [tc('tool_search', { query: 'docs', limit: 1 })]
+      case 3: expectNames(['mcp__docs__echo', 'mcp__docs__write']); return [tc('tool_search', { query: 'oauth echo', limit: 1 }), tc('mcp__oauth__echo', { text: 'same-step-must-not-execute' })]
+      case 4:
+        expectNames(['mcp__docs__echo', 'mcp__docs__write', 'mcp__oauth__echo'])
+        assert.ok(input.messages.some(m => m.role === 'tool' && JSON.stringify(m.content).includes('MCP_TOOL_NOT_LOADED')))
+        return [tc('mcp__docs__write', { text: 'last' }), tc('mcp__oauth__echo', { text: 'oauth' }), tc('tool_search', { query: 'apikey echo', limit: 1 })]
+      case 5: expectNames(['mcp__docs__echo', 'mcp__docs__write', 'mcp__oauth__echo', 'mcp__apikey__echo']); return [tc('mcp__apikey__echo', { text: 'key' }),
         tc('list_mcp_resources', { server: 'resourceonly' }), tc('list_mcp_resource_templates', { server: 'resourceonly' }),
         tc('read_mcp_resource', { server: 'resourceonly', uri: 'mcp://docs/readme' }),
         tc('list_mcp_resources', { server: 'oauth' }), tc('list_mcp_resource_templates', { server: 'oauth' }),
         tc('read_mcp_resource', { server: 'oauth', uri: 'mcp://docs/from-template' })]
-      case 7:
+      case 6:
         assert.ok(input.messages.some(m => m.role === 'tool' && JSON.stringify(m.content).includes('resource body')))
+        assert.equal(methods.filter(m => m.method === 'tools/call' && m.params.arguments.text === 'same-step-must-not-execute').length, 0)
         return 'MCP E2E load PASS'
       default: throw new Error('Unexpected model loop')
     }
@@ -103,7 +177,7 @@ function modelResponse(input) {
     return 'MCP E2E invalid-grant PASS'
   }
   if (scenario === 'recover') {
-    if (step++ === 0) return [tc('mcp_tool_search', { query: 'echo', serverName: 'oauth' })]
+    if (step++ === 0) return [tc('tool_search', { query: 'oauth echo', limit: 1 })]
     if (step === 2) return [tc('mcp__oauth__echo', { text: 'reauthorized' })]
     return 'MCP E2E recovery PASS'
   }
@@ -113,22 +187,21 @@ function modelResponse(input) {
   }
   if (scenario === 'new-agent') { expectNames([]); return 'MCP E2E isolation PASS' }
   if (scenario === 'golden') {
-    if (step === 0) { step++; expectNames([]); return [tc('mcp_tool_search', { query: 'notion workspace info name', serverName: 'golden', limit: 8 })] }
+    if (step === 0) { step++; expectNames([]); return [tc('tool_search', { query: 'notion workspace info name', limit: 7 })] }
     if (step === 1) {
       step++
       const result = input.messages.filter(m => m.role === 'tool').at(-1)
       assert.ok(result && JSON.stringify(result.content).includes('mcp__golden__fetch'))
+      assert.ok(result && JSON.stringify(result.content).includes('mcp__golden__get-users'))
       assert.ok(result && !JSON.stringify(result.content).includes('mcp__golden__utility-'))
-      return [tc('mcp_tool_search', { query: 'the', serverName: 'golden', limit: 8 })]
+      return [tc('tool_search', { query: 'the', limit: 8 })]
     }
     if (step === 2) {
       step++
-      assert.ok(input.messages.some(m => m.role === 'tool' && JSON.stringify(m.content).includes('NO_MATCH')))
-      return [tc('mcp_tool_search', { query: '查询工作区名称', serverName: 'golden', limit: 8 })]
+      assert.ok(JSON.stringify(input.messages.filter(m => m.role === 'tool').at(-1)?.content).includes('NO_MATCH'))
+      return [tc('tool_search', { query: '查询工作区名称', limit: 8 })]
     }
-    const result = input.messages.filter(m => m.role === 'tool').at(-1)
-    assert.ok(result && JSON.stringify(result.content).includes('mcp__golden__fetch'))
-    assert.ok(result && JSON.stringify(result.content).includes('mcp__golden__get-users'))
+    assert.ok(JSON.stringify(input.messages.filter(m => m.role === 'tool').at(-1)?.content).includes('NO_MATCH'))
     return 'MCP E2E golden PASS'
   }
   return 'MCP E2E ordinary PASS'
@@ -179,7 +252,7 @@ async function handle(req, res) {
     mcpAccess = `mcp-access-${++tokenIndex}`; mcpRefresh = `mcp-refresh-${tokenIndex}`
     return json(res, { access_token: mcpAccess, refresh_token: mcpRefresh, token_type: 'Bearer', expires_in: 3600 })
   }
-  if (['/docs', '/resourceonly', '/oauth', '/apikey', '/golden'].includes(pathname)) {
+  if (['/docs', '/resourceonly', '/oauth', '/apikey', '/golden', '/structured'].includes(pathname)) {
     if (pathname === '/oauth' && (!mcpAccess || req.headers.authorization !== `Bearer ${mcpAccess}` || mcpAccess === rejectedAccess)) {
       res.setHeader('WWW-Authenticate', `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource/oauth"`)
       return json(res, { error: 'unauthorized' }, 401)
@@ -195,9 +268,22 @@ async function handle(req, res) {
     if (input.method === 'initialize') result = { protocolVersion: '2025-03-26', capabilities: { ...(pathname === '/resourceonly' ? {} : { tools: {} }), resources: {} }, serverInfo: { name: pathname.slice(1), version: '1' } }
     else if (input.method === 'tools/list') {
       assert.notEqual(pathname, '/resourceonly', 'resource-only server must never receive tools/list')
-      result = pathname === '/golden' ? { tools: goldenTools }
+      result = pathname === '/golden' ? { tools: goldenTools } : pathname === '/structured' ? { tools: structuredTools }
         : input.params?.cursor ? { tools: [tool('write')] } : { tools: [tool('echo')], nextCursor: 'page-2' }
-    } else if (input.method === 'tools/call') result = { content: [{ type: 'text', text: `${input.params.name} result ${input.params.arguments.text}` }] }
+    } else if (input.method === 'tools/call') {
+      if (pathname !== '/structured') result = { content: [{ type: 'text', text: `${input.params.name} result ${input.params.arguments.text}` }] }
+      else if (input.params.name === 'lookup_user') {
+        assert.equal(input.params.arguments.email, 'user@example.com')
+        result = { content: [{ type: 'text', text: 'lookup_user result user-1' }], structuredContent: { id: 'user-1', status: 'ready' } }
+      } else if (input.params.name === 'update_user') {
+        assert.equal(input.params.arguments.userId, 'user-1')
+        result = { content: [{ type: 'text', text: 'update_user result user-1' }], structuredContent: { ok: true, userId: 'user-1' } }
+      } else if (input.params.name === 'unknown_record') {
+        result = { content: [{ type: 'text', text: 'unknown record kept' }], structuredContent: { kept: true, id: 'user-1' } }
+      } else if (input.params.name === 'fail_user') {
+        result = { content: [{ type: 'text', text: 'structured user failure' }], isError: true }
+      } else throw new Error(`Unexpected structured tool ${input.params.name}`)
+    }
     else if (input.method === 'resources/list') result = { resources: [{ uri: 'mcp://docs/readme', name: 'readme', mimeType: 'text/plain' }] }
     else if (input.method === 'resources/templates/list') result = { resourceTemplates: [{ uriTemplate: 'mcp://docs/{path}', name: 'document' }] }
     else if (input.method === 'resources/read') result = { contents: [{ uri: input.params.uri, mimeType: 'text/plain', text: 'resource body' }] }
@@ -236,7 +322,7 @@ async function handle(req, res) {
 const server = createServer((req, res) => { void handle(req, res).catch(error => { errors.push(error.stack); json(res, { error: 'fixture failure' }, 500) }) })
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
 origin = `http://127.0.0.1:${server.address().port}`
-  await writeFile(join(home, 'profiles/web/cordis.patch.yml'), `- id: owndsh\n  config:\n    baseUrl: '${origin}'\n- id: session-title-llm\n  disabled: true\n`)
+await writeFile(join(home, 'profiles/web/cordis.patch.yml'), `- id: owndsh\n  config:\n    baseUrl: '${origin}'\n- id: tools\n  config:\n    mode: '${toolsMode}'\n- id: session-title-llm\n  disabled: true\n`)
 const env = { ...process.env, DSH_HOME: home, OWNDSH_AUTH_URL_FILE: authorizeFile,
   SSH_TTY: 'web-mcp-e2e', DSH_PERMISSION_MODE: 'danger-full-access', PATH: `${join(home, 'opener')}:${dirname(process.execPath)}:${process.env.PATH}` }
 let harness, browser, page, output = ''
@@ -277,7 +363,7 @@ async function prompt(text, expected) {
 try {
   const url = await boot()
   browser = await chromium.launch({ headless: true, ...(process.env.OWNDSH_CHROMIUM_PATH ? { executablePath: process.env.OWNDSH_CHROMIUM_PATH } : {}) })
-  page = await browser.newPage({ viewport: { width: 1440, height: 1000 } }); page.setDefaultTimeout(12000)
+  page = await browser.newPage({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 } }); page.setDefaultTimeout(12000)
   await page.goto(url)
   const gate = page.getByRole('dialog', { name: 'OwnDsh', exact: true })
   await authorize(gate.getByRole('button', { name: '登录企业账号', exact: true }))
@@ -301,53 +387,62 @@ try {
   await api.getByRole('button', { name: '禁用', exact: true }).waitFor()
   checks.push('no-auth/API-key/OAuth connection; paginated discovery; resource-only server')
   await page.screenshot({ path: join(evidence, 'mcp-connected.png') })
-  await page.getByRole('button', { name: /^(关闭|Close)$/ }).click()
-  await prompt('E2E load', 'MCP E2E load PASS')
-  checks.push('real AgentLoop: cold/search/accumulate/deduplicate/release/current-step call; API-key/OAuth calls; shared URI resources/templates/read')
-  rejectedAccess = mcpAccess; scenario = 'refresh'; step = 0
-  await prompt('E2E refresh', 'MCP E2E refresh PASS')
-  assert.ok(oauthEvents.includes('refresh_token')); assert.notEqual(mcpAccess, rejectedAccess)
-  checks.push('official SDK handles HTTP 401 and refresh-token rotation')
-  rejectedAccess = mcpAccess; rejectRefresh = true; scenario = 'invalid-grant'; step = 0
-  await prompt('E2E invalid grant', 'MCP E2E invalid-grant PASS')
-  assert.equal(methods.filter(m => m.method === 'tools/call' && m.params.arguments.text === 'must-not-execute').length, 0)
-  await settings()
-  await oauth.getByText(/需要重新授权/).waitFor()
-  await page.screenshot({ path: join(evidence, 'oauth-invalid-grant.png') })
-  rejectRefresh = false
-  await authorize(oauth.getByRole('button', { name: '重新授权', exact: true }))
-  await oauth.getByRole('button', { name: '禁用', exact: true }).waitFor()
-  await page.getByRole('button', { name: /^(关闭|Close)$/ }).click()
-  scenario = 'recover'; step = 0
-  await prompt('E2E recover the same conversation', 'MCP E2E recovery PASS')
-  assert.ok(methods.some(m => m.method === 'tools/call' && m.params.arguments.text === 'reauthorized'))
-  checks.push('invalid_grant blocks the rejected call, shows reauthorization, and recovers the same conversation')
-  await settings()
-  const docs = page.getByRole('region', { name: 'MCP docs', exact: true })
-  await docs.getByRole('button', { name: '禁用', exact: true }).click()
-  await docs.getByRole('button', { name: '启用', exact: true }).waitFor()
-  await page.getByRole('button', { name: /^(关闭|Close)$/ }).click()
-  scenario = 'paused'; step = 0
-  await prompt('E2E paused', 'MCP E2E paused PASS')
-  checks.push('pause removes tools from the existing conversation; ordinary chat remains usable')
-  await settings(); await docs.getByRole('button', { name: '启用', exact: true }).click()
-  await docs.getByRole('button', { name: '禁用', exact: true }).waitFor()
-  await page.getByRole('button', { name: /^(关闭|Close)$/ }).click()
-  await page.getByRole('button', { name: /^(New session|新建会话)$/ }).first().click()
-  await page.getByText(/^(探索未至之境|Into the Unknown)$/).waitFor()
-  scenario = 'new-agent'; step = 0
-  await prompt('E2E new agent', 'MCP E2E isolation PASS')
-  checks.push('reenable works; a new Agent does not inherit loaded tools')
-  scenario = 'golden'; step = 0
-  await prompt('E2E search golden', 'MCP E2E golden PASS')
-  checks.push('real AgentLoop: Notion-shaped BM25 natural-language, stopword, Chinese, exact server filter, and next-step injection')
-  await page.screenshot({ path: join(evidence, 'chat-tools.png') })
-  await stop(); await page.goto(await boot()); await settings()
-  await page.getByRole('region', { name: 'MCP oauth', exact: true }).getByRole('button', { name: '禁用', exact: true }).waitFor()
-  assert.equal(oauthEvents.filter(e => e === 'browser-authorize').length, 2)
-  checks.push('Host restart restores enterprise/OAuth credentials without another browser login')
-  for (const name of ['docs', 'oauth', 'apikey']) assert.ok(methods.some(m => m.server === name && m.method === 'tools/list' && m.params?.cursor === 'page-2'))
-  assert.equal(methods.filter(m => m.server === 'resourceonly' && m.method === 'tools/list').length, 0)
+  if (structuredOnly) {
+    await page.getByRole('button', { name: /^(关闭|Close)$/ }).click()
+    scenario = 'structured'; step = 0
+    await prompt(`E2E structured ${toolsMode}`, `MCP E2E structured ${toolsMode} PASS`)
+    assert.ok(methods.some(m => m.server === 'structured' && m.method === 'tools/list'))
+    assert.ok(methods.some(m => m.server === 'structured' && m.method === 'tools/call' && m.params.name === 'lookup_user'))
+    checks.push(`real AgentLoop ${toolsMode}: outputSchema, structuredContent, ${toolsMode === 'native' ? 'A-to-B text value continuation' : 'A-to-B structured field composition'}, unknown structured result, and MCP isError`)
+  } else {
+    await page.getByRole('button', { name: /^(关闭|Close)$/ }).click()
+    await prompt('E2E load', 'MCP E2E load PASS')
+    checks.push('real AgentLoop: cold/search/accumulate/deduplicate/current-step call; API-key/OAuth calls; shared URI resources/templates/read')
+    rejectedAccess = mcpAccess; scenario = 'refresh'; step = 0
+    await prompt('E2E refresh', 'MCP E2E refresh PASS')
+    assert.ok(oauthEvents.includes('refresh_token')); assert.notEqual(mcpAccess, rejectedAccess)
+    checks.push('official SDK handles HTTP 401 and refresh-token rotation')
+    rejectedAccess = mcpAccess; rejectRefresh = true; scenario = 'invalid-grant'; step = 0
+    await prompt('E2E invalid grant', 'MCP E2E invalid-grant PASS')
+    assert.equal(methods.filter(m => m.method === 'tools/call' && m.params.arguments.text === 'must-not-execute').length, 0)
+    await settings()
+    await oauth.getByText(/需要重新授权/).waitFor()
+    await page.screenshot({ path: join(evidence, 'oauth-invalid-grant.png') })
+    rejectRefresh = false
+    await authorize(oauth.getByRole('button', { name: '重新授权', exact: true }))
+    await oauth.getByRole('button', { name: '禁用', exact: true }).waitFor()
+    await page.getByRole('button', { name: /^(关闭|Close)$/ }).click()
+    scenario = 'recover'; step = 0
+    await prompt('E2E recover the same conversation', 'MCP E2E recovery PASS')
+    assert.ok(methods.some(m => m.method === 'tools/call' && m.params.arguments.text === 'reauthorized'))
+    checks.push('invalid_grant blocks the rejected call, shows reauthorization, and recovers the same conversation')
+    await settings()
+    const docs = page.getByRole('region', { name: 'MCP docs', exact: true })
+    await docs.getByRole('button', { name: '禁用', exact: true }).click()
+    await docs.getByRole('button', { name: '启用', exact: true }).waitFor()
+    await page.getByRole('button', { name: /^(关闭|Close)$/ }).click()
+    scenario = 'paused'; step = 0
+    await prompt('E2E paused', 'MCP E2E paused PASS')
+    checks.push('pause removes tools from the existing conversation; ordinary chat remains usable')
+    await settings(); await docs.getByRole('button', { name: '启用', exact: true }).click()
+    await docs.getByRole('button', { name: '禁用', exact: true }).waitFor()
+    await page.getByRole('button', { name: /^(关闭|Close)$/ }).click()
+    await page.getByRole('button', { name: /^(New session|新建会话)$/ }).first().click()
+    await page.getByText(/^(探索未至之境|Into the Unknown)$/).waitFor()
+    scenario = 'new-agent'; step = 0
+    await prompt('E2E new agent', 'MCP E2E isolation PASS')
+    checks.push('reenable works; a new Agent does not inherit loaded tools')
+    scenario = 'golden'; step = 0
+    await prompt('E2E search golden', 'MCP E2E golden PASS')
+    checks.push('real AgentLoop: Notion-shaped BM25 natural-language, stopword/Chinese NO_MATCH, and next-step injection')
+    await page.screenshot({ path: join(evidence, 'chat-tools.png') })
+    await stop(); await page.goto(await boot()); await settings()
+    await page.getByRole('region', { name: 'MCP oauth', exact: true }).getByRole('button', { name: '禁用', exact: true }).waitFor()
+    assert.equal(oauthEvents.filter(e => e === 'browser-authorize').length, 2)
+    checks.push('Host restart restores enterprise/OAuth credentials without another browser login')
+    for (const name of ['docs', 'oauth', 'apikey']) assert.ok(methods.some(m => m.server === name && m.method === 'tools/list' && m.params?.cursor === 'page-2'))
+    assert.equal(methods.filter(m => m.server === 'resourceonly' && m.method === 'tools/list').length, 0)
+  }
   assert.deepEqual(errors, [])
   assert.ok(!output.includes('does not implement saveDiscoveryState'), 'SDK callback binding must be supplied')
   await writeFile(join(evidence, 'result.json'), JSON.stringify({ version: manifest.version, bundleHash, checks, oauthEvents, methods, modelRequests }, null, 2))

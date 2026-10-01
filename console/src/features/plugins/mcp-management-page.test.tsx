@@ -23,7 +23,7 @@ function page(items: unknown[]) { return { data: { items, page: { hasMore: false
 
 beforeEach(() => {
   access.permissions = ['ent:mcp:read', 'ent:mcp:write', 'ent:mcp:grant']; writes = []; updates = []; badPage = false; updateConflict = false; client.setConfig({ baseUrl: 'http://localhost' });
-  server = { id: serverId, displayName: '设计工具', serverName: 'design_tools', description: '团队工具目录', transport: 'streamable-http', url: 'https://mcp.example.test', allowInsecureTransport: false, headers: { 'X-Apifox-Api-Version': '2026-09-16' }, status: 'ACTIVE', revision: 7, auth: { type: 'none' }, presentation: 'search', toolCallTimeoutMs: 90_000, reconnect: { enabled: false, initialDelayMs: 2_000, maxDelayMs: 60_000, maxAttempts: 3 }, createdAt: '2026-09-16T00:00:00Z', updatedAt: '2026-09-16T00:00:00Z' };
+  server = { id: serverId, displayName: '设计工具', serverName: 'design_tools', description: '团队工具目录', transport: 'streamable-http', url: 'https://mcp.example.test', allowInsecureTransport: false, headers: { 'X-Apifox-Api-Version': '2026-09-16' }, status: 'ACTIVE', revision: 7, auth: { type: 'none' }, toolCallTimeoutMs: 90_000, reconnect: { enabled: false, initialDelayMs: 2_000, maxDelayMs: 60_000, maxAttempts: 3 }, createdAt: '2026-09-16T00:00:00Z', updatedAt: '2026-09-16T00:00:00Z' };
   vi.stubGlobal('fetch', vi.fn(async (request: Request) => {
     const url = new URL(request.url); let body: unknown = page([]);
     if (request.method === 'PUT') {
@@ -127,7 +127,6 @@ it.each(authenticationCases)('edits $name configuration without resetting existi
   expect(screen.getByRole('dialog', { name: '编辑 MCP 服务' })).toBeDefined();
   expect((screen.getByLabelText('服务标识') as HTMLInputElement).value).toBe('design_tools');
   expect((screen.getByLabelText('显示名称') as HTMLInputElement).value).toBe('设计工具');
-  expect((screen.getByRole('combobox', { name: '工具加载' }) as HTMLSelectElement).value).toBe('search');
   expect((screen.getByLabelText('认证方式') as HTMLSelectElement).value).toBe(auth.type);
   if (auth.type === 'api-key') {
     expect((screen.getByLabelText('Header 名称') as HTMLInputElement).value).toBe(auth.headerName);
@@ -139,9 +138,8 @@ it.each(authenticationCases)('edits $name configuration without resetting existi
     expect((screen.getByLabelText('Public client ID') as HTMLInputElement).value).toBe('clientId' in auth ? auth.clientId : '');
   }
   fireEvent.change(screen.getByLabelText('显示名称'), { target: { value: '更新后的工具' } });
-  fireEvent.change(screen.getByRole('combobox', { name: '工具加载' }), { target: { value: 'full' } });
   fireEvent.click(screen.getByRole('button', { name: '保存服务' }));
-  await waitFor(() => expect(updates).toEqual([{ path: `/enterprise/admin/v1/mcp-servers/${id}`, revision: String(revision), body: { ...configuration, displayName: '更新后的工具', presentation: 'full' } }]));
+  await waitFor(() => expect(updates).toEqual([{ path: `/enterprise/admin/v1/mcp-servers/${id}`, revision: String(revision), body: { ...configuration, displayName: '更新后的工具' } }]));
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   expect(await screen.findByText('更新后的工具')).toBeDefined();
   expect(writes).toEqual([]);

@@ -7,7 +7,7 @@
 
 # OwnDsh MCP 详细设计
 
-修订日期：2026-09-17。状态：第一版实施规格；实现进度与验证事实见实施文档，不能把源码核对当作 E2E 通过。
+修订日期：2026-09-17。状态：历史第一版实施规格；曝光与检索契约已由 [Pi 适配设计](mcp-pi-adaptation-design.md) 取代，本文保留连接、授权和管理面背景，不再作为 full/search 或 Orama 的实现真源。
 
 阅读顺序：[本文件](mcp-management-design.md) → [端侧运行时](mcp-runtime-design.md) → [实施任务与验收](mcp-implementation-plan.md)。三份文件组成一份设计；字段以本文为准，运行顺序以运行时文档为准。
 
@@ -23,8 +23,8 @@
 | OAuth | OwnDsh 组织流程；复用 MCP TypeScript SDK 的发现/授权辅助函数；token 生成静态 headers 后重挂载官方 client |
 | MCP 连接 | 单用户 Host 复用连接；用户首次点击连接，assignment 不自动发起 OAuth |
 | 工具目录 | 端侧通过 tools/list 动态发现；保留单定义/目录输入保护，完整定义不改写 |
-| 资源访问 | 复用官方 dsh-mcp-resources，按需列出/读取当前 Agent 可见服务器的资源；不进入工具目录或 Orama 索引 |
-| 呈现 | 默认 search，累加去重并显式释放；full 全量呈现有效目录，不自动降级 |
+| 资源访问 | 复用官方 dsh-mcp-resources，按需列出/读取当前 Agent 可见服务器的资源；不进入工具检索索引 |
+| 呈现 | 按 Pi exposure 语义与 DSH native/PTC/both 投影；默认由 Agent 模式解析为 deferred 或 codemode |
 | 会话 | 每个 live agent 独立 loaded 与本步 presented；不写入 preset，无16工具/64KiB会话硬限 |
 | 宿主会话能力 | AgentLoop、会话保存/恢复、compaction/spill 由 Harness 实现；OwnDsh 只负责 MCP 工具投影、会话隔离和执行权限的接缝回归 |
 | 执行 | 保留 Harness 完整 tools pipeline；授权使用 monotonic guard，呈现使用 assemble waterfall |
@@ -102,7 +102,7 @@ MCP 新能力以 **0.1.7-rc.1** 为目标；开发和验收必须使用该发行
 1. 管理员在 `/mcp` 的“服务配置”tab 通过“添加 MCP”弹窗创建服务。初始 DISABLED。
 2. 填连接、认证信息并启用；给试用成员授权。
 3. 员工在「OwnDsh 设置 → MCP」点击连接，输入 Key 或完成 OAuth。Host 通过 MCP `tools/list` 动态发现工具。
-4. 端侧按 search/full、当前会话加载选择和有效授权呈现工具元数据；高风险调用沿用 Harness 用户确认。
+4. 端侧按 exposure、当前 Agent 选择和有效授权呈现工具元数据；高风险调用沿用 Harness 用户确认。
 5. 模型搜索命中 → 当前会话加载 schema → 正常 Harness tool call → 端侧直连 MCP。
 6. 目录新增或 schema 改变由端侧刷新；管理员停用/撤销在授权快照有效期内收敛。
 
@@ -128,7 +128,7 @@ MCP 新能力以 **0.1.7-rc.1** 为目标；开发和验收必须使用该发行
 | auth | none / api-key / oauth discriminated object | 见 4.2 |
 | toolCallTimeoutMs | integer，默认 60000，1000..300000 | 对齐官方字段 |
 | reconnect | object，默认见下文 | 对齐官方字段 |
-| presentation | `search` / `full`，默认 search | 不改变工具授权 |
+| exposure | 不在管理端配置；由插件端用户按服务器/工具保存曝光偏好 | 不改变工具授权 |
 | status | ACTIVE / DISABLED | 创建固定 DISABLED；独立动作修改 |
 | createdAt / updatedAt | timestamp | 只读 |
 
@@ -181,7 +181,7 @@ headerName 为合法 HTTP token，≤128，默认 Authorization。端侧只接�
 - 每个公共 value ≤1024，无 CR/LF/NUL。公共不等于可以安全识别秘密：表单明确要求不填秘密，后端禁止专用秘密字段，不能声称能检测所有伪装 token。
 - 管理声明信任合法企业私网 endpoint；不默认禁止 RFC1918。禁止云 metadata/link-local/unspecified/multicast 和 URL 字面量 loopback。DNS 与实际出站策略限制见运行时文档，不能仅靠字符串校验宣称防 DNS rebinding。
 - url、headers、auth、transport 安全相关设置变化时，用户必须重新连接；旧 token 不对新 endpoint 复用，Tool 由端侧重新发现。
-- displayName/description/presentation/timeout/reconnect 更新不清空准入。timeout/reconnect 变动重挂载，别名/准入/呈现变动仅重新投影。
+- displayName/description/timeout/reconnect 更新不清空准入。timeout/reconnect 变动重挂载；显示信息变化只刷新目录。曝光偏好属于插件端用户配置，不写入管理端 assignment。
 - serverName 不复用已经删除过的身份；第一版无物理删除，DISABLED 保留历史引用。
 
 ## 5. 存储与授权裁决
@@ -196,7 +196,7 @@ headerName 为合法 HTTP token，≤128，默认 Authorization。端侧只接�
 | server_name / display_name / description | varchar(32)/(120)/(1000)，NOT NULL |
 | transport / endpoint_url | varchar(32) CHECK streamable-http / varchar(2048) |
 | allow_insecure_transport / headers_json / auth_json | boolean / jsonb object / jsonb object，均 NOT NULL |
-| tool_call_timeout_ms / reconnect_json / presentation | integer / jsonb object / varchar(8) CHECK search,full |
+| tool_call_timeout_ms / reconnect_json | integer / jsonb object |
 | status / revision | ACTIVE,DISABLED / bigint ≥0 |
 | created_at / updated_at | 与已有模块一致的 UTC timestamp |
 
@@ -276,7 +276,6 @@ UNIQUE(tenant_id,server_id,device_id)，每设备只保留最近一次；每服�
       "auth":{"type":"api-key","headerName":"Authorization"},
       "toolCallTimeoutMs":60000,
       "reconnect":{"enabled":true,"initialDelayMs":500,"maxDelayMs":30000,"maxAttempts":10},
-      "presentation":"search",
         }]
   },
   "requestId":"req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
@@ -327,7 +326,7 @@ OAuth/连接阶段的错误是本地状态码，不能让 Server 编造用户认
 MCP 用户消费由 assignment 决定，与管理角色无关。以后给 plugin_admin 管理权属于产品权限变更，不能顺手放开。
 `/plugins` 与 `/mcp` 使用独立路由和导航入口，沿用控制台的固定角色导航机制；页面数据读取分别受 `ent:plugin:read` 与 `ent:mcp:read` 约束。MCP 页的“服务配置 / 访问授权”tab 都可只读浏览，配置写操作要求 `ent:mcp:write`，授权操作要求 `ent:mcp:grant`；MCP 页不发插件 API。候选目录/授权成员选择复用现有成员与用户组 selector 和权限入口，不绕过目录权限。
 
-管理表单：连接字段、认证字段条件表单、运行参数、search/full；默认收起高级参数；不显示 `Cordis` 等实现词。服务行提供与模型页一致的铅笔编辑入口，创建和编辑复用弹窗；编辑回填已有值，按原 revision 发送 If-Match，保留未修改的固定 headers、连接参数和独立 OAuth resource。失败保留草稿，revision 冲突要求重新打开最新配置后提交，不自动重放写请求。目录只作为运行诊断信息展示。
+管理表单：连接字段、认证字段条件表单和运行参数；曝光属于插件端用户设置，不在管理端编辑。默认收起高级参数；不显示 `Cordis` 等实现词。服务行提供与模型页一致的铅笔编辑入口，创建和编辑复用弹窗；编辑回填已有值，按原 revision 发送 If-Match，保留未修改的固定 headers、连接参数和独立 OAuth resource。失败保留草稿，revision 冲突要求重新打开最新配置后提交，不自动重放写请求。目录只作为运行诊断信息展示。
 表单占位提示使用通用字段含义或格式示例，不使用具体 MCP 厂商名称、专属请求头或固定版本号。
 服务启用与用户授权分开；MCP 工具是否需要单次确认沿用 Harness 的工具安全策略。
 

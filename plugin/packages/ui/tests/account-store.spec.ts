@@ -63,7 +63,7 @@ describe('EnterpriseAccountStore', () => {
       vi.useFakeTimers()
       let status: EnterpriseLocalStatus = { ...base, state: 'READY' }
       let progress = 'PENDING'
-      const mcpStatus = { assignments: [{ serverName: 'docs', displayName: 'Docs', authType: 'oauth', presentation: 'search', configured: false, connected: false, errorCode: 'MCP_AUTH_REQUIRED' }] }
+      const mcpStatus = { assignments: [{ serverName: 'docs', displayName: 'Docs', authType: 'oauth', configured: false, connected: false, errorCode: 'MCP_AUTH_REQUIRED' }] }
       const api = {
         status: vi.fn(async () => status), bootstrap: vi.fn(), plugins: vi.fn(),
         mcpStatus: vi.fn(async () => mcpStatus),

@@ -8,4 +8,4 @@ package com.owndsh.enterprise.mcp.web;
 
 import java.util.Map;
 
-public record McpServerRequest(String serverName,String displayName,String description,String transport,String url,boolean allowInsecureTransport,Map<String,String> headers,Map<String,Object> auth,int toolCallTimeoutMs,Map<String,Object> reconnect,String presentation) {}
+public record McpServerRequest(String serverName,String displayName,String description,String transport,String url,boolean allowInsecureTransport,Map<String,String> headers,Map<String,Object> auth,int toolCallTimeoutMs,Map<String,Object> reconnect) {}

@@ -1,11 +1,11 @@
 /**
- * [INPUT]: 依赖平台 bootstrap 身份/授权快照、绑定身份与目标的 credentials、官方 Harness 身份、MCP client 与 mcp-tools 门禁。
- * [OUTPUT]: 提供 mountMcpRuntime，组合用户连接路由、OAuth 失效状态、快照租约与可撤销的 MCP 子 fiber；认证值原样发送，OAuth 使用本机 loopback callback。
- * [POS]: bundle 的端侧 MCP 组合器；公共配置来自平台，秘密与连接只留在当前 Host。
+ * [INPUT]: 依赖平台 bootstrap 身份/授权快照、绑定身份与目标的 credentials、官方 Harness 身份、MCP client、用户本地 exposure 偏好与 mcp-tools 门禁。
+ * [OUTPUT]: 提供 mountMcpRuntime，组合用户连接路由、OAuth 失效状态、快照租约、按服务器曝光配置与可撤销的 MCP 子 fiber；认证值原样发送，OAuth 使用本机 loopback callback。
+ * [POS]: bundle 的端侧 MCP 组合器；平台提供连接事实，用户偏好决定工具曝光，秘密与连接只留在当前 Host。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import type { IncomingMessage } from 'node:http'
-import { createHash, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import { performance } from 'node:perf_hooks'
 import type { Context } from '@deepseek-ai/cordis'
 import { APP_IDENTITY } from '@deepseek-ai/dsh-llm'
@@ -16,19 +16,7 @@ import type { McpResourceProvider, McpResourceRequest } from '@deepseek-ai/dsh-m
 import type { ToolExecution } from '@deepseek-ai/dsh-tools'
 import { OWNDSH_SETTINGS_ENTRY, startLoopbackCallback, type EnterprisePlatformService, type WebServerRoutePort } from '@owndsh/platform-client'
 import { McpCredentialManager, McpOAuthProvider, mcpCredentialBinding, mcpOwnerDigest } from './mcp-oauth.js'
-import { mountMcpTools, type McpConnection } from './mcp-tools.js'
-
-/**
- * 拉取服务端的公共 assignments，并把每个用户已授权的 MCP 交给官方 client。
- * 平台状态订阅负责失效，用户动作和 prompt/tool 活动按租约刷新；连接由官方 client 管理。
- */
-function publicMcpToolName(serverName: string, rawName: string): string {
-  const joined = `mcp__${serverName}__${rawName}`
-  const normalized = joined.replace(/[^A-Za-z0-9_-]/g, '_')
-  if (normalized === joined && normalized.length <= 64) return normalized
-  const hash = createHash('sha256').update(`${serverName}\0${rawName}`).digest('hex').slice(0, 12)
-  return `${normalized.slice(0, 51)}_${hash}`
-}
+import { mountMcpTools, publicMcpToolName, type McpConnection, type McpExposureInput } from './mcp-tools.js'
 
 type OAuthAssignment = { type?: string; clientId?: string; scopes?: string[]; resource?: string }
 
@@ -40,8 +28,20 @@ declare module '@deepseek-ai/cordis' {
 
 type LiveValue<T> = T | { get(): T }
 
+interface LocalExposureConfig {
+  readonly exposure?: McpExposureInput | undefined
+  readonly toolExposure?: Readonly<Record<string, McpExposureInput>> | undefined
+}
+
+interface McpLocalSettings {
+  readonly desiredConnected?: Record<string, boolean>
+  readonly exposure?: McpExposureInput | undefined
+  readonly toolExposure?: Readonly<Record<string, McpExposureInput>> | undefined
+  readonly servers?: Readonly<Record<string, LocalExposureConfig>> | undefined
+}
+
 interface McpRuntimeConfig {
-  readonly mcp?: LiveValue<{ readonly desiredConnected?: Record<string, boolean> }>
+  readonly mcp?: LiveValue<McpLocalSettings>
 }
 
 interface SettingsPort {
@@ -52,6 +52,16 @@ function readLiveValue<T>(value: LiveValue<T> | undefined): T | undefined {
   if (value !== undefined && value !== null && typeof value === 'object' && 'get' in value
     && typeof value.get === 'function') return value.get()
   return value as T | undefined
+}
+
+function localExposure(settings: McpLocalSettings | undefined, serverName: string): LocalExposureConfig {
+  const server = settings?.servers?.[serverName]
+  const exposure = server?.exposure ?? settings?.exposure
+  const toolExposure = server?.toolExposure ?? settings?.toolExposure
+  return {
+    ...(exposure === undefined ? {} : { exposure }),
+    ...(toolExposure === undefined ? {} : { toolExposure }),
+  }
 }
 
 function parseMcpEndpoint(value: unknown, allowInsecureTransport: unknown): URL {
@@ -65,6 +75,7 @@ function parseMcpEndpoint(value: unknown, allowInsecureTransport: unknown): URL 
   return url
 }
 
+/** 拉取公共 assignments 并调和官方 client；平台失效和用户动作按租约管理连接。 */
 export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }, platform: Pick<EnterprisePlatformService, 'request' | 'status' | 'subscribe' | 'bootstrap'>, credentials: CredentialProvider, config: McpRuntimeConfig = {}): void {
   type MountedMcp = { fiber: { dispose(): Promise<void> }; revision: number; signature: string; connection: McpConnection; disposal?: Promise<void> }
   const mounted = new Map<string, MountedMcp>()
@@ -114,13 +125,13 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
     if (settings !== undefined) await settings.update(OWNDSH_SETTINGS_ENTRY, { mcp: { desiredConnected: Object.fromEntries(desiredConnected) } })
   }
   const platformReady = (): boolean => owner !== undefined && owner === currentOwner()
-  const presentation = mountMcpTools(ctx, {
+  const toolsSurface = mountMcpTools(ctx, {
     fresh: () => !stopped && platformReady() && performance.now() < leaseUntil,
     refresh: () => refresh(),
     authorizationRequired: () => [...managers].filter(([name, manager]) => !isPaused(name) && manager.authorizationRequired()).map(([name]) => name),
   })
   const retire = async (serverName: string, current: MountedMcp): Promise<void> => {
-    presentation.revoke(current.connection)
+    toolsSurface.revoke(current.connection)
     current.disposal ??= current.fiber.dispose()
     await current.disposal
     if (mounted.get(serverName) === current) mounted.delete(serverName)
@@ -184,11 +195,10 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
           return {
             serverName,
             displayName: typeof assignment.displayName === 'string' ? assignment.displayName : serverName,
-            presentation: assignment.presentation === 'full' ? 'full' : 'search',
             connected: performance.now() < leaseUntil && mounted.get(serverName)?.connection.ready === true && !mounted.get(serverName)!.connection.abort.signal.aborted,
             desiredConnected: !isPaused(serverName),
             ...(cleanupRequired.has(serverName) ? { errorCode: 'MCP_CLEANUP_REQUIRED' } : {}),
-            ...presentation.status(serverName),
+            ...toolsSurface.status(serverName),
             ...(manager?.authorizationRequired() ? { errorCode: 'MCP_AUTH_REQUIRED' } : {}),
             authType: auth?.type === 'oauth' ? 'oauth' : auth?.type === 'api-key' ? 'api-key' : 'none',
             configured: manager !== undefined ? await manager.configured(auth!.type as 'oauth' | 'api-key') : true,
@@ -234,7 +244,7 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
         await saveDesired(serverName, false)
         assignmentGeneration += 1
         const active = mounted.get(serverName)
-        if (active !== undefined) presentation.revoke(active.connection)
+        if (active !== undefined) toolsSurface.revoke(active.connection)
         for (const flow of oauthFlows.values()) if (flow.serverName === serverName) flow.abort.abort()
         const manager = managers.get(serverName)
         try {
@@ -333,9 +343,11 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
         ? { tools: [] as Tool[] }
         : await client.listTools(undefined, { cacheMode: 'refresh' })
       const definitions = new Map<string, ReturnType<typeof createMcpToolDefinition>>()
+      const rawToolNames = new Map<string, string>()
       for (const tool of response.tools) {
         const publicName = publicMcpToolName(serverName, tool.name)
         if (definitions.has(publicName)) throw new Error('MCP_TOOL_NAME_CONFLICT')
+        rawToolNames.set(publicName, tool.name)
         definitions.set(publicName, createMcpToolDefinition(ctx, {
           name: publicName,
           rawName: tool.name,
@@ -359,6 +371,7 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
         throw error
       }
       disposers = next
+      connection.rawToolNames = rawToolNames
     }
     function enqueueSync(): Promise<void> {
       const task = syncing.then(sync)
@@ -384,6 +397,7 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
       if (systemPrompt === undefined) throw new Error('MCP_SYSTEM_PROMPT_UNAVAILABLE')
       const instructions = client.getInstructions()?.trimEnd() ?? ''
       if (Buffer.byteLength(instructions) > 32 * 1024) throw new Error('MCP_INSTRUCTIONS_TOO_LARGE')
+      connection.instructions = instructions || undefined
       instructionDisposer = systemPrompt.section({
         name: `mcp:${serverName}`,
         order: systemPrompt.getSectionOrder('MCP_SERVERS'),
@@ -432,7 +446,7 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
     for (const [serverName, current] of mounted) {
       const desired = assignments.find(value => value.serverName === serverName)
       if (desired === undefined || desired.revision !== current.revision || isPaused(serverName)) {
-        presentation.revoke(current.connection)
+        toolsSurface.revoke(current.connection)
         for (const flow of oauthFlows.values()) if (flow.serverName === serverName) flow.abort.abort()
       }
     }
@@ -473,17 +487,18 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
           failOnStartupError: true,
           reconnect: (assignment.reconnect ?? {}) as ReconnectConfig,
         }
+        const exposure = localExposure(readLiveValue(config.mcp), serverName)
         const signature = auth?.type === 'oauth'
-          ? JSON.stringify({ revision: serverRevision, url, headers, auth })
-          : JSON.stringify({ revision: serverRevision, ...clientConfig })
+          ? JSON.stringify({ revision: serverRevision, url, headers, auth, exposure })
+          : JSON.stringify({ revision: serverRevision, ...clientConfig, exposure })
         const previous = mounted.get(serverName)
         if (previous?.signature === signature && !previous.connection.abort.signal.aborted) {
           continue
         }
         if (previous !== undefined) await retire(serverName, previous)
         if (stopped || generation !== assignmentGeneration) return
-        const connection = presentation.begin(serverName, typeof assignment.displayName === 'string' ? assignment.displayName : serverName,
-          assignment.presentation === 'full' ? 'full' : 'search')
+        const connection = toolsSurface.begin(serverName, typeof assignment.displayName === 'string' ? assignment.displayName : serverName, exposure,
+          typeof assignment.description === 'string' ? { description: assignment.description } : {})
         try {
           const fiber = auth?.type === 'oauth'
             ? await connectOAuth(assignment, managerFor(assignment), connection)
@@ -492,9 +507,9 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
           mounted.set(serverName, current)
           await fiber
           if (stopped || generation !== assignmentGeneration || isPaused(serverName)) await retire(serverName, current)
-          else presentation.ready(connection)
+          else toolsSurface.ready(connection)
         } catch {
-          presentation.revoke(connection)
+          toolsSurface.revoke(connection)
           throw new Error('MCP_CONNECT_FAILED')
         }
       } catch {
@@ -594,7 +609,7 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
     unwatchDesired()
     for (const flow of oauthFlows.values()) flow.abort.abort()
     const pending = [...managers.values()].map(manager => manager.dispose())
-    for (const current of mounted.values()) presentation.revoke(current.connection)
+    for (const current of mounted.values()) toolsSurface.revoke(current.connection)
     oauthRoute()
     oauthStatusRoute()
     oauthCancelRoute()
@@ -605,7 +620,7 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
     mcpReconnectRoute()
     const results = await Promise.allSettled([cleanup, ...pending, refreshing,
       ...[...mounted].map(([serverName, current]) => retire(serverName, current))])
-    presentation.dispose()
+    toolsSurface.dispose()
     const failures = results.filter(result => result.status === 'rejected')
     if (failures.length) throw new AggregateError(failures.map(result => result.reason), 'MCP_CLEANUP_FAILED')
   }, 'mcp-runtime.lifecycle')

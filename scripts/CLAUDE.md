@@ -4,7 +4,7 @@
 
 成员清单
 
-mcp-design-spike.mjs: 无网络 Harness 设计探针，使用公开 API 验证按会话过滤 schema/SDK、保留 registry 与执行 guard，不代表 MCP/OAuth E2E 完成。
+mcp-design-spike.mjs: 无网络 Harness 设计探针，使用 tool_search 和受控 MCP 工具验证 DSH native/PTC/both 的声明过滤、会话隔离、执行 guard 与 SDK 重渲染；不实现 MCP 连接。
 
 bootstrap-harness.ps1: Windows/PowerShell 开发环境入口，读取版本锁并准备同级 Harness checkout。
 bootstrap-harness.sh: macOS/Linux 开发环境入口，执行与 PowerShell 脚本相同的版本锁校验和 checkout 准备。

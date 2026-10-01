@@ -27,7 +27,7 @@ describe('enterprise bundle', () => {
       '@deepseek-ai/dsh-client-ui-layout',
       '@deepseek-ai/dsh-client-ui-settings-general',
     ])
-    expect(manifest.dependencies).toEqual({ '@orama/orama': '3.1.18' })
+    expect(manifest.dependencies).toBeUndefined()
     expect(manifest.peerDependencies['@deepseek-ai/dsh-llm']).toBe('^0.2.0-rc.1')
     expect(manifest.peerDependencies['@deepseek-ai/dsh-credentials']).toBe('^0.2.0-rc.1')
     expect(manifest.peerDependencies['@deepseek-ai/dsh-llm-pi-ai']).toBe('^0.2.0-rc.1')
@@ -90,6 +90,7 @@ describe('enterprise bundle', () => {
     const register = vi.fn((_options: { name: string }) => () => undefined)
     const slots = { inject: (_name: string, callback: () => unknown) => callback(), register }
     client?.apply?.({ effect: (effect: () => unknown) => effect(), slots,
+      configForms: { get: () => ({}) },
       remote: { $on: () => () => undefined }, on: () => () => undefined })
     expect(register.mock.calls.map(call => call[0].name)).toEqual(['settings.section', 'shell.overlay'])
     expect(source).toContain("data-plugin-css=\"' + id + '\"")

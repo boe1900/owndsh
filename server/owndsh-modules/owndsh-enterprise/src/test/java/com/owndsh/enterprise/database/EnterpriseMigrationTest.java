@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖普通数据库所有者、空数据库、classpath V0-V37 migration 与旧版 baseline 0 历史。
+ * [INPUT]: 依赖普通数据库所有者、空数据库、classpath V0-V38 migration 与旧版 baseline 0 历史。
  * [OUTPUT]: 验证空库建表、旧库接管/升级、DeepSeek Messages 配置约束、重复启动、字符串时间参数、数据库计量迁移与 MCP 原样认证值迁移约束。
  * [POS]: database 的持续 migration 门禁，防止后续任务只验证最终 schema 而遗漏中间版本不可升级。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -66,7 +66,7 @@ class EnterpriseMigrationTest {
         assertThat(database.jdbc().queryForObject(
             "select type from flyway_schema_history where version='0'", String.class
         )).isEqualTo("SQL");
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("37");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("38");
         Integer tableCount = database.jdbc().queryForObject("""
             select count(*) from information_schema.tables
             where table_schema = 'public' and table_name like 'ent_%'
@@ -165,7 +165,7 @@ class EnterpriseMigrationTest {
         assertThat(database.jdbc().queryForObject("select headers_json->>'X-Apifox-Api-Version' from ent_mcp_server where server_name='legacy'", String.class)).isEqualTo("2025-09-01");
         assertThat(database.jdbc().queryForObject("select revision from ent_mcp_server where server_name='legacy'", Long.class)).isEqualTo(1);
         assertThat(database.jdbc().queryForObject("select revision from ent_mcp_server where server_name='public'", Long.class)).isZero();
-        assertThat(database.jdbc().queryForObject("select revision from ent_platform_revision where tenant_id='000000' and scope='BOOTSTRAP'", Long.class)).isEqualTo(1);
+        assertThat(database.jdbc().queryForObject("select revision from ent_platform_revision where tenant_id='000000' and scope='BOOTSTRAP'", Long.class)).isEqualTo(2);
         assertThat(flyway.migrate().migrationsExecuted).isZero();
     }
 
@@ -206,7 +206,7 @@ class EnterpriseMigrationTest {
 
         Flyway flyway = PostgresTestDatabase.migrate(database, null);
 
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("37");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("38");
         assertThat(database.jdbc().queryForObject(
             "select type from flyway_schema_history where version='0'", String.class
         )).isEqualTo("BASELINE");
@@ -587,7 +587,7 @@ class EnterpriseMigrationTest {
             .run(context -> {
                 assertThat(context).hasSingleBean(Flyway.class);
                 assertThat(context.getBean(Flyway.class).info().current().getVersion().getVersion())
-                    .isEqualTo("37");
+                    .isEqualTo("38");
             });
     }
 
@@ -605,7 +605,7 @@ class EnterpriseMigrationTest {
 
         Flyway flyway = PostgresTestDatabase.migrate(database, null);
 
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("37");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("38");
         assertThat(database.jdbc().queryForMap("""
             select api_protocol,base_url from ent_model_provider where id=1913000000000000801
             """)).containsEntry("api_protocol", "anthropic-messages")
