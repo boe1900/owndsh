@@ -1,5 +1,5 @@
 <!--
-[INPUT]: 依赖 Linux amd64 release、HTTP Compose、一次性管理员输入与部署方可选外部反向代理。
+[INPUT]: 依赖 Linux amd64/arm64 HTTP Compose、Linux amd64 release、一次性管理员输入与部署方可选外部反向代理。
 [OUTPUT]: 提供 Compose 快速部署入口，以及离线 release 安装、备份恢复、升级回滚、标准流日志采集和外部 TLS 接入说明。
 [POS]: deploy 的详细运维入口；普通用户从根 Compose 开始，离线受控环境使用 release 包。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
