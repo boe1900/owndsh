@@ -45,7 +45,7 @@ public final class JdbcUsageLedgerStore implements UsageLedgerStore {
                u.dept_id as department_id,
                d.dept_name as department_name,
                m.alias as model_alias,
-               m.display_name as model_display_name
+               coalesce(m.display_name, m.upstream_model) as model_display_name
           from ent_usage_ledger l
           join sys_user u on u.user_id = l.user_id
           left join sys_dept d on d.dept_id = u.dept_id

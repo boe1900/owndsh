@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖真实 PostgreSQL 17、完整 migrations、显式活动用户 fixture、quota JDBC adapters、事务、审计与并发连接。
- * [OUTPUT]: 验证 TOKEN/RATE 互斥、策略叠加、并发预留、在途超额全额结算后拒绝新请求、恢复和时间/ID 倒序用量查询。
+ * [OUTPUT]: 验证 TOKEN/RATE 互斥、策略叠加、并发预留、在途超额全额结算后拒绝新请求、恢复、时间/ID 倒序用量查询及可选模型名称回退。
  * [POS]: T09 主要数据库验收；Redis 原子/TTL 由独立真实 Redis 测试覆盖，T10 网关不在此实现。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -146,6 +146,14 @@ class QuotaManagementIntegrationTest {
         var filter = new UsageLedgerStore.UsageLedgerFilter(null, null, null, requestId, null, null);
         var first = ledgerStore.list(TENANT, null, 1, filter).getFirst();
         assertThat(first.id()).isEqualTo(102);
+        assertThat(first.modelDisplayName()).isEqualTo("T09 Model");
+        database.jdbc().update("update ent_managed_model set display_name = null where id = ?", MODEL_ID);
+        try {
+            assertThat(ledgerStore.list(TENANT, null, 1, filter).getFirst().modelDisplayName())
+                .isEqualTo("deepseek-chat");
+        } finally {
+            database.jdbc().update("update ent_managed_model set display_name = ? where id = ?", "T09 Model", MODEL_ID);
+        }
         var rest = ledgerStore.list(TENANT, new TimePosition(first.ledger().createdAt(), first.id()), 10, filter);
         assertThat(rest).extracting(UsageLedgerMetadata::id).containsExactly(101L, 103L);
         var last = rest.getLast();

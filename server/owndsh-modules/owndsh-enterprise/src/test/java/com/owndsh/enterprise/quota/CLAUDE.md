@@ -4,7 +4,7 @@
 
 成员清单
 
-QuotaManagementIntegrationTest.java: PostgreSQL 真实策略、预留、结算和时间/ID 倒序续页门禁，覆盖同时间记录、逆序 ID 与租户隔离。
+QuotaManagementIntegrationTest.java: PostgreSQL 真实策略、预留、结算和时间/ID 倒序续页门禁，覆盖同时间记录、逆序 ID、租户隔离及未填模型名称时回退到上游模型 ID。
 T09ApiContractTest.java: MockMvc 与生成 Schema 验证配额/用量接口、认证 cursor 和稳定业务错误。
 QuotaWindowCalculatorTest.java: 固定时钟验证自然日/周/月及连续 5 小时窗口边界。
 RedisQuotaRateLimiterTest.java: 真实 Redis 验证叠加限流、租约与释放行为。
