@@ -9,7 +9,7 @@
 
 OwnDsh 的 DeepSeek Harness 官方扩展点插件。它把 DSH Desktop 或 Harness Web 连接到自托管 OwnDsh Server，让员工使用企业身份、受管模型和受管插件，而不在本机保存供应商 API Key。
 
-> 本包版本为 `0.1.0-beta.15`，面向 Harness `0.2.0-rc.1`，发布渠道为 npm `next`。
+> 本包版本为 `0.1.0-beta.16`，面向 Harness `0.2.0-rc.1`，发布渠道为 npm `next`。
 
 ## 安装
 

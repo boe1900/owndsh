@@ -13,15 +13,15 @@
 
 ## 1. 当前基线与证据
 
-升级核对：2026-09-29。当前代码与本地验收制品为 beta.15，目标 DSH `0.2.0-rc.1`，见 [0.2.0 RC1 验收报告](dsh-020-rc1-compatibility-20260929.md)。发布标签为 `v0.1.0-beta.15`，npm 渠道为 `next`，发布结果以对应流水线和 npm registry 为准。官方插件页继续保留自由安装与配置，企业目录仍位于 OwnDsh 设置的插件 tab。此前版本证据保留在 [0.1.7 RC1 报告](dsh-017-rc1-compatibility-20260924.md)。
+升级核对：2026-10-03。当前代码与发布制品为 beta.16，目标 DSH `0.2.0-rc.1`；上一轮完整 Web/MCP 行为证据仍见 [0.2.0 RC1 验收报告](dsh-020-rc1-compatibility-20260929.md)，本次新增 Pi 检索、MCP 暴露和受管插件删除后的工作区门禁已通过。发布标签为 `v0.1.0-beta.16`，npm 渠道为 `next`，发布结果以对应流水线和 npm registry 为准。官方插件页继续保留自由安装与配置，企业目录仍位于 OwnDsh 设置的插件 tab。此前版本证据保留在 [0.1.7 RC1 报告](dsh-017-rc1-compatibility-20260924.md)。
 
 | 项目 | 当前事实与真源 |
 |---|---|
-| 插件制品 | manifest 与本地验收 tgz 为 `0.1.0-beta.15`。[发布流水线](../.github/workflows/release.yml)从 Git tag 注入版本，在 CI 检查后将其构建的同一 tgz 发布到 npm `next`；本地验收制品与正式 CI 制品分别核对。 |
+| 插件制品 | manifest 与发布 tgz 为 `0.1.0-beta.16`。[发布流水线](../.github/workflows/release.yml)从 Git tag 注入版本，在 CI 检查后将其构建的同一 tgz 发布到 npm `next`；历史 beta.15 验收制品与正式 CI 制品分别核对。 |
 | Harness / MCP SDK | 开发依赖为 Harness `0.2.0-rc.1`、Cordis `4.0.4`、Schemastery `3.18.4` 与 `@modelcontextprotocol/client` `2.0.0`。完整直接依赖与 peer 范围见 [bundle manifest](../plugin/packages/bundle/package.json)及其它 workspace manifest；实际解析图见 [pnpm-lock.yaml](../plugin/pnpm-lock.yaml)。不在本文复制全量版本清单。 |
-| 完整插件检查 | `0.2.0-rc.1` 开发依赖通过 frozen-lockfile 安装、全量 TypeScript、构建、117 条模块测试和 4 条 workspace 检查。 |
+| 完整插件检查 | `0.2.0-rc.1` 开发依赖通过 frozen-lockfile 安装、全量 TypeScript、构建、109 条模块测试和 4 条 workspace 检查。 |
 | 当前 Web 行为证据 | [0.2.0-rc.1 报告](dsh-020-rc1-compatibility-20260929.md)：10 组场景通过，真实浏览器、Host、AgentLoop 和官方 adapter；平台、模型、MCP/OAuth 为本地协议桩。 |
-| 当前模块验证 | 14 个测试文件、117 条 Vitest 全通过，覆盖平台认证、三协议 profile/代理、UI、官方服务组合与 MCP 生命周期。Desktop 原生外壳未作为本轮证据。 |
+| 当前模块验证 | 15 个测试文件、109 条 Vitest 全通过，覆盖平台认证、三协议 profile/代理、UI、官方服务组合与 MCP 生命周期。Desktop 原生外壳未作为本轮证据。 |
 | 已覆盖范围 | Web 登录/重启恢复、插件页面入口、MCP 三种认证、工具分页、协议协商、无工具服务器、资源与 URI 模板、按需加载/释放/Agent 隔离、OAuth 刷新与重新授权。 |
 | 本基线未覆盖 | 真实供应商 OAuth、手工 endpoint/动态注册、远端回调、真实 PTC 解释器、`0.2.0-rc.1` Desktop 原生外壳、智能体团队，以及企业目录内其他插件完整安装/更新/卸载的包管理链路和确认弹窗。本轮已验证 OwnDsh tgz 的官方 CLI 安装；PTC/both × TS/Python 的模块回归使用受控 bindings，不能代替解释器 E2E。 |
 
