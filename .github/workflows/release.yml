@@ -1,5 +1,5 @@
-# [INPUT]: 依赖生产 Dockerfile、插件 pnpm 锁、GitHub Actions artifact、阿里云 ACR 及 ALIYUN_REGISTRY_USERNAME/ALIYUN_REGISTRY_PASSWORD Secrets 与 npm Trusted Publishing。
-# [OUTPUT]: 验证 Linux amd64/arm64 前后端镜像和插件，以 ACR 兼容清单保留构建来源证明；main 发布 ACR next，版本标签将同一 tgz 发布到 npm。
+# [INPUT]: 依赖生产 Dockerfile、插件 pnpm 锁、GitHub Actions artifact、GHCR 的 GITHUB_TOKEN、阿里云 ACR 的 ALIYUN_REGISTRY_USERNAME/ALIYUN_REGISTRY_PASSWORD Secrets 与 npm Trusted Publishing。
+# [OUTPUT]: 前后端各构建一次 Linux amd64/arm64 镜像并同时发布 GHCR/ACR，以兼容清单保留构建来源证明；main 更新 next，版本标签将同一插件 tgz 发布到 npm。
 # [POS]: OwnDsh 唯一公开制品流水线；构建与发布复用同一插件包，测试版不创建 latest 标签，也不使用 npm 长期 Token。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      packages: write
     strategy:
       matrix:
         include:
@@ -27,6 +28,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Log in to Aliyun ACR
         if: github.event_name == 'push'
         uses: docker/login-action@v3
@@ -38,7 +46,9 @@ jobs:
         id: metadata
         uses: docker/metadata-action@v5
         with:
-          images: registry.cn-hangzhou.aliyuncs.com/cola1900/owndsh-${{ matrix.name }}
+          images: |
+            ghcr.io/${{ github.repository_owner }}/owndsh-${{ matrix.name }}
+            registry.cn-hangzhou.aliyuncs.com/cola1900/owndsh-${{ matrix.name }}
           flavor: latest=false
           tags: |
             type=raw,value=next,enable=${{ github.ref == 'refs/heads/main' }}

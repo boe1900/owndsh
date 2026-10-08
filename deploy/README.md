@@ -1,6 +1,6 @@
 <!--
-[INPUT]: 依赖 Linux amd64/arm64 HTTP Compose、阿里云 ACR 发布凭证、Linux amd64 release、一次性管理员输入与部署方可选外部反向代理。
-[OUTPUT]: 提供 Compose 快速部署入口、ACR 发布配置，以及离线 release 安装、备份恢复、升级回滚、标准流日志采集和外部 TLS 接入说明。
+[INPUT]: 依赖 Linux amd64/arm64 HTTP Compose、GHCR/阿里云 ACR 发布凭证、Linux amd64 release、一次性管理员输入与部署方可选外部反向代理。
+[OUTPUT]: 提供 Compose 快速部署入口、双仓库发布配置，以及离线 release 安装、备份恢复、升级回滚、标准流日志采集和外部 TLS 接入说明。
 [POS]: deploy 的详细运维入口；普通用户从根 Compose 开始，离线受控环境使用 release 包。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
@@ -22,7 +22,7 @@ LDAP 传输由身份源 URL 控制：目录只提供明文时填写 `ldap://...`
 - `ALIYUN_REGISTRY_USERNAME`：有两个仓库推送权限的 ACR 登录用户名。
 - `ALIYUN_REGISTRY_PASSWORD`：ACR 仓库登录密码，取自容器镜像服务的访问凭证；不写入仓库或部署 `.env`。
 
-GitHub Actions 仅在 push 时登录并发布到 `registry.cn-hangzhou.aliyuncs.com/cola1900`；main 更新 `next`，版本标签 `vX.Y.Z` 发布镜像标签 `X.Y.Z`，每次 push 另带 `sha-*` 标签。PR 只构建验证，不使用发布凭证。公开仓库支持匿名拉取；私有仓库的部署机需单独执行 `docker login registry.cn-hangzhou.aliyuncs.com`。
+GitHub Actions 仅在 push 时登录两个仓库，每个镜像构建一次，同时推送到 `ghcr.io/boe1900` 和 `registry.cn-hangzhou.aliyuncs.com/cola1900`。GHCR 使用自动提供的 `GITHUB_TOKEN` 与 `packages: write` 权限，无需额外 Secret。两边均在 main 更新 `next`，版本标签 `vX.Y.Z` 发布镜像标签 `X.Y.Z`，每次 push 另带 `sha-*` 标签。PR 只构建验证，不使用发布凭证。Compose 默认拉取阿里云；公开仓库支持匿名拉取，私有仓库的部署机需单独执行 `docker login registry.cn-hangzhou.aliyuncs.com`。
 
 镜像导出设置 `oci-artifact=false`，让构建来源证明使用 ACR 支持的兼容清单，避免 `unknown manifest class for application/vnd.oci.empty.v1+json`；仍保留双架构镜像与来源证明。
 

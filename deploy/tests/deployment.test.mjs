@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 deploy Compose/Nginx/脚本、单一 application.yml、Docker Compose v2 与测试环境变量。
- * [OUTPUT]: 验证内部数据服务加 HTTP Console/Server 拓扑、无外部 SQL 挂载与应用日志卷、ACR 镜像和 GitHub 插件制品发布、默认免签名密钥与可选 key 归档、环境参数、幂等 bootstrap、API/SPA 路由与运维边界。
+ * [OUTPUT]: 验证内部数据服务加 HTTP Console/Server 拓扑、无外部 SQL 挂载与应用日志卷、GHCR/ACR 双仓库镜像和 GitHub 插件制品发布、默认免签名密钥与可选 key 归档、环境参数、幂等 bootstrap、API/SPA 路由与运维边界。
  * [POS]: T21/P2-08 部署与本地人工验收静态门禁，先于昂贵镜像构建发现配置漂移。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -117,15 +117,19 @@ test('root Compose starts without .env and derives public URLs from the publishe
   assert.equal(config.services.server.environment.ENT_BOOTSTRAP_ADMIN_PASSWORD, 'owndsh')
 })
 
-test('release workflow publishes to ACR and selects npm tags with OIDC', () => {
+test('release workflow builds once for GHCR and ACR and selects npm tags with OIDC', () => {
   const workflow = read('.github/workflows/release.yml')
+  assert.match(workflow, /registry: ghcr\.io/)
+  assert.match(workflow, /packages: write/)
+  assert.ok(workflow.includes('password: ${{ secrets.GITHUB_TOKEN }}'))
+  assert.ok(workflow.includes('ghcr.io/${{ github.repository_owner }}/owndsh-${{ matrix.name }}'))
   assert.match(workflow, /registry: registry\.cn-hangzhou\.aliyuncs\.com/)
-  assert.ok(workflow.includes('images: registry.cn-hangzhou.aliyuncs.com/cola1900/owndsh-${{ matrix.name }}'))
+  assert.ok(workflow.includes('registry.cn-hangzhou.aliyuncs.com/cola1900/owndsh-${{ matrix.name }}'))
   assert.ok(workflow.includes('username: ${{ secrets.ALIYUN_REGISTRY_USERNAME }}'))
   assert.ok(workflow.includes('password: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}'))
   assert.match(workflow, /outputs: type=image,oci-artifact=false/)
   assert.doesNotMatch(workflow, /provenance: false/)
-  assert.doesNotMatch(workflow, /ghcr\.io|packages: write/)
+  assert.equal(workflow.match(/uses: docker\/build-push-action@/g).length, 1)
   assert.match(workflow, /tags: \['v\*'\]/)
   assert.match(workflow, /tag=latest/);
   assert.match(workflow, /then tag=next; fi/);
