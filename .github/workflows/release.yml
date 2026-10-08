@@ -1,5 +1,5 @@
 # [INPUT]: 依赖生产 Dockerfile、插件 pnpm 锁、GitHub Actions artifact、阿里云 ACR 及 ALIYUN_REGISTRY_USERNAME/ALIYUN_REGISTRY_PASSWORD Secrets 与 npm Trusted Publishing。
-# [OUTPUT]: 验证 Linux amd64/arm64 前后端镜像和插件，保留可下载 tgz；main 发布阿里云 ACR next，版本标签将同一 tgz 发布到 npm。
+# [OUTPUT]: 验证 Linux amd64/arm64 前后端镜像和插件，以 ACR 兼容清单保留构建来源证明；main 发布 ACR next，版本标签将同一 tgz 发布到 npm。
 # [POS]: OwnDsh 唯一公开制品流水线；构建与发布复用同一插件包，测试版不创建 latest 标签，也不使用 npm 长期 Token。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -50,6 +50,8 @@ jobs:
           context: .
           file: ${{ matrix.dockerfile }}
           platforms: linux/amd64,linux/arm64
+          # ACR 拒收 OCI empty config，使用兼容清单保留构建来源证明。
+          outputs: type=image,oci-artifact=false
           push: ${{ github.event_name == 'push' }}
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}

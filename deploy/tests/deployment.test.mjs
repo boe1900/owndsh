@@ -123,6 +123,8 @@ test('release workflow publishes to ACR and selects npm tags with OIDC', () => {
   assert.ok(workflow.includes('images: registry.cn-hangzhou.aliyuncs.com/cola1900/owndsh-${{ matrix.name }}'))
   assert.ok(workflow.includes('username: ${{ secrets.ALIYUN_REGISTRY_USERNAME }}'))
   assert.ok(workflow.includes('password: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}'))
+  assert.match(workflow, /outputs: type=image,oci-artifact=false/)
+  assert.doesNotMatch(workflow, /provenance: false/)
   assert.doesNotMatch(workflow, /ghcr\.io|packages: write/)
   assert.match(workflow, /tags: \['v\*'\]/)
   assert.match(workflow, /tag=latest/);

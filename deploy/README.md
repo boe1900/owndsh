@@ -24,6 +24,8 @@ LDAP 传输由身份源 URL 控制：目录只提供明文时填写 `ldap://...`
 
 GitHub Actions 仅在 push 时登录并发布到 `registry.cn-hangzhou.aliyuncs.com/cola1900`；main 更新 `next`，版本标签 `vX.Y.Z` 发布镜像标签 `X.Y.Z`，每次 push 另带 `sha-*` 标签。PR 只构建验证，不使用发布凭证。公开仓库支持匿名拉取；私有仓库的部署机需单独执行 `docker login registry.cn-hangzhou.aliyuncs.com`。
 
+镜像导出设置 `oci-artifact=false`，让构建来源证明使用 ACR 支持的兼容清单，避免 `unknown manifest class for application/vnd.oci.empty.v1+json`；仍保留双架构镜像与来源证明。
+
 ## 交付包
 
 在 Linux `amd64` Docker 主机的产品源码根目录构建：
