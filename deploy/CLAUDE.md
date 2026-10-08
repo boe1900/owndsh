@@ -4,7 +4,7 @@
 
 成员清单
 
-README.md: Compose 快速部署索引与单机 Linux amd64 离线、amd64/arm64 在线运维真源，定义外部 TLS 与标准流日志采集边界、员工 profile、备份恢复、升级和仅应用回滚。
+README.md: Compose 快速部署索引、阿里云 ACR 发布凭证与单机 Linux amd64 离线、amd64/arm64 在线运维真源，定义外部 TLS 与标准流日志采集边界、员工 profile、备份恢复、升级和仅应用回滚。
 compose/: 四个常驻服务的部署拓扑、幂等 bootstrap 与 Server/Console 镜像；局部地图见 compose/CLAUDE.md。
 nginx/: Console 静态资源与 API 的 HTTP 同源入口，并规范转发可选上级代理的协议/端口；局部地图见 nginx/CLAUDE.md。
 scripts/: 发布包构建、安装、备份、恢复、升级和回滚事务；局部地图见 scripts/CLAUDE.md。

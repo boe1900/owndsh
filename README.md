@@ -1,5 +1,5 @@
 <!--
-[INPUT]: 依赖控制台共享 APNG 品牌图标、公开 GHCR next 镜像、根 Docker Compose、npm next 插件、Harness 官方 profile 与 OwnDsh 当前产品边界。
+[INPUT]: 依赖控制台共享 APNG 品牌图标、阿里云 ACR next 镜像、根 Docker Compose、npm next 插件、Harness 官方 profile 与 OwnDsh 当前产品边界。
 [OUTPUT]: 提供品牌展示、Compose 自托管、管理员初始化、员工插件和 Pake 客户端、更新、排障与静态官网发布入口。
 [POS]: 项目公开用户入口；优先让管理员启动 OwnDsh，让员工连接既有 DeepSeek Harness。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -35,6 +35,8 @@ OwnDsh 不 fork 官方 Harness Web UI，不接管员工工作区，也不远程�
 ## Docker Compose 部署
 
 当前镜像目标为 Linux `amd64` 和 `arm64`。准备 Docker Engine、Docker Compose `2.20.3+` 和 Git。
+
+Server/Console 默认从阿里云杭州 ACR 的 `cola1900` 命名空间拉取，PostgreSQL/Redis 仍从 Docker Hub 拉取。若 ACR 仓库为私有，先执行 `docker login registry.cn-hangzhou.aliyuncs.com`，按提示输入 ACR 用户名与仓库登录密码。
 
 ### 1. 启动
 
@@ -139,6 +141,13 @@ OwnDsh 闲置时不建立企业 SSE、不定时拉配置或提前续期。用户
 
 更新服务端测试镜像：
 
+已有 `.env` 若仍指定旧镜像地址，先更新这两个值；固定版本部署可将 `next` 换成已发布的版本号：
+
+```dotenv
+OWNDSH_SERVER_IMAGE=registry.cn-hangzhou.aliyuncs.com/cola1900/owndsh-server:next
+OWNDSH_CONSOLE_IMAGE=registry.cn-hangzhou.aliyuncs.com/cola1900/owndsh-console:next
+```
+
 ```sh
 docker compose pull
 docker compose up -d --wait
@@ -171,9 +180,9 @@ dsh plugin --profile web add --ignore-scripts owndsh-plugin@next
 
 确认启动的是原 profile，且它的官方 credentials provider 可写。主动退出、Server 地址切换、设备/成员撤销和 30 天有效期结束都会使长期会话失效。
 
-### GHCR 镜像无法拉取
+### 阿里云镜像无法拉取
 
-仓库维护者首次发布后需要把 `owndsh-server` 和 `owndsh-console` 两个 GHCR package 设为 Public。部署机无需 GitHub Token。
+确认阿里云 ACR 的 `cola1900/owndsh-server` 与 `cola1900/owndsh-console` 仓库已有对应标签。公开仓库可匿名拉取；私有仓库需先执行 `docker login registry.cn-hangzhou.aliyuncs.com`，使用有拉取权限的 ACR 账号登录。镜像发布凭证配置见 [部署文档](deploy/README.md#镜像发布凭证)。
 
 ## 运维与开发
 

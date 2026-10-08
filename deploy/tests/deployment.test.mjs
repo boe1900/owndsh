@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 deploy Compose/Nginx/脚本、单一 application.yml、Docker Compose v2 与测试环境变量。
- * [OUTPUT]: 验证内部数据服务加 HTTP Console/Server 拓扑、无外部 SQL 挂载与应用日志卷、GitHub 插件制品与测试版发布、默认免签名密钥与可选 key 归档、环境参数、幂等 bootstrap、API/SPA 路由与运维边界。
+ * [OUTPUT]: 验证内部数据服务加 HTTP Console/Server 拓扑、无外部 SQL 挂载与应用日志卷、ACR 镜像和 GitHub 插件制品发布、默认免签名密钥与可选 key 归档、环境参数、幂等 bootstrap、API/SPA 路由与运维边界。
  * [POS]: T21/P2-08 部署与本地人工验收静态门禁，先于昂贵镜像构建发现配置漂移。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -71,14 +71,14 @@ test('compose publishes only the HTTP Console and pins all third-party images', 
   ))
 })
 
-test('root Compose has GHCR images and overridable test defaults', () => {
+test('root Compose has Aliyun ACR images and overridable test defaults', () => {
   const entry = read('docker-compose.yml')
   const compose = read('deploy/compose/compose.yml')
   const environment = read('.env.example')
   assert.match(entry, /include:\n\s+- path: \.\/deploy\/compose\/compose\.yml/)
   assert.match(entry, /env_file: \.\/\.env\.example/)
-  assert.match(compose, /ghcr\.io\/boe1900\/owndsh-server:next/)
-  assert.match(compose, /ghcr\.io\/boe1900\/owndsh-console:next/)
+  assert.match(compose, /registry\.cn-hangzhou\.aliyuncs\.com\/cola1900\/owndsh-server:next/)
+  assert.match(compose, /registry\.cn-hangzhou\.aliyuncs\.com\/cola1900\/owndsh-console:next/)
   for (const variable of [
     'ENT_POSTGRES_PASSWORD', 'ENT_REDIS_PASSWORD', 'SA_TOKEN_JWT_SECRET_KEY',
     'ENT_BOOTSTRAP_ADMIN_PASSWORD',
@@ -101,17 +101,29 @@ test('root Compose has GHCR images and overridable test defaults', () => {
 test('root Compose starts without .env and derives public URLs from the published port', () => {
   const env = { ...process.env, OWNDSH_HTTP_PORT: '19090' }
   delete env.ENT_PUBLIC_BASE_URL
+  delete env.OWNDSH_SERVER_IMAGE
+  delete env.OWNDSH_CONSOLE_IMAGE
+  delete env.OWNDSH_BASE_IMAGE_REGISTRY
   const config = JSON.parse(execFileSync('docker', [
     'compose', '--env-file', '/dev/null', '-f', COMPOSE, 'config', '--format', 'json',
   ], { env, encoding: 'utf8' }))
+  assert.equal(config.services.server.image, 'registry.cn-hangzhou.aliyuncs.com/cola1900/owndsh-server:next')
+  assert.equal(config.services.console.image, 'registry.cn-hangzhou.aliyuncs.com/cola1900/owndsh-console:next')
+  assert.ok(config.services.postgres.image.startsWith('docker.io/library/postgres:'))
+  assert.ok(config.services.redis.image.startsWith('docker.io/library/redis:'))
   assert.equal(config.services.server.environment.ENT_PUBLIC_BASE_URL, 'http://localhost:19090')
   assert.equal(config.services.server.environment.ENT_ADMIN_REDIRECT_URI, undefined)
   assert.equal(config.services.server.environment.ENT_BOOTSTRAP_ADMIN_USERNAME, 'admin')
   assert.equal(config.services.server.environment.ENT_BOOTSTRAP_ADMIN_PASSWORD, 'owndsh')
 })
 
-test('release workflow selects npm tags from the version and uses OIDC', () => {
+test('release workflow publishes to ACR and selects npm tags with OIDC', () => {
   const workflow = read('.github/workflows/release.yml')
+  assert.match(workflow, /registry: registry\.cn-hangzhou\.aliyuncs\.com/)
+  assert.ok(workflow.includes('images: registry.cn-hangzhou.aliyuncs.com/cola1900/owndsh-${{ matrix.name }}'))
+  assert.ok(workflow.includes('username: ${{ secrets.ALIYUN_REGISTRY_USERNAME }}'))
+  assert.ok(workflow.includes('password: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}'))
+  assert.doesNotMatch(workflow, /ghcr\.io|packages: write/)
   assert.match(workflow, /tags: \['v\*'\]/)
   assert.match(workflow, /tag=latest/);
   assert.match(workflow, /then tag=next; fi/);

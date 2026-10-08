@@ -1,5 +1,5 @@
 # [INPUT]: 依赖带默认值的环境变量、PostgreSQL、Redis 两个持久卷、可写临时目录与锁定 Linux amd64/arm64 镜像。
-# [OUTPUT]: 提供默认拉取 GHCR next 镜像、`admin/owndsh` 幂等初始化、应用日志仅写 stdout/stderr、HTTP Console、单 Server、PostgreSQL 17.6 和 Redis 7.4.5 拓扑。
+# [OUTPUT]: 提供默认拉取阿里云 ACR next 镜像、`admin/owndsh` 幂等初始化、应用日志仅写 stdout/stderr、HTTP Console、单 Server、PostgreSQL 17.6 和 Redis 7.4.5 拓扑。
 # [POS]: T21 部署运行时事实源；OwnDsh 不终止 TLS，PostgreSQL 创建数据库与账号，Server 内 Flyway 执行 V0 基础初始化及后续版本。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -46,7 +46,7 @@ services:
     security_opt: [no-new-privileges:true]
 
   server:
-    image: ${OWNDSH_SERVER_IMAGE:-ghcr.io/boe1900/owndsh-server:next}
+    image: ${OWNDSH_SERVER_IMAGE:-registry.cn-hangzhou.aliyuncs.com/cola1900/owndsh-server:next}
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: deploy
@@ -87,7 +87,7 @@ services:
     stop_grace_period: 40s
 
   console:
-    image: ${OWNDSH_CONSOLE_IMAGE:-ghcr.io/boe1900/owndsh-console:next}
+    image: ${OWNDSH_CONSOLE_IMAGE:-registry.cn-hangzhou.aliyuncs.com/cola1900/owndsh-console:next}
     user: "101:101"
     restart: unless-stopped
     ports:

@@ -1,19 +1,28 @@
 <!--
-[INPUT]: 依赖 Linux amd64/arm64 HTTP Compose、Linux amd64 release、一次性管理员输入与部署方可选外部反向代理。
-[OUTPUT]: 提供 Compose 快速部署入口，以及离线 release 安装、备份恢复、升级回滚、标准流日志采集和外部 TLS 接入说明。
+[INPUT]: 依赖 Linux amd64/arm64 HTTP Compose、阿里云 ACR 发布凭证、Linux amd64 release、一次性管理员输入与部署方可选外部反向代理。
+[OUTPUT]: 提供 Compose 快速部署入口、ACR 发布配置，以及离线 release 安装、备份恢复、升级回滚、标准流日志采集和外部 TLS 接入说明。
 [POS]: deploy 的详细运维入口；普通用户从根 Compose 开始，离线受控环境使用 release 包。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
 
 # OwnDsh 部署与运维
 
-普通联网环境直接使用根目录 [Docker Compose 快速开始](../README.md#docker-compose-部署)，从 GHCR 拉取 `next` 前后端多架构镜像。本文后续离线制品、完整校验、备份恢复与应用回滚内容面向单机 Linux `amd64` 环境。
+普通联网环境直接使用根目录 [Docker Compose 快速开始](../README.md#docker-compose-部署)，从阿里云 ACR 拉取 `next` 前后端多架构镜像，PostgreSQL/Redis 仍从 Docker Hub 拉取。本文后续离线制品、完整校验、备份恢复与应用回滚内容面向单机 Linux `amd64` 环境。
 
 两种方式共用同一生产 Compose 拓扑。对外只有 Console 的 HTTP `8080`；Server、PostgreSQL 和 Redis 没有宿主端口。Console 与管理 API 同域。OwnDsh 不管理证书或终止 TLS；需要 HTTPS 时，由部署方现有的 Nginx、Ingress、负载均衡或零信任网关代理到该 HTTP 入口。
 
 
 LDAP 传输由身份源 URL 控制：目录只提供明文时填写 `ldap://...`，TLS 目录填写 `ldaps://...`。
 
+
+## 镜像发布凭证
+
+在阿里云杭州 ACR 中准备 `cola1900/owndsh-server` 与 `cola1900/owndsh-console` 两个仓库，在 GitHub 仓库 Settings → Secrets and variables → Actions 中设置：
+
+- `ALIYUN_REGISTRY_USERNAME`：有两个仓库推送权限的 ACR 登录用户名。
+- `ALIYUN_REGISTRY_PASSWORD`：ACR 仓库登录密码，取自容器镜像服务的访问凭证；不写入仓库或部署 `.env`。
+
+GitHub Actions 仅在 push 时登录并发布到 `registry.cn-hangzhou.aliyuncs.com/cola1900`；main 更新 `next`，版本标签 `vX.Y.Z` 发布镜像标签 `X.Y.Z`，每次 push 另带 `sha-*` 标签。PR 只构建验证，不使用发布凭证。公开仓库支持匿名拉取；私有仓库的部署机需单独执行 `docker login registry.cn-hangzhou.aliyuncs.com`。
 
 ## 交付包
 
