@@ -659,7 +659,7 @@ function EnterpriseMcpSettings({ store, configForm }: { store: EnterpriseAccount
             style={{ border: 0, padding: 0, background: 'none', font: 'inherit', color: item.tools?.length ? 'var(--dsw-alias-accent-primary, #2563eb)' : 'inherit', cursor: item.tools?.length ? 'pointer' : 'default', textDecoration: item.tools?.length ? 'underline' : 'none', textUnderlineOffset: 3 }}>
             {item.discoveredToolCount ?? 0}</button> 个工具</>}</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 9 }}>
-            <ExposureSelect label="服务器曝光" value={preference.exposure} placeholder="跟随 Agent 默认" disabled={!canEditExposure} busy={savingPath === `mcp.servers.${item.serverName}.exposure`}
+            <ExposureSelect label="服务器曝光" value={preference.exposure} placeholder="自动选择（推荐）" disabled={!canEditExposure} busy={savingPath === `mcp.servers.${item.serverName}.exposure`}
               onChange={value => { void saveExposure(['mcp', 'servers', item.serverName, 'exposure'], value) }} />
             <span style={{ color: 'var(--dsw-alias-label-tertiary, #667085)', fontSize: 11, alignSelf: 'center' }}>当前：{item.exposure ?? 'deferred'}</span>
           </div>
