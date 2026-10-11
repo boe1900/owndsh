@@ -17,7 +17,7 @@ Harness Host 的企业平台控制面。`EnterprisePlatformService` 通过 Cordi
 | `logout()` | 尝试注销中心会话，并无条件删除本地 GrantRecord 与内存认证状态。 |
 | `status()` | 返回连接状态、平台 origin、脱敏用户、revision、连接时间和稳定错误码。 |
 | `bootstrap()` | 返回最新已校验脱敏快照的副本。 |
-| `refresh()` | 用户打开设置或主动刷新时加载 bootstrap；并发调用共享任务，离线启动可在此重试。 |
+| `refresh()` | 用户打开设置或主动刷新时加载 bootstrap；并发调用共享任务，离线启动会自动退避重试，也可在此立即重试。 |
 | `subscribe()` | 订阅 Host 内存状态副本；幂等 disposer 只移除当前监听器。 |
 | `request()` | 执行同源、带认证且可取消的平台 fetch；这是唯一读取 Token 的代码路径。 |
 | `dispose()` | 取消登录/刷新/请求，关闭本地路由，等待工作停稳。 |
@@ -38,8 +38,8 @@ Server 地址；地址通过 `@deepseek-ai/dsh-settings` 持久化到 `$DSH_HOME
 Service 在 `$DSH_HOME/enterprise/device.json` 只持久化 installation UUID v4、显示名和
 创建时间。12 小时 Access Token 只位于 Host 内存；绝对有效 30 天的 Refresh Token 以
 `owndsh/platform` GrantRecord 交给官方 `ctx.credentials` provider 保存并单次轮换，不写入 settings、
-Session、日志或 installation 文件。Host 重启只尝试一次静默恢复；Server 暂不可达时进入 `REFRESHING`，
-等待用户打开设置或主动刷新重试。任何平台 Token 都不会通过本地 HTTP 返回给浏览器。
+Session、日志或 installation 文件。Host 重启先做静默恢复；Server 暂不可达时进入 `REFRESHING` 并按指数退避自动重试，
+直到恢复、明确认证失效或设备撤销。任何平台 Token 都不会通过本地 HTTP 返回给浏览器。
 
 失败响应通过 contracts 解码为稳定 `EnterprisePlatformError`，只保留 code、retryable、HTTP status
 和 requestId。中心 message、details、响应正文与认证 header 不进入异常；LLM adapter 通过 requestId

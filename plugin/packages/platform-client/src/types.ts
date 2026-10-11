@@ -46,6 +46,9 @@ export interface EnterprisePlatformInternals {
   readonly createFlowId?: () => string
   readonly createState?: () => string
   readonly installation?: Omit<InstallationOptions, 'dshHome' | 'name'>
+  /** 启动恢复退避参数；仅供测试控制时间，不进入可序列化运行时配置。 */
+  readonly restoreRetryInitialMs?: number
+  readonly restoreRetryMaxMs?: number
   readonly uninstallPlugin?: () => Promise<{ readonly restart?: () => void }>
 }
 

@@ -610,9 +610,13 @@ describe('EnterprisePlatformService', () => {
       expect.arrayContaining([expect.objectContaining({ code: expect.any(String), path: ['data', 'revision'] })]),
     ])
     expect(JSON.stringify(warnings)).not.toContain('secret-payload')
+
+    env.setBootstrap('ok')
+    await env.service.refresh()
+    expect(env.service.status().state).toBe('READY')
   })
 
-  it('rotates an elapsed access token and retries an offline restart only on demand', async () => {
+  it('rotates an elapsed access token and retries a transient restart failure automatically', async () => {
     let now = Date.parse('2026-08-18T00:00:00.000Z')
     const env = await environment({ now: () => new Date(now) })
     await login(env)
@@ -652,11 +656,12 @@ describe('EnterprisePlatformService', () => {
           }
           return fetch(input, init)
         },
+        restoreRetryInitialMs: 10,
+        restoreRetryMaxMs: 10,
       },
     )
-    await vi.waitFor(() => expect(restarted.status().state).toBe('REFRESHING'))
-    await restarted.refresh()
-    expect(restarted.status().state).toBe('READY')
+    await vi.waitFor(() => expect(restarted.status().state).toBe('READY'))
+    expect(env.tokenGrantTypes.at(-1)).toBe('refresh_token')
     expect(restarted.bootstrap()?.user.username).toBe('zhangsan')
     await expect(restarted.request('/enterprise/api/v1/probe').then(response => response.json()))
       .resolves.toEqual({ data: { authorized: true } })

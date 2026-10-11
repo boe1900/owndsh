@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Cordis Service/WebServer/settings forms/credentials、T02 contracts、PKCE/installation/browser 原语与 Node fetch
- * [OUTPUT]: 提供 ctx.enterprisePlatform、OwnDsh Settings 命名空间、启动恢复与按需刷新/Token 轮换；仅无活动会话时允许清理凭据并修改 Server
+ * [OUTPUT]: 提供 ctx.enterprisePlatform、OwnDsh Settings 命名空间、启动恢复退避与按需刷新/Token 轮换；仅无活动会话时允许清理凭据并修改 Server
  * [POS]: platform-client 的 Host 业务核心，跨 Web/Desktop 复用官方凭据平面且不向 Client UI 暴露任何 Token
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -44,6 +44,8 @@ import {
 const AUTH_PATH = '/enterprise/auth/v1'
 const API_PATH = '/enterprise/api/v1'
 export const OWNDSH_SETTINGS_ENTRY = 'owndsh'
+const DEFAULT_RESTORE_RETRY_INITIAL_MS = 1_000
+const DEFAULT_RESTORE_RETRY_MAX_MS = 60_000
 const TRANSITIONAL_REQUEST_PATHS = new Set([
   `${AUTH_PATH}/logout`,
   `${API_PATH}/bootstrap`,
@@ -143,6 +145,8 @@ export class EnterprisePlatformService extends Service {
   private readonly lifetime = new AbortController()
   private readonly activeRequests = new Set<AbortController>()
   private readonly listeners = new Set<(status: EnterprisePlatformStatus) => void>()
+  private readonly restoreRetryInitialMs: number
+  private readonly restoreRetryMaxMs: number
   private readonly disposeLocalApi: () => void
   private readonly logger: Context['logger']
 
@@ -154,6 +158,8 @@ export class EnterprisePlatformService extends Service {
   private login: LoginTransaction | undefined
   private loginTask: Promise<void> | undefined
   private refreshTask: Promise<void> | undefined
+  private restoreRetryTimer: NodeJS.Timeout | undefined
+  private restoreRetryMs: number
   private restoreOrigin: string | undefined
   private sessionGeneration = 0
   private loggingOut = false
@@ -177,6 +183,16 @@ export class EnterprisePlatformService extends Service {
     this.now = internals.now ?? (() => new Date())
     this.createFlowId = internals.createFlowId ?? randomUUID
     this.createState = internals.createState ?? (() => randomBytes(32).toString('base64url'))
+    this.restoreRetryInitialMs = positiveInteger(
+      internals.restoreRetryInitialMs, DEFAULT_RESTORE_RETRY_INITIAL_MS, 'restoreRetryInitialMs',
+    )
+    this.restoreRetryMaxMs = positiveInteger(
+      internals.restoreRetryMaxMs, DEFAULT_RESTORE_RETRY_MAX_MS, 'restoreRetryMaxMs',
+    )
+    if (this.restoreRetryMaxMs < this.restoreRetryInitialMs) {
+      throw new TypeError('restoreRetryMaxMs must be at least restoreRetryInitialMs')
+    }
+    this.restoreRetryMs = this.restoreRetryInitialMs
     this.currentStatus = {
       state: baseUrl === undefined ? 'UNCONFIGURED' : 'SIGNED_OUT',
       bundleVersion: this.config.bundleVersion,
@@ -330,7 +346,8 @@ export class EnterprisePlatformService extends Service {
     this.assertOpen()
     if (this.refreshTask !== undefined) {
       await this.refreshTask
-    } else if (!this.loggingOut && (this.currentStatus.state === 'READY' || this.currentStatus.state === 'REFRESHING')) {
+    } else if (!this.loggingOut && ['READY', 'REFRESHING', 'FAILED'].includes(this.currentStatus.state)) {
+      this.clearRestoreRetry()
       const task = this.bootstrapSnapshot === undefined
         ? this.restoreSession(this.requireBaseUrl()) : this.refreshBootstrap()
       this.refreshTask = task
@@ -567,10 +584,11 @@ export class EnterprisePlatformService extends Service {
       const restored = this.platformCredentials.accessToken() === undefined
         ? await this.platformCredentials.refresh(baseUrl, this.lifetime.signal) : true
       if (this.disposed || generation !== this.sessionGeneration || this.baseUrl?.origin !== baseUrl.origin) return
-      if (!restored) { this.transition('SIGNED_OUT'); return }
+      if (!restored) { this.clearRestoreRetry(); this.transition('SIGNED_OUT'); return }
       this.transition('BOOTSTRAPPING')
       await this.loadBootstrap(this.lifetime.signal)
       if (this.disposed || generation !== this.sessionGeneration || this.baseUrl?.origin !== baseUrl.origin) return
+      this.clearRestoreRetry()
       this.transition('READY')
     } catch (error) {
       if (this.disposed || isAbort(error) || generation !== this.sessionGeneration || this.baseUrl?.origin !== baseUrl.origin) return
@@ -584,8 +602,26 @@ export class EnterprisePlatformService extends Service {
         return
       }
       const code = error instanceof EnterprisePlatformError ? error.code : 'ENT_PLATFORM_UNAVAILABLE'
+      if (error instanceof EnterprisePlatformError && !error.retryable) {
+        this.transition('FAILED', { errorCode: code })
+        return
+      }
       this.transition('REFRESHING', { errorCode: code })
+      this.scheduleRestoreRetry(baseUrl)
     }
+  }
+
+  private scheduleRestoreRetry(baseUrl: URL): void {
+    if (this.disposed || this.baseUrl?.origin !== baseUrl.origin || this.restoreRetryTimer !== undefined) return
+    const delay = Math.min(this.restoreRetryMs, this.restoreRetryMaxMs)
+    this.restoreRetryMs = Math.min(delay * 2, this.restoreRetryMaxMs)
+    this.restoreRetryTimer = setTimeout(() => {
+      this.restoreRetryTimer = undefined
+      if (this.disposed || this.baseUrl?.origin !== baseUrl.origin) return
+      this.restoreOrigin = undefined
+      this.startSessionRestore()
+    }, delay)
+    this.restoreRetryTimer.unref()
   }
 
   private async fetchPublicJson(path: string, init: RequestInit, signal: AbortSignal): Promise<unknown> {
@@ -756,9 +792,16 @@ export class EnterprisePlatformService extends Service {
 
   private clearSession(): void {
     this.sessionGeneration++
+    this.clearRestoreRetry()
     this.platformCredentials.clearAccess()
     this.bootstrapSnapshot = undefined
     this.connectedAt = undefined
+  }
+
+  private clearRestoreRetry(): void {
+    if (this.restoreRetryTimer !== undefined) clearTimeout(this.restoreRetryTimer)
+    this.restoreRetryTimer = undefined
+    this.restoreRetryMs = this.restoreRetryInitialMs
   }
 
   private applyServerUrl(serverUrl: string | undefined): void {
