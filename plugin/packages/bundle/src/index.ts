@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 Cordis/Schemastery、Harness credentials/LLM/pluginManager/inventory、官方运行时身份、企业业务模块与 mcp-runtime 组合入口
- * [OUTPUT]: 对外提供 Web/Desktop 共用 bundle apply、显式插件重启、Host 凭据持久化与企业插件安装/卸载组合；由 mcp-runtime 管理 MCP 子 fiber 生命周期
- * [POS]: bundle 的唯一 Host Loader 入口，组合平台认证、官方企业模型与环境原生插件调和；MCP 连接由独立 Cordis fiber 隔离并可撤销
+ * [INPUT]: 依赖 Cordis/Schemastery、Harness credentials/LLM/pluginManager/inventory/skills、官方运行时身份、企业业务模块与 mcp-runtime/skill-provider 组合入口
+ * [OUTPUT]: 对外提供 Web/Desktop 共用 bundle apply、显式插件重启、Host 凭据持久化、企业插件安装/卸载和 OwnDsh 全局 skill provider
+ * [POS]: bundle 的唯一 Host Loader 入口，组合平台认证、官方企业模型、隔离 skill provider 与环境原生插件调和；MCP 连接由独立 Cordis fiber 隔离并可撤销
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -19,6 +19,7 @@ import {
   type WebServerRoutePort,
 } from '@owndsh/platform-client'
 import { mountMcpRuntime } from './mcp-runtime.js'
+import { mountEnterpriseSkillProvider } from './skill-provider.js'
 import type { ToolRuntime } from '@deepseek-ai/dsh-tools'
 import type { McpExposureInput } from './mcp-pi-search.js'
 
@@ -126,6 +127,8 @@ async function reportPluginInventory(
 
 /** 在 Harness 官方 Service 上挂载平台控制面并配置官方 dsh-llm-pi-ai。 */
 export function apply(ctx: EnterpriseHostContext, config: Config): void {
+  const invalidateSkills = mountEnterpriseSkillProvider(ctx)
+  const desktopActions = ctx.get('desktopActions') as DesktopActionsPort | undefined
   const platform = new EnterprisePlatformService(ctx, {
     ...(config.baseUrl === undefined ? {} : { baseUrl: config.baseUrl }),
     harnessVersion: HARNESS_VERSION,
@@ -136,7 +139,6 @@ export function apply(ctx: EnterpriseHostContext, config: Config): void {
     uninstallPlugin: async () => {
       const result = await ctx.pluginManager.removeBundle('owndsh-plugin')
       if (result.application === 'failed') throw new Error(result.error?.diagnostic ?? 'OwnDsh uninstall failed')
-      const desktopActions = ctx.get('desktopActions') as DesktopActionsPort | undefined
       return desktopActions === undefined || result.application !== 'restart-required' ? {} : {
         restart: () => {
           void desktopActions.requestRestart().catch(() => {
@@ -145,6 +147,7 @@ export function apply(ctx: EnterpriseHostContext, config: Config): void {
         },
       }
     },
+    invalidateSkills,
   })
   mountMcpRuntime(ctx, platform, ctx.credentials, config)
   ctx.effect(() => registerEnterpriseGateway(ctx, {

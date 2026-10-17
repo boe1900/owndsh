@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 platform-client 本地 API 注册器与 Node 原生 HTTP server/fetch
- * [OUTPUT]: 验证方法/content-type/体积/DTO、平台/插件状态、显式刷新、无常驻 SSE、探针退役与 disposer
+ * [OUTPUT]: 验证方法/content-type/体积/DTO、平台/插件/本地 skill 状态、显式刷新、无常驻 SSE、探针退役与 disposer
  * [POS]: platform-client Host/Client 协作回归测试，以真实 HTTP 锁定官方 webServer 契约
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -38,6 +38,12 @@ describe('enterprise local API', () => {
       cancelLogin: vi.fn(() => true),
       logout: vi.fn(async () => undefined),
       bootstrap: vi.fn(() => undefined),
+      skills: vi.fn(async () => []),
+      availableSkills: vi.fn(async () => []),
+      installSkill: vi.fn(async () => undefined),
+      setSkillEnabled: vi.fn(async () => undefined),
+      removeSkill: vi.fn(async () => undefined),
+      skillIcon: vi.fn(async () => undefined),
     }
     webServer = {
       register: (route) => {
@@ -106,6 +112,59 @@ describe('enterprise local API', () => {
     await expect((await fetch(`${baseUrl}/enterprise/api/v1/local/plugins`)).json()).resolves.toEqual({
       data: { assignmentRevision: 7, catalog: [{ pluginVersionId: '880', packageName: '@example/tools', version: '1.0.0', installation: assignment.installation }] },
     })
+  })
+
+  it('serves only the local skill projection and validates enable/remove actions', async () => {
+    vi.mocked(platform.skills).mockResolvedValue([{
+      name: 'code-review', displayName: 'Code Review', description: 'Review code', version: '1.0.0',
+      userInvocable: true, enabled: true, hasIcon: false,
+    }])
+    registerEnterpriseLocalApi(webServer, { platform })
+    await expect((await fetch(`${baseUrl}/enterprise/api/v1/local/skills`)).json()).resolves.toEqual({
+      data: { skills: [{
+        name: 'code-review', displayName: 'Code Review', description: 'Review code', version: '1.0.0',
+        userInvocable: true, enabled: true, hasIcon: false,
+      }] },
+    })
+
+    vi.mocked(platform.availableSkills!).mockResolvedValue([{
+      name: 'yt-dlp-downloader', displayName: 'YouTube Downloader', description: 'Download media', version: '1.0.0',
+      userInvocable: true, hasIcon: false,
+    }])
+    const catalog = await fetch(`${baseUrl}/enterprise/api/v1/local/skill-catalog`)
+    await expect(catalog.json()).resolves.toEqual({ data: { skills: [{
+      name: 'yt-dlp-downloader', displayName: 'YouTube Downloader', description: 'Download media', version: '1.0.0',
+      userInvocable: true, hasIcon: false,
+    }] } })
+
+    const installed = await fetch(`${baseUrl}/enterprise/api/v1/local/skills/yt-dlp-downloader/install`, {
+      body: '{}', headers: { 'content-type': 'application/json' }, method: 'POST',
+    })
+    await expect(installed.json()).resolves.toEqual({ data: { name: 'yt-dlp-downloader', installed: true } })
+    expect(platform.installSkill).toHaveBeenCalledWith('yt-dlp-downloader')
+
+    vi.mocked(platform.skillIcon!).mockResolvedValue(Uint8Array.from([137, 80, 78, 71]))
+    const icon = await fetch(`${baseUrl}/enterprise/api/v1/local/skill-icons/code-review`)
+    expect(icon.status).toBe(200)
+    expect(icon.headers.get('content-type')).toContain('image/png')
+    await expect(icon.arrayBuffer()).resolves.toEqual(Uint8Array.from([137, 80, 78, 71]).buffer)
+
+    const enabled = await fetch(`${baseUrl}/enterprise/api/v1/local/skills/code-review/enabled`, {
+      body: '{"enabled":false}', headers: { 'content-type': 'application/json' }, method: 'POST',
+    })
+    await expect(enabled.json()).resolves.toEqual({ data: { name: 'code-review', enabled: false } })
+    expect(platform.setSkillEnabled).toHaveBeenCalledWith('code-review', false)
+
+    const removed = await fetch(`${baseUrl}/enterprise/api/v1/local/skills/code-review/remove`, {
+      body: '{}', headers: { 'content-type': 'application/json' }, method: 'POST',
+    })
+    await expect(removed.json()).resolves.toEqual({ data: { name: 'code-review', removed: true } })
+    expect(platform.removeSkill).toHaveBeenCalledWith('code-review')
+
+    const invalid = await fetch(`${baseUrl}/enterprise/api/v1/local/skills/../enabled`, {
+      body: '{"enabled":false}', headers: { 'content-type': 'application/json' }, method: 'POST',
+    })
+    expect(invalid.status).toBe(404)
   })
 
   it('validates empty JSON action DTOs and dispatches login, cancel, and logout', async () => {

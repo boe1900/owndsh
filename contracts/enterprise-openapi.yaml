@@ -189,6 +189,20 @@ paths:
     $ref: './paths/mcp.yaml#/McpRuntimeAssignments'
   /enterprise/api/v1/mcp/servers/{id}/catalog:
     $ref: './paths/mcp.yaml#/McpRuntimeCatalog'
+  /enterprise/api/v1/skills:
+    $ref: './paths/skill.yaml#/RuntimeSkillCatalog'
+  /enterprise/api/v1/skills/{releaseId}/artifact:
+    $ref: './paths/skill.yaml#/RuntimeSkillArtifact'
+  /enterprise/admin/v1/skills:
+    $ref: './paths/skill.yaml#/AdminSkillCollection'
+  /enterprise/admin/v1/skills/imports:
+    $ref: './paths/skill.yaml#/AdminSkillImport'
+  /enterprise/admin/v1/skills/releases:
+    $ref: './paths/skill.yaml#/AdminSkillRegistration'
+  /enterprise/admin/v1/skills/releases/{releaseId}/actions/publish:
+    $ref: './paths/skill.yaml#/AdminSkillPublish'
+  /enterprise/admin/v1/skills/releases/{releaseId}/actions/revoke:
+    $ref: './paths/skill.yaml#/AdminSkillRevoke'
 
 x-enterprise-error-statuses:
   '400':
@@ -1202,3 +1216,19 @@ components:
       properties:
         error:
           $ref: '#/components/schemas/EnterpriseError'
+    SkillReleaseId: {$ref: './components/skill.yaml#/SkillReleaseId'}
+    SkillName: {$ref: './components/skill.yaml#/SkillName'}
+    SkillVersion: {$ref: './components/skill.yaml#/SkillVersion'}
+    SkillMetadata: {$ref: './components/skill.yaml#/SkillMetadata'}
+    RuntimeSkill: {$ref: './components/skill.yaml#/RuntimeSkill'}
+    RuntimeSkills: {$ref: './components/skill.yaml#/RuntimeSkills'}
+    RuntimeSkillsResponse: {$ref: './components/skill.yaml#/RuntimeSkillsResponse'}
+    SkillReleaseStatus: {$ref: './components/skill.yaml#/SkillReleaseStatus'}
+    SkillRegistrationRequest: {$ref: './components/skill.yaml#/SkillRegistrationRequest'}
+    SkillRelease: {$ref: './components/skill.yaml#/SkillRelease'}
+    SkillReleasePageData: {$ref: './components/skill.yaml#/SkillReleasePageData'}
+    SkillReleaseListResponse: {$ref: './components/skill.yaml#/SkillReleaseListResponse'}
+    SkillReleaseResponse: {$ref: './components/skill.yaml#/SkillReleaseResponse'}
+    SkillSourceImportRequest: {$ref: './components/skill.yaml#/SkillSourceImportRequest'}
+    SkillImportedRelease: {$ref: './components/skill.yaml#/SkillImportedRelease'}
+    SkillImportedReleaseResponse: {$ref: './components/skill.yaml#/SkillImportedReleaseResponse'}

@@ -1,0 +1,136 @@
+# [INPUT]: 依赖 skill.yaml DTO 与根协议的 runtime 认证、错误 response
+# [OUTPUT]: 提供公开目录查询、固定源码导入、制品代理下载与 catalog 管理 operation；不提供 skill assignment/inventory
+# [POS]: contracts/paths 的技能市场纵向分片；已发布 Skill 对登录设备可见，安装事实留在客户端
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+RuntimeSkillCatalog:
+  get:
+    operationId: getSkillCatalog
+    responses:
+      '200':
+        description: Published OwnDsh skill catalog for the active device.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/RuntimeSkillsResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+
+RuntimeSkillArtifact:
+  parameters:
+    - name: releaseId
+      in: path
+      required: true
+      schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/SkillReleaseId'}
+  get:
+    operationId: downloadSkillArtifact
+    responses:
+      '200':
+        description: Published immutable skill ZIP artifact.
+        content:
+          application/zip:
+            schema:
+              type: string
+              format: binary
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+
+AdminSkillCollection:
+  get:
+    operationId: listSkillReleases
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Cursor'
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Limit'
+    responses:
+      '200':
+        description: Skill release catalog page.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/SkillReleaseListResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+
+AdminSkillImport:
+  post:
+    operationId: importSkillRelease
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/SkillSourceImportRequest'}
+    responses:
+      '201':
+        description: Imported and registered skill draft.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/SkillImportedReleaseResponse'}
+      '200':
+        description: Existing identical skill draft.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/SkillImportedReleaseResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '502': {$ref: '../enterprise-openapi.yaml#/components/responses/Error502'}
+      '503': {$ref: '../enterprise-openapi.yaml#/components/responses/Error503'}
+
+AdminSkillRegistration:
+  post:
+    operationId: registerSkillRelease
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/SkillRegistrationRequest'}
+    responses:
+      '201':
+        description: Registered skill draft.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/SkillReleaseResponse'}
+      '200':
+        description: Existing identical skill draft.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/SkillReleaseResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+
+AdminSkillPublish:
+  parameters:
+    - name: releaseId
+      in: path
+      required: true
+      schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/SkillReleaseId'}
+  post:
+    operationId: publishSkillRelease
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    responses:
+      '200':
+        description: Published skill release.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/SkillReleaseResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+
+AdminSkillRevoke:
+  parameters:
+    - name: releaseId
+      in: path
+      required: true
+      schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/SkillReleaseId'}
+  post:
+    operationId: revokeSkillRelease
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    responses:
+      '200':
+        description: Revoked skill release.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/SkillReleaseResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}

@@ -38,6 +38,9 @@ import com.owndsh.enterprise.quota.application.RequestAlreadyCompletedException;
 import com.owndsh.enterprise.quota.application.RequestInProgressException;
 import com.owndsh.enterprise.revision.RevisionConflictException;
 import com.owndsh.enterprise.session.application.SessionException;
+import com.owndsh.enterprise.skill.application.SkillArchiveValidator;
+import com.owndsh.enterprise.skill.application.SkillResourceNotFoundException;
+import com.owndsh.enterprise.skill.application.HttpSkillSourceClient;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -277,6 +280,38 @@ public final class EnterpriseExceptionHandler {
         );
     }
 
+    @ExceptionHandler(SkillArchiveValidator.SkillArchiveException.class)
+    public ResponseEntity<EnterpriseErrorResponse> skillArchive(
+        SkillArchiveValidator.SkillArchiveException exception,
+        HttpServletRequest request
+    ) {
+        return error(HttpStatus.BAD_REQUEST, "ENT_INVALID_REQUEST", "技能归档校验失败", false, null, request);
+    }
+
+    @ExceptionHandler(HttpSkillSourceClient.SkillSourceException.class)
+    public ResponseEntity<EnterpriseErrorResponse> skillSource(
+        HttpSkillSourceClient.SkillSourceException exception,
+        HttpServletRequest request
+    ) {
+        HttpStatus status = switch (exception.kind()) {
+            case INVALID_REQUEST -> HttpStatus.BAD_REQUEST;
+            case UPSTREAM_INVALID -> HttpStatus.BAD_GATEWAY;
+            case UPSTREAM_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
+        };
+        String code = switch (exception.kind()) {
+            case INVALID_REQUEST -> "ENT_INVALID_REQUEST";
+            case UPSTREAM_INVALID -> "ENT_UPSTREAM_INVALID_RESPONSE";
+            case UPSTREAM_UNAVAILABLE -> "ENT_UPSTREAM_UNAVAILABLE";
+        };
+        boolean retryable = exception.kind() == HttpSkillSourceClient.Kind.UPSTREAM_UNAVAILABLE;
+        return error(status, code, "技能源码源暂时不可用或返回无效响应", retryable, null, request);
+    }
+
+    @ExceptionHandler(SkillResourceNotFoundException.class)
+    public ResponseEntity<EnterpriseErrorResponse> skillNotFound(HttpServletRequest request) {
+        return error(HttpStatus.NOT_FOUND, "ENT_RESOURCE_NOT_FOUND", "技能资源不存在", false, null, request);
+    }
+
     @ExceptionHandler(SessionException.class)
     public ResponseEntity<EnterpriseErrorResponse> session(
         SessionException exception,
@@ -451,7 +486,7 @@ public final class EnterpriseExceptionHandler {
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<EnterpriseErrorResponse> unexpected(RuntimeException exception, HttpServletRequest request) {
         String requestId = EnterpriseRequestIds.current(request);
-        log.error("企业 API 执行失败 requestId={} type={}", requestId, exception.getClass().getSimpleName());
+        log.error("企业 API 执行失败 requestId={} type={}", requestId, exception.getClass().getSimpleName(), exception);
         return error(
             HttpStatus.SERVICE_UNAVAILABLE,
             "ENT_PLATFORM_UNAVAILABLE",

@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 投影 BootstrapService 的用户、ACTIVE 设备、revision、含协议/推理 profile 的有效模型/配额与插件分配。
+ * [INPUT]: 投影 BootstrapService 的用户、ACTIVE 设备、revision、有效模型/配额/插件与已发布技能目录。
  * [OUTPUT]: 对外提供 T06 严格客户端所需的完整脱敏 bootstrap 外壳，并明确停用 V1 Session 同步策略。
- * [POS]: model/web 的 runtime 配置输出边界；插件复用安装授权事实，Session 能力保留但不进入 V1 客户端运行面。
+ * [POS]: model/web 的 runtime 配置输出边界；插件保留授权事实，技能只复用发布目录，Session 能力保留但不进入 V1 客户端运行面。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.model.web;
@@ -9,6 +9,7 @@ package com.owndsh.enterprise.model.web;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.owndsh.enterprise.model.application.BootstrapService;
 import com.owndsh.enterprise.plugin.web.PluginViews;
+import com.owndsh.enterprise.skill.web.SkillViews;
 
 import java.util.List;
 
@@ -19,6 +20,7 @@ public record BootstrapView(
     List<Model> models,
     List<Quota> quotas,
     Plugins plugins,
+    Skills skills,
     SessionPolicy sessionPolicy
 ) {
     public static BootstrapView from(BootstrapService.BootstrapSnapshot snapshot) {
@@ -45,6 +47,10 @@ public record BootstrapView(
             new Plugins(
                 snapshot.plugins().revision(),
                 snapshot.plugins().assignments().stream().map(PluginViews::runtime).toList()
+            ),
+            new Skills(
+                snapshot.skills().revision(),
+                snapshot.skills().skills().stream().map(SkillViews::runtime).toList()
             ),
             new SessionPolicy(false, 90, 1_048_576)
         );
@@ -84,6 +90,9 @@ public record BootstrapView(
     }
 
     public record Plugins(long revision, List<PluginViews.RuntimeAssignmentView> assignments) {
+    }
+
+    public record Skills(long revision, List<SkillViews.RuntimeSkillView> skills) {
     }
 
     public record SessionPolicy(boolean enabled, int retentionDays, int maxBatchBytes) {

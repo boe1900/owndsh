@@ -12,7 +12,8 @@ v1-product-feature-catalog.md: V1 产品功能真源，汇总身份、LDAP 用�
 plugin-signing-e2e-20260909.md: 已退役上传/验签链路的历史验收记录；当前安装配置模式以详细设计第 11 节为准，原复现脚本已删除。
 plugin-market-e2e-20260917.md: 当前 Server 与真实 npm Harness/Chromium 的插件联合验收，记录 10 项通过、原生 pnpm 构建审批前提、复现命令和安装源/原生窗口实测边界。
 v1-e2e-acceptance.md: V1 发布验收执行真源，以真实部署、LDAP/OIDC、锁定 Harness/Desktop 和浏览器场景覆盖全部冻结能力，并记录隔离、恢复与逐项证据。
-owndsh-work-platform.md: 产品预研，定义企业工作平台形态、能力边界、演进阶段与商业方向。
+owndsh-work-platform.md: 产品预研，定义企业工作平台形态、能力边界、演进阶段与商业方向；skill 范围由现行详细设计覆盖早期签名分发设想。
+skill-management-design.md: OwnDsh skill 管理与分发设计，冻结 WorkBuddy 格式、公开 GitLab/GitHub 固定 commit 回源、全局按需安装、DSH provider 隔离和永久不做 Skill 权限分配；不纳入项目级 skill，不做制品签名或客户端验签。
 owndsh-governance-mvp-design.md: MVP 实施真源，定义冻结决策、模块、API、数据表、测试、T00-T23 顺序和验收标准；插件已切换到安装配置模式，早期上传记录仅作历史证据。
 phase-2-product-console-design.md: 第二阶段产品化实施真源，冻结 TanStack/Beautiful UI 控制台、成员多身份、LDAP 目录组映射、集合授权，以及 TOKEN 多窗口、组织级供应商与其他资源 RATE 瞬时限流结构。
 mcp-management-design.md: MCP 历史详细设计入口，保留公共连接、授权、数据库和管理面背景；曝光与检索以 mcp-pi-adaptation-design.md 为现行真源。

@@ -608,6 +608,38 @@ export type EnterpriseErrorResponse = {
     error: EnterpriseError;
 };
 
+export type SkillReleaseId = SkillSkillReleaseId;
+
+export type SkillName = SkillSkillName;
+
+export type SkillVersion = SkillSkillVersion;
+
+export type SkillMetadata = SkillSkillMetadata;
+
+export type RuntimeSkill = SkillRuntimeSkill;
+
+export type RuntimeSkills = SkillRuntimeSkills;
+
+export type RuntimeSkillsResponse = SkillRuntimeSkillsResponse;
+
+export type SkillReleaseStatus = SkillSkillReleaseStatus;
+
+export type SkillRegistrationRequest = SkillSkillRegistrationRequest;
+
+export type SkillRelease = SkillSkillRelease;
+
+export type SkillReleasePageData = SkillSkillReleasePageData;
+
+export type SkillReleaseListResponse = SkillSkillReleaseListResponse;
+
+export type SkillReleaseResponse = SkillSkillReleaseResponse;
+
+export type SkillSourceImportRequest = SkillSkillSourceImportRequest;
+
+export type SkillImportedRelease = SkillSkillImportedRelease;
+
+export type SkillImportedReleaseResponse = SkillSkillImportedReleaseResponse;
+
 export type AuditAuditAction = 'LOGIN_SUCCEEDED' | 'LOGIN_FAILED' | 'LOGOUT' | 'IDENTITY_SOURCE_CHANGED' | 'USER_LINKED' | 'USER_UNLINKED' | 'DEVICE_ENROLLED' | 'DEVICE_HEARTBEAT' | 'DEVICE_REVOKED' | 'PROVIDER_CHANGED' | 'MODEL_CHANGED' | 'MODEL_GRANT_CHANGED' | 'MODEL_REQUEST_ACCEPTED' | 'MODEL_REQUEST_FINISHED' | 'QUOTA_CHANGED' | 'QUOTA_REJECTED' | 'RESERVATION_RECOVERED' | 'PLUGIN_REGISTERED' | 'PLUGIN_UPLOADED' | 'PLUGIN_PUBLISHED' | 'PLUGIN_DELETED' | 'PLUGIN_ASSIGNED' | 'PLUGIN_DOWNLOADED' | 'PLUGIN_INVENTORY_REPORTED' | 'SESSION_BATCH_APPENDED' | 'SESSION_EXPORTED' | 'SESSION_RESTORED' | 'SESSION_CONTENT_READ' | 'SESSION_DELETED' | 'SESSION_EXPIRED' | 'ROLE_ASSIGNED' | 'USER_STATUS_CHANGED' | 'CONFIG_CHANGED';
 
 export type AuditAuditActorType = 'USER' | 'SYSTEM';
@@ -1595,6 +1627,7 @@ export type ModelBootstrapSnapshot = {
     models: Array<ModelBootstrapModel>;
     quotas: Array<QuotaBootstrapQuota>;
     plugins: PluginRuntimePluginAssignments;
+    skills: SkillRuntimeSkills;
     sessionPolicy: BootstrapSessionPolicy;
 };
 
@@ -2362,6 +2395,103 @@ export type SessionSessionSequence = number;
 
 export type SessionSessionStatus = 'ACTIVE' | 'DELETED' | 'EXPIRED';
 
+export type SkillRuntimeSkill = {
+    releaseId: SkillSkillReleaseId;
+    metadata: SkillSkillMetadata;
+    artifactSizeBytes: number;
+    artifactSha256: string;
+};
+
+export type SkillRuntimeSkills = {
+    revision: Revision;
+    skills: Array<SkillRuntimeSkill>;
+};
+
+export type SkillRuntimeSkillsResponse = {
+    data: SkillRuntimeSkills;
+    requestId: RequestId;
+};
+
+export type SkillSkillImportedRelease = {
+    resolvedCommit: string;
+    release: SkillSkillRelease;
+    created: boolean;
+};
+
+export type SkillSkillImportedReleaseResponse = {
+    data: SkillSkillImportedRelease;
+    requestId: RequestId;
+};
+
+export type SkillSkillMetadata = {
+    name: SkillSkillName;
+    version: SkillSkillVersion;
+    description: string;
+    license: string;
+    author: string;
+    userInvocable: boolean;
+    modelInvocable: boolean;
+    categories?: Array<string>;
+};
+
+export type SkillSkillName = string;
+
+export type SkillSkillRegistrationRequest = {
+    name: SkillSkillName;
+    version: SkillSkillVersion;
+    description: string;
+    license: string;
+    author: string;
+    userInvocable: boolean;
+    modelInvocable: boolean;
+    categories: Array<string>;
+    artifactSizeBytes: number;
+    artifactSha256: string;
+};
+
+export type SkillSkillRelease = {
+    id: SkillSkillReleaseId;
+    name: SkillSkillName;
+    version: SkillSkillVersion;
+    description: string;
+    license: string;
+    author: string;
+    userInvocable: boolean;
+    modelInvocable: boolean;
+    categories: Array<string>;
+    artifactSizeBytes: number;
+    artifactSha256: string;
+    status: SkillSkillReleaseStatus;
+    revision: Revision;
+};
+
+export type SkillSkillReleaseId = string;
+
+export type SkillSkillReleaseListResponse = {
+    data: SkillSkillReleasePageData;
+    requestId: RequestId;
+};
+
+export type SkillSkillReleasePageData = {
+    items: Array<SkillSkillRelease>;
+    page: CursorPage;
+};
+
+export type SkillSkillReleaseResponse = {
+    data: SkillSkillRelease;
+    requestId: RequestId;
+};
+
+export type SkillSkillReleaseStatus = 'DRAFT' | 'PUBLISHED' | 'REVOKED';
+
+export type SkillSkillSourceImportRequest = {
+    repositoryUrl: string;
+    revision: string;
+    subpath: string;
+};
+
+export type SkillSkillVersion = string;
+
 export type AdminAuditCollection = unknown;
 
 export type Authorize = unknown;
@@ -2541,6 +2671,20 @@ export type RuntimeSessionItem = unknown;
 
 export type RuntimeSessionRestoreRecord = unknown;
 
+export type AdminSkillCollection = unknown;
+
+export type AdminSkillImport = unknown;
+
+export type AdminSkillPublish = unknown;
+
+export type AdminSkillRegistration = unknown;
+
+export type AdminSkillRevoke = unknown;
+
+export type RuntimeSkillArtifact = unknown;
+
+export type RuntimeSkillCatalog = unknown;
+
 export type IdentitySourceIdWritable = IdentityIdentitySourceId;
 
 export type GroupMappingIdWritable = IdentityGroupMappingId;
@@ -2664,6 +2808,14 @@ export type QuotaWindowTypeWritable = QuotaQuotaWindowType;
 export type UsageResultWritable = QuotaUsageResult;
 
 export type GatewayModelWritable = GatewayGatewayModelWritable;
+
+export type SkillReleaseIdWritable = SkillSkillReleaseId;
+
+export type SkillNameWritable = SkillSkillName;
+
+export type SkillVersionWritable = SkillSkillVersion;
+
+export type SkillReleaseStatusWritable = SkillSkillReleaseStatus;
 
 export type EmptyAuditMetadataWritable = {
     [key: string]: never;
@@ -7401,3 +7553,257 @@ export type ReportMcpCatalogResponses = {
 };
 
 export type ReportMcpCatalogResponse = ReportMcpCatalogResponses[keyof ReportMcpCatalogResponses];
+
+export type GetSkillCatalogData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/enterprise/api/v1/skills';
+};
+
+export type GetSkillCatalogErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type GetSkillCatalogError = GetSkillCatalogErrors[keyof GetSkillCatalogErrors];
+
+export type GetSkillCatalogResponses = {
+    /**
+     * Published OwnDsh skill catalog for the active device.
+     */
+    200: SkillRuntimeSkillsResponse;
+};
+
+export type GetSkillCatalogResponse = GetSkillCatalogResponses[keyof GetSkillCatalogResponses];
+
+export type DownloadSkillArtifactData = {
+    body?: never;
+    path: {
+        releaseId: SkillSkillReleaseId;
+    };
+    query?: never;
+    url: '/enterprise/api/v1/skills/{releaseId}/artifact';
+};
+
+export type DownloadSkillArtifactErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+};
+
+export type DownloadSkillArtifactError = DownloadSkillArtifactErrors[keyof DownloadSkillArtifactErrors];
+
+export type DownloadSkillArtifactResponses = {
+    /**
+     * Published immutable skill ZIP artifact.
+     */
+    200: Blob | File;
+};
+
+export type DownloadSkillArtifactResponse = DownloadSkillArtifactResponses[keyof DownloadSkillArtifactResponses];
+
+export type ListSkillReleasesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Server-signed opaque cursor; clients must not parse it.
+         */
+        cursor?: Cursor;
+        /**
+         * Cursor page size.
+         */
+        limit?: PageLimit;
+    };
+    url: '/enterprise/admin/v1/skills';
+};
+
+export type ListSkillReleasesErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+};
+
+export type ListSkillReleasesError = ListSkillReleasesErrors[keyof ListSkillReleasesErrors];
+
+export type ListSkillReleasesResponses = {
+    /**
+     * Skill release catalog page.
+     */
+    200: SkillSkillReleaseListResponse;
+};
+
+export type ListSkillReleasesResponse = ListSkillReleasesResponses[keyof ListSkillReleasesResponses];
+
+export type ImportSkillReleaseData = {
+    body: SkillSkillSourceImportRequest;
+    path?: never;
+    query?: never;
+    url: '/enterprise/admin/v1/skills/imports';
+};
+
+export type ImportSkillReleaseErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Upstream rejected or returned an invalid response.
+     */
+    502: EnterpriseErrorResponse;
+    /**
+     * Platform or upstream is unavailable.
+     */
+    503: EnterpriseErrorResponse;
+};
+
+export type ImportSkillReleaseError = ImportSkillReleaseErrors[keyof ImportSkillReleaseErrors];
+
+export type ImportSkillReleaseResponses = {
+    /**
+     * Existing identical skill draft.
+     */
+    200: SkillSkillImportedReleaseResponse;
+    /**
+     * Imported and registered skill draft.
+     */
+    201: SkillSkillImportedReleaseResponse;
+};
+
+export type ImportSkillReleaseResponse = ImportSkillReleaseResponses[keyof ImportSkillReleaseResponses];
+
+export type RegisterSkillReleaseData = {
+    body: SkillSkillRegistrationRequest;
+    path?: never;
+    query?: never;
+    url: '/enterprise/admin/v1/skills/releases';
+};
+
+export type RegisterSkillReleaseErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+};
+
+export type RegisterSkillReleaseError = RegisterSkillReleaseErrors[keyof RegisterSkillReleaseErrors];
+
+export type RegisterSkillReleaseResponses = {
+    /**
+     * Existing identical skill draft.
+     */
+    200: SkillSkillReleaseResponse;
+    /**
+     * Registered skill draft.
+     */
+    201: SkillSkillReleaseResponse;
+};
+
+export type RegisterSkillReleaseResponse = RegisterSkillReleaseResponses[keyof RegisterSkillReleaseResponses];
+
+export type PublishSkillReleaseData = {
+    body?: never;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        releaseId: SkillSkillReleaseId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/skills/releases/{releaseId}/actions/publish';
+};
+
+export type PublishSkillReleaseErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type PublishSkillReleaseError = PublishSkillReleaseErrors[keyof PublishSkillReleaseErrors];
+
+export type PublishSkillReleaseResponses = {
+    /**
+     * Published skill release.
+     */
+    200: SkillSkillReleaseResponse;
+};
+
+export type PublishSkillReleaseResponse = PublishSkillReleaseResponses[keyof PublishSkillReleaseResponses];
+
+export type RevokeSkillReleaseData = {
+    body?: never;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        releaseId: SkillSkillReleaseId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/skills/releases/{releaseId}/actions/revoke';
+};
+
+export type RevokeSkillReleaseErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type RevokeSkillReleaseError = RevokeSkillReleaseErrors[keyof RevokeSkillReleaseErrors];
+
+export type RevokeSkillReleaseResponses = {
+    /**
+     * Revoked skill release.
+     */
+    200: SkillSkillReleaseResponse;
+};
+
+export type RevokeSkillReleaseResponse = RevokeSkillReleaseResponses[keyof RevokeSkillReleaseResponses];

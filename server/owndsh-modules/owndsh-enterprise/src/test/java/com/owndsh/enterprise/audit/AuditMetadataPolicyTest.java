@@ -30,6 +30,7 @@ import com.owndsh.enterprise.quota.domain.QuotaStatus;
 import com.owndsh.enterprise.quota.domain.QuotaSubjectType;
 import com.owndsh.enterprise.quota.domain.ReservationState;
 import com.owndsh.enterprise.session.application.SessionAuditMetadata;
+import com.owndsh.enterprise.skill.application.SkillAuditMetadata;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
@@ -117,6 +118,9 @@ class AuditMetadataPolicyTest {
             plugin(PluginAuditMetadata.Operation.DELETE),
             plugin(PluginAuditMetadata.Operation.ASSIGN),
             plugin(PluginAuditMetadata.Operation.INVENTORY),
+            skill(SkillAuditMetadata.Operation.REGISTER),
+            skill(SkillAuditMetadata.Operation.PUBLISH),
+            skill(SkillAuditMetadata.Operation.REVOKE),
             new SessionAuditMetadata.BatchAppended(0, 1, 2),
             new SessionAuditMetadata.Exported(0, 1, 2),
             new SessionAuditMetadata.Restored("restored-session", 2),
@@ -131,5 +135,9 @@ class AuditMetadataPolicyTest {
 
     private static PluginAuditMetadata plugin(PluginAuditMetadata.Operation operation) {
         return new PluginAuditMetadata(operation, 0, 0, 1, false);
+    }
+
+    private static SkillAuditMetadata skill(SkillAuditMetadata.Operation operation) {
+        return new SkillAuditMetadata(operation, 0, 0, 1);
     }
 }

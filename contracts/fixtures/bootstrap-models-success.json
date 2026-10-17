@@ -58,6 +58,28 @@
         }
       ]
     },
+    "skills": {
+      "revision": 0,
+      "skills": [
+        {
+          "releaseId": "1901300000000000201",
+          "metadata": {
+            "name": "code-review",
+            "version": "1.0.0",
+            "description": "代码审查",
+            "license": "MIT",
+            "author": "OwnDsh",
+            "userInvocable": true,
+            "modelInvocable": true,
+            "categories": [
+              "开发"
+            ]
+          },
+          "artifactSizeBytes": 1024,
+          "artifactSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ]
+    },
     "sessionPolicy": {
       "enabled": false,
       "retentionDays": 90,

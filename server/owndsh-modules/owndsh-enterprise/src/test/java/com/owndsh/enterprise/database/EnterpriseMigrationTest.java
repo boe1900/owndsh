@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖普通数据库所有者、空数据库、classpath V0-V38 migration 与旧版 baseline 0 历史。
- * [OUTPUT]: 验证空库建表、旧库接管/升级、DeepSeek Messages 配置约束、重复启动、字符串时间参数、数据库计量迁移与 MCP 原样认证值迁移约束。
+ * [INPUT]: 依赖普通数据库所有者、空数据库、classpath V0-V43 migration 与旧版 baseline 0 历史。
+ * [OUTPUT]: 验证空库建表、旧库接管/升级、DeepSeek Messages 配置约束、重复启动、字符串时间参数、数据库计量迁移、MCP 原样认证值与 Skill 权限清理约束。
  * [POS]: database 的持续 migration 门禁，防止后续任务只验证最终 schema 而遗漏中间版本不可升级。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -52,6 +52,26 @@ class EnterpriseMigrationTest {
     }
 
     @Test
+    void removesLegacySkillPermissionRowsWhenUpgrading() {
+        var database = PostgresTestDatabase.create("skill_permissions_upgrade");
+        PostgresTestDatabase.migrate(database, "42");
+        var jdbc = database.jdbc();
+        jdbc.update("""
+            insert into sys_menu (menu_id, menu_name, parent_id, order_num, menu_type, perms)
+            values (1900400000000001018, '技能读取', 1900400000000000108, 1, 'F', 'ent:skill:read'),
+                   (1900400000000001019, '技能写入', 1900400000000000108, 2, 'F', 'ent:skill:write')
+            """);
+        jdbc.execute("alter table sys_role_menu disable trigger trg_ent_built_in_role_menu_immutable");
+        jdbc.update("insert into sys_role_menu (role_id, menu_id) values (1900300000000000001, 1900400000000001018), (1900300000000000001, 1900400000000001019)");
+        jdbc.execute("alter table sys_role_menu enable trigger trg_ent_built_in_role_menu_immutable");
+
+        PostgresTestDatabase.migrate(database, null);
+
+        assertThat(jdbc.queryForObject("select count(*) from sys_menu where perms like 'ent:skill:%'", Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from sys_role_menu where menu_id in (1900400000000001018, 1900400000000001019)", Integer.class)).isZero();
+    }
+
+    @Test
     void migratesAnEmptyDatabaseToLatestWithoutSuperuserPrivileges() {
         var database = PostgresTestDatabase.create("empty_enterprise");
         assertThat(database.jdbc().queryForObject(
@@ -66,12 +86,15 @@ class EnterpriseMigrationTest {
         assertThat(database.jdbc().queryForObject(
             "select type from flyway_schema_history where version='0'", String.class
         )).isEqualTo("SQL");
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("38");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("43");
         Integer tableCount = database.jdbc().queryForObject("""
             select count(*) from information_schema.tables
             where table_schema = 'public' and table_name like 'ent_%'
             """, Integer.class);
-        assertThat(tableCount).isEqualTo(31);
+        // Skill only has release/catalog facts; user/device assignment tables are intentionally absent.
+        assertThat(tableCount).isEqualTo(32);
+        assertThat(database.jdbc().queryForObject("select count(*) from information_schema.tables where table_schema='public' and table_name in ('ent_skill_assignment','ent_skill_device_inventory')", Integer.class)).isZero();
+        assertThat(database.jdbc().queryForObject("select count(*) from sys_menu where perms in ('ent:skill:read','ent:skill:write')", Integer.class)).isZero();
         assertThat(database.jdbc().queryForObject(
             "select policy_type from ent_quota_policy where tenant_id='000000'",
             String.class
@@ -84,6 +107,9 @@ class EnterpriseMigrationTest {
             "select type from ent_identity_source where tenant_id='000000'",
             String.class
         )).isEqualTo("LOCAL");
+        assertThat(database.jdbc().queryForObject("select count(*) from information_schema.columns where table_name='ent_skill_release' and column_name in ('source_type','source_locator','source_subpath','resolved_commit','artifact_provider','artifact_ref')", Integer.class)).isEqualTo(6);
+        assertThat(database.jdbc().queryForObject("select pg_get_constraintdef(oid) from pg_constraint where conname='ck_ent_skill_release_artifact_provider'", String.class))
+            .contains("SOURCE_ARCHIVE");
         assertThat(database.jdbc().queryForObject(
             "select provisioning_mode from ent_identity_source where tenant_id='000000'",
             String.class
@@ -106,8 +132,8 @@ class EnterpriseMigrationTest {
             where parent_id=1900400000000000000 and menu_type='C' and visible='0' and status='0'
             order by order_num, menu_id
             """, String.class)).containsExactly(
-                "模型与路由", "授权与配额", "身份接入", "客户端设备", "插件分发", "会话数据", "企业审计"
-            );
+                "模型与路由", "授权与配额", "身份接入", "客户端设备", "插件分发", "会话数据", "企业审计", "技能"
+        );
         assertThat(database.jdbc().queryForObject("""
             select count(*) from sys_menu
             where menu_id in (
@@ -144,6 +170,9 @@ class EnterpriseMigrationTest {
         assertThat(database.jdbc().queryForList("""
             select role_id from sys_role_menu where menu_id=1900400000000001016 order by role_id
             """, Long.class)).containsExactly(1900300000000000001L);
+        assertThat(database.jdbc().queryForObject("""
+            select count(*) from sys_role_menu where menu_id in (1900400000000001018, 1900400000000001019)
+            """, Integer.class)).isZero();
     }
 
     @Test
@@ -206,7 +235,7 @@ class EnterpriseMigrationTest {
 
         Flyway flyway = PostgresTestDatabase.migrate(database, null);
 
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("38");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("43");
         assertThat(database.jdbc().queryForObject(
             "select type from flyway_schema_history where version='0'", String.class
         )).isEqualTo("BASELINE");
@@ -587,7 +616,7 @@ class EnterpriseMigrationTest {
             .run(context -> {
                 assertThat(context).hasSingleBean(Flyway.class);
                 assertThat(context.getBean(Flyway.class).info().current().getVersion().getVersion())
-                    .isEqualTo("38");
+                    .isEqualTo("43");
             });
     }
 
@@ -605,7 +634,7 @@ class EnterpriseMigrationTest {
 
         Flyway flyway = PostgresTestDatabase.migrate(database, null);
 
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("38");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("43");
         assertThat(database.jdbc().queryForMap("""
             select api_protocol,base_url from ent_model_provider where id=1913000000000000801
             """)).containsEntry("api_protocol", "anthropic-messages")

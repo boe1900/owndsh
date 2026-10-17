@@ -28,6 +28,7 @@ import com.owndsh.enterprise.model.persistence.ProviderStore;
 import com.owndsh.enterprise.revision.BootstrapRevisionStore;
 import com.owndsh.enterprise.quota.application.EffectiveQuotaResolver;
 import com.owndsh.enterprise.plugin.application.EffectivePluginResolver;
+import com.owndsh.enterprise.skill.application.EffectiveSkillResolver;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -136,10 +137,11 @@ public class EnterpriseModelConfiguration {
         EffectiveModelResolver resolver,
         EffectiveQuotaResolver quotaResolver,
         EffectivePluginResolver pluginResolver,
+        EffectiveSkillResolver skillResolver,
         BootstrapRevisionStore revisionStore
     ) {
         return new BootstrapService(
-            deviceService, userStore, resolver, quotaResolver, pluginResolver, revisionStore
+            deviceService, userStore, resolver, quotaResolver, pluginResolver, skillResolver, revisionStore
         );
     }
 }

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Harness `ctx.webServer.register()` route port、平台操作端口及组合层注入的插件动作端口
- * [OUTPUT]: 提供账号/配置按需刷新与插件操作的严格同源 JSON 路由，无常驻状态连接
+ * [OUTPUT]: 提供账号/配置按需刷新与技能目录、安装、插件操作的严格同源 JSON 路由，无常驻状态连接
  * [POS]: platform-client 的 Host/Client 同源协作边界，只序列化脱敏 DTO 并把认证 HTTP 留在 Host Service
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -11,6 +11,8 @@ import type {
   EnterpriseLoginFlow,
   EnterprisePlatformStatus,
 } from './types.js'
+import type { EnterpriseAvailableSkill, EnterpriseInstalledSkill } from './skill-runtime.js'
+import { isSkillName } from '@deepseek-ai/dsh-skill'
 
 const LOCAL_API_PREFIX = '/enterprise/api/v1/local'
 const JSON_CONTENT_TYPE = 'application/json; charset=utf-8'
@@ -36,6 +38,14 @@ export interface EnterpriseLocalPlatformPort {
   cancelLogin(): boolean
   logout(): Promise<void>
   bootstrap(): BootstrapSnapshot | undefined
+  skills?(): Promise<readonly EnterpriseInstalledSkill[]>
+  availableSkills?(): Promise<readonly EnterpriseAvailableSkill[]>
+  installSkill?(name: string): Promise<void>
+  setSkillEnabled?(name: string, enabled: boolean): Promise<void>
+  removeSkill?(name: string): Promise<void>
+  skillIcon?(name: string): Promise<Uint8Array | undefined>
+  openSkillFile?(name: string): Promise<void>
+  openSkillDirectory?(name: string): Promise<void>
 }
 
 export interface EnterpriseLocalApiOptions {
@@ -75,6 +85,7 @@ function actionErrorStatus(error: unknown): number {
   if (code === 'ENT_AUTH_REQUIRED' || code === 'ENT_AUTH_SESSION_EXPIRED') return 401
   if (code === 'ENT_DEVICE_REVOKED' || code === 'ENT_PERMISSION_DENIED') return 403
   if (code === 'ENT_RESOURCE_NOT_FOUND') return 404
+  if (code === 'ENT_SKILL_NOT_FOUND') return 404
   return 503
 }
 
@@ -112,6 +123,51 @@ function parseServerUrlInput(value: unknown): { readonly serverUrl: string } {
     throw new TypeError('server URL body is invalid')
   }
   return { serverUrl: body['serverUrl'] }
+}
+
+function parseSkillName(value: string): string {
+  let name: string
+  try { name = decodeURIComponent(value) } catch { throw new TypeError('skill name is invalid') }
+  if (!isSkillName(name)) throw new TypeError('skill name is invalid')
+  return name
+}
+
+function parseSkillEnabledInput(value: unknown): { readonly enabled: boolean } {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new TypeError('skill enabled body is invalid')
+  const body = value as Record<string, unknown>
+  if (Object.keys(body).join(',') !== 'enabled' || typeof body['enabled'] !== 'boolean') {
+    throw new TypeError('skill enabled body is invalid')
+  }
+  return { enabled: body['enabled'] }
+}
+
+function registerSkillAction(
+  webServer: WebServerRoutePort,
+  action: 'open-file' | 'open-directory',
+  handler: (name: string) => Promise<void>,
+): () => void {
+  return webServer.register({
+    kind: 'prefix',
+    path: `${LOCAL_API_PREFIX}/skill-actions/${action}`,
+    handler: async (request, response) => {
+      const prefix = `${LOCAL_API_PREFIX}/skill-actions/${action}`
+      const segments = (request.url?.split('?', 1)[0] ?? '').slice(prefix.length).split('/').filter(Boolean)
+      if (request.method !== 'POST') { methodNotAllowed(response, 'POST'); return }
+      if (segments.length !== 1) {
+        writeJson(response, 404, { error: { code: 'ENT_RESOURCE_NOT_FOUND' } })
+        return
+      }
+      try {
+        const name = parseSkillName(segments[0]!)
+        await requireEmptyObject(request)
+        await handler(name)
+        writeJson(response, 200, { data: { name, opened: true } })
+      } catch (error) {
+        const status = actionErrorStatus(error)
+        writeJson(response, status, { error: { code: status === 400 ? 'ENT_INVALID_REQUEST' : errorCode(error) } })
+      }
+    },
+  })
 }
 
 function requestUrl(request: IncomingMessage): URL {
@@ -248,6 +304,106 @@ export function registerEnterpriseLocalApi(
             version: item.version, installation: item.installation,
           })),
         } })
+      },
+    }))
+
+    if (options.platform.skills !== undefined
+      && options.platform.setSkillEnabled !== undefined
+      && options.platform.removeSkill !== undefined) disposers.push(webServer.register({
+      kind: 'prefix',
+      path: `${LOCAL_API_PREFIX}/skills`,
+      handler: async (request, response) => {
+        const prefix = `${LOCAL_API_PREFIX}/skills`
+        const suffix = (request.url?.split('?', 1)[0] ?? '').slice(prefix.length)
+        const segments = suffix.split('/').filter(Boolean)
+        try {
+          if (segments.length === 0) {
+            if (request.method !== 'GET') { methodNotAllowed(response, 'GET'); return }
+            const skills = await options.platform.skills!()
+            writeJson(response, 200, { data: { skills: skills.map(skill => ({
+              ...skill,
+              ...(options.platform.openSkillFile !== undefined || options.platform.openSkillDirectory !== undefined
+                ? { actions: {
+                  file: options.platform.openSkillFile !== undefined,
+                  directory: options.platform.openSkillDirectory !== undefined,
+                } } : {}),
+            })) } })
+            return
+          }
+          if (segments.length !== 2) { writeJson(response, 404, { error: { code: 'ENT_RESOURCE_NOT_FOUND' } }); return }
+          const name = parseSkillName(segments[0]!)
+          if (segments[1] === 'enabled') {
+            if (request.method !== 'POST') { methodNotAllowed(response, 'POST'); return }
+            const input = parseSkillEnabledInput(await readJson(request))
+            await options.platform.setSkillEnabled!(name, input.enabled)
+            writeJson(response, 200, { data: { name, enabled: input.enabled } })
+            return
+          }
+          if (segments[1] === 'remove') {
+            if (request.method !== 'POST') { methodNotAllowed(response, 'POST'); return }
+            await requireEmptyObject(request)
+            await options.platform.removeSkill!(name)
+            writeJson(response, 200, { data: { name, removed: true } })
+            return
+          }
+          if (segments[1] === 'install' && options.platform.installSkill !== undefined) {
+            if (request.method !== 'POST') { methodNotAllowed(response, 'POST'); return }
+            await requireEmptyObject(request)
+            await options.platform.installSkill(name)
+            writeJson(response, 200, { data: { name, installed: true } })
+            return
+          }
+          writeJson(response, 404, { error: { code: 'ENT_RESOURCE_NOT_FOUND' } })
+        } catch (error) {
+          const status = actionErrorStatus(error)
+          writeJson(response, status, {
+            error: { code: status === 413 ? 'ENT_REQUEST_TOO_LARGE' : status === 400 ? 'ENT_INVALID_REQUEST' : errorCode(error) },
+          })
+        }
+      },
+    }))
+
+    if (options.platform.availableSkills !== undefined) disposers.push(webServer.register({
+      kind: 'exact',
+      path: `${LOCAL_API_PREFIX}/skill-catalog`,
+      handler: async (request, response) => {
+        if (request.method !== 'GET') { methodNotAllowed(response, 'GET'); return }
+        try {
+          writeJson(response, 200, { data: { skills: await options.platform.availableSkills!() } })
+        } catch (error) {
+          const status = actionErrorStatus(error)
+          writeJson(response, status, { error: { code: errorCode(error) } })
+        }
+      },
+    }))
+
+    for (const [action, handler] of [
+      ['open-file', options.platform.openSkillFile],
+      ['open-directory', options.platform.openSkillDirectory],
+    ] as const) {
+      if (handler !== undefined) disposers.push(registerSkillAction(webServer, action, handler))
+    }
+
+    if (options.platform.skillIcon !== undefined) disposers.push(webServer.register({
+      kind: 'prefix',
+      path: `${LOCAL_API_PREFIX}/skill-icons`,
+      handler: async (request, response) => {
+        const prefix = `${LOCAL_API_PREFIX}/skill-icons`
+        const segments = (request.url?.split('?', 1)[0] ?? '').slice(prefix.length).split('/').filter(Boolean)
+        if (request.method !== 'GET' || segments.length !== 1) {
+          if (request.method !== 'GET') methodNotAllowed(response, 'GET')
+          else writeJson(response, 404, { error: { code: 'ENT_RESOURCE_NOT_FOUND' } })
+          return
+        }
+        try {
+          const bytes = await options.platform.skillIcon!(parseSkillName(segments[0]!))
+          if (bytes === undefined) { writeJson(response, 404, { error: { code: 'ENT_RESOURCE_NOT_FOUND' } }); return }
+          response.writeHead(200, { 'cache-control': 'no-store', 'content-type': 'image/png', 'x-content-type-options': 'nosniff' })
+          response.end(Buffer.from(bytes))
+        } catch (error) {
+          const status = actionErrorStatus(error)
+          writeJson(response, status, { error: { code: status === 400 ? 'ENT_INVALID_REQUEST' : errorCode(error) } })
+        }
       },
     }))
 

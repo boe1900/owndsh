@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 React、Lucide、Harness Button/Settings close、ConfirmAction、EnterprisePluginMarket、官方 ConfigForm，以及 EnterpriseAccountStore 的脱敏 snapshot 和动作
- * [OUTPUT]: 提供账号/插件/MCP 设置与全局门禁、手动刷新进度/结果；独立 MCP 卡片支持连接、工具预览、服务器/工具 exposure 覆写、启用/禁用和断开连接；Server 仅在无活动会话时编辑
+ * [INPUT]: 依赖 React、Lucide、Harness Button/Settings close、ConfirmAction、EnterprisePluginMarket/EnterpriseSkillMarket、官方 ConfigForm，以及 EnterpriseAccountStore 的脱敏 snapshot 和动作
+ * [OUTPUT]: 提供账号/插件/技能/MCP 设置与全局门禁、手动刷新进度/结果；技能页委托本地 skill store，独立 MCP 卡片支持连接、工具预览、服务器/工具 exposure 覆写、启用/禁用和断开连接；Server 仅在无活动会话时编辑
  * [POS]: dsh-ui 的账号设置与门禁呈现层，账号信息与退出操作的唯一常驻入口；配置写入经 ConfigForm，仍不接触 Host Context、Token 或执行细节
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -44,6 +44,8 @@ import {
   useConfigFormSnapshot,
 } from './mcp-exposure-settings.js'
 import { EnterprisePluginMarket, type EnterprisePluginMarketProps } from './plugin-market.js'
+import { EnterpriseSkillMarket } from './skill-market.js'
+import type { EnterpriseSkillStore } from './skill-store.js'
 import type {
   EnterpriseConnectionState,
   McpExposure,
@@ -61,6 +63,7 @@ export interface EnterpriseSettingsSectionProps extends EnterpriseStoreInjected 
   readonly close: () => void
   readonly pluginManager: EnterprisePluginMarketProps['pluginManager']
   readonly configForm: EnterpriseConfigForm
+  readonly skillStore: EnterpriseSkillStore
 }
 
 export interface EnterpriseAccessGateProps extends EnterpriseStoreInjected {}
@@ -529,7 +532,7 @@ function EnterpriseAccountContent({ store }: EnterpriseStoreInjected): ReactNode
   </div>
 }
 
-/** 官方 `settings.section` 内的 OwnDsh 账号、企业插件和 MCP tabs。 */
+/** 官方 `settings.section` 内的 OwnDsh 账号、企业插件、技能和 MCP tabs。 */
 export function EnterpriseSettingsSection(props: EnterpriseSettingsSectionProps): ReactNode {
   useEffect(() => { void props.store.refresh(true) }, [props.store])
   const state = useAccount(props.store).status?.state
@@ -539,10 +542,11 @@ export function EnterpriseSettingsSection(props: EnterpriseSettingsSectionProps)
   const headingId = useId()
   const tabsId = useId()
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
-  const [activeTab, setActiveTab] = useState<'account' | 'plugins' | 'mcp'>('account')
+  const [activeTab, setActiveTab] = useState<'account' | 'plugins' | 'skills' | 'mcp'>('account')
   const rows = [
     { id: 'account', label: '账号' },
     { id: 'plugins', label: '插件' },
+    { id: 'skills', label: '技能' },
     { id: 'mcp', label: 'MCP' },
   ] as const
   return <section className="own-settings" style={page} aria-labelledby={headingId}>
@@ -607,6 +611,9 @@ export function EnterpriseSettingsSection(props: EnterpriseSettingsSectionProps)
     </div>
     <div id={`${tabsId}-panel-plugins`} role="tabpanel" aria-labelledby={`${tabsId}-tab-plugins`} hidden={activeTab !== 'plugins'}>
       <EnterprisePluginMarket store={props.store} pluginManager={props.pluginManager} active={activeTab === 'plugins'} />
+    </div>
+    <div id={`${tabsId}-panel-skills`} role="tabpanel" aria-labelledby={`${tabsId}-tab-skills`} hidden={activeTab !== 'skills'}>
+      {activeTab === 'skills' ? <EnterpriseSkillMarket store={props.skillStore} active /> : null}
     </div>
     <div id={`${tabsId}-panel-mcp`} role="tabpanel" aria-labelledby={`${tabsId}-tab-mcp`} hidden={activeTab !== 'mcp'}>
       {activeTab === 'mcp' ? <EnterpriseMcpSettings store={props.store} configForm={props.configForm} /> : null}

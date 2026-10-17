@@ -1,0 +1,170 @@
+# [INPUT]: 依赖根协议的 ID、revision、requestId 与严格成功 envelope
+# [OUTPUT]: 提供 OwnDsh skill 目录、发布状态与按需制品下载 schema；不提供 assignment/inventory
+# [POS]: contracts/components 的技能市场真源；Skill 只由发布状态决定可见性，安装事实留在客户端
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+SkillReleaseId:
+  type: string
+  pattern: '^[1-9][0-9]{0,18}$'
+SkillReleaseStatus:
+  type: string
+  enum: [DRAFT, PUBLISHED, REVOKED]
+SkillName:
+  type: string
+  minLength: 1
+  maxLength: 64
+  pattern: '^[a-z0-9][a-z0-9._-]*$'
+SkillVersion:
+  type: string
+  minLength: 1
+  maxLength: 64
+  pattern: '^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$'
+SkillMetadata:
+  type: object
+  additionalProperties: false
+  required: [name, version, description, license, author, userInvocable, modelInvocable]
+  properties:
+    name: {$ref: '#/SkillName'}
+    version: {$ref: '#/SkillVersion'}
+    description: {type: string, maxLength: 2000}
+    license: {type: string, maxLength: 120}
+    author: {type: string, maxLength: 120}
+    userInvocable: {type: boolean}
+    modelInvocable: {type: boolean}
+    categories:
+      type: array
+      maxItems: 12
+      uniqueItems: true
+      items: {type: string, minLength: 1, maxLength: 40}
+RuntimeSkill:
+  type: object
+  additionalProperties: false
+  required: [releaseId, metadata, artifactSizeBytes, artifactSha256]
+  properties:
+    releaseId: {$ref: '#/SkillReleaseId'}
+    metadata: {$ref: '#/SkillMetadata'}
+    artifactSizeBytes:
+      type: integer
+      minimum: 1
+      maximum: 67108864
+    artifactSha256:
+      type: string
+      pattern: '^[0-9a-f]{64}$'
+RuntimeSkills:
+  type: object
+  additionalProperties: false
+  required: [revision, skills]
+  properties:
+    revision:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/Revision'
+    skills:
+      type: array
+      maxItems: 200
+      items: {$ref: '#/RuntimeSkill'}
+RuntimeSkillsResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/RuntimeSkills'}
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+
+SkillRegistrationRequest:
+  type: object
+  additionalProperties: false
+  required: [name, version, description, license, author, userInvocable, modelInvocable, categories, artifactSizeBytes, artifactSha256]
+  properties:
+    name: {$ref: '#/SkillName'}
+    version: {$ref: '#/SkillVersion'}
+    description: {type: string, maxLength: 2000}
+    license: {type: string, maxLength: 120}
+    author: {type: string, maxLength: 120}
+    userInvocable: {type: boolean}
+    modelInvocable: {type: boolean}
+    categories:
+      type: array
+      maxItems: 12
+      uniqueItems: true
+      items: {type: string, minLength: 1, maxLength: 40}
+    artifactSizeBytes: {type: integer, minimum: 1, maximum: 67108864}
+    artifactSha256: {type: string, pattern: '^[0-9a-f]{64}$'}
+SkillRelease:
+  type: object
+  additionalProperties: false
+  required: [id, name, version, description, license, author, userInvocable, modelInvocable, categories, artifactSizeBytes, artifactSha256, status, revision]
+  properties:
+    id: {$ref: '#/SkillReleaseId'}
+    name: {$ref: '#/SkillName'}
+    version: {$ref: '#/SkillVersion'}
+    description: {type: string}
+    license: {type: string}
+    author: {type: string}
+    userInvocable: {type: boolean}
+    modelInvocable: {type: boolean}
+    categories: {type: array, items: {type: string}}
+    artifactSizeBytes: {type: integer, minimum: 1, maximum: 67108864}
+    artifactSha256: {type: string, pattern: '^[0-9a-f]{64}$'}
+    status: {$ref: '#/SkillReleaseStatus'}
+    revision: {$ref: '../enterprise-openapi.yaml#/components/schemas/Revision'}
+SkillReleasePageData:
+  type: object
+  additionalProperties: false
+  required: [items, page]
+  properties:
+    items:
+      type: array
+      maxItems: 200
+      items: {$ref: '#/SkillRelease'}
+    page: {$ref: '../enterprise-openapi.yaml#/components/schemas/CursorPage'}
+SkillReleaseListResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/SkillReleasePageData'}
+    requestId: {$ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'}
+SkillReleaseResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/SkillRelease'}
+    requestId: {$ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'}
+
+SkillSourceImportRequest:
+  type: object
+  additionalProperties: false
+  required: [repositoryUrl, revision, subpath]
+  properties:
+    repositoryUrl:
+      type: string
+      format: uri
+      pattern: '^https://[^?#]+$'
+      maxLength: 500
+    revision:
+      type: string
+      minLength: 1
+      maxLength: 256
+      pattern: '^[^/?#]+$'
+    subpath:
+      type: string
+      maxLength: 256
+      pattern: '^(|[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*)$'
+SkillImportedRelease:
+  type: object
+  additionalProperties: false
+  required: [resolvedCommit, release, created]
+  properties:
+    resolvedCommit:
+      type: string
+      pattern: '^[0-9a-f]{7,64}$'
+    release: {$ref: '#/SkillRelease'}
+    created: {type: boolean}
+SkillImportedReleaseResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/SkillImportedRelease'}
+    requestId: {$ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'}

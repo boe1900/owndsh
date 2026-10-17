@@ -45,5 +45,10 @@ V35__usage_chronological_pagination.sql: 为用量账本补齐 tenant+created_at
 V36__deepseek_messages_protocol.sql: 保留 V13 checksum，前向将 DeepSeek 官方 provider 迁移到 RC1 Messages API 并更新已知官方 endpoint。
 V37__plugin_deletion_audit.sql: 仅扩充插件删除审计 action 白名单，保留既有目录、库存和历史审计数据。
 V38__remove_mcp_presentation.sql: 删除已废弃的 MCP presentation 列与约束，推进受影响租户 bootstrap revision；曝光策略改由插件端本地配置负责。
+V39__enterprise_skill_runtime.sql: 建立 skill release 的基础元数据事实；只存脱敏元数据，不保存正文、凭据、本地路径或设备安装状态。
+V40__enterprise_skill_catalog.sql: 开放 skill 草稿/发布/撤销状态和对应审计 action，保留技能导航但不注册 Skill 专用权限码。
+V41__enterprise_skill_sources.sql: 为 skill release 持久化来源类型/地址/子路径、固定 commit 与 artifact provider/ref，支持后续 GitLab Generic Package Registry adapter。
+V42__enterprise_skill_source_archive.sql: 修正 skill artifact provider 约束，允许默认的 SOURCE_ARCHIVE 公共源码回源模式。
+V43__remove_skill_permissions.sql: 删除早期 Skill 专用权限码及角色关联；Skill 目录只受登录管理会话保护。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

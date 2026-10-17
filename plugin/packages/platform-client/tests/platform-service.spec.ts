@@ -251,6 +251,18 @@ describe('EnterprisePlatformService', () => {
                 desiredState: 'INSTALLED',
               }],
             },
+            skills: {
+              revision: 7,
+              skills: [{
+                releaseId: '990',
+                metadata: {
+                  name: 'code-review', version: '1.0.0', description: 'Review code', license: 'MIT', author: 'OwnDsh',
+                  userInvocable: true, modelInvocable: true, categories: ['开发'],
+                },
+                artifactSizeBytes: 1024,
+                artifactSha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+              }],
+            },
             sessionPolicy: { enabled: true, retentionDays: 90, maxBatchBytes: 1_048_576 },
           },
           requestId: REQUEST_ID,

@@ -14,6 +14,7 @@ import * as React from 'react'
 import * as ReactJsxRuntime from 'react/jsx-runtime'
 import { describe, expect, it, vi } from 'vitest'
 import { Config, inject } from '../src/index.js'
+import * as BuiltModule from '../lib/index.js'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -38,6 +39,7 @@ describe('enterprise bundle', () => {
     expect(manifest.peerDependencies['@deepseek-ai/dsh-mcp-client']).toBe('^0.2.0-rc.1')
     expect(manifest.peerDependencies['@deepseek-ai/dsh-tools']).toBe('^0.2.0-rc.1')
     expect(manifest.peerDependencies['@deepseek-ai/schemastery']).toBe('^3.18.4')
+    expect(manifest.peerDependencies.yaml).toBe('^2.9.1')
     expect(inject).toEqual([
       'webServer', 'credentials', 'settings', 'llm', 'pluginInventory', 'pluginManager', 'tools',
     ])
@@ -62,6 +64,10 @@ describe('enterprise bundle', () => {
     expect(source).toContain('const HARNESS_VERSION = APP_IDENTITY.version')
     expect(source).toContain("createRequire(import.meta.url)('../package.json')")
     expect(source).not.toContain("const HARNESS_VERSION = '0.1.1-rc.2'")
+  })
+
+  it('imports the published Host module under Node ESM', async () => {
+    expect(BuiltModule.apply).toBeTypeOf('function')
   })
 
   it('materializes the built lazy-CJS Client factory and registers only OwnDsh settings and access slots', async () => {

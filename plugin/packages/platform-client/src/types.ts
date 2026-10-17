@@ -6,7 +6,15 @@
  */
 
 import { z } from 'zod'
-import { zBootstrapQuota, zRuntimePluginAssignment, zRequestId, zRevision, type EnterpriseErrorCode, type PluginInventoryItem } from '@owndsh/contracts'
+import {
+  zBootstrapQuota,
+  zRuntimePluginAssignment,
+  zRuntimeSkills,
+  zRequestId,
+  zRevision,
+  type EnterpriseErrorCode,
+  type PluginInventoryItem,
+} from '@owndsh/contracts'
 import type { InstallationOptions } from './installation.js'
 
 /** 不携带响应主体或凭据的稳定 Service 失败，并保留经过 Fetch 校验的 Retry-After。 */
@@ -50,6 +58,8 @@ export interface EnterprisePlatformInternals {
   readonly restoreRetryInitialMs?: number
   readonly restoreRetryMaxMs?: number
   readonly uninstallPlugin?: () => Promise<{ readonly restart?: () => void }>
+  /** Called after a local OwnDsh skill mutation; the official filesystem provider owns the cache. */
+  readonly invalidateSkills?: () => void
 }
 
 /** 本地 Client 界面渲染的固定生命周期。 */
@@ -129,6 +139,7 @@ export const zBootstrapSnapshot = z.object({
     revision,
     assignments: z.array(zRuntimePluginAssignment).max(200),
   }).strict(),
+  skills: zRuntimeSkills,
   sessionPolicy: z.object({
     enabled: z.boolean(),
     retentionDays: z.number().int().positive().safe(),

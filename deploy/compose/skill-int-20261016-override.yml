@@ -1,0 +1,8 @@
+services:
+  server:
+    image: owndsh-server:skill-int-20261016
+    environment:
+      ENTERPRISE_SKILL_ARTIFACT_PROVIDER: SOURCE_ARCHIVE
+
+  console:
+    image: owndsh-console:skill-int-20261016

@@ -8,7 +8,7 @@ EnterpriseModelConfiguration.java: 受管模型 Spring composition root，装配
 domain/: provider/model/model set/grant 领域聚合、封闭状态枚举和有效授权候选；局部地图见 domain/CLAUDE.md。
 application/: 密钥生命周期、CAS/审计事务、全员/用户组/成员与模型集/模型授权展开、排序默认解析及 bootstrap 模型切片；局部地图见 application/CLAUDE.md。
 persistence/: 模型表和 Host 成员事实的 JDBC adapters；局部地图见 persistence/CLAUDE.md。
-web/: 管理 API 与 runtime bootstrap 的严格请求/脱敏响应边界；局部地图见 web/CLAUDE.md。
+web/: 管理 API 与 runtime bootstrap 的严格请求/脱敏响应边界，汇总模型/配额/插件/技能投影；局部地图见 web/CLAUDE.md。
 gateway/: 请求级授权与最小治理校验、Harness 三协议透明 upstream、原生 SSE、配额生命周期与双审计纵向边界；局部地图见 gateway/CLAUDE.md。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

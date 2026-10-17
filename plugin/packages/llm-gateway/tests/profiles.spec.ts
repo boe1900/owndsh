@@ -27,6 +27,7 @@ function snapshot(): BootstrapSnapshot {
     ],
     quotas: [],
     plugins: { revision: 1, assignments: [] },
+    skills: { revision: 1, skills: [] },
     sessionPolicy: { enabled: false, retentionDays: 90, maxBatchBytes: 1_048_576 },
   }
 }

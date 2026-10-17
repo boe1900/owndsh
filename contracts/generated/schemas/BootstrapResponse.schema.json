@@ -18,6 +18,7 @@
         "models",
         "quotas",
         "plugins",
+        "skills",
         "sessionPolicy"
       ],
       "properties": {
@@ -446,6 +447,109 @@
                       "INSTALLED",
                       "ABSENT"
                     ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "skills": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "revision",
+            "skills"
+          ],
+          "properties": {
+            "revision": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991,
+              "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+              "examples": [
+                7
+              ]
+            },
+            "skills": {
+              "type": "array",
+              "maxItems": 200,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "releaseId",
+                  "metadata",
+                  "artifactSizeBytes",
+                  "artifactSha256"
+                ],
+                "properties": {
+                  "releaseId": {
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]{0,18}$"
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "name",
+                      "version",
+                      "description",
+                      "license",
+                      "author",
+                      "userInvocable",
+                      "modelInvocable"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                      },
+                      "version": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+                      },
+                      "description": {
+                        "type": "string",
+                        "maxLength": 2000
+                      },
+                      "license": {
+                        "type": "string",
+                        "maxLength": 120
+                      },
+                      "author": {
+                        "type": "string",
+                        "maxLength": 120
+                      },
+                      "userInvocable": {
+                        "type": "boolean"
+                      },
+                      "modelInvocable": {
+                        "type": "boolean"
+                      },
+                      "categories": {
+                        "type": "array",
+                        "maxItems": 12,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 40
+                        }
+                      }
+                    }
+                  },
+                  "artifactSizeBytes": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 67108864
+                  },
+                  "artifactSha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
                   }
                 }
               }

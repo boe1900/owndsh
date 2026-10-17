@@ -1,0 +1,151 @@
+/*
+ * [INPUT]: OwnDsh 设置页主题变量与 skill-market 结构
+ * [OUTPUT]: WorkBuddy 风格双列技能卡片、搜索栏、图标和菜单触发器布局
+ * [POS]: 技能 tab 的局部样式，不修改宿主全局样式
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+
+.market {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  color: var(--dsw-alias-label-primary, #101828);
+}
+
+.viewTabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  margin: 0 0 10px;
+  border-bottom: 1px solid var(--dsw-alias-border-l2, #e4e7ec);
+}
+
+.viewTab,
+.viewTabActive {
+  padding: 6px 1px 8px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary, #667085);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+
+.viewTabActive {
+  border-bottom-color: var(--dsw-alias-label-primary, #101828);
+  color: var(--dsw-alias-label-primary, #101828);
+  font-weight: 600;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 14px;
+}
+
+.search {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--dsw-alias-border-l2, #e4e7ec);
+  border-radius: 8px;
+  color: var(--dsw-alias-label-tertiary, #667085);
+}
+
+.search:focus-within { border-color: var(--dsw-alias-state-business-primary, #4d6bfe); }
+
+.search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.card {
+  display: flex;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 132px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--dsw-alias-border-l2, #e4e7ec);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-1, #fff);
+}
+
+.cardTop,
+.cardBottom,
+.tags {
+  display: flex;
+  align-items: center;
+}
+
+.cardTop { gap: 10px; }
+.cardBottom { justify-content: space-between; gap: 8px; margin-top: auto; }
+.tags { flex-wrap: wrap; gap: 5px; min-width: 0; }
+
+.icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  overflow: hidden;
+  border: 1px solid var(--dsw-alias-border-l3, #f0f2f5);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-layer-2, #f8fafc);
+  color: var(--dsw-alias-label-tertiary, #667085);
+}
+
+.iconImage { width: 100%; height: 100%; object-fit: cover; }
+.cardTitle { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.cardTitle strong { overflow: hidden; font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.name { overflow: hidden; color: var(--dsw-alias-label-tertiary, #667085); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+
+.more {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-left: auto;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary, #667085);
+  cursor: pointer;
+}
+
+.more:hover { background: var(--dsw-alias-bg-layer-2, #f2f4f7); color: var(--dsw-alias-label-primary, #101828); }
+.description { display: -webkit-box; min-height: 36px; margin: 0; overflow: hidden; color: var(--dsw-alias-label-secondary, #475467); font-size: 12px; line-height: 18px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.tag,
+.mutedTag { padding: 2px 6px; border-radius: 5px; background: var(--dsw-alias-bg-layer-2, #f2f4f7); color: var(--dsw-alias-label-secondary, #475467); font-size: 10px; line-height: 15px; }
+.mutedTag { background: transparent; color: var(--dsw-alias-label-tertiary, #667085); }
+.empty,
+.notice { margin: 24px 0 8px; color: var(--dsw-alias-label-tertiary, #667085); font-size: 13px; }
+.notice { padding: 9px 11px; border-radius: 8px; background: color-mix(in srgb, var(--dsw-alias-state-error-primary, #c4320a) 10%, transparent); color: var(--dsw-alias-state-error-primary, #c4320a); }
+.hiddenAction { display: none; }
+
+@media (max-width: 680px) {
+  .grid { grid-template-columns: 1fr; }
+}

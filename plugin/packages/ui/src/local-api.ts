@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 contracts 安装元数据 schema、浏览器 fetch 与 platform-client 的按需同源 JSON 协议
- * [OUTPUT]: 对外提供严格账号/插件/MCP 状态解码（含工具简介、重新授权与授权进度）、连接动作，以及 Server 地址/登录/整包卸载与显式刷新端口
+ * [OUTPUT]: 对外提供严格账号/插件/可安装与已安装技能/MCP 状态解码（含技能图标、安装动作、工具简介、重新授权与授权进度）、连接动作，以及 Server 地址/登录/整包卸载与显式刷新端口
  * [POS]: dsh-ui 的浏览器网络边界，只投影 Settings 所需事实并拒绝秘密、正文与本地执行细节
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -59,6 +59,31 @@ export interface EnterprisePluginStatus {
   readonly catalog: readonly EnterprisePluginCatalogItem[]
 }
 
+export interface EnterpriseInstalledSkill {
+  readonly name: string
+  readonly displayName: string
+  readonly description: string
+  readonly category?: string
+  readonly version: string
+  readonly userInvocable: boolean
+  readonly enabled: boolean
+  readonly hasIcon: boolean
+  readonly actions?: {
+    readonly file: boolean
+    readonly directory: boolean
+  }
+}
+
+export interface EnterpriseAvailableSkill {
+  readonly name: string
+  readonly displayName: string
+  readonly description: string
+  readonly category?: string
+  readonly version: string
+  readonly userInvocable: boolean
+  readonly hasIcon: false
+}
+
 export interface EnterpriseMcpAssignment {
   readonly serverName: string
   readonly displayName: string
@@ -89,6 +114,13 @@ export interface EnterpriseLocalApi {
   setServerUrl(serverUrl: string, signal: AbortSignal): Promise<{ readonly serverUrl: string }>
   bootstrap(signal: AbortSignal): Promise<EnterpriseAccountBootstrap | undefined>
   plugins(signal: AbortSignal): Promise<EnterprisePluginStatus>
+  skills?(signal: AbortSignal): Promise<readonly EnterpriseInstalledSkill[]>
+  availableSkills?(signal: AbortSignal): Promise<readonly EnterpriseAvailableSkill[]>
+  installSkill?(name: string, signal: AbortSignal): Promise<void>
+  setSkillEnabled?(name: string, enabled: boolean, signal: AbortSignal): Promise<void>
+  removeSkill?(name: string, signal: AbortSignal): Promise<void>
+  openSkillFile?(name: string, signal: AbortSignal): Promise<void>
+  openSkillDirectory?(name: string, signal: AbortSignal): Promise<void>
   startLogin(signal: AbortSignal): Promise<{ readonly flowId: string }>
   cancelLogin(signal: AbortSignal): Promise<{ readonly cancelled: boolean }>
   logout(signal: AbortSignal): Promise<{ readonly loggedOut: true }>
@@ -249,6 +281,63 @@ export function decodeEnterprisePluginStatus(value: unknown): EnterprisePluginSt
   return { assignmentRevision: Number(source['assignmentRevision']), catalog }
 }
 
+function skillName(value: unknown): value is string {
+  return typeof value === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value)
+}
+
+export function decodeEnterpriseSkills(value: unknown): readonly EnterpriseInstalledSkill[] {
+  const source = record(value)
+  if (source === undefined || !hasExactKeys(source, ['skills']) || !Array.isArray(source['skills']) || source['skills'].length > 500) {
+    throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+  }
+  const names = new Set<string>()
+  return source['skills'].map(item => {
+    const row = record(item)
+    if (row === undefined || !hasExactKeys(row, ['name', 'displayName', 'description', 'version', 'userInvocable', 'enabled', 'hasIcon'], ['category', 'actions'])
+      || !skillName(row['name']) || names.has(row['name'])
+      || !nonEmptyString(row['displayName']) || row['displayName'].length > 200
+      || typeof row['description'] !== 'string' || row['description'].length > 16 * 1024
+      || !nonEmptyString(row['version']) || row['version'].length > 255
+      || typeof row['userInvocable'] !== 'boolean' || typeof row['enabled'] !== 'boolean' || typeof row['hasIcon'] !== 'boolean'
+      || (row['category'] !== undefined && (typeof row['category'] !== 'string' || row['category'].length > 100))) {
+      throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+    }
+    const actions = record(row['actions'])
+    if (actions !== undefined && (!hasExactKeys(actions, ['file', 'directory'])
+      || typeof actions['file'] !== 'boolean' || typeof actions['directory'] !== 'boolean')) {
+      throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+    }
+    names.add(row['name'])
+    const base = row as unknown as EnterpriseInstalledSkill
+    return actions === undefined ? base : { ...base, actions: {
+      file: actions['file'] as boolean,
+      directory: actions['directory'] as boolean,
+    } }
+  })
+}
+
+export function decodeEnterpriseAvailableSkills(value: unknown): readonly EnterpriseAvailableSkill[] {
+  const source = record(value)
+  if (source === undefined || !hasExactKeys(source, ['skills']) || !Array.isArray(source['skills']) || source['skills'].length > 500) {
+    throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+  }
+  const names = new Set<string>()
+  return source['skills'].map(item => {
+    const row = record(item)
+    if (row === undefined || !hasExactKeys(row, ['name', 'displayName', 'description', 'version', 'userInvocable', 'hasIcon'], ['category'])
+      || !skillName(row['name']) || names.has(row['name'])
+      || !nonEmptyString(row['displayName']) || row['displayName'].length > 200
+      || typeof row['description'] !== 'string' || row['description'].length > 16 * 1024
+      || !nonEmptyString(row['version']) || row['version'].length > 255
+      || typeof row['userInvocable'] !== 'boolean' || row['hasIcon'] !== false
+      || (row['category'] !== undefined && (typeof row['category'] !== 'string' || row['category'].length > 100))) {
+      throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+    }
+    names.add(row['name'])
+    return row as unknown as EnterpriseAvailableSkill
+  })
+}
+
 function errorCode(value: unknown): string {
   const code = record(record(value)?.['error'])?.['code']
   return nonEmptyString(code) ? code : 'ENT_PLATFORM_UNAVAILABLE'
@@ -334,7 +423,6 @@ function jsonInit(method: 'POST', body: unknown, signal: AbortSignal): RequestIn
 /** 创建只访问同源固定路径的浏览器 API；调用方无法注入平台 origin 或 Authorization。 */
 export function createEnterpriseLocalApi(
   fetcher: typeof fetch = fetch,
-
 ): EnterpriseLocalApi {
   return {
     status: async signal => decodeEnterpriseLocalStatus(await requestJson('/status', getInit(signal), fetcher)),
@@ -348,6 +436,34 @@ export function createEnterpriseLocalApi(
     },
     bootstrap: async signal => decodeBootstrap(await requestJson('/bootstrap', getInit(signal), fetcher)),
     plugins: async signal => decodeEnterprisePluginStatus(await requestJson('/plugins', getInit(signal), fetcher)),
+    skills: async signal => decodeEnterpriseSkills(await requestJson('/skills', getInit(signal), fetcher)),
+    availableSkills: async signal => decodeEnterpriseAvailableSkills(await requestJson('/skill-catalog', getInit(signal), fetcher)),
+    installSkill: async (name, signal) => {
+      const data = record(await requestJson(`/skills/${encodeURIComponent(name)}/install`, jsonInit('POST', {}, signal), fetcher))
+      if (data === undefined || !hasExactKeys(data, ['name', 'installed']) || data['name'] !== name || data['installed'] !== true) {
+        throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+      }
+    },
+    setSkillEnabled: async (name, enabled, signal) => {
+      const data = record(await requestJson(`/skills/${encodeURIComponent(name)}/enabled`, jsonInit('POST', { enabled }, signal), fetcher))
+      if (data === undefined || !hasExactKeys(data, ['name', 'enabled']) || data['name'] !== name || data['enabled'] !== enabled) {
+        throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+      }
+    },
+    removeSkill: async (name, signal) => {
+      const data = record(await requestJson(`/skills/${encodeURIComponent(name)}/remove`, postInit(signal), fetcher))
+      if (data === undefined || !hasExactKeys(data, ['name', 'removed']) || data['name'] !== name || data['removed'] !== true) {
+        throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+      }
+    },
+    openSkillFile: async (name, signal) => {
+      const data = record(await requestJson(`/skill-actions/open-file/${encodeURIComponent(name)}`, postInit(signal), fetcher))
+      if (data === undefined || !hasExactKeys(data, ['name', 'opened']) || data['name'] !== name || data['opened'] !== true) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+    },
+    openSkillDirectory: async (name, signal) => {
+      const data = record(await requestJson(`/skill-actions/open-directory/${encodeURIComponent(name)}`, postInit(signal), fetcher))
+      if (data === undefined || !hasExactKeys(data, ['name', 'opened']) || data['name'] !== name || data['opened'] !== true) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
+    },
     startLogin: async (signal) => {
       const data = record(await requestJson('/auth/start', postInit(signal), fetcher))
       if (data === undefined || !hasExactKeys(data, ['flowId']) || !nonEmptyString(data['flowId'])) {

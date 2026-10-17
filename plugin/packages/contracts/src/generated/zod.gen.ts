@@ -2193,25 +2193,6 @@ export const zQuotaBootstrapQuota = z.object({
 
 export const zBootstrapQuota = zQuotaBootstrapQuota;
 
-export const zModelBootstrapSnapshot = z.object({
-    revision: zRevision,
-    user: zBootstrapUser,
-    device: zBootstrapDevice,
-    models: z.array(zModelBootstrapModel),
-    quotas: z.array(zQuotaBootstrapQuota),
-    plugins: zPluginRuntimePluginAssignments,
-    sessionPolicy: zBootstrapSessionPolicy
-}).strict();
-
-export const zBootstrapSnapshot = zModelBootstrapSnapshot;
-
-export const zModelBootstrapResponse = z.object({
-    data: zModelBootstrapSnapshot,
-    requestId: zRequestId
-}).strict();
-
-export const zBootstrapResponse = zModelBootstrapResponse;
-
 export const zQuotaQuotaPolicy = z.object({
     id: zQuotaQuotaPolicyId,
     name: z.string().min(1).max(120),
@@ -2599,6 +2580,159 @@ export const zSessionAdminSessionListResponse = z.object({
 
 export const zAdminSessionListResponse = zSessionAdminSessionListResponse;
 
+export const zSkillSkillName = z.string().min(1).max(64).regex(/^[a-z0-9][a-z0-9._-]*$/);
+
+export const zSkillName = zSkillSkillName;
+
+export const zSkillSkillReleaseId = z.string().regex(/^[1-9][0-9]{0,18}$/);
+
+export const zSkillReleaseId = zSkillSkillReleaseId;
+
+export const zSkillSkillReleaseStatus = z.enum([
+    'DRAFT',
+    'PUBLISHED',
+    'REVOKED'
+]);
+
+export const zSkillReleaseStatus = zSkillSkillReleaseStatus;
+
+export const zSkillSkillSourceImportRequest = z.object({
+    repositoryUrl: z.url().max(500).regex(/^https:\/\/[^?#]+$/),
+    revision: z.string().min(1).max(256).regex(/^[^\/?#]+$/),
+    subpath: z.string().max(256).regex(/^(|[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*)$/)
+}).strict();
+
+export const zSkillSourceImportRequest = zSkillSkillSourceImportRequest;
+
+export const zSkillSkillVersion = z.string().min(1).max(64).regex(/^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/);
+
+export const zSkillVersion = zSkillSkillVersion;
+
+export const zSkillSkillMetadata = z.object({
+    name: zSkillSkillName,
+    version: zSkillSkillVersion,
+    description: z.string().max(2000),
+    license: z.string().max(120),
+    author: z.string().max(120),
+    userInvocable: z.boolean(),
+    modelInvocable: z.boolean(),
+    categories: z.array(z.string().min(1).max(40)).max(12).optional()
+}).strict();
+
+export const zSkillMetadata = zSkillSkillMetadata;
+
+export const zSkillRuntimeSkill = z.object({
+    releaseId: zSkillSkillReleaseId,
+    metadata: zSkillSkillMetadata,
+    artifactSizeBytes: z.int().gte(1).lte(67108864),
+    artifactSha256: z.string().regex(/^[0-9a-f]{64}$/)
+}).strict();
+
+export const zRuntimeSkill = zSkillRuntimeSkill;
+
+export const zSkillRuntimeSkills = z.object({
+    revision: zRevision,
+    skills: z.array(zSkillRuntimeSkill).max(200)
+}).strict();
+
+export const zRuntimeSkills = zSkillRuntimeSkills;
+
+export const zModelBootstrapSnapshot = z.object({
+    revision: zRevision,
+    user: zBootstrapUser,
+    device: zBootstrapDevice,
+    models: z.array(zModelBootstrapModel),
+    quotas: z.array(zQuotaBootstrapQuota),
+    plugins: zPluginRuntimePluginAssignments,
+    skills: zSkillRuntimeSkills,
+    sessionPolicy: zBootstrapSessionPolicy
+}).strict();
+
+export const zBootstrapSnapshot = zModelBootstrapSnapshot;
+
+export const zModelBootstrapResponse = z.object({
+    data: zModelBootstrapSnapshot,
+    requestId: zRequestId
+}).strict();
+
+export const zBootstrapResponse = zModelBootstrapResponse;
+
+export const zSkillRuntimeSkillsResponse = z.object({
+    data: zSkillRuntimeSkills,
+    requestId: zRequestId
+}).strict();
+
+export const zRuntimeSkillsResponse = zSkillRuntimeSkillsResponse;
+
+export const zSkillSkillRegistrationRequest = z.object({
+    name: zSkillSkillName,
+    version: zSkillSkillVersion,
+    description: z.string().max(2000),
+    license: z.string().max(120),
+    author: z.string().max(120),
+    userInvocable: z.boolean(),
+    modelInvocable: z.boolean(),
+    categories: z.array(z.string().min(1).max(40)).max(12),
+    artifactSizeBytes: z.int().gte(1).lte(67108864),
+    artifactSha256: z.string().regex(/^[0-9a-f]{64}$/)
+}).strict();
+
+export const zSkillRegistrationRequest = zSkillSkillRegistrationRequest;
+
+export const zSkillSkillRelease = z.object({
+    id: zSkillSkillReleaseId,
+    name: zSkillSkillName,
+    version: zSkillSkillVersion,
+    description: z.string(),
+    license: z.string(),
+    author: z.string(),
+    userInvocable: z.boolean(),
+    modelInvocable: z.boolean(),
+    categories: z.array(z.string()),
+    artifactSizeBytes: z.int().gte(1).lte(67108864),
+    artifactSha256: z.string().regex(/^[0-9a-f]{64}$/),
+    status: zSkillSkillReleaseStatus,
+    revision: zRevision
+}).strict();
+
+export const zSkillRelease = zSkillSkillRelease;
+
+export const zSkillSkillImportedRelease = z.object({
+    resolvedCommit: z.string().regex(/^[0-9a-f]{7,64}$/),
+    release: zSkillSkillRelease,
+    created: z.boolean()
+}).strict();
+
+export const zSkillImportedRelease = zSkillSkillImportedRelease;
+
+export const zSkillSkillImportedReleaseResponse = z.object({
+    data: zSkillSkillImportedRelease,
+    requestId: zRequestId
+}).strict();
+
+export const zSkillImportedReleaseResponse = zSkillSkillImportedReleaseResponse;
+
+export const zSkillSkillReleasePageData = z.object({
+    items: z.array(zSkillSkillRelease).max(200),
+    page: zCursorPage
+}).strict();
+
+export const zSkillReleasePageData = zSkillSkillReleasePageData;
+
+export const zSkillSkillReleaseListResponse = z.object({
+    data: zSkillSkillReleasePageData,
+    requestId: zRequestId
+}).strict();
+
+export const zSkillReleaseListResponse = zSkillSkillReleaseListResponse;
+
+export const zSkillSkillReleaseResponse = z.object({
+    data: zSkillSkillRelease,
+    requestId: zRequestId
+}).strict();
+
+export const zSkillReleaseResponse = zSkillSkillReleaseResponse;
+
 export const zAdminAuditCollection = z.unknown();
 
 export const zAuthorize = z.unknown();
@@ -2778,6 +2912,20 @@ export const zRuntimeSessionItem = z.unknown();
 
 export const zRuntimeSessionRestoreRecord = z.unknown();
 
+export const zAdminSkillCollection = z.unknown();
+
+export const zAdminSkillImport = z.unknown();
+
+export const zAdminSkillPublish = z.unknown();
+
+export const zAdminSkillRegistration = z.unknown();
+
+export const zAdminSkillRevoke = z.unknown();
+
+export const zRuntimeSkillArtifact = z.unknown();
+
+export const zRuntimeSkillCatalog = z.unknown();
+
 export const zIdentitySourceIdWritable = zIdentityIdentitySourceId;
 
 export const zGroupMappingIdWritable = zIdentityGroupMappingId;
@@ -2881,6 +3029,14 @@ export const zQuotaStatusWritable = zQuotaQuotaStatus;
 export const zQuotaWindowTypeWritable = zQuotaQuotaWindowType;
 
 export const zUsageResultWritable = zQuotaUsageResult;
+
+export const zSkillReleaseIdWritable = zSkillSkillReleaseId;
+
+export const zSkillNameWritable = zSkillSkillName;
+
+export const zSkillVersionWritable = zSkillSkillVersion;
+
+export const zSkillReleaseStatusWritable = zSkillSkillReleaseStatus;
 
 export const zEmptyAuditMetadataWritable = z.record(z.string(), z.never());
 
@@ -4323,3 +4479,67 @@ export const zReportMcpCatalogPath = z.object({
  * Accepted catalog
  */
 export const zReportMcpCatalogResponse = zMcpMcpCatalogUploadResponse;
+
+/**
+ * Published OwnDsh skill catalog for the active device.
+ */
+export const zGetSkillCatalogResponse = zSkillRuntimeSkillsResponse;
+
+export const zDownloadSkillArtifactPath = z.object({
+    releaseId: zSkillSkillReleaseId
+});
+
+/**
+ * Published immutable skill ZIP artifact.
+ */
+export const zDownloadSkillArtifactResponse = z.string();
+
+export const zListSkillReleasesQuery = z.object({
+    cursor: zCursor.optional(),
+    limit: zPageLimit.optional()
+});
+
+/**
+ * Skill release catalog page.
+ */
+export const zListSkillReleasesResponse = zSkillSkillReleaseListResponse;
+
+export const zImportSkillReleaseBody = zSkillSkillSourceImportRequest;
+
+/**
+ * Existing identical skill draft.
+ */
+export const zImportSkillReleaseResponse = zSkillSkillImportedReleaseResponse;
+
+export const zRegisterSkillReleaseBody = zSkillSkillRegistrationRequest;
+
+/**
+ * Existing identical skill draft.
+ */
+export const zRegisterSkillReleaseResponse = zSkillSkillReleaseResponse;
+
+export const zPublishSkillReleaseHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zPublishSkillReleasePath = z.object({
+    releaseId: zSkillSkillReleaseId
+});
+
+/**
+ * Published skill release.
+ */
+export const zPublishSkillReleaseResponse = zSkillSkillReleaseResponse;
+
+export const zRevokeSkillReleaseHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zRevokeSkillReleasePath = z.object({
+    releaseId: zSkillSkillReleaseId
+});
+
+/**
+ * Revoked skill release.
+ */
+export const zRevokeSkillReleaseResponse = zSkillSkillReleaseResponse;

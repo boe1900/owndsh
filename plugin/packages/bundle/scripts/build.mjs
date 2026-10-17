@@ -38,6 +38,7 @@ await build({
     '@deepseek-ai/dsh-tools',
     '@deepseek-ai/dsh-settings',
     '@deepseek-ai/schemastery',
+    'yaml',
   ],
   format: 'esm',
   outfile: 'lib/index.js',

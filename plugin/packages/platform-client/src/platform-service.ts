@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Cordis Service/WebServer/settings forms/credentials、T02 contracts、PKCE/installation/browser 原语与 Node fetch
- * [OUTPUT]: 提供 ctx.enterprisePlatform、OwnDsh Settings 命名空间、启动恢复退避与按需刷新/Token 轮换；仅无活动会话时允许清理凭据并修改 Server
+ * [OUTPUT]: 提供 ctx.enterprisePlatform、OwnDsh Settings 命名空间、本地 skill 目录/安装/动作、启动恢复退避与按需刷新/Token 轮换；仅无活动会话时允许清理凭据并修改 Server
  * [POS]: platform-client 的 Host 业务核心，跨 Web/Desktop 复用官方凭据平面且不向 Client UI 暴露任何 Token
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -20,6 +20,7 @@ import {
   type TokenRequest,
 } from '@owndsh/contracts'
 import { openSystemBrowser } from './browser.js'
+import { openSystemPath } from './browser.js'
 import {
   loadOrCreateInstallation,
   type InstallationRecord,
@@ -30,6 +31,12 @@ import {
 } from './local-api.js'
 import { createPkceS256, PkceLoopbackError, startLoopbackCallback, type LoopbackCallback } from './pkce.js'
 import { PlatformCredentialManager } from './platform-credentials.js'
+import {
+  EnterpriseSkillRuntime,
+  type SkillArtifactDownload,
+  type EnterpriseAvailableSkill,
+  type EnterpriseInstalledSkill,
+} from './skill-runtime.js'
 import {
   EnterprisePlatformError,
   zBootstrapResponse,
@@ -142,6 +149,7 @@ export class EnterprisePlatformService extends Service {
   private readonly createFlowId: () => string
   private readonly createState: () => string
   private readonly installation: Promise<InstallationRecord>
+  private readonly skillRuntime: EnterpriseSkillRuntime
   private readonly lifetime = new AbortController()
   private readonly activeRequests = new Set<AbortController>()
   private readonly listeners = new Set<(status: EnterprisePlatformStatus) => void>()
@@ -204,6 +212,10 @@ export class EnterprisePlatformService extends Service {
       ...(this.config.installationName === undefined ? {} : { name: this.config.installationName }),
       ...internals.installation,
     })
+    this.skillRuntime = new EnterpriseSkillRuntime({
+      ...(this.config.dshHome === undefined ? {} : { dshHome: this.config.dshHome }),
+      ...(internals.invalidateSkills === undefined ? {} : { invalidate: internals.invalidateSkills }),
+    })
     this.platformCredentials = new PlatformCredentialManager(
       ctx.credentials,
       this.installation,
@@ -235,6 +247,14 @@ export class EnterprisePlatformService extends Service {
         cancelLogin: () => this.cancelLogin(),
         logout: () => this.logout(),
         bootstrap: () => this.bootstrap(),
+        skills: () => this.skills(),
+        availableSkills: () => this.availableSkills(),
+        installSkill: name => this.installSkill(name),
+        setSkillEnabled: (name, enabled) => this.setSkillEnabled(name, enabled),
+        removeSkill: name => this.removeSkill(name),
+        skillIcon: name => this.skillIcon(name),
+        openSkillFile: name => this.openSkillFile(name),
+        openSkillDirectory: name => this.openSkillDirectory(name),
       },
       ...(internals.uninstallPlugin === undefined ? {} : { uninstallPlugin: internals.uninstallPlugin }),
     })
@@ -341,6 +361,84 @@ export class EnterprisePlatformService extends Service {
     return this.bootstrapSnapshot === undefined ? undefined : structuredClone(this.bootstrapSnapshot)
   }
 
+  /** 读取 OwnDsh 专用全局 skill 的本地脱敏清单；不要求企业账号在线。 */
+  skills(): Promise<readonly EnterpriseInstalledSkill[]> {
+    this.assertOpen()
+    return this.skillRuntime.list()
+  }
+
+  /** 返回已发布目录中尚未落地的 skill；安装事实只在本机维护。 */
+  async availableSkills(): Promise<readonly EnterpriseAvailableSkill[]> {
+    this.assertOpen()
+    const snapshot = this.bootstrapSnapshot
+    if (snapshot === undefined || !['READY', 'REFRESHING'].includes(this.currentStatus.state)) return []
+    const installed = new Set((await this.skillRuntime.list()).map(skill => skill.name))
+    const seen = new Set<string>()
+    return snapshot.skills.skills
+      .filter(skill => !installed.has(skill.metadata.name))
+      .filter(skill => {
+        if (seen.has(skill.metadata.name)) return false
+        seen.add(skill.metadata.name)
+        return true
+      })
+      .map(skill => ({
+        releaseId: skill.releaseId,
+        name: skill.metadata.name,
+        displayName: skill.metadata.name,
+        description: skill.metadata.description,
+        ...(skill.metadata.categories?.[0] === undefined ? {} : { category: skill.metadata.categories[0] }),
+        version: skill.metadata.version,
+        userInvocable: skill.metadata.userInvocable,
+        artifactSizeBytes: skill.artifactSizeBytes,
+        artifactSha256: skill.artifactSha256,
+        hasIcon: false as const,
+      }))
+  }
+
+  /** 按用户选择下载并确认指定 skill 已进入本地专用目录。 */
+  async installSkill(name: string): Promise<void> {
+    this.assertOpen()
+    const skill = this.bootstrapSnapshot?.skills.skills.find(value => value.metadata.name === name)
+    if (skill === undefined) throw new EnterprisePlatformError('ENT_RESOURCE_NOT_FOUND', 'published skill is not available')
+    const download: SkillArtifactDownload = async (releaseId, downloadSignal) => {
+      const response = await this.request(`${API_PATH}/skills/${encodeURIComponent(releaseId)}/artifact`, { signal: downloadSignal })
+      return new Uint8Array(await response.arrayBuffer())
+    }
+    await this.skillRuntime.install(skill, download, this.lifetime.signal)
+  }
+
+  /** 只改变当前本机的 Effective 开关，保留离线缓存。 */
+  async setSkillEnabled(name: string, enabled: boolean): Promise<void> {
+    this.assertOpen()
+    await this.skillRuntime.setEnabled(name, enabled)
+  }
+
+  /** 只卸载当前本机副本，不修改 Server catalog。 */
+  async removeSkill(name: string): Promise<void> {
+    this.assertOpen()
+    await this.skillRuntime.remove(name)
+  }
+
+  /** 由 Host 文件接缝打开本地 SKILL.md；绝对路径不进入 Client DTO。 */
+  async openSkillFile(name: string): Promise<void> {
+    this.assertOpen()
+    await this.skillRuntime.assertInstalled(name)
+    await openSystemPath(this.skillRuntime.resolveFile(name), new AbortController().signal)
+  }
+
+  /** 由 Host 文件接缝打开本地 skill 目录；绝对路径不进入 Client DTO。 */
+  async openSkillDirectory(name: string): Promise<void> {
+    this.assertOpen()
+    await this.skillRuntime.assertInstalled(name)
+    await openSystemPath(this.skillRuntime.resolveDirectory(name), new AbortController().signal)
+  }
+
+  /** 返回受控 `_icon.png` 字节；不存在时由本地 API 返回 404。 */
+  async skillIcon(name: string): Promise<Uint8Array | undefined> {
+    this.assertOpen()
+    return this.skillRuntime.readIcon(name)
+  }
+
   /** 用户打开设置或刷新目录时调用；并发刷新共享任务，闲置时没有定时请求。 */
   async refresh(): Promise<EnterprisePlatformStatus> {
     this.assertOpen()
@@ -403,7 +501,8 @@ export class EnterprisePlatformService extends Service {
     if (url.origin !== baseUrl.origin || url.username !== '' || url.password !== '') {
       throw new EnterprisePlatformError('ENT_INVALID_REQUEST', 'authenticated requests must stay on the platform origin')
     }
-    if (!TRANSITIONAL_REQUEST_PATHS.has(url.pathname)
+    const skillBootstrapRequest = url.pathname.startsWith(`${API_PATH}/skills/`)
+    if (!TRANSITIONAL_REQUEST_PATHS.has(url.pathname) && !skillBootstrapRequest
       && this.currentStatus.state !== 'READY'
       && this.currentStatus.state !== 'REFRESHING') {
       throw new EnterprisePlatformError('ENT_AUTH_REQUIRED', 'enterprise platform is not ready')

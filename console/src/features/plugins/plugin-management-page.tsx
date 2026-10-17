@@ -449,7 +449,7 @@ export function PluginManagementPage() {
   });
   const packageRows = useMemo(() => (packages.data?.pages.flatMap((page) => page.items) ?? [])
     .filter(pluginPackage => pluginPackage.versions.length > 0)
-    .map(pluginPackage => ({ ...pluginPackage, latestVersion: pluginPackage.versions[0] })), [packages.data]);
+    .map(pluginPackage => ({ ...pluginPackage, latestVersion: [...pluginPackage.versions].sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt))[0]! })), [packages.data]);
   const categoryOptions = useMemo(() => [...new Set(packageRows.flatMap(pluginPackage => pluginPackage.versions.flatMap(version => version.installation.categories)))], [packageRows]);
   const memberNames = useMemo(() => new Map(members.data?.map((member) => [member.id, member.displayName]) ?? []), [members.data]);
   const assignmentRows = useMemo(() => packageRows.flatMap((pluginPackage) => pluginPackage.assignments

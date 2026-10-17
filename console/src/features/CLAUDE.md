@@ -11,5 +11,6 @@ activity/: 按 console 权限读取用量、审计和插件关键运行异常，
 members/: 产品成员、扁平用户组、OIDC/LDAP/LOCAL 身份接入、LDAP 单人导入/组映射与身份/角色治理；局部地图见 members/CLAUDE.md。
 models/: Provider 与受管模型目录、三协议配置、模型发现和 Harness 能力声明管理；局部地图见 models/CLAUDE.md。
 plugins/: 插件版本、发布状态、分配事实与设备库存管理，以及独立 `/mcp` 页的服务配置/访问授权；局部地图见 plugins/CLAUDE.md。
+skills/: skill release 导入、发布/撤销目录工作台；员工端按需安装，局部地图见 skills/CLAUDE.md。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

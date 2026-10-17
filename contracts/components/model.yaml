@@ -524,7 +524,7 @@ BootstrapModel:
 BootstrapSnapshot:
   type: object
   additionalProperties: false
-  required: [revision, user, device, models, quotas, plugins, sessionPolicy]
+  required: [revision, user, device, models, quotas, plugins, skills, sessionPolicy]
   properties:
     revision:
       $ref: '../enterprise-openapi.yaml#/components/schemas/Revision'
@@ -540,6 +540,8 @@ BootstrapSnapshot:
       items: {$ref: './quota.yaml#/BootstrapQuota'}
     plugins:
       $ref: './plugin.yaml#/RuntimePluginAssignments'
+    skills:
+      $ref: './skill.yaml#/RuntimeSkills'
     sessionPolicy:
       $ref: '#/BootstrapSessionPolicy'
 BootstrapUser:

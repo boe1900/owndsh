@@ -7,6 +7,7 @@
 
 import type { ReactNode } from 'react'
 import { EnterpriseAccountStore } from './account-store.js'
+import { EnterpriseSkillStore } from './skill-store.js'
 import {
   EnterpriseAccessGate,
   EnterpriseSettingsSection,
@@ -32,6 +33,7 @@ export * from './account-store.js'
 export * from './account-view.js'
 export * from './local-api.js'
 export * from './plugin-market.js'
+export * from './skill-store.js'
 
 /** Required Client service; target declaration lifetime is handled by `slots.inject()`. */
 export const inject = [
@@ -41,7 +43,9 @@ export const inject = [
 /** 企业设置与门禁共享账号状态，插件操作委托官方 Remote。 */
 export function apply(ctx: ClientContext): void {
   const runtime = ctx as unknown as ClientRuntime
-  const store = new EnterpriseAccountStore(createEnterpriseLocalApi())
+  const localApi = createEnterpriseLocalApi(fetch)
+  const store = new EnterpriseAccountStore(localApi)
+  const skillStore = new EnterpriseSkillStore(localApi)
   runtime.effect(() => {
     const refresh = () => { void store.refresh() }
     const disposers = [
@@ -59,6 +63,7 @@ export function apply(ctx: ClientContext): void {
     label: 'OwnDsh 设置',
     inject: () => ({
       store,
+      skillStore,
       pluginManager: runtime.remote.pluginManager,
       configForm: runtime.configForms.get('owndsh'),
     }),
