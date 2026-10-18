@@ -6,12 +6,16 @@
  */
 package com.owndsh.enterprise.plugin.web;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.owndsh.enterprise.plugin.application.EffectivePluginResolver;
 import com.owndsh.enterprise.plugin.application.PluginCatalogService;
 import com.owndsh.enterprise.plugin.domain.DevicePluginInventory;
 import com.owndsh.enterprise.plugin.domain.PluginAssignment;
 import com.owndsh.enterprise.plugin.domain.PluginVersion;
 import com.owndsh.enterprise.plugin.domain.PluginInstallation;
+import com.owndsh.enterprise.plugin.domain.PluginMarketMetadata;
+import com.owndsh.enterprise.plugin.domain.PluginSource;
+import com.owndsh.enterprise.plugin.domain.PluginEngines;
 import com.owndsh.enterprise.plugin.domain.RuntimePluginAssignment;
 
 import java.time.Instant;
@@ -26,14 +30,15 @@ public final class PluginViews {
             Long.toString(value.pluginPackage().id()), value.pluginPackage().packageName(),
             value.pluginPackage().displayName(), value.pluginPackage().status().name(),
             value.pluginPackage().revision(), value.versions().stream().map(PluginViews::version).toList(),
-            value.assignments().stream().map(PluginViews::assignment).toList()
+            value.assignments().stream().map(PluginViews::assignment).toList(), value.pluginPackage().marketMetadata()
         );
     }
 
     public static VersionView version(PluginVersion value) {
         return new VersionView(
             Long.toString(value.id()), Long.toString(value.packageId()), value.packageName(), value.version(),
-            value.status().name(), value.createdAt(), value.revision(), value.installation()
+            value.status().name(), value.createdAt(), value.revision(), value.installation(),
+            value.source(), value.engines(), value.publishedAt()
         );
     }
 
@@ -54,7 +59,7 @@ public final class PluginViews {
     public static RuntimeAssignmentView runtime(RuntimePluginAssignment value) {
         return new RuntimeAssignmentView(
             Long.toString(value.pluginVersionId()), value.packageName(), value.version(),
-            value.required(), value.desiredState().name(), value.installation()
+            value.required(), value.desiredState().name(), value.installation(), value.source(), value.engines()
         );
     }
 
@@ -73,10 +78,12 @@ public final class PluginViews {
         String status,
         long revision,
         List<VersionView> versions,
-        List<AssignmentView> assignments
+        List<AssignmentView> assignments,
+        PluginMarketMetadata marketMetadata
     ) {
     }
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public record VersionView(
         String id,
         String packageId,
@@ -85,8 +92,16 @@ public final class PluginViews {
         String status,
         Instant createdAt,
         long revision,
-        PluginInstallation installation
+        PluginInstallation installation,
+        PluginSource source,
+        PluginEngines engines,
+        Instant publishedAt
     ) {
+        public VersionView(String id, String packageId, String packageName, String version, String status,
+            Instant createdAt, long revision, PluginInstallation installation) {
+            this(id, packageId, packageName, version, status, createdAt, revision, installation,
+                PluginSource.npm(""), new PluginEngines(""), status.equals("PUBLISHED") ? createdAt : null);
+        }
     }
 
     public record AssignmentView(
@@ -111,7 +126,9 @@ public final class PluginViews {
         String version,
         boolean required,
         String desiredState,
-        PluginInstallation installation
+        PluginInstallation installation,
+        PluginSource source,
+        PluginEngines engines
     ) {
     }
 

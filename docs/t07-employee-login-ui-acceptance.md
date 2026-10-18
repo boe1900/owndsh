@@ -7,6 +7,8 @@
 
 # T07 员工插件门禁验收记录
 
+> 历史记录：登录门禁、Server 持久化和账号状态仍是当前能力；本文中的 plugin-distribution、插件状态 API 和旧插件页断言已被 DSH `0.2.1-rc.2` 官方 `Plugins → Discover`/pluginManager 路线取代。
+
 状态：`completed`
 
 最近验收日期：2026-09-04（Asia/Shanghai）

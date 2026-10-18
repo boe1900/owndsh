@@ -486,7 +486,8 @@ public final class EnterpriseExceptionHandler {
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<EnterpriseErrorResponse> unexpected(RuntimeException exception, HttpServletRequest request) {
         String requestId = EnterpriseRequestIds.current(request);
-        log.error("企业 API 执行失败 requestId={} type={}", requestId, exception.getClass().getSimpleName(), exception);
+        // 故障类型足够支持告警；异常对象可能携带数据库/Redis 凭据，不能写入日志。
+        log.error("企业 API 执行失败 requestId={} type={}", requestId, exception.getClass().getSimpleName());
         return error(
             HttpStatus.SERVICE_UNAVAILABLE,
             "ENT_PLATFORM_UNAVAILABLE",

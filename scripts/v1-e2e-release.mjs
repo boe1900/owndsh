@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖已登录的锁定 Harness、管理/runtime API、标准 tar、设备与审计持久化。
- * [OUTPUT]: 提供可携带普通依赖与运行探针的 tgz/发布工具，并执行 E43-E47 插件生命周期、卸载库存清除、设备撤销、秘密隔离与 Session 停用验收。
+ * [OUTPUT]: 提供可携带普通依赖与运行探针的 tgz/发布工具，并执行 E43-E47 插件登记、标准市场索引、设备撤销、秘密隔离与 Session 停用验收。
  * [POS]: scripts 的 V1 运行时发布场景模块；只编排真实产品入口，不复制插件或鉴权实现。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -155,31 +155,9 @@ export async function runReleaseScenarios({
     return `package target registered; package=${managedPlugin.id}; assignments=ALL+USER`;
   });
 
-  const pluginStatus = () => json(`${harness.url()}/enterprise/api/v1/local/plugins`);
-  const waitForPlugin = (version, stateName) => waitFor(async () => {
-    const current = await pluginStatus();
-    const plugin = current.plugins.find(value => value.packageName === packageName && value.version === version);
-    if (plugin?.state === 'FAILED') throw new Error(`${packageName}@${version} failed: ${plugin.lastErrorCode}`);
-    return plugin?.state === stateName ? plugin : undefined;
-  }, `${packageName}@${version} did not reach ${stateName}`);
+  const marketIndex = () => json(`${ORIGIN}/enterprise/plugin-market/index.json`);
 
-  const localAction = async (path, body = {}) => {
-    const response = await fetch(`${harness.url()}/enterprise/api/v1/local/${path}`, {
-      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
-    });
-    assert.equal(response.status, 200, await response.text());
-  };
-  const install = async version => {
-    await localAction('refresh');
-    await localAction('plugins/install', { packageName, pluginVersionId: version.id });
-  };
-
-  await acceptance.check('E44', 'official Harness CLI installs, upgrades, rolls back and removes the managed plugin', async () => {
-    await install(pluginV1);
-    await waitForPlugin('1.0.0', 'RESTART_REQUIRED');
-    await harness.restart();
-    await waitForPlugin('1.0.0', 'ACTIVE');
-
+  await acceptance.check('E44', 'published versions appear in the standard DSH plugin market index', async () => {
     const registered = await register(admin, await artifact(pluginFixtures, packageName, '1.1.0'));
     assert.equal(registered.response.status, 201, registered.text);
     pluginV2 = data(registered);
@@ -187,39 +165,14 @@ export async function runReleaseScenarios({
     pluginV2 = data(await admin.expect(`/enterprise/admin/v1/plugins/versions/${pluginV2.id}/actions/publish`, {
       method: 'POST', headers: { 'if-match': String(pluginV2.revision) },
     }));
-    managedPlugin = await findPackage(admin, packageName);
-    let assigned = await replaceAssignments(admin, managedPlugin, pluginV2, [
-      { subjectType: 'ALL', desiredState: 'INSTALLED' },
-    ]);
-    state.pluginAssignments.push(...assigned.map(value => value.id));
-    await install(pluginV2);
-    await waitForPlugin('1.1.0', 'RESTART_REQUIRED');
-    await harness.restart();
-    await waitForPlugin('1.1.0', 'ACTIVE');
-
-    managedPlugin = await findPackage(admin, packageName);
-    assigned = await replaceAssignments(admin, managedPlugin, pluginV1, [
-      { subjectType: 'ALL', desiredState: 'INSTALLED' },
-    ]);
-    state.pluginAssignments.push(...assigned.map(value => value.id));
-    await install(pluginV1);
-    await waitForPlugin('1.0.0', 'RESTART_REQUIRED');
-    await harness.restart();
-    await waitForPlugin('1.0.0', 'ACTIVE');
-
-    managedPlugin = await findPackage(admin, packageName);
-    assigned = await replaceAssignments(admin, managedPlugin, pluginV1, [
-      { subjectType: 'ALL', desiredState: 'ABSENT' },
-    ]);
-    state.pluginAssignments.push(...assigned.map(value => value.id));
-    await localAction('refresh');
-    await waitForPlugin('1.0.0', 'RESTART_REQUIRED');
-    await harness.restart();
-    await waitFor(async () => (await pluginStatus()).plugins.every(value => value.packageName !== packageName),
-      `${packageName} remained after restart`);
-    const inventory = data(await admin.expect('/enterprise/admin/v1/plugins/inventory?limit=200')).items;
-    assert.equal(inventory.some(value => value.packageName === packageName), false);
-    return '1.0 install -> 1.1 upgrade -> 1.0 rollback -> ABSENT; every transition confirmed after restart';
+    const index = await marketIndex();
+    assert.equal(index.format, 1);
+    const plugin = index.plugins.find(value => value.name === packageName);
+    assert.ok(plugin, `${packageName} missing from market index`);
+    assert.deepEqual(plugin.versions.map(value => value.version), ['1.1.0', '1.0.0']);
+    assert.ok(plugin.versions.every(value => value.source.type === 'npm'));
+    assert.ok(plugin.versions.every(value => value.engines.dsh === '>=0.2.1-rc.2'));
+    return 'format=1; published npm versions are discoverable through the official DSH market';
   });
 
   let secondRuntime;

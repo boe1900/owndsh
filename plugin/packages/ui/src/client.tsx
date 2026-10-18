@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖官方 slots/remote/configForms/connection 生命周期事件与 EnterpriseAccountStore，不创建传输连接
- * [OUTPUT]: 注册 OwnDsh 设置与访问门禁；企业市场放在设置的插件 tab，MCP exposure 通过官方 configForms 写入，官方插件页独立提供自由安装和配置
- * [POS]: dsh-ui 的浏览器组合根，只向 React 注入共享脱敏 store、插件管理器和配置表单，不传递 Host Context
+ * [OUTPUT]: 注册 OwnDsh 设置与访问门禁；插件发现和安装由官方 Plugins → Discover 页面提供，MCP exposure 通过官方 configForms 写入
+ * [POS]: dsh-ui 的浏览器组合根，只向 React 注入共享脱敏 store 和配置表单，不传递 Host Context
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -15,6 +15,7 @@ import {
 } from './account-view.js'
 import { createEnterpriseLocalApi } from './local-api.js'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/dsh-api-remotes/client'
 
 interface ClientRuntime {
   readonly slots: {
@@ -32,15 +33,14 @@ interface ClientRuntime {
 export * from './account-store.js'
 export * from './account-view.js'
 export * from './local-api.js'
-export * from './plugin-market.js'
 export * from './skill-store.js'
 
 /** Required Client service; target declaration lifetime is handled by `slots.inject()`. */
 export const inject = [
-  'slots', 'remote', 'remote.pluginManager', 'configForms',
+  'slots', 'remote', 'configForms',
 ]
 
-/** 企业设置与门禁共享账号状态，插件操作委托官方 Remote。 */
+/** 企业设置与门禁共享账号状态；插件市场由官方 Discover 页面负责。 */
 export function apply(ctx: ClientContext): void {
   const runtime = ctx as unknown as ClientRuntime
   const localApi = createEnterpriseLocalApi(fetch)
@@ -64,7 +64,6 @@ export function apply(ctx: ClientContext): void {
     inject: () => ({
       store,
       skillStore,
-      pluginManager: runtime.remote.pluginManager,
       configForm: runtime.configForms.get('owndsh'),
     }),
   }, EnterpriseSettingsSection as (props: never) => ReactNode))

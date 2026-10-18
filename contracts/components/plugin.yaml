@@ -44,35 +44,79 @@ PluginPackageName:
   type: string
   minLength: 1
   maxLength: 214
-  pattern: '^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$'
+  pattern: '^(?:@[a-z0-9][a-z0-9._~-]*/)?[a-z0-9][a-z0-9._~-]*$'
 PluginSemanticVersion:
   type: string
   minLength: 1
   maxLength: 64
-  pattern: '^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$'
+  pattern: '^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$'
 PluginInstallation:
   type: object
   additionalProperties: false
-  required: [spec, displayName, description, author, repositoryUrl, categories]
+  required: [spec, displayName, description, author, repositoryUrl, category]
   properties:
     spec: {type: string, minLength: 1, maxLength: 2048}
     displayName: {type: string, minLength: 1, maxLength: 120}
     description: {type: string, maxLength: 2000}
     author: {type: string, maxLength: 120}
     repositoryUrl: {type: string, maxLength: 2048}
-    categories:
+    category: {type: string, maxLength: 40}
+PluginMarketMetadata:
+  type: object
+  additionalProperties: false
+  required: [title, description, icon, author, homepage, repositoryUrl, repositoryDirectory, category, keywords, labels, sortKeys]
+  properties:
+    title: {type: string, maxLength: 120}
+    description: {type: string, maxLength: 2000}
+    icon: {type: string, maxLength: 4096}
+    author: {type: string, maxLength: 120}
+    homepage: {type: string, maxLength: 4096}
+    repositoryUrl: {type: string, maxLength: 4096}
+    repositoryDirectory: {type: string, maxLength: 256}
+    category: {type: string, maxLength: 40}
+    keywords:
       type: array
-      maxItems: 12
-      uniqueItems: true
-      items: {type: string, minLength: 1, maxLength: 40}
+      maxItems: 100
+      items: {type: string, maxLength: 80}
+    labels:
+      type: array
+      maxItems: 100
+      items: {type: string, maxLength: 80}
+    sortKeys:
+      type: object
+      additionalProperties: {type: number}
+PluginSource:
+  oneOf:
+    - type: object
+      additionalProperties: false
+      required: [type]
+      properties:
+        type: {type: string, enum: [npm]}
+        registry: {type: string, maxLength: 4096}
+    - type: object
+      additionalProperties: false
+      required: [type, url, commit]
+      properties:
+        type: {type: string, enum: [git]}
+        url: {type: string, maxLength: 4096}
+        commit: {type: string, pattern: '^[0-9a-f]{40}$'}
+        path: {type: string, maxLength: 256}
+PluginEngines:
+  type: object
+  additionalProperties: false
+  properties:
+    dsh: {type: string, maxLength: 128}
 PluginRegistrationRequest:
   type: object
   additionalProperties: false
-  required: [packageName, version, installation]
+  required: [packageName, version]
   properties:
     packageName: {$ref: '#/PluginPackageName'}
     version: {$ref: '#/PluginSemanticVersion'}
     installation: {$ref: '#/PluginInstallation'}
+    metadata: {$ref: '#/PluginMarketMetadata'}
+    source: {$ref: '#/PluginSource'}
+    engines: {$ref: '#/PluginEngines'}
 
 PluginPublishRequest:
   type: object
@@ -103,6 +147,11 @@ PluginVersion:
     packageName: {$ref: '#/PluginPackageName'}
     version: {$ref: '#/PluginSemanticVersion'}
     installation: {$ref: '#/PluginInstallation'}
+    source: {$ref: '#/PluginSource'}
+    engines: {$ref: '#/PluginEngines'}
+    publishedAt:
+      type: string
+      format: date-time
     status: {$ref: '#/PluginVersionStatus'}
     createdAt:
       type: string
@@ -140,6 +189,7 @@ PluginPackage:
       type: array
       maxItems: 200
       items: {$ref: '#/PluginAssignment'}
+    marketMetadata: {$ref: '#/PluginMarketMetadata'}
 PluginPackagePageData:
   type: object
   additionalProperties: false
@@ -240,6 +290,8 @@ RuntimePluginAssignment:
     packageName: {$ref: '#/PluginPackageName'}
     version: {$ref: '#/PluginSemanticVersion'}
     installation: {$ref: '#/PluginInstallation'}
+    source: {$ref: '#/PluginSource'}
+    engines: {$ref: '#/PluginEngines'}
     required:
       type: boolean
     desiredState: {$ref: '#/PluginDesiredState'}

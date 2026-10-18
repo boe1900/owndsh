@@ -1,5 +1,5 @@
 <!--
-[INPUT]: 依赖 DSH 0.2.0-rc.2 的 ctx.skills/provider 语义、WorkBuddy Skill 格式、OwnDsh 登录会话与公开 GitHub/GitLab 源。
+[INPUT]: 依赖 DSH 0.2.1-rc.2 的 ctx.skills/provider 语义、WorkBuddy Skill 格式、OwnDsh 登录会话与公开 GitHub/GitLab 源。
 [OUTPUT]: 定义 OwnDsh Skill 目录、按需安装、全局缓存、运行时挂载、来源回源和无权限分配边界。
 [POS]: OwnDsh Skill 管理的产品与技术真源；不替代 DSH provider、plugin manager 或工作区语义。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -8,7 +8,7 @@
 # OwnDsh Skill 管理设计
 
 状态：implementation-in-progress  
-基线：DSH 0.2.0-rc.2，OwnDsh Plugin/Console/Server 当前实现
+基线：DSH 0.2.1-rc.2，OwnDsh Plugin/Console/Server 当前实现
 
 ## 1. 冻结结论
 
@@ -22,7 +22,7 @@ OwnDsh 只提供一个简单的全局 Skill 市场和本地运行时。管理员
 
 ### 2.1 要解决的问题
 
-- 在 OwnDsh 设置页提供“可安装 / 已安装”两个视图。
+- 在 OwnDsh 设置页默认进入“发现”，并在搜索栏右侧提供“已安装（数量）”条件筛选。
 - 兼容 WorkBuddy 的 SKILL.md frontmatter 和 _icon.png。
 - 管理员从公开 GitHub 或 GitLab 仓库导入固定 commit，审阅后发布。
 - 用户按需下载并安装到 OwnDsh 专用全局目录，离线继续使用已安装副本。
@@ -50,7 +50,7 @@ OwnDsh 只提供一个简单的全局 Skill 市场和本地运行时。管理员
 
 Skill 的运行时可用性由 DSH provider 和 SKILL.md 调用策略共同决定；OwnDsh 的本地开关只决定 OwnDsh 副本是否进入 Effective 集合。
 
-插件是独立的软件生命周期。插件暴露的 Skill 由插件 provider 管理，不能被 OwnDsh 扫描后复制成第二份；只有管理员显式导入并发布，才会成为 OwnDsh Catalog 中的独立 Skill。
+插件是独立的软件生命周期。插件暴露的 Skill 由插件 provider 管理，不能被 OwnDsh 扫描后复制成第二份；插件发现和安装由 DSH 官方 `Plugins → Discover` 管理，OwnDsh Server 只提供标准 plugin market index。
 
 ## 4. 来源与分发
 
@@ -112,6 +112,8 @@ OwnDsh 注册一个只读的 owndsh provider，配置官方 filesystem provider 
 
 安装、升级、卸载或启用状态变化后调用公开 invalidate()，让下一次 ctx.skills.list/get 看到完整的新目录。OwnDsh 不修改 provider rank；同名 Skill 继续由 DSH 官方 scope/rank 规则裁决，页面只显示 OwnDsh 自己的集合。
 
+DSH 官方 `ui-skill` 会按 SessionId 缓存当前会话的 `/` 候选目录；因此卸载后，已经打开的会话菜单可能暂时仍显示旧名称。这只是客户端候选缓存，不代表文件或 provider 仍存在：下一次真实 `ctx.skills.get()` 会重新读取目录，已卸载 Skill 不会被注入执行。新建会话或触发连接重置即可更新菜单，不需要重启 DSH 进程。
+
 ### 6.3 离线行为
 
 已安装 Skill 永久按本地完整副本运行；离线时不安装、不升级、不撤销。恢复连接后用户手动刷新或再次安装即可获取最新已发布版本。Server 不在线不会删除本地副本。
@@ -143,12 +145,13 @@ ent_skill_release 只保存 release 元数据、来源坐标、固定 commit、a
 
 ## 8. 设置页
 
-OwnDsh 设置页 Tab 顺序：账号 → 插件 → 技能 → MCP。
+OwnDsh 设置页 Tab 顺序：账号 → 技能 → MCP；插件发现和安装位于官方 `Plugins → Discover`。
 
-技能 Tab 只有两个筛选：
+技能 Tab 默认展示全部已发布目录与本地副本，搜索栏右侧用官方 Pill 提供“已安装（数量）”条件筛选；下方按 `category` 使用官方 Pill 提供“全部”和分类筛选。条件关闭时展示发现结果，打开后只展示当前设备的 OwnDsh 副本。
 
-- **可安装**：已发布 Catalog 中当前设备尚未安装的 release。
-- **已安装**：本地 OwnDsh 目录中的完整副本。
+- **全部**：已发布 Catalog 与本地已安装副本合并，同名时本地副本优先展示。
+- **分类**：在当前范围内按 Skill 的 `category` 筛选，缺失分类显示为“未分类”。
+- **已安装（数量）**：只显示本地 OwnDsh 目录中的完整副本，数量来自当前设备本地清单。
 
 卡片展示 _icon.png、display_name/name、描述、版本、分类、调用策略和启用状态。动作固定为：
 

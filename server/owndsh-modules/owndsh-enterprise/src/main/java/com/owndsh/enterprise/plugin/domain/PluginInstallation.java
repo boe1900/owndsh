@@ -1,19 +1,18 @@
 /**
  * [INPUT]: 接收管理员配置的包管理器安装目标与插件展示信息。
- * [OUTPUT]: 提供经过结构校验的不可变 npm 精确安装配置，版本兼容和依赖解析交给官方 Host。
+ * [OUTPUT]: 提供经过结构校验的不可变 Host 安装目标，实际 npm/Git 来源由 PluginSource 绑定。
  * [POS]: plugin/domain 的引用安装边界；目录元数据不能变成任意命令参数。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.plugin.domain;
 
 import java.net.URI;
-import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
 public record PluginInstallation(
     String spec, String displayName, String description, String author,
-    String repositoryUrl, List<String> categories
+    String repositoryUrl, String category
 ) {
     private static final Set<String> PROTECTED = Set.of(
         "owndsh-plugin", "@owndsh/contracts", "@owndsh/platform-client",
@@ -30,22 +29,25 @@ public record PluginInstallation(
         author = text(author, "作者", 120, true);
         repositoryUrl = text(repositoryUrl, "源码地址", 2048, true);
         if (!repositoryUrl.isEmpty()) httpUrl(repositoryUrl);
-        Objects.requireNonNull(categories, "categories");
-        if (categories.size() > 12) throw new IllegalArgumentException("分类不能超过 12 个");
-        categories = categories.stream().map(value -> text(value, "分类", 40, false)).distinct().toList();
+        category = text(category, "分类", 40, true);
     }
 
     public void validateTarget(String packageName, String version) {
+        validateTarget(packageName, version, PluginSource.npm(""));
+    }
+
+    public void validateTarget(String packageName, String version, PluginSource source) {
         if (PROTECTED.contains(packageName)) throw new IllegalArgumentException("不能通过插件目录修改产品核心包");
-        if (!spec.equals(packageName + "@" + version)) {
-            throw new IllegalArgumentException("请填写包名@精确版本");
+        if (!spec.equals(source.spec(packageName, version))) {
+            throw new IllegalArgumentException("安装目标必须与 source 和精确版本一致");
         }
     }
 
     private static URI httpUrl(String value) {
         URI uri = URI.create(value);
         if (!("https".equals(uri.getScheme()) || "http".equals(uri.getScheme()))
-            || uri.getHost() == null || uri.getRawUserInfo() != null || uri.getRawFragment() != null) {
+            || uri.getHost() == null || uri.getRawUserInfo() != null
+            || uri.getRawQuery() != null || uri.getRawFragment() != null) {
             throw new IllegalArgumentException("地址必须是无内嵌凭据的 HTTP(S) URL");
         }
         return uri;

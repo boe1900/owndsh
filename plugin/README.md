@@ -26,11 +26,10 @@ Harness settings service, so a normal installation requires no profile edit.
 T11 directly mounts the official `@deepseek-ai/dsh-llm-pi-ai` adapter with
 enterprise-managed profiles and an ephemeral Host-only loopback authentication proxy. The enterprise
 plugin stores no upstream API key and implements no model wire protocol.
-The employee Client presents the enterprise catalog in OwnDsh Settings → Plugins,
-with search, categories and confirmed install/update/uninstall actions through
-the official `pluginManager` Remote. The official Plugins page remains enabled
-and unchanged, including free-form installation and plugin configuration.
-OwnDsh does not carry a copy of that page.
+OwnDsh Server publishes the enterprise catalog as the standard DSH plugin market
+format. The employee uses the official Plugins → Discover page; its market service
+handles discovery, installation, update, configuration, enable/disable and removal.
+OwnDsh does not carry a second plugin directory page or installation state machine.
 
 Run the workspace gate with:
 
@@ -56,7 +55,8 @@ its temporary `DSH_HOME`.
 temporary Harness `web` profile, logs in through PKCE, drives the real `ctx.llm`
 runtime, verifies dynamic models and stable failures, scans local files for the
 platform Token/provider keys, and confirms the sibling checkout remains clean.
-The enterprise catalog is refreshed when the Plugins page opens or the user
-presses Refresh. A catalog item is converted to the official install spec;
-semver only exposes an Update action for a higher version, so rollback is never
-offered by the enterprise page.
+After login, the bundle adds a loopback proxy URL to the official plugin market.
+The proxy uses the in-memory platform Bearer to read the protected OwnDsh index;
+the access token never enters the market URL. The official Host owns catalog
+refresh and installation facts; Server only publishes package metadata and npm
+install targets.

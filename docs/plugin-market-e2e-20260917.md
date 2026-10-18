@@ -1,5 +1,7 @@
 # 插件市场服务端与客户端联合 E2E
 
+> 历史记录：本报告对应已删除的 OwnDsh 自有插件目录脚本和 UI。当前插件发现、安装、更新、启停与卸载由 DSH `0.2.1-rc.2` 官方 `Plugins → Discover`/`pluginManager` 负责，Server 只输出标准 plugin market index；原脚本已删除。
+
 2026-09-17，`scripts/plugin-market-e2e.mjs` 的 P01–P10 全部通过。使用当前源码构建的 Server 与 `owndsh-plugin`，管理操作走真实管理 API，安装与卸载确认走真实 Chromium 页面，产品 API 无拦截或 mock。
 
 ## 环境与隔离

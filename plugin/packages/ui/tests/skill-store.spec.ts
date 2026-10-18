@@ -10,7 +10,7 @@ import type { EnterpriseLocalApi } from '../src/local-api.js'
 import { EnterpriseSkillStore } from '../src/skill-store.js'
 
 const skill = { name: 'code-review', displayName: 'Code Review', description: 'Review', version: '1.0.0', userInvocable: true, enabled: true, hasIcon: false } as const
-const availableSkill = { releaseId: '990', name: 'yt-dlp-downloader', displayName: 'YouTube Downloader', description: 'Download media', version: '1.0.0', userInvocable: true, artifactSizeBytes: 1024, artifactSha256: 'a'.repeat(64), hasIcon: false } as const
+const availableSkill = { releaseId: '990', name: 'sample-skill', displayName: 'Sample Skill', description: 'Download media', version: '1.0.0', userInvocable: true, artifactSizeBytes: 1024, artifactSha256: 'a'.repeat(64), hasIcon: false } as const
 
 function api(overrides: Partial<EnterpriseLocalApi> = {}): EnterpriseLocalApi {
   return {
@@ -56,6 +56,21 @@ describe('EnterpriseSkillStore', () => {
     expect(local.installSkill).toHaveBeenCalledWith(availableSkill.name, expect.any(AbortSignal))
     expect(store.getSnapshot().skills).toEqual([skill])
     expect(store.getSnapshot().availableSkills).toEqual([])
+  })
+
+  it('keeps the exact skill action busy while installation is pending', async () => {
+    let resolveInstall: (() => void) | undefined
+    const local = api({
+      availableSkills: vi.fn(async () => [availableSkill]),
+      installSkill: vi.fn(() => new Promise<void>(resolve => { resolveInstall = resolve })),
+    })
+    const store = new EnterpriseSkillStore(local)
+    await store.refresh()
+    const pending = store.install(availableSkill.name)
+    expect(store.getSnapshot().busy).toBe(`install:${availableSkill.name}`)
+    resolveInstall?.()
+    await pending
+    expect(store.getSnapshot().busy).toBeUndefined()
   })
 
   it('keeps the catalog source authoritative after local uninstall', async () => {

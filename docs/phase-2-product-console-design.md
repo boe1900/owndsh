@@ -11,6 +11,8 @@
 
 插件修订（2026-09-17）：插件协议已改为安装配置登记，删除上传/制品/签名链路。V34 清空旧插件目录、可见范围和库存，需要重新登记；本文的早期上传验收条目只作历史证据。
 
+当前插件端修订（2026-10-17）：DSH `0.2.1-rc.2` 官方 `Plugins → Discover` 读取 OwnDsh Server 的标准 plugin market index；员工端 OwnDsh 插件 tab、local plugin directory API 和第二套安装状态机已删除。控制台插件页继续管理登记、发布、assignment 和 inventory，官方 Host 负责安装生命周期。
+
 设计日期：2026-08-31（Asia/Shanghai）
 
 适用基线：DSH Desktop `2.0.3`、DeepSeek Harness `0.1.1-rc.2`、第一阶段 Server/Flyway V17。

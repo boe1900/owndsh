@@ -34,13 +34,13 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 214,
-          "pattern": "^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$"
+          "pattern": "^(?:@[a-z0-9][a-z0-9._~-]*/)?[a-z0-9][a-z0-9._~-]*$"
         },
         "version": {
           "type": "string",
           "minLength": 1,
           "maxLength": 64,
-          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+          "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
         },
         "installation": {
           "type": "object",
@@ -51,7 +51,7 @@
             "description",
             "author",
             "repositoryUrl",
-            "categories"
+            "category"
           ],
           "properties": {
             "spec": {
@@ -76,17 +76,77 @@
               "type": "string",
               "maxLength": 2048
             },
-            "categories": {
-              "type": "array",
-              "maxItems": 12,
-              "uniqueItems": true,
-              "items": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 40
-              }
+            "category": {
+              "type": "string",
+              "maxLength": 40
             }
           }
+        },
+        "source": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "type"
+              ],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "npm"
+                  ]
+                },
+                "registry": {
+                  "type": "string",
+                  "maxLength": 4096
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "type",
+                "url",
+                "commit"
+              ],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "git"
+                  ]
+                },
+                "url": {
+                  "type": "string",
+                  "maxLength": 4096
+                },
+                "commit": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{40}$"
+                },
+                "path": {
+                  "type": "string",
+                  "maxLength": 256
+                }
+              }
+            }
+          ]
+        },
+        "engines": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "dsh": {
+              "type": "string",
+              "maxLength": 128
+            }
+          }
+        },
+        "publishedAt": {
+          "type": "string",
+          "format": "date-time"
         },
         "status": {
           "type": "string",

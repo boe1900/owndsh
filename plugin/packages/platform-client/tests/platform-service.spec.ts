@@ -247,7 +247,7 @@ describe('EnterprisePlatformService', () => {
               assignments: [{
                 pluginVersionId: '880', packageName: '@example/dsh-code-review', version: '1.2.0',
                 installation: { spec: '@example/dsh-code-review@1.2.0', displayName: 'Review', description: '',
-                  author: '', repositoryUrl: '', categories: [] }, required: false,
+                  author: '', repositoryUrl: '', category: '' }, required: false,
                 desiredState: 'INSTALLED',
               }],
             },

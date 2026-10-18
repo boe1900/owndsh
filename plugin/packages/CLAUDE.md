@@ -8,6 +8,6 @@ bundle/: 可发布的自包含 Harness 组合包，注入官方 credentials 并�
 contracts/: OpenAPI 生成的 DTO/Zod schema、品牌 ID、错误解码与跨语言 fixture 门禁。
 llm-gateway/: 官方 `dsh-llm-pi-ai` 的企业 profile 与本机认证代理桥，提供三协议动态目录/default，不实现模型协议。
 platform-client/: `ctx.enterprisePlatform` Service，构建前先产出 contracts 依赖，使用官方 settings 持久化 Server 地址、官方 credentials 保存轮换 Refresh Token，并独占内存 Access Token 与认证请求。
-ui/: 基于 `dsh.client` 与官方 settings.section/shell.overlay 的 Server 配置、全局门禁、账号/插件/MCP tabs；企业市场只消费元数据和官方 pluginManager，官方插件页独立提供自由安装与配置。
+ui/: 基于 `dsh.client` 与官方 settings.section/shell.overlay 的 Server 配置、全局门禁、账号/技能/MCP tabs；插件发现、安装和配置全部由 DSH 官方 Plugins → Discover 页面承载。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

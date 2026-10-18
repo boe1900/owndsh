@@ -27,6 +27,7 @@ import type {
   PluginPackage,
   PluginPackagePageData,
   PluginPublishRequest,
+  PluginRegistrationRequest,
   PluginVersion
 } from '@/api/generated/types.gen';
 import { randomUuid } from '@/lib/crypto';
@@ -154,8 +155,8 @@ const packageColumns: ReadonlyArray<ProductTableColumn<PluginPackageRow>> = [
     meta: { label: '状态', className: 'w-[105px]', cellClassName: 'w-[105px]' }
   },
   {
-    id: 'categories',
-    accessorFn: row => row.latestVersion.installation.categories.join(' / ') || '未分类',
+    id: 'category',
+    accessorFn: row => row.marketMetadata?.category || row.latestVersion.installation.category || '未分类',
     header: '分类',
     meta: { label: '分类', className: 'w-[140px]', cellClassName: 'w-[140px]' }
   },
@@ -384,7 +385,7 @@ export function PluginManagementPage() {
   const registration = useMutation({
     mutationFn: async (value: PluginRegistrationValue) => {
       const result = await registerPluginVersion({
-        body: value
+        body: value as PluginRegistrationRequest
       });
       return unwrapData<PluginVersion>(result, '插件配置保存失败');
     },
@@ -450,7 +451,11 @@ export function PluginManagementPage() {
   const packageRows = useMemo(() => (packages.data?.pages.flatMap((page) => page.items) ?? [])
     .filter(pluginPackage => pluginPackage.versions.length > 0)
     .map(pluginPackage => ({ ...pluginPackage, latestVersion: [...pluginPackage.versions].sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt))[0]! })), [packages.data]);
-  const categoryOptions = useMemo(() => [...new Set(packageRows.flatMap(pluginPackage => pluginPackage.versions.flatMap(version => version.installation.categories)))], [packageRows]);
+  const categoryOptions = useMemo(() => [...new Set(packageRows
+    .map(pluginPackage => pluginPackage.marketMetadata?.category
+      ?? pluginPackage.latestVersion.installation.category
+      ?? '')
+    .filter(Boolean))], [packageRows]);
   const memberNames = useMemo(() => new Map(members.data?.map((member) => [member.id, member.displayName]) ?? []), [members.data]);
   const assignmentRows = useMemo(() => packageRows.flatMap((pluginPackage) => pluginPackage.assignments
     .filter((assignment) => assignment.subjectType !== 'DEPT')

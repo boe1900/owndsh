@@ -165,16 +165,6 @@ try {
     /owndsh:[\s\S]*serverUrl: http:\/\/127\.0\.0\.1:65535/,
   )
 
-  const plugins = await fetch(`${ready.url}/enterprise/api/v1/local/plugins`)
-  assert.equal(plugins.status, 200)
-  assert.deepEqual(await plugins.json(), {
-    data: {
-      assignmentRevision: 0,
-      catalog: [],
-      plugins: [],
-    },
-  })
-
   const events = await fetch(`${ready.url}/enterprise/api/v1/local/events`)
   assert.equal(events.status, 404)
   await events.body?.cancel()
@@ -215,7 +205,6 @@ try {
     installationFile: 'non-secret',
     localEvents: 'passed',
     packageConsumer: 'passed',
-    pluginStatusApi: 'passed',
     profile: 'web',
     statusApi: 'passed',
     temporaryDshHome: keep ? home : undefined,

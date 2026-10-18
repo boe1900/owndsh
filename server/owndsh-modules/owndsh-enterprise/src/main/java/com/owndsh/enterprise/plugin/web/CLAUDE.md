@@ -6,10 +6,11 @@
 
 PluginAssignmentBatchRequest.java: 最多 200 条原子 assignment replacement 请求与领域约束转换。
 PluginInventoryRequest.java: 最多 500 条 runtime inventory replacement 请求与观测时间转换。
-PluginRegistrationRequest.java: JSON 包名、版本与安装配置登记输入。
+PluginRegistrationRequest.java: JSON 包名、版本、DSH market metadata、npm/Git source 与 engines 登记输入；旧 installation 仅作内部过渡字段。
 PluginPublishRequest.java: 可选发布升级请求体，要求指定旧版 ID 和已查看的包 revision；省略整个请求体仅发布版本。
-PluginViews.java: 包身份、安装配置、可见范围与库存的唯一 HTTP 投影，BootstrapView 复用 runtime 投影。
+PluginViews.java: 包身份、market metadata、版本 source/engines/publish timestamp、可见范围与库存的唯一 HTTP 投影，BootstrapView 复用 runtime 投影。
 AdminPluginController.java: ent:plugin 权限保护的登记、目录、发布/退休、包/单版本删除、范围与库存入口；DELETE 要求 If-Match 包 revision 并返回删除资源 ID；发布根据可选请求体选择仅发布或双 revision 原子升级。
 RuntimePluginController.java: ACTIVE Harness 设备的授权目录与库存上报入口。
+PluginMarketController.java: 校验 DSH Desktop Bearer 会话后输出 DSH plugin market format 1 索引；投影 ACTIVE package/PUBLISHED version 的官方 metadata、npm/Git source、engines 与真实发布时间。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

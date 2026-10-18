@@ -18,7 +18,7 @@ const base: PluginVersion = {
   id: '11', packageId: '1', packageName: '@company/plugin', version: '1.0.0', status: 'PUBLISHED', revision: 1,
   createdAt: '2026-09-18T00:00:00Z', installation: {
     spec: '@company/plugin@1.0.0', displayName: '代码审查', description: '检查变更', author: '研发团队',
-    repositoryUrl: 'https://github.com/company/plugin', categories: ['开发工具', '团队专用']
+    repositoryUrl: 'https://github.com/company/plugin', category: '开发工具'
   }
 };
 let pluginPackage: PluginPackage;
@@ -92,7 +92,7 @@ describe('plugin registration', () => {
     expect(registrationValue({ packageName: ' @company/plugin ', version: '1.2.3' })).toEqual({
       packageName: '@company/plugin', version: '1.2.3', installation: {
         spec: '@company/plugin@1.2.3', displayName: '@company/plugin', description: '',
-        author: '', repositoryUrl: '', categories: []
+        author: '', repositoryUrl: '', category: ''
       }
     });
   });
@@ -114,8 +114,8 @@ describe('plugin registration', () => {
   });
   it('always derives the installation target from package name and version', () => {
     expect(registrationValue({ packageName: 'plugin', version: '1.0.0', spec: 'github:company/repo#main',
-      repositoryUrl: 'https://github.com/company/repo' }, ['tools', ' ui ', 'tools']).installation)
-      .toMatchObject({ spec: 'plugin@1.0.0', repositoryUrl: 'https://github.com/company/repo', categories: ['tools', 'ui'] });
+      repositoryUrl: 'https://github.com/company/repo' }, ' tools ').installation)
+      .toMatchObject({ spec: 'plugin@1.0.0', repositoryUrl: 'https://github.com/company/repo', category: 'tools' });
   });
 });
 

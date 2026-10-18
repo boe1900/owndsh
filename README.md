@@ -94,8 +94,8 @@ Server 日志仅输出到 stdout/stderr，由 Docker/K8s 与日志平台采集�
 2. 在“模型”中添加供应商、API Key 和受管模型。
 3. 创建模型集，并向全部成员、用户组或指定成员授权。
 4. 按需配置 Token 配额、RPM 和并发限制。
-5. 按需登记 npm 精确包名和版本，发布企业插件，并设置对全部或指定成员可见；管理端不维护 DSH 兼容字段，插件包自身通过 `peerDependencies` 声明范围，安装时由官方 Host 校验。
-6. 邀请员工安装 OwnDsh 并登录；员工只能在官方「插件」页的「企业插件」页签中选择已发布插件。
+5. 按需登记 npm 精确包名和版本，发布企业插件；服务端输出标准 DSH plugin market index，插件包自身通过 `peerDependencies` 声明范围，安装时由官方 Host 校验。
+6. 邀请员工安装 OwnDsh 并登录；员工在官方 Plugins → Discover 页面发现和安装已发布插件。
 
 员工设备不会得到供应商 API Key；每次模型请求都由 OwnDsh 网关重新校验身份、授权和额度。
 
@@ -133,9 +133,9 @@ pnpm --dir /path/to/deepseek-harness dsh \
 
 Server 地址和 Refresh Token 由 Harness Host 的官方 settings/credentials 服务持久化。Access Token 只存在 Host 内存，浏览器页面不会读取或保存 Token；正常重启会静默恢复登录。主动退出、设备撤销、成员停用、改密或 30 天有效期结束后需要重新登录。
 
-官方「插件」页面展示已安装、内置和企业插件。企业页签只显示管理端下发的元数据并使用官方默认图标；通用“添加插件”入口被移除，员工不能输入任意包名、Git 仓库或本地路径。点击安装或更新后，官方 `pluginManager` 负责安装、启停、卸载、进度和重启状态，企业页仅在服务端版本高于本机版本时显示更新。
+官方 Plugins → Discover 页面展示已安装、内置和企业索引插件。OwnDsh 不维护第二套市场页或安装状态；点击安装或更新后，官方 `pluginMarket`/`pluginManager` 负责索引刷新、兼容校验、安装、启停、卸载、进度和重启状态。
 
-OwnDsh 闲置时不建立企业 SSE、不定时拉配置或提前续期。用户请求时按需续期，服务端认证 401 最多续期重试一次；Refresh Token 失效或设备撤销时显示登录门禁，重新登录后可继续对话。网络暂不可达保留凭据，可再次发起请求或在 OwnDsh 设置点击刷新；模型与插件目录在打开设置或主动刷新时更新。
+OwnDsh 闲置时不建立企业 SSE、不定时拉配置或提前续期。用户请求时按需续期，服务端认证 401 最多续期重试一次；Refresh Token 失效或设备撤销时显示登录门禁，重新登录后可继续对话。网络暂不可达保留凭据，可再次发起请求或在 OwnDsh 设置点击刷新；模型目录按需刷新；插件发现和安装由官方 Plugins → Discover 读取 OwnDsh Server 的标准自定义索引。
 
 ## 更新
 

@@ -1,14 +1,14 @@
 /**
  * [INPUT]: 依赖 dsh-ui 同源 local-api、标准 Response 与 EventSource test double
- * [OUTPUT]: 验证账号/插件/MCP 严格解码、工具简介与计数一致、连接/授权事实、OAuth 流程绑定、固定动作路径及秘密字段拒绝
- * [POS]: dsh-ui 浏览器网络边界测试，确保浏览器只能消费 Host 脱敏 DTO
+ * [OUTPUT]: 验证账号/技能目录/MCP 严格解码、工具简介与计数一致、连接/授权事实、OAuth 流程绑定、固定动作路径及秘密字段拒绝
+ * [POS]: dsh-ui 浏览器网络边界测试，确保浏览器只能消费 Host 脱敏 DTO，并与发布技能制品模型保持一致
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { describe, expect, it, vi } from 'vitest'
 import {
   createEnterpriseLocalApi,
-  decodeEnterprisePluginStatus,
+  decodeEnterpriseAvailableSkills,
   decodeEnterpriseLocalStatus,
   ENTERPRISE_CONNECTION_STATES,
 } from '../src/local-api.js'
@@ -18,20 +18,6 @@ const STATUS = {
   bundleVersion: '0.1.0',
   platformUrl: 'https://enterprise.example.com',
   transport: 'webServer.register' as const,
-}
-
-const PLUGIN = {
-  packageName: '@example/dsh-code-review',
-  version: '1.2.0',
-  pluginVersionId: '880',
-  installation: {
-    spec: '@example/dsh-code-review@1.2.0',
-    displayName: 'Code Review',
-    description: 'Review code changes',
-    author: 'OwnDsh',
-    repositoryUrl: 'https://github.com/example/dsh-code-review',
-    categories: ['productivity'],
-  },
 }
 
 function ok(data: unknown): Response {
@@ -75,6 +61,26 @@ describe('enterprise local browser API', () => {
     }
   })
 
+  it('decodes the published skill catalog returned by the Host', async () => {
+    const skill = {
+      releaseId: '2111017572514631681', name: 'sample-skill', displayName: 'sample-skill',
+      description: '用于回归测试的技能', version: '1.0.0', userInvocable: true,
+      artifactSizeBytes: 3216, artifactSha256: '1c7fdca4270d3acc8d52dd71d537350fac90378c3743254f55cda6b90c756ede',
+      hasIcon: false as const,
+    }
+    expect(decodeEnterpriseAvailableSkills({ skills: [skill] })).toEqual([skill])
+    const fetcher = vi.fn(async () => ok({ skills: [skill] }))
+    await expect(createEnterpriseLocalApi(fetcher).availableSkills!(new AbortController().signal)).resolves.toEqual([skill])
+    for (const invalid of [
+      { ...skill, artifactSha256: 'bad' },
+      { ...skill, artifactSizeBytes: 0 },
+      { ...skill, releaseId: '0' },
+      { ...skill, accessToken: 'secret' },
+    ]) {
+      expect(() => decodeEnterpriseAvailableSkills({ skills: [invalid] })).toThrow('ENT_LOCAL_RESPONSE_INVALID')
+    }
+  })
+
   it('strictly decodes every public connection state', () => {
     for (const state of ENTERPRISE_CONNECTION_STATES) {
       const value = state === 'UNCONFIGURED'
@@ -103,45 +109,6 @@ describe('enterprise local browser API', () => {
       user: { id: '10031', username: 'zhangsan', displayName: 'Zhang San', departmentId: '210' },
       device: { id: '90018', installationId: '4c96d076-a80a-4b6c-8df6-f0db804b6f0a', status: 'ACTIVE' },
     })
-  })
-
-  it('strictly validates the enterprise catalog and never accepts runtime secrets', async () => {
-    expect(decodeEnterprisePluginStatus({ assignmentRevision: 7, catalog: [PLUGIN] }))
-      .toEqual({ assignmentRevision: 7, catalog: [PLUGIN] })
-    expect(() => decodeEnterprisePluginStatus({
-      assignmentRevision: 7,
-      catalog: [{ ...PLUGIN, tgzPath: '/private/plugin.tgz' }],
-    })).toThrow('ENT_LOCAL_RESPONSE_INVALID')
-    expect(() => decodeEnterprisePluginStatus({
-      assignmentRevision: 7,
-      catalog: [{ ...PLUGIN, accessToken: 'must-not-cross' }],
-    })).toThrow('ENT_LOCAL_RESPONSE_INVALID')
-
-    const fetcher = vi.fn(async () => ok({
-      assignmentRevision: 7,
-      catalog: [PLUGIN],
-    }))
-    const projected = await createEnterpriseLocalApi(fetcher).plugins(new AbortController().signal)
-    expect(projected).toEqual({ assignmentRevision: 7, catalog: [PLUGIN] })
-    expect(JSON.stringify(projected)).not.toMatch(/sha256|restartMarker|tgz|token|publicKey|cli/i)
-    expect(fetcher).toHaveBeenCalledWith(
-      '/enterprise/api/v1/local/plugins',
-      expect.objectContaining({ cache: 'no-store', signal: expect.any(AbortSignal) }),
-    )
-  })
-
-  it('keeps catalog metadata separate from Host installation facts', async () => {
-    const item = { pluginVersionId: '880', packageName: '@example/tools', version: '1.0.0', installation: { spec: '@example/tools@1.0.0', displayName: 'Tools', description: '', author: '', repositoryUrl: '', categories: [] } }
-    const status = { assignmentRevision: 7, catalog: [item] }
-    expect(decodeEnterprisePluginStatus(status)).toEqual(status)
-    for (const catalog of [[{ ...item, accessToken: 'secret' }], [{ ...item, downloadUrl: 'https://invalid' }], [item, item], [{ ...item, installation: undefined }]]) {
-      expect(() => decodeEnterprisePluginStatus({ ...status, catalog })).toThrow('ENT_LOCAL_RESPONSE_INVALID')
-    }
-    const fetcher = vi.fn(async () => ok(status))
-    const api = createEnterpriseLocalApi(fetcher)
-    const signal = new AbortController().signal
-    await expect(api.plugins(signal)).resolves.toEqual(status)
-    expect(fetcher).toHaveBeenLastCalledWith('/enterprise/api/v1/local/plugins', expect.objectContaining({ cache: 'no-store', signal }))
   })
 
   it('uses same-origin fixed paths and strict empty-object POST actions', async () => {

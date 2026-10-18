@@ -68,7 +68,7 @@ export function publicMcpToolName(serverName: string, rawName: string): string {
   return `${normalized.slice(0, 51)}_${hash}`
 }
 
-type DshMode = 'native' | 'ptc' | 'both'
+type DshMode = 'native' | 'ptc'
 
 export function mountMcpTools(ctx: Context, access: { fresh(): boolean; refresh(): Promise<void>; authorizationRequired?(): string[] }) {
   const connections = new Map<string, McpConnection>()
@@ -85,7 +85,7 @@ export function mountMcpTools(ctx: Context, access: { fresh(): boolean; refresh(
   let stopped = false
   const owned = (name: string): boolean => [...namespaces].some(value => name.startsWith(value))
 
-  const fallbackMode = (): DshMode => ctx.get('ptcRuntime') === undefined ? 'native' : 'ptc'
+  const fallbackMode = (): DshMode => ctx.tools.get('run_code') === undefined ? 'native' : 'ptc'
 
   function defaultExposure(): McpExposure {
     return fallbackMode() === 'native' ? 'deferred' : 'codemode'
@@ -298,9 +298,7 @@ export function mountMcpTools(ctx: Context, access: { fresh(): boolean; refresh(
     const output = await next()
     const sdk = output.sections.filter(section => section.name === 'tools:sdk' && section.text !== '')
     if (sdk.length > 1) throw new Error('MCP_PRESENTATION_UNSUPPORTED')
-    const hasPtc = sdk[0] !== undefined
-    const hasNativeMcp = output.tools.some(schema => owned(schema.name))
-    const mode: DshMode = hasPtc ? hasNativeMcp ? 'both' : 'ptc' : 'native'
+    const mode: DshMode = sdk[0] === undefined ? 'native' : 'ptc'
     if (context.agent !== undefined) modes.set(context.agent, mode)
     const entries = eligible(context.scope)
     const selectedEntries = selection(context.agent, entries, mode).filter(item => before.get(item.schema.name) === item.key)

@@ -1,6 +1,6 @@
-# [INPUT]: 依赖官方 dsh.bundle patch 覆盖、裸包名 Loader 与 base/web 既有 row id
-# [OUTPUT]: 覆盖企业默认模型、停用 API Key/个人账号模型并插入 owndsh Host/Client row，保留官方插件页
-# [POS]: bundle 的企业 profile 策略层；企业目录与官方自由安装入口并存，插件生命周期仍归官方 Host
+# [INPUT]: 官方 dsh.bundle patch、Host plugin-manager/settings 和 plugin-market service
+# [OUTPUT]: 企业模型策略、OwnDsh Host、官方 Discover 市场与企业索引源
+# [POS]: bundle 的企业 profile 组合层；插件安装与权限归官方 DSH plugin manager 和插件自身处理
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 - id: agent-default-model
   config:
@@ -20,5 +20,12 @@
   disabled: true
 
 - insert:
+    - id: owndsh-plugin-market
+      name: '@deepseek-ai/dsh-plugin-market'
+      # 官方可选 bundle 已经插入同模块行时保留官方设置 entry；否则 OwnDsh 自己提供市场服务。
+      disabled: !!js "ctx.loader.entries().some(entry => entry.options.name === '@deepseek-ai/dsh-plugin-market' && entry.options.id !== 'owndsh-plugin-market')"
+    - id: owndsh-ui-plugin-market
+      name: '@deepseek-ai/dsh-client-ui-plugin-market'
+      disabled: !!js "ctx.loader.entries().some(entry => entry.options.name === '@deepseek-ai/dsh-client-ui-plugin-market' && entry.options.id !== 'owndsh-ui-plugin-market')"
     - id: owndsh
       name: 'owndsh-plugin'

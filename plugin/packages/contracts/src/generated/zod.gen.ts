@@ -1930,13 +1930,17 @@ export const zPluginAssignmentStatus = z.enum(['ACTIVE', 'DISABLED']);
 
 export const zPluginDesiredState = z.enum(['INSTALLED', 'ABSENT']);
 
+export const zPluginEngines = z.object({
+    dsh: z.string().max(128).optional()
+}).strict();
+
 export const zPluginPluginInstallation = z.object({
     spec: z.string().min(1).max(2048),
     displayName: z.string().min(1).max(120),
     description: z.string().max(2000),
     author: z.string().max(120),
     repositoryUrl: z.string().max(2048),
-    categories: z.array(z.string().min(1).max(40)).max(12)
+    category: z.string().max(40)
 }).strict();
 
 export const zPluginInstallation = zPluginPluginInstallation;
@@ -1952,15 +1956,29 @@ export const zPluginPluginInventoryResponse = z.object({
 
 export const zPluginInventoryResponse = zPluginPluginInventoryResponse;
 
+export const zPluginMarketMetadata = z.object({
+    title: z.string().max(120),
+    description: z.string().max(2000),
+    icon: z.string().max(4096),
+    author: z.string().max(120),
+    homepage: z.string().max(4096),
+    repositoryUrl: z.string().max(4096),
+    repositoryDirectory: z.string().max(256),
+    category: z.string().max(40),
+    keywords: z.array(z.string().max(80)).max(100),
+    labels: z.array(z.string().max(80)).max(100),
+    sortKeys: z.record(z.string(), z.number())
+}).strict();
+
 export const zPluginPluginPackageId = z.string().regex(/^[1-9][0-9]{0,18}$/);
 
 export const zPluginPackageId = zPluginPluginPackageId;
 
-export const zPluginPackageName = z.string().min(1).max(214).regex(/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/);
+export const zPluginPackageName = z.string().min(1).max(214).regex(/^(?:@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*$/);
 
 export const zPluginPackageStatus = z.enum(['ACTIVE', 'DISABLED']);
 
-export const zPluginSemanticVersion = z.string().min(1).max(64).regex(/^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/);
+export const zPluginSemanticVersion = z.string().min(1).max(64).regex(/^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/);
 
 export const zAdminPluginInventoryItem = z.object({
     deviceId: zEnterpriseDeviceId,
@@ -2002,10 +2020,26 @@ export const zPluginPluginInventoryRequest = z.object({
 
 export const zPluginInventoryRequest = zPluginPluginInventoryRequest;
 
+export const zPluginSource = z.union([
+    z.object({
+        type: z.enum(['npm']),
+        registry: z.string().max(4096).optional()
+    }).strict(),
+    z.object({
+        type: z.enum(['git']),
+        url: z.string().max(4096),
+        commit: z.string().regex(/^[0-9a-f]{40}$/),
+        path: z.string().max(256).optional()
+    }).strict()
+]);
+
 export const zPluginPluginRegistrationRequest = z.object({
     packageName: zPluginPackageName,
     version: zPluginSemanticVersion,
-    installation: zPluginPluginInstallation
+    installation: zPluginPluginInstallation.optional(),
+    metadata: zPluginMarketMetadata.optional(),
+    source: zPluginSource.optional(),
+    engines: zPluginEngines.optional()
 }).strict();
 
 export const zPluginRegistrationRequest = zPluginPluginRegistrationRequest;
@@ -2072,6 +2106,9 @@ export const zPluginPluginVersion = z.object({
     packageName: zPluginPackageName,
     version: zPluginSemanticVersion,
     installation: zPluginPluginInstallation,
+    source: zPluginSource.optional(),
+    engines: zPluginEngines.optional(),
+    publishedAt: z.iso.datetime({ offset: true }).optional(),
     status: zPluginVersionStatus,
     createdAt: z.iso.datetime({ offset: true }),
     revision: zRevision
@@ -2086,7 +2123,8 @@ export const zPluginPluginPackage = z.object({
     status: zPluginPackageStatus,
     revision: zRevision,
     versions: z.array(zPluginPluginVersion).max(100),
-    assignments: z.array(zPluginAssignment).max(200)
+    assignments: z.array(zPluginAssignment).max(200),
+    marketMetadata: zPluginMarketMetadata.optional()
 }).strict();
 
 export const zPluginPackage = zPluginPluginPackage;
@@ -2117,6 +2155,8 @@ export const zRuntimePluginAssignment = z.object({
     packageName: zPluginPackageName,
     version: zPluginSemanticVersion,
     installation: zPluginPluginInstallation,
+    source: zPluginSource.optional(),
+    engines: zPluginEngines.optional(),
     required: z.boolean(),
     desiredState: zPluginDesiredState
 }).strict();

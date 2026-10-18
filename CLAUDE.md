@@ -10,7 +10,7 @@ website/ - 独立零依赖静态官网，复用品牌与真实产品截图，以
 contracts/ - OpenAPI 3.1 协议真源、跨语言 schema 和 fixture 验收
 deploy/ - Linux amd64/arm64 单机 Compose 与 amd64 离线 release、一次性初始化与备份/恢复/升级/回滚交付；TLS 由部署方终止
 docs/ - 产品预研、MVP 实施规格与逐任务验收证据
-plugin/ - 独立 pnpm workspace，构建标准 `owndsh-plugin`；独立安装或由外部 owndsh-desktop 消费 npm 包；OwnDsh 设置提供企业插件目录，官方插件页保留自由安装与配置，安装事实归官方 Host
+plugin/ - 独立 pnpm workspace，构建标准 `owndsh-plugin`；独立安装或由外部 owndsh-desktop 消费 npm 包；OwnDsh Server 提供标准 DSH plugin market index，官方 Plugins → Discover 负责插件发现与安装
 scripts/ - 开发环境初始化脚本（PowerShell、POSIX shell）
 upstream/ - 以 DSH Desktop 为发行真源的第三方源码地址与精确派生版本锁，不保存第三方源码
 </directory>
@@ -25,7 +25,7 @@ docker-compose.yml - 根目录零配置 Compose 入口，复用 deploy/compose �
 .gitattributes - 跨平台文本与换行约定
 </config>
 
-T00 建立上游源码与插件工作区，T01 验证官方插件扩展面，T02 建立跨端协议真源，T03 建立 PostgreSQL/密码学/revision/审计基础，T04 建立身份适配器与治理 API，T05 建立 PKCE/Sa-Token/设备生命周期，T06 建立 Harness 内存 Access Token、Host Refresh Grant、installation、bootstrap 刷新与同源控制面，T07 通过官方 Settings/shell.overlay slot 交付 Server 配置与登录门禁，T08 建立 provider/model/grant 管理与 bootstrap 模型目录，T09 建立叠加配额、PostgreSQL reservation、Redis lease、结算恢复和用量查询，T10 建立请求级模型授权、三协议透明 upstream、计费终态和双审计，T11 直接挂载官方 rc.2 `dsh-llm-pi-ai`，建立 reasoningEfforts 动态目录、default sentinel、三协议模型流和本机认证代理，T12 建立 enterprise-admin PKCE、动态权限路由及身份/设备/模型/授权/配额/用量管理控制台，T13 插件服务端已收敛为安装配置登记、发布/可见范围、安装前授权和设备库存，T14 通过官方 rc.2 subprocess/inventory 与 Desktop `desktopPnpm` 建立受管插件配置安装、CLI 调和、重启确认、库存与回滚客户端，T15 建立管理端插件纵向工作台与桌面员工插件状态 tab，T16 建立官方 format v0 精确 JSONL/hash、AES-GCM、并发远端副本、正文权限、tombstone 与 retention 服务端，T17 建立基于官方 rc.2 Session/Persistence 的 dirty queue、确认游标、断点退避、远端列表与新 ID 耐久恢复客户端。早期源码验证基线为 DSH Desktop 2.0.3 / Harness 0.1.1-rc.2，upstream 锁与同级只读 checkout 保留该历史夹具；当前插件使用 npm Harness 0.2.0-rc.1，Web 行为验收以该版本为准。发布 peers、实际宿主身份和已验证范围分别核对，caret 范围不等于兼容性验收。
+T00 建立上游源码与插件工作区，T01 验证官方插件扩展面，T02 建立跨端协议真源，T03 建立 PostgreSQL/密码学/revision/审计基础，T04 建立身份适配器与治理 API，T05 建立 PKCE/Sa-Token/设备生命周期，T06 建立 Harness 内存 Access Token、Host Refresh Grant、installation、bootstrap 刷新与同源控制面，T07 通过官方 Settings/shell.overlay slot 交付 Server 配置与登录门禁，T08 建立 provider/model/grant 管理与 bootstrap 模型目录，T09 建立叠加配额、PostgreSQL reservation、Redis lease、结算恢复和用量查询，T10 建立请求级模型授权、三协议透明 upstream、计费终态和双审计，T11 直接挂载官方 rc.2 `dsh-llm-pi-ai`，建立 reasoningEfforts 动态目录、default sentinel、三协议模型流和本机认证代理，T12 建立 enterprise-admin PKCE、动态权限路由及身份/设备/模型/授权/配额/用量管理控制台，T13 插件服务端已收敛为安装配置登记、发布/可见范围、运行授权和设备库存，并提供标准 DSH plugin market index，T14 通过官方 rc.2 pluginMarket/pluginManager 与 inventory 建立 Discover 索引、安装事实和库存上报，T15 建立管理端插件纵向工作台并退役 OwnDsh 员工插件目录 tab，T16 建立官方 format v0 精确 JSONL/hash、AES-GCM、并发远端副本、正文权限、tombstone 与 retention 服务端，T17 建立基于官方 rc.2 Session/Persistence 的 dirty queue、确认游标、断点退避、远端列表与新 ID 耐久恢复客户端。早期源码验证基线为 DSH Desktop 2.0.3 / Harness 0.1.1-rc.2，upstream 锁与同级只读 checkout 保留该历史夹具；当前插件使用 npm Harness 0.2.1-rc.2，Web 行为验收以该版本为准。发布 peers、实际宿主身份和已验证范围分别核对，caret 范围不等于兼容性验收。
 
 DSH 升级入口：[依赖契约与升级检查表](docs/dsh-compatibility.md)。新增或修改上游服务、hook、slot、profile row 或 CLI 接入时，同步更新契约、验证入口和接缝删除条件；Web/Desktop 与真实供应商的覆盖范围分别记录。
 
@@ -43,11 +43,11 @@ P2-08C 将产品控制台会话收敛为服务端 Sa-Token 与 HttpOnly/SameSite
 
 服务地址边界：账号设置只读显示 Server；退出登录后在门禁修改。Host 将运行时修改收敛到无活动会话时的凭据清理与官方 settings 写入，保存与登录互斥；浏览器在服务/账号切换时丢弃旧请求结果。
 
-员工 UI 入口：OwnDsh 设置包含账号、插件、MCP tabs，账号信息与退出登录集中于账号 tab，企业目录位于插件 tab；仅注册 settings.section 和 shell.overlay，不替换官方插件页。登录门禁、失效恢复与设置内确认退出保留。
+员工 UI 入口：OwnDsh 设置只包含账号、技能、MCP tabs，账号信息与退出登录集中于账号 tab；插件发现、安装、配置和启停均由官方 Plugins → Discover 承载。OwnDsh 只注册 settings.section 和 shell.overlay，登录门禁、失效恢复与设置内确认退出保留。
 
-企业插件市场：管理端只登记 npm 精确包名和版本及必要展示元数据；OwnDsh 设置 → 插件以两行列表呈现分类/版本标签、搜索、分类筛选和操作确认，只对更高 semver 提供更新。安装/更新/卸载调用官方 pluginManager，由插件 manifest 的 peerDependencies 和官方 Host 执行 DSH 兼容门禁，本机安装事实由官方 Host 管理并同步设备库存。官方插件页保留自由安装、配置和启停，OwnDsh 不维护页面 fork 或隐藏入口的适配。
+企业插件市场：管理端登记 npm 精确包名、版本和公开展示元数据，服务端输出 DSH plugin market index；官方 Plugins → Discover 读取该索引并负责发现、安装、更新、卸载、配置和启停，插件 manifest 的 peerDependencies 与官方 Host 执行 DSH 兼容门禁，本机安装事实由官方 Host 管理并同步设备库存。OwnDsh 不维护第二套插件目录 UI。
 
 
-MCP 员工能力仍在唯一 `owndsh-plugin` 的 OwnDsh 设置中；公共配置和服务授权归 Console/Server，用户秘密归 Host credentials。MCP/OAuth 各地址统一接受管理员指定的 HTTP(S)，协议、发现、PKCE、token exchange、refresh、协商与分页均由官方 SDK/client 执行。端侧复用 Harness `0.2.0-rc.1` 官方 MCP client 的独立 fiber，并挂载官方 `dsh-mcp-resources`，按 Agent 搜索累加、显式释放和本步调用快照呈现工具；无自动 LRU/16工具/64KiB会话硬限。OwnDsh 只绑定凭据 owner/target、保存官方 SDK 的 client information/tokens 与短生命周期 discovery state/verifier，并提供系统浏览器和本机 loopback callback，不复制第二套 OAuth 协议。实现进度与官方 SDK v2 兼容性见 docs/mcp-implementation-plan.md。
+MCP 员工能力仍在唯一 `owndsh-plugin` 的 OwnDsh 设置中；公共配置和服务授权归 Console/Server，用户秘密归 Host credentials。MCP/OAuth 各地址统一接受管理员指定的 HTTP(S)，协议、发现、PKCE、token exchange、refresh、协商与分页均由官方 SDK/client 执行。端侧复用 Harness `0.2.1-rc.2` 官方 MCP client 的独立 fiber，并挂载官方 `dsh-mcp-resources`，按 Agent 搜索累加、显式释放和本步调用快照呈现工具；无自动 LRU/16工具/64KiB会话硬限。OwnDsh 只绑定凭据 owner/target、保存官方 SDK 的 client information/tokens 与短生命周期 discovery state/verifier，并提供系统浏览器和本机 loopback callback，不复制第二套 OAuth 协议。实现进度与官方 SDK v2 兼容性见 docs/mcp-implementation-plan.md。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

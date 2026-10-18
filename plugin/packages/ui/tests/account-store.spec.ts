@@ -7,7 +7,7 @@
 
 import { describe, expect, it, vi } from 'vitest'
 import { EnterpriseAccountStore } from '../src/account-store.js'
-import type { EnterpriseAccountBootstrap, EnterpriseLocalApi, EnterpriseLocalStatus, EnterprisePluginStatus } from '../src/local-api.js'
+import type { EnterpriseAccountBootstrap, EnterpriseLocalApi, EnterpriseLocalStatus } from '../src/local-api.js'
 import { EnterpriseLocalApiError } from '../src/local-api.js'
 
 const base = {
@@ -16,26 +16,12 @@ const base = {
   transport: 'webServer.register' as const,
 }
 
-const enterpriseCatalog = [{
-  pluginVersionId: '880',
-  packageName: '@example/dsh-code-review',
-  version: '1.2.0',
-  installation: {
-    spec: '@example/dsh-code-review@1.2.0',
-    displayName: 'Code Review',
-    description: 'Review code changes',
-    author: 'OwnDsh',
-    repositoryUrl: 'https://github.com/example/dsh-code-review',
-    categories: ['productivity'],
-  },
-}] as const
-
 describe('EnterpriseAccountStore', () => {
   it('serializes manual refresh and distinguishes success, request failure, and Host error status', async () => {
     const ready: EnterpriseLocalStatus = { ...base, state: 'READY' }
     let finish!: (status: EnterpriseLocalStatus) => void
     const api = {
-      status: vi.fn(async () => ready), bootstrap: vi.fn(), plugins: vi.fn(), mcpStatus: vi.fn(),
+      status: vi.fn(async () => ready), bootstrap: vi.fn(), mcpStatus: vi.fn(),
       refresh: vi.fn(() => new Promise<EnterpriseLocalStatus>(resolve => { finish = resolve })),
     }
     const store = new EnterpriseAccountStore(api as unknown as EnterpriseLocalApi)
@@ -65,7 +51,7 @@ describe('EnterpriseAccountStore', () => {
       let progress = 'PENDING'
       const mcpStatus = { assignments: [{ serverName: 'docs', displayName: 'Docs', authType: 'oauth', configured: false, connected: false, errorCode: 'MCP_AUTH_REQUIRED' }] }
       const api = {
-        status: vi.fn(async () => status), bootstrap: vi.fn(), plugins: vi.fn(),
+        status: vi.fn(async () => status), bootstrap: vi.fn(),
         mcpStatus: vi.fn(async () => mcpStatus),
         startMcpOAuth: vi.fn(async () => ({ flowId: 'flow-1' })),
         mcpOAuthStatus: vi.fn(async () => ({ flowId: 'flow-1', serverName: 'docs', status: progress })),
@@ -108,7 +94,7 @@ describe('EnterpriseAccountStore', () => {
     let oldSignal!: AbortSignal
     const delayed = (signal: AbortSignal) => { oldSignal = signal; return new Promise<any>(done => { resolve = done }) }
     const api = {
-      status: vi.fn(async () => status), bootstrap: vi.fn(), plugins: vi.fn(),
+      status: vi.fn(async () => status), bootstrap: vi.fn(),
       mcpStatus: vi.fn(async () => ({ assignments: [] })),
       startMcpOAuth: vi.fn(async (_name: string, signal: AbortSignal) => pending === 'start' ? delayed(signal) : { flowId: 'old-flow' }),
       mcpOAuthStatus: vi.fn(async (_id: string, signal: AbortSignal) => delayed(signal)),
@@ -132,7 +118,7 @@ describe('EnterpriseAccountStore', () => {
   it('reports failed and busy saves as unsuccessful, and refreshes local state after a failed logout', async () => {
     let status: EnterpriseLocalStatus = { ...base, state: 'READY' }
     const api: EnterpriseLocalApi = {
-      status: vi.fn(async () => status), refresh: vi.fn(), bootstrap: vi.fn(), plugins: vi.fn(),
+      status: vi.fn(async () => status), refresh: vi.fn(), bootstrap: vi.fn(),
       setServerUrl: vi.fn(async () => { throw new EnterpriseLocalApiError('ENT_INVALID_REQUEST', 400) }),
       logout: vi.fn(async () => { status = { ...base, state: 'SIGNED_OUT' }; throw new EnterpriseLocalApiError('ENT_PLATFORM_UNAVAILABLE', 503) }),
       startLogin: vi.fn(), cancelLogin: vi.fn(), uninstall: vi.fn(),
@@ -154,17 +140,15 @@ describe('EnterpriseAccountStore', () => {
   })
 
   it.each(['server', 'account', 'sign-out', 'old failure'])(
-    'discards old account and plugin responses after %s, even when revisions match', async change => {
+    'discards old account responses after %s, even when revisions match', async change => {
       const old: EnterpriseAccountBootstrap = {
         user: { id: '10031', username: 'old', displayName: 'Old', departmentId: null },
         device: { id: '90018', installationId: '4c96d076-a80a-4b6c-8df6-f0db804b6f0a', status: 'ACTIVE' },
       }
       const next = { ...old, user: { ...old.user, id: '10032', username: 'new' } }
-      const nextPlugins = { assignmentRevision: 8, catalog: [] }
       let status: EnterpriseLocalStatus = { ...base, state: 'READY', revision: 7, user: old.user }
       let resolveOld!: (value: EnterpriseAccountBootstrap) => void
       let rejectOld!: (error: Error) => void
-      let resolvePlugins!: (value: EnterprisePluginStatus) => void
       let oldSignal!: AbortSignal
       const api: EnterpriseLocalApi = {
         status: vi.fn(async () => status), refresh: vi.fn(),
@@ -172,7 +156,6 @@ describe('EnterpriseAccountStore', () => {
           oldSignal = signal
           return new Promise((resolve, reject) => { resolveOld = resolve; rejectOld = reject })
         }).mockResolvedValue(next),
-        plugins: vi.fn().mockImplementationOnce(() => new Promise(resolve => { resolvePlugins = resolve })).mockResolvedValue(nextPlugins),
         setServerUrl: vi.fn(), startLogin: vi.fn(), cancelLogin: vi.fn(), logout: vi.fn(), uninstall: vi.fn(),
       }
       const store = new EnterpriseAccountStore(api)
@@ -184,13 +167,10 @@ describe('EnterpriseAccountStore', () => {
       expect(oldSignal.aborted).toBe(true)
       if (change === 'old failure') rejectOld(new EnterpriseLocalApiError('ENT_PLATFORM_UNAVAILABLE', 503))
       else resolveOld(old)
-      resolvePlugins({ assignmentRevision: 1, catalog: [] })
       await new Promise(resolve => setTimeout(resolve, 0))
       expect(store.getSnapshot().bootstrap).toEqual(next)
-      expect(store.getSnapshot().pluginStatus).toEqual(nextPlugins)
       expect(store.getSnapshot().errorCode).toBeUndefined()
       expect(api.bootstrap).toHaveBeenCalledTimes(2)
-      expect(api.plugins).toHaveBeenCalledTimes(2)
     },
   )
 
@@ -198,7 +178,7 @@ describe('EnterpriseAccountStore', () => {
     vi.useFakeTimers()
     const api: EnterpriseLocalApi = {
       status: vi.fn(async () => ({ ...base, state: 'AUTHORIZING' as const })), refresh: vi.fn(),
-      setServerUrl: vi.fn(), bootstrap: vi.fn(), plugins: vi.fn(),
+      setServerUrl: vi.fn(), bootstrap: vi.fn(),
       startLogin: vi.fn(), cancelLogin: vi.fn(), logout: vi.fn(), uninstall: vi.fn(),
     }
     const store = new EnterpriseAccountStore(api)
@@ -242,10 +222,6 @@ describe('EnterpriseAccountStore', () => {
         user: { id: '10031', username: 'zhangsan', displayName: 'Zhang San', departmentId: '210' },
         device: { id: '90018', installationId: '4c96d076-a80a-4b6c-8df6-f0db804b6f0a', status: 'ACTIVE' },
       })),
-      plugins: vi.fn(async () => ({
-        assignmentRevision: 7,
-        catalog: enterpriseCatalog,
-      })),
       startLogin: vi.fn(async () => { current = { ...base, state: 'AUTHORIZING', flowId: 'flow-1' }; return { flowId: 'flow-1' } }),
       cancelLogin: vi.fn(async () => { current = { ...base, state: 'CANCELLED', errorCode: 'ENT_AUTH_CANCELLED' }; return { cancelled: true } }),
       logout: vi.fn(async () => { current = { ...base, state: 'SIGNED_OUT' }; return { loggedOut: true } }),
@@ -269,26 +245,20 @@ describe('EnterpriseAccountStore', () => {
       user: { id: '10031', username: 'zhangsan', displayName: 'Zhang San', departmentId: '210' },
     })
     await vi.waitFor(() => { expect(store.getSnapshot().bootstrap?.device.id).toBe('90018') })
-    await vi.waitFor(() => { expect(store.getSnapshot().pluginStatus?.assignmentRevision).toBe(7) })
     await publish({ ...current, state: 'REFRESHING', revision: 7 })
     await publish({ ...current, state: 'READY', revision: 7 })
     expect(api.bootstrap).toHaveBeenCalledOnce()
-    expect(api.plugins).toHaveBeenCalledOnce()
     await publish({ ...current, state: 'READY', revision: 8 })
     await vi.waitFor(() => { expect(api.bootstrap).toHaveBeenCalledTimes(2) })
-    await vi.waitFor(() => { expect(api.plugins).toHaveBeenCalledTimes(2) })
-    await store.refreshPlugins()
-    expect(api.plugins).toHaveBeenCalledTimes(3)
     await store.logout()
     expect(store.getSnapshot().status?.state).toBe('SIGNED_OUT')
     expect(store.getSnapshot().bootstrap).toBeUndefined()
-    expect(store.getSnapshot().pluginStatus).toBeUndefined()
     await store.uninstall()
     expect(store.getSnapshot().uninstallRestartRequested).toBe(false)
     expect(api.uninstall).toHaveBeenCalledOnce()
 
     unsubscribe()
-    expect(api.refresh).toHaveBeenCalledOnce()
+    expect(api.refresh).not.toHaveBeenCalled()
   })
 
   it('maps local failures to a stable code without service messages', async () => {
@@ -297,7 +267,6 @@ describe('EnterpriseAccountStore', () => {
       refresh: vi.fn(),
       setServerUrl: vi.fn(),
       bootstrap: vi.fn(),
-      plugins: vi.fn(),
       startLogin: vi.fn(),
       cancelLogin: vi.fn(),
       logout: vi.fn(),

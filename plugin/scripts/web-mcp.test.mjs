@@ -1,6 +1,6 @@
 /**
  * [INPUT]: npm Harness Web runtime、已安装 OwnDsh 的隔离 profile、Playwright 与本地 HTTP 协议桩。
- * [OUTPUT]: 浏览器登录、官方插件入口与企业目录并存、MCP 操作和真实 AgentLoop 的 tool_search、结构化结果、资源与 SDK OAuth 回归证据。
+ * [OUTPUT]: 浏览器登录、官方 Plugins → Discover 自定义索引入口、MCP 操作和真实 AgentLoop 的 tool_search、结构化结果、资源与 SDK OAuth 回归证据。
  * [POS]: 跨版本组合验收；复制 profile 后运行，模型只返回确定性工具调用，所有外部服务均在回环地址。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -20,13 +20,13 @@ const profile = process.env.OWNDSH_TEST_PROFILE
 assert.ok(runtime && profile, 'Set OWNDSH_TEST_RUNTIME and OWNDSH_TEST_PROFILE (installed web profile directory)')
 const toolsMode = process.env.OWNDSH_E2E_TOOLS_MODE ?? 'native'
 const structuredOnly = process.env.OWNDSH_E2E_SCENARIO === 'structured'
-assert.ok(['native', 'ptc', 'both'].includes(toolsMode), `Unsupported OWNDSH_E2E_TOOLS_MODE: ${toolsMode}`)
+assert.ok(['native', 'ptc'].includes(toolsMode), `Unsupported OWNDSH_E2E_TOOLS_MODE: ${toolsMode}`)
 const requireRuntime = createRequire(join(runtime, 'package.json'))
 const hash = value => createHash('sha256').update(value).digest('hex')
 const bundleHash = hash(await readFile(join(profile, 'node_modules/owndsh-plugin/lib/index.js')))
 assert.equal(bundleHash, hash(await readFile(new URL('../packages/bundle/lib/index.js', import.meta.url))), 'Installed profile must contain the current built bundle')
 const manifest = requireRuntime('@deepseek-ai/dsh/package.json')
-assert.equal(manifest.version, '0.2.0-rc.1')
+assert.equal(manifest.version, '0.2.1-rc.2')
 const dshEntry = join(dirname(requireRuntime.resolve('@deepseek-ai/dsh/package.json')), 'lib/bin.js')
 const { chromium } = await import(process.env.OWNDSH_PLAYWRIGHT_MODULE ?? 'playwright')
 const home = await mkdtemp(join(tmpdir(), 'owndsh-web-mcp-'))
@@ -369,12 +369,8 @@ try {
   await authorize(gate.getByRole('button', { name: '登录企业账号', exact: true }))
   await gate.waitFor({ state: 'hidden' })
   assert.equal(await page.getByRole('button', { name: '插件', exact: true }).count(), 1)
-  checks.push('enterprise browser login; official plugin manager available')
+  checks.push('enterprise browser login; official Plugins → Discover available')
   await settings()
-  await page.getByRole('tab', { name: '插件', exact: true }).click()
-  await page.getByRole('region', { name: '企业插件市场', exact: true }).getByText('暂无匹配的企业插件。', { exact: true }).waitFor()
-  await page.getByRole('tab', { name: 'MCP', exact: true }).click()
-  checks.push('OwnDsh plugin market remains accessible')
   await page.getByRole('button', { name: '查看 docs 的 2 个工具' }).click()
   assert.match(await page.getByRole('region', { name: 'docs 工具简介', exact: true }).innerText(), /echo[\s\S]*write/)
   assert.match(await page.getByRole('region', { name: 'MCP resourceonly', exact: true }).innerText(), /已连接/)

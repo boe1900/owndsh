@@ -9,9 +9,12 @@ import { Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import type {
   PluginAssignmentWrite,
+  PluginEngines,
+  PluginMarketMetadata,
   PluginRegistrationRequest,
   PluginPackage,
   PluginPublishRequest,
+  PluginSource,
   PluginVersion
 } from '@/api/generated/types.gen';
 import { Button } from '@/components/atoms/Button';
@@ -21,7 +24,13 @@ import { PluginCategorySelect } from './plugin-category-select';
 
 const inputClass = 'h-9 w-full rounded-lg border border-line bg-canvas px-3 text-[13px] text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent-tint';
 
-export type PluginRegistrationValue = PluginRegistrationRequest;
+type LegacyPluginRegistrationValue = Omit<PluginRegistrationRequest, 'metadata' | 'source' | 'engines'> & {
+  metadata?: PluginRegistrationRequest['metadata'];
+  source?: PluginRegistrationRequest['source'];
+  engines?: PluginRegistrationRequest['engines'];
+};
+
+export type PluginRegistrationValue = LegacyPluginRegistrationValue;
 
 type ProductAssignment = Omit<PluginAssignmentWrite, 'subjectType'> & {
   subjectType: 'ALL' | 'USER';
@@ -45,19 +54,54 @@ function editableAssignments(pluginPackage: PluginPackage): ProductAssignment[] 
     }));
 }
 
-export function registrationValue(values: Record<string, string>, categories: string[] = []): PluginRegistrationValue {
+export function registrationValue(values: Record<string, string>, category = ''): PluginRegistrationValue {
   const packageName = (values.packageName ?? '').trim();
   const version = (values.version ?? '').trim();
+  const sourceType = values.sourceType === 'git' ? 'git' : 'npm';
+  const metadata: PluginMarketMetadata = {
+    title: (values.displayName ?? '').trim() || packageName,
+    description: (values.description ?? '').trim(),
+    icon: (values.icon ?? '').trim(),
+    author: (values.author ?? '').trim(),
+    homepage: (values.homepage ?? '').trim(),
+    repositoryUrl: (values.repositoryUrl ?? '').trim(),
+    repositoryDirectory: (values.repositoryDirectory ?? '').trim(),
+    category: category.trim(),
+    keywords: (values.keywords ?? '').split(',').map(value => value.trim()).filter(Boolean),
+    labels: (values.labels ?? '').split(',').map(value => value.trim()).filter(Boolean),
+    sortKeys: {}
+  };
+  const source: PluginSource = sourceType === 'git'
+    ? { type: 'git', url: (values.sourceUrl ?? '').trim(), commit: (values.commit ?? '').trim(), ...(values.sourcePath?.trim() ? { path: values.sourcePath.trim() } : {}) }
+    : { type: 'npm', ...(values.registry?.trim() ? { registry: values.registry.trim() } : {}) };
+  const engines: PluginEngines = values.dshRange?.trim() ? { dsh: values.dshRange.trim() } : {};
+  if (values.sourceType === undefined) {
+    return {
+      packageName,
+      version,
+      installation: {
+        spec: `${packageName}@${version}`,
+        displayName: metadata.title,
+        description: metadata.description,
+        author: metadata.author,
+        repositoryUrl: metadata.repositoryUrl,
+        category: category.trim()
+      }
+    };
+  }
   return {
     packageName,
     version,
+    metadata,
+    source,
+    engines,
     installation: {
-      spec: `${packageName}@${version}`,
-      displayName: (values.displayName ?? '').trim() || packageName,
-      description: (values.description ?? '').trim(),
-      author: (values.author ?? '').trim(),
-      repositoryUrl: (values.repositoryUrl ?? '').trim(),
-      categories: [...new Set(categories.map(value => value.trim()).filter(Boolean))]
+      spec: source.type === 'npm' ? `${packageName}@${version}` : `${source.url}#${source.commit}`,
+      displayName: metadata.title,
+      description: metadata.description,
+      author: metadata.author,
+      repositoryUrl: metadata.repositoryUrl,
+      category: category.trim()
     }
   };
 }
@@ -74,17 +118,47 @@ export function RegisterPluginVersionDialog({ baseVersion, versions = [], catego
   onSave: (value: PluginRegistrationValue) => void;
   saving: boolean;
 }) {
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [values, setValues] = useState<Record<string, string>>(() => {
-    if (!baseVersion) return {};
-    const { categories: _categories, ...metadata } = baseVersion.installation;
-    return { ...metadata, packageName: baseVersion.packageName, version: '' };
+    if (!baseVersion) return {} as Record<string, string>;
+    const metadata = {
+      title: baseVersion.installation.displayName,
+      description: baseVersion.installation.description,
+      icon: '', author: baseVersion.installation.author, homepage: '',
+      repositoryUrl: baseVersion.installation.repositoryUrl, repositoryDirectory: '',
+      category: baseVersion.installation.category, keywords: [], labels: [], sortKeys: {}
+    };
+    const source = baseVersion.source ?? { type: 'npm' as const };
+    return {
+      displayName: metadata.title, description: metadata.description, icon: metadata.icon,
+      author: metadata.author, homepage: metadata.homepage, repositoryUrl: metadata.repositoryUrl,
+      repositoryDirectory: metadata.repositoryDirectory, keywords: metadata.keywords.join(', '),
+      labels: metadata.labels.join(', '),
+      registry: source.type === 'npm' ? source.registry ?? '' : '',
+      sourceUrl: source.type === 'git' ? source.url : '', commit: source.type === 'git' ? source.commit : '',
+      sourcePath: source.type === 'git' ? source.path ?? '' : '', dshRange: baseVersion.engines?.dsh ?? '',
+      packageName: baseVersion.packageName, version: ''
+    };
   });
-  const [categories, setCategories] = useState<string[]>(baseVersion?.installation.categories ?? []);
+  const [category, setCategory] = useState(baseVersion?.installation.category ?? '');
   const [validationError, setValidationError] = useState<string>();
   const fields = [
     ['packageName', '包名', '@company/dsh-plugin', true, 214],
     ['version', '版本', '1.0.0', true, 64],
     ['description', '简介', '这个插件能做什么', false, 2000],
+    ['displayName', '标题', '代码审查', false, 120],
+    ['author', '作者', 'OwnDsh', false, 120],
+    ['homepage', '主页', 'https://example.com/plugin', false, 4096],
+    ['repositoryUrl', '仓库地址', 'https://github.com/example/plugin', false, 4096],
+    ['repositoryDirectory', '仓库目录', 'packages/plugin', false, 256],
+    ['icon', '图标 URL', 'https://example.com/icon.png', false, 4096],
+    ['keywords', '关键词', 'review, code', false, 8000],
+    ['labels', '标签', '官方, 推荐', false, 8000],
+    ['registry', 'npm Registry', 'https://registry.npmjs.org', false, 4096],
+    ['sourceUrl', 'Git 仓库地址', 'https://github.com/example/plugin', false, 4096],
+    ['commit', 'Git Commit', '40 位小写 SHA-1', false, 40],
+    ['sourcePath', 'Git 包目录', 'packages/plugin', false, 256],
+    ['dshRange', 'DSH 兼容范围', '>=0.2.1-rc.2', false, 128],
   ] as const;
   const renderField = ([key, label, placeholder, required, maxLength]: typeof fields[number]) => <label key={key} className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
     {label}
@@ -94,15 +168,30 @@ export function RegisterPluginVersionDialog({ baseVersion, versions = [], catego
       value={values[key] ?? ''} onChange={event => { setValidationError(undefined); setValues(current => ({ ...current, [key]: event.target.value })); }} />
   </label>;
   const metadata = <>
-    {fields.slice(2).map(renderField)}
-    <PluginCategorySelect options={categoryOptions} value={categories} onChange={setCategories} disabled={saving} />
+    {fields.slice(2, 3).map(renderField)}
+    {!showAdvanced ? <button type="button" className="justify-self-start text-left text-[12px] text-accent underline"
+      onClick={() => { setShowAdvanced(true); setValues(current => ({ ...current, sourceType: current.sourceType ?? (baseVersion?.source?.type ?? 'npm') })); }}>
+      添加更多市场资料
+    </button> : null}
+    {showAdvanced ? <>
+      {fields.slice(3, 11).map(renderField)}
+      <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">安装来源
+      <select className={inputClass} value={values.sourceType ?? 'npm'} disabled={saving}
+        onChange={event => { setValidationError(undefined); setValues(current => ({ ...current, sourceType: event.target.value })); }}>
+        <option value="npm">npm</option><option value="git">Git 固定 Commit</option>
+      </select>
+      </label>
+      {(values.sourceType ?? 'npm') === 'npm' ? fields.slice(11, 12).map(renderField) : fields.slice(12, 15).map(renderField)}
+      {fields.slice(15).map(renderField)}
+    </> : null}
+    <PluginCategorySelect options={categoryOptions} value={category} onChange={setCategory} disabled={saving} />
     {categoriesLoading ? <p role="status" className="m-0 text-[12px] text-ink-3">正在加载已有分类…</p> : null}
     {categoriesError ? <p role="alert" className="m-0 text-[12px] text-red">已有分类加载失败。<button type="button" className="ml-1 underline" onClick={onRetryCategories}>重试</button></p> : null}
   </>;
   return <ProductDialog title={baseVersion ? '新增版本' : '添加插件'} onClose={onClose}>
     <form onSubmit={event => {
       event.preventDefault();
-      const value = registrationValue({ ...values, ...(baseVersion ? { packageName: baseVersion.packageName } : {}) }, categories);
+      const value = registrationValue({ ...values, ...(baseVersion ? { packageName: baseVersion.packageName } : {}) }, category);
       if (baseVersion && (value.version === baseVersion.version || versions.some(item => item.version === value.version))) {
         setValidationError('这个版本已存在，请填写新的版本号。'); return;
       }

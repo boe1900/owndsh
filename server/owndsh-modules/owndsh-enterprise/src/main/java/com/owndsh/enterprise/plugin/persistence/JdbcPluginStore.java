@@ -10,6 +10,9 @@ import com.owndsh.enterprise.plugin.domain.DevicePluginInventory;
 import com.owndsh.enterprise.plugin.domain.PluginAssignment;
 import com.owndsh.enterprise.plugin.domain.PluginPackage;
 import com.owndsh.enterprise.plugin.domain.PluginInstallation;
+import com.owndsh.enterprise.plugin.domain.PluginMarketMetadata;
+import com.owndsh.enterprise.plugin.domain.PluginSource;
+import com.owndsh.enterprise.plugin.domain.PluginEngines;
 import com.owndsh.enterprise.plugin.domain.PluginVersion;
 import com.owndsh.enterprise.plugin.domain.RuntimePluginAssignment;
 import org.springframework.jdbc.core.JdbcOperations;
@@ -27,10 +30,11 @@ import java.util.Optional;
 
 public final class JdbcPluginStore implements PluginStore {
     private static final String PACKAGE_COLUMNS =
-        "id, tenant_id, package_name, display_name, status, revision";
+        "id, tenant_id, package_name, display_name, status, revision, market_metadata_json";
     private static final String VERSION_COLUMNS = """
         v.id, v.tenant_id, v.package_id, p.package_name, v.version, v.status,
-        v.created_by, v.created_at, v.revision, v.installation_json
+        v.created_by, v.created_at, v.revision, v.installation_json,
+        v.source_json, v.engines_json, v.published_at
         """;
     private static final String ASSIGNMENT_COLUMNS = """
         id, tenant_id, package_id, plugin_version_id, subject_type, subject_id,
@@ -44,8 +48,8 @@ public final class JdbcPluginStore implements PluginStore {
     private static final String LIST_PACKAGES =
         "select " + PACKAGE_COLUMNS + " from ent_plugin_package where tenant_id=? and id>? order by id limit ?";
     private static final String INSERT_PACKAGE = """
-        insert into ent_plugin_package(id,tenant_id,package_name,display_name,status,revision)
-        values (?,?,?,?,?,?)
+        insert into ent_plugin_package(id,tenant_id,package_name,display_name,status,revision,market_metadata_json)
+        values (?,?,?,?,?,?,cast(? as jsonb))
         """;
     private static final String INCREMENT_PACKAGE = """
         update ent_plugin_package set revision=revision+1
@@ -65,11 +69,12 @@ public final class JdbcPluginStore implements PluginStore {
         """;
     private static final String INSERT_VERSION = """
         insert into ent_plugin_version(
-            id,tenant_id,package_id,version,status,created_by,created_at,revision,installation_json
-        ) values (?,?,?,?,?,?,?,?,cast(? as jsonb))
+            id,tenant_id,package_id,version,status,created_by,created_at,revision,installation_json,
+            source_json,engines_json,published_at
+        ) values (?,?,?,?,?,?,?,?,cast(? as jsonb),cast(? as jsonb),cast(? as jsonb),?)
         """;
     private static final String TRANSITION_VERSION = """
-        update ent_plugin_version set status=?, revision=revision+1
+        update ent_plugin_version set status=?, published_at=case when ?='PUBLISHED' then coalesce(published_at, now()) else published_at end, revision=revision+1
         where tenant_id=? and id=? and status=? and revision=?
         """;
     private static final String LIST_ASSIGNMENTS =
@@ -85,7 +90,7 @@ public final class JdbcPluginStore implements PluginStore {
         """;
     private static final String EFFECTIVE_ASSIGNMENTS = """
         with ranked as (
-            select v.id as plugin_version_id, p.package_name, v.version, v.installation_json, a.required, a.desired_state, v.status as version_status,
+            select v.id as plugin_version_id, p.package_name, v.version, v.installation_json, v.source_json, v.engines_json, a.required, a.desired_state, v.status as version_status,
                    row_number() over (
                        partition by a.package_id
                        order by case a.subject_type when 'USER' then 1 when 'DEPT' then 2 else 3 end, a.id
@@ -101,7 +106,7 @@ public final class JdbcPluginStore implements PluginStore {
                   or (a.subject_type='ALL' and a.subject_id is null)
               )
         )
-        select plugin_version_id, package_name, version, installation_json, required, desired_state
+        select plugin_version_id, package_name, version, installation_json, source_json, engines_json, required, desired_state
         from ranked where priority=1 and (version_status='PUBLISHED' or desired_state='ABSENT') order by package_name
         """;
     private static final String DELETE_INVENTORY =
@@ -158,7 +163,7 @@ public final class JdbcPluginStore implements PluginStore {
     public void insertPackage(PluginPackage value) {
         jdbc.update(
             INSERT_PACKAGE, value.id(), value.tenantId(), value.packageName(), value.displayName(),
-            value.status().name(), value.revision()
+            value.status().name(), value.revision(), json.writeValueAsString(value.marketMetadata())
         );
     }
 
@@ -195,7 +200,8 @@ public final class JdbcPluginStore implements PluginStore {
             INSERT_VERSION,
             value.id(), value.tenantId(), value.packageId(), value.version(),
             value.status().name(), value.createdBy(), at(value.createdAt()), value.revision(),
-            json.writeValueAsString(value.installation())
+            json.writeValueAsString(value.installation()), json.writeValueAsString(value.source()),
+            json.writeValueAsString(value.engines()), value.publishedAt() == null ? null : at(value.publishedAt())
         );
     }
 
@@ -208,7 +214,7 @@ public final class JdbcPluginStore implements PluginStore {
         long expectedRevision
     ) {
         return jdbc.update(
-            TRANSITION_VERSION, to.name(), tenantId, versionId, from.name(), expectedRevision
+            TRANSITION_VERSION, to.name(), to.name(), tenantId, versionId, from.name(), expectedRevision
         ) == 1;
     }
 
@@ -277,7 +283,8 @@ public final class JdbcPluginStore implements PluginStore {
                 resultSet.getString("version"),
                 resultSet.getBoolean("required"),
                 PluginAssignment.DesiredState.valueOf(resultSet.getString("desired_state")),
-                installation(resultSet.getString("installation_json"))
+                installation(resultSet.getString("installation_json")), source(resultSet.getString("source_json")),
+                engines(resultSet.getString("engines_json"))
             ),
             tenantId, userId, departmentId, departmentId
         );
@@ -306,7 +313,7 @@ public final class JdbcPluginStore implements PluginStore {
         return new PluginPackage(
             resultSet.getLong("id"), resultSet.getString("tenant_id"), resultSet.getString("package_name"),
             resultSet.getString("display_name"), PluginPackage.Status.valueOf(resultSet.getString("status")),
-            resultSet.getLong("revision")
+            resultSet.getLong("revision"), metadata(resultSet.getString("market_metadata_json"))
         );
     }
 
@@ -316,7 +323,8 @@ public final class JdbcPluginStore implements PluginStore {
             resultSet.getString("package_name"), resultSet.getString("version"),
             PluginVersion.Status.valueOf(resultSet.getString("status")), resultSet.getLong("created_by"),
             instant(resultSet, "created_at"), resultSet.getLong("revision"),
-            installation(resultSet.getString("installation_json"))
+            installation(resultSet.getString("installation_json")), source(resultSet.getString("source_json")),
+            engines(resultSet.getString("engines_json")), nullableInstant(resultSet, "published_at")
         );
     }
 
@@ -347,11 +355,28 @@ public final class JdbcPluginStore implements PluginStore {
         return json.readValue(value, PluginInstallation.class);
     }
 
+    private PluginMarketMetadata metadata(String value) {
+        return json.readValue(value, PluginMarketMetadata.class);
+    }
+
+    private PluginSource source(String value) {
+        return json.readValue(value, PluginSource.class);
+    }
+
+    private PluginEngines engines(String value) {
+        return json.readValue(value, PluginEngines.class);
+    }
+
     private static OffsetDateTime at(Instant value) {
         return OffsetDateTime.ofInstant(value, ZoneOffset.UTC);
     }
 
     private static Instant instant(ResultSet resultSet, String column) throws SQLException {
         return resultSet.getObject(column, OffsetDateTime.class).toInstant();
+    }
+
+    private static Instant nullableInstant(ResultSet resultSet, String column) throws SQLException {
+        OffsetDateTime value = resultSet.getObject(column, OffsetDateTime.class);
+        return value == null ? null : value.toInstant();
     }
 }

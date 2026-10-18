@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Harness `ctx.webServer.register()` route port、平台操作端口及组合层注入的插件动作端口
- * [OUTPUT]: 提供账号/配置按需刷新与技能目录、安装、插件操作的严格同源 JSON 路由，无常驻状态连接
+ * [OUTPUT]: 提供账号/配置按需刷新与技能目录、安装操作的严格同源 JSON 路由，无常驻状态连接
  * [POS]: platform-client 的 Host/Client 同源协作边界，只序列化脱敏 DTO 并把认证 HTTP 留在 Host Service
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -284,26 +284,6 @@ export function registerEnterpriseLocalApi(
           return
         }
         writeJson(response, 200, { data: options.platform.bootstrap() ?? null })
-      },
-    }))
-
-    disposers.push(webServer.register({
-      kind: 'exact',
-      path: `${LOCAL_API_PREFIX}/plugins`,
-      handler: (request, response) => {
-        if (request.method !== 'GET') {
-          methodNotAllowed(response, 'GET')
-          return
-        }
-        const connected = ['READY', 'REFRESHING'].includes(options.platform.status().state)
-        const plugins = connected ? options.platform.bootstrap()?.plugins : undefined
-        writeJson(response, 200, { data: {
-          assignmentRevision: plugins?.revision ?? 0,
-          catalog: (plugins?.assignments ?? []).filter(item => item.desiredState === 'INSTALLED').map(item => ({
-            pluginVersionId: item.pluginVersionId, packageName: item.packageName,
-            version: item.version, installation: item.installation,
-          })),
-        } })
       },
     }))
 

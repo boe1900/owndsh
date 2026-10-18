@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖真实 PostgreSQL 17/Flyway V36→V37 迁移、三个活动用户、设备与插件 JDBC/application 服务。
+ * [INPUT]: 依赖真实 PostgreSQL 17/Flyway 最新迁移、三个活动用户、设备与插件 JDBC/application 服务。
  * [OUTPUT]: 验证登记/并发幂等、范围优先级、发布升级、删除的租户隔离/revision/关联清理/库存保留及审计失败回滚。
  * [POS]: T13 服务端纵向验收，跨越 domain、persistence 与 application 的真实事务边界。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -69,7 +69,7 @@ class PluginServerIntegrationTest {
     @BeforeAll
     static void createDatabase() {
         database = PostgresTestDatabase.create("t13_plugin_server");
-        PostgresTestDatabase.migrate(database, "36");
+        PostgresTestDatabase.migrate(database, null);
         PostgresTestDatabase.insertActiveUser(
             database, ADMIN_USER, ADMIN_DEPT, "t13-admin", "T13 Admin"
         );
@@ -108,7 +108,7 @@ class PluginServerIntegrationTest {
         assertThat(duplicates).extracting(result -> result.version().id()).containsOnly(versionOne.id());
         assertThat(versionOne.installation().spec()).isEqualTo("@example/t13-tools@1.0.0");
         assertThatThrownBy(() -> catalog.register(mutation, "@example/t13-tools", "1.0.0",
-            new PluginInstallation("@example/other@1.0.0", "Changed", "", "", "", List.of())))
+            new PluginInstallation("@example/other@1.0.0", "Changed", "", "", "", "")))
             .isInstanceOf(IllegalArgumentException.class);
         assertThat(versionOne.status()).isEqualTo(PluginVersion.Status.VALIDATED);
         assertThat(versionOne.revision()).isEqualTo(0);
@@ -196,7 +196,7 @@ class PluginServerIntegrationTest {
             event -> { throw new IllegalStateException("forced audit rollback"); }, ids
         );
         assertThatThrownBy(() -> failingCatalog.register(mutation, "@example/t13-rollback", "1.0.0",
-            new PluginInstallation("@example/t13-rollback@1.0.0", "Rollback", "", "", "", List.of())))
+            new PluginInstallation("@example/t13-rollback@1.0.0", "Rollback", "", "", "", "")))
             .isInstanceOf(IllegalStateException.class).hasMessage("forced audit rollback");
         assertThat(jdbc.queryForObject(
             "select count(*) from ent_plugin_package where package_name='@example/t13-rollback'", Long.class
@@ -276,7 +276,7 @@ class PluginServerIntegrationTest {
             .isInstanceOf(RevisionConflictException.class);
 
         PluginVersion otherVersion = catalog.register(mutation, "@example/other", "1.0.0",
-            new PluginInstallation("@example/other@1.0.0", "Other", "", "", "", List.of())).version();
+            new PluginInstallation("@example/other@1.0.0", "Other", "", "", "", "")).version();
         assertThatThrownBy(() -> catalog.deleteVersion(mutation, packageId, otherVersion.id(), emptySourceRevision))
             .isInstanceOf(PluginResourceNotFoundException.class);
         assertThatThrownBy(() -> failingCatalog.deleteVersion(mutation, packageId, publishedOne.id(), emptySourceRevision))
@@ -375,7 +375,7 @@ class PluginServerIntegrationTest {
     }
 
     private static PluginInstallation installation(String version) {
-        return new PluginInstallation("@example/t13-tools@" + version, "Tools", "Review", "Example", "https://github.com/example/plugin", List.of("开发"));
+        return new PluginInstallation("@example/t13-tools@" + version, "Tools", "Review", "Example", "https://github.com/example/plugin", "开发");
     }
 
     private static PluginMutationContext mutationContext() {

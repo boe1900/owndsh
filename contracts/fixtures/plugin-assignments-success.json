@@ -6,6 +6,8 @@
         "pluginVersionId": "1901300000000000101",
         "packageName": "@example/acme-tools",
         "version": "1.2.3",
+        "source": {"type": "npm", "registry": "https://registry.npmjs.org"},
+        "engines": {"dsh": ">=0.2.1-rc.2"},
         "required": true,
         "desiredState": "INSTALLED",
         "installation": {
@@ -14,9 +16,7 @@
           "description": "企业插件示例",
           "author": "OwnDsh",
           "repositoryUrl": "https://github.com/example/plugin",
-          "categories": [
-            "效率工具"
-          ]
+          "category": "效率工具"
         }
       }
     ]

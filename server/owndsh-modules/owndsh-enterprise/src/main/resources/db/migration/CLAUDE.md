@@ -50,5 +50,7 @@ V40__enterprise_skill_catalog.sql: 开放 skill 草稿/发布/撤销状态和对
 V41__enterprise_skill_sources.sql: 为 skill release 持久化来源类型/地址/子路径、固定 commit 与 artifact provider/ref，支持后续 GitLab Generic Package Registry adapter。
 V42__enterprise_skill_source_archive.sql: 修正 skill artifact provider 约束，允许默认的 SOURCE_ARCHIVE 公共源码回源模式。
 V43__remove_skill_permissions.sql: 删除早期 Skill 专用权限码及角色关联；Skill 目录只受登录管理会话保护。
+V44__plugin_single_category.sql: 将插件安装配置的旧 categories 数组收敛为 DSH format 1 的单值 category，并冻结 JSONB 类型约束。
+V45__plugin_market_format_1.sql: 将包级 DSH market metadata、版本 source/engines/published_at 从旧安装 JSON 中前向拆出，保留历史安装事实供 runtime 兼容。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

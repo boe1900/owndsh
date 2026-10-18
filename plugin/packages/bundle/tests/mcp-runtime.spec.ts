@@ -22,9 +22,16 @@ const tool = (name: string, description = name): ToolDefinition => defineTool({
   execute: vi.fn(async () => 'done'),
 })
 
-async function host(mode: 'native' | 'ptc' | 'both' = 'native', language = 'typescript', runtimePresent = mode !== 'native') {
+async function host(mode: 'native' | 'ptc' = 'native', language = 'typescript', runtimePresent = mode !== 'native') {
   const ctx = new Context()
   disposals.push(() => ctx.fiber.dispose())
+  first.ctx = ctx
+  second.ctx = ctx
+  ctx.provide('workingDirectory', {
+    defaultDirectory: process.cwd(),
+    get: (session: any) => session.header?.cwd ?? process.cwd(),
+    ensure: async (agent: any) => agent.session.header?.cwd ?? process.cwd(),
+  })
   await ctx.plugin(SystemPrompt)
   if (runtimePresent) await ctx.plugin(class extends PtcRuntime {
     language = language
@@ -66,8 +73,8 @@ describe('MCP exposure and discovery', () => {
     expect((await call(ctx, 'mcp__docs__read_report')).isError).toBe(false)
   })
 
-  it('keeps selection isolated per Agent and removes hidden tools from both surfaces', async () => {
-    const ctx = await host('both')
+  it('keeps selection isolated per Agent and removes hidden tools from the native surface', async () => {
+    const ctx = await host('native')
     const surface = mountMcpTools(ctx, { fresh: () => true, refresh: async () => {} })
     disposals.push(() => surface.dispose())
     const direct = surface.begin('direct', 'Direct', { exposure: 'direct' })
@@ -76,7 +83,7 @@ describe('MCP exposure and discovery', () => {
     for (const name of ['mcp__direct__read', 'mcp__hidden__read', 'mcp__deferred__read']) ctx.tools.register(tool(name))
     surface.ready(direct); surface.ready(hidden); surface.ready(deferred)
     const cold = await ctx.systemPrompt.assemble({ scope: first, agent: first })
-    expect(cold.tools.map(value => value.name)).toEqual(expect.arrayContaining(['mcp__direct__read', 'tool_search', 'run_code']))
+    expect(cold.tools.map(value => value.name)).toEqual(expect.arrayContaining(['mcp__direct__read', 'tool_search']))
     expect(cold.tools.map(value => value.name)).not.toContain('mcp__hidden__read')
     expect(cold.tools.map(value => value.name)).not.toContain('mcp__deferred__read')
     await call(ctx, 'tool_search', { query: 'deferred read' }, first)
@@ -142,27 +149,25 @@ describe('MCP exposure and discovery', () => {
     })
   })
 
-  it('keeps deferred bindings callable by name before discovery in ptc and both modes', async () => {
-    for (const mode of ['ptc', 'both'] as const) {
-      const ctx = await host(mode)
-      const surface = mountMcpTools(ctx, { fresh: () => true, refresh: async () => {} })
-      disposals.push(() => surface.dispose())
-      const connection = surface.begin('docs', 'Docs', { exposure: 'deferred' })
-      ctx.tools.register(tool('mcp__docs__read_report', 'Read a financial report'))
-      surface.ready(connection)
-      const cold = await ctx.systemPrompt.assemble({ scope: first, agent: first })
-      expect(cold.tools.map(value => value.name)).not.toContain('mcp__docs__read_report')
-      expect((await call(ctx, 'mcp__docs__read_report', {}, first, true)).isError).toBe(false)
-      expect((await call(ctx, 'tool_search', { query: 'financial report' }, first, true)).isError).toBe(false)
-      const hot = await ctx.systemPrompt.assemble({ scope: first, agent: first })
-      expect(hot.sections.find(section => section.name === 'tools:sdk')?.text).toContain('mcp__docs__read_report')
-      expect((await call(ctx, 'mcp__docs__read_report', {}, first, true)).isError).toBe(false)
-      if (mode === 'both') expect(hot.tools.map(value => value.name)).toContain('mcp__docs__read_report')
-    }
+  it('keeps deferred bindings callable by name before discovery in ptc mode', async () => {
+    const ctx = await host('ptc')
+    const surface = mountMcpTools(ctx, { fresh: () => true, refresh: async () => {} })
+    disposals.push(() => surface.dispose())
+    const connection = surface.begin('docs', 'Docs', { exposure: 'deferred' })
+    ctx.tools.register(tool('mcp__docs__read_report', 'Read a financial report'))
+    surface.ready(connection)
+    const cold = await ctx.systemPrompt.assemble({ scope: first, agent: first })
+    expect(cold.tools.map(value => value.name)).not.toContain('mcp__docs__read_report')
+    expect((await call(ctx, 'mcp__docs__read_report', {}, first, true)).isError).toBe(false)
+    expect((await call(ctx, 'tool_search', { query: 'financial report' }, first, true)).isError).toBe(false)
+    const hot = await ctx.systemPrompt.assemble({ scope: first, agent: first })
+    expect(hot.sections.find(section => section.name === 'tools:sdk')?.text).toContain('mcp__docs__read_report')
+    expect((await call(ctx, 'mcp__docs__read_report', {}, first, true)).isError).toBe(false)
+    expect(hot.tools.map(value => value.name)).not.toContain('mcp__docs__read_report')
   })
 
-  it('keeps codemode native calls denied after discovery in both mode', async () => {
-    const ctx = await host('both')
+  it('keeps codemode native calls denied after discovery in ptc mode', async () => {
+    const ctx = await host('ptc')
     const surface = mountMcpTools(ctx, { fresh: () => true, refresh: async () => {} })
     disposals.push(() => surface.dispose())
     const connection = surface.begin('docs', 'Docs', { exposure: 'codemode' })
@@ -170,7 +175,7 @@ describe('MCP exposure and discovery', () => {
     surface.ready(connection)
     await ctx.systemPrompt.assemble({ scope: first, agent: first })
     expect((await call(ctx, 'mcp__docs__create_issue', {}, first, true)).isError).toBe(false)
-    await call(ctx, 'tool_search', { query: 'create issue' })
+    await call(ctx, 'tool_search', { query: 'create issue' }, first, true)
     const hot = await ctx.systemPrompt.assemble({ scope: first, agent: first })
     expect(hot.tools.map(value => value.name)).not.toContain('mcp__docs__create_issue')
     expect(hot.sections.find(section => section.name === 'tools:sdk')?.text).toContain('mcp__docs__create_issue')
@@ -192,7 +197,7 @@ describe('MCP exposure and discovery', () => {
   })
 
   it('rejects arbitrary parent tokens as a PTC bypass', async () => {
-    const ctx = await host('both')
+    const ctx = await host('ptc')
     const surface = mountMcpTools(ctx, { fresh: () => true, refresh: async () => {} })
     disposals.push(() => surface.dispose())
     const connection = surface.begin('docs', 'Docs', { exposure: 'codemode' })
@@ -211,8 +216,8 @@ describe('MCP exposure and discovery', () => {
   })
 
   it.each([
-    ['native', 'typescript'], ['ptc', 'typescript'], ['both', 'typescript'],
-    ['ptc', 'python'], ['both', 'python'],
+    ['native', 'typescript'], ['ptc', 'typescript'],
+    ['ptc', 'python'],
   ] as const)('projects all four exposures in %s/%s', async (mode, language) => {
     const ctx = await host(mode, language)
     const surface = mountMcpTools(ctx, { fresh: () => true, refresh: async () => {} })

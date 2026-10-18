@@ -13,12 +13,107 @@ import { fileURLToPath } from 'node:url'
 import * as React from 'react'
 import * as ReactJsxRuntime from 'react/jsx-runtime'
 import { describe, expect, it, vi } from 'vitest'
-import { Config, inject } from '../src/index.js'
+import {
+  Config,
+  inject,
+  ownDshMarketIndexUrls,
+  ownDshMarketProxyUrl,
+  registerOwnDshMarketProxy,
+  syncPluginMarketIndex,
+} from '../src/index.js'
 import * as BuiltModule from '../lib/index.js'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
 describe('enterprise bundle', () => {
+  it('keeps user indexes while replacing the OwnDsh source', () => {
+    const current = 'https://new.example.com/enterprise/plugin-market/index.json'
+    expect(ownDshMarketIndexUrls([
+      'https://community.example/index.json',
+      'https://old.example/enterprise/plugin-market/index.json',
+      'https://community.example/index.json',
+    ], current)).toEqual([
+      'https://community.example/index.json', current,
+    ])
+    expect(ownDshMarketIndexUrls([
+      'https://community.example/index.json',
+      'https://old.example/enterprise/plugin-market/index.json',
+    ], undefined)).toEqual(['https://community.example/index.json'])
+  })
+
+  it('writes the OwnDsh index through the official market service once connected', async () => {
+    const setIndexes = vi.fn(async () => {})
+    await syncPluginMarketIndex(
+      { status: () => ({ state: 'READY', platformUrl: 'http://192.168.5.111:18080', bundleVersion: 'test', transport: 'webServer.register' }) } as any,
+      { listIndexes: () => [], setIndexes } as any,
+      { warn: vi.fn() } as any,
+      'http://127.0.0.1:43123/enterprise/plugin-market/index.json',
+    )
+    expect(setIndexes).toHaveBeenCalledWith(['http://127.0.0.1:43123/enterprise/plugin-market/index.json'])
+  })
+
+  it('waits for a logged-in platform before writing the index', async () => {
+    const setIndexes = vi.fn(async () => {})
+    await syncPluginMarketIndex(
+      { status: () => ({ state: 'SIGNED_OUT', platformUrl: 'http://192.168.5.111:18080', bundleVersion: 'test', transport: 'webServer.register' }) } as any,
+      { listIndexes: () => [], setIndexes } as any,
+      { warn: vi.fn() } as any,
+      'http://127.0.0.1:43123/enterprise/plugin-market/index.json',
+    )
+    expect(setIndexes).not.toHaveBeenCalled()
+  })
+
+  it('removes the OwnDsh index on logout while preserving user indexes', async () => {
+    const setIndexes = vi.fn(async () => {})
+    await syncPluginMarketIndex(
+      { status: () => ({ state: 'SIGNED_OUT', platformUrl: 'http://192.168.5.111:18080', bundleVersion: 'test', transport: 'webServer.register' }) } as any,
+      { listIndexes: () => [
+        { url: 'https://community.example/index.json' },
+        { url: 'http://192.168.5.111:18080/enterprise/plugin-market/index.json' },
+      ], setIndexes } as any,
+      { warn: vi.fn() } as any,
+      'http://127.0.0.1:43123/enterprise/plugin-market/index.json',
+    )
+    expect(setIndexes).toHaveBeenCalledWith(['https://community.example/index.json'])
+  })
+
+  it('keeps the market proxy loopback-only and forwards through the platform service', async () => {
+    const routes: { handler: (request: any, response: any) => Promise<void> }[] = []
+    const register = vi.fn((route: { handler: (request: any, response: any) => Promise<void> }) => {
+      routes.push(route)
+      return () => undefined
+    })
+    const platform = {
+      request: vi.fn(async () => new Response('{"format":1}', { headers: { 'content-type': 'application/json' } })),
+    }
+    const webServer = { host: '127.0.0.1', port: 43123, register } as any
+    registerOwnDshMarketProxy(webServer, platform as any)
+    expect(ownDshMarketProxyUrl(webServer)).toBe('http://127.0.0.1:43123/enterprise/plugin-market/index.json')
+
+    const response = {
+      writeHead: vi.fn(function (this: any) { return this }),
+      end: vi.fn(function (this: any) { return this }),
+    }
+    await routes[0]!.handler(
+      { method: 'GET', socket: { remoteAddress: '192.168.5.20' } }, response,
+    )
+    expect(platform.request).not.toHaveBeenCalled()
+    expect(response.writeHead).toHaveBeenCalledWith(403, { 'cache-control': 'no-store' })
+
+    response.writeHead.mockClear()
+    response.end.mockClear()
+    await routes[0]!.handler(
+      { method: 'GET', socket: { remoteAddress: '127.0.0.1' } }, response,
+    )
+    expect(platform.request).toHaveBeenCalledWith('/enterprise/plugin-market/index.json', {
+      headers: { accept: 'application/json' },
+    })
+    expect(response.writeHead).toHaveBeenCalledWith(200, expect.objectContaining({
+      'content-type': 'application/json',
+    }))
+    expect(response.end).toHaveBeenCalledWith(Buffer.from('{"format":1}'))
+  })
+
   it('declares the official bundle and Client module manifests', async () => {
     const manifest = JSON.parse(await readFile(resolve(ROOT, 'package.json'), 'utf8')) as Record<string, any>
     expect(manifest.dsh.bundle.patch).toBe('./cordis.patch.yml')
@@ -29,19 +124,19 @@ describe('enterprise bundle', () => {
       '@deepseek-ai/dsh-client-ui-settings-general',
     ])
     expect(manifest.dependencies).toBeUndefined()
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-llm']).toBe('^0.2.0-rc.1')
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-credentials']).toBe('^0.2.0-rc.1')
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-llm-pi-ai']).toBe('^0.2.0-rc.1')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-llm']).toBe('^0.2.1-rc.2')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-credentials']).toBe('^0.2.1-rc.2')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-llm-pi-ai']).toBe('^0.2.1-rc.2')
     expect(manifest.peerDependencies['@deepseek-ai/dsh-session']).toBeUndefined()
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-subprocess']).toBe('^0.2.0-rc.1')
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-host-plugin-inventory']).toBe('^0.2.0-rc.1')
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-plugin-manager']).toBe('^0.2.0-rc.1')
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-mcp-client']).toBe('^0.2.0-rc.1')
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-tools']).toBe('^0.2.0-rc.1')
-    expect(manifest.peerDependencies['@deepseek-ai/schemastery']).toBe('^3.18.4')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-subprocess']).toBe('^0.2.1-rc.2')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-host-plugin-inventory']).toBe('^0.2.1-rc.2')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-plugin-manager']).toBe('^0.2.1-rc.2')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-mcp-client']).toBe('^0.2.1-rc.2')
+    expect(manifest.peerDependencies['@deepseek-ai/dsh-tools']).toBe('^0.2.1-rc.2')
+    expect(manifest.peerDependencies['@deepseek-ai/schemastery']).toBe('^3.18.5')
     expect(manifest.peerDependencies.yaml).toBe('^2.9.1')
     expect(inject).toEqual([
-      'webServer', 'credentials', 'settings', 'llm', 'pluginInventory', 'pluginManager', 'tools',
+      'webServer', 'credentials', 'settings', 'llm', 'pluginInventory', 'pluginManager', 'pluginMarket', 'tools',
     ])
     expect(Config({
       baseUrl: 'https://enterprise.example.com',
@@ -53,6 +148,8 @@ describe('enterprise bundle', () => {
     expect((defaultConfig.baseUrl as unknown as { get(): string }).get()).toBe('')
     const patch = await readFile(resolve(ROOT, 'cordis.patch.yml'), 'utf8')
     expect(patch).toContain("name: 'owndsh-plugin'")
+    expect(patch).toMatch(/^- id: agent-default-model\n  config:\n    provider: enterprise\n    model: enterprise\/default/m)
+    expect(patch).not.toContain("- insert:\n    - id: agent-default-model")
     expect(patch).toMatch(/id: agent-default-model[\s\S]*provider: enterprise[\s\S]*model: enterprise\/default/)
     for (const id of ['llm-deepseek', 'llm-deepseek-account', 'llm-pi-ai', 'ui-settings-models']) {
       expect(patch).toMatch(new RegExp(`id: ${id}\\n  disabled: true`))
@@ -60,6 +157,10 @@ describe('enterprise bundle', () => {
     expect(patch).not.toContain('id: mcp-resources')
     expect(patch).not.toContain('id: ui-plugin-manager')
     expect(patch).not.toContain('deepseek-harness')
+    expect(patch).toContain('id: owndsh-plugin-market')
+    expect(patch).toContain('id: owndsh-ui-plugin-market')
+    expect(patch).toContain("ctx.loader.entries().some(entry => entry.options.name === '@deepseek-ai/dsh-plugin-market' && entry.options.id !== 'owndsh-plugin-market')")
+    expect(patch).toContain("ctx.loader.entries().some(entry => entry.options.name === '@deepseek-ai/dsh-client-ui-plugin-market' && entry.options.id !== 'owndsh-ui-plugin-market')")
     const source = await readFile(resolve(ROOT, 'src/index.ts'), 'utf8')
     expect(source).toContain('const HARNESS_VERSION = APP_IDENTITY.version')
     expect(source).toContain("createRequire(import.meta.url)('../package.json')")

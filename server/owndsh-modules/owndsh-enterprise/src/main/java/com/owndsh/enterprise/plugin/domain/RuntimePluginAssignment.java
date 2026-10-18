@@ -10,11 +10,23 @@ import java.util.Objects;
 
 public record RuntimePluginAssignment(
     long pluginVersionId, String packageName, String version, boolean required,
-    PluginAssignment.DesiredState desiredState, PluginInstallation installation
+    PluginAssignment.DesiredState desiredState, PluginInstallation installation,
+    PluginSource source, PluginEngines engines
 ) {
     public RuntimePluginAssignment {
         if (pluginVersionId <= 0) throw new IllegalArgumentException("版本 ID 必须为正数");
-        Objects.requireNonNull(installation, "installation").validateTarget(packageName, version);
+        source = Objects.requireNonNull(source, "source");
+        Objects.requireNonNull(installation, "installation").validateTarget(packageName, version, source);
         Objects.requireNonNull(desiredState, "desiredState");
+        Objects.requireNonNull(source, "source");
+        engines = Objects.requireNonNullElseGet(engines, () -> new PluginEngines(""));
+    }
+
+    public RuntimePluginAssignment(
+        long pluginVersionId, String packageName, String version, boolean required,
+        PluginAssignment.DesiredState desiredState, PluginInstallation installation
+    ) {
+        this(pluginVersionId, packageName, version, required, desiredState, installation,
+            PluginSource.npm(""), new PluginEngines(""));
     }
 }

@@ -9,7 +9,7 @@ PluginAuditMetadata.java: 登记/发布/删除/分配/库存审计 action 的非
 PluginResourceNotFoundException.java: 插件 package/version 不存在的稳定领域异常。
 PluginAccessException.java: 目录与库存接口拒绝失效身份的稳定异常。
 EffectivePluginResolver.java: bootstrap 与安装前目录复查共用 USER→DEPT→ALL 生效优先级。
-PluginCatalogService.java: 同包事务锁下按版本幂等登记、发布/退休和范围 replace；发布升级同时校验版本与包 revision，仅迁移指定已发布旧版的有效可安装范围，版本/范围/revision/双审计同事务提交或回滚；包/版本删除校验包 revision，清理范围和空包，保留设备库存，删除/bootstrap/审计同事务。
+PluginCatalogService.java: 同包事务锁下按版本幂等登记、发布/退休和范围 replace；发布升级同时校验版本与包 revision，仅迁移指定已发布旧版的有效可安装范围，版本/范围/revision/双审计同事务提交或回滚；包/版本删除校验包 revision，清理范围和空包，保留设备库存，删除/bootstrap/审计同事务，并向标准市场投影提供内部分页聚合。
 PluginRuntimeService.java: ACTIVE 设备授权目录与库存替换；服务端不下载或持有插件包。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

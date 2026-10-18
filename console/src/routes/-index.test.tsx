@@ -516,12 +516,12 @@ function mockApi(role: AuthBuiltInRole, logoutStatus = 200, permissions: string[
             versions: [{
               id: 'version-1', packageId: 'plugin-1', packageName: '@owndsh/audit-tools',
               version: '1.1.0', installation: { spec: '@owndsh/audit-tools@1.1.0', displayName: 'Audit Tools',
-                description: 'Audit', author: 'Example', repositoryUrl: 'https://github.com/example/audit', categories: ['开发'] },
+                description: 'Audit', author: 'Example', repositoryUrl: 'https://github.com/example/audit', category: '开发' },
               status: 'PUBLISHED', createdAt: '2026-08-31T05:00:00Z', revision: 4
             }, {
               id: 'version-2', packageId: 'plugin-1', packageName: '@owndsh/audit-tools',
               version: '1.2.0', installation: { spec: '@owndsh/audit-tools@1.2.0', displayName: 'Audit Tools',
-                description: 'Audit', author: 'Example', repositoryUrl: 'https://github.com/example/audit', categories: ['开发'] },
+                description: 'Audit', author: 'Example', repositoryUrl: 'https://github.com/example/audit', category: '开发' },
               status: 'VALIDATED', createdAt: '2026-09-01T05:00:00Z', revision: 3
             }],
             assignments: [{
@@ -552,7 +552,7 @@ function mockApi(role: AuthBuiltInRole, logoutStatus = 200, permissions: string[
         data: {
           id: 'version-2', packageId: 'plugin-1', packageName: '@owndsh/audit-tools',
           version: '1.2.0', installation: { spec: '@owndsh/audit-tools@1.2.0', displayName: 'Audit Tools',
-                description: 'Audit', author: 'Example', repositoryUrl: 'https://github.com/example/audit', categories: ['开发'] },
+                description: 'Audit', author: 'Example', repositoryUrl: 'https://github.com/example/audit', category: '开发' },
           status: 'PUBLISHED', createdAt: '2026-09-01T05:00:00Z', revision: 4
         },
         requestId: 'req_plugin_published'
@@ -1101,16 +1101,14 @@ describe('product console access', () => {
     expect(dialog.querySelector('input[type=file]')).toBeNull();
     fireEvent.change(within(dialog).getByLabelText('包名'), { target: { value: '@company/review' } });
     fireEvent.change(within(dialog).getByLabelText('版本'), { target: { value: '1.0.0' } });
-    const categories = within(dialog).getByRole('combobox', { name: '分类' });
-    for (const [category, option] of [['开发', '开发'], ['效率', '创建分类「效率」']]) {
-      fireEvent.input(categories, { inputType: 'insertText', target: { value: category } });
-      fireEvent.click(await screen.findByRole('option', { name: option }));
-    }
+    const category = within(dialog).getByRole('combobox', { name: '分类' });
+    fireEvent.input(category, { inputType: 'insertText', target: { value: '效率' } });
+    fireEvent.click(await screen.findByRole('option', { name: '创建分类「效率」' }));
     fireEvent.click(within(dialog).getByRole('button', { name: '保存版本' }));
     await waitFor(() => expect(writes).toHaveLength(1));
     expect(writes[0]).toMatchObject({ method: 'POST', pathname: '/enterprise/admin/v1/plugins/versions', body: {
       packageName: '@company/review', version: '1.0.0', installation: {
-        spec: '@company/review@1.0.0', displayName: '@company/review', categories: ['开发', '效率'], repositoryUrl: ''
+        spec: '@company/review@1.0.0', displayName: '@company/review', category: '效率', repositoryUrl: ''
       }
     } });
   });

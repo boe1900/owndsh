@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖事务、PluginStore、revision、审计与 ID。
- * [OUTPUT]: 提供幂等配置登记、发布/退休、范围迁移及替换、包/版本删除；删除以包 revision 保护完整聚合并保留设备库存。
+ * [OUTPUT]: 提供幂等配置登记、公开市场投影、发布/退休、范围迁移及替换、包/版本删除；删除以包 revision 保护完整聚合并保留设备库存。
  * [POS]: plugin/application 的管理状态编排，版本不可变，发布与可见范围共用 revision/审计事务。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -15,6 +15,9 @@ import com.owndsh.enterprise.plugin.domain.DevicePluginInventory;
 import com.owndsh.enterprise.plugin.domain.PluginAssignment;
 import com.owndsh.enterprise.plugin.domain.PluginPackage;
 import com.owndsh.enterprise.plugin.domain.PluginInstallation;
+import com.owndsh.enterprise.plugin.domain.PluginMarketMetadata;
+import com.owndsh.enterprise.plugin.domain.PluginSource;
+import com.owndsh.enterprise.plugin.domain.PluginEngines;
 import com.owndsh.enterprise.plugin.domain.PluginVersion;
 import com.owndsh.enterprise.plugin.persistence.PluginStore;
 import com.owndsh.enterprise.revision.BootstrapRevisionStore;
@@ -25,6 +28,7 @@ import org.springframework.transaction.support.TransactionOperations;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.HashSet;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -77,23 +81,56 @@ public final class PluginCatalogService {
             .toList();
     }
 
+    /** Public market projection source; pagination stays inside the application boundary. */
+    public List<CatalogItem> listForMarket(String tenantId) {
+        List<CatalogItem> result = new ArrayList<>();
+        long afterId = 0;
+        for (;;) {
+            List<CatalogItem> page = list(tenantId, afterId, 200);
+            result.addAll(page);
+            if (page.size() < 200) return List.copyOf(result);
+            afterId = page.getLast().pluginPackage().id();
+        }
+    }
+
     public RegistrationResult register(PluginMutationContext context, String packageName, String version,
         PluginInstallation installation) {
         Objects.requireNonNull(installation, "installation").validateTarget(packageName, version);
+        return registerInternal(context, packageName, version, installation,
+            PluginMarketMetadata.from(installation), PluginSource.npm(""), new PluginEngines(""));
+    }
+
+    public RegistrationResult register(PluginMutationContext context, String packageName, String version,
+        PluginMarketMetadata metadata, PluginSource source, PluginEngines engines) {
+        Objects.requireNonNull(metadata, "metadata");
+        Objects.requireNonNull(source, "source");
+        Objects.requireNonNull(engines, "engines");
+        PluginInstallation installation = new PluginInstallation(
+            source.spec(packageName, version), metadata.title(), metadata.description(), metadata.author(),
+            metadata.repositoryUrl(), metadata.category()
+        );
+        return registerInternal(context, packageName, version, installation, metadata, source, engines);
+    }
+
+    private RegistrationResult registerInternal(PluginMutationContext context, String packageName, String version,
+        PluginInstallation installation, PluginMarketMetadata metadata, PluginSource source, PluginEngines engines) {
+        installation.validateTarget(packageName, version, source);
         try {
             return requireResult(transactions.execute(status -> {
                 PluginPackage pluginPackage = plugins.findPackageByNameForUpdate(context.tenantId(), packageName).orElse(null);
                 PluginVersion existing = plugins.findExistingVersion(context.tenantId(), packageName, version).orElse(null);
-                if (existing != null) return registeredVersion(existing, installation);
+                if (existing != null) return registeredVersion(existing, installation, source, engines);
                 boolean createdPackage = pluginPackage == null;
                 if (createdPackage) {
                     pluginPackage = new PluginPackage(positiveId(), context.tenantId(), packageName,
-                        installation.displayName(), PluginPackage.Status.ACTIVE, 0);
+                        metadata.title().isEmpty() ? packageName : metadata.title(), PluginPackage.Status.ACTIVE, 0, metadata);
                     plugins.insertPackage(pluginPackage);
+                } else if (!pluginPackage.marketMetadata().equals(metadata)) {
+                    throw new IllegalArgumentException("同一插件的市场元数据必须保持一致");
                 }
                 PluginVersion configured = new PluginVersion(positiveId(), context.tenantId(), pluginPackage.id(),
                     packageName, version, PluginVersion.Status.VALIDATED,
-                    context.actorId(), Instant.now(clock), 0, installation);
+                    context.actorId(), Instant.now(clock), 0, installation, source, engines, null);
                 plugins.insertVersion(configured);
                 if (!createdPackage && !plugins.incrementPackageRevision(context.tenantId(), pluginPackage.id(), pluginPackage.revision())) {
                     throw packageConflict(context.tenantId(), pluginPackage.id(), pluginPackage.revision());
@@ -105,13 +142,16 @@ public final class PluginCatalogService {
             }));
         } catch (DataIntegrityViolationException exception) {
             PluginVersion existing = plugins.findExistingVersion(context.tenantId(), packageName, version).orElse(null);
-            if (existing != null) return registeredVersion(existing, installation);
+            if (existing != null) return registeredVersion(existing, installation, source, engines);
             throw exception;
         }
     }
 
-    private static RegistrationResult registeredVersion(PluginVersion existing, PluginInstallation installation) {
-        if (!installation.equals(existing.installation())) throw new IllegalArgumentException("此版本已登记其他配置，请使用新版本号");
+    private static RegistrationResult registeredVersion(PluginVersion existing, PluginInstallation installation,
+        PluginSource source, PluginEngines engines) {
+        if (!installation.equals(existing.installation()) || !source.equals(existing.source()) || !engines.equals(existing.engines())) {
+            throw new IllegalArgumentException("此版本已登记其他配置，请使用新版本号");
+        }
         return new RegistrationResult(existing, false);
     }
 

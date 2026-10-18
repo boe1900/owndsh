@@ -7,9 +7,9 @@
 
 # OwnDsh 企业 Agent 治理平台 MVP 可执行详细设计
 
-设计日期：2026-08-17
+设计日期：2026-08-17；当前插件适配基线：DSH `0.2.1-rc.2`（`687f282e8625c6b8d11ff58211a90524be2e4317`）
 
-文档状态：实施基线；插件市场已于 2026-09-17 改为安装配置模式，早期 T13/T14/T15 上传与签名验收记录只保留为历史证据。
+文档状态：实施基线；插件市场已于 2026-10-17 对齐 DSH `0.2.1-rc.2` 标准 plugin market index，早期 T13/T14/T15 上传、签名和自有员工目录验收记录只保留为历史证据。
 
 ## 1. 文档定位
 
@@ -134,7 +134,7 @@ T07 最初在 rc.7 验证 `settings.section` 与 `sidebar.footer.action`，迁�
 | 平台登录、Sa-Token 内存会话、设备注册、bootstrap 和统一 HTTP client | `@owndsh/platform-client` |
 | 企业模型 profile、本机认证代理和官方模型插件挂载 | `@owndsh/llm-gateway` + `@deepseek-ai/dsh-llm-pi-ai` |
 | Session Event 队列、游标、上传、远端列表和恢复副本 | `@owndsh/session-sync` |
-| 受管插件期望状态、制品验证、CLI 安装和清单上报 | `@owndsh/plugin-distribution` |
+| 插件登记、发布、可见范围、标准市场索引和清单上报 | `PluginCatalogService` + 官方 `pluginMarket`/`pluginManager` |
 | Host/Client DTO、错误码和生成客户端 | `@owndsh/contracts` |
 | Server 配置、登录门禁、账号和插件 UI | `@owndsh/ui` |
 | 企业 profile patch 层 | `owndsh-plugin` |
@@ -204,8 +204,6 @@ agent-platform-workspace/
         contracts/
         platform-client/
         llm-gateway/
-        session-sync/
-        plugin-distribution/
         ui/
         bundle/
     contracts/
@@ -473,7 +471,7 @@ Token 交换把 installation ID 写进 Sa-Token login device。后续 API 从 Sa
             "description": "检查代码并整理审查建议",
             "author": "Example",
             "repositoryUrl": "https://github.com/example/dsh-code-review",
-            "categories": ["开发工具"]
+            "category": "开发工具"
           },
           "required": false,
           "desiredState": "INSTALLED"
@@ -601,23 +599,21 @@ RELEASED   CHARGED_MAX
 
 ### 11.1 安装配置
 
-管理员登记包名、精确版本和安装目标，不上传插件。目标支持 `包名@版本`、`github:owner/repo#完整40位commit`（可追加 `&path:/子目录`）或 HTTP(S) `.tgz` URL。显示名称、简介、作者、分类和源码仓库独立配置，卡片无图标；源码仓库一般填写 GitHub URL。
+管理员登记 npm 包名、精确版本和展示元数据，不上传插件。安装目标固定为 `包名@版本`，服务端以 DSH plugin market format 1 输出 npm source、展示信息和 `engines.dsh`；插件包的 peerDependencies 由官方 Host 校验。
 
-正常 `dependencies`、peer 和构建脚本由宿主 pnpm 解析，OwnDsh 不要求零依赖、不强制精确 Harness commit、不附加 `--ignore-scripts`。企业私有 npm/Git 源使用宿主已有认证配置，平台不托管包内容或凭据。
+普通 dependencies、peer 和构建脚本由宿主 pnpm 解析，OwnDsh 不托管包内容、registry 凭据或第二套安装命令。企业私有 registry 复用宿主已有配置。
 
 ### 11.2 发布和可见范围
 
-版本 `VALIDATED -> PUBLISHED -> RETIRED`。同包名/版本/配置幂等，不允许就地更改已登记版本。登记使用同包事务锁，发布与范围替换保留 revision CAS 与同事务审计。
+版本 `VALIDATED -> PUBLISHED -> RETIRED`。同包名/版本/配置幂等，不允许就地更改已登记版本。登记使用同包事务锁，发布与范围替换保留 revision CAS 与同事务审计。受 DSH Desktop Bearer 保护的索引只投影 ACTIVE package/PUBLISHED version，不包含 assignment、inventory、Token 或权限字段。
 
-控制台配置 ALL/USER 可见范围；底层按 USER、DEPT、ALL 裁决。INSTALLED 表示允许用户选择安装，ABSENT 表示撤回已有受管安装。删除范围或退休停止新安装，不自动移除用户当前版本。目录返回完整 assignment 集合以供原子替换。
+控制台仍配置 ALL/USER 等运行授权；底层按 USER、DEPT、ALL 裁决，assignment 和 inventory 继续由 Server/runtime 管理。索引本身只负责发现，官方 Host 负责兼容检查、安装、更新、启停、卸载和重启。
 
 ### 11.3 员工安装
 
-插件 tab 提供分类、搜索、无图标卡片与固定版本详情确认。只有确认操作调用安装，刷新、发布和重启均不自动升级。Host 重新读取有效授权且绑定所选版本 ID，再委托官方 `dsh plugin --profile <profile> add --save-exact <target>` 或 Desktop `runPlugin()`。Git/URL/路径绑定指定依赖键；安装后核对实际包名、版本和 DSH bundle 文件，错误结果保持 FAILED。
+员工在官方 `Plugins → Discover` 页面搜索标准索引并选择精确版本。只有官方页面确认后才调用 `pluginManager`；它负责安装、更新、启停、卸载、兼容门禁、进度和重启状态。本地安装事实只由官方 Host 持有，OwnDsh 通过 inventory 观察运行结果，不再维护第二套员工插件目录或安装状态机。
 
-安装成功进入 RESTART_REQUIRED；下一进程读取 Loader active 才标记 ACTIVE。Desktop 提供立即/稍后重启，其余宿主提示手动重启。卸载复用官方 remove，版本切换复用相同安装流程。
-
-状态存放 `$DSH_HOME/enterprise/plugin-installations.json`，库存只报受管安装事实，不上传文件路径或命令输出。V34 清空旧上传目录/范围/库存并删除制品列，旧上传/下载/验签代码全部退役；需同步更新客户端并重新登记，历史审计保持只追加。
+OwnDsh bundle 在登录后通过 loopback 代理以内存 Bearer 读取 `/enterprise/plugin-market/index.json`，并自动把代理 URL 写入官方 `pluginMarket.indexes`；Server 切换或退出时清理 OwnDsh source，并保留用户配置的其他 index。Access Token 不进入 settings 中的市场 URL。
 
 ## 12. Session Event 同步与恢复
 
@@ -864,15 +860,15 @@ T01 必须在产品仓库的独立 `plugin` workspace 构建预编译 bundle，�
 
 同一 session 只有一个上传 worker。新事件到达 syncing 状态时只设置 dirty，当前批次完成后重新读取。对 `ENT_SESSION_SEQ_GAP`、`ENT_SESSION_DIVERGED`、`ENT_SESSION_SOURCE_DEVICE_CONFLICT`、`ENT_SESSION_FORMAT_UNSUPPORTED` 和 `ENT_SESSION_CONTENT_EXPIRED` 进入人工可见终态，不无限重试；认证、网络和 5xx 才退避重试。
 
-### 16.5 `@owndsh/plugin-distribution`
+### 16.5 插件目录与官方市场组合
 
-该包依赖 `enterprisePlatform`、`subprocess` 和现有 plugin inventory Host 服务。它只处理中心分配的 package，不能扫描并上传非受管插件名称以外的路径、配置或源码。
+Server `PluginCatalogService` 负责登记、发布、退休、assignment 和 inventory；`PluginMarketController` 在 DSH Desktop Bearer 会话后只输出 DSH format 1 索引。bundle 只同步官方 `pluginMarket` 的索引源，并把安装/更新/启停/卸载交给 DSH `pluginManager`，不复制 pnpm 或 CLI 状态机。
 
 ### 16.6 `@owndsh/ui` 与 `owndsh-plugin`
 
 Client 包通过 `settings.section` 注册一个 `enterprise` 设置页，通过 `sidebar.footer.action` 注册连接状态图标，并通过 `shell.overlay` 在 `UNCONFIGURED`、未登录、登录失败、登录过期或设备撤销时全屏阻断宿主。初装只要求 Server origin，登录成功后 overlay 返回 `null` 并恢复官方 UI。组件数据全部来自插件自有同源本地 API 的脱敏调用，不把 Host `ctx` 传入 React。
 
-`plugin/packages/bundle/cordis.patch.yml` 插入 platform client、官方 LLM profile bridge、plugin distribution 和 UI Client row；覆盖默认模型，禁用 base profile 的个人 provider、个人模型设置页与官方通用插件管理页，避免员工绕过企业插件 assignment 直接安装、卸载或启停 profile 插件；V1 不启动 Session 同步。官方 Host 的 plugin manager/CLI 能力仍保留，供 `plugin-distribution` 执行服务端授权后的精确安装与卸载。Server 地址保存在 `$DSH_HOME/settings.yaml` 的 `owndsh.serverUrl`；bundle `baseUrl` 只作可选安装默认值。私有包认证和依赖构建策略由宿主 pnpm 配置。
+`plugin/packages/bundle/cordis.patch.yml` 插入 platform client、官方 LLM profile bridge、官方 plugin-market/Discover 和 OwnDsh Client row；覆盖默认模型，停用个人 provider 与个人模型设置页，但保留官方插件管理能力。OwnDsh Client 只注册账号/技能/MCP 设置和登录门禁，插件发现、安装、配置和启停由官方 Discover 承载；V1 不启动 Session 同步。Server 地址保存在 `$DSH_HOME/settings.yaml` 的 `owndsh.serverUrl`；bundle `baseUrl` 只作可选安装默认值。私有包认证和依赖构建策略由宿主 pnpm 配置。
 
 ## 17. 错误与并发约定
 
@@ -1013,7 +1009,7 @@ sidebar footer 使用图标表达 `SIGNED_OUT`、`READY`、`REFRESHING`、`ERROR
 | 模型 | alias 授权、默认解析、停用 provider/model、请求级 route 伪造、secret 不出响应与日志 |
 | 配额 | DEFAULT/DEPT/USER 叠加、日/月边界、并发 50 请求、锁顺序、RPM、lease TTL、重复结算、recovery job |
 | 网关 | SSE 成功、reasoning、tool calls、usage、401/429/5xx、无 usage、断流、客户端取消、上游超时、首字节前/后错误 |
-| 插件 | 安装目标边界、核心包保护、登记幂等、assignment 优先级、安装前授权、实际包名/版本/入口、普通依赖安装、重启激活 |
+| 插件 | 安装配置边界、核心包保护、登记幂等、公开 market index、assignment/inventory、官方 Host 兼容检查与重启事实 |
 | Session | 首批、连续批、重复批、gap、diverge、跨设备、并发 append、密文、正文授权、删除 tombstone、保留 |
 | 审计 | 同事务成功/回滚、敏感字段缺失、requestId 关联、保留删除 |
 
@@ -1027,9 +1023,8 @@ sidebar footer 使用图标表达 `SIGNED_OUT`、`READY`、`REFRESHING`、`ERROR
 | platform-client | PKCE loopback、state、取消、超时、本地 HTTP 路由方法/体积/DTO、Token 只在内存、重启为空、bootstrap revision、撤销、dispose 停稳 |
 | llm-gateway | 动态模型、default sentinel、OpenAI request 映射、所有 `StreamChunk`、usage、SSE error、取消、单次 retry policy、registration disposer |
 | session-sync | flush 后 readFrom、debounce、单 worker、批量边界、游标原子写、断点续传、gap/diverge 终态、网络退避、恢复副本 |
-| plugin-distribution | 下载中断、hash、Ed25519、compatibility、argv 无 shell、状态文件、重启 active、回滚、禁止核心自更新 |
-| dsh-ui | 真实 Client runtime 下的 slots、本地 API 调用、登录、用量、插件、同步、恢复和错误状态；不测试 CSS 类名 |
-| bundle | `--dump-config` 包含企业 rows、`dsh.client` 图可发现预构建 lazy-CJS、个人 provider 禁用、默认模型、所有 inject 可解析 |
+| dsh-ui | 真实 Client runtime 下的 slots、本地 API 调用、登录、MCP/技能、官方 Discover 共存和错误状态；不测试 CSS 类名 |
+| bundle | `--dump-config` 包含企业 rows、官方 plugin-market/Discover、`dsh.client` 图可发现预构建 lazy-CJS、个人 provider 禁用、默认模型、所有 inject 可解析 |
 
 每个产品用户可见 Harness 行为增加或更新无密钥 Web snapshot，使用假平台和假模型流。改变 GUI 的 PR 还必须从该 PR 的真实 Web server 与真实页面流程录制 GIF，遵守仓库 `record-browser-gif` 工作流。
 
@@ -1109,9 +1104,9 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 | T10 模型网关 | T08,T09 | 实现三协议透明 upstream、授权、预留/结算、协议终态观察、错误映射和审计 | 假上游完整矩阵通过；日志无 secret/prompt；三协议首字节前后错误正确 |
 | T11 Harness 模型链路 | T06,T10 | 直接挂载官方 `dsh-llm-pi-ai`，实现动态 profile、default sentinel、本机认证代理和 bundle provider 覆盖；不自研模型 adapter | 企业 profile 无本地上游 Key 完成三协议组合对话；reasoning 映射、取消、未授权/超额/撤销均通过；核心假设验收 |
 | T12 管理控制台 | T04,T05,T08,T09,T10 | 实现管理端 PKCE 登录、权限路由、身份源、组映射、用户扩展、设备、provider、模型、授权、配额和用量页面及菜单权限 | Playwright 完成管理员登录、身份源配置、设备撤销和模型创建到员工生效；revision 冲突可恢复；无密钥回显 |
-| T13 插件服务端 | T03,T11 | 实现安装配置登记、version 状态、assignment 和库存 | 安装目标、登记幂等、优先级、越权拒绝和迁移测试通过 |
-| T14 插件客户端 | T06,T13 | 实现固定版本授权、宿主 pnpm/`ctx.subprocess` argv、安装结果校验、状态文件、重启 active、库存和版本切换 | 假平台与真实 `dsh plugin` smoke 通过；失败不激活；核心 bundle 自更新被拒绝 |
-| T15 插件页面 | T13,T14 | 管理登记/发布/可见范围/版本切换/设备状态和员工分类插件 tab | Playwright 与 Harness snapshot 覆盖完整闭环 |
+| T13 插件服务端 | T03,T11 | 实现安装配置登记、version 状态、assignment/inventory 和受 Bearer 保护的 DSH format 1 标准 market index | 安装目标、登记幂等、索引只含 ACTIVE/PUBLISHED npm 版本、迁移测试通过 |
+| T14 插件客户端 | T06,T13 | 适配 DSH `pluginMarket.indexes`、官方 Discover、`pluginManager` 和 inventory；删除旧本地目录状态机 | DSH `0.2.1-rc.2` Host/Client 组合、索引同步、兼容 peers 和官方安装事实通过 |
+| T15 插件页面 | T13,T14 | 退役 OwnDsh 插件 tab，保留官方 Discover，验证 Server index 自动注入与切换清理 | Client 回归、标准索引回归和目标 Host Discover 验收通过 |
 | T16 Session 服务端 | T03,T11 | 实现 replica/batch/event、字节 hash、AES-GCM、list/export/delete、正文权限和 retention | 连续/重复/gap/diverge/跨设备/并发、密文、删除和保留测试通过 |
 | T17 Session 客户端 | T11,T16 | 实现 dirty queue、flush/readFrom、游标、重试终态、远端列表和 seed 恢复 | 本地 append 不等待网络；断点续传；新 ID 恢复；格式/hash 错误无半成品 |
 | T18 Session 页面 | T16,T17 | 管理 Session 列表/正文/删除，员工同步与恢复 tab | 正文权限 Playwright、读取审计、跨设备恢复 snapshot 和 GIF 通过 |
@@ -1147,9 +1142,9 @@ T00 至 T11 是最早核心验证链路。若 T11 尚未证明“企业登录后
 | T10 | `completed` | 2026-08-25 已实现请求级 ACTIVE 授权、三协议透明 upstream、配额预留/续租/结算、协议原生终态观察和 accepted/finished 原子审计；完整证据见 [`t10-model-gateway-acceptance.md`](t10-model-gateway-acceptance.md)。 |
 | T11 | `completed` | 2026-08-25 已直接挂载官方 rc.7 `dsh-llm-pi-ai`，实现动态三协议 profile/default、本机认证代理、零自动重试、取消与 bundle provider 覆盖；真实 `ctx.llm` 的无本地上游 Key 组合证据见 [`t11-harness-model-integration-acceptance.md`](t11-harness-model-integration-acceptance.md)。 |
 | T12 | `completed` | 2026-08-19 已交付 enterprise-admin PKCE、动态权限路由和身份/设备/模型/授权/配额/用量管理纵向页面；真实 Server Playwright、CAS 恢复与密钥隔离证据见 [`t12-admin-console-acceptance.md`](t12-admin-console-acceptance.md)。 |
-| T13 | `completed` | 2026-08-19 已实现 tgz 流式校验、RFC 8785 JCS/Ed25519、带 hash 互斥的 CAS、版本状态/CAS、USER>DEPT>ALL 分配、逐请求下载授权、Range、库存替换与 bootstrap 插件投影，见 [`t13-plugin-server-acceptance.md`](t13-plugin-server-acceptance.md)。 |
-| T14 | `completed` | 2026-08-19 已实现客户端下载、大小/SHA-256/Ed25519/compatibility 校验、固定 `ctx.subprocess` argv、原子状态文件、跨进程 Loader active 确认、ABSENT、库存与回滚；树外 package consumer 和锁定 rc.7 真实 CLI 证据见 [`t14-plugin-client-acceptance.md`](t14-plugin-client-acceptance.md)。 |
-| T15 | `completed` | 2026-08-19 已交付管理端 tgz 上传/发布/退休、完整 assignment 原子替换与回滚、设备 inventory，以及桌面员工插件 tab；真实 Server Playwright 与 rc.7 Harness 重启/Loader ACTIVE 证据见 [`t15-plugin-pages-acceptance.md`](t15-plugin-pages-acceptance.md)。 |
+| T13 | `completed` | 当前 Server 保留安装配置登记、版本状态、assignment/inventory，并新增公开 DSH format 1 market index；早期 tgz/验签记录只作历史证据。 |
+| T14 | `completed` | DSH `0.2.1-rc.2` 适配已将安装、更新、启停、卸载和重启事实交给官方 `pluginMarket`/`pluginManager`，OwnDsh 只同步索引和上报 inventory；旧 `plugin-distribution` 路线已删除。 |
+| T15 | `completed` | OwnDsh 员工插件 tab 与本地插件目录 API 已退役；官方 `Plugins → Discover` 读取 Server 标准索引，Client 只保留账号/技能/MCP 设置和登录门禁。旧页面验收见 [`t15-plugin-pages-acceptance.md`](t15-plugin-pages-acceptance.md)，仅作历史记录。 |
 | T16 | `completed` | 2026-08-19 已实现官方 format v0 精确 JSONL/SHA-256/rolling hash、ACTIVE 源设备行锁复制、AES-GCM、本人/admin 读取、正文独立权限、tombstone 与 90 天 retention；完整证据见 [`t16-session-server-acceptance.md`](t16-session-server-acceptance.md)。 |
 | T17 | `removed` | 2026-09-11 客户端 Session 同步实现已删除；服务端 Session 数据/API 保留。 |
 | T18 | `removed` | 2026-09-11 客户端 Session 页面与恢复/删除入口已删除；服务端管理接口保留。 |

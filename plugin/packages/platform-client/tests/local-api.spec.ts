@@ -72,11 +72,9 @@ describe('enterprise local API', () => {
     await new Promise<void>(resolve => server.close(() => resolve()))
   })
 
-  it('does not expose arbitrary or legacy plugin mutation routes', async () => {
+  it('does not expose the retired local plugin directory routes', async () => {
     registerEnterpriseLocalApi(webServer, { platform });
-    for (const action of ['restart', 'install', 'remove']) {
-      expect((await fetch(`${baseUrl}/enterprise/api/v1/local/plugins/${action}`, { method: 'POST' })).status).toBe(404)
-    }
+    expect((await fetch(`${baseUrl}/enterprise/api/v1/local/plugins`)).status).toBe(404)
   });
 
   it('serves desensitized state and bootstrap without CORS or Token fields', async () => {
@@ -89,29 +87,9 @@ describe('enterprise local API', () => {
 
     const bootstrap = await fetch(`${baseUrl}/enterprise/api/v1/local/bootstrap`)
     await expect(bootstrap.json()).resolves.toEqual({ data: null })
-    const plugins = await fetch(`${baseUrl}/enterprise/api/v1/local/plugins`)
-    expect(plugins.headers.get('cache-control')).toBe('no-store')
-    await expect(plugins.json()).resolves.toEqual({ data: { assignmentRevision: 0, catalog: [] } })
     const rejected = await fetch(`${baseUrl}/enterprise/api/v1/local/status`, { method: 'POST' })
     expect(rejected.status).toBe(405)
     expect(rejected.headers.get('allow')).toBe('GET')
-  })
-
-  it('projects only assigned enterprise metadata and never exposes runtime installation facts', async () => {
-    currentStatus = { ...currentStatus, state: 'READY' }
-    const assignment = {
-      pluginVersionId: '880', packageName: '@example/tools', version: '1.0.0', required: false,
-      desiredState: 'INSTALLED',
-      installation: {
-        spec: '@example/tools@1.0.0', displayName: 'Tools', description: 'Tools', author: 'OwnDsh',
-        repositoryUrl: 'https://github.com/example/tools', categories: ['productivity'],
-      },
-    }
-    vi.mocked(platform.bootstrap).mockReturnValue({ plugins: { revision: 7, assignments: [assignment] } } as any)
-    registerEnterpriseLocalApi(webServer, { platform })
-    await expect((await fetch(`${baseUrl}/enterprise/api/v1/local/plugins`)).json()).resolves.toEqual({
-      data: { assignmentRevision: 7, catalog: [{ pluginVersionId: '880', packageName: '@example/tools', version: '1.0.0', installation: assignment.installation }] },
-    })
   })
 
   it('serves only the local skill projection and validates enable/remove actions', async () => {
@@ -128,20 +106,20 @@ describe('enterprise local API', () => {
     })
 
     vi.mocked(platform.availableSkills!).mockResolvedValue([{
-      name: 'yt-dlp-downloader', displayName: 'YouTube Downloader', description: 'Download media', version: '1.0.0',
+      name: 'sample-skill', displayName: 'Sample Skill', description: 'Download media', version: '1.0.0',
       userInvocable: true, hasIcon: false,
     }])
     const catalog = await fetch(`${baseUrl}/enterprise/api/v1/local/skill-catalog`)
     await expect(catalog.json()).resolves.toEqual({ data: { skills: [{
-      name: 'yt-dlp-downloader', displayName: 'YouTube Downloader', description: 'Download media', version: '1.0.0',
+      name: 'sample-skill', displayName: 'Sample Skill', description: 'Download media', version: '1.0.0',
       userInvocable: true, hasIcon: false,
     }] } })
 
-    const installed = await fetch(`${baseUrl}/enterprise/api/v1/local/skills/yt-dlp-downloader/install`, {
+    const installed = await fetch(`${baseUrl}/enterprise/api/v1/local/skills/sample-skill/install`, {
       body: '{}', headers: { 'content-type': 'application/json' }, method: 'POST',
     })
-    await expect(installed.json()).resolves.toEqual({ data: { name: 'yt-dlp-downloader', installed: true } })
-    expect(platform.installSkill).toHaveBeenCalledWith('yt-dlp-downloader')
+    await expect(installed.json()).resolves.toEqual({ data: { name: 'sample-skill', installed: true } })
+    expect(platform.installSkill).toHaveBeenCalledWith('sample-skill')
 
     vi.mocked(platform.skillIcon!).mockResolvedValue(Uint8Array.from([137, 80, 78, 71]))
     const icon = await fetch(`${baseUrl}/enterprise/api/v1/local/skill-icons/code-review`)

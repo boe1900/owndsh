@@ -55,8 +55,7 @@ Session、日志或 installation 文件。Host 重启先做静默恢复；Server
 - `POST /enterprise/api/v1/local/logout`
 - `POST /enterprise/api/v1/local/uninstall`
 - `GET /enterprise/api/v1/local/bootstrap`
-- `GET /enterprise/api/v1/local/plugins`
 
 POST action 必须使用 `application/json`；刷新、登录、取消、退出和卸载使用严格空对象 `{}`，Server
 更新只接受 `{ "serverUrl": "http://..." }` 或 `{ "serverUrl": "https://..." }`。本地 API 不配置 CORS。路由不接受任意平台 URL。插件状态由 bundle 通过最小反转端口接入，platform-client 不反向依赖 distribution 包；`/events` 已移除。UI 复用 Harness 官方模型/凭据/设置事件读取本地状态，
-仅登录事务期间每秒查询一次，终态、卸载订阅或 330 秒截止时停止。返回值不含 tgz 路径、公钥、CLI 输出或 Token。
+仅登录事务期间每秒查询一次，终态、卸载订阅或 330 秒截止时停止。插件发现和安装由官方 plugin-market/pluginManager 承载；返回值不含 tgz 路径、公钥、CLI 输出或 Token。

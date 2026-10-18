@@ -1,11 +1,9 @@
 /**
- * [INPUT]: 依赖 contracts 安装元数据 schema、浏览器 fetch 与 platform-client 的按需同源 JSON 协议
- * [OUTPUT]: 对外提供严格账号/插件/可安装与已安装技能/MCP 状态解码（含技能图标、安装动作、工具简介、重新授权与授权进度）、连接动作，以及 Server 地址/登录/整包卸载与显式刷新端口
+ * [INPUT]: 依赖浏览器 fetch 与 platform-client 的按需同源 JSON 协议
+ * [OUTPUT]: 对外提供严格账号/可安装与已安装技能/MCP 状态解码（含技能图标、安装动作、工具简介、重新授权与授权进度）、连接动作，以及 Server 地址/登录/整包卸载与显式刷新端口
  * [POS]: dsh-ui 的浏览器网络边界，只投影 Settings 所需事实并拒绝秘密、正文与本地执行细节
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
-
-import { zPluginInstallation, type PluginInstallation } from '@owndsh/contracts'
 
 const LOCAL_API_PREFIX = '/enterprise/api/v1/local'
 
@@ -54,11 +52,6 @@ export interface EnterpriseAccountBootstrap {
   }
 }
 
-export interface EnterprisePluginStatus {
-  readonly assignmentRevision: number
-  readonly catalog: readonly EnterprisePluginCatalogItem[]
-}
-
 export interface EnterpriseInstalledSkill {
   readonly name: string
   readonly displayName: string
@@ -75,12 +68,15 @@ export interface EnterpriseInstalledSkill {
 }
 
 export interface EnterpriseAvailableSkill {
+  readonly releaseId: string
   readonly name: string
   readonly displayName: string
   readonly description: string
   readonly category?: string
   readonly version: string
   readonly userInvocable: boolean
+  readonly artifactSizeBytes: number
+  readonly artifactSha256: string
   readonly hasIcon: false
 }
 
@@ -101,19 +97,11 @@ export interface EnterpriseMcpStatus {
   readonly assignments: readonly EnterpriseMcpAssignment[]
 }
 
-export interface EnterprisePluginCatalogItem {
-  readonly pluginVersionId: string
-  readonly packageName: string
-  readonly version: string
-  readonly installation: PluginInstallation
-}
-
 export interface EnterpriseLocalApi {
   status(signal: AbortSignal): Promise<EnterpriseLocalStatus>
   refresh(signal: AbortSignal): Promise<EnterpriseLocalStatus>
   setServerUrl(serverUrl: string, signal: AbortSignal): Promise<{ readonly serverUrl: string }>
   bootstrap(signal: AbortSignal): Promise<EnterpriseAccountBootstrap | undefined>
-  plugins(signal: AbortSignal): Promise<EnterprisePluginStatus>
   skills?(signal: AbortSignal): Promise<readonly EnterpriseInstalledSkill[]>
   availableSkills?(signal: AbortSignal): Promise<readonly EnterpriseAvailableSkill[]>
   installSkill?(name: string, signal: AbortSignal): Promise<void>
@@ -258,31 +246,20 @@ function nullableTimestamp(value: unknown): value is string | null {
   return value === null || timestamp(value)
 }
 
-function enterpriseId(value: unknown): value is string {
+function skillName(value: unknown): value is string {
+  return typeof value === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value)
+}
+
+function releaseId(value: unknown): value is string {
   return typeof value === 'string' && /^[1-9][0-9]{0,18}$/.test(value)
 }
 
-/** 企业端只提供目录元数据；安装与启用事实从官方 pluginManager 获取。 */
-export function decodeEnterprisePluginStatus(value: unknown): EnterprisePluginStatus {
-  const source = record(value)
-  if (!source || !hasExactKeys(source, ['assignmentRevision', 'catalog'])
-    || !Number.isSafeInteger(source['assignmentRevision']) || Number(source['assignmentRevision']) < 0
-    || !Array.isArray(source['catalog']) || source['catalog'].length > 500) {
-    throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
-  }
-  const catalog = source['catalog'].map(value => {
-    const item = record(value)
-    if (!item || !hasExactKeys(item, ['pluginVersionId', 'packageName', 'version', 'installation'])
-      || !enterpriseId(item['pluginVersionId']) || !nonEmptyString(item['packageName']) || !nonEmptyString(item['version'])
-      || !zPluginInstallation.safeParse(item['installation']).success) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
-    return item as unknown as EnterprisePluginCatalogItem
-  })
-  if (new Set(catalog.map(item => item.packageName)).size !== catalog.length) throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
-  return { assignmentRevision: Number(source['assignmentRevision']), catalog }
+function artifactSize(value: unknown): value is number {
+  return Number.isSafeInteger(value) && (value as number) > 0 && (value as number) <= 64 * 1024 * 1024
 }
 
-function skillName(value: unknown): value is string {
-  return typeof value === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value)
+function artifactSha256(value: unknown): value is string {
+  return typeof value === 'string' && /^[0-9a-f]{64}$/.test(value)
 }
 
 export function decodeEnterpriseSkills(value: unknown): readonly EnterpriseInstalledSkill[] {
@@ -324,12 +301,13 @@ export function decodeEnterpriseAvailableSkills(value: unknown): readonly Enterp
   const names = new Set<string>()
   return source['skills'].map(item => {
     const row = record(item)
-    if (row === undefined || !hasExactKeys(row, ['name', 'displayName', 'description', 'version', 'userInvocable', 'hasIcon'], ['category'])
-      || !skillName(row['name']) || names.has(row['name'])
+    if (row === undefined || !hasExactKeys(row, ['releaseId', 'name', 'displayName', 'description', 'version', 'userInvocable', 'artifactSizeBytes', 'artifactSha256', 'hasIcon'], ['category'])
+      || !releaseId(row['releaseId']) || !skillName(row['name']) || names.has(row['name'])
       || !nonEmptyString(row['displayName']) || row['displayName'].length > 200
       || typeof row['description'] !== 'string' || row['description'].length > 16 * 1024
       || !nonEmptyString(row['version']) || row['version'].length > 255
-      || typeof row['userInvocable'] !== 'boolean' || row['hasIcon'] !== false
+      || typeof row['userInvocable'] !== 'boolean' || !artifactSize(row['artifactSizeBytes'])
+      || !artifactSha256(row['artifactSha256']) || row['hasIcon'] !== false
       || (row['category'] !== undefined && (typeof row['category'] !== 'string' || row['category'].length > 100))) {
       throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
     }
@@ -435,7 +413,6 @@ export function createEnterpriseLocalApi(
       return { serverUrl: data['serverUrl'] }
     },
     bootstrap: async signal => decodeBootstrap(await requestJson('/bootstrap', getInit(signal), fetcher)),
-    plugins: async signal => decodeEnterprisePluginStatus(await requestJson('/plugins', getInit(signal), fetcher)),
     skills: async signal => decodeEnterpriseSkills(await requestJson('/skills', getInit(signal), fetcher)),
     availableSkills: async signal => decodeEnterpriseAvailableSkills(await requestJson('/skill-catalog', getInit(signal), fetcher)),
     installSkill: async (name, signal) => {

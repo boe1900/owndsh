@@ -1,19 +1,22 @@
 /**
  * [INPUT]: 依赖 Cordis/Schemastery、Harness credentials/LLM/pluginManager/inventory/skills、官方运行时身份、企业业务模块与 mcp-runtime/skill-provider 组合入口
- * [OUTPUT]: 对外提供 Web/Desktop 共用 bundle apply、显式插件重启、Host 凭据持久化、企业插件安装/卸载和 OwnDsh 全局 skill provider
- * [POS]: bundle 的唯一 Host Loader 入口，组合平台认证、官方企业模型、隔离 skill provider 与环境原生插件调和；MCP 连接由独立 Cordis fiber 隔离并可撤销
+ * [OUTPUT]: 对外提供 Web/Desktop 共用 bundle apply、受内存 Bearer 保护的本机 DSH 市场代理与索引同步、显式插件重启、Host 凭据持久化、企业插件卸载和 OwnDsh 全局 skill provider
+ * [POS]: bundle 的唯一 Host Loader 入口，组合平台认证、官方企业模型、隔离 skill provider 与环境原生插件调和；官方 market 只访问 loopback 代理，MCP 连接由独立 Cordis fiber 隔离并可撤销
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { createRequire } from 'node:module'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 import type { CredentialProvider } from '@deepseek-ai/dsh-credentials'
 import type { PluginInventoryGateway } from '@deepseek-ai/dsh-host-plugin-inventory'
 import type { BundleInfo, PluginManager } from '@deepseek-ai/dsh-plugin-manager'
+import type PluginMarket from '@deepseek-ai/dsh-plugin-market'
 import { APP_IDENTITY, type LlmRuntime } from '@deepseek-ai/dsh-llm'
 import z from '@deepseek-ai/schemastery'
 import { registerEnterpriseGateway } from '@owndsh/llm-gateway'
 import {
+  EnterprisePlatformError,
   EnterprisePlatformService,
   type EnterprisePluginInventoryItem,
   type WebServerRoutePort,
@@ -24,7 +27,7 @@ import type { ToolRuntime } from '@deepseek-ai/dsh-tools'
 import type { McpExposureInput } from './mcp-pi-search.js'
 
 export const name = 'owndsh'
-export const inject = ['webServer', 'credentials', 'settings', 'llm', 'pluginInventory', 'pluginManager', 'tools']
+export const inject = ['webServer', 'credentials', 'settings', 'llm', 'pluginInventory', 'pluginManager', 'pluginMarket', 'tools']
 
 const HARNESS_VERSION = APP_IDENTITY.version
 const { version: BUNDLE_VERSION } = createRequire(import.meta.url)('../package.json') as { version: string }
@@ -71,6 +74,7 @@ type EnterpriseHostContext = Context & {
   readonly tools: ToolRuntime
   readonly pluginInventory: PluginInventoryGateway
   readonly pluginManager: PluginManager
+  readonly pluginMarket: PluginMarket
 }
 
 interface DesktopActionsPort {
@@ -125,6 +129,88 @@ async function reportPluginInventory(
   }
 }
 
+const OWNDSH_MARKET_INDEX_PATH = '/enterprise/plugin-market/index.json'
+
+function loopback(request: IncomingMessage): boolean {
+  const address = request.socket.remoteAddress
+  return address === '127.0.0.1' || address === '::1' || address === '::ffff:127.0.0.1'
+}
+
+function proxyErrorStatus(error: unknown): number {
+  if (error instanceof EnterprisePlatformError) {
+    if (error.httpStatus === 401 || error.code === 'ENT_AUTH_REQUIRED' || error.code === 'ENT_AUTH_SESSION_EXPIRED') return 401
+    if (error.httpStatus === 403 || error.code === 'ENT_DEVICE_REVOKED' || error.code === 'ENT_PERMISSION_DENIED') return 403
+  }
+  return 503
+}
+
+export function ownDshMarketProxyUrl(webServer: Pick<WebServerRoutePort, 'port'>): string {
+  return `http://127.0.0.1:${webServer.port}${OWNDSH_MARKET_INDEX_PATH}`
+}
+
+export function registerOwnDshMarketProxy(
+  webServer: WebServerRoutePort,
+  platform: EnterprisePlatformService,
+): () => void {
+  return webServer.register({
+    kind: 'exact',
+    path: OWNDSH_MARKET_INDEX_PATH,
+    handler: async (request: IncomingMessage, response: ServerResponse) => {
+      if (request.method !== 'GET') {
+        response.writeHead(405, { allow: 'GET', 'cache-control': 'no-store' }).end()
+        return
+      }
+      if (!loopback(request)) {
+        response.writeHead(403, { 'cache-control': 'no-store' }).end()
+        return
+      }
+      try {
+        const upstream = await platform.request(OWNDSH_MARKET_INDEX_PATH, {
+          headers: { accept: 'application/json' },
+        })
+        response.writeHead(200, {
+          'cache-control': 'no-store',
+          'content-type': upstream.headers.get('content-type') ?? 'application/json',
+          'x-content-type-options': 'nosniff',
+        }).end(Buffer.from(await upstream.arrayBuffer()))
+      } catch (error) {
+        response.writeHead(proxyErrorStatus(error), { 'cache-control': 'no-store' }).end()
+      }
+    },
+  })
+}
+
+export function ownDshMarketIndexUrls(
+  configured: readonly string[],
+  current: string | undefined,
+): string[] {
+  const next = configured.filter(url => {
+    try { return new URL(url).pathname !== OWNDSH_MARKET_INDEX_PATH } catch { return true }
+  })
+  if (current !== undefined) next.push(current)
+  return [...new Set(next)]
+}
+
+export async function syncPluginMarketIndex(
+  platform: EnterprisePlatformService,
+  market: PluginMarket,
+  logger: Context['logger'],
+  marketUrl: string,
+): Promise<void> {
+  try {
+    const status = platform.status()
+    if (!['READY', 'REFRESHING', 'SIGNED_OUT', 'UNCONFIGURED'].includes(status.state)) return
+    const configured = market.listIndexes().map(index => index.url)
+    const unique = ownDshMarketIndexUrls(
+      configured,
+      ['READY', 'REFRESHING'].includes(status.state) ? marketUrl : undefined,
+    )
+    if (unique.join('\n') !== configured.join('\n')) await market.setIndexes(unique)
+  } catch (error) {
+    logger.warn('owndsh: plugin market index sync failed %s', error instanceof Error ? error.message : String(error))
+  }
+}
+
 /** 在 Harness 官方 Service 上挂载平台控制面并配置官方 dsh-llm-pi-ai。 */
 export function apply(ctx: EnterpriseHostContext, config: Config): void {
   const invalidateSkills = mountEnterpriseSkillProvider(ctx)
@@ -156,7 +242,10 @@ export function apply(ctx: EnterpriseHostContext, config: Config): void {
     bundleVersion: BUNDLE_VERSION,
   }), 'enterpriseGateway.registration')
   let inventoryTask: Promise<void> | undefined
+  let marketTask: Promise<void> | undefined
   let disposed = false
+  const marketUrl = ownDshMarketProxyUrl(ctx.webServer)
+  const disposeMarketProxy = registerOwnDshMarketProxy(ctx.webServer, platform)
   const scheduleInventory = (): void => {
     if (inventoryTask !== undefined || disposed) return
     const task = reportPluginInventory(platform, ctx.pluginManager, ctx.pluginInventory, ctx.logger)
@@ -164,14 +253,27 @@ export function apply(ctx: EnterpriseHostContext, config: Config): void {
       .finally(() => { if (inventoryTask === task) inventoryTask = undefined })
     inventoryTask = task
   }
+  const scheduleMarket = (): void => {
+    if (marketTask !== undefined || disposed) return
+    const task = syncPluginMarketIndex(platform, ctx.pluginMarket, ctx.logger, marketUrl)
+    marketTask = task
+    void task.finally(() => { if (marketTask === task) marketTask = undefined })
+  }
   const disposePluginChange = ctx.on('plugin-manager/changed', scheduleInventory)
+  const disposeMarketChange = ctx.on('plugin-market/changed', scheduleMarket)
   const disposePlatformStatus = platform.subscribe(status => {
-    if (status.state === 'READY' || status.state === 'REFRESHING') scheduleInventory()
+    if (status.state === 'READY' || status.state === 'REFRESHING') {
+      scheduleInventory()
+    }
+    scheduleMarket()
   })
   ctx.effect(() => () => {
     disposed = true
     disposePluginChange()
+    disposeMarketChange()
     disposePlatformStatus()
+    disposeMarketProxy()
   }, 'owndsh.pluginInventory')
   scheduleInventory()
+  scheduleMarket()
 }

@@ -86,7 +86,11 @@ public final class AdminPluginController {
         @RequestBody PluginRegistrationRequest body, HttpServletRequest request
     ) {
         EnterpriseRequestContext context = contexts.resolve(request);
-        PluginCatalogService.RegistrationResult result = catalog.register(mutation(context), body.packageName(), body.version(), body.installation());
+        PluginCatalogService.RegistrationResult result = body.metadata() == null
+            && body.source() == null && body.engines() == null && body.installation() != null
+            ? catalog.register(mutation(context), body.packageName(), body.version(), body.installation())
+            : catalog.register(mutation(context), body.packageName(), body.version(), body.effectiveMetadata(),
+                body.effectiveSource(), body.effectiveEngines());
         return ResponseEntity.status(result.created() ? HttpStatus.CREATED : HttpStatus.OK)
             .body(response(PluginViews.version(result.version()), context));
     }

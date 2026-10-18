@@ -1,5 +1,7 @@
 # T15 插件页面验收记录
 
+> 历史记录：本文描述旧版 OwnDsh 员工插件 tab，已被 DSH `0.2.1-rc.2` 官方 `Plugins → Discover` 和标准 plugin market index 取代；旧页面、local plugin directory API 与本地安装状态机不再属于当前实现。
+
 状态：`completed`
 
 验收日期：2026-08-19（Asia/Shanghai）

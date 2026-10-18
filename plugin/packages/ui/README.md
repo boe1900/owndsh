@@ -23,12 +23,12 @@ navigation cannot reach the official shell underneath. Its brand, single-line
 Server editor, connection strip, and version use Host theme tokens; Desktop
 chrome and theme controls remain owned by the surrounding official shell.
 
-The OwnDsh Settings section contains Account, Plugins and MCP tabs aligned with the
+The OwnDsh Settings section contains Account, Skills and MCP tabs aligned with the
 native DSH settings rhythm and keyboard navigation. Account information and
 sign-out are available only in the Account tab; OwnDsh registers no sidebar footer
 entry, leaving that space to Harness. Sign-out requires an in-page Harness
 `Modal` and `Button` confirmation before clearing the session. Uninstall uses the same component;
-Cancel and Escape leave the account and plugins unchanged. The dialog uses Host
+Cancel and Escape leave the account unchanged. The dialog uses Host
 theme and traps focus while open, without relying on a desktop
 bridge for `window.confirm()`.
 Account settings combine the user and login status in a compact summary above grouped,
@@ -44,21 +44,16 @@ value on hover; the connection timestamp is omitted because authentication runs 
 Grouped surfaces pair Host background and border tokens to avoid transparent superellipse border artifacts.
 When the account becomes blocked, the OwnDsh Settings section uses the official
 slot's `close` callback so the login gate remains the active surface.
-The Plugins tab embeds the enterprise catalog with search, category filters,
-version tags and two-line rows using official default artwork. It refreshes on
-entry and retains filters and pending operations across tab switches. Install,
-update and uninstall require confirmation and use the official `pluginManager`
-Remote. Scrolling belongs to the surrounding settings page.
+Plugin discovery and installation use the official DSH Plugins → Discover page.
+OwnDsh supplies its standard market index URL after the account Server is configured.
 
 The official Plugins page remains enabled and unchanged, including its free-form
 “Add plugin” entry, details, configuration, switches and uninstall controls.
 OwnDsh registers no replacement main/sidebar panel and maintains no fork.
 
-The fixed same-origin `/enterprise/api/v1/local/plugins` projection contains only
-the enterprise assignment revision, package name, exact version, installation
-spec and display metadata. The local API has no plugin install, remove or restart
-mutation routes. Opening or refreshing never installs anything, and invalid
-catalog targets are disabled before reaching the official Remote.
+The server exposes a DSH plugin market format 1 index behind the DSH Desktop
+Bearer session; the local loopback proxy carries that in-memory credential. The local API has no
+plugin install, remove or restart mutation routes.
 
 Both official slot registrations share one `EnterpriseAccountStore`. Its browser API uses
 only fixed same-origin `/enterprise/api/v1/local/*` paths, sends strict JSON for
@@ -67,8 +62,8 @@ Host adapter/credential/settings events and connection reset notifications to re
 state; it creates no transport connection. A one-second status query runs only during
 login/startup transitions, stops at a terminal state or unmount, and has a 330-second ceiling.
 Opening Settings or pressing Refresh explicitly reloads bootstrap from the enterprise server.
-Idle clients neither poll the enterprise server nor proactively renew credentials. It reloads account and plugin facts only on the first connected state or
+Idle clients neither poll the enterprise server nor proactively renew credentials. It reloads account facts only on the first connected state or
 a bootstrap revision change. Server/account changes and connected/disconnected transitions cancel
-old account, plugin requests and discard their late results and errors. Runtime decoders project only account/device facts and reject unknown
+old account requests and discard their late results and errors. Runtime decoders project only account/device facts and reject unknown
 status fields, including Token-shaped additions. Host Context and platform
 credentials never enter React.

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖显式 OWNDSH_E2E_LAUNCH_URL 的真实 DSH Web Host、Playwright 与已登录的 OwnDsh Server 会话
- * [OUTPUT]: 验证 OwnDsh 技能可安装/已安装视图、技能动作、卸载和手动安装，并保存截图/JSON 证据
+ * [OUTPUT]: 验证 OwnDsh 技能发现结果、已安装条件筛选、分类筛选、技能动作、卸载和手动安装，并保存截图/JSON 证据
  * [POS]: scripts 的真实技能 UI E2E；不创建默认 profile、不扫描用户目录，现场目录由 OWNDSH_E2E_SCENE 显式指定
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -54,10 +54,11 @@ test('OwnDsh skill settings uses the real Host and published catalog artifact', 
 
     const market = page.getByRole('region', { name: 'OwnDsh 技能', exact: true })
     const search = market.getByRole('searchbox', { name: '搜索技能', exact: true })
-    const installedTab = market.getByRole('tab', { name: '已安装', exact: true })
-    const availableTab = market.getByRole('tab', { name: '可安装', exact: true })
-    assert.equal(await installedTab.count(), 1)
-    assert.equal(await availableTab.count(), 1)
+    const allCategory = market.getByRole('button', { name: '全部', exact: true })
+    const installedButton = () => market.getByRole('button', { name: /^已安装（\d+）$/ })
+    assert.equal(await allCategory.count(), 1)
+    assert.equal(await installedButton().count(), 1)
+    assert.equal(await installedButton().getAttribute('aria-pressed'), 'false')
     const card = market.locator(`[data-skill-name="${skillName}"]`)
     await localJson(page, '/enterprise/api/v1/local/refresh', {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}',
@@ -106,18 +107,15 @@ test('OwnDsh skill settings uses the real Host and published catalog artifact', 
     menu = await openMenu()
     evidence.checks.nativeActions = true
 
-    const installedMarket = market
-    const installedCard = installedMarket.locator(`[data-skill-name="${skillName}"]`)
-
     await menu.getByRole('menuitem', { name: '卸载', exact: true }).click()
     const confirm = page.getByRole('dialog', { name: '卸载技能', exact: true })
     await confirm.getByRole('button', { name: '确认卸载', exact: true }).click()
-    await installedCard.waitFor({ state: 'detached', timeout: 15_000 })
+    await market.getByRole('button', { name: '已安装（0）', exact: true }).waitFor({ timeout: 15_000 })
     const afterRemove = await localJson(page, '/enterprise/api/v1/local/skills')
     assert.deepEqual(afterRemove.body.data.skills, [])
     evidence.checks.uninstall = true
 
-    await installedMarket.getByRole('tab', { name: '可安装', exact: true }).click()
+    const installedMarket = market
     const availableCard = installedMarket.locator(`[data-skill-name="${skillName}"]`)
     await availableCard.waitFor({ timeout: 15_000 })
     assert.equal(await availableCard.getByRole('button', { name: '安装', exact: true }).isVisible(), true)
@@ -127,7 +125,8 @@ test('OwnDsh skill settings uses the real Host and published catalog artifact', 
         && response.url().endsWith('/enterprise/api/v1/local/skills')),
       availableCard.getByRole('button', { name: '安装', exact: true }).click(),
     ])
-    await installedMarket.getByRole('tab', { name: '已安装', exact: true }).click()
+    await installedButton().click()
+    await installedMarket.getByRole('button', { name: '已安装（1）', exact: true }).waitFor({ timeout: 20_000 })
     await installedMarket.locator(`[data-skill-name="${skillName}"]`).waitFor({ timeout: 20_000 })
     const afterRestore = await localJson(page, '/enterprise/api/v1/local/skills')
     assert.equal(afterRestore.body.data.skills.some(item => item.name === skillName), true)

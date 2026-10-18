@@ -222,11 +222,10 @@ V1 必须区分三类 429：
 
 ### 8.1 受管插件
 
-- 管理员登记包名、精确版本与 npm / 固定 commit 的 GitHub / tgz URL，源码仓库独立填写。
-- 卡片不使用图标，按名称、简介、作者和分类展示；支持搜索、分类筛选和固定版本详情确认。
-- 插件版本经过发布后才能分配；支持全部成员和指定成员分配。
-- Desktop 和 Web Harness 安装前重新验证授权，通过官方插件命令与宿主 pnpm 处理普通依赖、peer 和构建策略，安装后核对包名、版本和 bundle 入口。
-- 升级、回滚和卸载都产生明确状态；需要重启时由客户端提示，不热替换未知运行时状态。
+- 管理员登记 npm 包名、精确版本和展示元数据；Server 在 DSH Desktop Bearer 会话后输出 DSH plugin market format 1 的 npm source 与 `engines.dsh`。
+- 员工在官方 `Plugins → Discover` 搜索、查看和确认精确版本；官方 `pluginManager` 负责安装、更新、启停、卸载、兼容检查和重启状态。
+- 插件版本经过发布后才能进入受保护索引；assignment、设备库存和运行授权仍由 OwnDsh Server/runtime 管理，不写入市场索引。
+- 普通依赖、peer 和宿主 registry 凭据由 DSH Host/pnpm 处理，OwnDsh 不上传或代理插件包。
 - 设备心跳上报安装库存，控制台显示期望版本、实际版本、失败码和最后活动时间。
 
 私有包复用宿主 `.npmrc` 和 Git 凭据。平台不上传、存储或转发插件包；V34 删除旧目录、可见范围及库存，管理员需按新模式重新登记。

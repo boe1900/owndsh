@@ -1936,13 +1936,17 @@ export type PluginAssignmentWrite = {
 
 export type PluginDesiredState = 'INSTALLED' | 'ABSENT';
 
+export type PluginEngines = {
+    dsh?: string;
+};
+
 export type PluginPluginInstallation = {
     spec: string;
     displayName: string;
     description: string;
     author: string;
     repositoryUrl: string;
-    categories: Array<string>;
+    category: string;
 };
 
 export type PluginInventoryAck = {
@@ -1968,6 +1972,22 @@ export type PluginPluginInventoryResponse = {
     requestId: RequestId;
 };
 
+export type PluginMarketMetadata = {
+    title: string;
+    description: string;
+    icon: string;
+    author: string;
+    homepage: string;
+    repositoryUrl: string;
+    repositoryDirectory: string;
+    category: string;
+    keywords: Array<string>;
+    labels: Array<string>;
+    sortKeys: {
+        [key: string]: number;
+    };
+};
+
 export type PluginPluginPackage = {
     id: PluginPluginPackageId;
     packageName: PluginPackageName;
@@ -1976,6 +1996,7 @@ export type PluginPluginPackage = {
     revision: Revision;
     versions: Array<PluginPluginVersion>;
     assignments: Array<PluginAssignment>;
+    marketMetadata?: PluginMarketMetadata;
 };
 
 export type PluginPluginPackageId = string;
@@ -2005,10 +2026,23 @@ export type PluginPluginPublishRequest = {
 export type PluginPluginRegistrationRequest = {
     packageName: PluginPackageName;
     version: PluginSemanticVersion;
-    installation: PluginPluginInstallation;
+    installation?: PluginPluginInstallation;
+    metadata?: PluginMarketMetadata;
+    source?: PluginSource;
+    engines?: PluginEngines;
 };
 
 export type PluginSemanticVersion = string;
+
+export type PluginSource = {
+    type: 'npm';
+    registry?: string;
+} | {
+    type: 'git';
+    url: string;
+    commit: string;
+    path?: string;
+};
 
 export type PluginSubjectType = 'ALL' | 'DEPT' | 'USER';
 
@@ -2018,6 +2052,9 @@ export type PluginPluginVersion = {
     packageName: PluginPackageName;
     version: PluginSemanticVersion;
     installation: PluginPluginInstallation;
+    source?: PluginSource;
+    engines?: PluginEngines;
+    publishedAt?: string;
     status: PluginVersionStatus;
     createdAt: string;
     revision: Revision;
@@ -2037,6 +2074,8 @@ export type RuntimePluginAssignment = {
     packageName: PluginPackageName;
     version: PluginSemanticVersion;
     installation: PluginPluginInstallation;
+    source?: PluginSource;
+    engines?: PluginEngines;
     required: boolean;
     desiredState: PluginDesiredState;
 };

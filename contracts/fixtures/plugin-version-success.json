@@ -4,6 +4,9 @@
     "packageId": "1901300000000000001",
     "packageName": "@example/acme-tools",
     "version": "1.2.3",
+    "source": {"type": "npm", "registry": "https://registry.npmjs.org"},
+    "engines": {"dsh": ">=0.2.1-rc.2"},
+    "publishedAt": "2026-08-19T08:00:00Z",
     "status": "VALIDATED",
     "createdAt": "2026-08-19T08:00:00Z",
     "revision": 0,
@@ -13,9 +16,7 @@
       "description": "企业插件示例",
       "author": "OwnDsh",
       "repositoryUrl": "https://github.com/example/plugin",
-      "categories": [
-        "效率工具"
-      ]
+      "category": "效率工具"
     }
   },
   "requestId": "req_01K2W3V4X5Y6Z7A8B9C0D1E2F3"

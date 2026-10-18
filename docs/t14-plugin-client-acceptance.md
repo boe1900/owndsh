@@ -1,5 +1,7 @@
 # T14 插件客户端验收记录
 
+> 历史记录：本文描述旧版独立分发状态机，已被 DSH `0.2.1-rc.2` 官方 `pluginMarket`/`pluginManager` 路线取代；其中的 `/enterprise/api/v1/local/plugins`、`@owndsh/plugin-distribution` 和员工插件 tab 已删除。当前契约见 [DSH 兼容性检查表](dsh-compatibility.md) 与 [T15 历史说明](t15-plugin-pages-acceptance.md)。
+
 状态：`completed`
 
 验收日期：2026-08-19（Asia/Shanghai）

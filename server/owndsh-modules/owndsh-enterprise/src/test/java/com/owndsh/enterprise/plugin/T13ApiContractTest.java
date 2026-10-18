@@ -219,16 +219,19 @@ class T13ApiContractTest {
     @Test
     void validatesPinnedTargetsAndCoreProtection() {
         for (String spec : List.of("@example/tools@1.0.0")) {
-            new PluginInstallation(spec, "Tools", "", "", "", List.of("开发", "开发"))
+            new PluginInstallation(spec, "Tools", "", "", "", "开发")
                 .validateTarget("@example/tools", "1.0.0");
         }
         for (String spec : List.of("@example/tools@latest", "--config.foo=bar", "@example/other@1.0.0",
             "github:example/tools#" + "a".repeat(40), "https://registry.example/tools.tgz")) {
-            assertThatThrownBy(() -> new PluginInstallation(spec, "Tools", "", "", "", List.of())
+            assertThatThrownBy(() -> new PluginInstallation(spec, "Tools", "", "", "", "")
                 .validateTarget("@example/tools", "1.0.0")).isInstanceOf(IllegalArgumentException.class);
         }
-        assertThatThrownBy(() -> new PluginInstallation("owndsh-plugin@1.0.0", "OwnDsh", "", "", "", List.of())
+        assertThatThrownBy(() -> new PluginInstallation("owndsh-plugin@1.0.0", "OwnDsh", "", "", "", "")
             .validateTarget("owndsh-plugin", "1.0.0")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new PluginInstallation(
+            "@example/tools@1.0.0", "Tools", "", "", "https://github.com/example/plugin?ref=main", ""
+        )).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -249,7 +252,7 @@ class T13ApiContractTest {
         return post("/enterprise/admin/v1/plugins/versions").contentType(MediaType.APPLICATION_JSON).content("""
             {"packageName":"@example/t13-tools","version":"1.0.0","installation":{
             "spec":"@example/t13-tools@1.0.0","displayName":"Tools","description":"Review",
-            "author":"Example","repositoryUrl":"https://github.com/example/plugin","categories":["开发"]}}
+            "author":"Example","repositoryUrl":"https://github.com/example/plugin","category":"开发"}}
             """);
     }
 
@@ -332,7 +335,7 @@ class T13ApiContractTest {
     }
 
     private static PluginInstallation installation() {
-        return new PluginInstallation("@example/t13-tools@1.0.0", "Tools", "Review", "Example", "https://github.com/example/plugin", List.of("开发"));
+        return new PluginInstallation("@example/t13-tools@1.0.0", "Tools", "Review", "Example", "https://github.com/example/plugin", "开发");
     }
 
     private static DeviceCallContext runtimeContext() {

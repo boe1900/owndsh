@@ -36,6 +36,14 @@ describe('enterprise skill provider', () => {
       await writeFile(join(dshHome, 'skills', 'external', 'SKILL.md'), '---\nname: external\ndescription: external\n---\n')
 
       await expect(ctx.skills.list({ cwd: dshHome })).resolves.toMatchObject([{ name: 'local', source: 'custom', provider: 'owndsh' }])
+      await rm(root, { recursive: true })
+      invalidate()
+      await new Promise<void>(resolve => setImmediate(resolve))
+      await expect(ctx.skills.list({ cwd: dshHome })).resolves.toEqual([])
+      await expect(ctx.skills.get('local', { cwd: dshHome })).resolves.toBeUndefined()
+
+      await mkdir(root, { recursive: true })
+      await writeFile(join(root, 'SKILL.md'), '---\nname: local\ndescription: before\n---\n\nbefore\n')
       const next = join(root, '.SKILL.md.next')
       await writeFile(next, '---\nname: local\ndescription: after\n---\n\nafter\n')
       await rm(join(root, 'SKILL.md'))

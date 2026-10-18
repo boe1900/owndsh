@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖普通数据库所有者、空数据库、classpath V0-V43 migration 与旧版 baseline 0 历史。
+ * [INPUT]: 依赖普通数据库所有者、空数据库、classpath V0-V45 migration 与旧版 baseline 0 历史。
  * [OUTPUT]: 验证空库建表、旧库接管/升级、DeepSeek Messages 配置约束、重复启动、字符串时间参数、数据库计量迁移、MCP 原样认证值与 Skill 权限清理约束。
  * [POS]: database 的持续 migration 门禁，防止后续任务只验证最终 schema 而遗漏中间版本不可升级。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -52,6 +52,30 @@ class EnterpriseMigrationTest {
     }
 
     @Test
+    void migratesLegacyPluginCategoriesToOneDshCategory() {
+        var database = PostgresTestDatabase.create("plugin_single_category");
+        PostgresTestDatabase.migrate(database, "43");
+        var jdbc = database.jdbc();
+        long creator = jdbc.queryForObject("select min(user_id) from sys_user", Long.class);
+        jdbc.update("insert into ent_plugin_package(id,tenant_id,package_name,display_name,status,revision) values(990011,'000000','category-plugin','Category','ACTIVE',0)");
+        jdbc.update("""
+            insert into ent_plugin_version(id,tenant_id,package_id,version,status,created_by,revision,installation_json)
+            values(990012,'000000',990011,'1.0.0','PUBLISHED',?,0,
+                '{"spec":"category-plugin@1.0.0","displayName":"Category","description":"","author":"","repositoryUrl":"","categories":["开发","效率"]}')
+            """, creator);
+
+        PostgresTestDatabase.migrate(database, null);
+
+        assertThat(jdbc.queryForObject("select installation_json->>'category' from ent_plugin_version where id=990012", String.class))
+            .isEqualTo("开发");
+        assertThat(jdbc.queryForObject("select installation_json ? 'categories' from ent_plugin_version where id=990012", Boolean.class))
+            .isFalse();
+        assertThatThrownBy(() -> jdbc.update("update ent_plugin_version set installation_json='{"
+            + "\"spec\":\"category-plugin@1.0.0\",\"displayName\":\"Category\",\"description\":\"\",\"author\":\"\",\"repositoryUrl\":\"\",\"category\":[]}'::jsonb where id=990012"))
+            .isInstanceOf(RuntimeException.class);
+    }
+
+    @Test
     void removesLegacySkillPermissionRowsWhenUpgrading() {
         var database = PostgresTestDatabase.create("skill_permissions_upgrade");
         PostgresTestDatabase.migrate(database, "42");
@@ -86,7 +110,7 @@ class EnterpriseMigrationTest {
         assertThat(database.jdbc().queryForObject(
             "select type from flyway_schema_history where version='0'", String.class
         )).isEqualTo("SQL");
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("43");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("45");
         Integer tableCount = database.jdbc().queryForObject("""
             select count(*) from information_schema.tables
             where table_schema = 'public' and table_name like 'ent_%'
@@ -235,7 +259,7 @@ class EnterpriseMigrationTest {
 
         Flyway flyway = PostgresTestDatabase.migrate(database, null);
 
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("43");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("45");
         assertThat(database.jdbc().queryForObject(
             "select type from flyway_schema_history where version='0'", String.class
         )).isEqualTo("BASELINE");
@@ -616,7 +640,7 @@ class EnterpriseMigrationTest {
             .run(context -> {
                 assertThat(context).hasSingleBean(Flyway.class);
                 assertThat(context.getBean(Flyway.class).info().current().getVersion().getVersion())
-                    .isEqualTo("43");
+                    .isEqualTo("45");
             });
     }
 
@@ -634,7 +658,7 @@ class EnterpriseMigrationTest {
 
         Flyway flyway = PostgresTestDatabase.migrate(database, null);
 
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("43");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("45");
         assertThat(database.jdbc().queryForMap("""
             select api_protocol,base_url from ent_model_provider where id=1913000000000000801
             """)).containsEntry("api_protocol", "anthropic-messages")

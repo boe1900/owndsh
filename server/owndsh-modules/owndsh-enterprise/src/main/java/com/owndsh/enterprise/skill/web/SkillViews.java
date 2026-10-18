@@ -21,7 +21,7 @@ public final class SkillViews {
     }
 
     public static RuntimeSkillView runtime(SkillRelease value) {
-        return new RuntimeSkillView(Long.toString(value.id()), metadata(value), value.artifactSizeBytes(), value.artifactSha256());
+        return new RuntimeSkillView(Long.toString(value.id()), runtimeMetadata(value), value.artifactSizeBytes(), value.artifactSha256());
     }
 
     public static ReleaseView release(SkillRelease value) {
@@ -34,6 +34,11 @@ public final class SkillViews {
             value.categories(), value.artifactSizeBytes(), value.artifactSha256(), value.status().name(), value.revision());
     }
 
+    private static RuntimeSkillMetadataView runtimeMetadata(SkillRelease value) {
+        return new RuntimeSkillMetadataView(value.name(), value.version(), value.description(), value.license(),
+            value.author(), value.userInvocable(), value.modelInvocable(), value.categories());
+    }
+
     public static ImportedReleaseView imported(SkillImportService.ImportResult value) {
         return new ImportedReleaseView(value.resolvedCommit(), metadata(value.registration().release()), value.registration().created());
     }
@@ -43,9 +48,15 @@ public final class SkillViews {
 
     public record RuntimeSkillView(
         String releaseId,
-        ReleaseMetadataView metadata,
+        RuntimeSkillMetadataView metadata,
         long artifactSizeBytes,
         String artifactSha256
+    ) {
+    }
+
+    public record RuntimeSkillMetadataView(
+        String name, String version, String description, String license, String author,
+        boolean userInvocable, boolean modelInvocable, List<String> categories
     ) {
     }
 
