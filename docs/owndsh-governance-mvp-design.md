@@ -11,6 +11,8 @@
 
 文档状态：实施基线；插件市场已于 2026-10-17 对齐 DSH `0.2.1-rc.2` 标准 plugin market index，早期 T13/T14/T15 上传、签名和自有员工目录验收记录只保留为历史证据。
 
+模型接入部分的 Provider 字段描述属于 V46 之前的历史基线；当前 Provider/ProviderConnection/ManagedModel 三层实现以 [模型接入流程详细设计](model-onboarding-design.md) 和 V46–V48 迁移为准，历史字段只在迁移测试和演进说明中保留。
+
 ## 1. 文档定位
 
 本文把[企业 Agent 工作平台预研](owndsh-work-platform.md)收敛为一份可直接用于编码、联调和试点验收的实施规格。第 1 至 21 节是设计真源，第 22 节是唯一实施顺序；开发者或 AI 不得在编码时自行扩大范围、替换技术路线或补入远期能力。

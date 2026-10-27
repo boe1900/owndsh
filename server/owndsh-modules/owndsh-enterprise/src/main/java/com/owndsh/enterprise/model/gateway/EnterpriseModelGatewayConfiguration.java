@@ -13,6 +13,7 @@ import com.owndsh.enterprise.model.application.EffectiveModelResolver;
 import com.owndsh.enterprise.model.persistence.BootstrapUserStore;
 import com.owndsh.enterprise.model.persistence.ManagedModelStore;
 import com.owndsh.enterprise.model.persistence.ProviderStore;
+import com.owndsh.enterprise.model.persistence.ProviderConnectionStore;
 import com.owndsh.enterprise.quota.application.QuotaReservationService;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -38,9 +39,10 @@ public class EnterpriseModelGatewayConfiguration {
         BootstrapUserStore users,
         EffectiveModelResolver effectiveModels,
         ManagedModelStore models,
-        ProviderStore providers
+        ProviderStore providers,
+        ProviderConnectionStore connections
     ) {
-        return new GatewayRouteResolver(devices, users, effectiveModels, models, providers);
+        return new GatewayRouteResolver(devices, users, effectiveModels, models, providers, connections);
     }
 
     @Bean

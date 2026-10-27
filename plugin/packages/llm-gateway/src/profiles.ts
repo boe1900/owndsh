@@ -49,7 +49,7 @@ function modelProfile(
   return {
     id,
     name,
-    input: ['text'],
+    input: model.input ?? ['text'],
     ...model.contextWindow === undefined ? {} : { contextWindow: model.contextWindow },
     ...model.maxTokens === undefined ? {} : { maxTokens: model.maxTokens },
     ...reasoningEfforts === undefined ? {} : { reasoningEfforts },

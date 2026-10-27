@@ -5,6 +5,9 @@
 成员清单
 
 dsh-compatibility.md: DSH 升级检查入口，记录当前 npm/Web 基线、上游依赖契约与本地代码/测试映射、历史夹具边界、逐项验收流程及 OAuth 接缝删除条件。
+model-onboarding-design.md: 模型接入流程详细设计与实现真源；记录 Provider/ProviderConnection/ManagedModel 三层、API Key 归属、模型级 RATE、全新切换边界、发现失败后的手工模型兜底、候选多选、折叠模型配置、自动命名、DSH 对齐的 input 模态与 reasoningEfforts wire 映射、改动量、影响分析与验收标准。
+model-onboarding-design-review.md: 模型接入设计历史终审与后续范围裁决，记录代码事实、Provider RATE 方案被移除、模型级 RATE、全新切换边界及 R1–R16 的取代关系；约束 model-onboarding-design.md 的当前冻结决策。
+model-onboarding-prototype.html: 模型接入完整闭环可交互单文件原型：以模型与供应商/模型集两 section 为壳，展示 Provider→Connection→ManagedModel 拓扑、全局模型表视图、连接展开后的模型管理和四步接入向导；内联 Beautiful UI tokens 与模拟数据，非实现码。
 dsh-020-rc1-compatibility-20260929.md: DSH 0.2.0-rc.1 兼容门禁、个人账号模型 row 适配与 beta.15 隔离验证证据，区分本地制品和 npm 发布状态。
 dsh-017-alpha1-compatibility-20260922.md: DSH 0.1.7-alpha.1 目标 runtime 的 Web/MCP 行为验收、当前 pluginManager/SettingsForms 适配及未覆盖范围。
 dsh-017-rc1-compatibility-20260924.md: DSH 0.1.7-rc.1 目标 runtime 的 Web/MCP 行为验收、Release notes 对照、必要依赖适配及未覆盖范围。

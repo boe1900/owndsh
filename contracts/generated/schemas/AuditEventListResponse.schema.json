@@ -89,6 +89,7 @@
                   "DEVICE_HEARTBEAT",
                   "DEVICE_REVOKED",
                   "PROVIDER_CHANGED",
+                  "MODEL_CONNECTION_CHANGED",
                   "MODEL_CHANGED",
                   "MODEL_GRANT_CHANGED",
                   "MODEL_REQUEST_ACCEPTED",
@@ -335,7 +336,6 @@
                     "additionalProperties": false,
                     "required": [
                       "operation",
-                      "providerType",
                       "protectedValueChanged",
                       "resourceRevision",
                       "bootstrapRevision"
@@ -350,14 +350,49 @@
                           "DISABLE"
                         ]
                       },
-                      "providerType": {
+                      "protectedValueChanged": {
+                        "type": "boolean"
+                      },
+                      "resourceRevision": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "bootstrapRevision": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "connectionId",
+                      "providerId",
+                      "operation",
+                      "secretReplaced",
+                      "resourceRevision",
+                      "bootstrapRevision"
+                    ],
+                    "properties": {
+                      "connectionId": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "providerId": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "operation": {
                         "type": "string",
                         "enum": [
-                          "DEEPSEEK_OFFICIAL",
-                          "CUSTOM"
+                          "CREATE",
+                          "UPDATE",
+                          "ENABLE",
+                          "DISABLE"
                         ]
                       },
-                      "protectedValueChanged": {
+                      "secretReplaced": {
                         "type": "boolean"
                       },
                       "resourceRevision": {

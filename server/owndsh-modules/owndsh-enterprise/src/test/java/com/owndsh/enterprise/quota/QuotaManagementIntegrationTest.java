@@ -331,15 +331,9 @@ class QuotaManagementIntegrationTest {
             "T09 Model", QuotaResourceType.MODEL, MODEL_ID,
             50_000L, null, null, null
         ));
-        QuotaPolicy providerRate = policyService.create(mutation, new QuotaPolicySpec(
-            "T09 Provider Rate", QuotaPolicyType.RATE, QuotaSubjectType.ORGANIZATION, null,
-            QuotaResourceType.PROVIDER, PROVIDER_ID, null, null, null, null, 12, 2,
-            QuotaStatus.ACTIVE
-        ));
-        assertThat(providerRate.resourceName()).isEqualTo("T09 Provider");
         assertThat(resolver.resolve(TENANT, USER_ID, MODEL_ID))
             .extracting(QuotaPolicy::id)
-            .containsExactly(user.id(), modelSetPolicy.id(), modelPolicy.id(), providerRate.id());
+            .containsExactly(user.id(), modelSetPolicy.id(), modelPolicy.id());
         assertThat(resolver.resolve(TENANT, USER_ID, MODEL_ID + 1))
             .extracting(QuotaPolicy::id)
             .containsExactly(user.id());
@@ -385,15 +379,9 @@ class QuotaManagementIntegrationTest {
             QuotaStatus.ACTIVE
         )).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("TOKEN 策略");
         assertThatThrownBy(() -> new QuotaPolicySpec(
-            "Member Provider", QuotaPolicyType.RATE, QuotaSubjectType.MEMBER, USER_ID,
-            QuotaResourceType.PROVIDER, PROVIDER_ID, null, null, null, null, 10, null,
-            QuotaStatus.ACTIVE
-        )).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("组织级 RATE");
-        assertThatThrownBy(() -> new QuotaPolicySpec(
-            "Token Provider", QuotaPolicyType.TOKEN, QuotaSubjectType.ORGANIZATION, null,
-            QuotaResourceType.PROVIDER, PROVIDER_ID, null, 1000L, null, null, null, null,
-            QuotaStatus.ACTIVE
-        )).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("组织级 RATE");
+            "Provider Resource", QuotaPolicyType.RATE, QuotaSubjectType.ORGANIZATION, null,
+            null, PROVIDER_ID, null, null, null, null, 10, null, QuotaStatus.ACTIVE
+        )).isInstanceOf(NullPointerException.class);
 
         assertThatThrownBy(() -> database.jdbc().update("""
             update ent_quota_policy set daily_token_limit = 1000
@@ -509,19 +497,25 @@ class QuotaManagementIntegrationTest {
     private static void insertModelAndDevice() {
         database.jdbc().update("""
             insert into ent_model_provider (
-                id, tenant_id, provider_key, name, provider_type, api_protocol, base_url, status,
-                connect_timeout_ms, read_timeout_ms, revision
-            ) values (?, ?, 't09-provider', 'T09 Provider', 'CUSTOM', 'openai-completions',
-                'https://api.deepseek.com/v1',
-                'ACTIVE', 5000, 30000, 0)
+                id, tenant_id, provider_key, name, status, revision
+            ) values (?, ?, 't09-provider', 'T09 Provider', 'ACTIVE', 0)
             """, PROVIDER_ID, TENANT);
+        long connectionId = PROVIDER_ID + 1;
+        database.jdbc().update("""
+            insert into ent_model_provider_connection (
+                id, tenant_id, provider_id, name, api_protocol, base_url,
+                credential_ciphertext, credential_nonce, key_version, status,
+                connect_timeout_ms, read_timeout_ms, revision
+            ) values (?, ?, ?, 'production', 'openai-completions', 'https://api.deepseek.com/v1',
+                ?, ?, 1, 'ACTIVE', 5000, 30000, 0)
+            """, connectionId, TENANT, PROVIDER_ID, new byte[] {1}, new byte[] {2});
         database.jdbc().update("""
             insert into ent_managed_model (
-                id, tenant_id, provider_id, alias, display_name, upstream_model,
-                context_window, max_output_tokens, sort_order, status, revision
+                id, tenant_id, connection_id, alias, display_name, upstream_model,
+                context_window, max_output_tokens, input_modalities, sort_order, status, revision
             ) values (?, ?, ?, 't09-model', 'T09 Model', 'deepseek-chat', 65536, 8192,
-                10, 'ACTIVE', 0)
-            """, MODEL_ID, TENANT, PROVIDER_ID);
+                '["text"]'::jsonb, 10, 'ACTIVE', 0)
+            """, MODEL_ID, TENANT, connectionId);
         database.jdbc().update(
             "insert into ent_model_set(id, tenant_id, name, revision) values (?, ?, 'T09 Models', 0)",
             MODEL_SET_ID, TENANT

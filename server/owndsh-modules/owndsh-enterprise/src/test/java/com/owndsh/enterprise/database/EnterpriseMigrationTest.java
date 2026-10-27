@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖普通数据库所有者、空数据库、classpath V0-V45 migration 与旧版 baseline 0 历史。
- * [OUTPUT]: 验证空库建表、旧库接管/升级、DeepSeek Messages 配置约束、重复启动、字符串时间参数、数据库计量迁移、MCP 原样认证值与 Skill 权限清理约束。
+ * [INPUT]: 依赖普通数据库所有者、空数据库、classpath V0-V48 migration 与旧版 baseline 0 历史。
+ * [OUTPUT]: 验证空库建表、旧库接管/升级、ProviderConnection 拆分、重复启动、字符串时间参数、数据库计量迁移、MCP 原样认证值与 Skill 权限清理约束。
  * [POS]: database 的持续 migration 门禁，防止后续任务只验证最终 schema 而遗漏中间版本不可升级。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -110,7 +110,7 @@ class EnterpriseMigrationTest {
         assertThat(database.jdbc().queryForObject(
             "select type from flyway_schema_history where version='0'", String.class
         )).isEqualTo("SQL");
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("45");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("48");
         Integer tableCount = database.jdbc().queryForObject("""
             select count(*) from information_schema.tables
             where table_schema = 'public' and table_name like 'ent_%'
@@ -259,7 +259,7 @@ class EnterpriseMigrationTest {
 
         Flyway flyway = PostgresTestDatabase.migrate(database, null);
 
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("45");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("48");
         assertThat(database.jdbc().queryForObject(
             "select type from flyway_schema_history where version='0'", String.class
         )).isEqualTo("BASELINE");
@@ -400,6 +400,7 @@ class EnterpriseMigrationTest {
             userId
         )).isOne();
 
+        // 历史迁移夹具：V13/V36 仍需从 provider_type 输入验证演进，V46 才删除该列。
         database.jdbc().update("""
             insert into ent_model_provider(
                 id,tenant_id,name,provider_type,base_url,status,
@@ -574,7 +575,7 @@ class EnterpriseMigrationTest {
             insert into ent_quota_policy(
                 id,tenant_id,name,policy_type,subject_type,subject_id,resource_type,resource_id,rpm,status
             ) values (1913000000000000831,'000000','Provider Rate','RATE','ORGANIZATION',null,
-                'PROVIDER',1913000000000000501,5,'ACTIVE')
+                'MODEL',1913000000000000501,5,'ACTIVE')
             """);
         assertThatThrownBy(() -> database.jdbc().update("""
             update ent_quota_policy set subject_type='MEMBER', subject_id=?
@@ -586,7 +587,7 @@ class EnterpriseMigrationTest {
             insert into ent_quota_policy(
                 id,tenant_id,name,policy_type,subject_type,subject_id,resource_type,resource_id,concurrency,status
             ) values (1913000000000000832,'000000','Duplicate Provider Rate','RATE','ORGANIZATION',null,
-                'PROVIDER',1913000000000000501,2,'ACTIVE')
+                'MODEL',1913000000000000501,2,'ACTIVE')
             """)).isInstanceOf(RuntimeException.class);
         Flyway versionTwentyEight = PostgresTestDatabase.migrate(database, "28");
         assertThat(versionTwentyEight.info().current().getVersion().getVersion()).isEqualTo("28");
@@ -640,14 +641,15 @@ class EnterpriseMigrationTest {
             .run(context -> {
                 assertThat(context).hasSingleBean(Flyway.class);
                 assertThat(context.getBean(Flyway.class).info().current().getVersion().getVersion())
-                    .isEqualTo("45");
+                    .isEqualTo("48");
             });
     }
 
     @Test
-    void migratesDeepSeekOfficialProvidersToMessagesWithoutEditingV13() {
-        var database = PostgresTestDatabase.create("deepseek_messages_protocol");
+    void migratesProviderMetadataAndCreatesConnectionTableWithoutLegacyRouteColumns() {
+        var database = PostgresTestDatabase.create("provider_connections_migration");
         PostgresTestDatabase.migrate(database, "35");
+        // 历史迁移夹具：在 V46 前写入旧 Provider 形态，验证新 schema 已彻底移除旧列。
         database.jdbc().update("""
             insert into ent_model_provider(
                 id,tenant_id,provider_key,name,provider_type,api_protocol,base_url,status,
@@ -658,17 +660,34 @@ class EnterpriseMigrationTest {
 
         Flyway flyway = PostgresTestDatabase.migrate(database, null);
 
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("45");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("48");
         assertThat(database.jdbc().queryForMap("""
-            select api_protocol,base_url from ent_model_provider where id=1913000000000000801
-            """)).containsEntry("api_protocol", "anthropic-messages")
-            .containsEntry("base_url", "https://api.deepseek.com/anthropic");
-        assertThatThrownBy(() -> database.jdbc().update("""
-            insert into ent_model_provider(
-                id,tenant_id,provider_key,name,provider_type,api_protocol,base_url,status,
-                connect_timeout_ms,read_timeout_ms,revision
-            ) values (1913000000000000802,'000000','deepseek-official-2','DeepSeek 2',
-                'DEEPSEEK_OFFICIAL','openai-completions','https://api.deepseek.com','ACTIVE',5000,30000,0)
-            """)).isInstanceOf(RuntimeException.class);
+            select provider_key,name from ent_model_provider where id=1913000000000000801
+            """)).containsEntry("provider_key", "deepseek-official")
+            .containsEntry("name", "DeepSeek");
+        assertThat(database.jdbc().queryForObject("""
+            select count(*) from information_schema.columns
+            where table_name='ent_model_provider' and column_name='provider_type'
+            """, Integer.class)).isZero();
+        assertThat(database.jdbc().queryForObject("""
+            select count(*) from information_schema.columns
+            where table_name='ent_model_provider' and column_name in
+                ('api_protocol','base_url','credential_ciphertext','connect_timeout_ms','read_timeout_ms')
+            """, Integer.class)).isZero();
+        assertThat(database.jdbc().queryForObject(
+            "select to_regclass('ent_model_provider_connection') is not null", Boolean.class
+        )).isTrue();
+        database.jdbc().update("""
+            insert into ent_model_provider_connection(
+                id,tenant_id,provider_id,name,api_protocol,base_url,credential_ciphertext,
+                credential_nonce,key_version,status,connect_timeout_ms,read_timeout_ms,revision
+            ) values (1913000000000000802,'000000',1913000000000000801,'production',
+                'anthropic-messages','https://api.deepseek.com/anthropic',decode('00','hex'),
+                decode('00','hex'),1,'ACTIVE',5000,30000,0)
+            """);
+        assertThat(database.jdbc().queryForObject(
+            "select api_protocol from ent_model_provider_connection where id=1913000000000000802", String.class
+        )).isEqualTo("anthropic-messages");
     }
+
 }

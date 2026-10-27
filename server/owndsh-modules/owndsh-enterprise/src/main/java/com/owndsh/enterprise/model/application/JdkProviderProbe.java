@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 JDK HttpClient、Jackson、ProviderSpec endpoint 规则与 ProviderProbe 脱敏结果。
- * [OUTPUT]: 对外提供不跟随重定向、限量解析 `data[]` Harness 模型字段的 `/models` 探测实现。
+ * [INPUT]: 依赖 JDK HttpClient、Jackson、ProviderConnectionSpec endpoint 规则与 ProviderProbe 脱敏结果。
+ * [OUTPUT]: 对外提供不跟随重定向、限量解析 `data[]` Harness 模型字段并按连接发现路径探测模型目录。
  * [POS]: model/application 的 OpenAI-compatible 模型发现探针，credential 只用于局部 Authorization header。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import com.owndsh.enterprise.model.domain.ProviderApiProtocol;
 
 public final class JdkProviderProbe implements ProviderProbe {
     private static final int MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
@@ -32,7 +33,30 @@ public final class JdkProviderProbe implements ProviderProbe {
         int connectTimeoutMs,
         int readTimeoutMs
     ) {
-        URI endpoint = modelsEndpoint(ProviderSpec.requireEndpoint(baseUrl));
+        return probe(ProviderApiProtocol.OPENAI_COMPLETIONS, baseUrl, credential, connectTimeoutMs, readTimeoutMs);
+    }
+
+    @Override
+    public ProviderProbeResult probe(
+        ProviderApiProtocol protocol,
+        URI baseUrl,
+        char[] credential,
+        int connectTimeoutMs,
+        int readTimeoutMs
+    ) {
+        return probe(protocol, baseUrl, "/models", credential, connectTimeoutMs, readTimeoutMs);
+    }
+
+    @Override
+    public ProviderProbeResult probe(
+        ProviderApiProtocol protocol,
+        URI baseUrl,
+        String modelDiscoveryPath,
+        char[] credential,
+        int connectTimeoutMs,
+        int readTimeoutMs
+    ) {
+        URI endpoint = discoveryEndpoint(ProviderConnectionSpec.requireEndpoint(baseUrl), ProviderConnectionSpec.requireDiscoveryPath(modelDiscoveryPath));
         Objects.requireNonNull(credential, "credential");
         if (credential.length == 0) throw new IllegalArgumentException("credential 不能为空");
         long started = System.nanoTime();
@@ -42,17 +66,24 @@ public final class JdkProviderProbe implements ProviderProbe {
                 .followRedirects(HttpClient.Redirect.NEVER)
                 .build();
             String authorization = "Bearer " + new String(credential);
-            HttpRequest request = HttpRequest.newBuilder(endpoint)
+            HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(endpoint)
                 .timeout(Duration.ofMillis(readTimeoutMs))
                 .header("Accept", "application/json")
-                .header("Authorization", authorization)
-                .GET()
-                .build();
+                .GET();
+            if (protocol == ProviderApiProtocol.ANTHROPIC_MESSAGES) {
+                requestBuilder.header("x-api-key", new String(credential));
+            } else {
+                requestBuilder.header("Authorization", authorization);
+            }
+            HttpRequest request = requestBuilder.build();
             HttpResponse<InputStream> response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
             ProviderProbeCategory category = category(response.statusCode());
             try (InputStream body = response.body()) {
                 if (category != ProviderProbeCategory.SUCCESS) return result(category, started, List.of());
-                return result(ProviderProbeCategory.SUCCESS, started, readModels(body));
+                ModelDirectory directory = readModels(body);
+                return directory.supported()
+                    ? result(ProviderProbeCategory.SUCCESS, started, directory.models())
+                    : result(ProviderProbeCategory.MODEL_DIRECTORY_UNSUPPORTED, started);
             } catch (Exception exception) {
                 return result(ProviderProbeCategory.INVALID_RESPONSE, started, List.of());
             }
@@ -67,13 +98,17 @@ public final class JdkProviderProbe implements ProviderProbe {
     }
 
     static URI modelsEndpoint(URI baseUrl) {
+        return discoveryEndpoint(baseUrl, "/models");
+    }
+
+    static URI discoveryEndpoint(URI baseUrl, String discoveryPath) {
         String path = baseUrl.getPath();
         String prefix = path == null || path.isEmpty() || "/".equals(path)
             ? ""
             : path.replaceFirst("/+$", "");
         try {
             return new URI(
-                baseUrl.getScheme(), null, baseUrl.getHost(), baseUrl.getPort(), prefix + "/models", null, null
+                baseUrl.getScheme(), null, baseUrl.getHost(), baseUrl.getPort(), prefix + discoveryPath, null, null
             );
         } catch (URISyntaxException exception) {
             throw new IllegalArgumentException("baseUrl 无法构造 /models endpoint", exception);
@@ -87,11 +122,11 @@ public final class JdkProviderProbe implements ProviderProbe {
         return ProviderProbeCategory.UNAVAILABLE;
     }
 
-    private static List<ProviderDiscoveredModel> readModels(InputStream stream) throws Exception {
+    private static ModelDirectory readModels(InputStream stream) throws Exception {
         byte[] body = stream.readNBytes(MAX_RESPONSE_BYTES + 1);
         if (body.length > MAX_RESPONSE_BYTES) throw new IllegalArgumentException("模型列表响应过大");
         JsonNode data = JSON.readTree(body).get("data");
-        if (data == null || !data.isArray()) throw new IllegalArgumentException("模型列表缺少 data 数组");
+        if (data == null || !data.isArray()) return new ModelDirectory(false, List.of());
         List<ProviderDiscoveredModel> models = new ArrayList<>();
         for (JsonNode item : data) {
             JsonNode id = item.get("id");
@@ -103,8 +138,10 @@ public final class JdkProviderProbe implements ProviderProbe {
                 ));
             }
         }
-        return models;
+        return new ModelDirectory(true, models);
     }
+
+    private record ModelDirectory(boolean supported, List<ProviderDiscoveredModel> models) {}
 
     private static String text(JsonNode item, String... fields) {
         for (String field : fields) {

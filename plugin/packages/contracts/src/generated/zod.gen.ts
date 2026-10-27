@@ -198,6 +198,7 @@ export const zAuditAuditAction = z.enum([
     'DEVICE_HEARTBEAT',
     'DEVICE_REVOKED',
     'PROVIDER_CHANGED',
+    'MODEL_CONNECTION_CHANGED',
     'MODEL_CHANGED',
     'MODEL_GRANT_CHANGED',
     'MODEL_REQUEST_ACCEPTED',
@@ -374,6 +375,32 @@ export const zPluginAuditMetadata = z.object({
     required: z.boolean()
 }).strict();
 
+export const zProviderChangeAuditMetadata = z.object({
+    operation: z.enum([
+        'CREATE',
+        'UPDATE',
+        'ENABLE',
+        'DISABLE'
+    ]),
+    protectedValueChanged: z.boolean(),
+    resourceRevision: z.int().gte(0),
+    bootstrapRevision: z.int().gte(0)
+}).strict();
+
+export const zProviderConnectionChangeAuditMetadata = z.object({
+    connectionId: z.int().gte(1),
+    providerId: z.int().gte(1),
+    operation: z.enum([
+        'CREATE',
+        'UPDATE',
+        'ENABLE',
+        'DISABLE'
+    ]),
+    secretReplaced: z.boolean(),
+    resourceRevision: z.int().gte(0),
+    bootstrapRevision: z.int().gte(0)
+}).strict();
+
 export const zQuotaChangeAuditMetadata = z.object({
     subjectType: z.enum(['ORGANIZATION', 'MEMBER']),
     status: z.enum(['ACTIVE', 'DISABLED']),
@@ -439,6 +466,66 @@ export const zUserStatusChangedAuditMetadata = z.object({
     previousStatus: z.string().min(1).max(16),
     currentStatus: z.string().min(1).max(16)
 }).strict();
+
+export const zAuditAuditMetadata = z.union([
+    zEmptyAuditMetadata,
+    zAuthAuditMetadata,
+    zIdentityChangeAuditMetadata,
+    zIdentityLinkAuditMetadata,
+    zIdentityUnlinkAuditMetadata,
+    zDeviceEnrollmentAuditMetadata,
+    zDeviceHeartbeatAuditMetadata,
+    zProviderChangeAuditMetadata,
+    zProviderConnectionChangeAuditMetadata,
+    zModelChangeAuditMetadata,
+    zModelGrantChangeAuditMetadata,
+    zGatewayAcceptedAuditMetadata,
+    zGatewayFinishedAuditMetadata,
+    zQuotaChangeAuditMetadata,
+    zQuotaRejectionAuditMetadata,
+    zReservationRecoveredAuditMetadata,
+    zPluginAuditMetadata,
+    zSessionRangeAuditMetadata,
+    zSessionRestoredAuditMetadata,
+    zSessionDeletedAuditMetadata,
+    zSessionExpiredAuditMetadata,
+    zRoleAssignedAuditMetadata,
+    zUserStatusChangedAuditMetadata,
+    zRevisionChangedAuditMetadata
+]);
+
+export const zAuditMetadata = zAuditAuditMetadata;
+
+export const zAuditAuditEvent = z.object({
+    id: zAuditAuditEventId,
+    occurredAt: z.iso.datetime({ offset: true }),
+    actorType: zAuditAuditActorType,
+    actorId: zEnterpriseUserId.nullable(),
+    deviceId: zEnterpriseDeviceId.nullable(),
+    action: zAuditAuditAction,
+    resourceType: zAuditAuditTypeName,
+    resourceId: z.string().min(1).max(255),
+    result: zAuditAuditResult,
+    reasonCode: zAuditAuditTypeName.nullable(),
+    requestId: zRequestId,
+    metadata: zAuditAuditMetadata
+}).strict();
+
+export const zAuditEvent = zAuditAuditEvent;
+
+export const zAuditAuditEventPageData = z.object({
+    items: z.array(zAuditAuditEvent).max(200),
+    page: zCursorPage
+}).strict();
+
+export const zAuditEventPageData = zAuditAuditEventPageData;
+
+export const zAuditAuditEventListResponse = z.object({
+    data: zAuditAuditEventPageData,
+    requestId: zRequestId
+}).strict();
+
+export const zAuditEventListResponse = zAuditAuditEventListResponse;
 
 export const zAuthAuthTransactionId = z.string().min(32).max(64).regex(/^[A-Za-z0-9_-]+$/);
 
@@ -1504,7 +1591,15 @@ export const zModelModelGrantId = z.string().regex(/^[1-9][0-9]{0,18}$/);
 
 export const zModelGrantId = zModelModelGrantId;
 
+export const zModelModelInputModality = z.enum(['text', 'image']);
+
+export const zModelInputModality = zModelModelInputModality;
+
 export const zModelName = z.string().min(1).max(120);
+
+export const zModelModelProviderConnectionId = z.string().regex(/^[1-9][0-9]{0,18}$/);
+
+export const zModelProviderConnectionId = zModelModelProviderConnectionId;
 
 export const zModelModelProviderId = z.string().regex(/^[1-9][0-9]{0,18}$/);
 
@@ -1646,12 +1741,12 @@ export const zModelReasoningCompat = z.object({
 }).strict();
 
 export const zModelManagedModelWriteRequest = z.object({
-    providerId: zModelModelProviderId,
-    alias: zModelAlias,
+    connectionId: zModelModelProviderConnectionId,
     modelId: z.string().min(1).max(255),
     name: zModelName.optional(),
     contextWindow: z.int().gte(1).lte(2147483647).optional(),
     maxTokens: z.int().gte(1).lte(2147483647).optional(),
+    input: z.array(zModelModelInputModality).min(1).optional(),
     reasoningEfforts: zModelReasoningEfforts.optional(),
     compat: zModelReasoningCompat.optional(),
     sortOrder: z.int().gte(0).lte(2147483647)
@@ -1673,6 +1768,7 @@ export const zModelBootstrapModel = z.object({
     apiProtocol: zModelProviderApiProtocol,
     contextWindow: z.int().gte(1).optional(),
     maxTokens: z.int().gte(1).optional(),
+    input: z.array(zModelModelInputModality).min(1).optional(),
     reasoningEfforts: zModelReasoningEfforts.optional(),
     compat: zModelReasoningCompat.optional(),
     isDefault: z.boolean()
@@ -1681,6 +1777,8 @@ export const zModelBootstrapModel = z.object({
 export const zBootstrapModel = zModelBootstrapModel;
 
 export const zProviderBaseUrl = z.url().min(1).max(500);
+
+export const zProviderDescription = z.string().max(500);
 
 export const zModelProviderDiscoveredModel = z.object({
     id: z.string().min(1).max(255),
@@ -1695,17 +1793,21 @@ export const zModelProviderKey = z.string().min(1).max(120).regex(/^[a-z][a-z0-9
 
 export const zProviderKey = zModelProviderKey;
 
+export const zProviderModelDiscoveryPath = z.string().min(1).max(255).regex(/^\/(?!\/)[^?#]*$/);
+
 export const zProviderName = z.string().min(1).max(120);
 
 export const zModelManagedModel = z.object({
     id: zManagedModelId,
     providerId: zModelModelProviderId,
+    connectionId: zModelModelProviderConnectionId,
     providerName: zProviderName,
     alias: zModelAlias,
     modelId: z.string().min(1).max(255),
     name: zModelName.optional(),
     contextWindow: z.int().gte(1).optional(),
     maxTokens: z.int().gte(1).optional(),
+    input: z.array(zModelModelInputModality).min(1).optional(),
     reasoningEfforts: zModelReasoningEfforts.optional(),
     compat: zModelReasoningCompat.optional(),
     sortOrder: z.int().gte(0),
@@ -1736,8 +1838,42 @@ export const zModelManagedModelResponse = z.object({
 
 export const zManagedModelResponse = zModelManagedModelResponse;
 
+export const zModelProvider = z.object({
+    id: zModelModelProviderId,
+    providerKey: zModelProviderKey,
+    name: zProviderName,
+    description: zProviderDescription,
+    status: zModelModelStatus,
+    connectionCount: z.int().gte(0).optional(),
+    revision: zRevision
+}).strict();
+
+export const zProvider = zModelProvider;
+
+export const zModelProviderCreateRequest = z.object({
+    name: zProviderName,
+    description: zProviderDescription.optional()
+}).strict();
+
+export const zProviderCreateRequest = zModelProviderCreateRequest;
+
+export const zModelProviderPageData = z.object({
+    items: z.array(zModelProvider).max(200),
+    page: zCursorPage
+}).strict();
+
+export const zProviderPageData = zModelProviderPageData;
+
+export const zModelProviderListResponse = z.object({
+    data: zModelProviderPageData,
+    requestId: zRequestId
+}).strict();
+
+export const zProviderListResponse = zModelProviderListResponse;
+
 export const zModelProviderProbeCategory = z.enum([
     'SUCCESS',
+    'MODEL_DIRECTORY_UNSUPPORTED',
     'AUTHENTICATION_FAILED',
     'UPSTREAM_REJECTED',
     'INVALID_RESPONSE',
@@ -1763,134 +1899,6 @@ export const zModelProviderProbeResponse = z.object({
 
 export const zProviderProbeResponse = zModelProviderProbeResponse;
 
-export const zProviderTimeoutMs = z.int().gte(1).lte(600000);
-
-export const zModelProviderProbeRequest = z.object({
-    baseUrl: zProviderBaseUrl,
-    connectTimeoutMs: zProviderTimeoutMs,
-    readTimeoutMs: zProviderTimeoutMs
-}).strict();
-
-export const zProviderProbeRequest = zModelProviderProbeRequest;
-
-export const zModelProviderType = z.enum(['DEEPSEEK_OFFICIAL', 'CUSTOM']);
-
-export const zProviderType = zModelProviderType;
-
-export const zProviderChangeAuditMetadata = z.object({
-    operation: z.enum([
-        'CREATE',
-        'UPDATE',
-        'ENABLE',
-        'DISABLE'
-    ]),
-    providerType: zModelProviderType,
-    protectedValueChanged: z.boolean(),
-    resourceRevision: z.int().gte(0),
-    bootstrapRevision: z.int().gte(0)
-}).strict();
-
-export const zAuditAuditMetadata = z.union([
-    zEmptyAuditMetadata,
-    zAuthAuditMetadata,
-    zIdentityChangeAuditMetadata,
-    zIdentityLinkAuditMetadata,
-    zIdentityUnlinkAuditMetadata,
-    zDeviceEnrollmentAuditMetadata,
-    zDeviceHeartbeatAuditMetadata,
-    zProviderChangeAuditMetadata,
-    zModelChangeAuditMetadata,
-    zModelGrantChangeAuditMetadata,
-    zGatewayAcceptedAuditMetadata,
-    zGatewayFinishedAuditMetadata,
-    zQuotaChangeAuditMetadata,
-    zQuotaRejectionAuditMetadata,
-    zReservationRecoveredAuditMetadata,
-    zPluginAuditMetadata,
-    zSessionRangeAuditMetadata,
-    zSessionRestoredAuditMetadata,
-    zSessionDeletedAuditMetadata,
-    zSessionExpiredAuditMetadata,
-    zRoleAssignedAuditMetadata,
-    zUserStatusChangedAuditMetadata,
-    zRevisionChangedAuditMetadata
-]);
-
-export const zAuditMetadata = zAuditAuditMetadata;
-
-export const zAuditAuditEvent = z.object({
-    id: zAuditAuditEventId,
-    occurredAt: z.iso.datetime({ offset: true }),
-    actorType: zAuditAuditActorType,
-    actorId: zEnterpriseUserId.nullable(),
-    deviceId: zEnterpriseDeviceId.nullable(),
-    action: zAuditAuditAction,
-    resourceType: zAuditAuditTypeName,
-    resourceId: z.string().min(1).max(255),
-    result: zAuditAuditResult,
-    reasonCode: zAuditAuditTypeName.nullable(),
-    requestId: zRequestId,
-    metadata: zAuditAuditMetadata
-}).strict();
-
-export const zAuditEvent = zAuditAuditEvent;
-
-export const zAuditAuditEventPageData = z.object({
-    items: z.array(zAuditAuditEvent).max(200),
-    page: zCursorPage
-}).strict();
-
-export const zAuditEventPageData = zAuditAuditEventPageData;
-
-export const zAuditAuditEventListResponse = z.object({
-    data: zAuditAuditEventPageData,
-    requestId: zRequestId
-}).strict();
-
-export const zAuditEventListResponse = zAuditAuditEventListResponse;
-
-export const zModelProvider = z.object({
-    id: zModelModelProviderId,
-    providerKey: zModelProviderKey,
-    name: zProviderName,
-    providerType: zModelProviderType,
-    apiProtocol: zModelProviderApiProtocol,
-    baseUrl: zProviderBaseUrl,
-    credentialConfigured: z.boolean(),
-    status: zModelModelStatus,
-    connectTimeoutMs: zProviderTimeoutMs,
-    readTimeoutMs: zProviderTimeoutMs,
-    revision: zRevision
-}).strict();
-
-export const zProvider = zModelProvider;
-
-export const zModelProviderCreateRequest = z.object({
-    providerKey: zModelProviderKey,
-    name: zProviderName,
-    providerType: zModelProviderType,
-    apiProtocol: zModelProviderApiProtocol,
-    baseUrl: zProviderBaseUrl,
-    connectTimeoutMs: zProviderTimeoutMs,
-    readTimeoutMs: zProviderTimeoutMs
-}).strict();
-
-export const zProviderCreateRequest = zModelProviderCreateRequest;
-
-export const zModelProviderPageData = z.object({
-    items: z.array(zModelProvider).max(200),
-    page: zCursorPage
-}).strict();
-
-export const zProviderPageData = zModelProviderPageData;
-
-export const zModelProviderListResponse = z.object({
-    data: zModelProviderPageData,
-    requestId: zRequestId
-}).strict();
-
-export const zProviderListResponse = zModelProviderListResponse;
-
 export const zModelProviderResponse = z.object({
     data: zModelProvider,
     requestId: zRequestId
@@ -1898,15 +1906,81 @@ export const zModelProviderResponse = z.object({
 
 export const zProviderResponse = zModelProviderResponse;
 
-export const zModelProviderUpdateRequest = z.object({
-    providerKey: zModelProviderKey,
-    name: zProviderName,
-    providerType: zModelProviderType,
+export const zProviderTimeoutMs = z.int().gte(1).lte(600000);
+
+export const zModelProviderConnection = z.object({
+    id: zModelModelProviderConnectionId,
+    providerId: zModelModelProviderId,
+    providerName: zProviderName,
+    name: z.string().min(1).max(120),
     apiProtocol: zModelProviderApiProtocol,
     baseUrl: zProviderBaseUrl,
+    modelDiscoveryPath: zProviderModelDiscoveryPath,
+    credentialConfigured: z.boolean(),
+    status: zModelModelStatus,
+    connectTimeoutMs: zProviderTimeoutMs,
+    readTimeoutMs: zProviderTimeoutMs,
+    revision: zRevision
+}).strict();
+
+export const zProviderConnection = zModelProviderConnection;
+
+export const zModelProviderConnectionCreateRequest = z.object({
+    name: z.string().min(1).max(120),
+    apiProtocol: zModelProviderApiProtocol,
+    baseUrl: zProviderBaseUrl,
+    modelDiscoveryPath: zProviderModelDiscoveryPath.optional(),
+    connectTimeoutMs: zProviderTimeoutMs,
+    readTimeoutMs: zProviderTimeoutMs
+}).strict();
+
+export const zProviderConnectionCreateRequest = zModelProviderConnectionCreateRequest;
+
+export const zModelProviderConnectionPageData = z.object({
+    items: z.array(zModelProviderConnection).max(200),
+    page: zCursorPage
+}).strict();
+
+export const zProviderConnectionPageData = zModelProviderConnectionPageData;
+
+export const zModelProviderConnectionListResponse = z.object({
+    data: zModelProviderConnectionPageData,
+    requestId: zRequestId
+}).strict();
+
+export const zProviderConnectionListResponse = zModelProviderConnectionListResponse;
+
+export const zModelProviderConnectionResponse = z.object({
+    data: zModelProviderConnection,
+    requestId: zRequestId
+}).strict();
+
+export const zProviderConnectionResponse = zModelProviderConnectionResponse;
+
+export const zModelProviderConnectionUpdateRequest = z.object({
+    name: z.string().min(1).max(120),
+    baseUrl: zProviderBaseUrl,
+    modelDiscoveryPath: zProviderModelDiscoveryPath.optional(),
     replaceSecret: z.boolean(),
     connectTimeoutMs: zProviderTimeoutMs,
     readTimeoutMs: zProviderTimeoutMs
+}).strict();
+
+export const zProviderConnectionUpdateRequest = zModelProviderConnectionUpdateRequest;
+
+export const zModelProviderProbeRequest = z.object({
+    apiProtocol: zModelProviderApiProtocol,
+    baseUrl: zProviderBaseUrl,
+    modelDiscoveryPath: zProviderModelDiscoveryPath.optional(),
+    connectTimeoutMs: zProviderTimeoutMs,
+    readTimeoutMs: zProviderTimeoutMs
+}).strict();
+
+export const zProviderProbeRequest = zModelProviderProbeRequest;
+
+export const zModelProviderUpdateRequest = z.object({
+    name: zProviderName,
+    description: zProviderDescription.optional()
 }).strict();
 
 export const zProviderUpdateRequest = zModelProviderUpdateRequest;
@@ -2199,13 +2273,12 @@ export const zQuotaQuotaPolicyType = z.enum(['TOKEN', 'RATE']);
 export const zQuotaPolicyType = zQuotaQuotaPolicyType;
 
 /**
- * PROVIDER 仅可用于 ORGANIZATION 主体的 RATE 策略；TOKEN 不接受该资源范围。
+ * 配额和速率策略绑定全体模型、模型集或单个模型。
  */
 export const zQuotaQuotaResourceType = z.enum([
     'ALL_MODELS',
     'MODEL_SET',
-    'MODEL',
-    'PROVIDER'
+    'MODEL'
 ]);
 
 export const zQuotaResourceType = zQuotaQuotaResourceType;
@@ -2277,7 +2350,7 @@ export const zQuotaQuotaPolicyResponse = z.object({
 export const zQuotaPolicyResponse = zQuotaQuotaPolicyResponse;
 
 /**
- * TOKEN 与 RATE 限制字段互斥；PROVIDER 仅允许与 RATE、ORGANIZATION 和非空 resourceId 组合。
+ * TOKEN 与 RATE 限制字段互斥；RATE 与模型资源绑定。
  */
 export const zQuotaQuotaPolicyWriteRequest = z.object({
     name: z.string().min(1).max(120),
@@ -2894,13 +2967,19 @@ export const zModelSetItem = z.unknown();
 
 export const zProviderCollection = z.unknown();
 
+export const zProviderConnectionCollection = z.unknown();
+
+export const zProviderConnectionItem = z.unknown();
+
+export const zProviderConnectionProbe = z.unknown();
+
+export const zProviderConnectionTest = z.unknown();
+
 export const zProviderDisable = z.unknown();
 
 export const zProviderEnable = z.unknown();
 
 export const zProviderItem = z.unknown();
-
-export const zProviderTest = z.unknown();
 
 export const zAdminPluginInventory = z.unknown();
 
@@ -3002,17 +3081,19 @@ export const zDeviceStatusWritable = zDeviceDeviceStatus;
 
 export const zModelProviderIdWritable = zModelModelProviderId;
 
+export const zModelProviderConnectionIdWritable = zModelModelProviderConnectionId;
+
 export const zModelGrantIdWritable = zModelModelGrantId;
 
 export const zModelSetIdWritable = zModelModelSetId;
-
-export const zProviderTypeWritable = zModelProviderType;
 
 export const zProviderKeyWritable = zModelProviderKey;
 
 export const zProviderApiProtocolWritable = zModelProviderApiProtocol;
 
 export const zModelStatusWritable = zModelModelStatus;
+
+export const zModelInputModalityWritable = zModelModelInputModality;
 
 export const zGrantSubjectTypeWritable = zModelGrantSubjectType;
 
@@ -3151,41 +3232,40 @@ export const zMemberLocalMemberCreateRequestWritable = z.object({
 
 export const zLocalMemberCreateRequestWritable = zMemberLocalMemberCreateRequestWritable;
 
-export const zModelProviderCreateRequestWritable = z.object({
-    providerKey: zModelProviderKey,
-    name: zProviderName,
-    providerType: zModelProviderType,
+export const zModelProviderConnectionCreateRequestWritable = z.object({
+    name: z.string().min(1).max(120),
     apiProtocol: zModelProviderApiProtocol,
     baseUrl: zProviderBaseUrl,
+    modelDiscoveryPath: zProviderModelDiscoveryPath.optional(),
     credential: z.string().min(1).max(4096),
     connectTimeoutMs: zProviderTimeoutMs,
     readTimeoutMs: zProviderTimeoutMs
 }).strict();
 
-export const zProviderCreateRequestWritable = zModelProviderCreateRequestWritable;
+export const zProviderConnectionCreateRequestWritable = zModelProviderConnectionCreateRequestWritable;
 
-export const zModelProviderProbeRequestWritable = z.object({
+export const zModelProviderConnectionUpdateRequestWritable = z.object({
+    name: z.string().min(1).max(120),
     baseUrl: zProviderBaseUrl,
-    credential: z.string().min(1).max(4096).optional(),
-    connectTimeoutMs: zProviderTimeoutMs,
-    readTimeoutMs: zProviderTimeoutMs
-}).strict();
-
-export const zProviderProbeRequestWritable = zModelProviderProbeRequestWritable;
-
-export const zModelProviderUpdateRequestWritable = z.object({
-    providerKey: zModelProviderKey,
-    name: zProviderName,
-    providerType: zModelProviderType,
-    apiProtocol: zModelProviderApiProtocol,
-    baseUrl: zProviderBaseUrl,
+    modelDiscoveryPath: zProviderModelDiscoveryPath.optional(),
     replaceSecret: z.boolean(),
     credential: z.string().min(1).max(4096).optional(),
     connectTimeoutMs: zProviderTimeoutMs,
     readTimeoutMs: zProviderTimeoutMs
 }).strict();
 
-export const zProviderUpdateRequestWritable = zModelProviderUpdateRequestWritable;
+export const zProviderConnectionUpdateRequestWritable = zModelProviderConnectionUpdateRequestWritable;
+
+export const zModelProviderProbeRequestWritable = z.object({
+    apiProtocol: zModelProviderApiProtocol,
+    baseUrl: zProviderBaseUrl,
+    modelDiscoveryPath: zProviderModelDiscoveryPath.optional(),
+    credential: z.string().min(1).max(4096),
+    connectTimeoutMs: zProviderTimeoutMs,
+    readTimeoutMs: zProviderTimeoutMs
+}).strict();
+
+export const zProviderProbeRequestWritable = zModelProviderProbeRequestWritable;
 
 export const zCurrentAccountPasswordWritable = z.unknown();
 
@@ -3202,11 +3282,11 @@ export const z1Enterprise1Admin1V11IdentitySources1SourceIdWritable = z.unknown(
 
 export const zMemberCollectionWritable = z.unknown();
 
-export const zProviderCollectionWritable = z.unknown();
+export const zProviderConnectionCollectionWritable = z.unknown();
 
-export const zProviderItemWritable = z.unknown();
+export const zProviderConnectionItemWritable = z.unknown();
 
-export const zProviderTestWritable = z.unknown();
+export const zProviderConnectionProbeWritable = z.unknown();
 
 export const zAuthClientId = zAuthPlatformClient;
 
@@ -3235,6 +3315,8 @@ export const zAccessGroupIdPath = zIdentityAccessGroupId;
 export const zEnterpriseUserIdPath = zEnterpriseUserId;
 
 export const zProviderIdPath = zModelModelProviderId;
+
+export const zProviderConnectionIdPath = zModelModelProviderConnectionId;
 
 export const zManagedModelIdPath = zManagedModelId;
 
@@ -3720,7 +3802,7 @@ export const zListModelProvidersQuery = z.object({
  */
 export const zListModelProvidersResponse = zModelProviderListResponse;
 
-export const zCreateModelProviderBody = zModelProviderCreateRequestWritable;
+export const zCreateModelProviderBody = zModelProviderCreateRequest;
 
 export const zCreateModelProviderHeaders = z.object({
     'Idempotency-Key': z.uuid().length(36).regex(/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/)
@@ -3740,7 +3822,7 @@ export const zGetModelProviderPath = z.object({
  */
 export const zGetModelProviderResponse = zModelProviderResponse;
 
-export const zUpdateModelProviderBody = zModelProviderUpdateRequestWritable;
+export const zUpdateModelProviderBody = zModelProviderUpdateRequest;
 
 export const zUpdateModelProviderHeaders = z.object({
     'If-Match': zRevision
@@ -3755,16 +3837,76 @@ export const zUpdateModelProviderPath = z.object({
  */
 export const zUpdateModelProviderResponse = zModelProviderResponse;
 
-export const zTestModelProviderBody = zModelProviderProbeRequestWritable;
+export const zListProviderConnectionsPath = z.object({
+    providerId: zModelModelProviderId
+});
 
-export const zTestModelProviderPath = z.object({
+export const zListProviderConnectionsQuery = z.object({
+    cursor: zCursor.optional(),
+    limit: zPageLimit.optional()
+});
+
+/**
+ * Provider connection page.
+ */
+export const zListProviderConnectionsResponse = zModelProviderConnectionListResponse;
+
+export const zCreateProviderConnectionBody = zModelProviderConnectionCreateRequestWritable;
+
+export const zCreateProviderConnectionHeaders = z.object({
+    'Idempotency-Key': z.uuid().length(36).regex(/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/)
+});
+
+export const zCreateProviderConnectionPath = z.object({
     providerId: zModelModelProviderId
 });
 
 /**
- * Sanitized provider probe result.
+ * Created provider connection.
  */
-export const zTestModelProviderResponse = zModelProviderProbeResponse;
+export const zCreateProviderConnectionResponse = zModelProviderConnectionResponse;
+
+export const zGetProviderConnectionPath = z.object({
+    providerId: zModelModelProviderId,
+    connectionId: zModelModelProviderConnectionId
+});
+
+/**
+ * Provider connection details.
+ */
+export const zGetProviderConnectionResponse = zModelProviderConnectionResponse;
+
+export const zUpdateProviderConnectionBody = zModelProviderConnectionUpdateRequestWritable;
+
+export const zUpdateProviderConnectionHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zUpdateProviderConnectionPath = z.object({
+    providerId: zModelModelProviderId,
+    connectionId: zModelModelProviderConnectionId
+});
+
+/**
+ * Updated provider connection.
+ */
+export const zUpdateProviderConnectionResponse = zModelProviderConnectionResponse;
+
+export const zProbeProviderConnectionBody = zModelProviderProbeRequestWritable;
+
+/**
+ * Sanitized draft provider connection probe result.
+ */
+export const zProbeProviderConnectionResponse = zModelProviderProbeResponse;
+
+export const zTestProviderConnectionPath = z.object({
+    connectionId: zModelModelProviderConnectionId
+});
+
+/**
+ * Sanitized provider connection probe result.
+ */
+export const zTestProviderConnectionResponse = zModelProviderProbeResponse;
 
 export const zEnableModelProviderHeaders = z.object({
     'If-Match': zRevision

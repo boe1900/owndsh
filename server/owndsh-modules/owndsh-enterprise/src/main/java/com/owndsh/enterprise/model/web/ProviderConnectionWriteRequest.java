@@ -1,0 +1,9 @@
+/**
+ * [INPUT]: 接收连接名称、协议、endpoint、超时与一次性 credential。
+ * [OUTPUT]: 对外提供 ProviderConnectionSpec 和秘密生命周期转换。
+ * [POS]: model/web 的连接写边界。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+package com.owndsh.enterprise.model.web;
+import com.owndsh.enterprise.model.application.*;import com.owndsh.enterprise.model.domain.ProviderApiProtocol;import java.net.URI;import java.util.Arrays;
+public record ProviderConnectionWriteRequest(String name,String apiProtocol,URI baseUrl,String modelDiscoveryPath,char[] credential,Boolean replaceSecret,int connectTimeoutMs,int readTimeoutMs) implements AutoCloseable{public ProviderConnectionWriteRequest(String name,String apiProtocol,URI baseUrl,char[] credential,boolean replaceSecret,int connectTimeoutMs,int readTimeoutMs){this(name,apiProtocol,baseUrl,"/models",credential,replaceSecret,connectTimeoutMs,readTimeoutMs);}public ProviderConnectionWriteRequest{credential=credential==null?null:credential.clone();}public ProviderConnectionSpec spec(){return spec(ProviderApiProtocol.fromValue(apiProtocol));}public ProviderConnectionSpec spec(ProviderApiProtocol fallback){return new ProviderConnectionSpec(name,apiProtocol==null?fallback:ProviderApiProtocol.fromValue(apiProtocol),baseUrl,modelDiscoveryPath==null?"/models":modelDiscoveryPath,connectTimeoutMs,readTimeoutMs);}public ProviderSecretInput createSecret(){if(credential==null)throw new IllegalArgumentException("credential 不能为空");return new ProviderSecretInput(credential);}public ProviderSecretInput replacement(){if(!Boolean.TRUE.equals(replaceSecret))return null;if(credential==null)throw new IllegalArgumentException("credential 不能为空");return new ProviderSecretInput(credential);}public void close(){if(credential!=null)Arrays.fill(credential,'\0');}public String toString(){return "ProviderConnectionWriteRequest[credential=[REDACTED]]";}}

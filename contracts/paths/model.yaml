@@ -69,11 +69,80 @@ ProviderItem:
       '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
       '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
       '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
-ProviderTest:
+ProviderConnectionCollection:
   parameters:
     - $ref: '../enterprise-openapi.yaml#/components/parameters/ProviderIdPath'
+  get:
+    operationId: listProviderConnections
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Cursor'
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Limit'
+    responses:
+      '200':
+        description: Provider connection page.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ProviderConnectionListResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
   post:
-    operationId: testModelProvider
+    operationId: createProviderConnection
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ProviderConnectionCreateRequest'}
+    responses:
+      '201':
+        description: Created provider connection.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ProviderConnectionResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+ProviderConnectionItem:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/ProviderIdPath'
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/ProviderConnectionIdPath'
+  get:
+    operationId: getProviderConnection
+    responses:
+      '200':
+        description: Provider connection details.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ProviderConnectionResponse'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+  put:
+    operationId: updateProviderConnection
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ProviderConnectionUpdateRequest'}
+    responses:
+      '200':
+        description: Updated provider connection.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ProviderConnectionResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+ProviderConnectionProbe:
+  post:
+    operationId: probeProviderConnection
     requestBody:
       required: true
       content:
@@ -81,7 +150,21 @@ ProviderTest:
           schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ProviderProbeRequest'}
     responses:
       '200':
-        description: Sanitized provider probe result.
+        description: Sanitized draft provider connection probe result.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ProviderProbeResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+ProviderConnectionTest:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/ProviderConnectionIdPath'
+  post:
+    operationId: testProviderConnection
+    responses:
+      '200':
+        description: Sanitized provider connection probe result.
         content:
           application/json:
             schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ProviderProbeResponse'}

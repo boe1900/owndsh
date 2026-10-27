@@ -30,6 +30,7 @@
           "type": "string",
           "enum": [
             "SUCCESS",
+            "MODEL_DIRECTORY_UNSUPPORTED",
             "AUTHENTICATION_FAILED",
             "UPSTREAM_REJECTED",
             "INVALID_RESPONSE",

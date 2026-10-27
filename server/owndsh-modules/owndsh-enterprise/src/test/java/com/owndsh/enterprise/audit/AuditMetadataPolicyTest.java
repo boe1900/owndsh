@@ -16,9 +16,9 @@ import com.owndsh.enterprise.device.application.DeviceHeartbeatMetadata;
 import com.owndsh.enterprise.model.application.ManagedModelChangeMetadata;
 import com.owndsh.enterprise.model.application.ModelGrantChangeMetadata;
 import com.owndsh.enterprise.model.application.ProviderChangeMetadata;
+import com.owndsh.enterprise.model.application.ProviderConnectionChangeMetadata;
 import com.owndsh.enterprise.model.domain.GrantSubjectType;
 import com.owndsh.enterprise.model.domain.ModelStatus;
-import com.owndsh.enterprise.model.domain.ProviderType;
 import com.owndsh.enterprise.model.gateway.GatewayAcceptedMetadata;
 import com.owndsh.enterprise.model.gateway.GatewayFinishedMetadata;
 import com.owndsh.enterprise.plugin.application.PluginAuditMetadata;
@@ -47,7 +47,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @Tag("dev")
 class AuditMetadataPolicyTest {
     private static final Pattern FORBIDDEN_METADATA_KEY = Pattern.compile(
-        "(?i).*\\\"[^\\\"]*(password|authorization|credential|secret|prompt|message|tool|stack|"
+        "(?i).*\\\"[^\\\"]*(password|authorization|credential|secret(?!Replaced)|prompt|message|tool|stack|"
             + "access[_-]?token|refresh[_-]?token|session[_-]?event)[^\\\"]*\\\"\\s*:.*"
     );
 
@@ -98,7 +98,10 @@ class AuditMetadataPolicyTest {
             new DeviceHeartbeatMetadata(1, 0, true),
             new EmptyAuditMetadata(),
             new ProviderChangeMetadata(
-                ProviderChangeMetadata.Operation.CREATE, ProviderType.DEEPSEEK_OFFICIAL, true, 0, 1
+                ProviderChangeMetadata.Operation.CREATE, true, 0, 1
+            ),
+            new ProviderConnectionChangeMetadata(
+                10, 20, ProviderConnectionChangeMetadata.Operation.CREATE, true, 0, 1
             ),
             new ManagedModelChangeMetadata(ManagedModelChangeMetadata.Operation.CREATE, 0, 1),
             new ModelGrantChangeMetadata(

@@ -19,6 +19,7 @@ import type {
 } from '@/api/generated/types.gen';
 import { Button } from '@/components/atoms/Button';
 import { ProductDialog } from '@/components/product/Dialog';
+import { DialogFooter } from '@/components/product/DialogFooter';
 import { MemberSelect } from '@/features/member-select';
 
 const inputClass = 'h-9 w-full rounded-lg border border-line bg-canvas px-3 text-[13px] text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent-tint disabled:cursor-not-allowed disabled:opacity-55';
@@ -110,7 +111,7 @@ export function GrantEditorDialog({ accessGroups, current, error, modelSets, mod
           {(field) => <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">状态<select className={inputClass} value={field.state.value} onChange={(event) => field.handleChange(event.target.value as GrantFormValue['status'])}><option value="ACTIVE">启用</option><option value="DISABLED">停用</option></select></label>}
         </form.Field>
         {error ? <p role="alert" className="m-0 rounded-md bg-red-tint px-3 py-2 text-[12.5px] text-red">{error}</p> : null}
-        <footer className="flex justify-end gap-2 border-t border-line pt-4"><Button type="button" size="sm" onClick={onClose}>取消</Button><form.Subscribe selector={(state) => state.canSubmit}>{(canSubmit) => <Button type="submit" variant="primary" size="sm" disabled={!canSubmit || saving}>{saving ? '保存中' : '保存'}</Button>}</form.Subscribe></footer>
+        <DialogFooter><Button type="button" size="sm" onClick={onClose}>取消</Button><form.Subscribe selector={(state) => state.canSubmit}>{(canSubmit) => <Button type="submit" variant="primary" size="sm" disabled={!canSubmit || saving}>{saving ? '保存中' : '保存'}</Button>}</form.Subscribe></DialogFooter>
       </form>
     </ProductDialog>
   );
@@ -181,7 +182,7 @@ export function QuotaEditorDialog({ current, error, modelSets, models, onClose, 
       policyType: type,
       subjectType: current?.subjectType ?? 'MEMBER',
       subjectId: current?.subjectId ?? '',
-      resourceType: current?.resourceType === 'PROVIDER' ? 'ALL_MODELS' : current?.resourceType ?? 'ALL_MODELS',
+      resourceType: current?.resourceType ?? 'ALL_MODELS',
       resourceId: current?.resourceId ?? '',
       fiveHourTokenLimit: current?.fiveHourTokenLimit?.toString() ?? '',
       dailyTokenLimit: current?.dailyTokenLimit?.toString() ?? '',
@@ -265,7 +266,7 @@ export function QuotaEditorDialog({ current, error, modelSets, models, onClose, 
         </fieldset> : null}
 
         {error ? <p role="alert" className="m-0 rounded-md bg-red-tint px-3 py-2 text-[12.5px] text-red">{error}</p> : null}
-        <footer className="flex justify-end gap-2 border-t border-line pt-4"><Button type="button" size="sm" onClick={onClose}>取消</Button><form.Subscribe selector={(state) => state.canSubmit}>{(canSubmit) => <Button type="submit" variant="primary" size="sm" disabled={!canSubmit || saving}>{saving ? '保存中' : '保存'}</Button>}</form.Subscribe></footer>
+        <DialogFooter><Button type="button" size="sm" onClick={onClose}>取消</Button><form.Subscribe selector={(state) => state.canSubmit}>{(canSubmit) => <Button type="submit" variant="primary" size="sm" disabled={!canSubmit || saving}>{saving ? '保存中' : '保存'}</Button>}</form.Subscribe></DialogFooter>
       </form>
     </ProductDialog>
   );
@@ -285,7 +286,7 @@ export function DeletePolicyDialog({ error, kind, label, onClose, onConfirm, sav
         <p className="m-0 text-[13px] leading-6 text-ink-2">确定删除“{label}”？该操作会立即影响后续模型请求。</p>
         {kind === 'quota' ? <p className="m-0 text-[12px] leading-5 text-ink-3">已有使用窗口记录的配额策略不能删除，请改为停用。</p> : null}
         {error ? <p role="alert" className="m-0 rounded-md bg-red-tint px-3 py-2 text-[12.5px] text-red">{error}</p> : null}
-        <footer className="flex justify-end gap-2 border-t border-line pt-4"><Button type="button" size="sm" disabled={saving} onClick={onClose}>取消</Button><Button type="button" variant="primary" size="sm" className="bg-red text-white hover:brightness-95" disabled={saving} onClick={onConfirm}>{saving ? '删除中' : '删除'}</Button></footer>
+        <DialogFooter><Button type="button" size="sm" disabled={saving} onClick={onClose}>取消</Button><Button type="button" variant="primary" size="sm" className="bg-red text-white hover:brightness-95" disabled={saving} onClick={onConfirm}>{saving ? '删除中' : '删除'}</Button></DialogFooter>
       </div>
     </ProductDialog>
   );

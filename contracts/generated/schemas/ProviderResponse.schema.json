@@ -15,13 +15,8 @@
         "id",
         "providerKey",
         "name",
-        "providerType",
-        "apiProtocol",
-        "baseUrl",
-        "credentialConfigured",
+        "description",
         "status",
-        "connectTimeoutMs",
-        "readTimeoutMs",
         "revision"
       ],
       "properties": {
@@ -40,29 +35,9 @@
           "minLength": 1,
           "maxLength": 120
         },
-        "providerType": {
+        "description": {
           "type": "string",
-          "enum": [
-            "DEEPSEEK_OFFICIAL",
-            "CUSTOM"
-          ]
-        },
-        "apiProtocol": {
-          "type": "string",
-          "enum": [
-            "openai-completions",
-            "openai-responses",
-            "anthropic-messages"
-          ]
-        },
-        "baseUrl": {
-          "type": "string",
-          "format": "uri",
-          "minLength": 1,
           "maxLength": 500
-        },
-        "credentialConfigured": {
-          "type": "boolean"
         },
         "status": {
           "type": "string",
@@ -71,15 +46,9 @@
             "DISABLED"
           ]
         },
-        "connectTimeoutMs": {
+        "connectionCount": {
           "type": "integer",
-          "minimum": 1,
-          "maximum": 600000
-        },
-        "readTimeoutMs": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 600000
+          "minimum": 0
         },
         "revision": {
           "type": "integer",

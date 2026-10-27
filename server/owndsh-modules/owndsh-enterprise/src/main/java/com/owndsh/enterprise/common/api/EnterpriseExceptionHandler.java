@@ -26,6 +26,7 @@ import com.owndsh.enterprise.device.application.DeviceNotFoundException;
 import com.owndsh.enterprise.model.application.ModelResourceNotFoundException;
 import com.owndsh.enterprise.model.application.ManagedModelInUseException;
 import com.owndsh.enterprise.model.application.ModelSetInUseException;
+import com.owndsh.enterprise.crypto.SecretCipherException;
 import com.owndsh.enterprise.mcp.application.McpResourceNotFoundException;
 import com.owndsh.enterprise.mcp.application.McpIdempotencyConflictException;
 import com.owndsh.enterprise.model.gateway.GatewayException;
@@ -188,6 +189,15 @@ public final class EnterpriseExceptionHandler {
     @ExceptionHandler(ModelResourceNotFoundException.class)
     public ResponseEntity<EnterpriseErrorResponse> modelNotFound(HttpServletRequest request) {
         return error(HttpStatus.NOT_FOUND, "ENT_RESOURCE_NOT_FOUND", "模型资源不存在", false, null, request);
+    }
+
+    @ExceptionHandler(SecretCipherException.class)
+    public ResponseEntity<EnterpriseErrorResponse> secretCipher(
+        SecretCipherException exception,
+        HttpServletRequest request
+    ) {
+        log.warn("企业连接密钥无法解密 requestId={} type={}", EnterpriseRequestIds.current(request), exception.getClass().getSimpleName());
+        return error(HttpStatus.BAD_REQUEST, "ENT_INVALID_REQUEST", "连接密钥无法解密，请编辑连接并替换 API Key", false, null, request);
     }
 
     @ExceptionHandler(ManagedModelInUseException.class)

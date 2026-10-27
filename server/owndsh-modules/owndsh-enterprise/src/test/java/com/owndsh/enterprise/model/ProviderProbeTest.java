@@ -97,4 +97,34 @@ class ProviderProbeTest {
         assertThat(redirected.upstreamStatus()).isEqualTo(ProviderProbe.ProviderProbeCategory.UNAVAILABLE);
         server.verify(0, getRequestedFor(urlEqualTo("/redirected")));
     }
+
+    @Test
+    void classifiesAReachableEndpointWithoutModelDirectoryAsUnsupported() {
+        server.stubFor(get(urlEqualTo("/v1/models"))
+            .willReturn(aResponse().withStatus(200).withBody("{\"object\":\"list\"}")));
+
+        ProviderProbe.ProviderProbeResult result = probe.probe(
+            URI.create(server.baseUrl() + "/v1"), SECRET.toCharArray(), 2_000, 2_000
+        );
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.upstreamStatus())
+            .isEqualTo(ProviderProbe.ProviderProbeCategory.MODEL_DIRECTORY_UNSUPPORTED);
+    }
+
+    @Test
+    void usesTheConnectionDiscoveryPath() {
+        server.stubFor(get(urlEqualTo("/v1/catalog/models"))
+            .willReturn(aResponse().withStatus(200).withBody("{\"data\":[{\"id\":\"custom-model\"}]}")));
+
+        ProviderProbe.ProviderProbeResult result = probe.probe(
+            com.owndsh.enterprise.model.domain.ProviderApiProtocol.OPENAI_COMPLETIONS,
+            URI.create(server.baseUrl() + "/v1"), "/catalog/models", SECRET.toCharArray(), 2_000, 2_000
+        );
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.models()).extracting(ProviderProbe.ProviderDiscoveredModel::id)
+            .containsExactly("custom-model");
+        server.verify(getRequestedFor(urlEqualTo("/v1/catalog/models")));
+    }
 }

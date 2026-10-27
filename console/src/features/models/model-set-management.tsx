@@ -29,6 +29,7 @@ import { randomUuid } from '@/lib/crypto';
 import { Button } from '@/components/atoms/Button';
 import { ProductDataTable, type ProductTableColumn } from '@/components/product/DataTable';
 import { ProductDialog } from '@/components/product/Dialog';
+import { DialogFooter } from '@/components/product/DialogFooter';
 
 const inputClass = 'h-9 w-full rounded-lg border border-line bg-canvas px-3 text-[13px] text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent-tint';
 
@@ -125,12 +126,12 @@ function ModelSetEditor({ current, error, models, onClose, onSave, saving }: {
           )}
         </form.Field>
         {error ? <p role="alert" className="m-0 rounded-md bg-red-tint px-3 py-2 text-[12.5px] text-red">{error}</p> : null}
-        <footer className="flex justify-end gap-2 border-t border-line pt-4">
+        <DialogFooter>
           <Button type="button" size="sm" onClick={onClose}>取消</Button>
           <form.Subscribe selector={(state) => state.canSubmit}>
             {(canSubmit) => <Button type="submit" variant="primary" size="sm" disabled={!canSubmit || saving}>{saving ? '保存中' : '保存'}</Button>}
           </form.Subscribe>
-        </footer>
+        </DialogFooter>
       </form>
     </ProductDialog>
   );
@@ -222,7 +223,7 @@ export function ModelSetManagement({ canWrite }: { canWrite: boolean }) {
         toolbarAction={canWrite ? <Button variant="primary" size="xs" disabled={models.isLoading || models.isError} onClick={() => { save.reset(); setEditor('create'); }}><Plus aria-hidden className="size-3.5" />新建模型集</Button> : undefined}
       />
       {editor ? <ModelSetEditor key={editor === 'create' ? 'create' : editor.id} current={editor === 'create' ? undefined : editor} error={save.error ? message(save.error, '模型集保存失败') : undefined} models={models.data ?? []} saving={save.isPending} onClose={() => setEditor(undefined)} onSave={(value) => save.mutate({ current: editor === 'create' ? undefined : editor, value })} /> : null}
-      {deleting ? <ProductDialog title="确认删除" onClose={closeDelete}><div className="grid gap-5 p-5"><p className="m-0 text-[13px] text-ink-2">确定删除“{deleting.name}”？</p><p className="m-0 text-[12px] leading-5 text-ink-3">如果该模型集已被访问授权或配额策略引用，需先解除关联。</p>{remove.error ? <p role="alert" className="m-0 text-[12.5px] text-red">{message(remove.error, '模型集删除失败')}</p> : null}<footer className="flex justify-end gap-2 border-t border-line pt-4"><Button size="sm" disabled={remove.isPending} onClick={closeDelete}>取消</Button><Button variant="primary" size="sm" className="bg-red text-white" disabled={remove.isPending} onClick={() => remove.mutate(deleting)}>{remove.isPending ? '删除中' : '删除'}</Button></footer></div></ProductDialog> : null}
+      {deleting ? <ProductDialog title="确认删除" onClose={closeDelete}><div className="grid gap-5 p-5"><p className="m-0 text-[13px] text-ink-2">确定删除“{deleting.name}”？</p><p className="m-0 text-[12px] leading-5 text-ink-3">如果该模型集已被访问授权或配额策略引用，需先解除关联。</p>{remove.error ? <p role="alert" className="m-0 text-[12.5px] text-red">{message(remove.error, '模型集删除失败')}</p> : null}<DialogFooter><Button size="sm" disabled={remove.isPending} onClick={closeDelete}>取消</Button><Button variant="primary" size="sm" className="bg-red text-white" disabled={remove.isPending} onClick={() => remove.mutate(deleting)}>{remove.isPending ? '删除中' : '删除'}</Button></DialogFooter></div></ProductDialog> : null}
     </>
   );
 }

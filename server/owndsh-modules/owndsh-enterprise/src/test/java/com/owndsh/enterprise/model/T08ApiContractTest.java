@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Provider/模型/模型集/授权/bootstrap Controller、MockMvc、认证 cursor、requestId filter 与派生 JSON Schemas。
- * [OUTPUT]: 验证 providerKey/type/apiProtocol、model/model-set/grant/bootstrap operation、权限码与 secret 隔离。
+ * [OUTPUT]: 验证 Provider 元信息、ProviderConnection、model/model-set/grant/bootstrap operation、权限码与 secret 隔离。
  * [POS]: T08 Server/OpenAPI 同步门禁，application services 使用 mock 以隔离 HTTP 翻译。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -34,6 +34,7 @@ import com.owndsh.enterprise.model.application.ModelGrantService;
 import com.owndsh.enterprise.model.application.ModelResourceNotFoundException;
 import com.owndsh.enterprise.model.application.ModelSetService;
 import com.owndsh.enterprise.model.application.ProviderProbe;
+import com.owndsh.enterprise.model.application.ProviderConnectionService;
 import com.owndsh.enterprise.model.application.ProviderSecretInput;
 import com.owndsh.enterprise.model.application.ProviderService;
 import com.owndsh.enterprise.model.domain.GrantSubjectType;
@@ -44,13 +45,16 @@ import com.owndsh.enterprise.model.domain.ModelProvider;
 import com.owndsh.enterprise.model.domain.ModelSet;
 import com.owndsh.enterprise.model.domain.ModelStatus;
 import com.owndsh.enterprise.model.domain.ProviderApiProtocol;
-import com.owndsh.enterprise.model.domain.ProviderType;
+import com.owndsh.enterprise.model.domain.ProviderConnection;
 import com.owndsh.enterprise.model.web.AdminManagedModelController;
 import com.owndsh.enterprise.model.web.AdminModelGrantController;
 import com.owndsh.enterprise.model.web.AdminModelSetController;
 import com.owndsh.enterprise.model.web.AdminProviderController;
+import com.owndsh.enterprise.model.web.AdminProviderConnectionController;
+import com.owndsh.enterprise.model.web.AdminProviderConnectionProbeController;
+import com.owndsh.enterprise.model.web.AdminProviderConnectionTestController;
 import com.owndsh.enterprise.model.web.BootstrapController;
-import com.owndsh.enterprise.model.web.ProviderTestRequest;
+import com.owndsh.enterprise.model.web.ProviderConnectionWriteRequest;
 import com.owndsh.enterprise.model.web.ProviderWriteRequest;
 import com.owndsh.enterprise.plugin.application.EffectivePluginResolver;
 import org.junit.jupiter.api.BeforeEach;
@@ -70,7 +74,6 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -92,6 +95,7 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standal
 class T08ApiContractTest {
     private static final String PROVIDER_ID = "1900800000000000001";
     private static final String MODEL_ID = "1900800000000000101";
+    private static final String CONNECTION_ID = "1900800000000000051";
     private static final String GRANT_ID = "1900800000000000201";
     private static final String USER_ID = "1761100000000000003";
     private static final String DEPARTMENT_ID = "1761000000000000103";
@@ -104,6 +108,7 @@ class T08ApiContractTest {
     private static final Path CONTRACT_ROOT = findContractRoot();
 
     private ProviderService providers;
+    private ProviderConnectionService connections;
     private ManagedModelService models;
     private ModelSetService modelSets;
     private ModelGrantService grants;
@@ -117,6 +122,7 @@ class T08ApiContractTest {
     @BeforeEach
     void setUp() {
         providers = mock(ProviderService.class);
+        connections = mock(ProviderConnectionService.class);
         models = mock(ManagedModelService.class);
         modelSets = mock(ModelSetService.class);
         grants = mock(ModelGrantService.class);
@@ -133,6 +139,9 @@ class T08ApiContractTest {
         EnterpriseCursorCodec cursors = new EnterpriseCursorCodec(new SecretCipher(new byte[32]));
         mvc = standaloneSetup(
             new AdminProviderController(providers, adminContexts, cursors),
+            new AdminProviderConnectionController(connections, adminContexts, cursors),
+            new AdminProviderConnectionProbeController(connections, adminContexts),
+            new AdminProviderConnectionTestController(connections, adminContexts),
             new AdminManagedModelController(models, adminContexts, cursors),
             new AdminModelSetController(modelSets, adminContexts, cursors),
             new AdminModelGrantController(grants, adminContexts, cursors),
@@ -143,15 +152,18 @@ class T08ApiContractTest {
 
         when(providers.list("000000", 0, 51)).thenReturn(List.of(provider));
         when(providers.get("000000", provider.id())).thenReturn(provider);
-        when(providers.create(any(), any(), any(ProviderSecretInput.class))).thenAnswer(invocation -> {
-            ProviderSecretInput input = invocation.getArgument(2);
-            assertThat(new String(input.value())).isEqualTo(SECRET);
-            return provider;
-        });
-        when(providers.update(any(), anyLong(), anyLong(), any(), anyBoolean(), nullable(ProviderSecretInput.class)))
-            .thenReturn(provider);
+        when(providers.create(any(), any())).thenReturn(provider);
+        when(providers.update(any(), anyLong(), anyLong(), any())).thenReturn(provider);
         when(providers.setStatus(any(), anyLong(), anyLong(), any())).thenReturn(provider);
-        when(providers.test(anyString(), anyLong(), any(), anyInt(), anyInt(), nullable(ProviderSecretInput.class)))
+        ProviderConnection connection = connection();
+        when(connections.list("000000", provider.id(), 0, 51)).thenReturn(List.of(connection));
+        when(connections.get("000000", connection.id())).thenReturn(connection);
+        when(connections.create(any(), anyLong(), any(), any())).thenReturn(connection);
+        when(connections.update(any(), anyLong(), anyLong(), any(), anyBoolean(), nullable(ProviderSecretInput.class)))
+            .thenReturn(connection);
+        when(connections.test(anyString(), anyLong(), nullable(ProviderSecretInput.class)))
+            .thenReturn(new ProviderProbe.ProviderProbeResult(true, 12, ProviderProbe.ProviderProbeCategory.SUCCESS));
+        when(connections.probe(any(), any()))
             .thenReturn(new ProviderProbe.ProviderProbeResult(true, 12, ProviderProbe.ProviderProbeCategory.SUCCESS));
 
         when(models.list("000000", 0, 51)).thenReturn(List.of(model));
@@ -187,11 +199,19 @@ class T08ApiContractTest {
         assertSchema(response(put("/enterprise/admin/v1/providers/{id}", PROVIDER_ID)
             .header("If-Match", "0").contentType(MediaType.APPLICATION_JSON)
             .content(providerRequest(true, false)), 200), "ProviderResponse");
-        assertSchema(response(post("/enterprise/admin/v1/providers/{id}/actions/test", PROVIDER_ID)
-            .contentType(MediaType.APPLICATION_JSON)
-            .content("""
-                {"baseUrl":"http://127.0.0.1:18080/v1","connectTimeoutMs":5000,"readTimeoutMs":30000}
-                """), 200), "ProviderProbeResponse");
+        assertThat(response(get("/enterprise/admin/v1/providers/{providerId}/connections", PROVIDER_ID), 200)).contains("\"items\"");
+        assertThat(response(get("/enterprise/admin/v1/providers/{providerId}/connections/{connectionId}", PROVIDER_ID, CONNECTION_ID), 200)).contains("production");
+        String connectionRequest = connectionRequest(false);
+        String createdConnection = response(post("/enterprise/admin/v1/providers/{providerId}/connections", PROVIDER_ID)
+            .header("Idempotency-Key", IDEMPOTENCY_KEY).contentType(MediaType.APPLICATION_JSON)
+            .content(connectionRequest), 201);
+        assertThat(createdConnection).contains("production", "anthropic-messages");
+        assertThat(createdConnection).doesNotContain(SECRET).doesNotContain("ciphertext");
+        assertThat(response(put("/enterprise/admin/v1/providers/{providerId}/connections/{connectionId}", PROVIDER_ID, CONNECTION_ID)
+            .header("If-Match", "0").contentType(MediaType.APPLICATION_JSON).content(connectionRequest), 200)).contains("production");
+        assertSchema(response(post("/enterprise/admin/v1/provider-connections/actions/probe")
+            .contentType(MediaType.APPLICATION_JSON).content(connectionRequest(true)), 200), "ProviderProbeResponse");
+        assertSchema(response(post("/enterprise/admin/v1/provider-connections/{connectionId}/actions/test", CONNECTION_ID), 200), "ProviderProbeResponse");
         for (String action : List.of("enable", "disable")) {
             assertSchema(response(post("/enterprise/admin/v1/providers/{id}/actions/{action}", PROVIDER_ID, action)
                 .header("If-Match", "0"), 200), "ProviderResponse");
@@ -266,10 +286,10 @@ class T08ApiContractTest {
         assertError(get("/enterprise/admin/v1/providers/{id}", unknownProviderId), 404);
         assertError(put("/enterprise/admin/v1/providers/{id}", PROVIDER_ID)
             .contentType(MediaType.APPLICATION_JSON).content(providerRequest(true, false)), 400);
-        assertError(post("/enterprise/admin/v1/providers/{id}/actions/test", PROVIDER_ID)
-            .contentType(MediaType.APPLICATION_JSON).content("{"), 400);
         assertError(post("/enterprise/admin/v1/providers/{id}/actions/enable", PROVIDER_ID), 400);
         assertError(post("/enterprise/admin/v1/providers/{id}/actions/disable", PROVIDER_ID), 400);
+        assertError(post("/enterprise/admin/v1/provider-connections/actions/probe")
+            .contentType(MediaType.APPLICATION_JSON).content("{"), 400);
 
         assertError(get("/enterprise/admin/v1/models").param("cursor", "invalid"), 400);
         assertError(post("/enterprise/admin/v1/models")
@@ -298,9 +318,14 @@ class T08ApiContractTest {
     void protectsEveryManagementOperationWithFrozenPermissionCodes() {
         assertPermissions(AdminProviderController.class, Map.of(
             "list", "ent:model:read", "get", "ent:model:read", "create", "ent:model:write",
-            "update", "ent:model:write", "test", "ent:model:write", "enable", "ent:model:write",
+            "update", "ent:model:write", "enable", "ent:model:write",
             "disable", "ent:model:write"
         ));
+        assertPermissions(AdminProviderConnectionController.class, Map.of(
+            "list", "ent:model:read", "get", "ent:model:read", "create", "ent:model:write", "update", "ent:model:write"
+        ));
+        assertPermissions(AdminProviderConnectionProbeController.class, Map.of("probe", "ent:model:write"));
+        assertPermissions(AdminProviderConnectionTestController.class, Map.of("test", "ent:model:write"));
         assertPermissions(AdminManagedModelController.class, Map.of(
             "list", "ent:model:read", "get", "ent:model:read", "create", "ent:model:write",
             "update", "ent:model:write", "delete", "ent:model:write", "enable", "ent:model:write",
@@ -318,21 +343,14 @@ class T08ApiContractTest {
 
     @Test
     void clearsCredentialRequestAndRedactsStringRepresentation() {
-        ProviderWriteRequest request = new ProviderWriteRequest(
-            "deepseek-official", "DeepSeek", ProviderType.DEEPSEEK_OFFICIAL,
-            "anthropic-messages", URI.create("https://api.deepseek.com/anthropic"),
-            true, SECRET.toCharArray(), 5000, 30000
-        );
+        ProviderWriteRequest request = new ProviderWriteRequest("DeepSeek", "");
         assertThat(request.toString())
             .doesNotContain(SECRET)
-            .doesNotContain("api.deepseek.com")
-            .contains("[REDACTED]");
-        assertThatThrownBy(request::createCredential).isInstanceOf(IllegalArgumentException.class);
-        request.close();
-        assertThat(request.credential()).containsOnly('\0');
+            .contains("DeepSeek");
 
-        try (ProviderTestRequest probe = new ProviderTestRequest(
-            URI.create("https://internal.provider.test/v1"), SECRET.toCharArray(), 5000, 30000
+        try (ProviderConnectionWriteRequest probe = new ProviderConnectionWriteRequest(
+            "production", "anthropic-messages", URI.create("https://internal.provider.test/v1"),
+            SECRET.toCharArray(), false, 5000, 30000
         )) {
             assertThat(probe.toString())
                 .doesNotContain(SECRET)
@@ -374,19 +392,24 @@ class T08ApiContractTest {
 
     private static ModelProvider provider() {
         return new ModelProvider(
-            Long.parseLong(PROVIDER_ID), "000000", "deepseek-official", "DeepSeek",
-            ProviderType.DEEPSEEK_OFFICIAL, ProviderApiProtocol.ANTHROPIC_MESSAGES,
-            URI.create("https://api.deepseek.com/anthropic"), new EncryptedSecret(new byte[16], new byte[12], 1),
-            ModelStatus.ACTIVE, 5000, 30000, 0
+            Long.parseLong(PROVIDER_ID), "000000", "provider-" + PROVIDER_ID, "DeepSeek",
+            ModelStatus.ACTIVE, 0
         );
     }
 
     private static ManagedModel model() {
         return new ManagedModel(
-            Long.parseLong(MODEL_ID), "000000", Long.parseLong(PROVIDER_ID), "DeepSeek Production",
-            "deepseek-chat", "DeepSeek Chat", "deepseek-chat", 65536, 8192, null, null, 10,
+            Long.parseLong(MODEL_ID), "000000", Long.parseLong(CONNECTION_ID), Long.parseLong(PROVIDER_ID), "DeepSeek",
+            "deepseek-chat-c51", "DeepSeek Chat", "deepseek-chat", 65536, 8192, List.of(), null, null, 10,
             ModelStatus.ACTIVE, 0
         );
+    }
+
+    private static ProviderConnection connection() {
+        return new ProviderConnection(Long.parseLong(CONNECTION_ID), "000000", Long.parseLong(PROVIDER_ID),
+            "DeepSeek", "production", ProviderApiProtocol.ANTHROPIC_MESSAGES,
+            URI.create("https://api.deepseek.com/anthropic"), new EncryptedSecret(new byte[16], new byte[12], 1),
+            ModelStatus.ACTIVE, 5000, 30000, null, 0);
     }
 
     private static ModelGrant grant() {
@@ -406,7 +429,8 @@ class T08ApiContractTest {
             9, new BootstrapUser(Long.parseLong(USER_ID), "alice", "Alice", Long.parseLong(DEPARTMENT_ID)),
             device,
             List.of(new EffectiveModelResolver.EffectiveModel(
-                Long.parseLong(MODEL_ID), "deepseek-chat", "DeepSeek Chat", 65536, 8192, 10,
+                Long.parseLong(MODEL_ID), "deepseek-chat", "DeepSeek Chat", 65536, 8192,
+                List.of(com.owndsh.enterprise.model.domain.ModelInputModality.TEXT), 10,
                 ProviderApiProtocol.ANTHROPIC_MESSAGES, null, null, true
             )),
             List.of(),
@@ -424,28 +448,22 @@ class T08ApiContractTest {
 
     private static String providerRequest(boolean update, boolean includeSecret) {
         return """
-            {
-              "providerKey":"deepseek-official",
-              "name":"DeepSeek",
-              "providerType":"DEEPSEEK_OFFICIAL",
-              "apiProtocol":"anthropic-messages",
-              "baseUrl":"https://api.deepseek.com/anthropic",
-              %s
-              %s
-              "connectTimeoutMs":5000,
-              "readTimeoutMs":30000
-            }
-            """.formatted(
-                update ? "\"replaceSecret\":false," : "",
-                includeSecret ? "\"credential\":\"" + SECRET + "\"," : ""
-            );
+            {"name":"DeepSeek"}
+            """;
+    }
+
+    private static String connectionRequest(boolean probe) {
+        return """
+            {"name":"production","apiProtocol":"anthropic-messages","baseUrl":"https://api.deepseek.com/anthropic",
+             "credential":"%s","connectTimeoutMs":5000,"readTimeoutMs":30000}
+            """.formatted(SECRET).trim();
     }
 
     private static String modelRequest() {
         return """
-            {"providerId":"%s","alias":"deepseek-chat","modelId":"deepseek-chat","name":"DeepSeek Chat",
+            {"connectionId":"%s","modelId":"deepseek-chat","name":"DeepSeek Chat",
              "contextWindow":65536,"maxTokens":8192,"sortOrder":10}
-            """.formatted(PROVIDER_ID);
+            """.formatted(CONNECTION_ID);
     }
 
     private static String modelSetRequest() {

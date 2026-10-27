@@ -29,6 +29,7 @@ import { randomUuid } from '@/lib/crypto';
 import { Button } from '@/components/atoms/Button';
 import { ProductDataTable, type ProductTableColumn } from '@/components/product/DataTable';
 import { ProductDialog } from '@/components/product/Dialog';
+import { DialogFooter } from '@/components/product/DialogFooter';
 
 const inputClass = 'h-9 min-w-0 rounded-lg border border-line bg-canvas px-3 text-[13px] text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent-tint disabled:opacity-60';
 
@@ -106,10 +107,10 @@ function MappingEditor({ accessGroups, error, onClose, onSave, saving, source }:
         {search.error ? <p role="alert" className="m-0 text-[12.5px] text-red">{message(search.error, 'LDAP 组搜索失败')}</p> : null}
         {error ? <p role="alert" className="m-0 text-[12.5px] text-red">{error}</p> : null}
       </div>
-      <footer className="flex justify-end gap-2 border-t border-line px-5 py-4">
+      <DialogFooter className="mx-0 mb-0">
         <Button type="button" size="sm" onClick={onClose}>取消</Button>
         <Button type="button" variant="primary" size="sm" disabled={!selected || accessGroupId === '' || saving} onClick={() => selected && onSave(selected, accessGroupId)}>{saving ? '保存中' : '保存映射'}</Button>
-      </footer>
+      </DialogFooter>
     </ProductDialog>
   );
 }
@@ -172,10 +173,10 @@ export function LdapGroupMappingDialog({ canWrite, onClose, source }: {
         <div className="grid gap-5 p-5">
           <p className="m-0 break-words text-[13px] text-ink-2">确定删除“{deleting.externalGroup}”的 LDAP 组映射？</p>
           {remove.error ? <p role="alert" className="m-0 rounded-md bg-red-tint px-3 py-2 text-[12.5px] text-red">{message(remove.error, 'LDAP 组映射删除失败')}</p> : null}
-          <footer className="flex justify-end gap-2 border-t border-line pt-4">
+          <DialogFooter>
             <Button size="sm" disabled={remove.isPending} onClick={closeDelete}>取消</Button>
             <Button variant="primary" size="sm" className="bg-red text-white" disabled={remove.isPending} onClick={() => remove.mutate(deleting)}>{remove.isPending ? '删除中' : '删除'}</Button>
-          </footer>
+          </DialogFooter>
         </div>
       </ProductDialog>
     );

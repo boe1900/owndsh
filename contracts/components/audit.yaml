@@ -20,6 +20,7 @@ AuditAction:
     - DEVICE_HEARTBEAT
     - DEVICE_REVOKED
     - PROVIDER_CHANGED
+    - MODEL_CONNECTION_CHANGED
     - MODEL_CHANGED
     - MODEL_GRANT_CHANGED
     - MODEL_REQUEST_ACCEPTED
@@ -99,11 +100,21 @@ DeviceHeartbeatAuditMetadata:
 ProviderChangeAuditMetadata:
   type: object
   additionalProperties: false
-  required: [operation, providerType, protectedValueChanged, resourceRevision, bootstrapRevision]
+  required: [operation, protectedValueChanged, resourceRevision, bootstrapRevision]
   properties:
     operation: {type: string, enum: [CREATE, UPDATE, ENABLE, DISABLE]}
-    providerType: {$ref: './model.yaml#/ProviderType'}
     protectedValueChanged: {type: boolean}
+    resourceRevision: {type: integer, minimum: 0}
+    bootstrapRevision: {type: integer, minimum: 0}
+ProviderConnectionChangeAuditMetadata:
+  type: object
+  additionalProperties: false
+  required: [connectionId, providerId, operation, secretReplaced, resourceRevision, bootstrapRevision]
+  properties:
+    connectionId: {type: integer, minimum: 1}
+    providerId: {type: integer, minimum: 1}
+    operation: {type: string, enum: [CREATE, UPDATE, ENABLE, DISABLE]}
+    secretReplaced: {type: boolean}
     resourceRevision: {type: integer, minimum: 0}
     bootstrapRevision: {type: integer, minimum: 0}
 ModelChangeAuditMetadata:
@@ -239,6 +250,7 @@ AuditMetadata:
     - $ref: '#/DeviceEnrollmentAuditMetadata'
     - $ref: '#/DeviceHeartbeatAuditMetadata'
     - $ref: '#/ProviderChangeAuditMetadata'
+    - $ref: '#/ProviderConnectionChangeAuditMetadata'
     - $ref: '#/ModelChangeAuditMetadata'
     - $ref: '#/ModelGrantChangeAuditMetadata'
     - $ref: '#/GatewayAcceptedAuditMetadata'

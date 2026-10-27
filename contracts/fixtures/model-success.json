@@ -2,6 +2,7 @@
   "data": {
     "id": "1900800000000000101",
     "providerId": "1900800000000000001",
+    "connectionId": "1900800000000000051",
     "providerName": "DeepSeek Production",
     "alias": "deepseek-chat",
     "modelId": "deepseek-chat",

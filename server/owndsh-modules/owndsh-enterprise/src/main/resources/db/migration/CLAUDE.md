@@ -52,5 +52,9 @@ V42__enterprise_skill_source_archive.sql: 修正 skill artifact provider 约束�
 V43__remove_skill_permissions.sql: 删除早期 Skill 专用权限码及角色关联；Skill 目录只受登录管理会话保护。
 V44__plugin_single_category.sql: 将插件安装配置的旧 categories 数组收敛为 DSH format 1 的单值 category，并冻结 JSONB 类型约束。
 V45__plugin_market_format_1.sql: 将包级 DSH market metadata、版本 source/engines/published_at 从旧安装 JSON 中前向拆出，保留历史安装事实供 runtime 兼容。
+V46__model_provider_connections.sql: 按全新模型接入设计拆分 Provider 元信息、ProviderConnection 凭据/端点与 ManagedModel 路由，加入输入模态并移除 Provider RATE 资源；不做旧字段回填或兼容投影，历史迁移中的 provider_type 只作为 V1/V13/V36 的演进输入。
+V47__model_connection_audit.sql: 将连接敏感操作审计动作加入数据库白名单，与 MODEL_CONNECTION_CHANGED Java action 和 OpenAPI metadata 同构。
+V48__model_provider_description.sql: 为供应商元信息增加可选描述字段，供管理端记录用途说明。
+V49__model_connection_discovery_path.sql: 为每条模型连接增加默认 /models 的模型发现路径，并约束其为无 query/fragment 的绝对路径。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

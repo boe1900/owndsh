@@ -30,7 +30,6 @@ public final class JdbcQuotaPolicyStore implements QuotaPolicyStore {
                    when 'ALL_MODELS' then '全部模型'
                    when 'MODEL_SET' then ms.name
                    when 'MODEL' then coalesce(m.display_name, m.alias)
-                   when 'PROVIDER' then mp.name
                end as resource_name
         from ent_quota_policy p
         left join sys_user u on p.subject_type = 'MEMBER' and u.user_id = p.subject_id
@@ -38,8 +37,6 @@ public final class JdbcQuotaPolicyStore implements QuotaPolicyStore {
           and ms.tenant_id = p.tenant_id
         left join ent_managed_model m on p.resource_type = 'MODEL' and m.id = p.resource_id
           and m.tenant_id = p.tenant_id
-        left join ent_model_provider mp on p.resource_type = 'PROVIDER' and mp.id = p.resource_id
-          and mp.tenant_id = p.tenant_id
         """;
     private static final RowMapper<QuotaPolicy> MAPPER = (rs, rowNum) -> new QuotaPolicy(
         rs.getLong("id"), rs.getString("tenant_id"), rs.getString("name"),
@@ -89,13 +86,10 @@ public final class JdbcQuotaPolicyStore implements QuotaPolicyStore {
                          select 1 from ent_model_set_member sm
                          where sm.model_set_id = p.resource_id and sm.model_id = ?
                      ))
-                     or (p.resource_type = 'PROVIDER' and exists (
-                         select 1 from ent_managed_model pm
-                         where pm.id = ? and pm.provider_id = p.resource_id and pm.tenant_id = p.tenant_id
-                     )))
+)
                  order by p.id
                 """,
-            MAPPER, tenantId, userId, modelId, modelId, modelId, modelId
+            MAPPER, tenantId, userId, modelId, modelId, modelId
         );
     }
 
@@ -115,7 +109,6 @@ public final class JdbcQuotaPolicyStore implements QuotaPolicyStore {
         String table = switch (type) {
             case MODEL_SET -> "ent_model_set";
             case MODEL -> "ent_managed_model";
-            case PROVIDER -> "ent_model_provider";
             case ALL_MODELS -> throw new IllegalStateException("ALL_MODELS 已提前处理");
         };
         Boolean exists = jdbc.queryForObject(

@@ -22,8 +22,8 @@ import com.owndsh.enterprise.model.application.BootstrapUser;
 import com.owndsh.enterprise.model.domain.ManagedModel;
 import com.owndsh.enterprise.model.domain.ModelProvider;
 import com.owndsh.enterprise.model.domain.ModelStatus;
+import com.owndsh.enterprise.model.domain.ProviderConnection;
 import com.owndsh.enterprise.model.domain.ProviderApiProtocol;
-import com.owndsh.enterprise.model.domain.ProviderType;
 import com.owndsh.enterprise.quota.application.EffectiveQuotaResolver;
 import com.owndsh.enterprise.quota.application.QuotaRateLimiter;
 import com.owndsh.enterprise.quota.application.QuotaReservationService;
@@ -129,7 +129,7 @@ class ModelGatewayTransactionIntegrationTest {
         cipher = new SecretCipher(new byte[32]);
         EncryptedSecret encrypted = cipher.encrypt(
             SecretPurpose.PROVIDER_SECRET,
-            new SecretAad(TENANT, "ent_model_provider", Long.toString(PROVIDER_ID), "credential_ciphertext", 1),
+            new SecretAad(TENANT, "ent_model_provider_connection", Long.toString(PROVIDER_ID + 1), "credential_ciphertext", 1),
             "transaction-test-secret".getBytes(StandardCharsets.UTF_8)
         );
         route = new GatewayRouteResolver.GatewayRoute(
@@ -139,13 +139,17 @@ class ModelGatewayTransactionIntegrationTest {
                 "T10 Desktop", "darwin-arm64", "1", "1", DeviceStatus.ACTIVE, Instant.now(), null, 0
             ),
             new ManagedModel(
-                MODEL_ID, TENANT, PROVIDER_ID, "T10 Provider", "t10-model", "T10 Model", "deepseek-chat",
-                65536, 8192, null, null, 0, ModelStatus.ACTIVE, 0
+                MODEL_ID, TENANT, PROVIDER_ID + 1, PROVIDER_ID, "T10 Provider", "t10-model", "T10 Model", "deepseek-chat",
+                65536, 8192, List.of(com.owndsh.enterprise.model.domain.ModelInputModality.TEXT), null, null,
+                0, ModelStatus.ACTIVE, 0
             ),
             new ModelProvider(
-                PROVIDER_ID, TENANT, "t10-provider", "T10 Provider", ProviderType.CUSTOM,
-                ProviderApiProtocol.OPENAI_COMPLETIONS,
-                URI.create("https://provider.invalid/v1"), encrypted, ModelStatus.ACTIVE, 1000, 1000, 0
+                PROVIDER_ID, TENANT, "t10-provider", "T10 Provider",                 ModelStatus.ACTIVE, 0
+            ),
+            new ProviderConnection(
+                PROVIDER_ID + 1, TENANT, PROVIDER_ID, "T10 Provider", "production",
+                ProviderApiProtocol.OPENAI_COMPLETIONS, URI.create("https://provider.invalid/v1"),
+                encrypted, ModelStatus.ACTIVE, 1000, 1000, null, 0
             )
         );
     }
@@ -473,9 +477,9 @@ class ModelGatewayTransactionIntegrationTest {
     private static void insertFacts() {
         database.jdbc().update("""
             insert into ent_model_provider (
-                id, tenant_id, provider_key, name, provider_type, api_protocol, base_url, status,
+                id, tenant_id, provider_key, name, api_protocol, base_url, status,
                 connect_timeout_ms, read_timeout_ms, revision
-            ) values (?, ?, 't10-provider', 'T10 Provider', 'CUSTOM', 'openai-completions',
+            ) values (?, ?, 't10-provider', 'T10 Provider', 'openai-completions',
                 'https://provider.invalid/v1',
                 'ACTIVE', 1000, 1000, 0)
             """, PROVIDER_ID, TENANT);

@@ -3,14 +3,10 @@
     "id": "1900800000000000001",
     "providerKey": "deepseek-official",
     "name": "DeepSeek",
-    "providerType": "DEEPSEEK_OFFICIAL",
-    "apiProtocol": "anthropic-messages",
-    "baseUrl": "https://api.deepseek.com/anthropic",
-    "credentialConfigured": true,
     "status": "ACTIVE",
-    "connectTimeoutMs": 5000,
-    "readTimeoutMs": 30000,
-    "revision": 2
+    "connectionCount": 1,
+    "revision": 2,
+    "description": "官方兼容连接"
   },
   "requestId": "req_01K2W3V4X5Y6Z7A8B9C0D1E2F3"
 }

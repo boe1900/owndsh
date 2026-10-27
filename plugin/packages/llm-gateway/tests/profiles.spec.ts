@@ -20,7 +20,7 @@ function snapshot(): BootstrapSnapshot {
     models: [
       { alias: 'chat', apiProtocol: 'openai-completions', isDefault: false },
       {
-        alias: 'gpt', name: 'GPT', apiProtocol: 'openai-responses', contextWindow: 128_000,
+        alias: 'gpt', name: 'GPT', apiProtocol: 'openai-responses', input: ['text', 'image'], contextWindow: 128_000,
         maxTokens: 16_384, reasoningEfforts: { off: null, xhigh: 'xhigh' }, isDefault: true,
       },
       { alias: 'claude', apiProtocol: 'anthropic-messages', isDefault: false },
@@ -48,6 +48,7 @@ describe('buildEnterpriseProfiles', () => {
     expect(profiles['enterprise']?.api).toBe('openai-responses')
     expect(profiles['enterprise']?.models?.[0]).toMatchObject({
       id: ENTERPRISE_DEFAULT_MODEL,
+      input: ['text', 'image'],
       reasoningEfforts: { off: null, xhigh: 'xhigh' },
     })
     expect(profiles['enterprise-openai-responses']?.retryPolicy).toBeUndefined()

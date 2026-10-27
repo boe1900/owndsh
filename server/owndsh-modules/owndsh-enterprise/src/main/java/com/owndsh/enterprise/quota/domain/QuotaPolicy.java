@@ -46,10 +46,6 @@ public record QuotaPolicy(
             || resourceId != null && resourceId <= 0) {
             throw new IllegalArgumentException("ALL_MODELS 与 resourceId 约束不一致");
         }
-        if (resourceType == QuotaResourceType.PROVIDER
-            && (policyType != QuotaPolicyType.RATE || subjectType != QuotaSubjectType.ORGANIZATION)) {
-            throw new IllegalArgumentException("PROVIDER 资源只支持组织级 RATE 策略");
-        }
         requirePositive(fiveHourTokenLimit, "fiveHourTokenLimit");
         requirePositive(dailyTokenLimit, "dailyTokenLimit");
         requirePositive(weeklyTokenLimit, "weeklyTokenLimit");

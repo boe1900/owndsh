@@ -209,17 +209,19 @@ export type DeviceListResponse = DeviceDeviceListResponse;
 
 export type ModelProviderId = ModelModelProviderId;
 
+export type ModelProviderConnectionId = ModelModelProviderConnectionId;
+
 export type ModelGrantId = ModelModelGrantId;
 
 export type ModelSetId = ModelModelSetId;
-
-export type ProviderType = ModelProviderType;
 
 export type ProviderKey = ModelProviderKey;
 
 export type ProviderApiProtocol = ModelProviderApiProtocol;
 
 export type ModelStatus = ModelModelStatus;
+
+export type ModelInputModality = ModelModelInputModality;
 
 export type GrantSubjectType = ModelGrantSubjectType;
 
@@ -232,6 +234,18 @@ export type ProviderUpdateRequest = ModelProviderUpdateRequest;
 export type ProviderProbeRequest = ModelProviderProbeRequest;
 
 export type Provider = ModelProvider;
+
+export type ProviderConnection = ModelProviderConnection;
+
+export type ProviderConnectionCreateRequest = ModelProviderConnectionCreateRequest;
+
+export type ProviderConnectionUpdateRequest = ModelProviderConnectionUpdateRequest;
+
+export type ProviderConnectionResponse = ModelProviderConnectionResponse;
+
+export type ProviderConnectionPageData = ModelProviderConnectionPageData;
+
+export type ProviderConnectionListResponse = ModelProviderConnectionListResponse;
 
 export type ProviderResponse = ModelProviderResponse;
 
@@ -640,7 +654,7 @@ export type SkillImportedRelease = SkillSkillImportedRelease;
 
 export type SkillImportedReleaseResponse = SkillSkillImportedReleaseResponse;
 
-export type AuditAuditAction = 'LOGIN_SUCCEEDED' | 'LOGIN_FAILED' | 'LOGOUT' | 'IDENTITY_SOURCE_CHANGED' | 'USER_LINKED' | 'USER_UNLINKED' | 'DEVICE_ENROLLED' | 'DEVICE_HEARTBEAT' | 'DEVICE_REVOKED' | 'PROVIDER_CHANGED' | 'MODEL_CHANGED' | 'MODEL_GRANT_CHANGED' | 'MODEL_REQUEST_ACCEPTED' | 'MODEL_REQUEST_FINISHED' | 'QUOTA_CHANGED' | 'QUOTA_REJECTED' | 'RESERVATION_RECOVERED' | 'PLUGIN_REGISTERED' | 'PLUGIN_UPLOADED' | 'PLUGIN_PUBLISHED' | 'PLUGIN_DELETED' | 'PLUGIN_ASSIGNED' | 'PLUGIN_DOWNLOADED' | 'PLUGIN_INVENTORY_REPORTED' | 'SESSION_BATCH_APPENDED' | 'SESSION_EXPORTED' | 'SESSION_RESTORED' | 'SESSION_CONTENT_READ' | 'SESSION_DELETED' | 'SESSION_EXPIRED' | 'ROLE_ASSIGNED' | 'USER_STATUS_CHANGED' | 'CONFIG_CHANGED';
+export type AuditAuditAction = 'LOGIN_SUCCEEDED' | 'LOGIN_FAILED' | 'LOGOUT' | 'IDENTITY_SOURCE_CHANGED' | 'USER_LINKED' | 'USER_UNLINKED' | 'DEVICE_ENROLLED' | 'DEVICE_HEARTBEAT' | 'DEVICE_REVOKED' | 'PROVIDER_CHANGED' | 'MODEL_CONNECTION_CHANGED' | 'MODEL_CHANGED' | 'MODEL_GRANT_CHANGED' | 'MODEL_REQUEST_ACCEPTED' | 'MODEL_REQUEST_FINISHED' | 'QUOTA_CHANGED' | 'QUOTA_REJECTED' | 'RESERVATION_RECOVERED' | 'PLUGIN_REGISTERED' | 'PLUGIN_UPLOADED' | 'PLUGIN_PUBLISHED' | 'PLUGIN_DELETED' | 'PLUGIN_ASSIGNED' | 'PLUGIN_DOWNLOADED' | 'PLUGIN_INVENTORY_REPORTED' | 'SESSION_BATCH_APPENDED' | 'SESSION_EXPORTED' | 'SESSION_RESTORED' | 'SESSION_CONTENT_READ' | 'SESSION_DELETED' | 'SESSION_EXPIRED' | 'ROLE_ASSIGNED' | 'USER_STATUS_CHANGED' | 'CONFIG_CHANGED';
 
 export type AuditAuditActorType = 'USER' | 'SYSTEM';
 
@@ -671,7 +685,7 @@ export type AuditAuditEventPageData = {
     page: CursorPage;
 };
 
-export type AuditAuditMetadata = EmptyAuditMetadata | AuthAuditMetadata | IdentityChangeAuditMetadata | IdentityLinkAuditMetadata | IdentityUnlinkAuditMetadata | DeviceEnrollmentAuditMetadata | DeviceHeartbeatAuditMetadata | ProviderChangeAuditMetadata | ModelChangeAuditMetadata | ModelGrantChangeAuditMetadata | GatewayAcceptedAuditMetadata | GatewayFinishedAuditMetadata | QuotaChangeAuditMetadata | QuotaRejectionAuditMetadata | ReservationRecoveredAuditMetadata | PluginAuditMetadata | SessionRangeAuditMetadata | SessionRestoredAuditMetadata | SessionDeletedAuditMetadata | SessionExpiredAuditMetadata | RoleAssignedAuditMetadata | UserStatusChangedAuditMetadata | RevisionChangedAuditMetadata;
+export type AuditAuditMetadata = EmptyAuditMetadata | AuthAuditMetadata | IdentityChangeAuditMetadata | IdentityLinkAuditMetadata | IdentityUnlinkAuditMetadata | DeviceEnrollmentAuditMetadata | DeviceHeartbeatAuditMetadata | ProviderChangeAuditMetadata | ProviderConnectionChangeAuditMetadata | ModelChangeAuditMetadata | ModelGrantChangeAuditMetadata | GatewayAcceptedAuditMetadata | GatewayFinishedAuditMetadata | QuotaChangeAuditMetadata | QuotaRejectionAuditMetadata | ReservationRecoveredAuditMetadata | PluginAuditMetadata | SessionRangeAuditMetadata | SessionRestoredAuditMetadata | SessionDeletedAuditMetadata | SessionExpiredAuditMetadata | RoleAssignedAuditMetadata | UserStatusChangedAuditMetadata | RevisionChangedAuditMetadata;
 
 export type AuditAuditResult = 'SUCCESS' | 'FAILURE';
 
@@ -759,8 +773,16 @@ export type PluginAuditMetadata = {
 
 export type ProviderChangeAuditMetadata = {
     operation: 'CREATE' | 'UPDATE' | 'ENABLE' | 'DISABLE';
-    providerType: ModelProviderType;
     protectedValueChanged: boolean;
+    resourceRevision: number;
+    bootstrapRevision: number;
+};
+
+export type ProviderConnectionChangeAuditMetadata = {
+    connectionId: number;
+    providerId: number;
+    operation: 'CREATE' | 'UPDATE' | 'ENABLE' | 'DISABLE';
+    secretReplaced: boolean;
     resourceRevision: number;
     bootstrapRevision: number;
 };
@@ -1604,6 +1626,7 @@ export type ModelBootstrapModel = {
     apiProtocol: ModelProviderApiProtocol;
     contextWindow?: number;
     maxTokens?: number;
+    input?: Array<ModelModelInputModality>;
     reasoningEfforts?: ModelReasoningEfforts;
     compat?: ModelReasoningCompat;
     isDefault: boolean;
@@ -1645,12 +1668,14 @@ export type ModelGrantSubjectType = 'ALL_MEMBERS' | 'ACCESS_GROUP' | 'MEMBER';
 export type ModelManagedModel = {
     id: ManagedModelId;
     providerId: ModelModelProviderId;
+    connectionId: ModelModelProviderConnectionId;
     providerName: ProviderName;
     alias: ModelAlias;
     modelId: string;
     name?: ModelName;
     contextWindow?: number;
     maxTokens?: number;
+    input?: Array<ModelModelInputModality>;
     reasoningEfforts?: ModelReasoningEfforts;
     compat?: ModelReasoningCompat;
     sortOrder: number;
@@ -1674,12 +1699,12 @@ export type ModelManagedModelResponse = {
 };
 
 export type ModelManagedModelWriteRequest = {
-    providerId: ModelModelProviderId;
-    alias: ModelAlias;
+    connectionId: ModelModelProviderConnectionId;
     modelId: string;
     name?: ModelName;
     contextWindow?: number;
     maxTokens?: number;
+    input?: Array<ModelModelInputModality>;
     reasoningEfforts?: ModelReasoningEfforts;
     compat?: ModelReasoningCompat;
     sortOrder: number;
@@ -1733,7 +1758,11 @@ export type ModelModelGrantWriteRequest = {
     status: ModelModelStatus;
 };
 
+export type ModelModelInputModality = 'text' | 'image';
+
 export type ModelName = string;
+
+export type ModelModelProviderConnectionId = string;
 
 export type ModelModelProviderId = string;
 
@@ -1792,13 +1821,9 @@ export type ModelProvider = {
     id: ModelModelProviderId;
     providerKey: ModelProviderKey;
     name: ProviderName;
-    providerType: ModelProviderType;
-    apiProtocol: ModelProviderApiProtocol;
-    baseUrl: ProviderBaseUrl;
-    credentialConfigured: boolean;
+    description: ProviderDescription;
     status: ModelModelStatus;
-    connectTimeoutMs: ProviderTimeoutMs;
-    readTimeoutMs: ProviderTimeoutMs;
+    connectionCount?: number;
     revision: Revision;
 };
 
@@ -1806,15 +1831,60 @@ export type ModelProviderApiProtocol = 'openai-completions' | 'openai-responses'
 
 export type ProviderBaseUrl = string;
 
-export type ModelProviderCreateRequest = {
-    providerKey: ModelProviderKey;
-    name: ProviderName;
-    providerType: ModelProviderType;
+export type ModelProviderConnection = {
+    id: ModelModelProviderConnectionId;
+    providerId: ModelModelProviderId;
+    providerName: ProviderName;
+    name: string;
     apiProtocol: ModelProviderApiProtocol;
     baseUrl: ProviderBaseUrl;
+    modelDiscoveryPath: ProviderModelDiscoveryPath;
+    credentialConfigured: boolean;
+    status: ModelModelStatus;
+    connectTimeoutMs: ProviderTimeoutMs;
+    readTimeoutMs: ProviderTimeoutMs;
+    revision: Revision;
+};
+
+export type ModelProviderConnectionCreateRequest = {
+    name: string;
+    apiProtocol: ModelProviderApiProtocol;
+    baseUrl: ProviderBaseUrl;
+    modelDiscoveryPath?: ProviderModelDiscoveryPath;
     connectTimeoutMs: ProviderTimeoutMs;
     readTimeoutMs: ProviderTimeoutMs;
 };
+
+export type ModelProviderConnectionListResponse = {
+    data: ModelProviderConnectionPageData;
+    requestId: RequestId;
+};
+
+export type ModelProviderConnectionPageData = {
+    items: Array<ModelProviderConnection>;
+    page: CursorPage;
+};
+
+export type ModelProviderConnectionResponse = {
+    data: ModelProviderConnection;
+    requestId: RequestId;
+};
+
+export type ModelProviderConnectionUpdateRequest = {
+    name: string;
+    baseUrl: ProviderBaseUrl;
+    modelDiscoveryPath?: ProviderModelDiscoveryPath;
+    replaceSecret: boolean;
+    connectTimeoutMs: ProviderTimeoutMs;
+    readTimeoutMs: ProviderTimeoutMs;
+};
+
+export type ModelProviderCreateRequest = {
+    name: ProviderName;
+    description?: ProviderDescription;
+};
+
+export type ProviderDescription = string;
 
 export type ModelProviderDiscoveredModel = {
     id: string;
@@ -1830,6 +1900,8 @@ export type ModelProviderListResponse = {
     requestId: RequestId;
 };
 
+export type ProviderModelDiscoveryPath = string;
+
 export type ProviderName = string;
 
 export type ModelProviderPageData = {
@@ -1837,10 +1909,12 @@ export type ModelProviderPageData = {
     page: CursorPage;
 };
 
-export type ModelProviderProbeCategory = 'SUCCESS' | 'AUTHENTICATION_FAILED' | 'UPSTREAM_REJECTED' | 'INVALID_RESPONSE' | 'UNAVAILABLE' | 'TIMEOUT';
+export type ModelProviderProbeCategory = 'SUCCESS' | 'MODEL_DIRECTORY_UNSUPPORTED' | 'AUTHENTICATION_FAILED' | 'UPSTREAM_REJECTED' | 'INVALID_RESPONSE' | 'UNAVAILABLE' | 'TIMEOUT';
 
 export type ModelProviderProbeRequest = {
+    apiProtocol: ModelProviderApiProtocol;
     baseUrl: ProviderBaseUrl;
+    modelDiscoveryPath?: ProviderModelDiscoveryPath;
     connectTimeoutMs: ProviderTimeoutMs;
     readTimeoutMs: ProviderTimeoutMs;
 };
@@ -1864,17 +1938,9 @@ export type ModelProviderResponse = {
 
 export type ProviderTimeoutMs = number;
 
-export type ModelProviderType = 'DEEPSEEK_OFFICIAL' | 'CUSTOM';
-
 export type ModelProviderUpdateRequest = {
-    providerKey: ModelProviderKey;
     name: ProviderName;
-    providerType: ModelProviderType;
-    apiProtocol: ModelProviderApiProtocol;
-    baseUrl: ProviderBaseUrl;
-    replaceSecret: boolean;
-    connectTimeoutMs: ProviderTimeoutMs;
-    readTimeoutMs: ProviderTimeoutMs;
+    description?: ProviderDescription;
 };
 
 export type AdminPluginInventoryItem = {
@@ -2165,7 +2231,7 @@ export type QuotaQuotaPolicyResponse = {
 export type QuotaQuotaPolicyType = 'TOKEN' | 'RATE';
 
 /**
- * TOKEN 与 RATE 限制字段互斥；PROVIDER 仅允许与 RATE、ORGANIZATION 和非空 resourceId 组合。
+ * TOKEN 与 RATE 限制字段互斥；RATE 与模型资源绑定。
  */
 export type QuotaQuotaPolicyWriteRequest = {
     name: string;
@@ -2184,9 +2250,9 @@ export type QuotaQuotaPolicyWriteRequest = {
 };
 
 /**
- * PROVIDER 仅可用于 ORGANIZATION 主体的 RATE 策略；TOKEN 不接受该资源范围。
+ * 配额和速率策略绑定全体模型、模型集或单个模型。
  */
-export type QuotaQuotaResourceType = 'ALL_MODELS' | 'MODEL_SET' | 'MODEL' | 'PROVIDER';
+export type QuotaQuotaResourceType = 'ALL_MODELS' | 'MODEL_SET' | 'MODEL';
 
 export type QuotaQuotaStatus = 'ACTIVE' | 'DISABLED';
 
@@ -2652,13 +2718,19 @@ export type ModelSetItem = unknown;
 
 export type ProviderCollection = unknown;
 
+export type ProviderConnectionCollection = unknown;
+
+export type ProviderConnectionItem = unknown;
+
+export type ProviderConnectionProbe = unknown;
+
+export type ProviderConnectionTest = unknown;
+
 export type ProviderDisable = unknown;
 
 export type ProviderEnable = unknown;
 
 export type ProviderItem = unknown;
-
-export type ProviderTest = unknown;
 
 export type AdminPluginInventory = unknown;
 
@@ -2772,11 +2844,11 @@ export type DeviceStatusWritable = DeviceDeviceStatus;
 
 export type ModelProviderIdWritable = ModelModelProviderId;
 
+export type ModelProviderConnectionIdWritable = ModelModelProviderConnectionId;
+
 export type ModelGrantIdWritable = ModelModelGrantId;
 
 export type ModelSetIdWritable = ModelModelSetId;
-
-export type ProviderTypeWritable = ModelProviderType;
 
 export type ProviderKeyWritable = ModelProviderKey;
 
@@ -2784,15 +2856,17 @@ export type ProviderApiProtocolWritable = ModelProviderApiProtocol;
 
 export type ModelStatusWritable = ModelModelStatus;
 
+export type ModelInputModalityWritable = ModelModelInputModality;
+
 export type GrantSubjectTypeWritable = ModelGrantSubjectType;
 
 export type GrantResourceTypeWritable = ModelGrantResourceType;
 
-export type ProviderCreateRequestWritable = ModelProviderCreateRequestWritable;
-
-export type ProviderUpdateRequestWritable = ModelProviderUpdateRequestWritable;
-
 export type ProviderProbeRequestWritable = ModelProviderProbeRequestWritable;
+
+export type ProviderConnectionCreateRequestWritable = ModelProviderConnectionCreateRequestWritable;
+
+export type ProviderConnectionUpdateRequestWritable = ModelProviderConnectionUpdateRequestWritable;
 
 export type ProviderProbeCategoryWritable = ModelProviderProbeCategory;
 
@@ -2917,32 +2991,31 @@ export type MemberLocalMemberCreateRequestWritable = {
     initialPassword: string;
 };
 
-export type ModelProviderCreateRequestWritable = {
-    providerKey: ModelProviderKey;
-    name: ProviderName;
-    providerType: ModelProviderType;
+export type ModelProviderConnectionCreateRequestWritable = {
+    name: string;
     apiProtocol: ModelProviderApiProtocol;
     baseUrl: ProviderBaseUrl;
+    modelDiscoveryPath?: ProviderModelDiscoveryPath;
     credential: string;
     connectTimeoutMs: ProviderTimeoutMs;
     readTimeoutMs: ProviderTimeoutMs;
 };
 
-export type ModelProviderProbeRequestWritable = {
+export type ModelProviderConnectionUpdateRequestWritable = {
+    name: string;
     baseUrl: ProviderBaseUrl;
+    modelDiscoveryPath?: ProviderModelDiscoveryPath;
+    replaceSecret: boolean;
     credential?: string;
     connectTimeoutMs: ProviderTimeoutMs;
     readTimeoutMs: ProviderTimeoutMs;
 };
 
-export type ModelProviderUpdateRequestWritable = {
-    providerKey: ModelProviderKey;
-    name: ProviderName;
-    providerType: ModelProviderType;
+export type ModelProviderProbeRequestWritable = {
     apiProtocol: ModelProviderApiProtocol;
     baseUrl: ProviderBaseUrl;
-    replaceSecret: boolean;
-    credential?: string;
+    modelDiscoveryPath?: ProviderModelDiscoveryPath;
+    credential: string;
     connectTimeoutMs: ProviderTimeoutMs;
     readTimeoutMs: ProviderTimeoutMs;
 };
@@ -2962,11 +3035,11 @@ export type _1Enterprise1Admin1V11IdentitySources1SourceIdWritable = unknown;
 
 export type MemberCollectionWritable = unknown;
 
-export type ProviderCollectionWritable = unknown;
+export type ProviderConnectionCollectionWritable = unknown;
 
-export type ProviderItemWritable = unknown;
+export type ProviderConnectionItemWritable = unknown;
 
-export type ProviderTestWritable = unknown;
+export type ProviderConnectionProbeWritable = unknown;
 
 export type AuthClientId = AuthPlatformClient;
 
@@ -2995,6 +3068,8 @@ export type AccessGroupIdPath = IdentityAccessGroupId;
 export type EnterpriseUserIdPath = EnterpriseUserId;
 
 export type ProviderIdPath = ModelModelProviderId;
+
+export type ProviderConnectionIdPath = ModelModelProviderConnectionId;
 
 export type ManagedModelIdPath = ManagedModelId;
 
@@ -4655,7 +4730,7 @@ export type ListModelProvidersResponses = {
 export type ListModelProvidersResponse = ListModelProvidersResponses[keyof ListModelProvidersResponses];
 
 export type CreateModelProviderData = {
-    body: ModelProviderCreateRequestWritable;
+    body: ModelProviderCreateRequest;
     headers: {
         /**
          * Caller-generated UUID v4 reused only for one logical write.
@@ -4729,7 +4804,7 @@ export type GetModelProviderResponses = {
 export type GetModelProviderResponse = GetModelProviderResponses[keyof GetModelProviderResponses];
 
 export type UpdateModelProviderData = {
-    body: ModelProviderUpdateRequestWritable;
+    body: ModelProviderUpdateRequest;
     headers: {
         /**
          * Current resource revision used for compare-and-swap updates.
@@ -4777,16 +4852,66 @@ export type UpdateModelProviderResponses = {
 
 export type UpdateModelProviderResponse = UpdateModelProviderResponses[keyof UpdateModelProviderResponses];
 
-export type TestModelProviderData = {
-    body: ModelProviderProbeRequestWritable;
+export type ListProviderConnectionsData = {
+    body?: never;
+    path: {
+        providerId: ModelModelProviderId;
+    };
+    query?: {
+        /**
+         * Server-signed opaque cursor; clients must not parse it.
+         */
+        cursor?: Cursor;
+        /**
+         * Cursor page size.
+         */
+        limit?: PageLimit;
+    };
+    url: '/enterprise/admin/v1/providers/{providerId}/connections';
+};
+
+export type ListProviderConnectionsErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+};
+
+export type ListProviderConnectionsError = ListProviderConnectionsErrors[keyof ListProviderConnectionsErrors];
+
+export type ListProviderConnectionsResponses = {
+    /**
+     * Provider connection page.
+     */
+    200: ModelProviderConnectionListResponse;
+};
+
+export type ListProviderConnectionsResponse = ListProviderConnectionsResponses[keyof ListProviderConnectionsResponses];
+
+export type CreateProviderConnectionData = {
+    body: ModelProviderConnectionCreateRequestWritable;
+    headers: {
+        /**
+         * Caller-generated UUID v4 reused only for one logical write.
+         */
+        'Idempotency-Key': string;
+    };
     path: {
         providerId: ModelModelProviderId;
     };
     query?: never;
-    url: '/enterprise/admin/v1/providers/{providerId}/actions/test';
+    url: '/enterprise/admin/v1/providers/{providerId}/connections';
 };
 
-export type TestModelProviderErrors = {
+export type CreateProviderConnectionErrors = {
     /**
      * Invalid request.
      */
@@ -4805,16 +4930,174 @@ export type TestModelProviderErrors = {
     404: EnterpriseErrorResponse;
 };
 
-export type TestModelProviderError = TestModelProviderErrors[keyof TestModelProviderErrors];
+export type CreateProviderConnectionError = CreateProviderConnectionErrors[keyof CreateProviderConnectionErrors];
 
-export type TestModelProviderResponses = {
+export type CreateProviderConnectionResponses = {
     /**
-     * Sanitized provider probe result.
+     * Created provider connection.
+     */
+    201: ModelProviderConnectionResponse;
+};
+
+export type CreateProviderConnectionResponse = CreateProviderConnectionResponses[keyof CreateProviderConnectionResponses];
+
+export type GetProviderConnectionData = {
+    body?: never;
+    path: {
+        providerId: ModelModelProviderId;
+        connectionId: ModelModelProviderConnectionId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/providers/{providerId}/connections/{connectionId}';
+};
+
+export type GetProviderConnectionErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+};
+
+export type GetProviderConnectionError = GetProviderConnectionErrors[keyof GetProviderConnectionErrors];
+
+export type GetProviderConnectionResponses = {
+    /**
+     * Provider connection details.
+     */
+    200: ModelProviderConnectionResponse;
+};
+
+export type GetProviderConnectionResponse = GetProviderConnectionResponses[keyof GetProviderConnectionResponses];
+
+export type UpdateProviderConnectionData = {
+    body: ModelProviderConnectionUpdateRequestWritable;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        providerId: ModelModelProviderId;
+        connectionId: ModelModelProviderConnectionId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/providers/{providerId}/connections/{connectionId}';
+};
+
+export type UpdateProviderConnectionErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type UpdateProviderConnectionError = UpdateProviderConnectionErrors[keyof UpdateProviderConnectionErrors];
+
+export type UpdateProviderConnectionResponses = {
+    /**
+     * Updated provider connection.
+     */
+    200: ModelProviderConnectionResponse;
+};
+
+export type UpdateProviderConnectionResponse = UpdateProviderConnectionResponses[keyof UpdateProviderConnectionResponses];
+
+export type ProbeProviderConnectionData = {
+    body: ModelProviderProbeRequestWritable;
+    path?: never;
+    query?: never;
+    url: '/enterprise/admin/v1/provider-connections/actions/probe';
+};
+
+export type ProbeProviderConnectionErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type ProbeProviderConnectionError = ProbeProviderConnectionErrors[keyof ProbeProviderConnectionErrors];
+
+export type ProbeProviderConnectionResponses = {
+    /**
+     * Sanitized draft provider connection probe result.
      */
     200: ModelProviderProbeResponse;
 };
 
-export type TestModelProviderResponse = TestModelProviderResponses[keyof TestModelProviderResponses];
+export type ProbeProviderConnectionResponse = ProbeProviderConnectionResponses[keyof ProbeProviderConnectionResponses];
+
+export type TestProviderConnectionData = {
+    body?: never;
+    path: {
+        connectionId: ModelModelProviderConnectionId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/provider-connections/{connectionId}/actions/test';
+};
+
+export type TestProviderConnectionErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+};
+
+export type TestProviderConnectionError = TestProviderConnectionErrors[keyof TestProviderConnectionErrors];
+
+export type TestProviderConnectionResponses = {
+    /**
+     * Sanitized provider connection probe result.
+     */
+    200: ModelProviderProbeResponse;
+};
+
+export type TestProviderConnectionResponse = TestProviderConnectionResponses[keyof TestProviderConnectionResponses];
 
 export type EnableModelProviderData = {
     body?: never;

@@ -14,6 +14,7 @@ import { Button } from '@/components/atoms/Button';
 import { StatusPill } from '@/components/atoms/StatusPill';
 import { ProductDataTable, type ProductTableColumn } from '@/components/product/DataTable';
 import { ProductDialog } from '@/components/product/Dialog';
+import { DialogFooter } from '@/components/product/DialogFooter';
 
 const inputClass = 'h-9 w-full rounded-lg border border-line bg-canvas px-3 text-[13px] text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent-tint disabled:cursor-not-allowed disabled:opacity-55';
 
@@ -48,7 +49,7 @@ function ImportDialog({ error, saving, onClose, onSave }: { error?: string; savi
       <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">分支、标签或 commit<input required className={inputClass} placeholder="main" value={value.revision} onChange={event => set('revision', event.target.value)} /></label>
       <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">技能子目录（可选）<input className={inputClass} placeholder="skills/code-review" value={value.subpath} onChange={event => set('subpath', event.target.value)} /></label>
       {error ? <p role="alert" className="m-0 text-[12.5px] text-red">{error}</p> : null}
-      <footer className="flex justify-end gap-2 border-t border-line pt-4"><Button type="button" size="sm" onClick={onClose}>取消</Button><Button type="submit" variant="primary" size="sm" disabled={saving}>{saving ? '导入中' : '开始导入'}</Button></footer>
+      <DialogFooter><Button type="button" size="sm" onClick={onClose}>取消</Button><Button type="submit" variant="primary" size="sm" disabled={saving}>{saving ? '导入中' : '开始导入'}</Button></DialogFooter>
     </form>
   </ProductDialog>;
 }

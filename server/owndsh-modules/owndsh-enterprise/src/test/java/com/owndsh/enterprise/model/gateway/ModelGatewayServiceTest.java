@@ -21,8 +21,8 @@ import com.owndsh.enterprise.model.application.BootstrapUser;
 import com.owndsh.enterprise.model.domain.ManagedModel;
 import com.owndsh.enterprise.model.domain.ModelProvider;
 import com.owndsh.enterprise.model.domain.ModelStatus;
+import com.owndsh.enterprise.model.domain.ProviderConnection;
 import com.owndsh.enterprise.model.domain.ProviderApiProtocol;
-import com.owndsh.enterprise.model.domain.ProviderType;
 import com.owndsh.enterprise.quota.application.QuotaRateLimiter;
 import com.owndsh.enterprise.quota.application.QuotaReservationCommand;
 import com.owndsh.enterprise.quota.application.QuotaReservationService;
@@ -585,7 +585,7 @@ class ModelGatewayServiceTest {
     private GatewayRouteResolver.GatewayRoute route(ProviderApiProtocol protocol, int contextWindow) {
         EncryptedSecret encrypted = cipher.encrypt(
             SecretPurpose.PROVIDER_SECRET,
-            new SecretAad(TENANT, "ent_model_provider", "301", "credential_ciphertext", 1),
+            new SecretAad(TENANT, "ent_model_provider_connection", "302", "credential_ciphertext", 1),
             SECRET.getBytes(StandardCharsets.UTF_8)
         );
         BootstrapUser user = new BootstrapUser(101, "alice", "Alice", 201L);
@@ -595,15 +595,18 @@ class ModelGatewayServiceTest {
             "1.0.0", "1.0.0", DeviceStatus.ACTIVE, NOW, null, 0
         );
         ManagedModel model = new ManagedModel(
-            501, TENANT, 301, "DeepSeek", "deepseek-chat", "DeepSeek Chat", "deepseek-v3",
-            contextWindow, 1024, null, null, 0, ModelStatus.ACTIVE, 0
+            501, TENANT, 302, 301, "DeepSeek", "deepseek-chat", "DeepSeek Chat", "deepseek-v3",
+            contextWindow, 1024, List.of(com.owndsh.enterprise.model.domain.ModelInputModality.TEXT), null, null,
+            0, ModelStatus.ACTIVE, 0
         );
         ModelProvider provider = new ModelProvider(
-            301, TENANT, "test-provider", "DeepSeek", ProviderType.CUSTOM,
-            protocol, URI.create("https://provider.invalid/v1"),
-            encrypted, ModelStatus.ACTIVE, 1000, 1000, 0
+            301, TENANT, "test-provider", "DeepSeek",             ModelStatus.ACTIVE, 0
         );
-        return new GatewayRouteResolver.GatewayRoute(user, device, model, provider);
+        ProviderConnection connection = new ProviderConnection(
+            302, TENANT, 301, "DeepSeek", "production", protocol,
+            URI.create("https://provider.invalid/v1"), encrypted, ModelStatus.ACTIVE, 1000, 1000, null, 0
+        );
+        return new GatewayRouteResolver.GatewayRoute(user, device, model, provider, connection);
     }
 
     private QuotaReservationService.ActiveReservation active(ReservationState state) {

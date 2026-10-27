@@ -14,6 +14,7 @@ import type {
 } from '@/api/generated/types.gen';
 import { Button } from '@/components/atoms/Button';
 import { ProductDialog } from '@/components/product/Dialog';
+import { DialogFooter } from '@/components/product/DialogFooter';
 
 const inputClass = 'h-9 w-full rounded-lg border border-line bg-canvas px-3 text-[13px] text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent-tint disabled:cursor-not-allowed disabled:bg-inset disabled:text-ink-3';
 
@@ -218,10 +219,10 @@ export function IdentitySourceEditorDialog({
         ) : null}
         {value.type !== 'LOCAL' ? <TextField label={current ? '替换密钥（留空保留）' : value.type === 'OIDC' ? 'Client Secret' : 'Manager Password'} type="password" required={!current} autoComplete="new-password" value={value.secret} onChange={(next) => set('secret', next)} /> : null}
         {validationError || error ? <p role="alert" className="m-0 text-[12.5px] text-red">{validationError ?? error}</p> : null}
-        <footer className="-mx-5 -mb-5 mt-1 flex justify-end gap-2 border-t border-line px-5 py-4">
+        <DialogFooter className="mt-1">
           <Button type="button" size="sm" onClick={onClose}>取消</Button>
           <Button type="submit" variant="primary" size="sm" disabled={saving}>{saving ? '保存中' : '保存'}</Button>
-        </footer>
+        </DialogFooter>
       </form>
     </ProductDialog>
   );

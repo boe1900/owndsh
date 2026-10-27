@@ -14,12 +14,16 @@ public record GrantedModel(
     String name,
     Integer contextWindow,
     Integer maxTokens,
+    java.util.List<ModelInputModality> input,
     ProviderApiProtocol apiProtocol,
     ModelReasoningEfforts reasoningEfforts,
     ModelReasoningCompat reasoningCompat,
     int sortOrder
 ) {
+    public GrantedModel(long modelId,String alias,String name,Integer contextWindow,Integer maxTokens,ProviderApiProtocol apiProtocol,ModelReasoningEfforts efforts,ModelReasoningCompat compat,int sortOrder) { this(modelId,alias,name,contextWindow,maxTokens,java.util.List.of(ModelInputModality.TEXT),apiProtocol,efforts,compat,sortOrder); }
+
     public GrantedModel {
+        input = input == null || input.isEmpty() ? java.util.List.of(ModelInputModality.TEXT) : java.util.List.copyOf(input);
         if (modelId <= 0 || contextWindow != null && contextWindow <= 0 || maxTokens != null && maxTokens <= 0
             || sortOrder < 0) {
             throw new IllegalArgumentException("有效模型候选数值非法");

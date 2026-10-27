@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 V1 E2E 管理会话、真实 Harness runtime 会话、可控三协议上游、PostgreSQL 与 Redis。
- * [OUTPUT]: 执行 E23-E35 的 provider、模型集、授权、Token 窗口、RPM/并发和结算恢复验收。
+ * [OUTPUT]: 执行 E23-E35 的 Provider/Connection/ManagedModel、模型集、授权、Token 窗口、模型级 RPM/并发和结算恢复验收。
  * [POS]: scripts 的模型治理纵向验收模块；只编排公开 API，并以精确运行 ID 查询持久化证据。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -32,11 +32,16 @@ function idOf(result) {
   return String(value);
 }
 
-function providerBody(providerKey, name, apiProtocol, baseUrl, credential, extra = {}) {
+function providerBody(name, extra = {}) {
   return {
-    providerKey,
     name,
-    providerType: 'CUSTOM',
+    ...extra,
+  };
+}
+
+function connectionBody(name, apiProtocol, baseUrl, credential, extra = {}) {
+  return {
+    name,
     apiProtocol,
     baseUrl,
     credential,
@@ -46,10 +51,9 @@ function providerBody(providerKey, name, apiProtocol, baseUrl, credential, extra
   };
 }
 
-function modelBody(providerId, alias, modelId, name, sortOrder, reasoningEfforts = false) {
+function modelBody(connectionId, modelId, name, sortOrder, reasoningEfforts = false) {
   return {
-    providerId,
-    alias,
+    connectionId,
     modelId,
     name,
     contextWindow: 262_144,
@@ -193,68 +197,56 @@ export async function runModelAndQuotaScenarios({
   const fixtureBaseUrl = `${fixture.issuer}/v1`;
   const providers = {};
   const providerInputs = {};
+  const connections = {};
 
-  await acceptance.check('E23', 'provider types, three wire APIs and shared capacity persist accurately', async () => {
+  await acceptance.check('E23', 'provider metadata, three wire APIs and connection credentials persist accurately', async () => {
     const listed = data(await admin.expect('/enterprise/admin/v1/providers?limit=100')).items;
-    let official = listed.find(value => value.providerType === 'DEEPSEEK_OFFICIAL');
+    let official = listed.find(value => value.providerKey === 'deepseek-official');
     if (official === undefined) {
       official = data(await admin.create('/enterprise/admin/v1/providers', {
-        providerKey: 'deepseek-official',
         name: 'DeepSeek Official',
-        providerType: 'DEEPSEEK_OFFICIAL',
-        apiProtocol: 'anthropic-messages',
-        baseUrl: 'https://api.deepseek.com/anthropic',
-        credential: fixture.modelKey,
-        connectTimeoutMs: 2_000,
-        readTimeoutMs: 10_000,
       }));
       state.providers.push(official.id);
     }
     assert.equal(official.providerKey, 'deepseek-official');
-    assert.equal(official.apiProtocol, 'anthropic-messages');
+    const officialConnections = data(await admin.expect(
+      `/enterprise/admin/v1/providers/${official.id}/connections?limit=100`,
+    )).items;
+    const officialConnection = officialConnections[0] ?? data(await admin.create(
+      `/enterprise/admin/v1/providers/${official.id}/connections`,
+      connectionBody('official', 'anthropic-messages', 'https://api.deepseek.com/anthropic', fixture.modelKey),
+    ));
+    connections.official = officialConnection;
 
     for (const [key, apiProtocol] of Object.entries({
       completions: 'openai-completions',
       responses: 'openai-responses',
       anthropic: 'anthropic-messages',
     })) {
-      const body = providerBody(
-        `${prefix}-${key}`,
+      const provider = data(await admin.create('/enterprise/admin/v1/providers', providerBody(`${prefix} ${key}`)));
+      state.providers.push(provider.id);
+      const body = connectionBody(
         `${prefix} ${key}`,
         apiProtocol,
         fixtureBaseUrl,
         fixture.modelKey,
       );
-      const created = await admin.create('/enterprise/admin/v1/providers', body);
-      providers[key] = data(created);
+      const connection = data(await admin.create(
+        `/enterprise/admin/v1/providers/${provider.id}/connections`, body,
+      ));
+      providers[key] = provider;
+      connections[key] = connection;
       providerInputs[key] = body;
-      state.providers.push(providers[key].id);
-      assert.equal(providers[key].apiProtocol, apiProtocol);
-      assert.equal(providers[key].credentialConfigured, true);
-      assert.equal(JSON.stringify(providers[key]).includes(fixture.modelKey), false);
+      assert.equal(connection.apiProtocol, apiProtocol);
+      assert.equal(connection.credentialConfigured, true);
+      assert.equal(JSON.stringify(connection).includes(fixture.modelKey), false);
     }
-
-    let providerRate = await createQuota(admin, state, quotaBody({
-      name: `${prefix} provider capacity`,
-      policyType: 'RATE',
-      subjectType: 'ORGANIZATION',
-      resourceType: 'PROVIDER',
-      resourceId: providers.completions.id,
-      rpm: 1_000,
-      concurrency: 10,
-    }));
-    assert.equal(providerRate.resourceType, 'PROVIDER');
-    assert.equal(providerRate.resourceId, providers.completions.id);
-    assert.equal(providerRate.rpm, 1_000);
-    assert.equal(providerRate.concurrency, 10);
-    providers.rate = providerRate;
-    return `official + ${Object.keys(providerInputs).length} custom protocols; provider RATE=${providerRate.id}`;
+    return `official + ${Object.keys(providerInputs).length} custom protocols; credentials kept on connections`;
   });
 
   await acceptance.check('E24', 'provider probe discovers models and stale writes preserve the secret', async () => {
-    const tested = await admin.expect(`/enterprise/admin/v1/providers/${providers.completions.id}/actions/test`, {
+    const tested = await admin.expect(`/enterprise/admin/v1/provider-connections/${connections.completions.id}/actions/test`, {
       method: 'POST',
-      body: { baseUrl: fixtureBaseUrl, connectTimeoutMs: 2_000, readTimeoutMs: 5_000 },
     });
     assert.equal(data(tested).success, true);
     assert.deepEqual(data(tested).models.map(value => value.id), [
@@ -262,23 +254,23 @@ export async function runModelAndQuotaScenarios({
     ]);
     assert.equal(data(tested).models[0].contextWindow, 262_144);
 
-    const current = providers.completions;
+    const current = connections.completions;
     const updateBody = {
       ...providerInputs.completions,
       name: `${prefix} completions updated`,
       replaceSecret: false,
     };
     delete updateBody.credential;
-    providers.completions = data(await admin.update(
-      `/enterprise/admin/v1/providers/${current.id}`, current.revision, updateBody,
+    connections.completions = data(await admin.update(
+      `/enterprise/admin/v1/providers/${providers.completions.id}/connections/${current.id}`, current.revision, updateBody,
     ));
-    const stale = await admin.request(`/enterprise/admin/v1/providers/${current.id}`, {
+    const stale = await admin.request(`/enterprise/admin/v1/providers/${providers.completions.id}/connections/${current.id}`, {
       method: 'PUT',
       headers: { 'if-match': String(current.revision) },
       body: { ...updateBody, name: `${prefix} stale overwrite` },
     });
     assert.equal(stale.response.status, 409);
-    const after = data(await admin.expect(`/enterprise/admin/v1/providers/${current.id}`));
+    const after = data(await admin.expect(`/enterprise/admin/v1/providers/${providers.completions.id}/connections/${current.id}`));
     assert.equal(after.name, updateBody.name);
     assert.equal(after.credentialConfigured, true);
     return '3 discovered models with 256K/1M metadata; stale If-Match=409; credential still configured';
@@ -287,14 +279,14 @@ export async function runModelAndQuotaScenarios({
   const models = {};
   await acceptance.check('E25', 'managed model fields, reasoning map and disable behavior reach bootstrap', async () => {
     const definitions = {
-      chat: [providers.completions.id, `${prefix}-chat`, 'v1-e2e-chat', 'V1 Chat', 10, false],
+      chat: [connections.completions.id, 'v1-e2e-chat', 'V1 Chat', 10, false],
       responses: [
-        providers.responses.id, `${prefix}-responses`, 'v1-e2e-responses', 'V1 Responses', 0,
+        connections.responses.id, 'v1-e2e-responses', 'V1 Responses', 0,
         { off: null, low: 'low', medium: 'medium', high: 'high', xhigh: 'max' },
       ],
-      anthropic: [providers.anthropic.id, `${prefix}-anthropic`, 'v1-e2e-anthropic', 'V1 Anthropic', 20, false],
-      twin: [providers.responses.id, `${prefix}-twin`, 'v1-e2e-chat', 'V1 Twin', 30, false],
-      hidden: [providers.completions.id, `${prefix}-hidden`, 'v1-e2e-chat', 'V1 Hidden', 40, false],
+      anthropic: [connections.anthropic.id, 'v1-e2e-anthropic', 'V1 Anthropic', 20, false],
+      twin: [connections.responses.id, 'v1-e2e-chat', 'V1 Twin', 30, false],
+      hidden: [connections.completions.id, 'v1-e2e-chat', 'V1 Hidden', 40, false],
     };
     for (const [key, values] of Object.entries(definitions)) {
       const created = await admin.create('/enterprise/admin/v1/models', modelBody(...values));
@@ -332,7 +324,7 @@ export async function runModelAndQuotaScenarios({
 
   await acceptance.check('E26', 'same upstream model ID remains isolated by provider and managed alias', async () => {
     assert.equal(models.chat.modelId, models.twin.modelId);
-    assert.notEqual(models.chat.providerId, models.twin.providerId);
+    assert.notEqual(models.chat.connectionId, models.twin.connectionId);
     assert.notEqual(models.chat.alias, models.twin.alias);
     assert.equal(
       psql(`select count(*) from ent_managed_model where id in (${models.chat.id},${models.twin.id}) and upstream_model='v1-e2e-chat'`),
@@ -578,12 +570,12 @@ export async function runModelAndQuotaScenarios({
     return '2 subjects x 3 resources = 6; rejected overlap changed no Redis lease';
   });
 
-  await acceptance.check('E34', 'provider RPM and concurrency are shared across members and models with fast 429', async () => {
-    providers.rate = await updateQuota(admin, providers.rate, quotaBody({
-      name: providers.rate.name, policyType: 'RATE', subjectType: 'ORGANIZATION',
-      resourceType: 'PROVIDER', resourceId: providers.completions.id, rpm: 1, concurrency: 10,
+  await acceptance.check('E34', 'organization model RPM and concurrency reject before upstream with fast 429', async () => {
+    const organizationRate = await createQuota(admin, state, quotaBody({
+      name: `${prefix} organization model rate`, policyType: 'RATE', subjectType: 'ORGANIZATION',
+      resourceType: 'MODEL', resourceId: models.chat.id, rpm: 1, concurrency: 10,
     }));
-    redis('DEL', `enterprise:quota:rpm:${providers.rate.id}`);
+    redis('DEL', `enterprise:quota:rpm:${organizationRate.id}`);
     fixture.setModelMode('success');
     const beforeRpm = fixture.requests.length;
     assert.equal((await gatewayCall(adminRuntime.session, 'openai-completions', models.chat.alias)).response.status, 200);
@@ -592,11 +584,11 @@ export async function runModelAndQuotaScenarios({
     assert.equal(rpmDenied.json.error.code, 'ENT_QUOTA_RPM_EXCEEDED');
     assert.equal(fixture.requests.length - beforeRpm, 1);
 
-    providers.rate = await updateQuota(admin, providers.rate, quotaBody({
-      name: providers.rate.name, policyType: 'RATE', subjectType: 'ORGANIZATION',
-      resourceType: 'PROVIDER', resourceId: providers.completions.id, concurrency: 1,
+    await updateQuota(admin, organizationRate, quotaBody({
+      name: organizationRate.name, policyType: 'RATE', subjectType: 'ORGANIZATION',
+      resourceType: 'MODEL', resourceId: models.chat.id, concurrency: 1,
     }));
-    redis('DEL', `enterprise:quota:rpm:${providers.rate.id}`);
+    redis('DEL', `enterprise:quota:rpm:${organizationRate.id}`);
     fixture.setModelMode('slow');
     const offset = fixture.requests.length;
     const first = gatewayCall(adminRuntime.session, 'openai-completions', models.chat.alias);
@@ -609,14 +601,10 @@ export async function runModelAndQuotaScenarios({
     assert.equal(fixture.requests.length - offset, 1);
     assert.equal((await first).response.status, 200);
     fixture.setModelMode('success');
-    return 'provider RPM shared across members; concurrency 429 before upstream and under 1.5s';
+    return 'organization model RPM and concurrency rejected before upstream and under 1.5s';
   });
 
   await acceptance.check('E35', 'member RATE tightens one member and releases leases after every outcome', async () => {
-    providers.rate = await updateQuota(admin, providers.rate, quotaBody({
-      name: providers.rate.name, policyType: 'RATE', subjectType: 'ORGANIZATION',
-      resourceType: 'PROVIDER', resourceId: providers.completions.id, concurrency: 10,
-    }));
     const personal = await createQuota(admin, state, quotaBody({
       name: `${prefix} personal concurrency`, policyType: 'RATE',
       subjectType: 'MEMBER', subjectId: member.adminId,
@@ -642,9 +630,8 @@ export async function runModelAndQuotaScenarios({
   });
 
   return {
-    providerIds: Object.fromEntries(
-      Object.entries(providers).filter(([key]) => key !== 'rate').map(([key, value]) => [key, value.id]),
-    ),
+    providerIds: Object.fromEntries(Object.entries(providers).map(([key, value]) => [key, value.id])),
+    connectionIds: Object.fromEntries(Object.entries(connections).map(([key, value]) => [key, value.id])),
     modelIds: Object.fromEntries(Object.entries(models).map(([key, value]) => [key, value.id])),
     modelAliases: Object.fromEntries(Object.entries(models).map(([key, value]) => [key, value.alias])),
     primarySetId: primarySet.id,

@@ -6,18 +6,21 @@
 
 ModelMutationContext.java: 管理写事务的可信 tenant/actor/request 审计上下文。
 ProviderSecretInput.java: 一次性 provider credential 字符容器，提供防御性复制、脱敏与清零。
-ProviderSpec.java: 不含密钥的 provider 写 command，统一校验 Harness route ID、官方保留路由、RC1 官方 Messages 协议、endpoint 与 timeout。
+ProviderConnectionSpec.java: 连接写 command，约束 endpoint、协议、模型发现路径、超时与发现/密钥边界。
+ProviderSpec.java: 不含 endpoint 和密钥的 provider 元信息写 command。
 ManagedModelSpec.java: 模型写 command，约束 alias、上游标识、容量、reasoningEfforts/compat、排序和 default sentinel 边界。
 ModelGrantSpec.java: 授权写 command，封装模型/模型集资源、全员/用户组/成员主体与状态事实。
 ProviderProbe.java: provider `/models` 探测端口，只允许分类、延迟与脱敏模型 ID 候选越过边界。
 JdkProviderProbe.java: JDK HttpClient 无重定向探测 adapter，以 4 MiB 上限解析 OpenAI `data[].id` 且丢弃其余正文。
 ProviderChangeMetadata.java: PROVIDER_CHANGED 审计 metadata 白名单。
+ProviderConnectionChangeMetadata.java: MODEL_CONNECTION_CHANGED 审计 metadata 白名单，不承载连接密钥或端点正文。
 ManagedModelChangeMetadata.java: MODEL_CHANGED 审计 metadata 白名单。
 ModelGrantChangeMetadata.java: MODEL_GRANT_CHANGED 审计 metadata 白名单。
 ModelResourceNotFoundException.java: 模型纵向资源不存在的稳定领域异常。
 ManagedModelInUseException.java: 模型仍被配置或使用记录引用时的稳定领域异常，携带删除阻塞计数。
 ModelSetInUseException.java: 模型集仍被授权或配额策略引用时的稳定领域异常，携带删除阻塞计数。
-ProviderService.java: provider CRUD 子集、route/type/protocol 不可变约束、秘密加解密、CAS/bootstrap revision/审计事务与模型发现测试编排。
+ProviderConnectionService.java: 连接 endpoint、协议、模型发现路径、密钥加解密、探测与 CAS/bootstrap revision 编排。
+ProviderService.java: 供应商元信息 CRUD、后台生成 providerKey、CAS/bootstrap revision/审计事务。
 ManagedModelService.java: 模型含 reasoning 配置的 CRUD/排序/启停、协议兼容校验及 CAS/bootstrap revision/审计事务编排。
 ModelGrantService.java: 单条/批量授权、重复约束、主体/资源校验、CAS/幂等删除和原子审计编排。
 ModelSetService.java: 模型集 CRUD、成员整体替换、引用保护、revision/bootstrap revision 与审计事务编排。

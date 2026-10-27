@@ -19,6 +19,7 @@ import type {
 } from '@/api/generated/types.gen';
 import { Button } from '@/components/atoms/Button';
 import { ProductDialog } from '@/components/product/Dialog';
+import { DialogFooter } from '@/components/product/DialogFooter';
 import { MemberSelect } from '@/features/member-select';
 import { PluginCategorySelect } from './plugin-category-select';
 
@@ -206,10 +207,10 @@ export function RegisterPluginVersionDialog({ baseVersion, versions = [], catego
         </details> : metadata}
         {validationError || error ? <p role="alert" className="m-0 text-[12.5px] text-red">{validationError ?? error}</p> : null}
       </div>
-      <footer className="flex justify-end gap-2 border-t border-line px-5 py-4">
+      <DialogFooter className="mx-0 mb-0">
         <Button type="button" size="sm" onClick={onClose}>取消</Button>
         <Button type="submit" variant="primary" size="sm" disabled={saving}>{saving ? '保存中' : '保存版本'}</Button>
-      </footer>
+      </DialogFooter>
     </form>
   </ProductDialog>;
 }
@@ -244,10 +245,10 @@ export function PublishPluginVersionDialog({ pluginPackage, version, sourceVersi
           : '发布后需在“可见范围”中分配此版本，员工才能看到并安装。'}</p>
         {error ? <p role="alert" className="m-0 text-[12.5px] text-red">{error}</p> : null}
       </div>
-      <footer className="flex justify-end gap-2 border-t border-line px-5 py-4">
+      <DialogFooter className="mx-0 mb-0">
         <Button type="button" size="sm" disabled={saving} onClick={onClose}>取消</Button>
         <Button type="submit" variant="primary" size="sm" disabled={saving}>{saving ? '发布中' : sourceVersionId ? '发布并更新范围' : '确认发布'}</Button>
-      </footer>
+      </DialogFooter>
     </form>
   </ProductDialog>;
 }
@@ -392,10 +393,10 @@ export function PluginAssignmentDialog({
         </div>
         {validationError || error ? <p role="alert" className="m-0 text-[12.5px] text-red">{validationError ?? error}</p> : null}
       </div>
-      <footer className="flex justify-end gap-2 border-t border-line px-5 py-4">
+      <DialogFooter className="mx-0 mb-0">
         <Button type="button" size="sm" onClick={onClose}>取消</Button>
         <Button type="button" variant="primary" size="sm" disabled={saving || !pluginPackage} onClick={submit}>{saving ? '保存中' : '保存范围'}</Button>
-      </footer>
+      </DialogFooter>
     </ProductDialog>
   );
 }
@@ -419,10 +420,10 @@ export function RetirePluginVersionDialog({
         <p className="m-0">确认退休 <strong className="text-ink">{version.packageName}@{version.version}</strong>？</p>
         {error ? <p role="alert" className="m-0 text-[12.5px] text-red">{error}</p> : null}
       </div>
-      <footer className="flex justify-end gap-2 border-t border-line px-5 py-4">
+      <DialogFooter className="mx-0 mb-0">
         <Button type="button" size="sm" onClick={onClose}>取消</Button>
         <Button type="button" variant="primary" size="sm" disabled={saving} onClick={onConfirm}>{saving ? '处理中' : '确认退休'}</Button>
-      </footer>
+      </DialogFooter>
     </ProductDialog>
   );
 }

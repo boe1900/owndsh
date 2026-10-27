@@ -154,8 +154,7 @@ function resourceTypeLabel(value: ModelGrant | QuotaPolicy) {
   return {
     ALL_MODELS: '全部模型',
     MODEL_SET: '模型集',
-    MODEL: '模型',
-    PROVIDER: '模型供应商'
+    MODEL: '模型'
   }[value.resourceType];
 }
 
@@ -350,7 +349,7 @@ export function AccessPolicyPage() {
   const grantRows = useMemo(() => grants.data?.pages.flatMap((page) => page.items) ?? [], [grants.data]);
   const quotaRows = useMemo(() => quotas.data?.pages.flatMap((page) => page.items) ?? [], [quotas.data]);
   const visibleQuotaRows = useMemo(
-    () => quotaRows.filter((policy) => policy.policyType === (section === 'Token 配额' ? 'TOKEN' : 'RATE') && policy.resourceType !== 'PROVIDER'),
+    () => quotaRows.filter((policy) => policy.policyType === (section === 'Token 配额' ? 'TOKEN' : 'RATE')),
     [quotaRows, section]
   );
   const optionsLoading = models.isLoading || modelSets.isLoading || accessGroups.isLoading;

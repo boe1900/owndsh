@@ -9,6 +9,5 @@ package com.owndsh.enterprise.quota.domain;
 public enum QuotaResourceType {
     ALL_MODELS,
     MODEL_SET,
-    MODEL,
-    PROVIDER
+    MODEL
 }

@@ -128,6 +128,7 @@ export const zBootstrapSnapshot = z.object({
     alias: z.string().min(1).max(120),
     name: z.string().min(1).max(120).optional(),
     apiProtocol: z.enum(['openai-completions', 'openai-responses', 'anthropic-messages']),
+    input: z.array(z.enum(['text', 'image'])).min(1).max(2).optional(),
     contextWindow: z.number().int().positive().safe().optional(),
     maxTokens: z.number().int().positive().safe().optional(),
     reasoningEfforts: z.union([z.literal(false), reasoningEfforts]).optional(),

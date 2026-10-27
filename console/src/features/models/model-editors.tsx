@@ -1,733 +1,220 @@
 /**
- * [INPUT]: 依赖 TanStack Form、Zod、ProductDialog、生成的 Provider/Quota/模型 DTO 与十进制容量转换。
- * [OUTPUT]: 提供含上游容量的 Provider 编辑器、受管模型编辑器和模型删除确认对话框。
- * [POS]: features/models 的纯表单层，收集供应商配置、共享 RATE 容量和 Harness 模型声明，不持有查询缓存或 Server mutation。
+ * [INPUT]: 依赖生成的 Provider/Connection/ManagedModel DTO、产品对话框与容量转换工具。
+ * [OUTPUT]: 提供供应商、连接、统一模型维护表单、模型接入向导、模型保存条目类型和基于 Provider ID 的确定性渐变规则。
+ * [POS]: features/models 的交互层；保持 Provider、Connection、ManagedModel 的边界，新增/配置/删除模型共用维护表单，并将凭据只放在连接步骤。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
-import { useForm } from '@tanstack/react-form';
-import { RefreshCw } from 'lucide-react';
-import { useId, useState } from 'react';
-import { z } from 'zod';
+import * as React from 'react';
+import {
+  AlertCircle,
+  BrainCircuit,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  Cpu,
+  FileCode2,
+  Globe,
+  Image as ImageIcon,
+  KeyRound,
+  Lock,
+  MessageSquare,
+  Plus,
+  RefreshCw,
+  Server,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+  Eye,
+  EyeOff
+} from 'lucide-react';
 import type {
   ManagedModel,
   ManagedModelWriteRequest,
-  ModelReasoningEfforts,
+  ModelInputModality,
+  ModelProviderConnection,
+  ModelProviderConnectionCreateRequestWritable,
+  ModelProviderConnectionUpdateRequestWritable,
+  ModelProviderCreateRequest,
+  ModelProviderUpdateRequest,
   Provider,
-  ProviderApiProtocol,
-  ProviderCreateRequestWritable,
   ProviderDiscoveredModel,
-  ProviderType,
-  ProviderUpdateRequestWritable,
-  QuotaPolicy
+  ProviderProbeRequestWritable,
+  ProviderProbeResult
 } from '@/api/generated/types.gen';
 import { Button } from '@/components/atoms/Button';
 import { ProductDialog } from '@/components/product/Dialog';
-import {
-  formatTokenCapacity,
-  parseTokenCapacity,
-  TOKEN_CAPACITY_ERROR
-} from './token-capacity';
+import { DialogFooter } from '@/components/product/DialogFooter';
+import { formatTokenCapacity, parseTokenCapacity } from './token-capacity';
 
-const DEEPSEEK_OFFICIAL_URL = 'https://api.deepseek.com/anthropic';
-const OPENAI_COMPLETIONS = 'openai-completions' as const;
-const ANTHROPIC_MESSAGES = 'anthropic-messages' as const;
-const REASONING_LEVELS = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const;
-const THINKING_FORMATS = ['openai', 'deepseek', 'openrouter', 'together', 'zai', 'qwen', 'string-thinking', 'ant-ling'] as const;
-const inputClass = 'h-9 w-full rounded-lg border border-line bg-canvas px-3 text-[13px] text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent-tint disabled:cursor-not-allowed disabled:bg-inset disabled:text-ink-3';
-const requiredText = z.string().trim().min(1, '不能为空');
-const providerKey = z.string().regex(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/, '使用小写字母、数字和连字符');
-const alias = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/, '使用字母、数字、点、下划线或连字符');
-const url = z.string().trim().url('请输入有效 URL');
-const sortOrder = z.string().regex(/^\d+$/, '请输入非负整数');
-const capacity = z.string().refine((value) => {
-  try {
-    parseTokenCapacity(value);
-    return true;
-  } catch {
-    return false;
-  }
-}, TOKEN_CAPACITY_ERROR);
-const optionalPositiveInteger = z.union([z.literal(''), z.string().regex(/^[1-9]\d*$/, '请输入正整数')]);
+const inputClass = 'h-9 w-full rounded-control border border-line bg-canvas px-3 text-[13px] text-ink outline-none placeholder:text-ink-3 transition focus:border-accent focus:bg-surface focus:ring-2 focus:ring-accent-tint disabled:cursor-not-allowed disabled:opacity-55';
+const panelClass = 'rounded-card border border-line bg-surface shadow-hairline';
+const defaultLevels = ['off', 'low', 'medium', 'high'] as const;
+const allLevels = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const;
+const levelNames: Record<string, string> = { off: 'Off', minimal: 'Minimal', low: 'Low', medium: 'Medium', high: 'High', xhigh: 'XHigh', max: 'Max' };
+const contextPresets = ['64K', '128K', '200K', '256K', '1M'];
+const outputPresets = ['4096', '8192', '16384', '32768', '65536'];
+const providerGradients = [
+  'from-zinc-700 to-zinc-950',
+  'from-blue-600 to-indigo-700',
+  'from-cyan-600 to-blue-700',
+  'from-emerald-600 to-teal-700',
+  'from-violet-600 to-fuchsia-700',
+  'from-amber-600 to-orange-700',
+  'from-rose-600 to-pink-700'
+] as const;
+const inputOptions: Array<{ value: ModelInputModality; label: string; description: string; icon: typeof MessageSquare; color: 'blue' | 'purple' }> = [
+  { value: 'text', label: '文本', description: '支持标准对话与多轮文本上下文', icon: MessageSquare, color: 'blue' },
+  { value: 'image', label: '图片', description: '支持多模态视觉图像输入 (Vision)', icon: ImageIcon, color: 'purple' }
+];
 
-type ReasoningLevel = (typeof REASONING_LEVELS)[number];
-type ThinkingFormat = (typeof THINKING_FORMATS)[number];
-
-function fieldError(errors: ReadonlyArray<unknown>) {
-  for (const error of errors) {
-    if (typeof error === 'string') return error;
-    if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
-      return error.message;
-    }
-  }
-  return undefined;
-}
-
-function ErrorText({ errors }: { errors: ReadonlyArray<unknown> }) {
-  const message = fieldError(errors);
-  return message ? <span role="alert" className="text-[12px] text-red">{message}</span> : null;
-}
-
-type ProviderFormValue = {
-  providerType: ProviderType;
-  providerKey: string;
-  name: string;
-  apiProtocol: ProviderApiProtocol;
-  baseUrl: string;
-  credential: string;
-  replaceSecret: boolean;
-  connectTimeoutMs: number;
-  readTimeoutMs: number;
-  rpm: string;
-  concurrency: string;
-};
-
-function providerDefaults(current?: Provider, capacity?: QuotaPolicy): ProviderFormValue {
-  return {
-    providerType: current?.providerType ?? 'DEEPSEEK_OFFICIAL',
-    providerKey: current?.providerKey ?? 'deepseek-official',
-    name: current?.name ?? 'DeepSeek',
-    apiProtocol: current?.apiProtocol ?? ANTHROPIC_MESSAGES,
-    baseUrl: current?.baseUrl ?? DEEPSEEK_OFFICIAL_URL,
-    credential: '',
-    replaceSecret: false,
-    connectTimeoutMs: current?.connectTimeoutMs ?? 5_000,
-    readTimeoutMs: current?.readTimeoutMs ?? 120_000,
-    rpm: capacity?.rpm?.toString() ?? '',
-    concurrency: capacity?.concurrency?.toString() ?? ''
+function probeFailureMessage(status: ProviderProbeResult['upstreamStatus']) {
+  const messages: Record<ProviderProbeResult['upstreamStatus'], string> = {
+    MODEL_DIRECTORY_UNSUPPORTED: '上游连接可用，但没有兼容的模型目录接口',
+    AUTHENTICATION_FAILED: 'API Key 未通过上游认证',
+    UPSTREAM_REJECTED: '上游拒绝了模型目录请求',
+    INVALID_RESPONSE: '上游返回的模型目录格式无法识别',
+    UNAVAILABLE: '上游暂时不可用',
+    TIMEOUT: '上游响应超时',
+    SUCCESS: '模型目录读取失败'
   };
+  return messages[status];
 }
 
-export type ProviderCapacityInput = {
-  rpm: number | null;
-  concurrency: number | null;
-};
-
-export function ProviderEditorDialog({
-  canManageCapacity,
-  capacity,
-  current,
-  error,
-  onClose,
-  onSave,
-  saving
-}: {
-  canManageCapacity: boolean;
-  capacity?: QuotaPolicy;
-  current?: Provider;
-  error?: string;
-  onClose: () => void;
-  onSave: (
-    value: ProviderCreateRequestWritable | ProviderUpdateRequestWritable,
-    capacity?: ProviderCapacityInput
-  ) => void;
-  saving: boolean;
-}) {
-  const form = useForm({
-    defaultValues: providerDefaults(current, capacity),
-    onSubmit: ({ value }) => {
-      const common = {
-        providerKey: value.providerKey.trim(),
-        name: value.name.trim(),
-        providerType: value.providerType,
-        apiProtocol: value.apiProtocol,
-        baseUrl: value.baseUrl.trim(),
-        connectTimeoutMs: value.connectTimeoutMs,
-        readTimeoutMs: value.readTimeoutMs
-      };
-      const provider = current
-        ? {
-            ...common,
-            replaceSecret: value.replaceSecret,
-            ...(value.replaceSecret ? { credential: value.credential } : {})
-          }
-        : { ...common, credential: value.credential };
-      onSave(provider, canManageCapacity ? {
-        rpm: value.rpm === '' ? null : Number(value.rpm),
-        concurrency: value.concurrency === '' ? null : Number(value.concurrency)
-      } : undefined);
-    }
-  });
-
-  return (
-    <ProductDialog title={current ? '编辑模型提供商' : '新建模型提供商'} onClose={onClose}>
-      <form
-        className="space-y-4 p-5"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void form.handleSubmit();
-        }}
-      >
-        <form.Field name="providerType">
-          {(field) => (
-            <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
-              提供商类型
-              <select
-                autoFocus
-                className={inputClass}
-                disabled={Boolean(current)}
-                value={field.state.value}
-                onChange={(event) => {
-                  const type = event.target.value as ProviderType;
-                  field.handleChange(type);
-                  form.setFieldValue('providerKey', type === 'DEEPSEEK_OFFICIAL' ? 'deepseek-official' : '');
-                  form.setFieldValue('name', type === 'DEEPSEEK_OFFICIAL' ? 'DeepSeek' : '');
-                  form.setFieldValue('apiProtocol', type === 'DEEPSEEK_OFFICIAL' ? ANTHROPIC_MESSAGES : OPENAI_COMPLETIONS);
-                  form.setFieldValue('baseUrl', type === 'DEEPSEEK_OFFICIAL' ? DEEPSEEK_OFFICIAL_URL : '');
-                }}
-              >
-                <option value="DEEPSEEK_OFFICIAL">DeepSeek 官方</option>
-                <option value="CUSTOM">自定义提供商</option>
-              </select>
-            </label>
-          )}
-        </form.Field>
-
-        <form.Subscribe selector={(state) => state.values.providerType}>
-          {(type) => type === 'CUSTOM' ? (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <form.Field name="providerKey" validators={{ onSubmit: providerKey }}>
-                {(field) => (
-                  <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
-                    Provider ID
-                    <input
-                      className={inputClass}
-                      disabled={Boolean(current)}
-                      placeholder="acme-gateway"
-                      value={field.state.value}
-                      onBlur={field.handleBlur}
-                      onChange={(event) => field.handleChange(event.target.value)}
-                    />
-                    <ErrorText errors={field.state.meta.errors} />
-                  </label>
-                )}
-              </form.Field>
-              <form.Field name="name" validators={{ onSubmit: requiredText }}>
-                {(field) => (
-                  <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
-                    显示名称
-                    <input
-                      className={inputClass}
-                      value={field.state.value}
-                      onBlur={field.handleBlur}
-                      onChange={(event) => field.handleChange(event.target.value)}
-                    />
-                    <ErrorText errors={field.state.meta.errors} />
-                  </label>
-                )}
-              </form.Field>
-            </div>
-          ) : null}
-        </form.Subscribe>
-
-        <form.Field name="baseUrl" validators={{ onSubmit: url }}>
-          {(field) => (
-            <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
-              API 地址
-              <input
-                className={inputClass}
-                placeholder="https://gateway.example/v1"
-                value={field.state.value}
-                onBlur={field.handleBlur}
-                onChange={(event) => field.handleChange(event.target.value)}
-              />
-              <ErrorText errors={field.state.meta.errors} />
-            </label>
-          )}
-        </form.Field>
-
-        <form.Subscribe selector={(state) => state.values.providerType}>
-          {(type) => type === 'CUSTOM' ? (
-            <form.Field name="apiProtocol">
-              {(field) => (
-                <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
-                  API 协议
-                  <select
-                    className={inputClass}
-                    disabled={Boolean(current)}
-                    value={field.state.value}
-                    onChange={(event) => field.handleChange(event.target.value as ProviderApiProtocol)}
-                  >
-                    <option value="openai-completions">OpenAI Chat Completions</option>
-                    <option value="openai-responses">OpenAI Responses</option>
-                    <option value="anthropic-messages">Anthropic Messages</option>
-                  </select>
-                </label>
-              )}
-            </form.Field>
-          ) : null}
-        </form.Subscribe>
-
-        {current ? (
-          <form.Field name="replaceSecret">
-            {(field) => (
-              <label className="flex items-center gap-2 text-[12.5px] font-medium text-ink-2">
-                <input
-                  type="checkbox"
-                  className="size-4 accent-accent"
-                  checked={field.state.value}
-                  onChange={(event) => field.handleChange(event.target.checked)}
-                />
-                替换 API 密钥
-              </label>
-            )}
-          </form.Field>
-        ) : null}
-
-        <form.Subscribe selector={(state) => state.values.replaceSecret}>
-          {(replaceSecret) => !current || replaceSecret ? (
-            <form.Field name="credential" validators={{ onSubmit: requiredText }}>
-              {(field) => (
-                <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
-                  {current ? '新 API 密钥' : 'API 密钥'}
-                  <input
-                    type="password"
-                    autoComplete="new-password"
-                    className={inputClass}
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(event) => field.handleChange(event.target.value)}
-                  />
-                  <ErrorText errors={field.state.meta.errors} />
-                </label>
-              )}
-            </form.Field>
-          ) : null}
-        </form.Subscribe>
-
-        {canManageCapacity ? (
-          <fieldset className="grid gap-4 rounded-lg border border-line p-4">
-            <legend className="px-1 text-[12.5px] font-semibold text-ink">上游容量</legend>
-            <p className="m-0 text-[12px] leading-5 text-ink-3">该提供商下所有模型共享此上限；均未启用表示不限制。</p>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <form.Field name="rpm" validators={{ onSubmit: optionalPositiveInteger }}>
-                {(field) => (
-                  <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
-                    <span className="flex items-center gap-2"><input type="checkbox" checked={field.state.value !== ''} onChange={(event) => field.handleChange(event.target.checked ? '1' : '')} />共享 RPM</span>
-                    <input aria-label="共享 RPM" className={inputClass} disabled={field.state.value === ''} inputMode="numeric" value={field.state.value} onBlur={field.handleBlur} onChange={(event) => field.handleChange(event.target.value)} />
-                    <ErrorText errors={field.state.meta.errors} />
-                  </label>
-                )}
-              </form.Field>
-              <form.Field name="concurrency" validators={{ onSubmit: optionalPositiveInteger }}>
-                {(field) => (
-                  <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
-                    <span className="flex items-center gap-2"><input type="checkbox" checked={field.state.value !== ''} onChange={(event) => field.handleChange(event.target.checked ? '1' : '')} />最大并发</span>
-                    <input aria-label="最大并发" className={inputClass} disabled={field.state.value === ''} inputMode="numeric" value={field.state.value} onBlur={field.handleBlur} onChange={(event) => field.handleChange(event.target.value)} />
-                    <ErrorText errors={field.state.meta.errors} />
-                  </label>
-                )}
-              </form.Field>
-            </div>
-          </fieldset>
-        ) : null}
-
-        {error ? <p role="alert" className="m-0 rounded-md bg-red-tint px-3 py-2 text-[12.5px] text-red">{error}</p> : null}
-        <footer className="flex justify-end gap-2 border-t border-line pt-4">
-          <Button type="button" size="sm" onClick={onClose}>取消</Button>
-          <form.Subscribe selector={(state) => state.canSubmit}>
-            {(canSubmit) => <Button type="submit" variant="primary" size="sm" disabled={!canSubmit || saving}>{saving ? '保存中' : '保存'}</Button>}
-          </form.Subscribe>
-        </footer>
-      </form>
-    </ProductDialog>
-  );
+function discoveredCapacity(value?: number) {
+  return value === undefined ? '上游未提供' : formatTokenCapacity(value);
 }
 
-type ModelFormValue = {
-  providerId: string;
-  alias: string;
-  modelId: string;
+type ReasoningTier = { id: string; name: string; value: string | null; system: boolean };
+type ModelDraft = {
+  id: string;
   name: string;
   contextWindow: string;
   maxTokens: string;
-  reasoningMode: 'omitted' | 'disabled' | 'explicit';
-  reasoningLevels: ReasoningLevel[];
-  reasoningWireValues: Partial<Record<ReasoningLevel, string>>;
-  thinkingFormat: '' | ThinkingFormat;
-  supportsReasoningEffort: 'auto' | 'true' | 'false';
-  sortOrder: string;
+  input: ModelInputModality[];
+  reasoningEnabled: boolean;
+  reasoning: ReasoningTier[];
+  defaultTierId: string;
+  expanded: boolean;
+  manual: boolean;
+  existingModel?: ManagedModel;
 };
 
-function modelDefaults(current: ManagedModel | undefined, providers: ReadonlyArray<Provider>): ModelFormValue {
-  const explicit = typeof current?.reasoningEfforts === 'object' ? current.reasoningEfforts : undefined;
-  return {
-    providerId: current?.providerId ?? providers[0]?.id ?? '',
-    alias: current?.alias ?? '',
-    modelId: current?.modelId ?? '',
-    name: current?.name ?? '',
-    contextWindow: formatTokenCapacity(current?.contextWindow),
-    maxTokens: formatTokenCapacity(current?.maxTokens),
-    reasoningMode: current?.reasoningEfforts === undefined
-      ? 'omitted'
-      : current.reasoningEfforts === false ? 'disabled' : 'explicit',
-    reasoningLevels: explicit ? Object.keys(explicit) as ReasoningLevel[] : [],
-    reasoningWireValues: explicit
-      ? Object.fromEntries(Object.entries(explicit).map(([level, value]) => [level, value ?? '']))
-      : {},
-    thinkingFormat: current?.compat?.thinkingFormat ?? '',
-    supportsReasoningEffort: current?.compat?.supportsReasoningEffort === undefined
-      ? 'auto'
-      : current.compat.supportsReasoningEffort ? 'true' : 'false',
-    sortOrder: String(current?.sortOrder ?? 100)
-  };
+function TextField({ label, value, onChange, type = 'text', placeholder, readOnly = false, icon: Icon, suffix }: { label: React.ReactNode; value: string; onChange?: (value: string) => void; type?: string; placeholder?: string; readOnly?: boolean; icon?: typeof Cpu; suffix?: React.ReactNode }) {
+  return <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2"><span>{label}</span><span className="relative block">{Icon ? <Icon aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-ink-3" /> : null}<input className={`${inputClass} ${Icon ? 'pl-9' : ''} ${suffix ? 'pr-20' : ''} ${readOnly ? 'cursor-not-allowed bg-inset text-ink-3' : ''}`} readOnly={readOnly} type={type} value={value} placeholder={placeholder} onChange={(event) => onChange?.(event.target.value)} />{suffix ? <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] text-ink-3">{suffix}</span> : null}</span></label>;
 }
 
-function modelInput(value: ModelFormValue, provider?: Provider): ManagedModelWriteRequest {
-  const contextWindow = parseTokenCapacity(value.contextWindow);
-  const maxTokens = parseTokenCapacity(value.maxTokens);
-  let reasoningEfforts: ModelReasoningEfforts | undefined;
-  if (value.reasoningMode === 'disabled') reasoningEfforts = false;
-  if (value.reasoningMode === 'explicit') {
-    reasoningEfforts = Object.fromEntries(value.reasoningLevels.map((level) => [
-      level,
-      level === 'off' && !value.reasoningWireValues.off?.trim()
-        ? null
-        : value.reasoningWireValues[level]?.trim() || level
-    ]));
-  }
-  const compat = provider?.apiProtocol === OPENAI_COMPLETIONS
-    && value.reasoningMode === 'explicit'
-    && (value.thinkingFormat !== '' || value.supportsReasoningEffort !== 'auto')
-    ? {
-        ...(value.thinkingFormat === '' ? {} : { thinkingFormat: value.thinkingFormat }),
-        ...(value.supportsReasoningEffort === 'auto'
-          ? {}
-          : { supportsReasoningEffort: value.supportsReasoningEffort === 'true' })
-      }
-    : undefined;
-  return {
-    providerId: value.providerId,
-    alias: value.alias.trim(),
-    modelId: value.modelId.trim(),
-    ...(value.name.trim() ? { name: value.name.trim() } : {}),
-    ...(contextWindow === undefined ? {} : { contextWindow }),
-    ...(maxTokens === undefined ? {} : { maxTokens }),
-    ...(reasoningEfforts === undefined ? {} : { reasoningEfforts }),
-    ...(compat === undefined ? {} : { compat }),
-    sortOrder: Number(value.sortOrder)
-  };
+function Footer({ onClose, saving, label = '保存', disabled = false }: { onClose: () => void; saving: boolean; label?: string; disabled?: boolean }) {
+  return <DialogFooter><Button type="button" size="sm" onClick={onClose}>取消</Button><Button type="submit" variant="primary" size="sm" disabled={saving || disabled}>{saving ? '保存中' : label}<ChevronRight className="size-3.5" /></Button></DialogFooter>;
 }
 
-export function ModelEditorDialog({
-  current,
-  error,
-  onClose,
-  onDiscover,
-  onSave,
-  providers,
-  saving
-}: {
-  current?: ManagedModel;
-  error?: string;
-  onClose: () => void;
-  onDiscover: (providerId: string) => Promise<ProviderDiscoveredModel[]>;
-  onSave: (value: ManagedModelWriteRequest) => void;
-  providers: ReadonlyArray<Provider>;
-  saving: boolean;
-}) {
-  const datalistId = useId();
-  const [discovered, setDiscovered] = useState<ProviderDiscoveredModel[]>(current
-    ? [{ id: current.modelId, name: current.name, contextWindow: current.contextWindow, maxTokens: current.maxTokens }]
-    : []);
-  const [discovering, setDiscovering] = useState(false);
-  const [discoverError, setDiscoverError] = useState<string>();
-  const form = useForm({
-    defaultValues: modelDefaults(current, providers),
-    onSubmit: ({ value }) => onSave(modelInput(
-      value,
-      providers.find((provider) => provider.id === value.providerId)
-    ))
-  });
-
-  const discover = async () => {
-    const providerId = form.state.values.providerId;
-    if (!providerId) return;
-    setDiscovering(true);
-    setDiscoverError(undefined);
-    try {
-      setDiscovered(await onDiscover(providerId));
-    } catch (cause) {
-      setDiscoverError(cause instanceof Error ? cause.message : '模型发现失败');
-    } finally {
-      setDiscovering(false);
-    }
-  };
-
-  return (
-    <ProductDialog className="max-w-[640px]" title={current ? '编辑受管模型' : '新建受管模型'} onClose={onClose}>
-      <form
-        className="space-y-4 p-5"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void form.handleSubmit();
-        }}
-      >
-        <form.Field name="providerId" validators={{ onSubmit: requiredText }}>
-          {(field) => (
-            <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
-              模型提供商
-              <select
-                autoFocus
-                className={inputClass}
-                value={field.state.value}
-                onBlur={field.handleBlur}
-                onChange={(event) => {
-                  field.handleChange(event.target.value);
-                  form.setFieldValue('modelId', '');
-                  form.setFieldValue('thinkingFormat', '');
-                  form.setFieldValue('supportsReasoningEffort', 'auto');
-                  setDiscovered([]);
-                }}
-              >
-                <option value="">选择提供商</option>
-                {providers.map((provider) => (
-                  <option key={provider.id} value={provider.id}>{provider.name}{provider.status === 'DISABLED' ? ' - 已停用' : ''}</option>
-                ))}
-              </select>
-              <ErrorText errors={field.state.meta.errors} />
-            </label>
-          )}
-        </form.Field>
-
-        <form.Subscribe selector={(state) => state.values.providerId}>
-          {(providerId) => {
-            const provider = providers.find((item) => item.id === providerId);
-            return (
-              <form.Field name="modelId" validators={{ onSubmit: requiredText }}>
-                {(field) => (
-                  <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
-                    上游模型 ID
-                    <span className="flex gap-2">
-                      <input
-                        list={discovered.length > 0 ? datalistId : undefined}
-                        className={inputClass}
-                        value={field.state.value}
-                        onBlur={field.handleBlur}
-                        onChange={(event) => {
-                          const modelId = event.target.value;
-                          field.handleChange(modelId);
-                          const model = discovered.find((item) => item.id === modelId);
-                          if (model) {
-                            if (!current && !form.state.values.alias) form.setFieldValue('alias', model.id);
-                            form.setFieldValue('name', model.name ?? '');
-                            form.setFieldValue('contextWindow', formatTokenCapacity(model.contextWindow));
-                            form.setFieldValue('maxTokens', formatTokenCapacity(model.maxTokens));
-                          }
-                        }}
-                      />
-                      {provider?.apiProtocol !== 'anthropic-messages' ? (
-                        <Button type="button" size="sm" className="shrink-0 rounded-lg" disabled={!provider || discovering} onClick={() => void discover()}>
-                          <RefreshCw aria-hidden className={discovering ? 'size-3.5 animate-spin' : 'size-3.5'} />
-                          {discovering ? '获取中' : '获取模型'}
-                        </Button>
-                      ) : null}
-                    </span>
-                    <datalist id={datalistId}>
-                      {discovered.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}
-                    </datalist>
-                    <ErrorText errors={field.state.meta.errors} />
-                    {discoverError ? <span role="alert" className="text-[12px] text-red">{discoverError}</span> : null}
-                  </label>
-                )}
-              </form.Field>
-            );
-          }}
-        </form.Subscribe>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <form.Field name="alias" validators={{ onSubmit: alias }}>
-            {(field) => (
-              <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
-                模型 ID
-                <input className={inputClass} value={field.state.value} onBlur={field.handleBlur} onChange={(event) => field.handleChange(event.target.value)} />
-                <ErrorText errors={field.state.meta.errors} />
-              </label>
-            )}
-          </form.Field>
-          <form.Field name="name">
-            {(field) => (
-              <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
-                显示名称（可选）
-                <input className={inputClass} value={field.state.value} onChange={(event) => field.handleChange(event.target.value)} />
-              </label>
-            )}
-          </form.Field>
-        </div>
-
-        <details className="rounded-lg border border-line bg-canvas open:bg-surface">
-          <summary className="cursor-pointer px-3 py-2.5 text-[12.5px] font-medium text-ink-2">容量与推理</summary>
-          <div className="space-y-4 border-t border-line p-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <form.Field name="contextWindow" validators={{ onSubmit: capacity }}>
-                {(field) => (
-                  <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
-                    上下文窗口
-                    <input className={inputClass} placeholder="256K" value={field.state.value} onBlur={field.handleBlur} onChange={(event) => field.handleChange(event.target.value)} />
-                    <ErrorText errors={field.state.meta.errors} />
-                  </label>
-                )}
-              </form.Field>
-              <form.Field name="maxTokens" validators={{ onSubmit: capacity }}>
-                {(field) => (
-                  <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
-                    最大输出 Token
-                    <input className={inputClass} placeholder="32K" value={field.state.value} onBlur={field.handleBlur} onChange={(event) => field.handleChange(event.target.value)} />
-                    <ErrorText errors={field.state.meta.errors} />
-                  </label>
-                )}
-              </form.Field>
-            </div>
-
-            <form.Field name="reasoningMode">
-              {(field) => (
-                <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
-                  reasoningEfforts
-                  <select className={inputClass} value={field.state.value} onChange={(event) => field.handleChange(event.target.value as ModelFormValue['reasoningMode'])}>
-                    <option value="omitted">未声明</option>
-                    <option value="disabled">不支持（false）</option>
-                    <option value="explicit">显式档位映射</option>
-                  </select>
-                </label>
-              )}
-            </form.Field>
-
-            <form.Subscribe selector={(state) => ({ mode: state.values.reasoningMode, providerId: state.values.providerId })}>
-              {({ mode, providerId }) => mode === 'explicit' ? (
-                <div className="space-y-4">
-                  <form.Field name="reasoningLevels" validators={{ onSubmit: z.array(z.enum(REASONING_LEVELS)).min(1, '至少选择一个档位') }}>
-                    {(field) => (
-                      <fieldset className="space-y-2">
-                        <legend className="text-[12.5px] font-medium text-ink-2">支持档位</legend>
-                        <div className="flex flex-wrap gap-x-4 gap-y-2">
-                          {REASONING_LEVELS.map((level) => (
-                            <label key={level} className="flex items-center gap-1.5 text-[12.5px] text-ink-2">
-                              <input
-                                type="checkbox"
-                                className="size-4 accent-accent"
-                                checked={field.state.value.includes(level)}
-                                onChange={(event) => {
-                                  field.handleChange(event.target.checked
-                                    ? [...field.state.value, level]
-                                    : field.state.value.filter((item) => item !== level));
-                                  if (event.target.checked && level !== 'off' && !form.state.values.reasoningWireValues[level]) {
-                                    form.setFieldValue('reasoningWireValues', {
-                                      ...form.state.values.reasoningWireValues,
-                                      [level]: level
-                                    });
-                                  }
-                                }}
-                              />
-                              {level}
-                            </label>
-                          ))}
-                        </div>
-                        <ErrorText errors={field.state.meta.errors} />
-                      </fieldset>
-                    )}
-                  </form.Field>
-
-                  <form.Subscribe selector={(state) => state.values.reasoningLevels}>
-                    {(levels) => levels.length > 0 ? (
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        {levels.map((level) => (
-                          <label key={level} className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
-                            {level} wire 值
-                            <input
-                              className={inputClass}
-                              placeholder={level === 'off' ? '留空发送 null' : level}
-                              value={form.state.values.reasoningWireValues[level] ?? ''}
-                              onChange={(event) => form.setFieldValue('reasoningWireValues', {
-                                ...form.state.values.reasoningWireValues,
-                                [level]: event.target.value
-                              })}
-                            />
-                          </label>
-                        ))}
-                      </div>
-                    ) : null}
-                  </form.Subscribe>
-
-                  {providers.find((provider) => provider.id === providerId)?.apiProtocol === OPENAI_COMPLETIONS ? (
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <form.Field name="thinkingFormat">
-                        {(field) => (
-                          <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
-                            compat.thinkingFormat
-                            <select className={inputClass} value={field.state.value} onChange={(event) => field.handleChange(event.target.value as ModelFormValue['thinkingFormat'])}>
-                              <option value="">自动检测</option>
-                              {THINKING_FORMATS.map((value) => <option key={value} value={value}>{value}</option>)}
-                            </select>
-                          </label>
-                        )}
-                      </form.Field>
-                      <form.Field name="supportsReasoningEffort">
-                        {(field) => (
-                          <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
-                            compat.supportsReasoningEffort
-                            <select className={inputClass} value={field.state.value} onChange={(event) => field.handleChange(event.target.value as ModelFormValue['supportsReasoningEffort'])}>
-                              <option value="auto">自动检测</option>
-                              <option value="true">true</option>
-                              <option value="false">false</option>
-                            </select>
-                          </label>
-                        )}
-                      </form.Field>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-            </form.Subscribe>
-          </div>
-        </details>
-
-        <form.Field name="sortOrder" validators={{ onSubmit: sortOrder }}>
-          {(field) => (
-            <label className="grid max-w-40 gap-1.5 text-[12.5px] font-medium text-ink-2">
-              排序
-              <input type="number" min="0" step="1" className={inputClass} value={field.state.value} onBlur={field.handleBlur} onChange={(event) => field.handleChange(event.target.value)} />
-              <ErrorText errors={field.state.meta.errors} />
-            </label>
-          )}
-        </form.Field>
-
-        {error ? <p role="alert" className="m-0 rounded-md bg-red-tint px-3 py-2 text-[12.5px] text-red">{error}</p> : null}
-        <footer className="flex justify-end gap-2 border-t border-line pt-4">
-          <Button type="button" size="sm" onClick={onClose}>取消</Button>
-          <form.Subscribe selector={(state) => state.canSubmit}>
-            {(canSubmit) => <Button type="submit" variant="primary" size="sm" disabled={!canSubmit || saving}>{saving ? '保存中' : '保存'}</Button>}
-          </form.Subscribe>
-        </footer>
-      </form>
-    </ProductDialog>
-  );
+export function providerGradient(providerId?: string, fallbackName = '') {
+  const key = providerId || fallbackName || 'provider';
+  let hash = 0;
+  for (let index = 0; index < key.length; index += 1) hash = (hash * 31 + key.charCodeAt(index)) >>> 0;
+  return providerGradients[hash % providerGradients.length];
 }
 
-export function DeleteModelDialog({
-  error,
-  label,
-  onClose,
-  onConfirm,
-  saving
-}: {
-  error?: string;
-  label: string;
-  onClose: () => void;
-  onConfirm: () => void;
-  saving: boolean;
-}) {
-  return (
-    <ProductDialog title="确认删除" onClose={onClose}>
-      <div className="space-y-5 p-5">
-        <p className="m-0 text-[13px] leading-6 text-ink-2">仅能删除没有配置引用和使用记录的模型。已使用模型请停用或归档。</p>
-        {error ? <p role="alert" className="m-0 rounded-md bg-red-tint px-3 py-2 text-[12.5px] text-red">{error}</p> : null}
-        <footer className="flex justify-end gap-2 border-t border-line pt-4">
-          <Button type="button" size="sm" disabled={saving} onClick={onClose}>取消</Button>
-          <Button type="button" variant="primary" size="sm" className="bg-red text-white hover:brightness-95" disabled={saving} onClick={onConfirm}>
-            {saving ? '删除中' : '删除'}
-          </Button>
-        </footer>
-      </div>
-    </ProductDialog>
-  );
+export function ProviderEditorDialog({ current, error, onClose, onSave, saving }: { current?: Provider; error?: string; onClose: () => void; onSave: (value: ModelProviderCreateRequest | ModelProviderUpdateRequest) => void; saving: boolean }) {
+  const [name, setName] = React.useState(current?.name ?? '');
+  const [description, setDescription] = React.useState(current?.description ?? '');
+  return <ProductDialog className="max-w-[600px] overflow-hidden rounded-2xl border-zinc-200/90" title={current ? '编辑供应商信息' : '新建供应商'} onClose={onClose}><form className="grid gap-5 bg-zinc-50/50 p-5" onSubmit={(event) => { event.preventDefault(); if (name.trim()) onSave({ name: name.trim(), description: description.trim() }); }}><div className={`${panelClass} flex items-start gap-3 p-4`}><div className="grid size-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white"><Server className="size-4" /></div><div><p className="m-0 text-sm font-semibold text-zinc-900">供应商元信息</p><p className="mt-1 mb-0 text-[11px] leading-5 text-zinc-500">端点与 API Key 属于连接，协议也随连接配置，本页只维护供应商身份。</p></div></div><div className="grid gap-4"><TextField label="供应商名称" value={name} onChange={setName} placeholder="例如：OpenAI Compatible" /><TextField label="供应商描述（选填）" value={description} onChange={setDescription} placeholder="例如：团队统一的 OpenAI 兼容网关" /></div>{error ? <p role="alert" className="m-0 flex items-center gap-2 rounded-xl bg-rose-50 px-3 py-2 text-xs text-rose-700"><AlertCircle className="size-3.5" />{error}</p> : null}<Footer onClose={onClose} saving={saving} disabled={!name.trim()} label="保存" /></form></ProductDialog>;
+}
+
+export function ConnectionEditorDialog({ provider, current, error, onClose, onProbe, onSave, saving }: { provider: Provider; current?: ModelProviderConnection; error?: string; onClose: () => void; onProbe: (value: ProviderProbeRequestWritable) => Promise<ProviderProbeResult>; onSave: (value: ModelProviderConnectionCreateRequestWritable | ModelProviderConnectionUpdateRequestWritable) => void; saving: boolean }) {
+  const [name, setName] = React.useState(current?.name ?? '');
+  const [apiProtocol, setApiProtocol] = React.useState(current?.apiProtocol ?? 'openai-completions');
+  const [baseUrl, setBaseUrl] = React.useState(current?.baseUrl ?? '');
+  const [modelDiscoveryPath, setModelDiscoveryPath] = React.useState(current?.modelDiscoveryPath ?? '/models');
+  const [credential, setCredential] = React.useState('');
+  const [replaceSecret, setReplaceSecret] = React.useState(false);
+  const [showKey, setShowKey] = React.useState(false);
+  const [probe, setProbe] = React.useState<ProviderProbeResult>();
+  const [probing, setProbing] = React.useState(false);
+  const probeDraft = async () => { setProbing(true); try { setProbe(await onProbe({ apiProtocol, baseUrl, modelDiscoveryPath, credential, connectTimeoutMs: current?.connectTimeoutMs ?? 5000, readTimeoutMs: current?.readTimeoutMs ?? 120000 })); } finally { setProbing(false); } };
+  const valid = Boolean(name.trim() && baseUrl.trim() && (!current ? credential.trim() : !replaceSecret || credential.trim()));
+  const endpoint = baseUrl.trim().replace(/\/+$/, '') || 'https://api.example.com/v1';
+  return <ProductDialog className="max-w-[760px] overflow-hidden rounded-2xl border-zinc-200/90" title={current ? `编辑连接 · ${provider.name}` : `新建连接 · ${provider.name}`} onClose={onClose}><form className="grid gap-5 bg-zinc-50/50 p-5" onSubmit={(event) => { event.preventDefault(); if (!valid) return; onSave(current ? { name: name.trim(), baseUrl: baseUrl.trim(), modelDiscoveryPath, replaceSecret, ...(replaceSecret ? { credential } : {}), connectTimeoutMs: current.connectTimeoutMs, readTimeoutMs: current.readTimeoutMs } : { name: name.trim(), apiProtocol, baseUrl: baseUrl.trim(), modelDiscoveryPath, credential, connectTimeoutMs: 5000, readTimeoutMs: 120000 }); }}><div className={`${panelClass} flex items-center gap-3 p-4`}><div className={`grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br ${providerGradient(provider.id, provider.name)} text-sm font-bold text-white`}>{provider.name.slice(0, 1).toUpperCase()}</div><div className="min-w-0"><p className="m-0 truncate text-sm font-semibold text-zinc-900">{provider.name}</p><p className="mt-1 mb-0 text-[11px] text-zinc-500">为此供应商配置一个新的 API 连接通道</p></div></div><section className={`${panelClass} grid gap-5 overflow-hidden`}><div className="grid gap-4 p-5 sm:grid-cols-2"><TextField label="连接名称" value={name} onChange={setName} placeholder="例如：生产连接" /><label className="grid gap-1.5 text-[11px] font-semibold text-zinc-700">API 协议<select className={`${inputClass} pl-3`} value={apiProtocol} onChange={(event) => setApiProtocol(event.target.value as typeof apiProtocol)} disabled={Boolean(current)}><option value="openai-completions">OpenAI Chat Completions</option><option value="openai-responses">OpenAI Responses</option><option value="anthropic-messages">Anthropic Messages</option></select></label></div><div className="grid gap-4 border-t border-zinc-100 px-5 py-5"><TextField label="Base URL" value={baseUrl} onChange={setBaseUrl} placeholder="https://api.example.com/v1" icon={Globe} /><TextField label="模型发现接口" value={modelDiscoveryPath} onChange={setModelDiscoveryPath} placeholder="/models" /><div className="flex items-center justify-between rounded-xl border border-zinc-200/70 bg-zinc-50 px-3 py-2 font-mono text-[11px]"><span className="rounded bg-zinc-200/80 px-1.5 py-0.5 text-[10px] font-bold text-zinc-700">POST</span><span className="min-w-0 truncate text-zinc-400">{endpoint}<strong className="text-zinc-700">{modelDiscoveryPath}</strong></span><span className="shrink-0 text-[10px] text-zinc-400">模型目录预览</span></div><div className="grid gap-1.5"><div className="flex items-center justify-between"><label className="text-[11px] font-semibold text-zinc-700">API Key</label><span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-700"><Lock className="size-3" />保存后仅显示状态</span></div>{current && !replaceSecret ? <div className="flex h-10 items-center justify-between rounded-xl border border-zinc-200/90 bg-zinc-100/80 px-3 text-xs text-zinc-500"><span>连接密钥</span><strong className="font-medium text-emerald-700">{current.credentialConfigured ? '已配置 · 原文不会回填' : '未配置'}</strong><button type="button" className="text-blue-600 hover:text-blue-800" onClick={() => setReplaceSecret(true)}>替换</button></div> : <div className="relative"><KeyRound className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-zinc-400" /><input aria-label="API Key" className={`${inputClass} pl-9 pr-20 font-mono`} type={showKey ? 'text' : 'password'} value={credential} onChange={(event) => setCredential(event.target.value)} placeholder="输入连接密钥 (例如 sk-...)" /><button type="button" className="absolute right-2 top-1/2 inline-flex -translate-y-1/2 items-center gap-1 rounded-lg px-2 py-1 text-[10px] text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800" onClick={() => setShowKey((value) => !value)}>{showKey ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}{showKey ? '隐藏' : '显示'}</button></div>}</div></div><div className="flex flex-col gap-3 border-t border-zinc-100 bg-zinc-50/90 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-2 text-[11px] text-zinc-500">{probe?.success ? <><CheckCircle2 className="size-4 text-emerald-600" /><span className="font-medium text-emerald-700">端点握手成功 · 可获取 {probe.models.length} 个模型</span></> : probe ? <><AlertCircle className="size-4 text-rose-600" /><span className="font-medium text-rose-700">连接测试失败 · {probe.upstreamStatus}</span></> : <><ShieldCheck className="size-4 text-blue-600" /><span>下一步获取可用模型会验证端点和 API Key</span></>}</div><Button type="button" size="xs" className="self-end border border-zinc-200 bg-white text-zinc-700 shadow-[0_1px_2px_rgba(0,0,0,.04)] hover:bg-zinc-100 sm:self-auto" disabled={probing || !baseUrl.trim() || (!current && !credential.trim())} onClick={() => void probeDraft()}><RefreshCw className={`size-3.5 ${probing ? 'animate-spin text-blue-600' : 'text-zinc-500'}`} />{probing ? '正在验证…' : '测试连通性（可选）'}</Button></div></section>{error ? <p role="alert" className="m-0 flex items-center gap-2 rounded-xl bg-rose-50 px-3 py-2 text-xs text-rose-700"><AlertCircle className="size-3.5" />{error}</p> : null}<Footer onClose={onClose} saving={saving} disabled={!valid} label={current ? '保存连接' : '继续配置模型'} /></form></ProductDialog>;
+}
+
+function reasoningTiers(model?: ManagedModel, _discovered?: ProviderDiscoveredModel): ReasoningTier[] {
+  const value = model?.reasoningEfforts;
+  if (value && typeof value === 'object') return Object.entries(value).map(([id, wire]) => ({ id, name: levelNames[id] ?? id, value: wire ?? null, system: allLevels.includes(id as typeof allLevels[number]) }));
+  return defaultLevels.map((id) => ({ id, name: levelNames[id], value: id === 'off' ? null : id, system: true }));
+}
+
+function draftFrom(model?: ManagedModel, discovered?: ProviderDiscoveredModel, manual = false): ModelDraft {
+  const reasoning = reasoningTiers(model, discovered);
+  return { id: model?.modelId ?? discovered?.id ?? '', name: model?.name ?? discovered?.name ?? '', contextWindow: formatTokenCapacity(model?.contextWindow ?? discovered?.contextWindow ?? 256000), maxTokens: formatTokenCapacity(model?.maxTokens ?? discovered?.maxTokens ?? 32768), input: model?.input?.length ? [...model.input] : ['text'], reasoningEnabled: model?.reasoningEfforts !== false && Boolean(model?.reasoningEfforts), reasoning, defaultTierId: reasoning.find((tier) => tier.id !== 'off')?.id ?? reasoning[0]?.id ?? 'off', expanded: Boolean(model) || manual, manual, existingModel: model };
+}
+
+function tierStrength(id: string, index: number) { return id === 'off' ? 0 : Math.min(Math.max(allLevels.indexOf(id as typeof allLevels[number]), index + 1), 4); }
+
+function ModelConfigCard({ draft, index, onChange, onRemove }: { draft: ModelDraft; index: number; onChange: (value: ModelDraft) => void; onRemove?: () => void }) {
+  const update = (patch: Partial<ModelDraft>) => onChange({ ...draft, ...patch });
+  const hasId = Boolean(draft.id.trim());
+  const activeTier = draft.reasoning.find((tier) => tier.id === draft.defaultTierId) ?? draft.reasoning[0];
+  const [preview, setPreview] = React.useState(false);
+  const setInput = (value: ModelInputModality) => { if (draft.input.length === 1 && draft.input[0] === value) return; update({ input: draft.input.includes(value) ? draft.input.filter((item) => item !== value) : [...draft.input, value] }); };
+  const removeTier = (id: string) => { const next = draft.reasoning.filter((tier) => tier.id !== id); if (next.some((tier) => tier.id !== 'off')) update({ reasoning: next, defaultTierId: next.some((tier) => tier.id === draft.defaultTierId) ? draft.defaultTierId : (next.find((tier) => tier.id !== 'off')?.id ?? next[0]?.id ?? 'off') }); };
+  return <article className={`group/card overflow-hidden rounded-2xl border bg-white transition ${draft.expanded ? 'border-zinc-300/90 shadow-md ring-1 ring-zinc-900/5' : 'border-zinc-200/90 shadow-[0_1px_2px_rgba(0,0,0,.03)] hover:border-zinc-300'}`}><div className={`flex cursor-pointer items-center justify-between gap-3 px-5 py-3.5 ${draft.expanded ? 'border-b border-zinc-200/70 bg-zinc-50/90' : 'hover:bg-zinc-50/50'}`} onClick={() => update({ expanded: !draft.expanded })}><div className="flex min-w-0 items-center gap-3"><div className={`grid size-7 shrink-0 place-items-center rounded-lg border text-xs font-bold ${hasId ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>{hasId ? <Check className="size-3.5" /> : index + 1}</div><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="truncate text-xs font-semibold text-zinc-900 sm:text-sm">{hasId ? (draft.name || draft.id) : '手动模型 · 待填写上游 ID'}</span>{hasId ? <span className="truncate rounded-md border border-zinc-200/80 bg-white px-2 py-0.5 font-mono text-[11px] text-zinc-600">{draft.id}</span> : <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/70 bg-amber-50/90 px-2 py-0.5 text-[10px] font-medium text-amber-700"><span className="size-1.5 animate-pulse rounded-full bg-amber-500" />必填项待完善</span>}</div>{draft.expanded ? <p className="mt-0.5 mb-0 text-[11px] text-zinc-400">显示名称由后台按上游模型 ID 生成，也可以在保存前自定义。</p> : <div className="mt-1.5 flex flex-wrap items-center gap-1.5"><span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-600">窗口 {draft.contextWindow}</span><span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-600">输出 {draft.maxTokens}</span>{draft.input.includes('text') ? <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">文本</span> : null}{draft.input.includes('image') ? <span className="rounded bg-purple-50 px-1.5 py-0.5 text-[10px] font-medium text-purple-700">图片</span> : null}{draft.reasoningEnabled ? <span className="rounded border border-amber-200/60 bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">推理（{draft.reasoning.length} 档 · 默认 {activeTier?.name}）</span> : null}</div>}</div></div><div className="flex shrink-0 items-center gap-1" onClick={(event) => event.stopPropagation()}><button type="button" title="克隆此模型配置" className="hidden rounded-lg p-1.5 text-zinc-400 transition hover:bg-zinc-200/60 hover:text-zinc-700 sm:inline-flex"><Copy className="size-3.5" /></button><button type="button" className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-200/60 hover:text-zinc-900" onClick={() => update({ expanded: !draft.expanded })}>{draft.expanded ? '收起配置' : '展开配置'}<ChevronDown className={`size-3.5 text-zinc-400 transition-transform ${draft.expanded ? 'rotate-180' : ''}`} /></button>{onRemove ? <button type="button" className="rounded-lg px-2.5 py-1 text-xs font-medium text-rose-600 transition hover:bg-rose-50" onClick={onRemove}>移除</button> : null}</div></div>{draft.expanded ? <div className="grid gap-5 bg-white p-5 text-xs"><div className="grid gap-4 sm:grid-cols-2"><TextField label="上游模型 ID" value={draft.id} readOnly={!draft.manual} onChange={(id) => update({ id, name: draft.name || id })} placeholder="例如：gpt-4.1" icon={Cpu} /><TextField label={<>显示名称 <span className="font-normal text-zinc-400">（可选）</span><span className="ml-1 inline-flex items-center gap-0.5 text-[10px] font-normal text-zinc-400"><Sparkles className="size-2.5 text-blue-500" />自动跟随</span></>} value={draft.name} onChange={(name) => update({ name })} placeholder={draft.id ? `${draft.id}（后台默认生成）` : '由后台按上游模型 ID 生成'} /></div><div className="grid gap-4 sm:grid-cols-2"><div className="grid gap-1.5"><div className="flex items-center justify-between"><span className="text-[11px] font-semibold text-zinc-700">上下文窗口</span><div className="flex items-center gap-0.5 rounded-lg border border-zinc-200/60 bg-zinc-100 p-0.5">{contextPresets.map((preset) => <button key={preset} type="button" className={`rounded-md px-1.5 py-0.5 font-mono text-[10px] transition ${draft.contextWindow === preset ? 'bg-white font-semibold text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-800'}`} onClick={() => update({ contextWindow: preset })}>{preset}</button>)}</div></div><TextField label="" value={draft.contextWindow} onChange={(contextWindow) => update({ contextWindow })} placeholder="256K" suffix="Tokens" /></div><div className="grid gap-1.5"><div className="flex items-center justify-between"><span className="text-[11px] font-semibold text-zinc-700">最大输出 Token</span><div className="flex items-center gap-0.5 rounded-lg border border-zinc-200/60 bg-zinc-100 p-0.5">{outputPresets.map((preset) => <button key={preset} type="button" className={`rounded-md px-1.5 py-0.5 font-mono text-[10px] transition ${Number(draft.maxTokens.replace(/K$/i, '000')) === Number(preset) ? 'bg-white font-semibold text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-800'}`} onClick={() => update({ maxTokens: preset })}>{Number(preset) >= 1024 ? `${Number(preset) / 1024}K` : preset}</button>)}</div></div><TextField label="" value={draft.maxTokens} onChange={(maxTokens) => update({ maxTokens })} placeholder="32K" suffix="Max Out" /></div></div><section className="grid gap-3 rounded-2xl border border-zinc-200/80 bg-zinc-50/70 p-4"><div className="flex items-center justify-between"><span className="font-semibold text-zinc-800">输入类型</span><span className="text-[11px] text-zinc-400">至少保留一种输入类型，默认是文本。</span></div><div className="grid gap-3 sm:grid-cols-2">{inputOptions.map(({ value, label, description, icon: Icon, color }) => { const active = draft.input.includes(value); return <button type="button" key={value} onClick={() => setInput(value)} className={`flex items-center justify-between rounded-xl border p-3 text-left transition ${active ? 'border-blue-600/80 bg-white ring-2 ring-blue-600/10 shadow-sm' : 'border-zinc-200/80 bg-white/60 text-zinc-500 hover:bg-white'}`}><span className="flex items-center gap-3"><span className={`grid size-8 place-items-center rounded-lg ${active ? color === 'blue' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600' : 'bg-zinc-100 text-zinc-400'}`}><Icon className="size-4" /></span><span><strong className="block text-xs text-zinc-900">{label}</strong><small className="mt-1 block text-[10px] text-zinc-400">{description}</small></span></span><span className={`grid size-4 place-items-center rounded border ${active ? 'border-blue-600 bg-blue-600 text-white' : 'border-zinc-300 bg-white'}`}>{active ? <Check className="size-3" /> : null}</span></button>; })}</div></section><section className={`grid gap-4 rounded-2xl border p-4 transition ${draft.reasoningEnabled ? 'border-amber-200/90 bg-gradient-to-b from-amber-50/40 via-white to-white shadow-sm' : 'border-zinc-200/80 bg-zinc-50/70'}`}><div className="flex items-start justify-between gap-4"><div className="flex items-start gap-3"><div className={`grid size-9 shrink-0 place-items-center rounded-xl border ${draft.reasoningEnabled ? 'border-amber-500 bg-amber-500 text-white shadow-sm' : 'border-zinc-200 bg-white text-zinc-400'}`}><BrainCircuit className="size-4" /></div><div><div className="flex items-center gap-2"><span className="font-semibold text-zinc-900">推理能力</span><span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${draft.reasoningEnabled ? 'border-amber-200/80 bg-amber-50 text-amber-700' : 'border-zinc-200/60 bg-zinc-100 text-zinc-500'}`}>{draft.reasoningEnabled ? '已启用推理档位' : '未启用'}</span></div><p className="mt-1 mb-0 text-[11px] leading-relaxed text-zinc-500">Off 表示关闭思考，不填写参数值；其他档位默认与档位名相同，可按上游 API 文档修改。</p></div></div><button type="button" role="switch" aria-checked={draft.reasoningEnabled} onClick={() => update({ reasoningEnabled: !draft.reasoningEnabled })} className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition ${draft.reasoningEnabled ? 'bg-zinc-900' : 'bg-zinc-200 hover:bg-zinc-300'}`}><span className={`pointer-events-none inline-block size-5 rounded-full bg-white shadow-md transition ${draft.reasoningEnabled ? 'translate-x-5' : 'translate-x-0'}`} /></button></div>{draft.reasoningEnabled ? <div className="grid gap-3 border-t border-zinc-200/70 pt-3.5"><div className="flex flex-col gap-2.5 rounded-xl border border-zinc-200/70 bg-zinc-50/90 p-2.5 sm:flex-row sm:items-center sm:justify-between"><div className="flex flex-wrap items-center gap-2"><span className="pl-1 text-[11px] font-medium text-zinc-500">默认激活档位:</span><div className="inline-flex items-center gap-0.5 rounded-lg bg-zinc-200/70 p-0.5">{draft.reasoning.map((tier) => <button key={tier.id} type="button" onClick={() => update({ defaultTierId: tier.id })} className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition ${draft.defaultTierId === tier.id ? 'bg-white font-semibold text-zinc-900 shadow-sm' : 'text-zinc-600 hover:text-zinc-900'}`}>{tier.name}</button>)}</div></div><div className="flex items-center gap-2 self-end sm:self-auto"><button type="button" title="预览当前档位生成的 API 请求参数" className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-medium transition ${preview ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-200/90 bg-white text-zinc-600 hover:text-zinc-900'}`} onClick={() => setPreview((value) => !value)}><FileCode2 className="size-3" />参数预览</button><button type="button" className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-white px-3 py-1 text-[11px] font-semibold text-blue-600 shadow-sm transition hover:bg-blue-600 hover:text-white" onClick={() => { const next = allLevels.find((level) => !draft.reasoning.some((tier) => tier.id === level) && level !== 'off'); if (next) update({ reasoning: [...draft.reasoning, { id: next, name: levelNames[next], value: next, system: false }] }); }}><Plus className="size-3" />添加档位</button></div></div>{preview ? <div className="flex items-center justify-between gap-3 rounded-xl bg-zinc-900 p-3 font-mono text-[11px] text-zinc-100"><div className="flex min-w-0 items-center gap-2 truncate"><span className="font-semibold text-emerald-400">POST</span><span className="truncate text-zinc-400">当前默认档位 ({activeTier?.name}) 请求体映射:</span><code className="rounded bg-zinc-800 px-2 py-0.5 text-amber-300">{activeTier?.id === 'off' ? '// 关闭思考：不向上游注入 reasoning 参数' : `"reasoning_effort": "${activeTier?.value || activeTier?.name.toLowerCase()}"`}</code></div><span className="shrink-0 text-[10px] text-zinc-500">实时联动</span></div> : null}<div className="overflow-hidden rounded-xl border border-zinc-200/90 bg-white shadow-sm"><div className="grid grid-cols-12 gap-3 bg-zinc-50/90 px-4 py-2 text-[11px] font-semibold text-zinc-500"><div className="col-span-4">档位名称（Tier）</div><div className="col-span-6">上游参数值（API Value）</div><div className="col-span-2 text-right">默认 / 操作</div></div>{draft.reasoning.map((tier, tierIndex) => { const isDefault = draft.defaultTierId === tier.id; const strength = tierStrength(tier.id, tierIndex); return <div key={tier.id} className={`grid grid-cols-12 items-center gap-3 px-4 py-2.5 transition ${isDefault ? 'bg-amber-50/25' : 'hover:bg-zinc-50/60'}`}><div className="col-span-4 flex min-w-0 items-center gap-2.5"><div className="flex h-3.5 w-4 shrink-0 items-end gap-0.5">{[1, 2, 3, 4].map((bar) => <span key={bar} className={`w-0.5 rounded-full ${bar === 1 ? 'h-1.5' : bar === 2 ? 'h-2' : bar === 3 ? 'h-2.5' : 'h-3.5'} ${bar <= strength ? 'bg-amber-500' : 'bg-zinc-200'}`} />)}</div>{tier.system ? <div className="flex min-w-0 items-center gap-1.5"><span className={`font-semibold text-xs ${tier.id === 'off' ? 'text-zinc-400' : 'text-zinc-800'}`}>{tier.name}</span><span className="rounded border border-zinc-200/60 bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-400">预设</span></div> : <select className={`${inputClass} h-8 py-1`} value={tier.id} onChange={(event) => { const next = event.target.value; if (draft.reasoning.some((item) => item.id === next)) return; update({ reasoning: draft.reasoning.map((item) => item.id === tier.id ? { ...item, id: next, name: levelNames[next], value: next } : item) }); }}><option value={tier.id}>{tier.name}</option>{allLevels.filter((level) => level !== 'off' && !draft.reasoning.some((item) => item.id === level)).map((level) => <option key={level} value={level}>{levelNames[level]}</option>)}</select>}</div><div className="col-span-6">{tier.id === 'off' ? <div className="flex items-center gap-2 rounded-lg border border-zinc-200/60 bg-zinc-100/80 px-3 py-1.5 text-xs text-zinc-400"><Lock className="size-3 shrink-0" />关闭思考，不填写参数值</div> : <div className="relative"><input className={`${inputClass} h-8 rounded-lg bg-zinc-50/70 py-1.5 pr-16 font-mono`} value={tier.value ?? ''} onChange={(event) => update({ reasoning: draft.reasoning.map((item) => item.id === tier.id ? { ...item, value: event.target.value } : item) })} placeholder={tier.name.toLowerCase()} />{tier.value !== tier.name.toLowerCase() ? <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] text-blue-600" onClick={() => update({ reasoning: draft.reasoning.map((item) => item.id === tier.id ? { ...item, value: tier.name.toLowerCase() } : item) })}>同档位名</button> : null}</div>}</div><div className="col-span-2 flex items-center justify-end gap-1.5"><label className={`inline-flex cursor-pointer items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-semibold transition ${isDefault ? 'border-amber-500 bg-amber-500 text-white' : 'border-zinc-200 bg-white text-zinc-400 hover:text-zinc-700'}`}><input type="radio" name={`default-tier-${draft.id || index}`} checked={isDefault} onChange={() => update({ defaultTierId: tier.id })} className="sr-only" />{isDefault ? '默认' : '设默认'}</label>{!tier.system ? <button type="button" className="rounded p-1 text-zinc-400 transition hover:bg-rose-50 hover:text-rose-600" title="删除自定义档位" onClick={() => removeTier(tier.id)}><Trash2 className="size-3.5" /></button> : <span className="w-5" />}</div></div>; })}</div><p className="m-0 text-[11px] leading-5 text-zinc-400">默认档位仅用于配置预览；API 仍按 DSH 的 canonical 档位键发送。Off 永远没有参数值。</p></div> : null}</section></div> : null}</article>;
+}
+
+export type ModelSaveEntry = { existingModel?: ManagedModel; value: ManagedModelWriteRequest };
+type ModelEditorProps = { current?: ManagedModel; existingModels?: ReadonlyArray<ManagedModel>; connection?: ModelProviderConnection; connections: ReadonlyArray<ModelProviderConnection>; error?: string; onClose: () => void; onDiscover: (connectionId: string) => Promise<ProviderProbeResult>; onSave: (value: ModelSaveEntry[]) => void; saving: boolean };
+function modelPayload(connectionId: string, draft: ModelDraft, sortOrder: number): ManagedModelWriteRequest {
+  const reasoning = draft.reasoning.reduce<Record<string, string | null>>((result, tier) => { result[tier.id] = tier.id === 'off' ? null : tier.value || tier.id; return result; }, {});
+  return { connectionId, modelId: draft.id.trim(), ...(draft.name.trim() ? { name: draft.name.trim() } : {}), contextWindow: parseTokenCapacity(draft.contextWindow) ?? 256000, maxTokens: parseTokenCapacity(draft.maxTokens) ?? 32768, input: draft.input.length ? draft.input : ['text'], reasoningEfforts: draft.reasoningEnabled ? reasoning as ManagedModelWriteRequest['reasoningEfforts'] : false, sortOrder };
+}
+
+export function ModelEditorDialog({ current, existingModels = [], connection, connections, error, onClose, onDiscover, onSave, saving }: ModelEditorProps) {
+  const initialConnection = current?.connectionId ?? connection?.id ?? connections[0]?.id ?? '';
+  const [connectionId, setConnectionId] = React.useState(initialConnection);
+  const [discovered, setDiscovered] = React.useState<ProviderDiscoveredModel[]>([]);
+  const [drafts, setDrafts] = React.useState<ModelDraft[]>(current ? [draftFrom(current)] : existingModels.map((model) => draftFrom(model)));
+  const [discovering, setDiscovering] = React.useState(false);
+  const [discoverError, setDiscoverError] = React.useState<string>();
+  React.useEffect(() => {
+    if (!current && existingModels.length && drafts.length === 0) setDrafts(existingModels.map((model) => draftFrom(model)));
+  }, [current, existingModels, drafts.length]);
+  const runDiscover = async () => { if (!connectionId) return; setDiscovering(true); setDiscoverError(undefined); try { const result = await onDiscover(connectionId); setDiscovered(result.models); if (!result.success) setDiscoverError(`${probeFailureMessage(result.upstreamStatus)}，仍可手动新增模型。`); } catch (cause) { setDiscoverError(cause instanceof Error ? cause.message : '模型发现失败'); } finally { setDiscovering(false); } };
+  const add = (model: ProviderDiscoveredModel) => setDrafts((items) => { const selected = items.find((draft) => draft.id === model.id); if (selected?.existingModel) return items; return selected ? items.filter((draft) => draft.id !== model.id) : [...items, draftFrom(undefined, model)]; });
+  const submit = () => { if (!connectionId || drafts.some((draft) => !draft.id.trim())) return; onSave(drafts.map((draft) => ({ existingModel: draft.existingModel, value: modelPayload(connectionId, draft, draft.existingModel?.sortOrder ?? current?.sortOrder ?? 100) }))); };
+  return <ProductDialog className="max-w-[960px] overflow-hidden rounded-2xl border-zinc-200/90" title="维护模型" onClose={onClose}><form className="grid max-h-[calc(100dvh-84px)] overflow-y-auto overscroll-contain gap-5 bg-zinc-50/50 p-5" onSubmit={(event) => { event.preventDefault(); submit(); }}><section className={`${panelClass} relative overflow-hidden p-5`}><div className="absolute -right-14 -top-14 size-36 rounded-full bg-gradient-to-bl from-blue-500/10 via-indigo-500/5 to-transparent" /><div className="relative flex flex-col justify-between gap-3 sm:flex-row sm:items-center"><div className="flex items-start gap-3"><div className="grid size-10 shrink-0 place-items-center rounded-xl border border-zinc-200/80 bg-zinc-50 text-zinc-700"><Server className="size-4" /></div><div><div className="flex flex-wrap items-center gap-2"><h3 className="m-0 text-sm font-semibold text-zinc-900">{current ? '当前模型' : '可用模型'}</h3>{connection ? <span className="inline-flex items-center gap-1 rounded-full border border-zinc-200/60 bg-zinc-100/90 px-2 py-0.5 text-[10px] font-medium text-zinc-500"><span className="size-1.5 rounded-full bg-emerald-500" />{connection.name}</span> : null}{discovered.length ? <span className="rounded-full border border-emerald-200/60 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">已同步 {discovered.length} 款候选</span> : null}</div><p className="mt-1 mb-0 text-[11px] leading-relaxed text-zinc-500">{current ? '当前模型已定位到下方配置卡片，修改后保存。' : existingModels.length ? '当前连接已有模型已载入下方维护列表，可直接修改；发现的新模型会以新增草稿加入。' : '获取当前连接的模型目录，选择候选模型后进入下方维护列表；发现失败时仍可手动新增。'}</p></div></div>{!current ? <Button type="button" size="sm" className="self-start border border-zinc-200/90 bg-white text-zinc-800 shadow-sm hover:bg-zinc-900 hover:text-white" disabled={discovering || !connectionId} onClick={() => void runDiscover()}><RefreshCw className={`size-3.5 ${discovering ? 'animate-spin' : ''}`} />{discovering ? '正在探测…' : discovered.length ? '重新获取' : '获取可用模型'}</Button> : null}</div>{!current && !connection ? <label className="relative mt-4 grid gap-1.5 text-[11px] font-semibold text-zinc-700">连接<select className={`${inputClass} pl-3`} value={connectionId} onChange={(event) => { setConnectionId(event.target.value); setDiscovered([]); setDrafts([]); }}>{connections.map((item) => <option key={item.id} value={item.id}>{item.providerName} · {item.name}</option>)}</select></label> : null}{!current && discovered.length ? <div className="mt-4 grid gap-2 border-t border-zinc-100 pt-3 sm:grid-cols-2">{discovered.map((item) => { const added = drafts.some((draft) => draft.id === item.id); return <button key={item.id} type="button" className={`group flex items-center justify-between gap-3 rounded-xl border p-3 text-left transition ${added ? 'border-blue-600/80 bg-blue-50/40 ring-2 ring-blue-600/10' : 'border-zinc-200/80 bg-zinc-50/60 hover:border-zinc-300 hover:bg-white hover:shadow-sm'}`} onClick={() => add(item)}><span className="min-w-0"><span className={`block truncate font-mono text-xs font-semibold ${added ? 'text-blue-950' : 'text-zinc-800'}`}>{item.id}</span><span className="mt-1 block truncate text-[11px] text-zinc-400">{item.name ?? '上游未提供显示名称'} · 最大输出 {discoveredCapacity(item.maxTokens)} · 上下文 {discoveredCapacity(item.contextWindow)}</span></span><span className={`grid size-6 shrink-0 place-items-center rounded-lg ${added ? 'bg-blue-600 text-white shadow-sm' : 'border border-zinc-200 bg-white text-zinc-400 group-hover:text-zinc-700'}`}>{added ? <Check className="size-3.5" /> : <Plus className="size-3.5" />}</span></button>; })}</div> : null}{!current && discoverError ? <div className="mt-4 flex items-center gap-2 rounded-xl border border-rose-200/75 bg-rose-50/90 px-3.5 py-3 text-xs text-rose-800"><span className="grid size-6 shrink-0 place-items-center rounded-lg bg-rose-100/90 text-rose-600"><AlertCircle className="size-3.5" /> </span><span><strong>模型发现失败：</strong>仍可手动新增。</span></div> : null}</section><div className="flex items-center justify-between"><div className="flex items-center gap-2.5"><span className="grid size-5 place-items-center rounded-md bg-zinc-900 text-[11px] font-bold text-white">{drafts.length}</span><div><p className="m-0 text-xs font-semibold text-zinc-900">{current ? '当前模型配置' : `已维护 ${drafts.length} 个模型`}</p><p className="mt-1 mb-0 text-[11px] text-zinc-400">{current ? '配置卡片已展开；修改后保存即可。' : existingModels.length ? '已有模型直接保存更新，新加入的模型保存为新增。' : '可从列表移除选中的模型；配置卡片可展开细化。'}</p></div></div><div className="flex items-center gap-2">{drafts.length > 1 ? <button type="button" className="rounded bg-zinc-100 px-2 py-0.5 text-[11px] text-zinc-500 hover:bg-zinc-200" onClick={() => { const anyExpanded = drafts.some((draft) => draft.expanded); setDrafts((items) => items.map((draft) => ({ ...draft, expanded: !anyExpanded }))); }}>{drafts.some((draft) => draft.expanded) ? '全部收起' : '全部展开'}</button> : null}{!current ? <Button type="button" size="sm" className="border border-blue-200 bg-blue-50/70 text-blue-600 shadow-sm hover:bg-blue-600 hover:text-white" onClick={() => setDrafts((items) => [...items, draftFrom(undefined, undefined, true)])}><Plus className="size-3.5" />新增模型</Button> : null}</div></div><div className="grid gap-4">{drafts.length ? drafts.map((draft, index) => <ModelConfigCard key={`${draft.id}-${index}`} index={index} draft={draft} onChange={(value) => setDrafts((items) => items.map((item, itemIndex) => itemIndex === index ? value : item))} onRemove={draft.existingModel ? undefined : () => setDrafts((items) => items.filter((_item, itemIndex) => itemIndex !== index))} />) : <div className="rounded-2xl border border-dashed border-zinc-300 px-4 py-12 text-center text-xs text-zinc-400"><Server className="mx-auto mb-2 size-7 text-zinc-300" />还没有选择模型，先获取可用模型或手动新增。</div>}</div>{error ? <p role="alert" className="m-0 flex items-center gap-2 rounded-xl bg-rose-50 px-3 py-2 text-xs text-rose-700"><AlertCircle className="size-3.5" />{error}</p> : null}<Footer onClose={onClose} saving={saving} disabled={!drafts.length || drafts.some((draft) => !draft.id.trim())} label="保存" /></form></ProductDialog>;
+}
+
+export type ModelOnboardingPayload = { providerId?: string; provider?: ModelProviderCreateRequest; connection: ModelProviderConnectionCreateRequestWritable; models: ManagedModelWriteRequest[] };
+type ModelOnboardingProps = { providers: ReadonlyArray<Provider>; error?: string; onClose: () => void; onProbe: (value: ProviderProbeRequestWritable) => Promise<ProviderProbeResult>; onSave: (value: ModelOnboardingPayload) => void; saving: boolean };
+
+export function ModelOnboardingDialog({ providers, error, onClose, onProbe, onSave, saving }: ModelOnboardingProps) {
+  const [step, setStep] = React.useState(1);
+  const [providerChoice, setProviderChoice] = React.useState(providers[0]?.id ?? 'custom');
+  const [customName, setCustomName] = React.useState('');
+  const [customDescription, setCustomDescription] = React.useState('');
+  const [connectionName, setConnectionName] = React.useState('生产连接');
+  const [apiProtocol, setApiProtocol] = React.useState<ModelProviderConnectionCreateRequestWritable['apiProtocol']>('openai-completions');
+  const [baseUrl, setBaseUrl] = React.useState('');
+  const [modelDiscoveryPath, setModelDiscoveryPath] = React.useState('/models');
+  const [credential, setCredential] = React.useState('');
+  const [discovered, setDiscovered] = React.useState<ProviderDiscoveredModel[]>([]);
+  const [drafts, setDrafts] = React.useState<ModelDraft[]>([]);
+  const [probing, setProbing] = React.useState(false);
+  const [discoverError, setDiscoverError] = React.useState<string>();
+  const [showKey, setShowKey] = React.useState(false);
+  const custom = providerChoice === 'custom';
+  const selectedProvider = providers.find((provider) => provider.id === providerChoice);
+  const probeValue = { apiProtocol, baseUrl, modelDiscoveryPath, credential, connectTimeoutMs: 5000, readTimeoutMs: 120000 } satisfies ProviderProbeRequestWritable;
+  const discover = async () => { setProbing(true); setDiscoverError(undefined); try { const result = await onProbe(probeValue); setDiscovered(result.models); if (!result.success) setDiscoverError(`${probeFailureMessage(result.upstreamStatus)}，仍可手动维护模型。`); } catch (cause) { setDiscoverError(cause instanceof Error ? cause.message : '模型发现失败；仍可手动维护模型。'); } finally { setProbing(false); } };
+  const add = (model: ProviderDiscoveredModel) => setDrafts((items) => items.some((draft) => draft.id === model.id) ? items.filter((draft) => draft.id !== model.id) : [...items, draftFrom(undefined, model)]);
+  const canNext = step === 1 ? Boolean(custom ? customName.trim() : providerChoice) : step === 2 ? Boolean(connectionName.trim() && baseUrl.trim() && credential.trim()) : step === 3 ? drafts.length > 0 && drafts.every((draft) => draft.id.trim()) : true;
+  const save = () => onSave({ ...(custom ? { provider: { name: customName.trim(), description: customDescription.trim() } } : { providerId: providerChoice }), connection: { name: connectionName.trim(), apiProtocol, baseUrl: baseUrl.trim(), modelDiscoveryPath, credential, connectTimeoutMs: 5000, readTimeoutMs: 120000 }, models: drafts.map((draft) => modelPayload('pending', draft, 100)) });
+  const titles = ['选择供应商', '配置连接', '获取可用模型', '确认保存'];
+  const providerLabel = custom ? (customName || '新建自定义供应商') : selectedProvider?.name;
+  return <ProductDialog className="max-w-[980px] overflow-hidden rounded-2xl border-zinc-200/90" title="添加模型接入" onClose={onClose}><form className="grid max-h-[calc(100dvh-84px)] grid-rows-[auto_minmax(0,1fr)_auto] bg-zinc-50/40" onSubmit={(event) => { event.preventDefault(); if (step === 4) save(); else if (canNext) setStep((value) => value + 1); }}><header className="border-b border-zinc-100 bg-white px-7 py-5"><div className="flex items-center justify-between"><div><p className="m-0 text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-600">New managed model</p><h3 className="mt-1 mb-0 text-sm font-semibold text-zinc-900">{titles[step - 1]}</h3></div><span className="rounded-md bg-zinc-100 px-2 py-0.5 font-mono text-xs font-semibold text-zinc-400">{step} / 4</span></div><div className="mt-4 grid grid-cols-4 gap-3">{titles.map((title, index) => { const current = index + 1 === step; const passed = index + 1 < step; return <button type="button" key={title} onClick={() => setStep(index + 1)} className="group text-left"><span className="mb-2 block h-1.5 overflow-hidden rounded-full bg-zinc-100"><span className={`block h-full rounded-full transition-all ${passed ? 'w-full bg-emerald-500' : current ? 'w-full bg-blue-600' : 'w-0'}`} /></span><span className={`flex items-center justify-between text-[11px] font-semibold ${passed ? 'text-emerald-600' : current ? 'text-blue-600' : 'text-zinc-400 group-hover:text-zinc-600'}`}>{title}{passed ? <Check className="size-3" /> : null}</span></button>; })}</div></header><div className="min-h-0 overflow-y-auto px-7 py-6">{step === 1 ? <div className="grid gap-4"><div className="grid gap-3.5 sm:grid-cols-2">{providers.map((provider) => { const selected = !custom && providerChoice === provider.id; return <button type="button" key={provider.id} onClick={() => setProviderChoice(provider.id)} className={`group rounded-2xl border p-4 text-left transition ${selected ? 'border-blue-600 bg-blue-50/45 ring-2 ring-blue-600/15 shadow-sm' : 'border-zinc-200/90 bg-white hover:border-zinc-300 hover:bg-zinc-50/80'}`}><div className="flex items-start justify-between gap-3"><span className="flex min-w-0 items-center gap-3.5"><span className={`grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br ${providerGradient(provider.id, provider.name)} text-sm font-bold text-white shadow-sm`}>{provider.name.slice(0, 1).toUpperCase()}</span><span className="min-w-0"><strong className="block truncate text-sm text-zinc-900">{provider.name}</strong><small className="mt-0.5 flex items-center gap-1.5 text-xs text-zinc-500"><span className={`size-1.5 rounded-full ${selected ? 'bg-blue-600' : 'bg-emerald-500'}`} />已有供应商 · {provider.connectionCount ?? 0} 个连接</small></span></span><span className={`grid size-5 place-items-center rounded-full border ${selected ? 'border-blue-600 bg-blue-600 text-white shadow-sm' : 'border-zinc-300 bg-white'}`}>{selected ? <Check className="size-3" /> : null}</span></div><p className={`mt-3 border-t pt-2.5 text-[11px] leading-relaxed ${selected ? 'border-blue-200/60 text-blue-900/75' : 'border-zinc-100 text-zinc-500'}`}>选择此供应商后创建新的连接。</p></button>; })}<button type="button" onClick={() => setProviderChoice('custom')} className={`group rounded-2xl border p-4 text-left transition ${custom ? 'border-blue-600 bg-blue-50/45 ring-2 ring-blue-600/15 shadow-sm' : 'border-zinc-200/90 bg-zinc-100/70 hover:border-zinc-300'}`}><div className="flex items-start justify-between gap-3"><span className="flex items-center gap-3.5"><span className={`grid size-10 place-items-center rounded-xl border ${custom ? 'border-blue-600 bg-blue-600 text-white' : 'border-zinc-200 bg-white text-zinc-700'}`}><Plus className="size-4" /></span><span><strong className="block text-sm text-zinc-900">+ 新建供应商</strong><small className="mt-0.5 block text-xs text-zinc-500">自定义供应商接入</small></span></span><span className={`grid size-5 place-items-center rounded-full border ${custom ? 'border-blue-600 bg-blue-600 text-white' : 'border-zinc-300 bg-white'}`}>{custom ? <Check className="size-3" /> : null}</span></div><p className={`mt-3 border-t pt-2.5 text-[11px] leading-relaxed ${custom ? 'border-blue-200/60 text-blue-900/75' : 'border-zinc-200/60 text-zinc-500'}`}>先保存供应商元信息，再创建新的连接。</p></button></div>{custom ? <div className={`${panelClass} grid gap-4 p-5`}><div className="flex items-center justify-between"><span className="text-xs font-semibold text-zinc-900">新建供应商元信息</span><span className="text-[11px] text-zinc-400">保存后自动进入下一步配置连接</span></div><div className="grid gap-4 sm:grid-cols-2"><TextField label="供应商名称" value={customName} onChange={setCustomName} placeholder="例如：Atria / vLLM 自建集群" /><TextField label="供应商描述（选填）" value={customDescription} onChange={setCustomDescription} placeholder="例如：团队统一的 OpenAI 兼容网关" /></div></div> : null}</div> : null}{step === 2 ? <div className="grid gap-4"><div className={`${panelClass} flex items-center gap-3 p-3.5`}><div className={`grid size-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br ${custom ? 'from-zinc-700 to-zinc-900' : providerGradient(custom ? undefined : selectedProvider?.id, providerLabel ?? '')} text-sm font-bold text-white`}>{(providerLabel ?? '新').slice(0, 1)}</div><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><strong className="truncate text-xs text-zinc-900 sm:text-sm">{providerLabel}</strong><span className="rounded-full border border-zinc-200/70 bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-600">{custom ? '首次创建连接' : '已有供应商'}</span></div><p className="mt-0.5 mb-0 truncate text-[11px] text-zinc-400">端点与 API Key 只保存到这条连接</p></div><button type="button" className="ml-auto rounded-lg border border-zinc-200/80 bg-zinc-50 px-2.5 py-1.5 text-[11px] font-medium text-zinc-500 hover:bg-zinc-100" onClick={() => setStep(1)}>切换供应商</button></div><section className={`${panelClass} grid gap-5 overflow-hidden`}><div className="grid gap-4 p-5 sm:grid-cols-2"><TextField label="连接名称" value={connectionName} onChange={setConnectionName} placeholder="例如：生产连接" /><label className="grid gap-1.5 text-[11px] font-semibold text-zinc-700">API 协议<select className={inputClass} value={apiProtocol} onChange={(event) => setApiProtocol(event.target.value as typeof apiProtocol)}><option value="openai-completions">OpenAI Chat Completions</option><option value="openai-responses">OpenAI Responses API</option><option value="anthropic-messages">Anthropic Messages API</option></select></label></div><div className="grid gap-4 border-t border-zinc-100 p-5"><TextField label="Base URL" value={baseUrl} onChange={setBaseUrl} placeholder="https://api.example.com/v1" icon={Globe} /><TextField label="模型发现接口" value={modelDiscoveryPath} onChange={setModelDiscoveryPath} placeholder="/models" /><div className="grid gap-1.5"><div className="flex items-center justify-between"><label className="text-[11px] font-semibold text-zinc-700">API Key</label><span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-700"><Lock className="size-3" />凭据只在连接步骤配置</span></div><div className="relative"><KeyRound className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-zinc-400" /><input aria-label="API Key" className={`${inputClass} pl-9 pr-20 font-mono`} type={showKey ? 'text' : 'password'} value={credential} onChange={(event) => setCredential(event.target.value)} placeholder="输入连接密钥 (例如 sk-...)" /><button type="button" className="absolute right-2 top-1/2 inline-flex -translate-y-1/2 items-center gap-1 rounded-lg px-2 py-1 text-[10px] text-zinc-500 hover:bg-zinc-100" onClick={() => setShowKey((value) => !value)}>{showKey ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}{showKey ? '隐藏' : '显示'}</button></div></div><div className="flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50/50 px-3 py-2 text-[11px] text-blue-800"><ShieldCheck className="size-3.5 shrink-0 text-blue-600" />下一步“获取可用模型”会直接验证端点和 API Key，无需在这里重复测试。</div></div></section></div> : null}{step === 3 ? <div className="grid gap-5"><section className={`${panelClass} relative overflow-hidden p-5`}><div className="absolute -right-14 -top-14 size-36 rounded-full bg-gradient-to-bl from-blue-500/10 via-indigo-500/5 to-transparent" /><div className="relative flex items-start justify-between gap-4"><div className="flex items-start gap-3"><div className={`grid size-10 shrink-0 place-items-center rounded-xl border ${probing ? 'border-blue-200 bg-blue-50 text-blue-600' : discovered.length ? 'border-emerald-200 bg-emerald-50 text-emerald-600' : 'border-zinc-200/80 bg-zinc-50 text-zinc-700'}`}>{probing ? <RefreshCw className="size-4 animate-spin" /> : discovered.length ? <Sparkles className="size-4" /> : <Server className="size-4" />}</div><div><div className="flex flex-wrap items-center gap-2"><h3 className="m-0 text-sm font-semibold text-zinc-900">可用模型</h3><span className="inline-flex items-center gap-1 rounded-full border border-zinc-200/60 bg-zinc-100/90 px-2 py-0.5 text-[10px] font-medium text-zinc-500"><span className="size-1.5 rounded-full bg-emerald-500" />{connectionName}</span>{discovered.length ? <span className="rounded-full border border-emerald-200/60 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">已同步 {discovered.length} 款候选</span> : null}</div><p className="mt-1 mb-0 text-[11px] leading-relaxed text-zinc-500">点击选择，已选择模型会进入下方配置列表。发现失败时仍可在下方手动维护。</p></div></div><Button type="button" size="sm" className="border border-zinc-200/90 bg-white text-zinc-800 shadow-sm hover:bg-zinc-900 hover:text-white" disabled={probing} onClick={() => void discover()}><RefreshCw className={`size-3.5 ${probing ? 'animate-spin' : ''}`} />{probing ? '正在探测上游目录…' : discovered.length ? '重新获取' : '获取可用模型'}</Button></div>{discovered.length ? <div className="relative mt-4 grid gap-2.5 border-t border-zinc-100 pt-3.5 sm:grid-cols-2">{discovered.map((item) => { const added = drafts.some((draft) => draft.id === item.id); return <button key={item.id} type="button" onClick={() => add(item)} className={`group flex items-center justify-between gap-3 rounded-xl border p-3 text-left transition ${added ? 'border-blue-600/80 bg-blue-50/40 ring-2 ring-blue-600/10 shadow-sm' : 'border-zinc-200/80 bg-zinc-50/60 hover:border-zinc-300 hover:bg-white hover:shadow-sm'}`}><span className="min-w-0"><span className={`flex items-center gap-1.5 truncate font-mono text-xs font-semibold ${added ? 'text-blue-950' : 'text-zinc-800'}`}>{item.id}<span className="rounded bg-white px-1.5 py-0.5 text-[10px] text-zinc-500">{discoveredCapacity(item.contextWindow)}</span></span><span className="mt-1 block truncate text-[11px] text-zinc-400">显示名称：{item.name ?? item.id} · 最大输出 {discoveredCapacity(item.maxTokens)}</span></span><span className={`grid size-6 place-items-center rounded-lg ${added ? 'bg-blue-600 text-white shadow-sm' : 'border border-zinc-200 bg-white text-zinc-400 group-hover:text-zinc-700'}`}>{added ? <Check className="size-3.5" /> : <Plus className="size-3.5" />}</span></button>; })}</div> : null}{discoverError ? <div className="mt-4 flex items-center gap-2 rounded-xl border border-rose-200/75 bg-gradient-to-r from-rose-50/90 via-rose-50/50 to-amber-50/30 px-3.5 py-3 text-xs text-rose-800"><span className="grid size-6 shrink-0 place-items-center rounded-lg bg-rose-100/90 text-rose-600"><AlertCircle className="size-3.5" /></span><span><strong>模型发现失败：</strong>仍可手动维护。</span></div> : null}</section><div className="flex items-center justify-between"><div className="flex items-center gap-2.5"><span className="grid size-5 place-items-center rounded-md bg-zinc-900 text-[11px] font-bold text-white">{drafts.length}</span><span className="text-xs font-semibold text-zinc-900">已选择 {drafts.length} 个模型</span></div><Button type="button" size="sm" className="border border-blue-200 bg-blue-50/70 text-blue-600 shadow-sm hover:bg-blue-600 hover:text-white" onClick={() => setDrafts((items) => [...items, draftFrom(undefined, undefined, true)])}><Plus className="size-3.5" />手动维护模型</Button></div><div className="grid gap-4">{drafts.map((draft, index) => <ModelConfigCard key={`${draft.id}-${index}`} index={index} draft={draft} onChange={(value) => setDrafts((items) => items.map((item, itemIndex) => itemIndex === index ? value : item))} onRemove={() => setDrafts((items) => items.filter((_item, itemIndex) => itemIndex !== index))} />)}</div></div> : null}{step === 4 ? <div className="grid gap-4"><section className={`${panelClass} p-5`}><div className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-zinc-900"><CheckCircle2 className="size-4 text-emerald-600" />即将上线连接与受管模型概览</div><div className="grid gap-4 rounded-xl border border-zinc-200/60 bg-zinc-50 p-3.5 sm:grid-cols-4"><div><span className="block text-[11px] text-zinc-400">所属供应商</span><strong className="mt-0.5 block text-sm text-zinc-900">{providerLabel}</strong></div><div><span className="block text-[11px] text-zinc-400">连接通道名称</span><strong className="mt-0.5 block text-sm text-zinc-900">{connectionName}</strong></div><div><span className="block text-[11px] text-zinc-400">API 协议规范</span><strong className="mt-0.5 block truncate text-xs text-zinc-800">{apiProtocol}</strong></div><div><span className="block text-[11px] text-zinc-400">本次纳管模型数</span><strong className="mt-0.5 block text-sm text-emerald-600">{drafts.length} 款模型</strong></div></div></section><section className={`${panelClass} overflow-hidden`}><div className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50/80 px-4 py-3 text-xs font-semibold text-zinc-700"><span>模型配置清单</span><span className="text-[11px] font-normal text-zinc-400">上线后默认状态为「已启用」</span></div><div className="divide-y divide-zinc-100">{drafts.map((draft, index) => <div key={`${draft.id}-${index}`} className="flex flex-col justify-between gap-3 p-4 sm:flex-row sm:items-center"><div className="space-y-1"><div className="flex items-center gap-2"><span className="grid size-4 place-items-center rounded bg-zinc-100 text-[10px] font-bold text-zinc-600">{index + 1}</span><span className="text-xs font-semibold text-zinc-900">{draft.name || draft.id || '未命名手动模型'}</span><span className="rounded border border-zinc-200/60 bg-zinc-50 px-1.5 py-0.5 font-mono text-[11px] text-zinc-400">{draft.id || '待填写'}</span></div><div className="flex items-center gap-2 pl-6">{draft.input.includes('text') ? <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-600">文本</span> : null}{draft.input.includes('image') ? <span className="rounded bg-purple-50 px-1.5 py-0.5 text-[10px] text-purple-700">图片</span> : null}{draft.reasoningEnabled ? <span className="rounded border border-amber-200/60 bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700">推理档位：{draft.reasoning.length} 档（默认 {draft.reasoning.find((tier) => tier.id === draft.defaultTierId)?.name}）</span> : null}</div></div><div className="flex items-center gap-4 pl-6 font-mono text-[11px] text-zinc-500 sm:pl-0">上下文：<strong className="text-zinc-800">{draft.contextWindow}</strong> · 最大输出：<strong className="text-zinc-800">{draft.maxTokens}</strong></div></div>)}</div></section><div className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs text-emerald-700"><CheckCircle2 className="size-3.5" />保存模型不会自动授权成员，完成后可在模型集或访问策略中继续配置。</div></div> : null}</div><DialogFooter className="mx-0 mb-0 px-7"><Button type="button" size="sm" disabled={saving} onClick={() => step > 1 ? setStep((value) => value - 1) : onClose()}>{step > 1 ? '返回' : '取消'}</Button><Button type="submit" variant="primary" size="sm" disabled={saving || !canNext}>{saving ? '保存中' : step === 4 ? '确认并保存接入' : '继续'}{step === 4 ? <Check className="size-3.5" /> : <ChevronRight className="size-3.5" />}</Button></DialogFooter></form></ProductDialog>;
+}
+
+export function DeleteModelDialog({ error, label, onClose, onConfirm, saving }: { error?: string; label: string; onClose: () => void; onConfirm: () => void; saving: boolean }) {
+  return <ProductDialog className="max-w-[520px] overflow-hidden rounded-2xl border-zinc-200/90" title="确认删除" onClose={onClose}><div className="grid gap-5 bg-zinc-50/50 p-5"><div className="flex items-start gap-3 rounded-xl border border-rose-200/70 bg-rose-50/70 p-4"><Trash2 className="mt-0.5 size-4 shrink-0 text-rose-600" /><p className="m-0 text-xs leading-6 text-rose-800">确认删除模型“{label}”？已被授权或记录使用的模型需要先停用。</p></div>{error ? <p role="alert" className="m-0 flex items-center gap-2 rounded-xl bg-rose-50 px-3 py-2 text-xs text-rose-700"><AlertCircle className="size-3.5" />{error}</p> : null}<DialogFooter><Button type="button" size="sm" disabled={saving} onClick={onClose}>取消</Button><Button type="button" variant="primary" size="sm" className="bg-red text-white hover:brightness-95" disabled={saving} onClick={onConfirm}>{saving ? '删除中' : '删除'}<Trash2 className="size-3.5" /></Button></DialogFooter></div></ProductDialog>;
 }

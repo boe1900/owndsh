@@ -59,7 +59,7 @@ public final class ModelGatewayService {
     private static final Duration LEASE_RENEW_INTERVAL = Duration.ofSeconds(30);
     private static final long KEEPALIVE_SECONDS = 5;
     private static final byte[] KEEPALIVE = ": enterprise-gateway\n\n".getBytes(StandardCharsets.UTF_8);
-    private static final String PROVIDER_TABLE = "ent_model_provider";
+    private static final String PROVIDER_TABLE = "ent_model_provider_connection";
     private static final String PROVIDER_FIELD = "credential_ciphertext";
 
     private final TransactionOperations transactions;
@@ -119,7 +119,7 @@ public final class ModelGatewayService {
         UUID idempotencyKey
     ) {
         GatewayRouteResolver.GatewayRoute route = routes.resolve(context, request.modelAlias());
-        if (route.provider().apiProtocol() != protocol) throw new IllegalArgumentException("模型 API 协议不匹配");
+        if (route.connection().apiProtocol() != protocol) throw new IllegalArgumentException("模型 API 协议不匹配");
         int modelMaxTokens = route.model().resolvedMaxTokens();
         int effectiveMaxTokens = request.maxTokens() == null ? modelMaxTokens : request.maxTokens();
         long estimated = QuotaTokenEstimator.estimate(
@@ -175,16 +175,16 @@ public final class ModelGatewayService {
             plaintext = cipher.decrypt(
                 SecretPurpose.PROVIDER_SECRET,
                 new SecretAad(
-                    tenantId, PROVIDER_TABLE, Long.toString(route.provider().id()), PROVIDER_FIELD,
+                    tenantId, PROVIDER_TABLE, Long.toString(route.connection().id()), PROVIDER_FIELD,
                     SecretCipher.KEY_VERSION
                 ),
-                route.provider().encryptedCredential()
+                route.connection().encryptedCredential()
             );
             credential = decodeUtf8(plaintext);
             beforeSend.run();
             return upstream.open(
-                route.provider().baseUrl(), route.provider().apiProtocol(), credential, headers, requestBody,
-                route.provider().connectTimeoutMs(), route.provider().readTimeoutMs()
+                route.connection().baseUrl(), route.connection().apiProtocol(), credential, headers, requestBody,
+                route.connection().connectTimeoutMs(), route.connection().readTimeoutMs()
             );
         } finally {
             if (credential != null) Arrays.fill(credential, '\0');

@@ -16,7 +16,7 @@ src/platform-credentials.ts: 独占官方 GrantRecord 与内存 Access Token，�
 src/platform-service.ts: 注册 `ctx.enterprisePlatform`，通过官方 SettingsForms 写入 volatile `owndsh.baseUrl`，将运行时 Server 修改收敛到无活动会话时的凭据清理与 settings 写入，保存期间禁止登录；同时持有 OwnDsh skill runtime，编排技能启用/卸载/图标读取、受控文件打开和可选 Composer 接缝；继续负责登出、带退避的启动恢复、按需续期/401 单次重放、会话代次隔离、显式 bootstrap 刷新与插件 inventory replacement 上报。
 src/skill-runtime.ts: OwnDsh 专用 `$DSH_HOME/enterprise/skills/` 的本地真相层；解析 WorkBuddy frontmatter，接收平台已鉴权制品并完成 SHA-256/原子同步，读出脱敏卡片，原子维护设备级启用清单和卸载，动作入口复核完整副本并拒绝符号链接，再通过显式回调通知官方 provider 失效；不直连远端或其他 skill 根目录。
 src/skill-archive.ts: 员工端制品信任边界；以标准库解压 ZIP，限制大小/文件数，拒绝路径穿越、重复文件、加密项和符号链接，并校验 CRC。
-src/types.ts: 复用生成 RuntimePluginAssignment 严格校验必填安装配置，避免 bootstrap 与目录 schema 重复。
+src/types.ts: 以生成契约严格校验 bootstrap 用户、设备、模型（含 text/image 输入模态与推理映射）、配额、插件和 Session 策略，避免端侧快照与目录 schema 漂移。
 tests/installation.spec.ts: 并发首次启动、0600 权限、字段白名单与损坏文件 fail-closed 验收。
 tests/skill-runtime.spec.ts: OwnDsh skill 根目录隔离、WorkBuddy 元数据投影、启用串行化、provider 失效、原子卸载和坏目录/symbolic link 拒绝。
 tests/local-api.spec.ts: 真实 Node HTTP 下的 Server 更新、整包卸载、平台/插件/技能目录与安装/Session 路由、严格 DTO、无 SSE、显式刷新、探针退役与 disposer 验收。

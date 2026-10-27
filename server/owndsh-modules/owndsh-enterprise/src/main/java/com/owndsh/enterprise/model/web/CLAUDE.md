@@ -4,10 +4,14 @@
 
 成员清单
 
-ProviderWriteRequest.java: providerKey/type/apiProtocol 创建/更新写 DTO，credential 只以 char[] 短暂存在并显式清零。
-ProviderTestRequest.java: 未保存 endpoint/timeout 与可选新 credential 的探测 DTO。
-ProviderView.java: providerKey/type/apiProtocol 管理脱敏输出，密钥只公开 credentialConfigured。
-AdminProviderController.java: provider list/get/create/update/test/enable/disable 与 ent:model 权限入口。
+ProviderWriteRequest.java: 供应商名称与类型元信息写 DTO；endpoint 和 credential 不在此边界出现。
+ProviderConnectionView.java: 连接脱敏管理投影。
+ProviderConnectionWriteRequest.java: 连接写入、模型发现路径与一次性密钥边界。
+AdminProviderConnectionController.java: 连接管理 API。
+AdminProviderConnectionProbeController.java: 未保存连接模型发现 API。
+AdminProviderConnectionTestController.java: 已保存连接模型发现 API。
+ProviderView.java: providerKey/type/status 管理投影，不公开连接 endpoint 和 credential。
+AdminProviderController.java: provider list/get/create/update/enable/disable 与 ent:model 权限入口。
 ManagedModelWriteRequest.java: 受管模型创建/更新协议到 application spec 的转换 DTO，保留 reasoningEfforts 省略/false/object 三态。
 ManagedModelView.java: provider 名称、容量、reasoningEfforts 与 completions compat 的管理安全投影。
 AdminManagedModelController.java: 模型 CRUD/排序字段更新/启停与 ent:model 权限入口。

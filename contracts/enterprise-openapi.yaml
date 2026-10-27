@@ -87,8 +87,14 @@ paths:
     $ref: './paths/model.yaml#/ProviderCollection'
   /enterprise/admin/v1/providers/{providerId}:
     $ref: './paths/model.yaml#/ProviderItem'
-  /enterprise/admin/v1/providers/{providerId}/actions/test:
-    $ref: './paths/model.yaml#/ProviderTest'
+  /enterprise/admin/v1/providers/{providerId}/connections:
+    $ref: './paths/model.yaml#/ProviderConnectionCollection'
+  /enterprise/admin/v1/providers/{providerId}/connections/{connectionId}:
+    $ref: './paths/model.yaml#/ProviderConnectionItem'
+  /enterprise/admin/v1/provider-connections/actions/probe:
+    $ref: './paths/model.yaml#/ProviderConnectionProbe'
+  /enterprise/admin/v1/provider-connections/{connectionId}/actions/test:
+    $ref: './paths/model.yaml#/ProviderConnectionTest'
   /enterprise/admin/v1/providers/{providerId}/actions/enable:
     $ref: './paths/model.yaml#/ProviderEnable'
   /enterprise/admin/v1/providers/{providerId}/actions/disable:
@@ -518,6 +524,12 @@ components:
       required: true
       schema:
         $ref: '#/components/schemas/ModelProviderId'
+    ProviderConnectionIdPath:
+      name: connectionId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/ModelProviderConnectionId'
     ManagedModelIdPath:
       name: modelId
       in: path
@@ -804,18 +816,25 @@ components:
     DevicePageData: {$ref: './components/device.yaml#/DevicePageData'}
     DeviceListResponse: {$ref: './components/device.yaml#/DeviceListResponse'}
     ModelProviderId: {$ref: './components/model.yaml#/ModelProviderId'}
+    ModelProviderConnectionId: {$ref: './components/model.yaml#/ModelProviderConnectionId'}
     ModelGrantId: {$ref: './components/model.yaml#/ModelGrantId'}
     ModelSetId: {$ref: './components/model.yaml#/ModelSetId'}
-    ProviderType: {$ref: './components/model.yaml#/ProviderType'}
     ProviderKey: {$ref: './components/model.yaml#/ProviderKey'}
     ProviderApiProtocol: {$ref: './components/model.yaml#/ProviderApiProtocol'}
     ModelStatus: {$ref: './components/model.yaml#/ModelStatus'}
+    ModelInputModality: {$ref: './components/model.yaml#/ModelInputModality'}
     GrantSubjectType: {$ref: './components/model.yaml#/GrantSubjectType'}
     GrantResourceType: {$ref: './components/model.yaml#/GrantResourceType'}
     ProviderCreateRequest: {$ref: './components/model.yaml#/ProviderCreateRequest'}
     ProviderUpdateRequest: {$ref: './components/model.yaml#/ProviderUpdateRequest'}
     ProviderProbeRequest: {$ref: './components/model.yaml#/ProviderProbeRequest'}
     Provider: {$ref: './components/model.yaml#/Provider'}
+    ProviderConnection: {$ref: './components/model.yaml#/ProviderConnection'}
+    ProviderConnectionCreateRequest: {$ref: './components/model.yaml#/ProviderConnectionCreateRequest'}
+    ProviderConnectionUpdateRequest: {$ref: './components/model.yaml#/ProviderConnectionUpdateRequest'}
+    ProviderConnectionResponse: {$ref: './components/model.yaml#/ProviderConnectionResponse'}
+    ProviderConnectionPageData: {$ref: './components/model.yaml#/ProviderConnectionPageData'}
+    ProviderConnectionListResponse: {$ref: './components/model.yaml#/ProviderConnectionListResponse'}
     ProviderResponse: {$ref: './components/model.yaml#/ProviderResponse'}
     ProviderPageData: {$ref: './components/model.yaml#/ProviderPageData'}
     ProviderListResponse: {$ref: './components/model.yaml#/ProviderListResponse'}

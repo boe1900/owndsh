@@ -135,6 +135,18 @@
                 "type": "integer",
                 "minimum": 1
               },
+              "input": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "text",
+                    "image"
+                  ]
+                }
+              },
               "reasoningEfforts": {
                 "oneOf": [
                   {
@@ -252,12 +264,11 @@
               },
               "resourceType": {
                 "type": "string",
-                "description": "PROVIDER 仅可用于 ORGANIZATION 主体的 RATE 策略；TOKEN 不接受该资源范围。",
+                "description": "配额和速率策略绑定全体模型、模型集或单个模型。",
                 "enum": [
                   "ALL_MODELS",
                   "MODEL_SET",
-                  "MODEL",
-                  "PROVIDER"
+                  "MODEL"
                 ]
               },
               "resourceId": {

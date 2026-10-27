@@ -17,7 +17,7 @@ upstream-baseline.mjs: 客户端基线工具，验证 Desktop→Harness 派生�
 upstream-baseline.test.mjs: 基线工具纯函数回归测试，覆盖 Desktop/Harness 锁对齐、锁格式和来源地址归一化的成功与失败边界。
 v1-e2e-fixture.mjs: V1 E2E 共用 OIDC Authorization Code + PKCE 与三协议模型上游，支持 429/5xx/断流/无 usage 状态并仅记录脱敏请求事实。
 v1-e2e-harness.mjs: V1 E36-E47 锁定 Harness 真实纵向验收器，公开共用登录 opener/进程工具，自动完成 LOCAL PKCE 登录并验证三协议重试归属、受管插件完整生命周期、设备撤销、审计关联与 Session 停用。
-v1-e2e-models.mjs: V1 E23-E35 模型目录、模型集授权、Token 窗口、Provider/成员 RATE 与结算恢复的真实纵向验收模块。
+v1-e2e-models.mjs: V1 E23-E35 模型目录、Provider/Connection/ManagedModel 接入、模型集授权、Token 窗口、模型级 RATE 与结算恢复的真实纵向验收模块。
 v1-e2e-release.mjs: 共用 tgz/发布工具与 V1 E43-E47 插件登记、标准 DSH market index、设备撤销、审计关联与 Session 停用验收模块。
 v1-e2e-compose.yml: 在现有部署 Server 上只读挂载本轮 LDAP truststore 的临时 Compose 叠加层，不复制生产拓扑。
 v1-e2e-support.mjs: V1 E2E 的真实验证码生成/消费（隔离 Redis 读取答案）、PKCE、Cookie/Bearer HTTP、断言记录和 Compose PostgreSQL 查询标准库原语。

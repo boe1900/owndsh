@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Testing Library、Vitest、内存 history、静态角色元数据与完整产品 routeTree。
- * [OUTPUT]: 在仅有 getRandomValues 的 HTTP 环境验证角色矩阵、登录页会话复用、业务写入、插件分类登记、发布确认及双 revision 范围升级、read/write 分权及 Sign out。
+ * [OUTPUT]: 在仅有 getRandomValues 的 HTTP 环境验证角色矩阵、登录页会话复用、业务写入、模型列表与供应商切换、插件分类登记、发布确认及双 revision 范围升级、read/write 分权及 Sign out。
  * [POS]: routes 的产品壳最小集成门禁，覆盖前端可见性但不替代 Server ent:* 权限测试。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -302,7 +302,7 @@ function mockApi(role: AuthBuiltInRole, logoutStatus = 200, permissions: string[
       return json({
         data: {
           items: [{
-            id: 'model-1', providerId: 'provider-1', providerName: 'OpenAI', alias: 'gpt-5.6-sol',
+            id: 'model-1', providerId: 'provider-1', connectionId: 'connection-1', providerName: 'OpenAI', alias: 'gpt-5.6-sol',
             modelId: 'gpt-5.6-sol', name: 'GPT 5.6 Sol', contextWindow: 1_000_000, maxTokens: 128_000,
             reasoningEfforts: { low: 'low', high: 'high', xhigh: 'xhigh' }, sortOrder: 10,
             status: 'ACTIVE', revision: 1
@@ -333,13 +333,26 @@ function mockApi(role: AuthBuiltInRole, logoutStatus = 200, permissions: string[
       return json({
         data: {
           items: [{
-            id: 'provider-1', providerKey: 'openai', name: 'OpenAI', providerType: 'CUSTOM',
+            id: 'provider-1', providerKey: 'openai', name: 'OpenAI',
             apiProtocol: 'openai-responses', baseUrl: 'https://example.invalid', credentialConfigured: true,
             status: 'ACTIVE', connectTimeoutMs: 10_000, readTimeoutMs: 600_000, revision: 1
           }],
           page: { hasMore: false, limit: 100, nextCursor: null }
         },
         requestId: 'req_providers'
+      });
+    }
+    if (pathname.endsWith('/enterprise/admin/v1/providers/provider-1/connections')) {
+      return json({
+        data: {
+          items: [{
+            id: 'connection-1', providerId: 'provider-1', providerName: 'OpenAI', name: 'OpenAI 生产连接',
+            apiProtocol: 'openai-responses', baseUrl: 'https://example.invalid', credentialConfigured: true,
+            status: 'ACTIVE', connectTimeoutMs: 10_000, readTimeoutMs: 600_000, revision: 1
+          }],
+          page: { hasMore: false, limit: 100, nextCursor: null }
+        },
+        requestId: 'req_provider_connections'
       });
     }
     if (pathname.endsWith('/enterprise/admin/v1/providers/provider-1')) {
@@ -353,7 +366,7 @@ function mockApi(role: AuthBuiltInRole, logoutStatus = 200, permissions: string[
       });
       return json({
         data: {
-          ...(body as object), id: 'provider-1', providerType: 'CUSTOM', apiProtocol: 'openai-responses',
+          ...(body as object), id: 'provider-1', apiProtocol: 'openai-responses',
           credentialConfigured: true, status: 'ACTIVE', revision: 2
         },
         requestId: 'req_provider_updated'
@@ -458,7 +471,7 @@ function mockApi(role: AuthBuiltInRole, logoutStatus = 200, permissions: string[
         : json({
             data: {
               ...(body as object), id: 'quota-provider-1', subjectName: null,
-              resourceName: 'OpenAI', revision: 4
+              resourceName: 'GPT-4', revision: 4
             },
             requestId: 'req_provider_capacity_updated'
           });
@@ -498,7 +511,7 @@ function mockApi(role: AuthBuiltInRole, logoutStatus = 200, permissions: string[
           }, {
             id: 'quota-provider-1', name: 'OpenAI 供应商容量', policyType: 'RATE',
             subjectType: 'ORGANIZATION', subjectId: null, subjectName: null,
-            resourceType: 'PROVIDER', resourceId: 'provider-1', resourceName: 'OpenAI',
+            resourceType: 'MODEL', resourceId: 'model-1', resourceName: 'GPT-4',
             fiveHourTokenLimit: null, dailyTokenLimit: null, weeklyTokenLimit: null, monthlyTokenLimit: null,
             rpm: 120, concurrency: 8, status: 'ACTIVE', revision: 3
           }],
@@ -819,38 +832,28 @@ describe('product console access', () => {
     });
   });
 
-  it('renders real managed models and switches to providers', async () => {
+  it('renders real managed models in the unified provider workspace', async () => {
     renderRoute('/', 'enterprise_admin', 200, ['ent:grant:read']);
     expect(await screen.findByText('GPT 5.6 Sol')).toBeTruthy();
-    expect(screen.getByText('1M')).toBeTruthy();
+    expect(screen.queryByText(/1M/)).toBeNull();
     expect(screen.queryByRole('columnheader', { name: /上游模型 ID/ })).toBeNull();
-    fireEvent.click(screen.getByRole('tab', { name: '模型提供商' }));
+    fireEvent.click(screen.getByRole('tab', { name: '模型与供应商' }));
     expect(await screen.findByText('OpenAI')).toBeTruthy();
-    expect(await screen.findByText('120 RPM / 8 并发')).toBeTruthy();
+    expect(await screen.findByText('OpenAI 生产连接')).toBeTruthy();
   });
 
-  it('edits provider configuration and shared upstream capacity together', async () => {
+  it('edits provider metadata without introducing provider capacity', async () => {
     const writes = renderRoute('/', 'enterprise_admin', 200, ['ent:model:write', 'ent:grant:read', 'ent:grant:write']);
     expect(await screen.findByText('GPT 5.6 Sol')).toBeTruthy();
-    fireEvent.click(screen.getByRole('tab', { name: '模型提供商' }));
     fireEvent.click(await screen.findByRole('button', { name: '编辑 OpenAI' }));
 
-    const dialog = screen.getByRole('dialog', { name: '编辑模型提供商' });
-    expect(within(dialog).getByText('该提供商下所有模型共享此上限；均未启用表示不限制。')).toBeTruthy();
-    fireEvent.change(within(dialog).getByRole('textbox', { name: '最大并发' }), { target: { value: '10' } });
+    const dialog = screen.getByRole('dialog', { name: '编辑供应商信息' });
+    expect(within(dialog).getByText(/端点与 API Key 属于连接/)).toBeTruthy();
+    fireEvent.change(within(dialog).getByRole('textbox', { name: '供应商名称' }), { target: { value: 'OpenAI Compatible' } });
     fireEvent.click(within(dialog).getByRole('button', { name: '保存' }));
 
-    await waitFor(() => expect(writes).toHaveLength(2));
+    await waitFor(() => expect(writes).toHaveLength(1));
     expect(writes[0]).toMatchObject({ ifMatch: '1', method: 'PUT', pathname: '/enterprise/admin/v1/providers/provider-1' });
-    expect(writes[1]).toMatchObject({
-      body: {
-        policyType: 'RATE', subjectType: 'ORGANIZATION', resourceType: 'PROVIDER',
-        resourceId: 'provider-1', rpm: 120, concurrency: 10
-      },
-      ifMatch: '3',
-      method: 'PUT',
-      pathname: '/enterprise/admin/v1/quotas/quota-provider-1'
-    });
   });
 
   it('switches the global Beautiful UI theme', async () => {
@@ -866,32 +869,19 @@ describe('product console access', () => {
     expect(localStorage.getItem('bui-theme')).toBe('dark');
   });
 
-  it('creates a managed model with decimal capacity and an idempotency key', async () => {
-    const writes = renderRoute('/', 'enterprise_admin', 200, ['ent:model:write']);
-    const createButton = await screen.findByRole('button', { name: '新建模型' });
-    await waitFor(() => expect((createButton as HTMLButtonElement).disabled).toBe(false));
-    fireEvent.click(createButton);
-
-    const dialog = screen.getByRole('dialog', { name: '新建受管模型' });
-    fireEvent.change(within(dialog).getByLabelText('上游模型 ID'), { target: { value: 'gpt-5.6-mini' } });
-    fireEvent.change(within(dialog).getByLabelText('模型 ID'), { target: { value: 'gpt-5.6-mini' } });
-    fireEvent.click(within(dialog).getByText('容量与推理'));
-    fireEvent.change(within(dialog).getByLabelText('上下文窗口'), { target: { value: '256K' } });
-    fireEvent.click(within(dialog).getByRole('button', { name: '保存' }));
-
-    await waitFor(() => expect(writes).toHaveLength(1));
-    expect(writes[0]).toMatchObject({
-      body: {
-        alias: 'gpt-5.6-mini',
-        contextWindow: 256_000,
-        modelId: 'gpt-5.6-mini',
-        providerId: 'provider-1',
-        sortOrder: 100
-      },
-      method: 'POST',
-      pathname: '/enterprise/admin/v1/models'
-    });
-    expect(writes[0]!.idempotencyKey).toMatch(/^[0-9a-f-]{36}$/);
+  it('opens the model onboarding flow with discovery and manual fallback', async () => {
+    renderRoute('/', 'enterprise_admin', 200, ['ent:model:write']);
+    fireEvent.click((await screen.findAllByRole('button', { name: '添加模型接入' }))[0]);
+    const dialog = screen.getByRole('dialog', { name: '添加模型接入' });
+    expect(within(dialog).getAllByText('选择供应商').length).toBeGreaterThan(0);
+    fireEvent.click(within(dialog).getByRole('button', { name: '继续' }));
+    expect(within(dialog).getAllByText('配置连接').length).toBeGreaterThan(0);
+    fireEvent.change(within(dialog).getByLabelText('Base URL'), { target: { value: 'https://api.example.com/v1' } });
+    fireEvent.change(within(dialog).getByLabelText('API Key'), { target: { value: 'secret' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: '继续' }));
+    expect(within(dialog).getAllByText('获取并添加模型').length).toBeGreaterThan(0);
+    fireEvent.click(within(dialog).getByRole('button', { name: /手动添加模型/ }));
+    expect(within(dialog).getByLabelText('上游模型 ID')).toBeTruthy();
   });
 
   it('creates, updates and deletes a flat model set with write guards', async () => {
@@ -1069,7 +1059,7 @@ describe('product console access', () => {
     fireEvent.click(screen.getByRole('button', { name: '新建速率限制' }));
     const dialog = screen.getByRole('dialog', { name: '新建速率限制' });
     expect(within(dialog).queryByRole('option', { name: '模型供应商' })).toBeNull();
-    expect(screen.queryByText('OpenAI 供应商容量')).toBeNull();
+    expect(within(dialog).queryByText('OpenAI 供应商容量')).toBeNull();
     expect(writes).toHaveLength(0);
   });
 

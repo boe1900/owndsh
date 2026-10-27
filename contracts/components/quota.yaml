@@ -1,6 +1,6 @@
 # [INPUT]: 依赖根协议的资源 ID、revision、cursor、requestId 与严格成功 envelope
-# [OUTPUT]: 提供 TOKEN/RATE 互斥策略、供应商速率范围、四类 Token 窗口、bootstrap/本人用量及脱敏 ledger schema
-# [POS]: contracts/components 的配额与速率真源；PROVIDER 只允许组织级 RATE，且不承载计费
+# [OUTPUT]: 提供 TOKEN/RATE 互斥策略、模型级速率范围、四类 Token 窗口、bootstrap/本人用量及脱敏 ledger schema
+# [POS]: contracts/components 的配额与速率真源；速率限制只绑定模型资源
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 QuotaPolicyId:
@@ -20,8 +20,8 @@ QuotaPolicyType:
   enum: [TOKEN, RATE]
 QuotaResourceType:
   type: string
-  description: PROVIDER 仅可用于 ORGANIZATION 主体的 RATE 策略；TOKEN 不接受该资源范围。
-  enum: [ALL_MODELS, MODEL_SET, MODEL, PROVIDER]
+  description: 配额和速率策略绑定全体模型、模型集或单个模型。
+  enum: [ALL_MODELS, MODEL_SET, MODEL]
 QuotaStatus:
   type: string
   enum: [ACTIVE, DISABLED]
@@ -50,7 +50,7 @@ NullableResourceId:
 
 QuotaPolicyWriteRequest:
   type: object
-  description: TOKEN 与 RATE 限制字段互斥；PROVIDER 仅允许与 RATE、ORGANIZATION 和非空 resourceId 组合。
+  description: TOKEN 与 RATE 限制字段互斥；RATE 与模型资源绑定。
   additionalProperties: false
   required:
     - name

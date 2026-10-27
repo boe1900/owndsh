@@ -37,7 +37,7 @@ public final class EffectiveModelResolver {
         Long selectedDefaultId = defaultId;
         return distinct.values().stream()
             .map(value -> new EffectiveModel(
-                value.modelId(), value.alias(), value.name(), value.contextWindow(), value.maxTokens(), value.sortOrder(),
+                value.modelId(), value.alias(), value.name(), value.contextWindow(), value.maxTokens(), value.input(), value.sortOrder(),
                 value.apiProtocol(), value.reasoningEfforts(), value.reasoningCompat(),
                 Objects.equals(value.modelId(), selectedDefaultId)
             ))
@@ -50,6 +50,7 @@ public final class EffectiveModelResolver {
         String name,
         Integer contextWindow,
         Integer maxTokens,
+        java.util.List<com.owndsh.enterprise.model.domain.ModelInputModality> input,
         int sortOrder,
         ProviderApiProtocol apiProtocol,
         ModelReasoningEfforts reasoningEfforts,

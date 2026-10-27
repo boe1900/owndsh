@@ -21,13 +21,14 @@ import java.util.Optional;
 
 public final class JdbcManagedModelStore implements ManagedModelStore {
     private static final String COLUMNS = """
-        m.id, m.tenant_id, m.provider_id, p.name as provider_name, m.alias, m.display_name,
-        m.upstream_model, m.context_window, m.max_output_tokens, m.reasoning_efforts, m.reasoning_compat,
+        m.id, m.tenant_id, m.connection_id, c.provider_id, p.name as provider_name, m.alias, m.display_name,
+        m.upstream_model, m.context_window, m.max_output_tokens, m.input_modalities, m.reasoning_efforts, m.reasoning_compat,
         m.sort_order, m.status, m.revision
         """;
     private static final String FROM = """
-        from ent_managed_model m join ent_model_provider p
-          on p.id = m.provider_id and p.tenant_id = m.tenant_id
+        from ent_managed_model m join ent_model_provider_connection c
+          on c.id = m.connection_id and c.tenant_id = m.tenant_id
+        join ent_model_provider p on p.id = c.provider_id and p.tenant_id = c.tenant_id
         """;
     private static final String LIST_SQL = "select " + COLUMNS + FROM + """
         where m.tenant_id = ? and m.id > ? order by m.id limit ?
@@ -37,13 +38,13 @@ public final class JdbcManagedModelStore implements ManagedModelStore {
         """;
     private static final String INSERT_SQL = """
         insert into ent_managed_model(
-            id, tenant_id, provider_id, alias, display_name, upstream_model, context_window,
-            max_output_tokens, reasoning_efforts, reasoning_compat, sort_order, status, revision
-        ) values (?, ?, ?, ?, ?, ?, ?, ?, cast(? as jsonb), cast(? as jsonb), ?, ?, ?)
+            id, tenant_id, connection_id, alias, display_name, upstream_model, context_window,
+            max_output_tokens, input_modalities, reasoning_efforts, reasoning_compat, sort_order, status, revision
+        ) values (?, ?, ?, ?, ?, ?, ?, ?, cast(? as jsonb), cast(? as jsonb), cast(? as jsonb), ?, ?, ?)
         """;
     private static final String UPDATE_SQL = """
-        update ent_managed_model set provider_id = ?, alias = ?, display_name = ?, upstream_model = ?,
-            context_window = ?, max_output_tokens = ?, reasoning_efforts = cast(? as jsonb),
+        update ent_managed_model set connection_id = ?, alias = ?, display_name = ?, upstream_model = ?,
+            context_window = ?, max_output_tokens = ?, input_modalities = cast(? as jsonb), reasoning_efforts = cast(? as jsonb),
             reasoning_compat = cast(? as jsonb), sort_order = ?, revision = revision + 1
         where tenant_id = ? and id = ? and revision = ?
         """;
@@ -92,8 +93,8 @@ public final class JdbcManagedModelStore implements ManagedModelStore {
     public void insert(ManagedModel model) {
         jdbc.update(
             INSERT_SQL,
-            model.id(), model.tenantId(), model.providerId(), model.alias(), model.name(),
-            model.modelId(), model.contextWindow(), model.maxTokens(), json(model.reasoningEfforts()),
+            model.id(), model.tenantId(), model.connectionId(), model.alias(), model.name(),
+            model.modelId(), model.contextWindow(), model.maxTokens(), jsonInput(model.input()), json(model.reasoningEfforts()),
             json(model.reasoningCompat()), model.sortOrder(), model.status().name(), model.revision()
         );
     }
@@ -102,8 +103,8 @@ public final class JdbcManagedModelStore implements ManagedModelStore {
     public boolean update(ManagedModel model, long expectedRevision) {
         return jdbc.update(
             UPDATE_SQL,
-            model.providerId(), model.alias(), model.name(), model.modelId(),
-            model.contextWindow(), model.maxTokens(), json(model.reasoningEfforts()), json(model.reasoningCompat()),
+            model.connectionId(), model.alias(), model.name(), model.modelId(),
+            model.contextWindow(), model.maxTokens(), jsonInput(model.input()), json(model.reasoningEfforts()), json(model.reasoningCompat()),
             model.sortOrder(),
             model.tenantId(), model.id(), expectedRevision
         ) == 1;
@@ -140,10 +141,10 @@ public final class JdbcManagedModelStore implements ManagedModelStore {
 
     private ManagedModel map(ResultSet resultSet, int rowNumber) throws SQLException {
         return new ManagedModel(
-            resultSet.getLong("id"), resultSet.getString("tenant_id"), resultSet.getLong("provider_id"),
+            resultSet.getLong("id"), resultSet.getString("tenant_id"), resultSet.getLong("connection_id"), resultSet.getLong("provider_id"),
             resultSet.getString("provider_name"), resultSet.getString("alias"),
             resultSet.getString("display_name"), resultSet.getString("upstream_model"),
-            nullableInt(resultSet, "context_window"), nullableInt(resultSet, "max_output_tokens"),
+            nullableInt(resultSet, "context_window"), nullableInt(resultSet, "max_output_tokens"), input(resultSet.getString("input_modalities")),
             efforts(resultSet.getString("reasoning_efforts")), compat(resultSet.getString("reasoning_compat")),
             resultSet.getInt("sort_order"),
             ModelStatus.valueOf(resultSet.getString("status")), resultSet.getLong("revision")
@@ -165,6 +166,9 @@ public final class JdbcManagedModelStore implements ManagedModelStore {
     private ModelReasoningCompat compat(String value) {
         return value == null ? null : ModelReasoningCompat.fromJson(json.readTree(value));
     }
+
+    private String jsonInput(List<com.owndsh.enterprise.model.domain.ModelInputModality> value) { return json.writeValueAsString(value.stream().map(v -> v.name().toLowerCase()).toList()); }
+    private List<com.owndsh.enterprise.model.domain.ModelInputModality> input(String value) { if (value == null) return List.of(com.owndsh.enterprise.model.domain.ModelInputModality.TEXT); return json.readTree(value).valueStream().map(v -> com.owndsh.enterprise.model.domain.ModelInputModality.valueOf(v.stringValue().toUpperCase())).toList(); }
 
     private static Integer nullableInt(ResultSet resultSet, String column) throws SQLException {
         int value = resultSet.getInt(column);

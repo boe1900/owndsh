@@ -35,6 +35,7 @@ import { SegmentedControl } from '@/components/atoms/SegmentedControl';
 import { StatusPill } from '@/components/atoms/StatusPill';
 import { ProductDataTable, type ProductTableColumn } from '@/components/product/DataTable';
 import { ProductDialog } from '@/components/product/Dialog';
+import { DialogFooter } from '@/components/product/DialogFooter';
 import { loadMemberPage } from '@/features/member-select';
 import { AccessGroupManagement } from './access-group-management';
 import { IdentitySourceManagement } from './identity-source-management';
@@ -124,10 +125,10 @@ function LocalMemberCreateDialog({
           </label>
           {formError || create.error ? <p role="alert" className="m-0 text-[12.5px] text-red">{formError ?? errorMessage(create.error, '本地成员创建失败')}</p> : null}
         </div>
-        <footer className="flex justify-end gap-2 border-t border-line px-5 py-4">
+        <DialogFooter className="mx-0 mb-0">
           <Button type="button" size="sm" disabled={create.isPending} onClick={onClose}>取消</Button>
           <Button type="submit" variant="primary" size="sm" disabled={create.isPending}>{create.isPending ? '创建中' : '创建'}</Button>
-        </footer>
+        </DialogFooter>
       </form>
     </ProductDialog>
   );
@@ -425,7 +426,7 @@ function MemberDetailDialog({
 
         {error ? <p role="alert" className="m-0 text-[12.5px] text-red">{error}</p> : null}
       </div>
-      <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-line px-5 py-4">
+      <DialogFooter className="mx-0 mb-0">
         {canWrite ? (
           <Button
             type="button"
@@ -440,9 +441,9 @@ function MemberDetailDialog({
             {targetStatus === 'DISABLED' ? <PowerOff aria-hidden className="size-3.5" /> : <Power aria-hidden className="size-3.5" />}
             {targetStatus === 'DISABLED' ? '停用成员' : '启用成员'}
           </Button>
-        ) : <span />}
+        ) : null}
         <Button type="button" size="sm" onClick={onClose}>关闭</Button>
-      </footer>
+      </DialogFooter>
     </ProductDialog>
   );
 }

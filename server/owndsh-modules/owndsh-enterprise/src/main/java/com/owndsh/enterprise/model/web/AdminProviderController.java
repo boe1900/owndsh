@@ -16,8 +16,6 @@ import com.owndsh.enterprise.common.api.EnterpriseApiValidation;
 import com.owndsh.enterprise.common.api.EnterpriseCursorCodec;
 import com.owndsh.enterprise.common.api.EnterpriseResponse;
 import com.owndsh.enterprise.model.application.ModelMutationContext;
-import com.owndsh.enterprise.model.application.ProviderProbe;
-import com.owndsh.enterprise.model.application.ProviderSecretInput;
 import com.owndsh.enterprise.model.application.ProviderService;
 import com.owndsh.enterprise.model.domain.ModelProvider;
 import com.owndsh.enterprise.model.domain.ModelStatus;
@@ -96,10 +94,8 @@ public final class AdminProviderController {
     ) {
         EnterpriseApiValidation.requireUuidV4(idempotencyKey, "Idempotency-Key");
         EnterpriseRequestContext context = contexts.resolve(request);
-        try (body; ProviderSecretInput credential = body.createCredential()) {
-            ModelProvider created = providers.create(mutation(context), body.spec(), credential);
-            return ResponseEntity.status(HttpStatus.CREATED).body(response(ProviderView.from(created), context));
-        }
+        ModelProvider created = providers.create(mutation(context), body.spec());
+        return ResponseEntity.status(HttpStatus.CREATED).body(response(ProviderView.from(created), context));
     }
 
     @PutMapping("/{providerId}")
@@ -111,26 +107,7 @@ public final class AdminProviderController {
         HttpServletRequest request
     ) {
         EnterpriseRequestContext context = contexts.resolve(request);
-        try (body; ProviderSecretInput replacement = body.replacementCredential()) {
-            return response(ProviderView.from(providers.update(
-                mutation(context), providerId, expectedRevision, body.spec(), body.replacementRequested(), replacement
-            )), context);
-        }
-    }
-
-    @PostMapping("/{providerId}/actions/test")
-    @SaCheckPermission("ent:model:write")
-    public EnterpriseResponse<ProviderProbe.ProviderProbeResult> test(
-        @PathVariable long providerId,
-        @RequestBody ProviderTestRequest body,
-        HttpServletRequest request
-    ) {
-        EnterpriseRequestContext context = contexts.resolve(request);
-        try (body; ProviderSecretInput credential = body.credentialInput()) {
-            return response(providers.test(
-                context.tenantId(), providerId, body.baseUrl(), body.connectTimeoutMs(), body.readTimeoutMs(), credential
-            ), context);
-        }
+        return response(ProviderView.from(providers.update(mutation(context), providerId, expectedRevision, body.spec())), context);
     }
 
     @PostMapping("/{providerId}/actions/enable")

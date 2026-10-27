@@ -1,0 +1,679 @@
+<!doctype html>
+<!--
+  [INPUT]: 依赖 model-onboarding-design.md 的 Provider / ProviderConnection / ManagedModel 领域边界与当前 Console 模型治理语义。
+  [OUTPUT]: 提供可点击的模型接入闭环原型，覆盖选择供应商、配置连接、获取候选、逐条选择/移除模型、折叠模型配置、手动维护、确认保存和列表回显。
+  [POS]: docs 下的产品交互原型，不是 console/src 的生产实现，不调用真实 API。
+  [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OwnDsh · 模型接入原型</title>
+  <style>
+    :root {
+      --ink: #17202a;
+      --muted: #687482;
+      --line: #e4e9ee;
+      --soft: #f6f8fa;
+      --paper: #ffffff;
+      --teal: #147d76;
+      --teal-dark: #0d5f5a;
+      --teal-soft: #e5f4f1;
+      --orange: #b85f22;
+      --orange-soft: #fff1e7;
+      --blue: #2d5e96;
+      --blue-soft: #eaf2fb;
+      --danger: #b94343;
+      --shadow: 0 18px 46px rgba(24, 38, 54, 0.12);
+      --radius: 8px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: #eef2f4;
+      font-synthesis: none;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 320px; background: #eef2f4; }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid rgba(20, 125, 118, .25); outline-offset: 2px; }
+
+    .app-shell { display: grid; grid-template-columns: 228px minmax(0, 1fr); min-height: 100vh; }
+    .sidebar { display: flex; flex-direction: column; background: #172c35; color: #dce8e9; padding: 22px 14px 16px; }
+    .brand { display: flex; align-items: center; gap: 10px; padding: 0 10px 28px; }
+    .brand-mark { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 7px; background: #d8f2ec; color: var(--teal-dark); font-weight: 800; }
+    .brand strong { font-size: 14px; letter-spacing: .02em; }
+    .brand span { display: block; margin-top: 2px; color: #91aaad; font-size: 11px; }
+    .nav-label { padding: 0 10px 8px; color: #82999d; font-size: 10px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; }
+    .nav { display: grid; gap: 3px; }
+    .nav button { display: flex; align-items: center; gap: 10px; border: 0; border-radius: 6px; padding: 10px; background: transparent; color: #c2d1d3; text-align: left; font-size: 13px; }
+    .nav button:hover, .nav button.active { background: #24434b; color: #fff; }
+    .nav-icon { display: inline-grid; place-items: center; width: 18px; color: #89bcb8; font-size: 14px; }
+    .sidebar-spacer { flex: 1; }
+    .tenant { margin: 10px 4px 0; border-top: 1px solid #2c4a52; padding: 16px 6px 0; color: #a5babc; font-size: 11px; }
+    .tenant strong { display: block; margin-top: 4px; color: #eef8f7; font-size: 12px; }
+
+    .main { min-width: 0; background: #f8fafb; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; min-height: 68px; border-bottom: 1px solid var(--line); background: var(--paper); padding: 0 34px; }
+    .crumbs { color: var(--muted); font-size: 12px; }
+    .crumbs strong { color: var(--ink); font-weight: 650; }
+    .top-actions { display: flex; align-items: center; gap: 16px; }
+    .env { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; }
+    .env-dot { width: 7px; height: 7px; border-radius: 50%; background: #36a479; }
+    .avatar { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #dbe9f3; color: #315e76; font-size: 11px; font-weight: 750; }
+    .content { max-width: 1240px; margin: 0 auto; padding: 34px; }
+    .page-head { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin-bottom: 24px; }
+    .eyebrow { margin-bottom: 7px; color: var(--teal); font-size: 11px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 26px; letter-spacing: -.025em; line-height: 1.12; }
+    h2 { font-size: 17px; letter-spacing: -.01em; }
+    h3 { font-size: 14px; }
+    .subhead { margin-top: 8px; color: var(--muted); font-size: 13px; }
+    .button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px; border: 1px solid transparent; border-radius: 6px; padding: 0 14px; font-size: 12px; font-weight: 700; transition: .16s ease; }
+    .button.primary { background: var(--teal); color: #fff; }
+    .button.primary:hover { background: var(--teal-dark); }
+    .button.secondary { border-color: var(--line); background: var(--paper); color: var(--ink); }
+    .button.secondary:hover { border-color: #bdcbd0; background: #fbfcfc; }
+    .button.text { min-height: 28px; padding: 0 5px; color: var(--teal-dark); background: transparent; }
+    .button[disabled] { cursor: not-allowed; opacity: .45; }
+    .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+    .tab { border: 0; border-bottom: 2px solid transparent; padding: 10px 12px; background: transparent; color: var(--muted); font-size: 12px; font-weight: 650; }
+    .tab.active { border-color: var(--teal); color: var(--teal-dark); }
+    .tab:hover { color: var(--ink); }
+    .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
+    .toolbar-meta { color: var(--muted); font-size: 12px; }
+    .search { width: 220px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); padding: 9px 11px; color: var(--ink); font-size: 12px; }
+    .data-table { overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper); }
+    .table-head, .model-row { display: grid; grid-template-columns: minmax(200px, 1.4fr) minmax(150px, 1fr) minmax(150px, .9fr) 110px 102px; align-items: center; gap: 18px; padding: 0 18px; }
+    .table-head { min-height: 36px; border-bottom: 1px solid var(--line); background: #fbfcfd; color: #7b8790; font-size: 10px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+    .model-row { min-height: 74px; border-bottom: 1px solid #edf0f2; }
+    .model-row:last-child { border-bottom: 0; }
+    .model-main { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .provider-glyph { display: grid; flex: 0 0 auto; place-items: center; width: 30px; height: 30px; border: 1px solid #b7ddd7; border-radius: 7px; background: var(--teal-soft); color: var(--teal-dark); font-size: 12px; font-weight: 800; }
+    .model-name { min-width: 0; }
+    .model-name strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+    .model-name span, .cell-muted { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
+    .cell { min-width: 0; color: #31404a; font-size: 12px; }
+    .status { display: inline-flex; align-items: center; gap: 5px; border-radius: 99px; padding: 4px 8px; font-size: 10px; font-weight: 750; }
+    .status.on { background: var(--teal-soft); color: var(--teal-dark); }
+    .status.off { background: #f1f3f4; color: #68737a; }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .row-action { border: 0; background: transparent; color: var(--teal-dark); font-size: 12px; font-weight: 700; }
+    .row-action:hover { text-decoration: underline; }
+    .provider-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .provider-card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper); padding: 18px; }
+    .provider-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .provider-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 20px; border-top: 1px solid #edf0f2; padding-top: 14px; color: var(--muted); font-size: 11px; }
+    .provider-meta strong { color: var(--ink); font-size: 12px; }
+    .provider-connections { display: grid; gap: 8px; margin-top: 12px; }
+    .provider-connections > div { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; gap: 9px; border: 1px solid #edf0f2; border-radius: 6px; padding: 10px; }
+    .provider-connections strong, .provider-connections small { display: block; }
+    .provider-connections strong { font-size: 11px; }
+    .provider-connections small { margin-top: 3px; color: var(--muted); font-size: 10px; }
+    .connection-actions { display: flex; align-items: center; gap: 8px; }
+    .connection-dot { width: 7px; height: 7px; border-radius: 50%; background: #39a27f; }
+    .full-button { width: 100%; margin-top: 14px; }
+    .connection-picker { display: grid; gap: 8px; margin-top: 20px; }
+    .connection-option { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; border: 1px solid var(--line); border-radius: 6px; background: #fff; padding: 12px; text-align: left; }
+    .connection-option:hover, .connection-option.selected { border-color: #9dc6c2; background: #fbfefd; }
+    .connection-option strong, .connection-option small { display: block; }
+    .connection-option strong { font-size: 12px; }
+    .connection-option small { margin-top: 4px; color: var(--muted); font-size: 10px; }
+    .connection-radio { width: 15px; height: 15px; border: 1px solid #b9c8cc; border-radius: 50%; }
+    .connection-option.selected .connection-radio { border: 4px solid var(--teal); }
+    .connection-new { color: var(--teal-dark); font-size: 11px; font-weight: 700; white-space: nowrap; }
+    .boundary-note { display: flex; gap: 10px; margin-bottom: 16px; border: 1px solid #dce8e7; border-radius: 6px; background: #f7fbfa; padding: 13px 14px; color: #48625f; font-size: 11px; line-height: 1.55; }
+    .boundary-note strong { color: var(--teal-dark); white-space: nowrap; }
+
+    .wizard-shell { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
+    .wizard-main, .summary-card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper); }
+    .wizard-main { min-height: 620px; }
+    .wizard-head { display: flex; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--line); padding: 21px 24px 18px; }
+    .wizard-title { display: flex; gap: 11px; align-items: flex-start; }
+    .back { border: 0; background: transparent; color: var(--muted); font-size: 18px; line-height: 1; padding: 1px 3px; }
+    .step-count { color: var(--muted); font-size: 11px; white-space: nowrap; }
+    .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 17px 24px 0; }
+    .step { border-top: 2px solid #dce3e6; padding-top: 8px; color: #98a4aa; font-size: 10px; font-weight: 700; }
+    .step.active { border-color: var(--teal); color: var(--teal-dark); }
+    .step.done { border-color: #83c3ba; color: #468c85; }
+    .step-index { margin-right: 5px; }
+    .wizard-body { padding: 26px 24px; }
+    .section-note { margin-top: 7px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+    .choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 20px; }
+    .choice { position: relative; border: 1px solid var(--line); border-radius: 7px; background: var(--paper); padding: 16px; text-align: left; }
+    .choice:hover { border-color: #9dc6c2; }
+    .choice.selected { border-color: var(--teal); box-shadow: 0 0 0 2px rgba(20,125,118,.1); }
+    .choice-mark { display: flex; justify-content: space-between; align-items: center; }
+    .choice-logo { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 8px; background: var(--teal-soft); color: var(--teal-dark); font-size: 14px; font-weight: 800; }
+    .choice.selected .choice-logo { background: var(--teal); color: #fff; }
+    .check { display: grid; place-items: center; width: 18px; height: 18px; border: 1px solid #c5d2d4; border-radius: 50%; color: transparent; font-size: 11px; }
+    .choice.selected .check { border-color: var(--teal); background: var(--teal); color: white; }
+    .choice strong { display: block; margin-top: 15px; font-size: 13px; }
+    .choice p { margin-top: 5px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .choice small { display: inline-block; margin-top: 12px; border-radius: 4px; background: var(--soft); padding: 4px 6px; color: #63717a; font-size: 10px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 22px; }
+    .field { display: grid; gap: 7px; }
+    .field.full { grid-column: 1 / -1; }
+    .field label { color: #41515b; font-size: 11px; font-weight: 750; }
+    .field label em { color: var(--orange); font-style: normal; }
+    .input, .select { width: 100%; border: 1px solid #d6dfe3; border-radius: 6px; background: #fff; padding: 10px 11px; color: var(--ink); font-size: 12px; }
+    .input:read-only { background: #f8fafb; color: #52626b; }
+    .help { color: var(--muted); font-size: 10px; line-height: 1.5; }
+    .secret-wrap { position: relative; }
+    .secret-wrap .input { padding-right: 76px; }
+    .secret-toggle { position: absolute; top: 50%; right: 8px; transform: translateY(-50%); border: 0; background: transparent; color: var(--teal-dark); font-size: 10px; font-weight: 700; }
+    .test-box { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 20px; border: 1px solid #dce8e7; border-radius: 6px; background: #f7fbfa; padding: 13px; }
+    .test-result { display: flex; gap: 9px; align-items: flex-start; color: #45605d; font-size: 11px; line-height: 1.45; }
+    .test-icon { display: grid; flex: 0 0 auto; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: #cbe9e3; color: var(--teal-dark); font-weight: 800; }
+    .test-result.error { color: var(--danger); }
+    .test-result.error .test-icon { background: #fae2e2; }
+    .candidate-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; color: var(--muted); font-size: 11px; }
+    .discovery-panel { margin-top: 18px; border: 1px solid #dce8e7; border-radius: 7px; background: #fbfefd; padding: 14px; }
+    .discovery-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .discovery-head strong { font-size: 12px; }
+    .discovery-head span { margin-left: 8px; color: var(--muted); font-size: 10px; }
+    .discovery-empty { margin-top: 12px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .available-model-list { display: grid; gap: 8px; margin-top: 12px; }
+    .available-model-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; border-top: 1px solid #edf0f2; padding-top: 10px; }
+    .available-model-row strong, .available-model-row small { display: block; }
+    .available-model-row strong { font-size: 12px; }
+    .available-model-row small { margin-top: 3px; color: var(--muted); font-size: 10px; }
+    .model-config-list { display: grid; gap: 12px; margin-top: 18px; }
+    .model-config-card { border: 1px solid #dce8e7; border-radius: 7px; background: #fbfefd; padding: 12px; }
+    .model-config-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .model-config-head strong { display: block; font-size: 12px; }
+    .model-config-head code { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; }
+    .readonly-tag { border-radius: 4px; background: #edf2f3; padding: 4px 6px; color: #647179; font-size: 10px; white-space: nowrap; }
+    .model-config-card .form-grid { margin-top: 14px; }
+    .model-identity { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; min-width: 0; flex: 1; }
+    .model-identity .input { min-width: 0; padding-block: 8px; }
+    .model-row-actions { display: flex; align-items: center; gap: 4px; }
+    .icon-button { display: inline-grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: 5px; background: transparent; color: #647179; font-size: 18px; }
+    .icon-button:hover { background: #edf4f3; color: var(--teal-dark); }
+    .icon-button.danger:hover { background: #fff0f0; color: var(--danger); }
+    .model-details { margin-top: 14px; border-top: 1px solid #edf0f2; padding-top: 2px; }
+    .input-options { display: flex; flex-wrap: wrap; gap: 8px; }
+    .input-option { display: inline-flex; align-items: center; gap: 7px; border: 1px solid #d6dfe3; border-radius: 6px; background: #fff; padding: 8px 10px; color: #41515b; font-size: 11px; }
+    .input-option input { accent-color: var(--teal); }
+    .reasoning-map { display: grid; gap: 7px; }
+    .reasoning-row { display: grid; grid-template-columns: 132px minmax(0, 1fr) 30px; gap: 8px; align-items: center; }
+    .reasoning-row > span { color: #52626b; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+    .reasoning-row .reasoning-level-select { width: 100%; padding-block: 8px; }
+    .model-list-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
+    .model-list-footer .help { max-width: 70%; }
+    .wizard-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid var(--line); padding: 16px 24px; }
+    .foot-hint { color: var(--muted); font-size: 11px; }
+    .foot-actions { display: flex; gap: 8px; }
+    .summary-card { position: sticky; top: 20px; overflow: hidden; }
+    .summary-head { border-bottom: 1px solid var(--line); padding: 18px; }
+    .summary-head p { margin-top: 5px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .summary-body { padding: 6px 18px 18px; }
+    .summary-block { border-bottom: 1px solid #edf0f2; padding: 14px 0; }
+    .summary-block:last-child { border-bottom: 0; }
+    .summary-label { color: #849097; font-size: 10px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+    .summary-value { margin-top: 7px; color: #293840; font-size: 12px; line-height: 1.55; }
+    .summary-value strong { display: block; font-size: 13px; }
+    .summary-value code { color: var(--teal-dark); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; }
+    .secret-status { display: inline-flex; align-items: center; gap: 6px; color: var(--teal-dark); font-size: 11px; }
+    .secret-status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #38a583; }
+    .toast { position: fixed; right: 24px; bottom: 24px; z-index: 3; display: flex; align-items: center; gap: 10px; border: 1px solid #b6ddd7; border-radius: 7px; background: #f4fcfa; box-shadow: var(--shadow); padding: 13px 15px; color: #185e58; font-size: 12px; font-weight: 650; }
+    .toast[hidden] { display: none; }
+    .toast-mark { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--teal); color: #fff; font-size: 11px; }
+
+    @media (max-width: 900px) {
+      .app-shell { grid-template-columns: 72px minmax(0, 1fr); }
+      .sidebar { padding-inline: 10px; }
+      .brand { justify-content: center; padding-inline: 0; }
+      .brand-copy, .nav-label, .nav button span:not(.nav-icon), .tenant { display: none; }
+      .nav button { justify-content: center; }
+      .topbar, .content { padding-inline: 22px; }
+      .wizard-shell { grid-template-columns: 1fr; }
+      .summary-card { position: static; }
+      .provider-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 680px) {
+      .topbar { min-height: 58px; padding-inline: 14px; }
+      .env { display: none; }
+      .content { padding: 22px 14px; }
+      .page-head { align-items: flex-start; flex-direction: column; }
+      h1 { font-size: 23px; }
+      .toolbar { align-items: stretch; flex-direction: column; }
+      .search { width: 100%; }
+      .table-head { display: none; }
+      .model-row { grid-template-columns: 1fr auto; gap: 8px; padding: 14px; }
+      .model-row .cell:nth-child(2), .model-row .cell:nth-child(3), .model-row .cell:nth-child(4) { grid-column: 1; padding-left: 40px; }
+      .model-row .cell:nth-child(5) { grid-column: 2; grid-row: 1 / span 4; }
+      .wizard-head, .wizard-body, .wizard-foot { padding-inline: 16px; }
+      .steps { padding-inline: 16px; }
+      .step { font-size: 0; }
+      .step-index { font-size: 10px; }
+      .choice-grid, .form-grid, .model-identity { grid-template-columns: 1fr; }
+      .field.full { grid-column: auto; }
+      .test-box, .wizard-foot { align-items: stretch; flex-direction: column; }
+      .foot-actions { justify-content: flex-end; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="主导航">
+      <div class="brand">
+        <div class="brand-mark">O</div>
+        <div class="brand-copy"><strong>OwnDsh Console</strong><span>企业模型治理</span></div>
+      </div>
+      <div class="nav-label">管理</div>
+      <nav class="nav">
+        <button type="button"><span class="nav-icon">⌂</span><span>概览</span></button>
+        <button type="button" class="active"><span class="nav-icon">◈</span><span>模型治理</span></button>
+        <button type="button"><span class="nav-icon">◎</span><span>成员与访问</span></button>
+        <button type="button"><span class="nav-icon">▣</span><span>用量与配额</span></button>
+        <button type="button"><span class="nav-icon">◌</span><span>活动审计</span></button>
+      </nav>
+      <div class="sidebar-spacer"></div>
+      <div class="tenant">当前组织<strong>Northstar Labs</strong></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="crumbs">管理控制台&nbsp; / &nbsp;<strong>模型治理</strong></div>
+        <div class="top-actions"><div class="env"><span class="env-dot"></span>生产环境</div><div class="avatar">LC</div></div>
+      </header>
+
+      <section id="catalogView" class="content">
+        <div class="page-head">
+          <div><div class="eyebrow">Model governance</div><h1>模型治理</h1><p class="subhead">管理可用模型、模型集和供应商连接。</p></div>
+          <button class="button primary" type="button" data-action="open-wizard"><span>＋</span> 添加模型接入</button>
+        </div>
+        <div class="tabs" role="tablist">
+          <button class="tab active" type="button" role="tab" data-view="models">受管模型 <span id="modelCount">3</span></button>
+          <button class="tab" type="button" role="tab" data-view="sets">模型集 <span>2</span></button>
+          <button class="tab" type="button" role="tab" data-view="providers">模型提供商 <span>2</span></button>
+        </div>
+        <div class="toolbar"><span class="toolbar-meta">3 个模型 · 2 个供应商连接正常</span><input class="search" type="search" placeholder="搜索模型或供应商" aria-label="搜索模型或供应商" /></div>
+        <div class="data-table" aria-label="受管模型列表">
+          <div class="table-head"><div>模型</div><div>供应商连接</div><div>能力</div><div>状态</div><div></div></div>
+          <div id="modelRows">
+            <div class="model-row"><div class="model-main"><div class="provider-glyph">DS</div><div class="model-name"><strong>DeepSeek R1</strong></div></div><div class="cell">DeepSeek 官方<span class="cell-muted">默认连接 · API Key 已配置</span></div><div class="cell">Reasoning · 64K<span class="cell-muted">上下文窗口</span></div><div class="cell"><span class="status on"><span class="status-dot"></span>启用</span></div><div><button class="row-action" type="button">配置</button></div></div>
+            <div class="model-row"><div class="model-main"><div class="provider-glyph">AN</div><div class="model-name"><strong>Claude 3.7 Sonnet</strong></div></div><div class="cell">Anthropic<span class="cell-muted">团队连接 · API Key 已配置</span></div><div class="cell">Thinking · 200K<span class="cell-muted">上下文窗口</span></div><div class="cell"><span class="status on"><span class="status-dot"></span>启用</span></div><div><button class="row-action" type="button">配置</button></div></div>
+            <div class="model-row"><div class="model-main"><div class="provider-glyph">GL</div><div class="model-name"><strong>GLM 5.3</strong></div></div><div class="cell">智谱 AI<span class="cell-muted">生产连接 · API Key 已配置</span></div><div class="cell">128K<span class="cell-muted">上下文窗口</span></div><div class="cell"><span class="status off"><span class="status-dot"></span>停用</span></div><div><button class="row-action" type="button">配置</button></div></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="providerView" class="content" hidden>
+        <div class="page-head">
+          <div><div class="eyebrow">Provider registry</div><h1>模型提供商</h1><p class="subhead">Provider 只表示供应商身份；Connection 才是实际访问上游的配置。</p></div>
+          <button class="button primary" type="button" data-action="open-new-provider"><span>＋</span> 添加供应商</button>
+        </div>
+        <div class="boundary-note"><strong>边界</strong><span>供应商没有端点。端点、协议和 API Key 都属于连接；一条连接可以被同一供应商下的多个模型复用。连接可以先保存，再从连接行维护模型。</span></div>
+        <div class="toolbar"><span class="toolbar-meta">2 个供应商 · 3 个连接</span><button class="button secondary" type="button" data-action="open-new-provider">新建供应商</button></div>
+        <div class="provider-grid">
+          <article class="provider-card"><div class="provider-card-head"><div class="model-main"><div class="provider-glyph">OC</div><div class="model-name"><strong>OpenAI Compatible</strong></div></div><span class="status on"><span class="status-dot"></span>启用</span></div><div class="provider-meta"><span>组织级 RATE 配额</span><strong>2 个连接</strong></div><div class="provider-connections"><div><span class="connection-dot"></span><span><strong>生产连接</strong><small>https://api.openai.com/v1 · openai-completions · Key 已配置</small></span><span class="connection-actions"><button class="row-action" type="button" data-action="test-existing">测试</button><button class="row-action" type="button" data-action="manage-connection" data-preset="openai" data-connection-name="生产连接">维护模型</button></span></div><div><span class="connection-dot"></span><span><strong>备用连接</strong><small>https://api.openai.com/v1 · openai-completions · Key 已配置</small></span><span class="connection-actions"><button class="row-action" type="button" data-action="test-existing">测试</button><button class="row-action" type="button" data-action="manage-connection" data-preset="openai" data-connection-name="备用连接">维护模型</button></span></div></div><button class="button secondary full-button" type="button" data-action="add-connection" data-preset="openai">＋ 为此供应商新建连接</button></article>
+          <article class="provider-card"><div class="provider-card-head"><div class="model-main"><div class="provider-glyph">DS</div><div class="model-name"><strong>DeepSeek</strong><span>官方预设</span></div></div><span class="status on"><span class="status-dot"></span>启用</span></div><div class="provider-meta"><span>组织级 RATE 配额</span><strong>1 个连接</strong></div><div class="provider-connections"><div><span class="connection-dot"></span><span><strong>生产连接</strong><small>https://api.deepseek.com · anthropic-messages · Key 已配置</small></span><span class="connection-actions"><button class="row-action" type="button" data-action="test-existing">测试</button><button class="row-action" type="button" data-action="manage-connection" data-preset="deepseek" data-connection-name="生产连接">维护模型</button></span></div></div><button class="button secondary full-button" type="button" data-action="add-connection" data-preset="deepseek">＋ 为此供应商新建连接</button></article>
+        </div>
+      </section>
+
+      <section id="connectionView" class="content" hidden>
+        <div class="page-head"><div><div class="eyebrow">Connection details</div><h1 id="connectionTitle">生产连接</h1><p class="subhead">这是一套可复用的上游访问配置；模型绑定这条连接，不复制 API Key。</p></div><button class="button secondary" type="button" data-action="back-to-providers">← 返回供应商</button></div>
+        <div class="boundary-note"><strong>Connection</strong><span>端点、协议、超时和 API Key 都在这里管理。你可以先维护连接，再从下方添加或移除该连接上的模型。</span></div>
+        <div class="wizard-shell"><div class="wizard-main"><div class="wizard-head"><div><h2>连接配置</h2><p class="section-note" id="connectionMeta">OpenAI Compatible · openai-completions</p></div><span class="status on"><span class="status-dot"></span>启用</span></div><div class="wizard-body"><div class="form-grid"><div class="field"><label>Base URL</label><input class="input" id="connectionBaseUrl" value="https://api.openai.com/v1" readonly /></div><div class="field"><label>API 协议</label><input class="input" id="connectionProtocol" value="openai-completions" readonly /></div><div class="field full"><label>API Key</label><div class="test-box" style="margin-top:0"><div class="test-result"><span class="test-icon">✓</span><span>原文不会回填或展示。</span></div><span class="secret-status">已配置</span></div></div></div><div class="test-box"><div class="test-result"><span class="test-icon">✓</span><span>最近测试通过 · 延迟 420 ms</span></div><button class="button secondary" type="button" data-action="test-existing">重新测试</button></div></div></div><aside class="summary-card"><div class="summary-head"><h3>已绑定模型</h3><p>一个连接可以服务多个模型。</p></div><div class="summary-body"><div class="provider-connections"><div><span class="connection-dot"></span><span><strong>GPT-4.1</strong><small>gpt-4.1 · 启用</small></span><button class="row-action" type="button" data-action="remove-model">移除</button></div><div><span class="connection-dot"></span><span><strong>GPT-4.1 mini</strong><small>gpt-4.1-mini · 启用</small></span><button class="row-action" type="button" data-action="remove-model">移除</button></div></div><button class="button primary full-button" type="button" data-action="attach-model">＋ 维护模型</button></div></aside></div>
+      </section>
+
+      <section id="wizardView" class="content" hidden>
+        <div class="page-head"><div><div class="eyebrow">New managed model</div><h1>添加模型接入</h1><p class="subhead">创建一条新的 Connection，再绑定一个或多个受管模型。</p></div></div>
+        <div class="wizard-shell">
+          <div class="wizard-main">
+            <div class="wizard-head"><div class="wizard-title"><button class="back" type="button" data-action="back-to-catalog" aria-label="返回模型治理">←</button><div><h2 id="wizardHeading">选择供应商</h2><p class="section-note" id="wizardSubheading">先选择一个预设或已有供应商，连接信息会在下一步配置。</p></div></div><div class="step-count" id="stepCount">1 / 4</div></div>
+            <div id="wizardSteps" class="steps" aria-label="向导步骤"></div>
+            <div id="wizardBody" class="wizard-body"></div>
+            <div class="wizard-foot"><div class="foot-hint" id="footHint">模型保存后仍需在模型集或访问策略中授权。</div><div class="foot-actions"><button class="button secondary" type="button" data-action="wizard-back">返回</button><button class="button primary" type="button" data-action="wizard-next">继续</button></div></div>
+          </div>
+          <aside class="summary-card"><div class="summary-head"><h3>本次配置</h3><p>凭据只在连接步骤配置，保存后仅显示状态。</p></div><div class="summary-body" id="summaryBody"></div></aside>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" hidden><span class="toast-mark">✓</span><span id="toastText">模型已保存</span></div>
+
+  <script>
+    const candidates = [
+      { id: "gpt-4.1", label: "GPT-4.1", context: "1M context", note: "OpenAI-compatible · chat completions", input: ["text", "image"] },
+      { id: "gpt-4.1-mini", label: "GPT-4.1 mini", context: "1M context", note: "OpenAI-compatible · chat completions" },
+      { id: "o4-mini", label: "o4-mini", context: "200K context", note: "OpenAI-compatible · reasoning" }
+    ];
+    const reasoningOptions = ["off", "minimal", "low", "medium", "high", "xhigh", "max"];
+    const state = {
+      step: 1,
+      preset: "openai",
+      connectionMode: "new",
+      flow: "model",
+      connectionName: "备用连接",
+      providerName: "我的供应商",
+      connectionTested: false,
+      selectedModels: [],
+      modelConfigs: {},
+      manualModels: [],
+      expandedModels: {},
+      manualSequence: 0,
+      discoveryStatus: "idle",
+      apiKeyVisible: false,
+      modelsAdded: 3
+    };
+
+    const $ = (selector) => document.querySelector(selector);
+    const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[char]));
+
+    function providerKeyFor(preset = state.preset) {
+      if (preset === "deepseek") return "deepseek-official";
+      if (preset === "custom") return normalizeModelPart(state.providerName || "provider");
+      return "openai-compatible";
+    }
+
+    function normalizeModelPart(value) {
+      return String(value).toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/-+/g, "-").replace(/^[-.]+|[-.]+$/g, "") || "model";
+    }
+
+    function generatedAlias(upstreamId) {
+      const base = `${normalizeModelPart(providerKeyFor())}-${normalizeModelPart(upstreamId)}`;
+      const used = new Set(Object.values(state.modelConfigs).map((config) => config.alias));
+      if (!used.has(base)) return base;
+      let suffix = 2;
+      while (used.has(`${base}-${suffix}`)) suffix += 1;
+      return `${base}-${suffix}`;
+    }
+
+    function defaultConfig(candidate) {
+      const reasoningEnabled = candidate.id === "o4-mini";
+      return {
+        upstreamModelId: candidate.id,
+        alias: generatedAlias(candidate.id),
+        displayName: candidate.label || candidate.id,
+        contextWindow: "256K",
+        maxTokens: "32K",
+        inputTypes: candidate.input || ["text"],
+        reasoningEnabled,
+        reasoningLevels: ["off", "low", "medium", "high"],
+        reasoningMappings: reasoningEnabled ? { off: "", low: "low", medium: "medium", high: "high" } : {},
+        source: candidate.source || "LIVE_API"
+      };
+    }
+
+    function availableCandidates() { return [...candidates, ...state.manualModels]; }
+
+    function ensureConfig(id) {
+      if (!state.modelConfigs[id]) {
+        const candidate = availableCandidates().find((item) => item.id === id);
+        if (candidate) state.modelConfigs[id] = defaultConfig(candidate);
+      }
+      return state.modelConfigs[id];
+    }
+
+    function resetModelSelection() {
+      state.selectedModels = [];
+      state.modelConfigs = {};
+      state.manualModels = [];
+      state.expandedModels = {};
+      state.manualSequence = 0;
+      state.discoveryStatus = "idle";
+    }
+
+    function openWizard(preset = "openai", connectionMode = "new", flow = "model") {
+      state.step = 1;
+      state.preset = preset;
+      state.connectionMode = connectionMode;
+      state.flow = flow;
+      state.connectionTested = false;
+      resetModelSelection();
+      $("#catalogView").hidden = true;
+      $("#providerView").hidden = true;
+      $("#connectionView").hidden = true;
+      $("#wizardView").hidden = false;
+      renderWizard();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function showCatalogView(view) {
+      const isProviders = view === "providers";
+      $("#catalogView").hidden = isProviders;
+      $("#providerView").hidden = !isProviders;
+      $("#connectionView").hidden = true;
+      document.querySelectorAll("[data-view]").forEach((tab) => tab.classList.toggle("active", tab.dataset.view === view || (view === "models" && tab.dataset.view === "models")));
+    }
+
+    function closeWizard() {
+      $("#wizardView").hidden = true;
+      $("#providerView").hidden = true;
+      $("#connectionView").hidden = true;
+      $("#catalogView").hidden = false;
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function exitWizard() {
+      if (state.flow === "attach") {
+        showConnectionView(state.preset, state.connectionName);
+        return;
+      }
+      if (state.flow === "connection") {
+        showCatalogView("providers");
+        return;
+      }
+      closeWizard();
+    }
+
+    function renderWizard() {
+      const connectionFlow = state.flow === "connection";
+      const attachFlow = state.flow === "attach";
+      const titles = connectionFlow ? [["配置连接", "Connection 保存端点、协议和 API Key，可以被多个模型复用。"], ["确认连接", "保存后回到 Provider 页；之后可以从连接行维护任意模型。"]] : attachFlow ? [["维护模型", "维护当前 Connection 下的一个或多个模型，不会创建新的连接。"], ["确认保存", "确认后只保存 ManagedModel，Connection 保持不变。"]] : [
+        ["选择供应商", "先选择 Provider，本次接入会创建一条新的 Connection。"],
+        ["配置连接", "Connection 保存端点、协议和 API Key，可以被多个模型复用。"],
+        ["获取可用模型", "先获取可用模型，再逐条选择或手动维护。"],
+        ["确认保存", "确认将保存新的 Connection，并保存多个受管模型。"]
+      ];
+      const totalSteps = titles.length;
+      $("#wizardHeading").textContent = titles[state.step - 1][0];
+      $("#wizardSubheading").textContent = titles[state.step - 1][1];
+      $("#stepCount").textContent = `${state.step} / ${totalSteps}`;
+      $("#wizardSteps").innerHTML = (connectionFlow ? ["连接", "确认"] : attachFlow ? ["模型", "确认"] : ["供应商", "连接", "模型", "确认"]).map((label, index) => `<div class="step ${index + 1 === state.step ? "active" : ""} ${index + 1 < state.step ? "done" : ""}"><span class="step-index">0${index + 1}</span>${label}</div>`).join("");
+      $("[data-action='wizard-back']").disabled = state.step === 1;
+      $("[data-action='wizard-next']").textContent = connectionFlow ? state.step === 2 ? "保存连接" : "继续" : attachFlow ? state.step === 2 ? "保存维护" : "继续" : state.step === 4 ? `保存 ${state.selectedModels.length} 个模型` : "继续";
+      $("#wizardBody").innerHTML = connectionFlow ? [renderConnectionStep, renderConnectionOnlyConfirm][state.step - 1]() : attachFlow ? [renderModelStep, renderAttachConfirm][state.step - 1]() : [renderProviderStep, renderConnectionStep, renderModelStep, renderConfirmStep][state.step - 1]();
+      renderSummary();
+      bindDynamicEvents();
+    }
+
+    function renderProviderStep() {
+      const custom = state.preset === "custom";
+      const providerName = custom ? "自定义供应商" : state.preset === "deepseek" ? "DeepSeek" : "OpenAI Compatible";
+      return `<h3>先选 Provider</h3><p class="section-note">Provider 只有身份信息；本次接入会创建一条新的 Connection，端点和 Key 在下一步配置。</p>
+        <div class="choice-grid">
+          <button class="choice ${state.preset === "deepseek" ? "selected" : ""}" type="button" data-preset="deepseek"><div class="choice-mark"><div class="choice-logo">DS</div><span class="check">✓</span></div><strong>DeepSeek</strong><p>官方预设 · Anthropic Messages</p><small>已有 1 个连接</small></button>
+          <button class="choice ${state.preset === "openai" ? "selected" : ""}" type="button" data-preset="openai"><div class="choice-mark"><div class="choice-logo">OC</div><span class="check">✓</span></div><strong>OpenAI Compatible</strong><p>已有供应商 · 本次创建新连接<br>端点和 Key 在下一步配置</p><small>已有 2 个连接</small></button>
+          <button class="choice ${custom ? "selected" : ""}" type="button" data-preset="custom"><div class="choice-mark"><div class="choice-logo">＋</div><span class="check">✓</span></div><strong>新建自定义供应商</strong><p>先填写 Provider 元信息<br>再创建第一条连接</p><small>Provider + Connection</small></button>
+        </div>
+        ${custom ? `<div class="form-grid"><div class="field full"><label>供应商名称 <em>*</em></label><input class="input" id="providerName" value="${escapeHtml(state.providerName)}" /><span class="help">供应商内部标识由后台生成，页面不需要填写。</span></div></div>` : ""}
+        <div class="boundary-note" style="margin-top:20px;margin-bottom:0"><strong>本次操作</strong><span>将为 ${providerName} 创建一条新的 Connection。已有 Connection 的模型维护，请从 Provider 页进入连接详情。</span></div>`;
+    }
+
+    function renderConnectionStep() {
+      const deepseek = state.preset === "deepseek";
+      const existing = state.connectionMode === "existing" && state.preset !== "custom";
+      const provider = state.preset === "deepseek" ? "DeepSeek" : state.preset === "custom" ? "自定义供应商" : "OpenAI Compatible";
+      const modelFlow = state.flow === "model";
+      return `<h3>${existing ? `复用 ${provider} 连接` : `新建 ${provider} 连接`}</h3><p class="section-note">连接保存端点、协议、超时和 API Key；模型只引用 connectionId。</p>
+        <div class="form-grid">
+          <div class="field"><label>连接名称 <em>*</em></label><input class="input" id="connectionName" value="${existing ? "生产连接" : state.preset === "deepseek" ? "备用连接" : "备用连接"}" ${existing ? "readonly" : ""} /></div>
+          <div class="field"><label>API 协议 <em>*</em></label><select class="select" id="apiProtocol" ${existing || deepseek ? "disabled" : ""}><option>${deepseek ? "anthropic-messages" : "openai-completions"}</option></select></div>
+          <div class="field full"><label>Base URL <em>*</em></label><input class="input" id="baseUrl" value="${existing ? "https://api.openai.com/v1" : deepseek ? "https://api.deepseek.com" : "https://api.openai.com/v1"}" ${existing ? "readonly" : ""} /></div>
+          ${existing ? `<div class="field full"><label>API Key</label><div class="test-box" style="margin-top:0"><div class="test-result"><span class="test-icon">✓</span><span>该连接已有 API Key，原文不会回填或展示。</span></div><span class="secret-status">已配置</span></div><span class="help">如需替换，请在连接管理中单独执行替换操作。</span></div>` : `<div class="field full"><label>API Key <em>*</em></label><div class="secret-wrap"><input class="input" id="apiKey" type="${state.apiKeyVisible ? "text" : "password"}" placeholder="sk-••••••••••••••••" value="sk-proto-9f2a••••••••" /><button class="secret-toggle" type="button" data-action="toggle-key">${state.apiKeyVisible ? "隐藏" : "显示"}</button></div><span class="help">只在当前配置请求中使用，保存后不会在模型列表或响应中返回原文。</span></div>`}
+        </div>
+        ${modelFlow ? `<div class="test-box"><div class="test-result"><span class="test-icon">i</span><span>下一步“获取可用模型”会直接验证端点和 API Key；无需在这里重复测试。</span></div></div>` : `<div class="test-box"><div class="test-result"><span class="test-icon">${state.connectionTested ? "✓" : "i"}</span><span>${state.connectionTested ? `连接测试通过。API Key ${existing ? "复用已保存凭据" : "已配置"}。` : "先测试连接，确认端点和密钥可用后再保存连接。"}</span></div><button class="button secondary" type="button" data-action="test-connection">${state.connectionTested ? "重新测试" : "测试连接"}</button></div>`}`;
+    }
+
+    function renderConnectionOnlyConfirm() {
+      const deepseek = state.preset === "deepseek";
+      const provider = deepseek ? "DeepSeek" : state.preset === "custom" ? "自定义供应商" : "OpenAI Compatible";
+      const connectionName = state.connectionMode === "existing" ? "生产连接（复用）" : "备用连接（新建）";
+      return `<h3>确认保存连接</h3><p class="section-note">这里只保存一条可复用的 Connection，不会创建模型。保存后可从 Provider 页为它添加多个模型。</p>
+        <div class="summary-block" style="margin-top:18px"><div class="summary-label">Provider</div><div class="summary-value"><strong>${provider}</strong><span>供应商元信息不包含端点和 API Key</span></div></div>
+        <div class="summary-block"><div class="summary-label">ProviderConnection</div><div class="summary-value"><strong>${connectionName}</strong><span>${deepseek ? "https://api.deepseek.com · anthropic-messages" : "https://api.openai.com/v1 · openai-completions"}</span><br><span class="secret-status">${state.connectionMode === "existing" ? "复用已配置 Key" : "新 Key 已配置"}</span></div></div>
+        <div class="test-box"><div class="test-result"><span class="test-icon">✓</span><span>保存后可以继续测试、替换 Key，或从连接行维护模型。</span></div></div>`;
+    }
+
+    function renderAttachConfirm() {
+      return `<h3>确认维护模型</h3><p class="section-note">这里只保存 ${state.selectedModels.length} 个 ManagedModel，并绑定到当前 Connection；不会复制 API Key，也不会创建新连接。</p>
+        <div class="summary-block" style="margin-top:18px"><div class="summary-label">Connection</div><div class="summary-value"><strong>${state.connectionName}</strong><span>现有连接 · API Key 已配置</span></div></div>
+        <div class="model-config-list">${state.selectedModels.map((id) => { const config = ensureConfig(id); return `<div class="model-config-card"><div class="model-config-head"><div><strong>${escapeHtml(config.displayName || config.upstreamModelId || "待填写")}</strong></div><span class="readonly-tag">已选模型</span></div><span class="help">${escapeHtml(config.contextWindow)} · 最大输出 ${escapeHtml(config.maxTokens)} · 输入 ${escapeHtml(config.inputTypes.join("、"))} · 推理 ${escapeHtml(reasoningSummary(config))}</span></div>`; }).join("")}</div>
+        <div class="test-box"><div class="test-result"><span class="test-icon">✓</span><span>保存后可在当前 Connection 下继续维护其他模型。</span></div></div>`;
+    }
+
+    function renderReasoningRows(id, config) {
+      if (!config.reasoningEnabled) return "";
+      const levels = config.reasoningLevels || ["off", "low", "medium", "high"];
+      const used = new Set(levels);
+      return `<div class="field full"><label>推理等级 <span class="help">每个档位只能选择一次</span></label><div class="reasoning-map"><div class="reasoning-row"><span>档位</span><span>API 参数值</span><span></span></div>${levels.map((level) => { const isOff = level === "off"; const options = reasoningOptions.map((option) => `<option value="${option}" ${option === level ? "selected" : ""} ${option !== level && used.has(option) ? "disabled" : ""}>${option}</option>`).join(""); return `<div class="reasoning-row"><select class="select reasoning-level-select" data-config-id="${escapeHtml(id)}" data-reasoning-level-select data-current-level="${escapeHtml(level)}">${options}</select><input class="input" data-config-id="${escapeHtml(id)}" data-config="reasoningMappings" data-reasoning-level="${escapeHtml(level)}" placeholder="${isOff ? "关闭思考" : level}" value="${escapeHtml(config.reasoningMappings[level] || "")}" ${isOff ? "disabled" : ""} /><button class="icon-button danger" type="button" data-action="remove-reasoning-level" data-model-id="${escapeHtml(id)}" data-reasoning-level="${escapeHtml(level)}" aria-label="删除 ${escapeHtml(level)} 档位">×</button></div>`; }).join("")}</div><span class="help">Off 表示关闭思考，不需要填写参数值；已有的 off 值会保留并发送。其他档位默认与档位名相同，需要新增时从未使用的标准档位中选择。</span><button class="button secondary" type="button" data-action="add-reasoning-level" data-model-id="${escapeHtml(id)}" style="margin-top:10px">＋ 添加档位</button></div>`;
+    }
+
+    function reasoningSummary(config) {
+      if (!config.reasoningEnabled) return "未启用";
+      return Object.entries(config.reasoningMappings).filter(([, value]) => value).map(([level, value]) => `${level}=${value}`).join("、") || "未配置";
+    }
+
+    function inputSummary(config) { return config.inputTypes.join("、"); }
+
+    function renderModelRow(id, config) {
+      const expanded = state.expandedModels[id];
+      const manual = config.source === "MANUAL";
+      return `<article class="model-config-card"><div class="model-config-head"><div class="model-identity"><input class="input" data-config-id="${escapeHtml(id)}" data-config="upstreamModelId" value="${escapeHtml(config.upstreamModelId)}" placeholder="模型 ID" ${manual ? "" : "readonly"} /><input class="input" value="${escapeHtml(config.displayName || config.upstreamModelId)}" placeholder="显示名称" readonly /></div><div class="model-row-actions"><button class="icon-button" type="button" data-action="toggle-model-details" data-model-id="${escapeHtml(id)}" aria-expanded="${expanded ? "true" : "false"}" aria-label="${expanded ? "收起" : "展开"}模型配置">${expanded ? "⌃" : "⌄"}</button><button class="icon-button danger" type="button" data-action="remove-selected-model" data-model-id="${escapeHtml(id)}" aria-label="移除模型">⌫</button></div></div>${expanded ? `<div class="model-details"><div class="form-grid"><div class="field"><label>上下文窗口</label><input class="input" data-config-id="${escapeHtml(id)}" data-config="contextWindow" value="${escapeHtml(config.contextWindow)}" /></div><div class="field"><label>最大输出 Token</label><input class="input" data-config-id="${escapeHtml(id)}" data-config="maxTokens" value="${escapeHtml(config.maxTokens)}" /></div><div class="field full"><label>输入类型</label><div class="input-options">${["text", "image"].map((type) => `<label class="input-option"><input type="checkbox" data-config-id="${escapeHtml(id)}" data-input-type="${type}" ${config.inputTypes.includes(type) ? "checked" : ""} />${type === "text" ? "文本" : "图片"}</label>`).join("")}</div><span class="help">至少选择一种输入类型，默认是文本。</span></div><div class="field full"><label>推理能力</label><label class="input-option"><input type="checkbox" data-config-id="${escapeHtml(id)}" data-reasoning-enabled ${config.reasoningEnabled ? "checked" : ""} />启用推理</label></div>${renderReasoningRows(id, config)}</div></div>` : ""}</article>`;
+    }
+
+    function renderModelStep() {
+      const title = state.flow === "attach" ? "维护当前连接模型" : "获取可用模型";
+      const discoveryContent = state.discoveryStatus === "idle" ? `<div class="discovery-empty">点击“获取可用模型”读取当前连接的模型目录。发现失败时仍可在下方手动维护模型。</div>` : state.discoveryStatus === "success" ? `<div class="available-model-list">${candidates.map((candidate) => { const added = state.selectedModels.includes(candidate.id); return `<div class="available-model-row"><span><strong>${escapeHtml(candidate.id)}</strong><small>${escapeHtml(candidate.label)} · ${escapeHtml(candidate.note)}</small></span><button class="button ${added ? "secondary" : "primary"}" type="button" data-action="add-discovered-model" data-model-id="${escapeHtml(candidate.id)}" ${added ? "disabled" : ""}>${added ? "已选择" : "选择"}</button></div>`; }).join("")}</div>` : `<div class="discovery-empty"><strong>未能获取模型目录。</strong> 连接本身可以继续使用，请在下面的模型列表中手动维护上游模型 ID。</div>`;
+      return `<h3>${title}</h3><p class="section-note">先获取可用模型，再逐条选择；不使用勾选框。模型行默认显示上游模型 ID 和显示名称，点击箭头展开详细配置。</p>
+        <div class="discovery-panel"><div class="discovery-head"><div><strong>可用模型</strong><span>${state.discoveryStatus === "success" ? `已获取 ${candidates.length} 个` : "尚未获取"}</span></div><button class="button secondary" type="button" data-action="discover-models">${state.discoveryStatus === "success" ? "重新获取" : "获取可用模型"}</button></div>${discoveryContent}</div>
+        <div class="candidate-toolbar"><span>已选 ${state.selectedModels.length} 个模型</span>${state.selectedModels.length ? `<button class="button text" type="button" data-action="clear-models">清空已选</button>` : ""}</div>
+        <div class="model-config-list">${state.selectedModels.length ? state.selectedModels.map((id) => renderModelRow(id, ensureConfig(id))).join("") : `<div class="discovery-empty">还没有选择模型。</div>`}</div><div class="model-list-footer"><span class="help">没有发现接口或发现失败时，可以从列表底部手动维护上游模型。</span><button class="button secondary" type="button" data-action="add-manual-model">＋ 维护模型</button></div>`;
+    }
+
+    function renderConfirmStep() {
+      const custom = state.preset === "custom";
+      const provider = state.preset === "deepseek" ? "DeepSeek" : custom ? "自定义供应商" : "OpenAI Compatible";
+      const connectionName = state.connectionMode === "existing" && !custom ? `${state.connectionName}（复用）` : "备用连接（新建）";
+      return `<h3>检查后保存</h3><p class="section-note">一次确认将${custom ? "保存 Provider 元信息、" : "复用 Provider 元信息并"}保存 ProviderConnection 和 ${state.selectedModels.length} 个 ManagedModel。</p>
+        <div class="summary-block" style="margin-top:18px"><div class="summary-label">Provider</div><div class="summary-value"><strong>${provider}</strong><span>供应商身份由后台维护</span></div></div>
+        <div class="summary-block"><div class="summary-label">ProviderConnection</div><div class="summary-value"><strong>${connectionName}</strong><span>${state.preset === "deepseek" ? "anthropic-messages" : "openai-completions"} · API Key <span class="secret-status">${state.connectionMode === "existing" && !custom ? "复用已配置" : "新 Key 已配置"}</span></span></div></div>
+        <div class="summary-block"><div class="summary-label">ManagedModel × ${state.selectedModels.length}</div><div class="model-config-list">${state.selectedModels.map((id) => { const config = ensureConfig(id); return `<div class="summary-value"><strong>${escapeHtml(config.displayName || config.upstreamModelId || "待填写")}</strong><span>${escapeHtml(config.contextWindow)} · 最大输出 ${escapeHtml(config.maxTokens)} · 输入 ${escapeHtml(inputSummary(config))} · 推理 ${escapeHtml(reasoningSummary(config))}</span></div>`; }).join("")}</div></div>
+        <div class="test-box"><div class="test-result"><span class="test-icon">✓</span><span>保存模型不会自动授权成员。完成后可在模型集和访问策略中继续配置。</span></div></div>`;
+    }
+
+    function renderSummary() {
+      if (state.flow === "connection") {
+        const provider = state.preset === "deepseek" ? "DeepSeek" : state.preset === "custom" ? "自定义供应商" : "OpenAI Compatible";
+        const protocol = state.preset === "deepseek" ? "anthropic-messages" : "openai-completions";
+        $("#summaryBody").innerHTML = `<div class="summary-block"><div class="summary-label">供应商</div><div class="summary-value"><strong>${provider}</strong><span>只保存身份与展示信息</span></div></div><div class="summary-block"><div class="summary-label">连接</div><div class="summary-value"><strong>${state.connectionMode === "existing" ? "生产连接（复用）" : "备用连接（新建）"}</strong><span>${protocol}</span><br><span class="secret-status">API Key ${state.connectionTested ? "已测试" : "待测试"}</span></div></div><div class="summary-block"><div class="summary-label">下一步</div><div class="summary-value"><span>连接保存后，可从连接行维护多个模型。</span></div></div>`;
+        return;
+      }
+      const custom = state.preset === "custom";
+      const provider = state.preset === "deepseek" ? "DeepSeek" : custom ? "自定义供应商" : "OpenAI Compatible";
+      const protocol = state.preset === "deepseek" ? "anthropic-messages" : "openai-completions";
+      const connectionName = state.connectionMode === "existing" && !custom ? `${state.connectionName}（复用）` : "备用连接（新建）";
+      const connectionStatus = state.flow === "model" ? state.discoveryStatus === "success" ? "已获取模型目录" : "待获取模型目录" : state.connectionTested ? state.connectionMode === "existing" && !custom ? "复用已测试" : "新 Key 已测试" : "待测试";
+      $("#summaryBody").innerHTML = `<div class="summary-block"><div class="summary-label">供应商</div><div class="summary-value"><strong>${provider}</strong><span>供应商身份由后台维护</span></div></div><div class="summary-block"><div class="summary-label">连接</div><div class="summary-value"><strong>${connectionName}</strong><span>${protocol}</span><br><span class="secret-status">API Key ${connectionStatus}</span></div></div><div class="summary-block"><div class="summary-label">模型</div><div class="summary-value"><strong>${state.selectedModels.length} 个模型</strong><span>${state.selectedModels.map((id) => { const config = ensureConfig(id); return escapeHtml(config.displayName || config.upstreamModelId || "待填写"); }).join("、")}</span></div></div><div class="summary-block"><div class="summary-label">运行关系</div><div class="summary-value"><span>模型绑定同一条连接，不复制 API Key。</span></div></div>`;
+    }
+
+    function bindDynamicEvents() {
+      document.querySelectorAll("[data-preset]").forEach((button) => button.addEventListener("click", () => { state.preset = button.dataset.preset; state.connectionMode = "new"; state.connectionTested = false; resetModelSelection(); renderWizard(); }));
+      const providerName = $("#providerName"); if (providerName) providerName.addEventListener("input", (event) => { state.providerName = event.currentTarget.value; });
+      document.querySelectorAll("[data-action='discover-models']").forEach((button) => button.addEventListener("click", () => { state.discoveryStatus = "success"; state.connectionTested = true; renderWizard(); }));
+      document.querySelectorAll("[data-action='add-discovered-model']").forEach((button) => button.addEventListener("click", () => { const id = button.dataset.modelId; if (!state.selectedModels.includes(id)) { state.selectedModels.push(id); ensureConfig(id); } renderWizard(); }));
+      document.querySelectorAll("[data-config]").forEach((input) => ["input", "change"].forEach((eventName) => input.addEventListener(eventName, (event) => { const target = event.currentTarget; const config = ensureConfig(target.dataset.configId); if (target.dataset.config === "reasoningMappings") config.reasoningMappings[target.dataset.reasoningLevel] = target.value; else { config[target.dataset.config] = target.value; if (target.dataset.config === "upstreamModelId" && config.source === "MANUAL" && !config.displayName) config.displayName = target.value; } renderSummary(); })));
+      document.querySelectorAll("[data-input-type]").forEach((input) => input.addEventListener("change", (event) => { const target = event.currentTarget; const config = ensureConfig(target.dataset.configId); const types = new Set(config.inputTypes); if (target.checked) types.add(target.dataset.inputType); else types.delete(target.dataset.inputType); if (!types.size) { target.checked = true; return; } config.inputTypes = [...types]; renderWizard(); }));
+      document.querySelectorAll("[data-reasoning-enabled]").forEach((input) => input.addEventListener("change", (event) => { const config = ensureConfig(event.currentTarget.dataset.configId); config.reasoningEnabled = event.currentTarget.checked; renderWizard(); }));
+      document.querySelectorAll("[data-action='toggle-model-details']").forEach((button) => button.addEventListener("click", () => { const id = button.dataset.modelId; state.expandedModels[id] = !state.expandedModels[id]; renderWizard(); }));
+      document.querySelectorAll("[data-action='remove-selected-model']").forEach((button) => button.addEventListener("click", () => { const id = button.dataset.modelId; state.selectedModels = state.selectedModels.filter((item) => item !== id); state.manualModels = state.manualModels.filter((item) => item.id !== id); delete state.modelConfigs[id]; delete state.expandedModels[id]; renderWizard(); }));
+      document.querySelectorAll("[data-action='add-reasoning-level']").forEach((button) => button.addEventListener("click", () => { const config = ensureConfig(button.dataset.modelId); const levels = config.reasoningLevels || []; const level = reasoningOptions.find((option) => !levels.includes(option)); if (!level) { showToast("没有可添加的推理档位"); return; } levels.push(level); config.reasoningLevels = levels; config.reasoningMappings[level] = level === "off" ? "" : level; state.expandedModels[button.dataset.modelId] = true; renderWizard(); }));
+      document.querySelectorAll("[data-action='remove-reasoning-level']").forEach((button) => button.addEventListener("click", () => { const config = ensureConfig(button.dataset.modelId); const level = button.dataset.reasoningLevel; config.reasoningLevels = config.reasoningLevels.filter((item) => item !== level); delete config.reasoningMappings[level]; renderWizard(); }));
+      document.querySelectorAll("[data-reasoning-level-select]").forEach((select) => select.addEventListener("change", (event) => { const target = event.currentTarget; const config = ensureConfig(target.dataset.configId); const oldLevel = target.dataset.currentLevel; const newLevel = target.value; if (config.reasoningLevels.some((level) => level === newLevel && level !== oldLevel)) { showToast("推理档位不能重复"); renderWizard(); return; } config.reasoningLevels = config.reasoningLevels.map((level) => level === oldLevel ? newLevel : level); config.reasoningMappings[newLevel] = config.reasoningMappings[oldLevel] || (newLevel === "off" ? "" : newLevel); delete config.reasoningMappings[oldLevel]; renderWizard(); }));
+      const addManualModel = $("[data-action='add-manual-model']"); if (addManualModel) addManualModel.addEventListener("click", () => { const id = `manual-${++state.manualSequence}`; state.manualModels.push({ id, label: "", context: "手工添加", note: "未使用模型发现", source: "MANUAL" }); state.selectedModels.push(id); state.modelConfigs[id] = { upstreamModelId: "", alias: generatedAlias(id), displayName: "", contextWindow: "256K", maxTokens: "32K", inputTypes: ["text"], reasoningEnabled: false, reasoningLevels: ["off", "low", "medium", "high"], reasoningMappings: { off: "" }, source: "MANUAL" }; state.expandedModels[id] = true; renderWizard(); });
+      const toggle = $("[data-action='toggle-key']"); if (toggle) toggle.addEventListener("click", () => { state.apiKeyVisible = !state.apiKeyVisible; renderWizard(); });
+      const test = $("[data-action='test-connection']"); if (test) test.addEventListener("click", () => { state.connectionTested = true; renderWizard(); });
+    }
+
+    function nextStep() {
+      if (state.flow === "connection" && state.step === 1 && !state.connectionTested) { showToast("请先测试连接，确认 API Key 可用"); return; }
+      if ((state.flow === "model" && state.step === 3 || state.flow === "attach" && state.step === 1) && state.selectedModels.length === 0) { showToast("至少选择一个模型"); return; }
+      if ((state.flow === "model" && state.step === 3 || state.flow === "attach" && state.step === 1) && state.selectedModels.some((id) => { const config = ensureConfig(id); return config.source === "MANUAL" && !config.upstreamModelId.trim(); })) { showToast("请填写手动模型的上游模型 ID"); return; }
+      if (state.flow === "connection" && state.step === 2) { saveConnection(); return; }
+      if (state.flow === "attach" && state.step === 2) { saveModel(); return; }
+      if (state.step < (state.flow === "connection" || state.flow === "attach" ? 2 : 4)) { state.step += 1; renderWizard(); return; }
+      saveModel();
+    }
+
+    function previousStep() { if (state.step > 1) { state.step -= 1; renderWizard(); } }
+
+    function saveModel() {
+      state.modelsAdded += state.selectedModels.length;
+      const modelRows = $("#modelRows");
+      const provider = state.preset === "deepseek" ? "DeepSeek" : state.preset === "custom" ? "自定义供应商" : "OpenAI Compatible";
+      const glyph = state.preset === "deepseek" ? "DS" : "OC";
+      [...state.selectedModels].reverse().forEach((id) => { const config = ensureConfig(id); const displayName = config.displayName || config.upstreamModelId; modelRows.insertAdjacentHTML("afterbegin", `<div class="model-row"><div class="model-main"><div class="provider-glyph">${glyph}</div><div class="model-name"><strong>${escapeHtml(displayName)}</strong></div></div><div class="cell">${provider}<span class="cell-muted">${state.connectionMode === "existing" ? "生产连接 · 复用 Key" : "备用连接 · 新 Key 已配置"}</span></div><div class="cell">${escapeHtml(reasoningSummary(config))}<span class="cell-muted">${escapeHtml(config.contextWindow)} · 最大输出 ${escapeHtml(config.maxTokens)} · 输入 ${escapeHtml(inputSummary(config))}</span></div><div class="cell"><span class="status on"><span class="status-dot"></span>启用</span></div><div><button class="row-action" type="button">配置</button></div></div>`); });
+      $("#modelCount").textContent = state.modelsAdded;
+      if (state.flow === "attach") {
+        showConnectionView(state.preset, state.connectionName);
+      } else {
+        closeWizard();
+      }
+      showToast(`${state.selectedModels.length} 个模型已保存并绑定连接`);
+    }
+
+    function saveConnection() {
+      $("#wizardView").hidden = true;
+      $("#providerView").hidden = false;
+      $("#catalogView").hidden = true;
+      showCatalogView("providers");
+      showToast("连接已保存，可从连接行维护模型");
+    }
+
+    function showConnectionView(preset, name) {
+      state.preset = preset;
+      state.connectionName = name;
+      $("#wizardView").hidden = true;
+      $("#catalogView").hidden = true;
+      $("#providerView").hidden = true;
+      $("#connectionView").hidden = false;
+      $("#connectionTitle").textContent = name;
+      const endpoint = preset === "deepseek" ? "https://api.deepseek.com" : "https://api.openai.com/v1";
+      const protocol = preset === "deepseek" ? "anthropic-messages" : "openai-completions";
+      $("#connectionMeta").textContent = `${preset === "deepseek" ? "DeepSeek" : "OpenAI Compatible"} · ${protocol}`;
+      $("#connectionBaseUrl").value = endpoint;
+      $("#connectionProtocol").value = protocol;
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function showToast(message) { $("#toastText").textContent = message; $("#toast").hidden = false; window.clearTimeout(showToast.timer); showToast.timer = window.setTimeout(() => { $("#toast").hidden = true; }, 3200); }
+
+    document.addEventListener("click", (event) => {
+      const view = event.target.closest("[data-view]")?.dataset.view;
+      if (view === "models") { showCatalogView("models"); return; }
+      if (view === "providers") { showCatalogView("providers"); return; }
+      if (view === "sets") { showToast("模型集原型不在本次闭环范围内"); return; }
+      const target = event.target.closest("[data-action]");
+      const action = target?.dataset.action;
+      if (action === "open-wizard") openWizard();
+      if (action === "open-new-provider") openWizard("custom", "new");
+      if (action === "add-connection") openWizard(target.dataset.preset, "new", "connection");
+      if (action === "manage-connection") showConnectionView(target.dataset.preset, target.dataset.connectionName);
+      if (action === "attach-model") openWizard(state.preset, "existing", "attach");
+      if (action === "clear-models") { state.selectedModels = []; renderWizard(); }
+      if (action === "test-existing") showToast("连接测试通过，Key 未暴露");
+      if (action === "remove-model") showToast("原型演示：模型移除需要二次确认");
+      if (action === "back-to-catalog") exitWizard();
+      if (action === "back-to-providers") showCatalogView("providers");
+      if (action === "wizard-next") nextStep();
+      if (action === "wizard-back") previousStep();
+    });
+  </script>
+</body>
+</html>

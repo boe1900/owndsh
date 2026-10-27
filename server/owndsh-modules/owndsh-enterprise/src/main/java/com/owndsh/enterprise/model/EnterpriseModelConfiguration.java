@@ -22,6 +22,9 @@ import com.owndsh.enterprise.model.persistence.JdbcBootstrapUserStore;
 import com.owndsh.enterprise.model.persistence.JdbcManagedModelStore;
 import com.owndsh.enterprise.model.persistence.JdbcModelGrantStore;
 import com.owndsh.enterprise.model.persistence.JdbcProviderStore;
+import com.owndsh.enterprise.model.persistence.JdbcProviderConnectionStore;
+import com.owndsh.enterprise.model.persistence.ProviderConnectionStore;
+import com.owndsh.enterprise.model.application.ProviderConnectionService;
 import com.owndsh.enterprise.model.persistence.ManagedModelStore;
 import com.owndsh.enterprise.model.persistence.ModelGrantStore;
 import com.owndsh.enterprise.model.persistence.ProviderStore;
@@ -45,6 +48,9 @@ public class EnterpriseModelConfiguration {
     ProviderStore enterpriseProviderStore(JdbcTemplate jdbcTemplate) {
         return new JdbcProviderStore(jdbcTemplate);
     }
+
+    @Bean
+    ProviderConnectionStore enterpriseProviderConnectionStore(JdbcTemplate jdbcTemplate) { return new JdbcProviderConnectionStore(jdbcTemplate); }
 
     @Bean
     ManagedModelStore enterpriseManagedModelStore(JdbcTemplate jdbcTemplate, JsonMapper jsonMapper) {
@@ -76,23 +82,25 @@ public class EnterpriseModelConfiguration {
         AuditSink auditSink,
         @Qualifier("enterpriseIdSupplier") LongSupplier ids
     ) {
-        return new ProviderService(
-            new TransactionTemplate(transactionManager), providerStore, secretCipher, providerProbe,
-            bootstrapRevisionStore, auditSink, ids
-        );
+        return new ProviderService(new TransactionTemplate(transactionManager), providerStore, bootstrapRevisionStore, auditSink, ids);
+    }
+
+    @Bean
+    ProviderConnectionService enterpriseProviderConnectionService(PlatformTransactionManager transactionManager, ProviderStore providerStore, ProviderConnectionStore connectionStore, SecretCipher secretCipher, ProviderProbe probe, BootstrapRevisionStore revisions, AuditSink audit, @Qualifier("enterpriseIdSupplier") LongSupplier ids) {
+        return new ProviderConnectionService(new TransactionTemplate(transactionManager), providerStore, connectionStore, secretCipher, probe, revisions, audit, ids);
     }
 
     @Bean
     ManagedModelService enterpriseManagedModelService(
         PlatformTransactionManager transactionManager,
         ManagedModelStore modelStore,
-        ProviderStore providerStore,
+        ProviderConnectionStore connectionStore,
         BootstrapRevisionStore bootstrapRevisionStore,
         AuditSink auditSink,
         @Qualifier("enterpriseIdSupplier") LongSupplier ids
     ) {
         return new ManagedModelService(
-            new TransactionTemplate(transactionManager), modelStore, providerStore,
+            new TransactionTemplate(transactionManager), modelStore, connectionStore,
             bootstrapRevisionStore, auditSink, ids
         );
     }

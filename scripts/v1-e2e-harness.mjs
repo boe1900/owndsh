@@ -493,14 +493,14 @@ export async function runHarnessScenarios({ acceptance, admin, fixture, prefix, 
       assert.equal(result.retries.length, 1, JSON.stringify(result));
       assert.ok(['TRANSPORT', 'EMPTY_RESPONSE'].includes(result.retries[0].failure.code));
 
-      providerBefore = data(await admin.expect(`/enterprise/admin/v1/providers/${modelAndQuota.providerIds.responses}`));
+      providerBefore = data(await admin.expect(
+        `/enterprise/admin/v1/providers/${modelAndQuota.providerIds.responses}/connections/${modelAndQuota.connectionIds.responses}`,
+      ));
       const unavailableProvider = data(await admin.update(
-        `/enterprise/admin/v1/providers/${providerBefore.id}`,
+        `/enterprise/admin/v1/providers/${modelAndQuota.providerIds.responses}/connections/${providerBefore.id}`,
         providerBefore.revision,
         {
-          providerKey: providerBefore.providerKey,
           name: providerBefore.name,
-          providerType: providerBefore.providerType,
           apiProtocol: providerBefore.apiProtocol,
           baseUrl: 'http://host.docker.internal:9/v1',
           replaceSecret: false,
@@ -512,12 +512,10 @@ export async function runHarnessScenarios({ acceptance, admin, fixture, prefix, 
       assert.equal(result.retries.length, 5, JSON.stringify(result));
       assert.equal(result.retries.every(value => value.failure.code === 'SERVER'), true);
       providerBefore = data(await admin.update(
-        `/enterprise/admin/v1/providers/${providerBefore.id}`,
+        `/enterprise/admin/v1/providers/${modelAndQuota.providerIds.responses}/connections/${providerBefore.id}`,
         unavailableProvider.revision,
         {
-          providerKey: providerBefore.providerKey,
           name: providerBefore.name,
-          providerType: providerBefore.providerType,
           apiProtocol: providerBefore.apiProtocol,
           baseUrl: fixture.issuer + '/v1',
           replaceSecret: false,
@@ -555,11 +553,11 @@ export async function runHarnessScenarios({ acceptance, admin, fixture, prefix, 
   } finally {
     fixture.setModelMode('success');
     if (providerBefore?.baseUrl !== undefined && providerBefore.baseUrl !== `${fixture.issuer}/v1`) {
-      const current = data(await admin.expect(`/enterprise/admin/v1/providers/${providerBefore.id}`));
-      await admin.update(`/enterprise/admin/v1/providers/${providerBefore.id}`, current.revision, {
-        providerKey: current.providerKey,
+      const current = data(await admin.expect(
+        `/enterprise/admin/v1/providers/${modelAndQuota.providerIds.responses}/connections/${providerBefore.id}`,
+      ));
+      await admin.update(`/enterprise/admin/v1/providers/${modelAndQuota.providerIds.responses}/connections/${providerBefore.id}`, current.revision, {
         name: current.name,
-        providerType: current.providerType,
         apiProtocol: current.apiProtocol,
         baseUrl: `${fixture.issuer}/v1`,
         replaceSecret: false,

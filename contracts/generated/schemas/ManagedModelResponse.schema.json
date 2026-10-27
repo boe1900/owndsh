@@ -14,6 +14,7 @@
       "required": [
         "id",
         "providerId",
+        "connectionId",
         "providerName",
         "alias",
         "modelId",
@@ -28,6 +29,10 @@
           "description": "Managed model snowflake ID serialized as a string."
         },
         "providerId": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,18}$"
+        },
+        "connectionId": {
           "type": "string",
           "pattern": "^[1-9][0-9]{0,18}$"
         },
@@ -59,6 +64,18 @@
         "maxTokens": {
           "type": "integer",
           "minimum": 1
+        },
+        "input": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "text",
+              "image"
+            ]
+          }
         },
         "reasoningEfforts": {
           "oneOf": [

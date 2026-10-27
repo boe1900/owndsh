@@ -5,7 +5,7 @@
 成员清单
 
 QuotaMutationContext.java: 管理策略写入的可信 tenant/actor/request 审计上下文。
-QuotaPolicySpec.java: TOKEN/RATE 字段互斥与 ORGANIZATION/MEMBER 主体、ALL_MODELS/MODEL_SET/MODEL 及组织级 PROVIDER RATE 资源不变量 command。
+QuotaPolicySpec.java: TOKEN/RATE 字段互斥与 ORGANIZATION/MEMBER 主体、ALL_MODELS/MODEL_SET/MODEL 及模型级 RATE 资源不变量 command。
 QuotaPolicyChangeMetadata.java: QUOTA_CHANGED 审计白名单字段。
 QuotaResourceNotFoundException.java: 配额资源不存在稳定领域异常。
 QuotaPolicyInUseException.java: 配额策略已有历史窗口记录时的稳定领域异常，要求停用而非物理删除。

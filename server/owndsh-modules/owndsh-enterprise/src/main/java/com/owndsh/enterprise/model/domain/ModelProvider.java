@@ -1,14 +1,11 @@
 /**
- * [INPUT]: 聚合 Harness providerKey、来源类型、API 协议、endpoint、超时、状态、revision 与 AES-GCM 密文。
- * [OUTPUT]: 对外提供持久化无关 ModelProvider 聚合和 credentialConfigured 事实。
- * [POS]: model/domain 的 provider 聚合根，Web 必须经 ProviderView 隔离密文字段。
+ * [INPUT]: 聚合后台生成的 providerKey、显示名称、描述、状态与 revision。
+ * [OUTPUT]: 对外提供只含供应商元信息的 ModelProvider 聚合。
+ * [POS]: model/domain 的供应商元信息聚合根；端点和密钥属于 ProviderConnection。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.model.domain;
 
-import com.owndsh.enterprise.crypto.EncryptedSecret;
-
-import java.net.URI;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
@@ -17,13 +14,8 @@ public record ModelProvider(
     String tenantId,
     String providerKey,
     String name,
-    ProviderType providerType,
-    ProviderApiProtocol apiProtocol,
-    URI baseUrl,
-    EncryptedSecret encryptedCredential,
+    String description,
     ModelStatus status,
-    int connectTimeoutMs,
-    int readTimeoutMs,
     long revision
 ) {
     private static final Pattern PROVIDER_KEY = Pattern.compile("^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$");
@@ -34,28 +26,24 @@ public record ModelProvider(
         providerKey = requireText(providerKey, "providerKey", 120);
         if (!PROVIDER_KEY.matcher(providerKey).matches()) throw new IllegalArgumentException("providerKey 非法");
         name = requireText(name, "name", 120);
-        Objects.requireNonNull(providerType, "providerType");
-        Objects.requireNonNull(apiProtocol, "apiProtocol");
-        if (providerType == ProviderType.DEEPSEEK_OFFICIAL
-            && apiProtocol != ProviderApiProtocol.ANTHROPIC_MESSAGES) {
-            throw new IllegalArgumentException("DeepSeek 官方只支持 anthropic-messages");
-        }
-        Objects.requireNonNull(baseUrl, "baseUrl");
-        Objects.requireNonNull(encryptedCredential, "encryptedCredential");
+        description = requireOptionalText(description, "description", 500);
         Objects.requireNonNull(status, "status");
-        if (connectTimeoutMs <= 0 || readTimeoutMs <= 0) {
-            throw new IllegalArgumentException("provider timeout 必须为正数");
-        }
         if (revision < 0) throw new IllegalArgumentException("revision 不能为负数");
     }
 
-    public boolean credentialConfigured() {
-        return true;
+    public ModelProvider(long id, String tenantId, String providerKey, String name, ModelStatus status, long revision) {
+        this(id, tenantId, providerKey, name, "", status, revision);
     }
 
     private static String requireText(String value, String name, int maximum) {
         Objects.requireNonNull(value, name);
         if (value.isBlank() || value.length() > maximum) throw new IllegalArgumentException(name + " 非法");
+        return value;
+    }
+
+    private static String requireOptionalText(String value, String name, int maximum) {
+        if (value == null) return "";
+        if (value.length() > maximum) throw new IllegalArgumentException(name + " 非法");
         return value;
     }
 }

@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 接收已校验 endpoint、短生命周期 credential 与连接/读取超时。
+ * [INPUT]: 接收已校验 endpoint、模型发现路径、短生命周期 credential 与连接/读取超时。
  * [OUTPUT]: 对外提供 success、latency、上游状态类别与 Harness 对齐模型候选的 ProviderProbeResult。
  * [POS]: model/application 的上游探测 DIP 端口，只允许模型 id/name/容量越过上游响应边界。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -9,9 +9,18 @@ package com.owndsh.enterprise.model.application;
 import java.net.URI;
 import java.util.List;
 import java.util.Objects;
+import com.owndsh.enterprise.model.domain.ProviderApiProtocol;
 
 public interface ProviderProbe {
     ProviderProbeResult probe(URI baseUrl, char[] credential, int connectTimeoutMs, int readTimeoutMs);
+
+    default ProviderProbeResult probe(ProviderApiProtocol protocol, URI baseUrl, char[] credential, int connectTimeoutMs, int readTimeoutMs) {
+        return probe(baseUrl, credential, connectTimeoutMs, readTimeoutMs);
+    }
+
+    default ProviderProbeResult probe(ProviderApiProtocol protocol, URI baseUrl, String modelDiscoveryPath, char[] credential, int connectTimeoutMs, int readTimeoutMs) {
+        return probe(protocol, baseUrl, credential, connectTimeoutMs, readTimeoutMs);
+    }
 
     record ProviderProbeResult(
         boolean success,
@@ -49,6 +58,7 @@ public interface ProviderProbe {
 
     enum ProviderProbeCategory {
         SUCCESS,
+        MODEL_DIRECTORY_UNSUPPORTED,
         AUTHENTICATION_FAILED,
         UPSTREAM_REJECTED,
         INVALID_RESPONSE,

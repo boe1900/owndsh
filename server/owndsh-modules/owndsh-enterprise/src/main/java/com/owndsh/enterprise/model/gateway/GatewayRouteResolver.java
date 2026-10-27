@@ -14,10 +14,12 @@ import com.owndsh.enterprise.model.application.BootstrapUser;
 import com.owndsh.enterprise.model.application.EffectiveModelResolver;
 import com.owndsh.enterprise.model.domain.ManagedModel;
 import com.owndsh.enterprise.model.domain.ModelProvider;
+import com.owndsh.enterprise.model.domain.ProviderConnection;
 import com.owndsh.enterprise.model.domain.ModelStatus;
 import com.owndsh.enterprise.model.persistence.BootstrapUserStore;
 import com.owndsh.enterprise.model.persistence.ManagedModelStore;
 import com.owndsh.enterprise.model.persistence.ProviderStore;
+import com.owndsh.enterprise.model.persistence.ProviderConnectionStore;
 
 import java.util.List;
 import java.util.Objects;
@@ -30,19 +32,22 @@ public final class GatewayRouteResolver {
     private final EffectiveModelResolver effectiveModels;
     private final ManagedModelStore models;
     private final ProviderStore providers;
+    private final ProviderConnectionStore connections;
 
     public GatewayRouteResolver(
         DeviceService devices,
         BootstrapUserStore users,
         EffectiveModelResolver effectiveModels,
         ManagedModelStore models,
-        ProviderStore providers
+        ProviderStore providers,
+        ProviderConnectionStore connections
     ) {
         this.devices = Objects.requireNonNull(devices, "devices");
         this.users = Objects.requireNonNull(users, "users");
         this.effectiveModels = Objects.requireNonNull(effectiveModels, "effectiveModels");
         this.models = Objects.requireNonNull(models, "models");
         this.providers = Objects.requireNonNull(providers, "providers");
+        this.connections = Objects.requireNonNull(connections, "connections");
     }
 
     public GatewayRoute resolve(DeviceCallContext context, String requestedAlias) {
@@ -61,21 +66,26 @@ public final class GatewayRouteResolver {
         ModelProvider provider = providers.find(context.tenantId(), model.providerId())
             .filter(value -> value.status() == ModelStatus.ACTIVE)
             .orElseThrow(() -> new GatewayException(GatewayException.Kind.MODEL_NOT_ASSIGNED));
-        return new GatewayRoute(user, device, model, provider);
+        ProviderConnection connection = connections.find(context.tenantId(), model.connectionId())
+            .filter(value -> value.status() == ModelStatus.ACTIVE && value.providerId() == provider.id())
+            .orElseThrow(() -> new GatewayException(GatewayException.Kind.MODEL_NOT_ASSIGNED));
+        return new GatewayRoute(user, device, model, provider, connection);
     }
 
     public record GatewayRoute(
         BootstrapUser user,
         EnterpriseDevice device,
         ManagedModel model,
-        ModelProvider provider
+        ModelProvider provider,
+        ProviderConnection connection
     ) {
         public GatewayRoute {
             Objects.requireNonNull(user, "user");
             Objects.requireNonNull(device, "device");
             Objects.requireNonNull(model, "model");
             Objects.requireNonNull(provider, "provider");
-            if (user.id() != device.userId() || model.providerId() != provider.id()) {
+            Objects.requireNonNull(connection, "connection");
+            if (user.id() != device.userId() || model.providerId() != provider.id() || model.connectionId() != connection.id()) {
                 throw new IllegalArgumentException("gateway route 关联不一致");
             }
         }

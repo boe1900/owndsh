@@ -234,7 +234,7 @@ describe('EnterprisePlatformService', () => {
             user: { id: '10031', username: 'zhangsan', displayName: 'Zhang San', departmentId: '210' },
             device: { id: '90018', installationId, status: 'ACTIVE' },
             models: [{
-              alias: 'deepseek-chat', name: 'DeepSeek Chat', apiProtocol: 'openai-completions', contextWindow: 65536,
+              alias: 'deepseek-chat', name: 'DeepSeek Chat', apiProtocol: 'openai-completions', input: ['text', 'image'], contextWindow: 65536,
               maxTokens: 8192, isDefault: true,
             }],
             quotas: [{

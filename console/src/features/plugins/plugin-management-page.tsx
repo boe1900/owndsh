@@ -36,6 +36,7 @@ import { SegmentedControl } from '@/components/atoms/SegmentedControl';
 import { StatusPill } from '@/components/atoms/StatusPill';
 import { ProductDataTable, type ProductTableColumn } from '@/components/product/DataTable';
 import { ProductDialog } from '@/components/product/Dialog';
+import { DialogFooter } from '@/components/product/DialogFooter';
 import { useMembers } from '@/features/member-select';
 import {
   PluginAssignmentDialog,
@@ -622,11 +623,11 @@ export function PluginManagementPage() {
             删除后无法恢复，设备上已安装的插件不会卸载。
           </p>
           {deletion.error ? <p role="alert" className="m-0 rounded-md bg-red-tint px-3 py-2 text-[12.5px] text-red">{deletion.error.message}</p> : null}
-          <footer className="flex justify-end gap-2 border-t border-line pt-4">
+          <DialogFooter>
             <Button size="sm" autoFocus disabled={deletion.isPending} onClick={closeDelete}>取消</Button>
             <Button variant="primary" size="sm" className="bg-red text-white" disabled={deletion.isPending}
               onClick={() => deletion.mutate(deleteTarget)}>{deletion.isPending ? '删除中' : '确认删除'}</Button>
-          </footer>
+          </DialogFooter>
         </div>
       </ProductDialog> : null}
       {retireTarget ? (

@@ -70,7 +70,7 @@ public final class JdbcModelGrantStore implements ModelGrantStore {
         """;
     private static final String EFFECTIVE_SQL = """
         select m.id as model_id, m.alias, m.display_name, m.context_window,
-               m.max_output_tokens, p.api_protocol, m.reasoning_efforts, m.reasoning_compat,
+               m.max_output_tokens, m.input_modalities, p.api_protocol, m.reasoning_efforts, m.reasoning_compat,
                m.sort_order
         from ent_model_grant g
         join ent_managed_model m on m.tenant_id = g.tenant_id and (
@@ -80,7 +80,8 @@ public final class JdbcModelGrantStore implements ModelGrantStore {
             where sm.model_set_id = g.resource_id and sm.model_id = m.id
           ))
         )
-        join ent_model_provider p on p.id = m.provider_id and p.tenant_id = m.tenant_id
+        join ent_model_provider_connection c on c.id = m.connection_id and c.tenant_id = m.tenant_id
+        join ent_model_provider p on p.id = c.provider_id and p.tenant_id = c.tenant_id
         where g.tenant_id = ? and g.status = 'ACTIVE' and m.status = 'ACTIVE' and p.status = 'ACTIVE'
           and (g.subject_type = 'ALL_MEMBERS'
             or (g.subject_type = 'MEMBER' and g.subject_id = ?)
@@ -186,7 +187,7 @@ public final class JdbcModelGrantStore implements ModelGrantStore {
             (resultSet, rowNumber) -> new GrantedModel(
                 resultSet.getLong("model_id"), resultSet.getString("alias"),
                 resultSet.getString("display_name"), nullableInt(resultSet, "context_window"),
-                nullableInt(resultSet, "max_output_tokens"),
+                nullableInt(resultSet, "max_output_tokens"), input(resultSet.getString("input_modalities")),
                 ProviderApiProtocol.fromValue(resultSet.getString("api_protocol")),
                 efforts(resultSet.getString("reasoning_efforts")), compat(resultSet.getString("reasoning_compat")),
                 resultSet.getInt("sort_order")
@@ -194,6 +195,8 @@ public final class JdbcModelGrantStore implements ModelGrantStore {
             tenantId, userId, userId
         );
     }
+
+    private java.util.List<com.owndsh.enterprise.model.domain.ModelInputModality> input(String value) { if (value == null) return java.util.List.of(com.owndsh.enterprise.model.domain.ModelInputModality.TEXT); return json.readTree(value).valueStream().map(v -> com.owndsh.enterprise.model.domain.ModelInputModality.valueOf(v.stringValue().toUpperCase())).toList(); }
 
     private static Integer nullableInt(ResultSet resultSet, String column) throws SQLException {
         int value = resultSet.getInt(column);

@@ -18,11 +18,12 @@ import com.owndsh.enterprise.model.application.EffectiveModelResolver;
 import com.owndsh.enterprise.model.domain.ManagedModel;
 import com.owndsh.enterprise.model.domain.ModelProvider;
 import com.owndsh.enterprise.model.domain.ModelStatus;
+import com.owndsh.enterprise.model.domain.ProviderConnection;
 import com.owndsh.enterprise.model.domain.ProviderApiProtocol;
-import com.owndsh.enterprise.model.domain.ProviderType;
 import com.owndsh.enterprise.model.persistence.BootstrapUserStore;
 import com.owndsh.enterprise.model.persistence.ManagedModelStore;
 import com.owndsh.enterprise.model.persistence.ProviderStore;
+import com.owndsh.enterprise.model.persistence.ProviderConnectionStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -46,7 +47,8 @@ class GatewayRouteResolverTest {
     private final EffectiveModelResolver effective = mock(EffectiveModelResolver.class);
     private final ManagedModelStore models = mock(ManagedModelStore.class);
     private final ProviderStore providers = mock(ProviderStore.class);
-    private final GatewayRouteResolver resolver = new GatewayRouteResolver(devices, users, effective, models, providers);
+    private final ProviderConnectionStore connections = mock(ProviderConnectionStore.class);
+    private final GatewayRouteResolver resolver = new GatewayRouteResolver(devices, users, effective, models, providers, connections);
     private final DeviceCallContext context = new DeviceCallContext(
         "000000", new PlatformSession(
             101, PlatformClient.DSH_DESKTOP, "harness", "123e4567-e89b-42d3-a456-426614174010"
@@ -64,25 +66,30 @@ class GatewayRouteResolverTest {
             "1", "1", DeviceStatus.ACTIVE, Instant.EPOCH, null, 0
         );
         model = new ManagedModel(
-            501, "000000", 301, "DeepSeek", "deepseek-chat", "DeepSeek Chat", "deepseek-v3",
-            8192, 2048, null, null, 0, ModelStatus.ACTIVE, 0
+            501, "000000", 302, 301, "DeepSeek", "deepseek-chat", "DeepSeek Chat", "deepseek-v3",
+            8192, 2048, List.of(com.owndsh.enterprise.model.domain.ModelInputModality.TEXT), null, null, 0, ModelStatus.ACTIVE, 0
         );
         provider = new ModelProvider(
-            301, "000000", "test-provider", "DeepSeek", ProviderType.CUSTOM,
-            ProviderApiProtocol.OPENAI_COMPLETIONS, URI.create("https://api.invalid/v1"),
+            301, "000000", "test-provider", "DeepSeek",             ModelStatus.ACTIVE, 0
+        );
+        ProviderConnection connection = new ProviderConnection(
+            302, "000000", 301, "DeepSeek", "production", ProviderApiProtocol.OPENAI_COMPLETIONS,
+            URI.create("https://api.invalid/v1"),
             new com.owndsh.enterprise.crypto.EncryptedSecret(new byte[16], new byte[12], 1),
-            ModelStatus.ACTIVE, 1000, 1000, 0
+            ModelStatus.ACTIVE, 1000, 1000, null, 0
         );
         when(devices.requireActive(context)).thenReturn(device);
         when(users.findActive("000000", 101)).thenReturn(Optional.of(new BootstrapUser(101, "alice", "Alice", 201L)));
         when(effective.resolve("000000", 101)).thenReturn(List.of(
             new EffectiveModelResolver.EffectiveModel(
-                501, "deepseek-chat", "DeepSeek Chat", 8192, 2048, 0,
+                501, "deepseek-chat", "DeepSeek Chat", 8192, 2048,
+                List.of(com.owndsh.enterprise.model.domain.ModelInputModality.TEXT), 0,
                 ProviderApiProtocol.OPENAI_COMPLETIONS, null, null, true
             )
         ));
         when(models.find("000000", 501)).thenReturn(Optional.of(model));
         when(providers.find("000000", 301)).thenReturn(Optional.of(provider));
+        when(connections.find("000000", 302)).thenReturn(Optional.of(connection));
     }
 
     @Test
@@ -102,9 +109,8 @@ class GatewayRouteResolverTest {
 
         when(users.findActive("000000", 101)).thenReturn(Optional.of(new BootstrapUser(101, "alice", "Alice", 201L)));
         when(providers.find("000000", 301)).thenReturn(Optional.of(new ModelProvider(
-            provider.id(), provider.tenantId(), provider.providerKey(), provider.name(), provider.providerType(),
-            provider.apiProtocol(), provider.baseUrl(), provider.encryptedCredential(), ModelStatus.DISABLED,
-            provider.connectTimeoutMs(), provider.readTimeoutMs(), 1
+            provider.id(), provider.tenantId(), provider.providerKey(), provider.name(),
+            ModelStatus.DISABLED, 1
         )));
         assertThatThrownBy(() -> resolver.resolve(context, "deepseek-chat"))
             .isInstanceOfSatisfying(GatewayException.class,

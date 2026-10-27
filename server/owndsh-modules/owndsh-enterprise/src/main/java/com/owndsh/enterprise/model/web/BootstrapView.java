@@ -34,7 +34,7 @@ public record BootstrapView(
                 Long.toString(snapshot.device().id()), snapshot.device().installationId().toString(), "ACTIVE"
             ),
             snapshot.models().stream().map(value -> new Model(
-                value.alias(), value.name(), value.apiProtocol().value(), value.contextWindow(), value.maxTokens(),
+                value.alias(), value.name(), value.apiProtocol().value(), value.contextWindow(), value.maxTokens(), value.input().stream().map(v -> v.name().toLowerCase()).toList(),
                 value.reasoningEfforts() == null ? null : value.reasoningEfforts().jsonValue(),
                 value.reasoningCompat() == null ? null : value.reasoningCompat().jsonValue(), value.isDefault()
             )).toList(),
@@ -69,6 +69,7 @@ public record BootstrapView(
         String apiProtocol,
         Integer contextWindow,
         Integer maxTokens,
+        List<String> input,
         Object reasoningEfforts,
         Object compat,
         boolean isDefault
