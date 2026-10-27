@@ -25,7 +25,7 @@ function option(name, fallback) {
   return index === -1 ? fallback : args[index + 1]
 }
 
-const tgz = resolve(option('--tgz', resolve(PROJECT_ROOT, 'artifacts', 'owndsh-plugin-0.1.0.tgz')))
+const tgz = resolve(option('--tgz', resolve(PROJECT_ROOT, 'artifacts', 'owndsh-plugin-0.1.0-beta.19.tgz')))
 const harnessRoot = resolve(option('--harness-root', DEFAULT_HARNESS_ROOT))
 const harnessLock = JSON.parse(await readFile(resolve(PROJECT_ROOT, 'upstream', 'deepseek-harness.lock.json'), 'utf8'))
 const temporaryDshHome = await mkdtemp(resolve(tmpdir(), 'enterprise-t07-browser-'))

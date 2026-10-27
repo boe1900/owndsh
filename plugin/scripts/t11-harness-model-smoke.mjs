@@ -26,7 +26,7 @@ function option(name, fallback) {
   return index === -1 ? fallback : args[index + 1]
 }
 
-const tgz = resolve(option('--tgz', resolve(PROJECT_ROOT, 'artifacts', 'owndsh-plugin-0.1.0.tgz')))
+const tgz = resolve(option('--tgz', resolve(PROJECT_ROOT, 'artifacts', 'owndsh-plugin-0.1.0-beta.19.tgz')))
 const harnessRoot = resolve(option('--harness-root', DEFAULT_HARNESS_ROOT))
 const keep = args.includes('--keep')
 const temporaryDshHome = await mkdtemp(resolve(tmpdir(), 'enterprise-t11-model-'))

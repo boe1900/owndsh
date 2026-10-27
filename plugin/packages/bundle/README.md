@@ -9,7 +9,7 @@
 
 OwnDsh 的 DeepSeek Harness 官方扩展点插件。它把 DSH Desktop 或 Harness Web 连接到自托管 OwnDsh Server，让员工使用企业身份、受管模型和受管插件，而不在本机保存供应商 API Key。
 
-> 本包版本为 `0.1.0-beta.18`，面向 Harness `0.2.1-rc.2`，发布渠道为 npm `next`。
+> 本包版本为 `0.1.0-beta.19`，面向 Harness `0.2.1-rc.3`，发布渠道为 npm `next`。
 
 ## 安装
 
@@ -58,7 +58,7 @@ dsh plugin --profile web add --ignore-scripts owndsh-plugin@next
 
 ## 兼容性与边界
 
-当前验证基线是 DeepSeek Harness `0.2.1-rc.2`。OwnDsh 不替换官方 Web/Desktop UI，不访问员工工作区，也不实现第二套模型协议。MCP 工具、资源和 OAuth 连接均使用官方 client：OwnDsh 只提供 OAuth SDK 所需的凭据记录、系统浏览器和本机 loopback callback 宿主接缝。
+当前验证基线是 DeepSeek Harness `0.2.1-rc.3`。OwnDsh 不替换官方 Web/Desktop UI，不访问员工工作区，也不实现第二套模型协议。MCP 工具、资源和 OAuth 连接均使用官方 client 2.2：OwnDsh 只提供 OAuth SDK 所需的凭据记录、系统浏览器和本机 loopback callback 宿主接缝。
 
 登录和企业模型只需安装本包。管理员发布插件的 npm 包名、精确版本和展示元数据后，OwnDsh Server 会提供标准 DSH plugin market index；该接口要求当前 DSH Desktop Bearer 会话，插件只在本机 loopback 暴露代理，不把 Access Token 写入市场 URL。员工在官方「Plugins → Discover」页面发现并安装插件，官方 `pluginManager` 负责安装、启停、更新和卸载，其他设备独立选择。
 
