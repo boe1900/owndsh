@@ -11,5 +11,6 @@ SkillCatalogServiceTest.java: P1 catalog draft 登记、CAS 发布/撤销/恢复
 SkillArchiveValidatorTest.java: P1 公开源码 ZIP、WorkBuddy frontmatter、路径和大小边界回归。
 SkillArtifactStoreTest.java: P1 本地不可变 artifact 保存、摘要和符号链接边界回归。
 application/GitLabSkillArtifactStoreTest.java: P1 GitLab Generic Package Registry 上传坐标、Deploy-Token、重复坐标和下载摘要回归。
+SkillSourceCredentialServiceTest.java: 凭据加密、租户/项目范围校验、过期/撤销失败和请求后清零回归。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

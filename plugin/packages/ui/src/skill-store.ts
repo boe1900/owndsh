@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖同源 local-api 的已安装/可安装 skill 投影、设备级启用/安装/卸载动作和可取消请求
- * [OUTPUT]: 提供技能 Tab 的可安装/已安装 loading/ready/error snapshot、串行动作和刷新生命周期
+ * [OUTPUT]: 提供技能 Tab 的可安装/可更新/已安装 loading/ready/error snapshot、串行动作和刷新生命周期
  * [POS]: dsh-ui 的 skill 状态控制器；不解析 SKILL.md、不操作路径、不接触 Server 凭据
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */

@@ -52,7 +52,7 @@ export const zRevisionedProtocolResource = z.object({
 
 export const zProtocolMetadata = z.object({
     contractVersion: z.literal('v1'),
-    errorCodeCount: z.literal(37),
+    errorCodeCount: z.literal(38),
     status: z.literal('ok')
 }).strict();
 
@@ -73,6 +73,7 @@ export const zProtocolPageResponse = z.object({
 
 export const zEnterpriseErrorCode = z.enum([
     'ENT_INVALID_REQUEST',
+    'ENT_SOURCE_CREDENTIAL_INVALID',
     'ENT_INVALID_REDIRECT_URI',
     'ENT_PKCE_REQUIRED',
     'ENT_SESSION_FORMAT_UNSUPPORTED',

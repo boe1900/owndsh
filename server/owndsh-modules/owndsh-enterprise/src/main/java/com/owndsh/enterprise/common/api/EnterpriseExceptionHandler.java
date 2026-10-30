@@ -42,6 +42,7 @@ import com.owndsh.enterprise.session.application.SessionException;
 import com.owndsh.enterprise.skill.application.SkillArchiveValidator;
 import com.owndsh.enterprise.skill.application.SkillResourceNotFoundException;
 import com.owndsh.enterprise.skill.application.HttpSkillSourceClient;
+import com.owndsh.enterprise.skill.application.SkillSourceCredentialService;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -320,6 +321,14 @@ public final class EnterpriseExceptionHandler {
             ? "仓库访问凭据无权读取该源码"
             : "技能源码源暂时不可用或返回无效响应";
         return error(status, code, message, retryable, null, request);
+    }
+
+    @ExceptionHandler(SkillSourceCredentialService.SourceCredentialException.class)
+    public ResponseEntity<EnterpriseErrorResponse> skillSourceCredential(
+        SkillSourceCredentialService.SourceCredentialException exception,
+        HttpServletRequest request
+    ) {
+        return error(HttpStatus.BAD_REQUEST, "ENT_SOURCE_CREDENTIAL_INVALID", exception.getMessage(), false, null, request);
     }
 
     @ExceptionHandler(SkillResourceNotFoundException.class)

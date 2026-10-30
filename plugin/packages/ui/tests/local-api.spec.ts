@@ -66,7 +66,7 @@ describe('enterprise local browser API', () => {
       releaseId: '2111017572514631681', name: 'sample-skill', displayName: 'sample-skill',
       description: '用于回归测试的技能', version: '1.0.0', userInvocable: true,
       artifactSizeBytes: 3216, artifactSha256: '1c7fdca4270d3acc8d52dd71d537350fac90378c3743254f55cda6b90c756ede',
-      hasIcon: false as const,
+      hasIcon: false as const, updateAvailable: false,
     }
     expect(decodeEnterpriseAvailableSkills({ skills: [skill] })).toEqual([skill])
     const fetcher = vi.fn(async () => ok({ skills: [skill] }))

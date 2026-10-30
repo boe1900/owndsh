@@ -7,6 +7,7 @@
 
 export const enterpriseErrorStatuses = {
   "ENT_INVALID_REQUEST": 400,
+  "ENT_SOURCE_CREDENTIAL_INVALID": 400,
   "ENT_INVALID_REDIRECT_URI": 400,
   "ENT_PKCE_REQUIRED": 400,
   "ENT_SESSION_FORMAT_UNSUPPORTED": 400,
@@ -53,4 +54,4 @@ export const enterpriseErrorStatuses = {
   "ENT_UPSTREAM_TIMEOUT": 504
 } as const
 
-export const enterpriseProtocolSha256 = '5e57068b73ed434d99e6a7f2e49626f49c2c5a2f74aabb3359c2d2ff79caac98'
+export const enterpriseProtocolSha256 = '9c23ba9d7e471f157e84fd32086cf11cdc426ffe672ae73429cea1f18059ae18'

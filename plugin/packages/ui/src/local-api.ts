@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖浏览器 fetch 与 platform-client 的按需同源 JSON 协议
- * [OUTPUT]: 对外提供严格账号/可安装与已安装技能/MCP 状态解码（含技能图标、安装动作、工具简介、重新授权与授权进度）、连接动作，以及 Server 地址/登录/整包卸载与显式刷新端口
+ * [OUTPUT]: 对外提供严格账号/可安装与已安装技能/MCP 状态解码（含技能图标、安装/更新动作、工具简介、重新授权与授权进度）、连接动作，以及 Server 地址/登录/整包卸载与显式刷新端口
  * [POS]: dsh-ui 的浏览器网络边界，只投影 Settings 所需事实并拒绝秘密、正文与本地执行细节
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -61,6 +61,8 @@ export interface EnterpriseInstalledSkill {
   readonly userInvocable: boolean
   readonly enabled: boolean
   readonly hasIcon: boolean
+  readonly releaseId?: string
+  readonly artifactSha256?: string
   readonly actions?: {
     readonly file: boolean
     readonly directory: boolean
@@ -78,6 +80,8 @@ export interface EnterpriseAvailableSkill {
   readonly artifactSizeBytes: number
   readonly artifactSha256: string
   readonly hasIcon: false
+  readonly updateAvailable: boolean
+  readonly installedVersion?: string
 }
 
 export interface EnterpriseMcpAssignment {
@@ -270,13 +274,15 @@ export function decodeEnterpriseSkills(value: unknown): readonly EnterpriseInsta
   const names = new Set<string>()
   return source['skills'].map(item => {
     const row = record(item)
-    if (row === undefined || !hasExactKeys(row, ['name', 'displayName', 'description', 'version', 'userInvocable', 'enabled', 'hasIcon'], ['category', 'actions'])
+    if (row === undefined || !hasExactKeys(row, ['name', 'displayName', 'description', 'version', 'userInvocable', 'enabled', 'hasIcon'], ['category', 'actions', 'releaseId', 'artifactSha256'])
       || !skillName(row['name']) || names.has(row['name'])
       || !nonEmptyString(row['displayName']) || row['displayName'].length > 200
       || typeof row['description'] !== 'string' || row['description'].length > 16 * 1024
       || !nonEmptyString(row['version']) || row['version'].length > 255
       || typeof row['userInvocable'] !== 'boolean' || typeof row['enabled'] !== 'boolean' || typeof row['hasIcon'] !== 'boolean'
-      || (row['category'] !== undefined && (typeof row['category'] !== 'string' || row['category'].length > 100))) {
+      || (row['category'] !== undefined && (typeof row['category'] !== 'string' || row['category'].length > 100))
+      || (row['releaseId'] !== undefined && !releaseId(row['releaseId']))
+      || (row['artifactSha256'] !== undefined && !artifactSha256(row['artifactSha256']))) {
       throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
     }
     const actions = record(row['actions'])
@@ -301,14 +307,15 @@ export function decodeEnterpriseAvailableSkills(value: unknown): readonly Enterp
   const names = new Set<string>()
   return source['skills'].map(item => {
     const row = record(item)
-    if (row === undefined || !hasExactKeys(row, ['releaseId', 'name', 'displayName', 'description', 'version', 'userInvocable', 'artifactSizeBytes', 'artifactSha256', 'hasIcon'], ['category'])
+    if (row === undefined || !hasExactKeys(row, ['releaseId', 'name', 'displayName', 'description', 'version', 'userInvocable', 'artifactSizeBytes', 'artifactSha256', 'hasIcon', 'updateAvailable'], ['category', 'installedVersion'])
       || !releaseId(row['releaseId']) || !skillName(row['name']) || names.has(row['name'])
       || !nonEmptyString(row['displayName']) || row['displayName'].length > 200
       || typeof row['description'] !== 'string' || row['description'].length > 16 * 1024
       || !nonEmptyString(row['version']) || row['version'].length > 255
       || typeof row['userInvocable'] !== 'boolean' || !artifactSize(row['artifactSizeBytes'])
-      || !artifactSha256(row['artifactSha256']) || row['hasIcon'] !== false
-      || (row['category'] !== undefined && (typeof row['category'] !== 'string' || row['category'].length > 100))) {
+      || !artifactSha256(row['artifactSha256']) || row['hasIcon'] !== false || typeof row['updateAvailable'] !== 'boolean'
+      || (row['category'] !== undefined && (typeof row['category'] !== 'string' || row['category'].length > 100))
+      || (row['installedVersion'] !== undefined && (!nonEmptyString(row['installedVersion']) || row['installedVersion'].length > 255))) {
       throw new EnterpriseLocalApiError('ENT_LOCAL_RESPONSE_INVALID')
     }
     names.add(row['name'])

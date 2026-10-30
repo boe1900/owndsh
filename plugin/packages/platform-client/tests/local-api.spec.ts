@@ -107,12 +107,12 @@ describe('enterprise local API', () => {
 
     vi.mocked(platform.availableSkills!).mockResolvedValue([{
       name: 'sample-skill', displayName: 'Sample Skill', description: 'Download media', version: '1.0.0',
-      userInvocable: true, hasIcon: false,
+      userInvocable: true, hasIcon: false, updateAvailable: false,
     }])
     const catalog = await fetch(`${baseUrl}/enterprise/api/v1/local/skill-catalog`)
     await expect(catalog.json()).resolves.toEqual({ data: { skills: [{
       name: 'sample-skill', displayName: 'Sample Skill', description: 'Download media', version: '1.0.0',
-      userInvocable: true, hasIcon: false,
+      userInvocable: true, hasIcon: false, updateAvailable: false,
     }] } })
 
     const installed = await fetch(`${baseUrl}/enterprise/api/v1/local/skills/sample-skill/install`, {
@@ -143,6 +143,16 @@ describe('enterprise local API', () => {
       body: '{"enabled":false}', headers: { 'content-type': 'application/json' }, method: 'POST',
     })
     expect(invalid.status).toBe(404)
+  })
+
+  it('preserves source credential failures for skill installs', async () => {
+    vi.mocked(platform.installSkill!).mockRejectedValue({ code: 'ENT_SOURCE_CREDENTIAL_INVALID' })
+    registerEnterpriseLocalApi(webServer, { platform })
+    const response = await fetch(`${baseUrl}/enterprise/api/v1/local/skills/sample-skill/install`, {
+      body: '{}', headers: { 'content-type': 'application/json' }, method: 'POST',
+    })
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toEqual({ error: { code: 'ENT_SOURCE_CREDENTIAL_INVALID' } })
   })
 
   it('validates empty JSON action DTOs and dispatches login, cancel, and logout', async () => {

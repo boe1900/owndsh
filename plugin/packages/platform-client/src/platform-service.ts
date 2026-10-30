@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Cordis Service/WebServer/settings forms/credentials、T02 contracts、PKCE/installation/browser 原语与 Node fetch
- * [OUTPUT]: 提供 ctx.enterprisePlatform、OwnDsh Settings 命名空间、本地 skill 目录/安装/动作、启动恢复退避与按需刷新/Token 轮换；仅无活动会话时允许清理凭据并修改 Server
+ * [OUTPUT]: 提供 ctx.enterprisePlatform、OwnDsh Settings 命名空间、本地 skill 目录/安装/更新/动作、启动恢复退避与按需刷新/Token 轮换；仅无活动会话时允许清理凭据并修改 Server
  * [POS]: platform-client 的 Host 业务核心，跨 Web/Desktop 复用官方凭据平面且不向 Client UI 暴露任何 Token
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -372,27 +372,35 @@ export class EnterprisePlatformService extends Service {
     this.assertOpen()
     const snapshot = this.bootstrapSnapshot
     if (snapshot === undefined || !['READY', 'REFRESHING'].includes(this.currentStatus.state)) return []
-    const installed = new Set((await this.skillRuntime.list()).map(skill => skill.name))
+    const installed = new Map((await this.skillRuntime.list()).map(skill => [skill.name, skill] as const))
     const seen = new Set<string>()
     return snapshot.skills.skills
-      .filter(skill => !installed.has(skill.metadata.name))
+      .filter(skill => {
+        const local = installed.get(skill.metadata.name)
+        return local === undefined || local.version !== skill.metadata.version || local.artifactSha256 !== skill.artifactSha256
+      })
       .filter(skill => {
         if (seen.has(skill.metadata.name)) return false
         seen.add(skill.metadata.name)
         return true
       })
-      .map(skill => ({
-        releaseId: skill.releaseId,
-        name: skill.metadata.name,
-        displayName: skill.metadata.name,
-        description: skill.metadata.description,
-        ...(skill.metadata.categories?.[0] === undefined ? {} : { category: skill.metadata.categories[0] }),
-        version: skill.metadata.version,
-        userInvocable: skill.metadata.userInvocable,
-        artifactSizeBytes: skill.artifactSizeBytes,
-        artifactSha256: skill.artifactSha256,
-        hasIcon: false as const,
-      }))
+      .map(skill => {
+        const local = installed.get(skill.metadata.name)
+        return {
+          releaseId: skill.releaseId,
+          name: skill.metadata.name,
+          displayName: skill.metadata.name,
+          description: skill.metadata.description,
+          ...(skill.metadata.categories?.[0] === undefined ? {} : { category: skill.metadata.categories[0] }),
+          version: skill.metadata.version,
+          userInvocable: skill.metadata.userInvocable,
+          artifactSizeBytes: skill.artifactSizeBytes,
+          artifactSha256: skill.artifactSha256,
+          hasIcon: false as const,
+          updateAvailable: local !== undefined,
+          ...(local?.version === undefined ? {} : { installedVersion: local.version }),
+        }
+      })
   }
 
   /** 按用户选择下载并确认指定 skill 已进入本地专用目录。 */

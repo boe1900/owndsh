@@ -219,6 +219,7 @@ paths:
 x-enterprise-error-statuses:
   '400':
     - ENT_INVALID_REQUEST
+    - ENT_SOURCE_CREDENTIAL_INVALID
     - ENT_INVALID_REDIRECT_URI
     - ENT_PKCE_REQUIRED
     - ENT_SESSION_FORMAT_UNSUPPORTED
@@ -1021,7 +1022,7 @@ components:
           const: v1
         errorCodeCount:
           type: integer
-          const: 37
+          const: 38
         status:
           type: string
           const: ok
@@ -1058,6 +1059,7 @@ components:
       type: string
       enum:
         - ENT_INVALID_REQUEST
+        - ENT_SOURCE_CREDENTIAL_INVALID
         - ENT_INVALID_REDIRECT_URI
         - ENT_PKCE_REQUIRED
         - ENT_SESSION_FORMAT_UNSUPPORTED

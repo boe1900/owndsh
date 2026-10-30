@@ -9,11 +9,16 @@ import { describe, expect, it } from 'vitest'
 import { mergeSkillRows, skillCategories, skillCategory, ALL_SKILLS_CATEGORY, UNCATEGORIZED_SKILLS_CATEGORY } from '../src/skill-market-filters.js'
 
 const installed = { name: 'code-review', displayName: 'Code Review', description: 'Review', category: '开发工具', version: '1.0.0', userInvocable: true, enabled: true, hasIcon: false } as const
-const available = { releaseId: '990', name: 'sample-skill', displayName: 'Sample Skill', description: 'Download media', version: '1.0.0', userInvocable: true, artifactSizeBytes: 1024, artifactSha256: 'a'.repeat(64), hasIcon: false } as const
+const available = { releaseId: '990', name: 'sample-skill', displayName: 'Sample Skill', description: 'Download media', version: '1.0.0', userInvocable: true, artifactSizeBytes: 1024, artifactSha256: 'a'.repeat(64), hasIcon: false, updateAvailable: false } as const
 
 describe('skill market projection', () => {
   it('merges available and installed rows with the local copy winning', () => {
     expect(mergeSkillRows([installed], [available, { ...available, name: installed.name, releaseId: '991' }])).toEqual([available, installed])
+  })
+
+  it('keeps an update row visible when the catalog has a newer release', () => {
+    const update = { ...available, name: installed.name, version: '1.1.0', installedVersion: installed.version, updateAvailable: true }
+    expect(mergeSkillRows([installed], [update])).toEqual([update])
   })
 
   it('returns stable category filters and a visible fallback for uncategorized skills', () => {

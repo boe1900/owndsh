@@ -10,7 +10,7 @@ import type { EnterpriseLocalApi } from '../src/local-api.js'
 import { EnterpriseSkillStore } from '../src/skill-store.js'
 
 const skill = { name: 'code-review', displayName: 'Code Review', description: 'Review', version: '1.0.0', userInvocable: true, enabled: true, hasIcon: false } as const
-const availableSkill = { releaseId: '990', name: 'sample-skill', displayName: 'Sample Skill', description: 'Download media', version: '1.0.0', userInvocable: true, artifactSizeBytes: 1024, artifactSha256: 'a'.repeat(64), hasIcon: false } as const
+const availableSkill = { releaseId: '990', name: 'sample-skill', displayName: 'Sample Skill', description: 'Download media', version: '1.0.0', userInvocable: true, artifactSizeBytes: 1024, artifactSha256: 'a'.repeat(64), hasIcon: false, updateAvailable: false } as const
 
 function api(overrides: Partial<EnterpriseLocalApi> = {}): EnterpriseLocalApi {
   return {

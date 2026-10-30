@@ -107,15 +107,15 @@ public final class SkillSourceCredentialService {
     public char[] secret(String tenantId, Long credentialId, String repositoryUrl) {
         if (credentialId == null) return null;
         SkillSourceCredential credential = get(tenantId, credentialId);
-        if (!credential.usable(Instant.now())) throw new IllegalArgumentException("Skill 仓库凭据已过期或已撤销");
+        if (!credential.usable(Instant.now())) throw new SourceCredentialException("Skill 仓库凭据已过期或已撤销");
         if (repositoryUrl != null && !repositoryUrl.isBlank()) {
             java.net.URI uri = java.net.URI.create(repositoryUrl);
-            if (!credential.host().equalsIgnoreCase(uri.getHost())) throw new IllegalArgumentException("Skill 仓库凭据 host 不匹配");
+            if (!credential.host().equalsIgnoreCase(uri.getHost())) throw new SourceCredentialException("Skill 仓库凭据 host 不匹配");
             String project = uri.getPath().replaceFirst("^/", "");
             if (project.endsWith(".git")) project = project.substring(0, project.length() - 4);
             if (credential.projectPath() != null && !credential.projectPath().isBlank()
                 && !(project.equals(credential.projectPath()) || project.startsWith(credential.projectPath() + "/"))) {
-                throw new IllegalArgumentException("Skill 仓库凭据项目范围不匹配");
+                throw new SourceCredentialException("Skill 仓库凭据项目范围不匹配");
             }
         }
         byte[] plain = cipher.decrypt(SecretPurpose.SKILL_SOURCE,
@@ -198,6 +198,12 @@ public final class SkillSourceCredentialService {
 
         void clear() {
             if (token != null) Arrays.fill(token, '\0');
+        }
+    }
+
+    public static final class SourceCredentialException extends RuntimeException {
+        public SourceCredentialException(String message) {
+            super(message);
         }
     }
 }

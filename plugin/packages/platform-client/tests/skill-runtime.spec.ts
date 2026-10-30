@@ -97,6 +97,20 @@ describe('enterprise skill runtime', () => {
     }])
   })
 
+  it('uses the manifest release version when SKILL.md omits one', async () => {
+    const dshHome = await home()
+    const runtime = new EnterpriseSkillRuntime({ dshHome })
+    const artifact = zipSkill('code-review', '---\nname: code-review\ndescription: review\n---\n\nbody\n')
+    const artifactSha256 = createHash('sha256').update(artifact).digest('hex')
+    await runtime.install({
+      releaseId: '990',
+      metadata: { name: 'code-review', version: '1.0.0', description: 'review', license: 'MIT', author: 'test', userInvocable: true, modelInvocable: true },
+      artifactSizeBytes: artifact.byteLength,
+      artifactSha256,
+    }, async () => artifact)
+    await expect(runtime.list()).resolves.toMatchObject([{ name: 'code-review', version: '1.0.0' }])
+  })
+
   it('serializes device enablement and invalidates the official provider seam', async () => {
     const dshHome = await home()
     await skill(dshHome, 'code-review')
@@ -167,6 +181,11 @@ describe('enterprise skill runtime', () => {
     await expect(runtime.install(skill, async () => artifact)).resolves.toBeUndefined()
     await expect(runtime.list()).resolves.toMatchObject([{ name: 'code-review', version: '1.0.0', enabled: true }])
     expect(invalidate).toHaveBeenCalledOnce()
+
+    const revisedArtifact = zipSkill('code-review', content.replace('body', 'revised body'))
+    const revisedSha256 = createHash('sha256').update(revisedArtifact).digest('hex')
+    await expect(runtime.install({ ...skill, artifactSizeBytes: revisedArtifact.byteLength, artifactSha256: revisedSha256 }, async () => revisedArtifact)).resolves.toBeUndefined()
+    await expect(runtime.list()).resolves.toMatchObject([{ name: 'code-review', version: '1.0.0', artifactSha256: revisedSha256 }])
 
     await expect(runtime.install({ ...skill, artifactSha256: 'b'.repeat(64), metadata: { ...skill.metadata, version: '1.1.0' } }, async () => {
       throw new Error('offline')

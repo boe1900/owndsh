@@ -49,8 +49,16 @@ class SkillSourceCredentialServiceTest {
             .containsExactly("glpat-secret-value".toCharArray());
         assertThat(input.token()).containsOnly('\0');
         assertThatThrownBy(() -> service.secret("000000", created.id(), "https://gitlab.example.com/other/repo"))
-            .isInstanceOf(IllegalArgumentException.class)
+            .isInstanceOf(SkillSourceCredentialService.SourceCredentialException.class)
             .hasMessageContaining("项目范围不匹配");
+
+        SkillSourceCredential expired = service.create(CONTEXT, new SkillSourceCredentialService.CredentialInput(
+            "已过期", "gitlab.example.com", "team/skills", Instant.now().minusSeconds(1),
+            "glpat-expired".toCharArray()));
+        when(store.find("000000", expired.id())).thenReturn(Optional.of(expired));
+        assertThatThrownBy(() -> service.secret("000000", expired.id(), "https://gitlab.example.com/team/skills.git"))
+            .isInstanceOf(SkillSourceCredentialService.SourceCredentialException.class)
+            .hasMessageContaining("过期或已撤销");
     }
 
     private static TransactionOperations transactions() {

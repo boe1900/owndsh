@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Harness `ctx.webServer.register()` route port、平台操作端口及组合层注入的插件动作端口
- * [OUTPUT]: 提供账号/配置按需刷新与技能目录、安装操作的严格同源 JSON 路由，无常驻状态连接
+ * [OUTPUT]: 提供账号/配置按需刷新与技能目录、安装/更新操作的严格同源 JSON 路由，无常驻状态连接
  * [POS]: platform-client 的 Host/Client 同源协作边界，只序列化脱敏 DTO 并把认证 HTTP 留在 Host Service
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -84,9 +84,17 @@ function actionErrorStatus(error: unknown): number {
   if (code === 'ENT_PLUGIN_BUSY') return 409
   if (code === 'ENT_AUTH_REQUIRED' || code === 'ENT_AUTH_SESSION_EXPIRED') return 401
   if (code === 'ENT_DEVICE_REVOKED' || code === 'ENT_PERMISSION_DENIED') return 403
+  if (code === 'ENT_SOURCE_CREDENTIAL_INVALID') return 400
   if (code === 'ENT_RESOURCE_NOT_FOUND') return 404
   if (code === 'ENT_SKILL_NOT_FOUND') return 404
   return 503
+}
+
+function responseErrorCode(error: unknown, status: number): string {
+  if (status === 413) return 'ENT_REQUEST_TOO_LARGE'
+  const code = errorCode(error)
+  if (status === 400 && code !== 'ENT_SOURCE_CREDENTIAL_INVALID') return 'ENT_INVALID_REQUEST'
+  return code
 }
 
 async function readJson(request: IncomingMessage): Promise<unknown> {
@@ -164,7 +172,7 @@ function registerSkillAction(
         writeJson(response, 200, { data: { name, opened: true } })
       } catch (error) {
         const status = actionErrorStatus(error)
-        writeJson(response, status, { error: { code: status === 400 ? 'ENT_INVALID_REQUEST' : errorCode(error) } })
+        writeJson(response, status, { error: { code: responseErrorCode(error, status) } })
       }
     },
   })
@@ -193,7 +201,7 @@ function registerJsonAction(
       } catch (error) {
         const status = actionErrorStatus(error)
         writeJson(response, status, {
-          error: { code: status === 413 ? 'ENT_REQUEST_TOO_LARGE' : status === 400 ? 'ENT_INVALID_REQUEST' : errorCode(error) },
+          error: { code: responseErrorCode(error, status) },
         })
       }
     },
@@ -235,7 +243,7 @@ export function registerEnterpriseLocalApi(
         } catch (error) {
           const status = actionErrorStatus(error)
           writeJson(response, status, {
-            error: { code: status === 400 ? 'ENT_INVALID_REQUEST' : errorCode(error) },
+            error: { code: responseErrorCode(error, status) },
           })
         }
       },
@@ -268,7 +276,7 @@ export function registerEnterpriseLocalApi(
           } catch (error) {
             const status = actionErrorStatus(error)
             writeJson(response, status, {
-              error: { code: status === 413 ? 'ENT_REQUEST_TOO_LARGE' : status === 400 ? 'ENT_INVALID_REQUEST' : errorCode(error) },
+              error: { code: responseErrorCode(error, status) },
             })
           }
         },
@@ -337,7 +345,7 @@ export function registerEnterpriseLocalApi(
         } catch (error) {
           const status = actionErrorStatus(error)
           writeJson(response, status, {
-            error: { code: status === 413 ? 'ENT_REQUEST_TOO_LARGE' : status === 400 ? 'ENT_INVALID_REQUEST' : errorCode(error) },
+            error: { code: responseErrorCode(error, status) },
           })
         }
       },
@@ -382,7 +390,7 @@ export function registerEnterpriseLocalApi(
           response.end(Buffer.from(bytes))
         } catch (error) {
           const status = actionErrorStatus(error)
-          writeJson(response, status, { error: { code: status === 400 ? 'ENT_INVALID_REQUEST' : errorCode(error) } })
+          writeJson(response, status, { error: { code: responseErrorCode(error, status) } })
         }
       },
     }))

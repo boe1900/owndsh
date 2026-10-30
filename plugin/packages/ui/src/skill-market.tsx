@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖本地已安装/可安装 skill 清单、设备级启用/安装/卸载动作、Host 文件/会话接缝与官方 UI primitives
- * [OUTPUT]: 提供 OwnDsh 技能发现结果、已安装条件筛选、分类筛选、搜索、图标卡片、安装进度、启用开关和 WorkBuddy 风格操作菜单
+ * [OUTPUT]: 提供 OwnDsh 技能发现、版本更新、已安装条件筛选、分类筛选、搜索、图标卡片、安装进度、启用开关和 WorkBuddy 风格操作菜单
  * [POS]: dsh-ui 的技能 tab；只消费 Host 投影，不解析 SKILL.md、不拼接本地路径
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -31,6 +31,7 @@ export interface EnterpriseSkillMarketProps {
 function messageFor(code: string | undefined): string | undefined {
   if (code === undefined) return undefined
   if (code === 'ENT_SKILL_NOT_FOUND') return '技能已被移除，请刷新。'
+  if (code === 'ENT_SOURCE_CREDENTIAL_INVALID') return '技能来源凭据已失效，请联系管理员更新凭据。'
   if (code === 'ENT_LOCAL_UNAVAILABLE') return '本地 Harness 暂不可用。'
   return `操作失败，请重试（${code}）`
 }
@@ -113,7 +114,7 @@ function AvailableSkillCard({ skill, store }: { readonly skill: EnterpriseAvaila
     <div className={css.cardBottom}>
       <div className={css.tags}>
         {skill.category ? <span className={css.tag}>{skill.category}</span> : null}
-        <span className={css.tag}>v{skill.version}</span>
+        <span className={css.tag}>{skill.updateAvailable && skill.installedVersion ? `v${skill.installedVersion} → v${skill.version}` : `v${skill.version}`}</span>
         {!skill.userInvocable ? <span className={css.mutedTag}>仅自动调用</span> : null}
       </div>
       <Button
@@ -123,7 +124,7 @@ function AvailableSkillCard({ skill, store }: { readonly skill: EnterpriseAvaila
         aria-busy={installing}
         disabled={busy}
         onClick={() => { void store.install(skill.name) }}
-      >{installing ? '安装中…' : '安装'}</Button>
+      >{installing ? (skill.updateAvailable ? '更新中…' : '安装中…') : skill.updateAvailable ? '更新' : '安装'}</Button>
     </div>
   </article>
 }

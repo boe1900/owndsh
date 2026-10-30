@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 DSH_HOME 下 OwnDsh 专用 skill 根目录、WorkBuddy frontmatter 和一个 provider 失效回调
- * [OUTPUT]: 提供全局 skill 的脱敏读取、按需制品校验/原子安装、启用/禁用、卸载及固定目录解析
+ * [OUTPUT]: 提供全局 skill 的脱敏读取、按需制品校验/原子安装更新、启用/禁用、卸载及固定目录解析
  * [POS]: platform-client 的本地 skill 真相层；只接收平台已鉴权的制品字节，不直连 Server/GitLab，不扫描其他 Agent 目录，不把路径交给 Client
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -27,6 +27,8 @@ export interface EnterpriseInstalledSkill {
   readonly userInvocable: boolean
   readonly enabled: boolean
   readonly hasIcon: boolean
+  readonly releaseId?: string
+  readonly artifactSha256?: string
   readonly actions?: {
     readonly file: boolean
     readonly directory: boolean
@@ -45,6 +47,8 @@ export interface EnterpriseAvailableSkill {
   readonly artifactSizeBytes: number
   readonly artifactSha256: string
   readonly hasIcon: false
+  readonly updateAvailable: boolean
+  readonly installedVersion?: string
 }
 
 export interface EnterpriseSkillRuntimeOptions extends Pick<InstallationOptions, 'dshHome' | 'env'> {
@@ -252,7 +256,7 @@ export class EnterpriseSkillRuntime {
       signal.throwIfAborted()
       if (!isSkillName(skill.metadata.name)) throw new TypeError('skill name is invalid')
       const current = await this.#find(skill.metadata.name)
-      if (current?.version === skill.metadata.version) return
+      if (current?.version === skill.metadata.version && current.artifactSha256 === skill.artifactSha256) return
       const bytes = await download(skill.releaseId, signal)
       await this.#installArchive(skill.metadata.name, skill.metadata.version, skill.artifactSha256,
         skill.artifactSizeBytes, bytes)
@@ -274,32 +278,40 @@ export class EnterpriseSkillRuntime {
   }
 
   async #list(): Promise<readonly EnterpriseInstalledSkill[]> {
-      const manifest = await readManifest(this.#manifestPath)
-      let entries
-      try { entries = await readdir(this.#root, { withFileTypes: true }) } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []
-        throw new EnterpriseSkillRuntimeError('ENT_SKILL_LOCAL_INVALID', 'skill root cannot be read')
+    const manifest = await readManifest(this.#manifestPath)
+    let entries
+    try { entries = await readdir(this.#root, { withFileTypes: true }) } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []
+      throw new EnterpriseSkillRuntimeError('ENT_SKILL_LOCAL_INVALID', 'skill root cannot be read')
+    }
+    const skills: EnterpriseInstalledSkill[] = []
+    for (const entry of entries) {
+      if (!entry.isDirectory()) {
+        if (entry.isSymbolicLink()) throw new EnterpriseSkillRuntimeError('ENT_SKILL_LOCAL_INVALID', 'skill root contains a symbolic link')
+        continue
       }
-      const skills: EnterpriseInstalledSkill[] = []
-      for (const entry of entries) {
-        if (!entry.isDirectory()) {
-          if (entry.isSymbolicLink()) throw new EnterpriseSkillRuntimeError('ENT_SKILL_LOCAL_INVALID', 'skill root contains a symbolic link')
-          continue
-        }
-        if (!isSkillName(entry.name)) continue
-        const directory = this.#skillDirectory(entry.name)
-        const instructionPath = join(directory, 'SKILL.md')
-        const iconPath = join(directory, '_icon.png')
-        const instructionStat = await lstat(instructionPath).catch(() => undefined)
-        if (instructionStat === undefined || !instructionStat.isFile()) {
-          throw new EnterpriseSkillRuntimeError('ENT_SKILL_LOCAL_INVALID', `skill ${entry.name} has no regular SKILL.md`)
-        }
-        const metadata = parseFrontmatter(await readFile(instructionPath, 'utf8'), entry.name)
-        const iconStat = await lstat(iconPath).catch(() => undefined)
-        if (iconStat?.isSymbolicLink()) throw new EnterpriseSkillRuntimeError('ENT_SKILL_LOCAL_INVALID', 'skill icon cannot be a symbolic link')
-      skills.push({ ...metadata, enabled: manifest.skills[entry.name]?.enabled ?? true, hasIcon: iconStat?.isFile() === true })
+      if (!isSkillName(entry.name)) continue
+      const directory = this.#skillDirectory(entry.name)
+      const instructionPath = join(directory, 'SKILL.md')
+      const iconPath = join(directory, '_icon.png')
+      const instructionStat = await lstat(instructionPath).catch(() => undefined)
+      if (instructionStat === undefined || !instructionStat.isFile()) {
+        throw new EnterpriseSkillRuntimeError('ENT_SKILL_LOCAL_INVALID', `skill ${entry.name} has no regular SKILL.md`)
       }
-      return skills.sort((left, right) => left.displayName.localeCompare(right.displayName) || left.name.localeCompare(right.name))
+      const metadata = parseFrontmatter(await readFile(instructionPath, 'utf8'), entry.name)
+      const iconStat = await lstat(iconPath).catch(() => undefined)
+      if (iconStat?.isSymbolicLink()) throw new EnterpriseSkillRuntimeError('ENT_SKILL_LOCAL_INVALID', 'skill icon cannot be a symbolic link')
+      const manifestEntry = manifest.skills[entry.name]
+      skills.push({
+        ...metadata,
+        ...(manifestEntry?.version === undefined ? {} : { version: manifestEntry.version }),
+        enabled: manifestEntry?.enabled ?? true,
+        hasIcon: iconStat?.isFile() === true,
+        ...(manifestEntry?.releaseId === undefined ? {} : { releaseId: manifestEntry.releaseId }),
+        ...(manifestEntry?.artifactSha256 === undefined ? {} : { artifactSha256: manifestEntry.artifactSha256 }),
+      })
+    }
+    return skills.sort((left, right) => left.displayName.localeCompare(right.displayName) || left.name.localeCompare(right.name))
   }
 
   async setEnabled(name: string, enabled: boolean): Promise<void> {
