@@ -38,14 +38,14 @@ class SkillViewsTest {
         SkillRelease release = new SkillRelease(9001, "000000", "code-review", "1.0.0", "Review", "MIT", "OwnDsh",
             true, true, List.of("dev"), 1024,
             "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "GITHUB", "https://github.com/own/company-skills",
-            "ai-creation/yt-dlp-downloader", "abcdef0123456789abcdef0123456789abcdef01", "SOURCE_ARCHIVE", "artifact.zip", SkillRelease.Status.PUBLISHED, 7);
+            "abcdef0123456789abcdef0123456789abcdef01", "SOURCE_ARCHIVE", "artifact.zip", SkillRelease.Status.PUBLISHED, 7);
 
         JsonNode projected = JsonMapper.builder().build().valueToTree(SkillViews.release(release));
 
         assertThat(projected.get("name").asText()).isEqualTo("code-review");
         assertThat(projected.has("release")).isFalse();
         assertThat(projected.get("repositoryUrl").asText()).isEqualTo(
-            "https://github.com/own/company-skills/tree/abcdef0123456789abcdef0123456789abcdef01/ai-creation/yt-dlp-downloader");
-        assertThat(projected.get("repositoryPath").asText()).isEqualTo("ai-creation/yt-dlp-downloader");
+            "https://github.com/own/company-skills/tree/abcdef0123456789abcdef0123456789abcdef01");
+        assertThat(projected.has("repositoryPath")).isFalse();
     }
 }

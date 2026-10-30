@@ -57,5 +57,6 @@ V47__model_connection_audit.sql: 将连接敏感操作审计动作加入数据�
 V48__model_provider_description.sql: 为供应商元信息增加可选描述字段，供管理端记录用途说明。
 V49__model_connection_discovery_path.sql: 为每条模型连接增加默认 /models 的模型发现路径，并约束其为无 query/fragment 的绝对路径。
 V50__enterprise_skill_source_credentials.sql: 建立加密仓库访问凭据、Skill Release 当前版本指针和发布说明字段，支持私有源码按 commit 回源安装。
+V51__enterprise_skill_single_source.sql: 删除 Skill 来源子路径；每个仓库归档必须唯一包含一个 SKILL.md。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

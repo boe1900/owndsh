@@ -35,7 +35,7 @@ class SkillImportServiceTest {
         "000000", 7, "req_01ARZ3NDEKTSV4RRFFQ69G5FAV", "127.0.0.1", new byte[32]
     );
     private static final SkillSourceClient.Source SOURCE = new SkillSourceClient.Source(
-        "https://gitlab.example.com/team/skills", "main", "skills/code-review"
+        "https://gitlab.example.com/team/skills", "main"
     );
 
     @Test
@@ -76,7 +76,7 @@ class SkillImportServiceTest {
 
         SkillImportService.ImportResult result = new SkillImportService(
             sourceClient(archive), new SkillArchiveValidator(), artifacts, catalog
-        ).importDraft(CONTEXT, new SkillSourceClient.Source(SOURCE.repositoryUrl(), SOURCE.revision(), "code-review"));
+        ).importDraft(CONTEXT, new SkillSourceClient.Source(SOURCE.repositoryUrl(), SOURCE.revision()));
 
         assertThat(result.registration().created()).isFalse();
         verify(artifacts).putIfAbsent(any(String.class), any(byte[].class), any(SkillArtifactStore.ArtifactCoordinate.class));
@@ -94,7 +94,7 @@ class SkillImportServiceTest {
             new SkillCatalogService.RegistrationResult(release(SkillRelease.Status.DRAFT), true));
 
         new SkillImportService(sourceClient(archive), new SkillArchiveValidator(), artifacts, catalog)
-            .importDraft(CONTEXT, new SkillSourceClient.Source(SOURCE.repositoryUrl(), SOURCE.revision(), "code-review"));
+            .importDraft(CONTEXT, new SkillSourceClient.Source(SOURCE.repositoryUrl(), SOURCE.revision()));
 
         verify(artifacts, org.mockito.Mockito.never()).putIfAbsent(
             any(String.class), any(byte[].class), any(SkillArtifactStore.ArtifactCoordinate.class));
@@ -108,7 +108,7 @@ class SkillImportServiceTest {
         assertThatThrownBy(() -> new SkillImportService(
             sourceClient(zip("repo-main/code-review/SKILL.md", "---\nname: wrong\n---\n")),
             new SkillArchiveValidator(), artifacts, catalog
-        ).importDraft(CONTEXT, new SkillSourceClient.Source(SOURCE.repositoryUrl(), SOURCE.revision(), "code-review")))
+        ).importDraft(CONTEXT, new SkillSourceClient.Source(SOURCE.repositoryUrl(), SOURCE.revision())))
             .isInstanceOf(SkillArchiveValidator.SkillArchiveException.class);
 
         verifyNoInteractions(artifacts, catalog);

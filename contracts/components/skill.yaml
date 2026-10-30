@@ -112,9 +112,6 @@ SkillRelease:
       format: uri
       pattern: '^https://[^?#]+$'
       maxLength: 500
-    repositoryPath:
-      type: [string, 'null']
-      maxLength: 256
     resolvedCommit:
       type: [string, 'null']
       pattern: '^[0-9a-f]{7,64}$'
@@ -151,7 +148,7 @@ SkillReleaseResponse:
 SkillSourceImportRequest:
   type: object
   additionalProperties: false
-  required: [repositoryUrl, revision, subpath, visibility]
+  required: [repositoryUrl, revision, visibility]
   properties:
     repositoryUrl:
       type: string
@@ -163,10 +160,6 @@ SkillSourceImportRequest:
       minLength: 1
       maxLength: 256
       pattern: '^[^/?#]+$'
-    subpath:
-      type: string
-      maxLength: 256
-      pattern: '^(|[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*)$'
     visibility:
       type: string
       enum: [PUBLIC, PRIVATE]

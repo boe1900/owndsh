@@ -21,7 +21,7 @@ public final class JdbcSkillStore implements SkillStore {
     private static final String COLUMNS = """
         id,tenant_id,skill_name,version,description,license,author,user_invocable,
         model_invocable,categories_json,artifact_size_bytes,artifact_sha256,source_type,source_locator,
-        source_subpath,resolved_commit,artifact_provider,artifact_ref,source_credential_id,release_notes,
+        resolved_commit,artifact_provider,artifact_ref,source_credential_id,release_notes,
         current_release,status,revision
         """;
     private static final String LIST_RELEASES = "select " + COLUMNS +
@@ -48,9 +48,9 @@ public final class JdbcSkillStore implements SkillStore {
         insert into ent_skill_release(
             id,tenant_id,skill_name,version,description,license,author,user_invocable,
             model_invocable,categories_json,artifact_size_bytes,artifact_sha256,source_type,source_locator,
-            source_subpath,resolved_commit,artifact_provider,artifact_ref,source_credential_id,release_notes,
+            resolved_commit,artifact_provider,artifact_ref,source_credential_id,release_notes,
             current_release,status,created_by,revision
-        ) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        ) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """;
 
     private final JdbcOperations jdbc;
@@ -95,7 +95,7 @@ public final class JdbcSkillStore implements SkillStore {
         jdbc.update(INSERT_RELEASE, value.id(), value.tenantId(), value.name(), value.version(), value.description(),
             value.license(), value.author(), value.userInvocable(), value.modelInvocable(),
             json.writeValueAsString(value.categories()), value.artifactSizeBytes(), value.artifactSha256(),
-            value.sourceType(), value.sourceLocator(), value.sourceSubpath(), value.resolvedCommit(),
+            value.sourceType(), value.sourceLocator(), value.resolvedCommit(),
             value.artifactProvider(), value.artifactRef(), value.sourceCredentialId(), value.releaseNotes(),
             value.current(), value.status().name(), createdBy, value.revision());
     }
@@ -115,7 +115,7 @@ public final class JdbcSkillStore implements SkillStore {
             rs.getBoolean("user_invocable"), rs.getBoolean("model_invocable"),
             readCategories(rs.getString("categories_json")), rs.getLong("artifact_size_bytes"),
             rs.getString("artifact_sha256"), rs.getString("source_type"), rs.getString("source_locator"),
-            rs.getString("source_subpath"), rs.getString("resolved_commit"), rs.getString("artifact_provider"),
+            rs.getString("resolved_commit"), rs.getString("artifact_provider"),
             rs.getString("artifact_ref"), (Long) rs.getObject("source_credential_id"), rs.getString("release_notes"),
             rs.getBoolean("current_release"), SkillRelease.Status.valueOf(rs.getString("status")), rs.getLong("revision")
         );

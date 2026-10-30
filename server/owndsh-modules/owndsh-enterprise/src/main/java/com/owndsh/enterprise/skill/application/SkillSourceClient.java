@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 接收公开/私有 GitLab/GitHub 仓库地址、固定 ref、skill 子路径和一次性访问凭据。
+ * [INPUT]: 接收公开/私有 GitLab/GitHub 仓库地址、固定 ref 和一次性访问凭据。
  * [OUTPUT]: 提供解析后的不可变 commit 与受限 ZIP 字节。
  * [POS]: skill/application 的源码导入端口；不向员工端暴露仓库访问能力或凭据。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -20,12 +20,11 @@ public interface SkillSourceClient {
         return fetch(source);
     }
 
-    record Source(String repositoryUrl, String revision, String subpath) {
+    record Source(String repositoryUrl, String revision) {
         public Source {
             if (repositoryUrl == null || repositoryUrl.isBlank() || revision == null || revision.isBlank()) {
                 throw new IllegalArgumentException("skill source 地址和 revision 不能为空");
             }
-            subpath = subpath == null ? "" : subpath.trim();
         }
     }
 

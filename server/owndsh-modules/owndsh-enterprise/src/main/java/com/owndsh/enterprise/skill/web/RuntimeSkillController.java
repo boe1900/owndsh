@@ -62,12 +62,12 @@ public final class RuntimeSkillController {
                 SkillSourceClient.FetchedArchive fetched;
                 try {
                     fetched = sources.fetch(new SkillSourceClient.Source(
-                        release.sourceLocator(), release.resolvedCommit(), release.sourceSubpath()), secret);
+                        release.sourceLocator(), release.resolvedCommit()), secret);
                 } finally {
                     if (secret != null) java.util.Arrays.fill(secret, '\0');
                 }
                 SkillArchiveValidator.ValidatedSkill validated = validator.validate(
-                    new ByteArrayInputStream(fetched.archive()), release.sourceSubpath());
+                    new ByteArrayInputStream(fetched.archive()));
                 if (!fetched.resolvedCommit().equals(release.resolvedCommit())
                     || validated.archive().length != release.artifactSizeBytes()
                     || !validated.sha256().equals(release.artifactSha256())) {

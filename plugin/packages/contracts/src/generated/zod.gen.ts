@@ -2739,7 +2739,6 @@ export const zSkillSourceCredentialWriteRequest = zSkillSkillSourceCredentialWri
 export const zSkillSkillSourceImportRequest = z.object({
     repositoryUrl: z.url().max(500).regex(/^https:\/\/[^?#]+$/),
     revision: z.string().min(1).max(256).regex(/^[^\/?#]+$/),
-    subpath: z.string().max(256).regex(/^(|[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*)$/),
     visibility: z.enum(['PUBLIC', 'PRIVATE']),
     credentialId: z.string().regex(/^[1-9][0-9]{0,18}$/).nullish(),
     releaseNotes: z.string().max(2000).optional()
@@ -2837,7 +2836,6 @@ export const zSkillSkillRelease = z.object({
     status: zSkillSkillReleaseStatus,
     revision: zRevision,
     repositoryUrl: z.url().max(500).regex(/^https:\/\/[^?#]+$/).nullish(),
-    repositoryPath: z.string().max(256).nullish(),
     resolvedCommit: z.string().regex(/^[0-9a-f]{7,64}$/).nullish(),
     credentialId: z.string().regex(/^[1-9][0-9]{0,18}$/).nullish(),
     releaseNotes: z.string().max(2000),

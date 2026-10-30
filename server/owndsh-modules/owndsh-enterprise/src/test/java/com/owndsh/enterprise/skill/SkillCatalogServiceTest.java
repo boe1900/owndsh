@@ -102,7 +102,7 @@ class SkillCatalogServiceTest {
     private static SkillRelease release(SkillRelease.Status status, long revision, boolean current) {
         return new SkillRelease(9001, "000000", "code-review", "1.0.0", "Review", "MIT", "OwnDsh",
             true, true, List.of("dev"), 1024,
-            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "MANUAL", "", "", null,
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "MANUAL", "", null,
             "SOURCE_ARCHIVE", "artifact.zip", null, "", current, status, revision);
     }
 }

@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 接收 GitLab/GitHub ZIP 归档与可选仓库子路径。
+ * [INPUT]: 接收 GitLab/GitHub ZIP 归档；每个仓库必须只包含一个 SKILL.md。
  * [OUTPUT]: 输出规范化的 OwnDsh skill ZIP、WorkBuddy 调用元数据和 SHA-256 摘要。
  * [POS]: skill/application 的供应链信任边界；拒绝路径穿越、超限归档、重复文件和坏 frontmatter。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -35,25 +35,21 @@ public final class SkillArchiveValidator {
     private static final Pattern VERSION = Pattern.compile(
         "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$");
 
-    public ValidatedSkill validate(InputStream input, String requestedSubpath) {
+    public ValidatedSkill validate(InputStream input) {
         Objects.requireNonNull(input, "input");
-        String subpath = normalizeSubpath(requestedSubpath);
         byte[] archive = readLimited(input, MAX_ARCHIVE_BYTES, "skill 归档超过 32 MiB");
         rejectSymlinks(archive);
         Map<String, byte[]> files = readZip(archive);
-        String skillFile = findSkillFile(files, subpath);
-        String root = skillFile.substring(0, skillFile.length() - "/SKILL.md".length());
-        String directoryName = root.substring(root.lastIndexOf('/') + 1);
-        if (directoryName.isBlank()) throw invalid("skill 必须位于独立目录");
+        String skillFile = findSkillFile(files);
+        String root = skillFile.equals("SKILL.md")
+            ? "" : skillFile.substring(0, skillFile.length() - "/SKILL.md".length());
 
         Frontmatter metadata = parseFrontmatter(files.get(skillFile));
-        if (!NAME.matcher(metadata.name()).matches() || !metadata.name().equals(directoryName)) {
-            throw invalid("frontmatter name 必须是 kebab-case 且与目录名一致");
-        }
+        if (!NAME.matcher(metadata.name()).matches()) throw invalid("frontmatter name 必须是 kebab-case");
         if (!VERSION.matcher(metadata.version()).matches()) throw invalid("skill version 必须是 semver");
 
         TreeMap<String, byte[]> canonicalFiles = new TreeMap<>();
-        String prefix = root + "/";
+        String prefix = root.isBlank() ? "" : root + "/";
         for (Map.Entry<String, byte[]> entry : files.entrySet()) {
             if (entry.getKey().startsWith(prefix)) {
                 String relative = entry.getKey().substring(prefix.length());
@@ -137,10 +133,9 @@ public final class SkillArchiveValidator {
         return littleShort(value, offset) | (littleShort(value, offset + 2) << 16);
     }
 
-    private static String findSkillFile(Map<String, byte[]> files, String subpath) {
-        String suffix = subpath.isBlank() ? "/SKILL.md" : "/" + subpath + "/SKILL.md";
+    private static String findSkillFile(Map<String, byte[]> files) {
         List<String> candidates = files.keySet().stream()
-            .filter(path -> path.endsWith(suffix))
+            .filter(path -> path.equals("SKILL.md") || path.endsWith("/SKILL.md"))
             .sorted()
             .toList();
         if (candidates.size() != 1) throw invalid("skill 归档必须包含唯一匹配的 SKILL.md");
@@ -245,13 +240,6 @@ public final class SkillArchiveValidator {
         for (String part : normalized.split("/")) {
             if (part.isBlank() || ".".equals(part) || "..".equals(part)) throw invalid("skill 归档路径穿越");
         }
-        return normalized;
-    }
-
-    private static String normalizeSubpath(String value) {
-        if (value == null || value.isBlank()) return "";
-        String normalized = value.trim().replace('/', '/');
-        safeEntryName(normalized);
         return normalized;
     }
 

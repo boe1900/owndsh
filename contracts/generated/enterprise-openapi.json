@@ -152760,13 +152760,6 @@
                                 "pattern": "^https://[^?#]+$",
                                 "maxLength": 500
                               },
-                              "repositoryPath": {
-                                "type": [
-                                  "string",
-                                  "null"
-                                ],
-                                "maxLength": 256
-                              },
                               "resolvedCommit": {
                                 "type": [
                                   "string",
@@ -153161,7 +153154,6 @@
                 "required": [
                   "repositoryUrl",
                   "revision",
-                  "subpath",
                   "visibility"
                 ],
                 "properties": {
@@ -153176,11 +153168,6 @@
                     "minLength": 1,
                     "maxLength": 256,
                     "pattern": "^[^/?#]+$"
-                  },
-                  "subpath": {
-                    "type": "string",
-                    "maxLength": 256,
-                    "pattern": "^(|[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*)$"
                   },
                   "visibility": {
                     "type": "string",
@@ -153323,13 +153310,6 @@
                               "format": "uri",
                               "pattern": "^https://[^?#]+$",
                               "maxLength": 500
-                            },
-                            "repositoryPath": {
-                              "type": [
-                                "string",
-                                "null"
-                              ],
-                              "maxLength": 256
                             },
                             "resolvedCommit": {
                               "type": [
@@ -153489,13 +153469,6 @@
                               "format": "uri",
                               "pattern": "^https://[^?#]+$",
                               "maxLength": 500
-                            },
-                            "repositoryPath": {
-                              "type": [
-                                "string",
-                                "null"
-                              ],
-                              "maxLength": 256
                             },
                             "resolvedCommit": {
                               "type": [
@@ -154944,13 +154917,6 @@
                           "pattern": "^https://[^?#]+$",
                           "maxLength": 500
                         },
-                        "repositoryPath": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "maxLength": 256
-                        },
                         "resolvedCommit": {
                           "type": [
                             "string",
@@ -155091,13 +155057,6 @@
                           "format": "uri",
                           "pattern": "^https://[^?#]+$",
                           "maxLength": 500
-                        },
-                        "repositoryPath": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "maxLength": 256
                         },
                         "resolvedCommit": {
                           "type": [
@@ -155884,13 +155843,6 @@
                           "format": "uri",
                           "pattern": "^https://[^?#]+$",
                           "maxLength": 500
-                        },
-                        "repositoryPath": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "maxLength": 256
                         },
                         "resolvedCommit": {
                           "type": [
@@ -156982,13 +156934,6 @@
                           "format": "uri",
                           "pattern": "^https://[^?#]+$",
                           "maxLength": 500
-                        },
-                        "repositoryPath": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "maxLength": 256
                         },
                         "resolvedCommit": {
                           "type": [
@@ -190326,13 +190271,6 @@
             "pattern": "^https://[^?#]+$",
             "maxLength": 500
           },
-          "repositoryPath": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "maxLength": 256
-          },
           "resolvedCommit": {
             "type": [
               "string",
@@ -190459,13 +190397,6 @@
                   "format": "uri",
                   "pattern": "^https://[^?#]+$",
                   "maxLength": 500
-                },
-                "repositoryPath": {
-                  "type": [
-                    "string",
-                    "null"
-                  ],
-                  "maxLength": 256
                 },
                 "resolvedCommit": {
                   "type": [
@@ -190639,13 +190570,6 @@
                       "pattern": "^https://[^?#]+$",
                       "maxLength": 500
                     },
-                    "repositoryPath": {
-                      "type": [
-                        "string",
-                        "null"
-                      ],
-                      "maxLength": 256
-                    },
                     "resolvedCommit": {
                       "type": [
                         "string",
@@ -190817,13 +190741,6 @@
                 "pattern": "^https://[^?#]+$",
                 "maxLength": 500
               },
-              "repositoryPath": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "maxLength": 256
-              },
               "resolvedCommit": {
                 "type": [
                   "string",
@@ -190863,7 +190780,6 @@
         "required": [
           "repositoryUrl",
           "revision",
-          "subpath",
           "visibility"
         ],
         "properties": {
@@ -190878,11 +190794,6 @@
             "minLength": 1,
             "maxLength": 256,
             "pattern": "^[^/?#]+$"
-          },
-          "subpath": {
-            "type": "string",
-            "maxLength": 256,
-            "pattern": "^(|[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*)$"
           },
           "visibility": {
             "type": "string",
@@ -191009,13 +190920,6 @@
                 "format": "uri",
                 "pattern": "^https://[^?#]+$",
                 "maxLength": 500
-              },
-              "repositoryPath": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "maxLength": 256
               },
               "resolvedCommit": {
                 "type": [
@@ -191158,13 +191062,6 @@
                     "format": "uri",
                     "pattern": "^https://[^?#]+$",
                     "maxLength": 500
-                  },
-                  "repositoryPath": {
-                    "type": [
-                      "string",
-                      "null"
-                    ],
-                    "maxLength": 256
                   },
                   "resolvedCommit": {
                     "type": [

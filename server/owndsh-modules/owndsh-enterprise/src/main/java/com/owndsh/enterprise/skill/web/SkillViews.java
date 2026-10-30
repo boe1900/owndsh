@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 投影 skill release catalog 与导入结果领域对象。
  * [OUTPUT]: 对外提供 bootstrap/runtime 与管理目录的统一脱敏 JSON view。
- * [POS]: skill/web 的唯一 DTO 投影；管理目录仅返回公开源码仓库链接，不暴露凭据、正文或绝对路径。
+ * [POS]: skill/web 的唯一 DTO 投影；管理目录仅返回固定 commit 的源码仓库链接，不暴露凭据或正文。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.skill.web;
@@ -32,23 +32,18 @@ public final class SkillViews {
         return new ReleaseMetadataView(Long.toString(value.id()), value.name(), value.version(),
             value.description(), value.license(), value.author(), value.userInvocable(), value.modelInvocable(),
             value.categories(), value.artifactSizeBytes(), value.artifactSha256(), value.status().name(), value.revision(),
-            repositoryUrl(value), repositoryPath(value), value.resolvedCommit(), value.sourceCredentialId() == null ? null : Long.toString(value.sourceCredentialId()),
+            repositoryUrl(value), value.resolvedCommit(), value.sourceCredentialId() == null ? null : Long.toString(value.sourceCredentialId()),
             value.releaseNotes(), value.current());
     }
 
     private static String repositoryUrl(SkillRelease value) {
         String locator = value.sourceLocator();
-        String path = repositoryPath(value);
         String commit = value.resolvedCommit();
-        if (locator == null || locator.isBlank() || path == null || commit == null || commit.isBlank()) return locator;
+        if (locator == null || locator.isBlank() || commit == null || commit.isBlank()) return locator;
         String base = locator.endsWith("/") ? locator.substring(0, locator.length() - 1) : locator;
         if (base.endsWith(".git")) base = base.substring(0, base.length() - 4);
         String marker = "GITHUB".equalsIgnoreCase(value.sourceType()) ? "/tree/" : "/-/tree/";
-        return base + marker + commit + "/" + path;
-    }
-
-    private static String repositoryPath(SkillRelease value) {
-        return value.sourceSubpath() == null || value.sourceSubpath().isBlank() ? null : value.sourceSubpath();
+        return base + marker + commit;
     }
 
     private static RuntimeSkillMetadataView runtimeMetadata(SkillRelease value) {
@@ -80,7 +75,7 @@ public final class SkillViews {
     public record ReleaseMetadataView(String id, String name, String version, String description, String license,
         String author, boolean userInvocable, boolean modelInvocable, List<String> categories,
         long artifactSizeBytes, String artifactSha256, String status, long revision,
-        String repositoryUrl, String repositoryPath, String resolvedCommit, String credentialId,
+        String repositoryUrl, String resolvedCommit, String credentialId,
         String releaseNotes, boolean current) {
     }
 

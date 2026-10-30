@@ -44,7 +44,7 @@ public final class SkillImportService {
             if (secret != null) java.util.Arrays.fill(secret, '\0');
         }
         SkillArchiveValidator.ValidatedSkill validated = validator.validate(
-            new java.io.ByteArrayInputStream(fetched.archive()), source.subpath());
+            new java.io.ByteArrayInputStream(fetched.archive()));
         SkillArtifactStore.ArtifactCoordinate coordinate = new SkillArtifactStore.ArtifactCoordinate(
             validated.name(), validated.version(), fetched.resolvedCommit());
         if (!"SOURCE_ARCHIVE".equalsIgnoreCase(artifacts.provider())) {
@@ -54,7 +54,7 @@ public final class SkillImportService {
             new SkillCatalogService.SkillReleaseDraft(validated.name(), validated.version(), validated.description(),
                 validated.license(), validated.author(), validated.userInvocable(), validated.modelInvocable(),
                 validated.categories(), validated.archive().length, validated.sha256(), sourceType(source.repositoryUrl()),
-                source.repositoryUrl(), source.subpath(), fetched.resolvedCommit(), artifacts.provider(),
+                source.repositoryUrl(), fetched.resolvedCommit(), artifacts.provider(),
                 artifacts.artifactRef(coordinate, validated.sha256()), credentialId,
                 releaseNotes == null ? "" : releaseNotes.trim()));
         return new ImportResult(fetched.resolvedCommit(), registration);

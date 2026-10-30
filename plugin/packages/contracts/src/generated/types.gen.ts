@@ -2573,7 +2573,6 @@ export type SkillSkillRelease = {
     status: SkillSkillReleaseStatus;
     revision: Revision;
     repositoryUrl?: string | null;
-    repositoryPath?: string | null;
     resolvedCommit?: string | null;
     credentialId?: string | null;
     releaseNotes: string;
@@ -2620,7 +2619,6 @@ export type SkillSkillSourceCredentialWriteRequest = {
 export type SkillSkillSourceImportRequest = {
     repositoryUrl: string;
     revision: string;
-    subpath: string;
     visibility: 'PUBLIC' | 'PRIVATE';
     credentialId?: string | null;
     releaseNotes?: string;

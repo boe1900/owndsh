@@ -25,7 +25,6 @@ public record SkillRelease(
     String artifactSha256,
     String sourceType,
     String sourceLocator,
-    String sourceSubpath,
     String resolvedCommit,
     String artifactProvider,
     String artifactRef,
@@ -55,7 +54,6 @@ public record SkillRelease(
         if (!SHA256.matcher(artifactSha256).matches()) throw new IllegalArgumentException("skill sha256 非法");
         requireText(sourceType, 16, "sourceType");
         requireOptionalText(sourceLocator, 500, "sourceLocator");
-        requireOptionalText(sourceSubpath, 256, "sourceSubpath");
         if (resolvedCommit != null && !resolvedCommit.matches("^[0-9a-f]{7,64}$")) {
             throw new IllegalArgumentException("resolvedCommit 非法");
         }
@@ -76,17 +74,17 @@ public record SkillRelease(
         String author, boolean userInvocable, boolean modelInvocable, List<String> categories,
         long artifactSizeBytes, String artifactSha256, Status status, long revision) {
         this(id, tenantId, name, version, description, license, author, userInvocable, modelInvocable, categories,
-            artifactSizeBytes, artifactSha256, "MANUAL", "", "", null, "SOURCE_ARCHIVE", artifactSha256 + ".zip",
+            artifactSizeBytes, artifactSha256, "MANUAL", "", null, "SOURCE_ARCHIVE", artifactSha256 + ".zip",
             null, "", status == Status.PUBLISHED, status, revision);
     }
 
     public SkillRelease(long id, String tenantId, String name, String version, String description, String license,
         String author, boolean userInvocable, boolean modelInvocable, List<String> categories,
         long artifactSizeBytes, String artifactSha256, String sourceType, String sourceLocator,
-        String sourceSubpath, String resolvedCommit, String artifactProvider, String artifactRef,
+        String resolvedCommit, String artifactProvider, String artifactRef,
         Status status, long revision) {
         this(id, tenantId, name, version, description, license, author, userInvocable, modelInvocable, categories,
-            artifactSizeBytes, artifactSha256, sourceType, sourceLocator, sourceSubpath, resolvedCommit,
+            artifactSizeBytes, artifactSha256, sourceType, sourceLocator, resolvedCommit,
             artifactProvider, artifactRef, null, "", status == Status.PUBLISHED, status, revision);
     }
 

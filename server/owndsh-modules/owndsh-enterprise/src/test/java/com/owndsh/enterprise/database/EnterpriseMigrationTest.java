@@ -131,7 +131,7 @@ class EnterpriseMigrationTest {
             "select type from ent_identity_source where tenant_id='000000'",
             String.class
         )).isEqualTo("LOCAL");
-        assertThat(database.jdbc().queryForObject("select count(*) from information_schema.columns where table_name='ent_skill_release' and column_name in ('source_type','source_locator','source_subpath','resolved_commit','artifact_provider','artifact_ref')", Integer.class)).isEqualTo(6);
+        assertThat(database.jdbc().queryForObject("select count(*) from information_schema.columns where table_name='ent_skill_release' and column_name in ('source_type','source_locator','resolved_commit','artifact_provider','artifact_ref')", Integer.class)).isEqualTo(5);
         assertThat(database.jdbc().queryForObject("select pg_get_constraintdef(oid) from pg_constraint where conname='ck_ent_skill_release_artifact_provider'", String.class))
             .contains("SOURCE_ARCHIVE");
         assertThat(database.jdbc().queryForObject(

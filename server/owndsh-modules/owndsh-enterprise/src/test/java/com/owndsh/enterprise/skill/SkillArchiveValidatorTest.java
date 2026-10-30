@@ -35,7 +35,7 @@ class SkillArchiveValidatorTest {
         );
 
         SkillArchiveValidator.ValidatedSkill result = validator.validate(
-            new ByteArrayInputStream(archive), "skills/code-review");
+            new ByteArrayInputStream(archive));
 
         assertThat(result.name()).isEqualTo("code-review");
         assertThat(result.version()).isEqualTo("1.2.3");
@@ -47,11 +47,11 @@ class SkillArchiveValidatorTest {
     }
 
     @Test
-    void rejectsTraversalAndMismatchedDirectoryIdentity() {
+    void rejectsTraversal() {
         assertThatThrownBy(() -> validator.validate(new ByteArrayInputStream(zip(
             "repo/skill/SKILL.md", "---\nname: another\nversion: 1.0.0\ndescription: x\nauthor: y\n---\n",
             "repo/../outside.txt", "bad"
-        )), "skill"))
+        ))))
             .isInstanceOf(SkillArchiveValidator.SkillArchiveException.class);
     }
 
@@ -59,7 +59,7 @@ class SkillArchiveValidatorTest {
     void rejectsMissingRequiredFrontmatter() {
         assertThatThrownBy(() -> validator.validate(new ByteArrayInputStream(zip(
             "repo/code-review/SKILL.md", "---\nname: code-review\ndescription: x\n---\n"
-        )), "code-review"))
+        ))))
             .isInstanceOf(SkillArchiveValidator.SkillArchiveException.class)
             .hasMessageContaining("version");
     }
@@ -67,9 +67,30 @@ class SkillArchiveValidatorTest {
     @Test
     void rejectsTruncatedZipBeforeParsingCentralDirectory() {
         assertThatThrownBy(() -> validator.validate(
-            new ByteArrayInputStream(new byte[] {0x50, 0x4b, 0x03}), ""))
+            new ByteArrayInputStream(new byte[] {0x50, 0x4b, 0x03})))
             .isInstanceOf(SkillArchiveValidator.SkillArchiveException.class)
             .hasMessageContaining("central directory");
+    }
+
+    @Test
+    void rejectsRepositoriesContainingMultipleSkills() {
+        assertThatThrownBy(() -> validator.validate(new ByteArrayInputStream(zip(
+            "repo/code-review/SKILL.md", "---\nname: code-review\nversion: 1.0.0\ndescription: x\nauthor: y\n---\n",
+            "repo/other-skill/SKILL.md", "---\nname: other-skill\nversion: 1.0.0\ndescription: y\nauthor: y\n---\n"
+        ))))
+            .isInstanceOf(SkillArchiveValidator.SkillArchiveException.class)
+            .hasMessageContaining("唯一");
+    }
+
+    @Test
+    void acceptsSkillAtRepositoryRoot() {
+        SkillArchiveValidator.ValidatedSkill result = validator.validate(new ByteArrayInputStream(zip(
+            "SKILL.md", "---\nname: code-review\nversion: 1.0.0\ndescription: x\nauthor: y\n---\n",
+            "README.md", "read me"
+        )));
+
+        assertThat(result.name()).isEqualTo("code-review");
+        assertThat(result.archive()).isNotEmpty();
     }
 
     @Test
@@ -77,10 +98,10 @@ class SkillArchiveValidatorTest {
         HttpSkillSourceClient client = new HttpSkillSourceClient(tools.jackson.databind.json.JsonMapper.builder().build());
 
         assertThatThrownBy(() -> client.fetch(new SkillSourceClient.Source(
-            "http://github.com/owner/repo", "main", "")))
+            "http://github.com/owner/repo", "main")))
             .isInstanceOf(HttpSkillSourceClient.SkillSourceException.class);
         assertThatThrownBy(() -> client.fetch(new SkillSourceClient.Source(
-            "https://user:secret@github.com/owner/repo", "main", "")))
+            "https://user:secret@github.com/owner/repo", "main")))
             .isInstanceOf(HttpSkillSourceClient.SkillSourceException.class);
     }
 

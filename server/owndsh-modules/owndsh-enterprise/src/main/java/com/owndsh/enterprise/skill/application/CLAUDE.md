@@ -5,8 +5,8 @@
 成员清单
 
 SkillCatalogService.java: 草稿登记、发布/撤销/恢复和审计/revision 编排；Git 源导入复用 register。
-SkillArchiveValidator.java: 规范化 GitLab/GitHub ZIP、解析 WorkBuddy frontmatter、限制路径/大小/文件数并计算 SHA-256。
-SkillSourceClient.java: 公开源码固定 revision 导入端口与不可变归档 DTO。
+SkillArchiveValidator.java: 规范化 GitLab/GitHub ZIP，要求归档唯一包含 SKILL.md，解析 frontmatter、限制路径/大小/文件数并计算 SHA-256。
+SkillSourceClient.java: 公开/私有源码固定 revision 导入端口与不可变归档 DTO；单个归档由校验器解析为一个 Skill。
 HttpSkillSourceClient.java: GitHub API/codeload 与自托管 GitLab API/archive 的 HTTPS 只读 adapter。
 SkillArtifactStore.java: skill artifact 访问 DIP 端口，并定义固定 release artifact 坐标。
 FilesystemSkillArtifactStore.java: 以 SHA-256 文件名原子保存 artifact 的单机 adapter；后续可替换为 GitLab Package Registry。
