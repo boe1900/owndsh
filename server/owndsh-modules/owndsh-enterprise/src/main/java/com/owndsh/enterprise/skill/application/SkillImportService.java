@@ -14,17 +14,35 @@ public final class SkillImportService {
     private final SkillArchiveValidator validator;
     private final SkillArtifactStore artifacts;
     private final SkillCatalogService catalog;
+    private final SkillSourceCredentialService credentials;
 
     public SkillImportService(SkillSourceClient sources, SkillArchiveValidator validator,
         SkillArtifactStore artifacts, SkillCatalogService catalog) {
+        this(sources, validator, artifacts, catalog, null);
+    }
+
+    public SkillImportService(SkillSourceClient sources, SkillArchiveValidator validator,
+        SkillArtifactStore artifacts, SkillCatalogService catalog, SkillSourceCredentialService credentials) {
         this.sources = Objects.requireNonNull(sources, "sources");
         this.validator = Objects.requireNonNull(validator, "validator");
         this.artifacts = Objects.requireNonNull(artifacts, "artifacts");
         this.catalog = Objects.requireNonNull(catalog, "catalog");
+        this.credentials = credentials;
     }
 
     public ImportResult importDraft(SkillMutationContext context, SkillSourceClient.Source source) {
-        SkillSourceClient.FetchedArchive fetched = sources.fetch(source);
+        return importDraft(context, source, null, "");
+    }
+
+    public ImportResult importDraft(SkillMutationContext context, SkillSourceClient.Source source,
+        Long credentialId, String releaseNotes) {
+        char[] secret = credentials == null ? null : credentials.secret(context.tenantId(), credentialId, source.repositoryUrl());
+        SkillSourceClient.FetchedArchive fetched;
+        try {
+            fetched = sources.fetch(source, secret);
+        } finally {
+            if (secret != null) java.util.Arrays.fill(secret, '\0');
+        }
         SkillArchiveValidator.ValidatedSkill validated = validator.validate(
             new java.io.ByteArrayInputStream(fetched.archive()), source.subpath());
         SkillArtifactStore.ArtifactCoordinate coordinate = new SkillArtifactStore.ArtifactCoordinate(
@@ -37,7 +55,8 @@ public final class SkillImportService {
                 validated.license(), validated.author(), validated.userInvocable(), validated.modelInvocable(),
                 validated.categories(), validated.archive().length, validated.sha256(), sourceType(source.repositoryUrl()),
                 source.repositoryUrl(), source.subpath(), fetched.resolvedCommit(), artifacts.provider(),
-                artifacts.artifactRef(coordinate, validated.sha256())));
+                artifacts.artifactRef(coordinate, validated.sha256()), credentialId,
+                releaseNotes == null ? "" : releaseNotes.trim()));
         return new ImportResult(fetched.resolvedCommit(), registration);
     }
 

@@ -13,6 +13,7 @@ FilesystemSkillArtifactStore.java: 以 SHA-256 文件名原子保存 artifact �
 GitLabSkillArtifactStore.java: 通过固定 generic package 坐标上传/读取制品，重复坐标只接受相同字节，设备不接触 GitLab 凭据。
 SourceArchiveSkillArtifactStore.java: 声明回源 provider，导入和 runtime 均不在服务端持久化 skill ZIP。
 SkillImportService.java: 组合源码解析、归档校验、可选 artifact 保存和 catalog DRAFT 登记，不自动发布。
+SkillSourceCredentialService.java: 仓库访问凭据的创建、加密轮换、撤销和一次性解密取用。
 SkillMutationContext.java: 管理端可信租户、操作者和请求审计上下文。
 SkillAuditMetadata.java: skill 管理操作的固定审计 metadata 白名单。
 SkillResourceNotFoundException.java: 当前租户资源不存在的稳定 404 异常。

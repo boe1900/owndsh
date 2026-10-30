@@ -58,8 +58,14 @@ public final class RuntimeSkillController {
         SkillRelease release = runtime.artifact(context, releaseId);
         try {
             if ("SOURCE_ARCHIVE".equalsIgnoreCase(release.artifactProvider())) {
-                SkillSourceClient.FetchedArchive fetched = sources.fetch(new SkillSourceClient.Source(
-                    release.sourceLocator(), release.resolvedCommit(), release.sourceSubpath()));
+                char[] secret = runtime.sourceCredential(release, context.tenantId());
+                SkillSourceClient.FetchedArchive fetched;
+                try {
+                    fetched = sources.fetch(new SkillSourceClient.Source(
+                        release.sourceLocator(), release.resolvedCommit(), release.sourceSubpath()), secret);
+                } finally {
+                    if (secret != null) java.util.Arrays.fill(secret, '\0');
+                }
                 SkillArchiveValidator.ValidatedSkill validated = validator.validate(
                     new ByteArrayInputStream(fetched.archive()), release.sourceSubpath());
                 if (!fetched.resolvedCommit().equals(release.resolvedCommit())

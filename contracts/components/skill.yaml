@@ -92,7 +92,7 @@ SkillRegistrationRequest:
 SkillRelease:
   type: object
   additionalProperties: false
-  required: [id, name, version, description, license, author, userInvocable, modelInvocable, categories, artifactSizeBytes, artifactSha256, status, revision]
+  required: [id, name, version, description, license, author, userInvocable, modelInvocable, categories, artifactSizeBytes, artifactSha256, status, revision, releaseNotes, current]
   properties:
     id: {$ref: '#/SkillReleaseId'}
     name: {$ref: '#/SkillName'}
@@ -115,6 +115,14 @@ SkillRelease:
     repositoryPath:
       type: [string, 'null']
       maxLength: 256
+    resolvedCommit:
+      type: [string, 'null']
+      pattern: '^[0-9a-f]{7,64}$'
+    credentialId:
+      type: [string, 'null']
+      pattern: '^[1-9][0-9]{0,18}$'
+    releaseNotes: {type: string, maxLength: 2000}
+    current: {type: boolean}
 SkillReleasePageData:
   type: object
   additionalProperties: false
@@ -143,7 +151,7 @@ SkillReleaseResponse:
 SkillSourceImportRequest:
   type: object
   additionalProperties: false
-  required: [repositoryUrl, revision, subpath]
+  required: [repositoryUrl, revision, subpath, visibility]
   properties:
     repositoryUrl:
       type: string
@@ -159,6 +167,13 @@ SkillSourceImportRequest:
       type: string
       maxLength: 256
       pattern: '^(|[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*)$'
+    visibility:
+      type: string
+      enum: [PUBLIC, PRIVATE]
+    credentialId:
+      type: [string, 'null']
+      pattern: '^[1-9][0-9]{0,18}$'
+    releaseNotes: {type: string, maxLength: 2000}
 SkillImportedRelease:
   type: object
   additionalProperties: false
@@ -176,3 +191,28 @@ SkillImportedReleaseResponse:
   properties:
     data: {$ref: '#/SkillImportedRelease'}
     requestId: {$ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'}
+
+SkillSourceCredential:
+  type: object
+  additionalProperties: false
+  required: [id, name, host, tokenHint, status, revision]
+  properties:
+    id: {$ref: '#/SkillReleaseId'}
+    name: {type: string, minLength: 1, maxLength: 120}
+    host: {type: string, minLength: 1, maxLength: 255}
+    projectPath: {type: [string, 'null'], maxLength: 500}
+    tokenHint: {type: string, maxLength: 32}
+    expiresAt: {type: [string, 'null'], format: date-time}
+    status: {type: string, enum: [ACTIVE, EXPIRED, REVOKED]}
+    revision: {$ref: '../enterprise-openapi.yaml#/components/schemas/Revision'}
+
+SkillSourceCredentialWriteRequest:
+  type: object
+  additionalProperties: false
+  required: [name, host, token]
+  properties:
+    name: {type: string, minLength: 1, maxLength: 120}
+    host: {type: string, minLength: 1, maxLength: 255}
+    projectPath: {type: [string, 'null'], maxLength: 500}
+    expiresAt: {type: [string, 'null'], format: date-time}
+    token: {type: string, minLength: 4, maxLength: 4096, writeOnly: true}

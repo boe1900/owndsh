@@ -134,3 +134,93 @@ AdminSkillRevoke:
       '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
       '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
       '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+
+AdminSkillCredentials:
+  get:
+    operationId: listSkillSourceCredentials
+    responses:
+      '200':
+        description: Available source credentials.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, requestId]
+              properties:
+                data:
+                  type: array
+                  items: {$ref: '../enterprise-openapi.yaml#/components/schemas/SkillSourceCredential'}
+                requestId: {$ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+  post:
+    operationId: createSkillSourceCredential
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/SkillSourceCredentialWriteRequest'}
+    responses:
+      '200':
+        description: Created source credential.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, requestId]
+              properties:
+                data: {$ref: '../enterprise-openapi.yaml#/components/schemas/SkillSourceCredential'}
+                requestId: {$ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+
+AdminSkillCredentialRotate:
+  parameters:
+    - name: credentialId
+      in: path
+      required: true
+      schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/SkillReleaseId'}
+  post:
+    operationId: rotateSkillSourceCredential
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/SkillSourceCredentialWriteRequest'}
+    responses:
+      '200':
+        description: Rotated source credential.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, requestId]
+              properties:
+                data: {$ref: '../enterprise-openapi.yaml#/components/schemas/SkillSourceCredential'}
+                requestId: {$ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+
+AdminSkillCredentialRevoke:
+  parameters:
+    - name: credentialId
+      in: path
+      required: true
+      schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/SkillReleaseId'}
+  post:
+    operationId: revokeSkillSourceCredential
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    responses:
+      '200':
+        description: Revoked source credential.
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data, requestId]
+              properties:
+                data: {$ref: '../enterprise-openapi.yaml#/components/schemas/SkillSourceCredential'}
+                requestId: {$ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}

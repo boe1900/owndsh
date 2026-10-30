@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 JDK HttpClient、公开 GitLab/GitHub commit API 和 archive endpoint。
+ * [INPUT]: 依赖 JDK HttpClient、GitLab/GitHub commit API、archive endpoint 和一次性 token。
  * [OUTPUT]: 将 branch/tag/ref 固定解析为 commit，并下载受限源码 ZIP。
- * [POS]: skill/application 的默认公开源码 adapter；只在 Server 导入阶段运行。
+ * [POS]: skill/application 的默认源码 adapter；token 只进入请求 header，不进入 URL。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.skill.application;
@@ -38,15 +38,20 @@ public final class HttpSkillSourceClient implements SkillSourceClient {
 
     @Override
     public FetchedArchive fetch(Source source) {
+        return fetch(source, null);
+    }
+
+    @Override
+    public FetchedArchive fetch(Source source, char[] credential) {
         Repository repository = Repository.parse(source.repositoryUrl());
-        String commit = resolveCommit(repository, source.revision());
-        byte[] archive = download(repository.archiveUrl(commit));
+        String commit = resolveCommit(repository, source.revision(), credential);
+        byte[] archive = download(repository.archiveUrl(commit), repository, credential);
         return new FetchedArchive(commit, archive);
     }
 
-    private String resolveCommit(Repository repository, String revision) {
+    private String resolveCommit(Repository repository, String revision, char[] credential) {
         URI url = repository.commitApiUrl(revision);
-        JsonNode body = readJson(url);
+        JsonNode body = readJson(url, repository, credential);
         JsonNode value = repository.github() ? body.path("sha") : body.isArray() && !body.isEmpty()
             ? body.get(0).path("id") : body.path("id");
         String commit = value.asString("");
@@ -54,10 +59,11 @@ public final class HttpSkillSourceClient implements SkillSourceClient {
         return commit.toLowerCase();
     }
 
-    private byte[] download(URI uri) {
-        HttpRequest request = HttpRequest.newBuilder(uri).timeout(REQUEST_TIMEOUT)
-            .header("Accept", "application/zip").header("User-Agent", "OwnDsh-Skill-Importer/1")
-            .GET().build();
+    private byte[] download(URI uri, Repository repository, char[] credential) {
+        HttpRequest.Builder builder = HttpRequest.newBuilder(uri).timeout(REQUEST_TIMEOUT)
+            .header("Accept", "application/zip").header("User-Agent", "OwnDsh-Skill-Importer/1");
+        addCredential(builder, repository, credential);
+        HttpRequest request = builder.GET().build();
         try {
             HttpResponse<InputStream> response = http.send(request, HttpResponse.BodyHandlers.ofInputStream());
             if (response.statusCode() / 100 != 2) {
@@ -75,8 +81,8 @@ public final class HttpSkillSourceClient implements SkillSourceClient {
         }
     }
 
-    private JsonNode readJson(URI uri) {
-        byte[] body = downloadJson(uri);
+    private JsonNode readJson(URI uri, Repository repository, char[] credential) {
+        byte[] body = downloadJson(uri, repository, credential);
         try {
             return json.readTree(body);
         } catch (RuntimeException exception) {
@@ -84,10 +90,11 @@ public final class HttpSkillSourceClient implements SkillSourceClient {
         }
     }
 
-    private byte[] downloadJson(URI uri) {
-        HttpRequest request = HttpRequest.newBuilder(uri).timeout(REQUEST_TIMEOUT)
-            .header("Accept", "application/json").header("User-Agent", "OwnDsh-Skill-Importer/1")
-            .GET().build();
+    private byte[] downloadJson(URI uri, Repository repository, char[] credential) {
+        HttpRequest.Builder builder = HttpRequest.newBuilder(uri).timeout(REQUEST_TIMEOUT)
+            .header("Accept", "application/json").header("User-Agent", "OwnDsh-Skill-Importer/1");
+        addCredential(builder, repository, credential);
+        HttpRequest request = builder.GET().build();
         try {
             HttpResponse<InputStream> response = http.send(request, HttpResponse.BodyHandlers.ofInputStream());
             if (response.statusCode() / 100 != 2) {
@@ -103,6 +110,13 @@ public final class HttpSkillSourceClient implements SkillSourceClient {
         } catch (IOException exception) {
             throw sourceFailure(Kind.UPSTREAM_UNAVAILABLE, "源码 commit API 请求失败", exception);
         }
+    }
+
+    private static void addCredential(HttpRequest.Builder builder, Repository repository, char[] credential) {
+        if (credential == null || credential.length == 0) return;
+        String value = new String(credential);
+        if (repository.github()) builder.header("Authorization", "Bearer " + value);
+        else builder.header("PRIVATE-TOKEN", value);
     }
 
     private static byte[] readLimited(InputStream input, int max) throws IOException {
@@ -148,6 +162,7 @@ public final class HttpSkillSourceClient implements SkillSourceClient {
     }
 
     private static Kind responseKind(int status) {
+        if (status == 401 || status == 403) return Kind.AUTH_FAILED;
         return status == 429 || status >= 500 ? Kind.UPSTREAM_UNAVAILABLE : Kind.INVALID_REQUEST;
     }
 
@@ -201,5 +216,5 @@ public final class HttpSkillSourceClient implements SkillSourceClient {
         public Kind kind() { return kind; }
     }
 
-    public enum Kind { INVALID_REQUEST, UPSTREAM_INVALID, UPSTREAM_UNAVAILABLE }
+    public enum Kind { INVALID_REQUEST, AUTH_FAILED, UPSTREAM_INVALID, UPSTREAM_UNAVAILABLE }
 }

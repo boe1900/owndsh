@@ -72,9 +72,37 @@ class SkillCatalogServiceTest {
         verify(skills).insertRelease(any(SkillRelease.class), eq(7L));
     }
 
+    @Test
+    void publishingHistoricalReleaseSwitchesCurrentVersion() {
+        SkillStore skills = mock(SkillStore.class);
+        BootstrapRevisionStore revisions = mock(BootstrapRevisionStore.class);
+        SkillRelease historical = release(SkillRelease.Status.PUBLISHED, 4, false);
+        when(skills.findRelease("000000", 9001L)).thenReturn(Optional.of(historical), Optional.of(historical));
+        when(skills.transitionRelease("000000", 9001, SkillRelease.Status.PUBLISHED,
+            SkillRelease.Status.PUBLISHED, 4)).thenReturn(true);
+        when(revisions.increment("000000")).thenReturn(14L);
+        TransactionOperations transactions = new TransactionOperations() {
+            @Override
+            public <T> T execute(TransactionCallback<T> action) {
+                return action.doInTransaction(null);
+            }
+        };
+        SkillCatalogService service = new SkillCatalogService(transactions, skills, revisions,
+            event -> {}, new AtomicLong(9000)::incrementAndGet);
+
+        assertThat(service.publish(CONTEXT, 9001, 4)).isEqualTo(historical);
+        verify(skills).transitionRelease("000000", 9001, SkillRelease.Status.PUBLISHED,
+            SkillRelease.Status.PUBLISHED, 4);
+    }
+
     private static SkillRelease release(SkillRelease.Status status, long revision) {
+        return release(status, revision, status == SkillRelease.Status.PUBLISHED);
+    }
+
+    private static SkillRelease release(SkillRelease.Status status, long revision, boolean current) {
         return new SkillRelease(9001, "000000", "code-review", "1.0.0", "Review", "MIT", "OwnDsh",
             true, true, List.of("dev"), 1024,
-            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", status, revision);
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "MANUAL", "", "", null,
+            "SOURCE_ARCHIVE", "artifact.zip", null, "", current, status, revision);
     }
 }

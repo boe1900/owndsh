@@ -14,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 public enum SecretPurpose {
     IDENTITY_SECRET("identity-secret"),
     PROVIDER_SECRET("provider-secret"),
+    SKILL_SOURCE("skill-source"),
     SESSION_CONTENT("session-content"),
     API_CURSOR("api-cursor");
 

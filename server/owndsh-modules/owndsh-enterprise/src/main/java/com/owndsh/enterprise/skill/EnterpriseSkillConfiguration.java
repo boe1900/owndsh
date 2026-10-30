@@ -22,6 +22,10 @@ import com.owndsh.enterprise.skill.application.SourceArchiveSkillArtifactStore;
 import com.owndsh.enterprise.audit.AuditSink;
 import com.owndsh.enterprise.skill.persistence.JdbcSkillStore;
 import com.owndsh.enterprise.skill.persistence.SkillStore;
+import com.owndsh.enterprise.skill.persistence.JdbcSkillSourceCredentialStore;
+import com.owndsh.enterprise.skill.persistence.SkillSourceCredentialStore;
+import com.owndsh.enterprise.skill.application.SkillSourceCredentialService;
+import com.owndsh.enterprise.crypto.SecretCipher;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -69,6 +73,21 @@ public class EnterpriseSkillConfiguration {
     }
 
     @Bean
+    SkillSourceCredentialStore enterpriseSkillSourceCredentialStore(JdbcTemplate jdbcTemplate) {
+        return new JdbcSkillSourceCredentialStore(jdbcTemplate);
+    }
+
+    @Bean
+    SkillSourceCredentialService enterpriseSkillSourceCredentialService(
+        PlatformTransactionManager transactionManager,
+        SkillSourceCredentialStore store,
+        SecretCipher cipher,
+        @Qualifier("enterpriseIdSupplier") LongSupplier ids
+    ) {
+        return new SkillSourceCredentialService(new TransactionTemplate(transactionManager), store, cipher, ids);
+    }
+
+    @Bean
     EffectiveSkillResolver enterpriseEffectiveSkillResolver(
         SkillStore skillStore,
         BootstrapRevisionStore revisionStore
@@ -93,17 +112,19 @@ public class EnterpriseSkillConfiguration {
         SkillSourceClient sourceClient,
         SkillArchiveValidator archiveValidator,
         SkillArtifactStore artifactStore,
-        SkillCatalogService catalog
+        SkillCatalogService catalog,
+        SkillSourceCredentialService credentials
     ) {
-        return new SkillImportService(sourceClient, archiveValidator, artifactStore, catalog);
+        return new SkillImportService(sourceClient, archiveValidator, artifactStore, catalog, credentials);
     }
 
     @Bean
     SkillRuntimeService enterpriseSkillRuntimeService(
         DeviceService deviceService,
         EffectiveSkillResolver resolver,
-        SkillStore skillStore
+        SkillStore skillStore,
+        SkillSourceCredentialService credentials
     ) {
-        return new SkillRuntimeService(deviceService, resolver, skillStore);
+        return new SkillRuntimeService(deviceService, resolver, skillStore, credentials);
     }
 }

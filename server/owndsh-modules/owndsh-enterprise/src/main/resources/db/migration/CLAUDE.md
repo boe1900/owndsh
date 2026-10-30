@@ -56,5 +56,6 @@ V46__model_provider_connections.sql: 按全新模型接入设计拆分 Provider 
 V47__model_connection_audit.sql: 将连接敏感操作审计动作加入数据库白名单，与 MODEL_CONNECTION_CHANGED Java action 和 OpenAPI metadata 同构。
 V48__model_provider_description.sql: 为供应商元信息增加可选描述字段，供管理端记录用途说明。
 V49__model_connection_discovery_path.sql: 为每条模型连接增加默认 /models 的模型发现路径，并约束其为无 query/fragment 的绝对路径。
+V50__enterprise_skill_source_credentials.sql: 建立加密仓库访问凭据、Skill Release 当前版本指针和发布说明字段，支持私有源码按 commit 回源安装。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

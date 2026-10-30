@@ -53,7 +53,17 @@ public final class AdminSkillController {
         @RequestBody SkillSourceImportRequest body, HttpServletRequest request
     ) {
         EnterpriseRequestContext context = contexts.resolve(request);
-        SkillImportService.ImportResult result = imports.importDraft(mutation(context), body.source());
+        if (!"PUBLIC".equalsIgnoreCase(body.visibility()) && !"PRIVATE".equalsIgnoreCase(body.visibility())) {
+            throw new IllegalArgumentException("源码可见性必须是 PUBLIC 或 PRIVATE");
+        }
+        if ("PRIVATE".equalsIgnoreCase(body.visibility()) && body.credentialId() == null) {
+            throw new IllegalArgumentException("私有仓库必须选择访问凭据");
+        }
+        if ("PUBLIC".equalsIgnoreCase(body.visibility()) && body.credentialId() != null) {
+            throw new IllegalArgumentException("公开仓库不能绑定私有访问凭据");
+        }
+        SkillImportService.ImportResult result = imports.importDraft(mutation(context), body.source(),
+            body.credentialId(), body.releaseNotes());
         return ResponseEntity.status(result.registration().created() ? HttpStatus.CREATED : HttpStatus.OK)
             .body(response(SkillViews.imported(result), context));
     }

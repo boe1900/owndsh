@@ -654,6 +654,10 @@ export type SkillImportedRelease = SkillSkillImportedRelease;
 
 export type SkillImportedReleaseResponse = SkillSkillImportedReleaseResponse;
 
+export type SkillSourceCredential = SkillSkillSourceCredential;
+
+export type SkillSourceCredentialWriteRequest = SkillSkillSourceCredentialWriteRequest;
+
 export type AuditAuditAction = 'LOGIN_SUCCEEDED' | 'LOGIN_FAILED' | 'LOGOUT' | 'IDENTITY_SOURCE_CHANGED' | 'USER_LINKED' | 'USER_UNLINKED' | 'DEVICE_ENROLLED' | 'DEVICE_HEARTBEAT' | 'DEVICE_REVOKED' | 'PROVIDER_CHANGED' | 'MODEL_CONNECTION_CHANGED' | 'MODEL_CHANGED' | 'MODEL_GRANT_CHANGED' | 'MODEL_REQUEST_ACCEPTED' | 'MODEL_REQUEST_FINISHED' | 'QUOTA_CHANGED' | 'QUOTA_REJECTED' | 'RESERVATION_RECOVERED' | 'PLUGIN_REGISTERED' | 'PLUGIN_UPLOADED' | 'PLUGIN_PUBLISHED' | 'PLUGIN_DELETED' | 'PLUGIN_ASSIGNED' | 'PLUGIN_DOWNLOADED' | 'PLUGIN_INVENTORY_REPORTED' | 'SESSION_BATCH_APPENDED' | 'SESSION_EXPORTED' | 'SESSION_RESTORED' | 'SESSION_CONTENT_READ' | 'SESSION_DELETED' | 'SESSION_EXPIRED' | 'ROLE_ASSIGNED' | 'USER_STATUS_CHANGED' | 'CONFIG_CHANGED';
 
 export type AuditAuditActorType = 'USER' | 'SYSTEM';
@@ -2570,6 +2574,10 @@ export type SkillSkillRelease = {
     revision: Revision;
     repositoryUrl?: string | null;
     repositoryPath?: string | null;
+    resolvedCommit?: string | null;
+    credentialId?: string | null;
+    releaseNotes: string;
+    current: boolean;
 };
 
 export type SkillSkillReleaseId = string;
@@ -2591,10 +2599,31 @@ export type SkillSkillReleaseResponse = {
 
 export type SkillSkillReleaseStatus = 'DRAFT' | 'PUBLISHED' | 'REVOKED';
 
+export type SkillSkillSourceCredential = {
+    id: SkillSkillReleaseId;
+    name: string;
+    host: string;
+    projectPath?: string | null;
+    tokenHint: string;
+    expiresAt?: string | null;
+    status: 'ACTIVE' | 'EXPIRED' | 'REVOKED';
+    revision: Revision;
+};
+
+export type SkillSkillSourceCredentialWriteRequest = {
+    name: string;
+    host: string;
+    projectPath?: string | null;
+    expiresAt?: string | null;
+};
+
 export type SkillSkillSourceImportRequest = {
     repositoryUrl: string;
     revision: string;
     subpath: string;
+    visibility: 'PUBLIC' | 'PRIVATE';
+    credentialId?: string | null;
+    releaseNotes?: string;
 };
 
 export type SkillSkillVersion = string;
@@ -2786,6 +2815,12 @@ export type RuntimeSessionRestoreRecord = unknown;
 
 export type AdminSkillCollection = unknown;
 
+export type AdminSkillCredentialRevoke = unknown;
+
+export type AdminSkillCredentialRotate = unknown;
+
+export type AdminSkillCredentials = unknown;
+
 export type AdminSkillImport = unknown;
 
 export type AdminSkillPublish = unknown;
@@ -2932,6 +2967,8 @@ export type SkillVersionWritable = SkillSkillVersion;
 
 export type SkillReleaseStatusWritable = SkillSkillReleaseStatus;
 
+export type SkillSourceCredentialWriteRequestWritable = SkillSkillSourceCredentialWriteRequestWritable;
+
 export type EmptyAuditMetadataWritable = {
     [key: string]: never;
 };
@@ -3022,6 +3059,14 @@ export type ModelProviderProbeRequestWritable = {
     readTimeoutMs: ProviderTimeoutMs;
 };
 
+export type SkillSkillSourceCredentialWriteRequestWritable = {
+    name: string;
+    host: string;
+    projectPath?: string | null;
+    expiresAt?: string | null;
+    token: string;
+};
+
 export type CurrentAccountPasswordWritable = unknown;
 
 export type PasswordWritable = unknown;
@@ -3042,6 +3087,10 @@ export type ProviderConnectionCollectionWritable = unknown;
 export type ProviderConnectionItemWritable = unknown;
 
 export type ProviderConnectionProbeWritable = unknown;
+
+export type AdminSkillCredentialRotateWritable = unknown;
+
+export type AdminSkillCredentialsWritable = unknown;
 
 export type AuthClientId = AuthPlatformClient;
 
@@ -8131,3 +8180,139 @@ export type RevokeSkillReleaseResponses = {
 };
 
 export type RevokeSkillReleaseResponse = RevokeSkillReleaseResponses[keyof RevokeSkillReleaseResponses];
+
+export type ListSkillSourceCredentialsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/enterprise/admin/v1/skill-credentials';
+};
+
+export type ListSkillSourceCredentialsErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+};
+
+export type ListSkillSourceCredentialsError = ListSkillSourceCredentialsErrors[keyof ListSkillSourceCredentialsErrors];
+
+export type ListSkillSourceCredentialsResponses = {
+    /**
+     * Available source credentials.
+     */
+    200: {
+        data: Array<SkillSkillSourceCredential>;
+        requestId: RequestId;
+    };
+};
+
+export type ListSkillSourceCredentialsResponse = ListSkillSourceCredentialsResponses[keyof ListSkillSourceCredentialsResponses];
+
+export type CreateSkillSourceCredentialData = {
+    body: SkillSkillSourceCredentialWriteRequestWritable;
+    path?: never;
+    query?: never;
+    url: '/enterprise/admin/v1/skill-credentials';
+};
+
+export type CreateSkillSourceCredentialErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+};
+
+export type CreateSkillSourceCredentialError = CreateSkillSourceCredentialErrors[keyof CreateSkillSourceCredentialErrors];
+
+export type CreateSkillSourceCredentialResponses = {
+    /**
+     * Created source credential.
+     */
+    200: {
+        data: SkillSkillSourceCredential;
+        requestId: RequestId;
+    };
+};
+
+export type CreateSkillSourceCredentialResponse = CreateSkillSourceCredentialResponses[keyof CreateSkillSourceCredentialResponses];
+
+export type RotateSkillSourceCredentialData = {
+    body: SkillSkillSourceCredentialWriteRequestWritable;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        credentialId: SkillSkillReleaseId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/skill-credentials/{credentialId}/actions/rotate';
+};
+
+export type RotateSkillSourceCredentialErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type RotateSkillSourceCredentialError = RotateSkillSourceCredentialErrors[keyof RotateSkillSourceCredentialErrors];
+
+export type RotateSkillSourceCredentialResponses = {
+    /**
+     * Rotated source credential.
+     */
+    200: {
+        data: SkillSkillSourceCredential;
+        requestId: RequestId;
+    };
+};
+
+export type RotateSkillSourceCredentialResponse = RotateSkillSourceCredentialResponses[keyof RotateSkillSourceCredentialResponses];
+
+export type RevokeSkillSourceCredentialData = {
+    body?: never;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        credentialId: SkillSkillReleaseId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/skill-credentials/{credentialId}/actions/revoke';
+};
+
+export type RevokeSkillSourceCredentialErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type RevokeSkillSourceCredentialError = RevokeSkillSourceCredentialErrors[keyof RevokeSkillSourceCredentialErrors];
+
+export type RevokeSkillSourceCredentialResponses = {
+    /**
+     * Revoked source credential.
+     */
+    200: {
+        data: SkillSkillSourceCredential;
+        requestId: RequestId;
+    };
+};
+
+export type RevokeSkillSourceCredentialResponse = RevokeSkillSourceCredentialResponses[keyof RevokeSkillSourceCredentialResponses];

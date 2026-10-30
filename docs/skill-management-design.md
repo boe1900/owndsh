@@ -1,5 +1,5 @@
 <!--
-[INPUT]: 依赖 DSH 0.2.1-rc.2 的 ctx.skills/provider 语义、WorkBuddy Skill 格式、OwnDsh 登录会话与公开 GitHub/GitLab 源。
+[INPUT]: 依赖 DSH 0.2.1-rc.2 的 ctx.skills/provider 语义、WorkBuddy Skill 格式、OwnDsh 登录会话与 GitHub/GitLab 源访问凭据。
 [OUTPUT]: 定义 OwnDsh Skill 目录、按需安装、全局缓存、运行时挂载、来源回源和无权限分配边界。
 [POS]: OwnDsh Skill 管理的产品与技术真源；不替代 DSH provider、plugin manager 或工作区语义。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -24,7 +24,7 @@ OwnDsh 只提供一个简单的全局 Skill 市场和本地运行时。管理员
 
 - 在 OwnDsh 设置页默认进入“发现”，并在搜索栏右侧提供“已安装（数量）”条件筛选。
 - 兼容 WorkBuddy 的 SKILL.md frontmatter 和 _icon.png。
-- 管理员从公开 GitHub 或 GitLab 仓库导入固定 commit，审阅后发布。
+- 管理员从公开或私有 GitHub/GitLab 仓库导入固定 commit，审阅后发布。
 - 用户按需下载并安装到 OwnDsh 专用全局目录，离线继续使用已安装副本。
 - 使用 DSH 官方 filesystem provider 的 customSkillDirs 和 invalidate()，保留 DSH 原生调用策略。
 - 与 DSH 原生项目、用户、bundled 和插件 Skill 隔离，不扫描、不修改、不删除它们。
@@ -35,7 +35,7 @@ OwnDsh 只提供一个简单的全局 Skill 市场和本地运行时。管理员
 - Skill assignment、设备清单、远程下发、远程禁用、撤销同步和回滚编排。
 - 扫描机器上所有 Agent 的 Skill 目录。
 - OSS、服务端 ZIP 持久化、GitLab Package Registry 依赖。
-- 客户端 GitHub/GitLab 凭据、制品签名、公钥预置和客户端验签。
+- 客户端 GitHub/GitLab 凭据、制品签名、公钥预置和客户端验签。仓库凭据只由 Server 保存和使用。
 - OwnDsh 自己的命令解析器、provider rank 算法或 Skill 正文解释器。
 - “去对话”按钮。设置页没有可靠的 DSH workspace 上下文，跳转会把 Skill 命令放进错误会话。
 
@@ -54,17 +54,17 @@ Skill 的运行时可用性由 DSH provider 和 SKILL.md 调用策略共同决�
 
 ## 4. 来源与分发
 
-### 4.1 公开仓库
+### 4.1 公开与私有仓库
 
-第一版只接受公开 HTTPS GitHub/GitLab 仓库，支持仓库地址、固定 ref/commit 和可选子目录。导入时解析完整 commit，下载归档，校验 Skill 包，再保存来源坐标、归一化归档长度和 SHA-256。发布后的 release 永远绑定该 commit，运行时不重新解析 branch/tag。
+接受公开或私有 HTTPS GitHub/GitLab 仓库，支持仓库地址、固定 ref/commit 和可选子目录。私有仓库通过管理端绑定的通用仓库访问凭据读取；系统不区分 Project Token、Personal Token 等具体类型，只验证实际读取能力。导入时解析完整 commit，下载归档，校验 Skill 包，再保存来源坐标、凭据引用、归一化归档长度和 SHA-256。发布后的 release 永远绑定该 commit，运行时不重新解析 branch/tag。
 
-GitHub 使用公开 commit API / codeload；GitLab 使用公开 commit API / repository/archive.zip。GitHub 与 GitLab 走同一个 SkillSourceClient 抽象，服务端按 release 的来源坐标回源。
+GitHub 使用 commit API / codeload；GitLab 使用 commit API / repository/archive.zip，凭据只放入请求 header。GitHub 与 GitLab 走同一个 SkillSourceClient 抽象，服务端按 release 的来源坐标和凭据引用回源。
 
 ### 4.2 请求时回源
 
 OwnDsh 不保存 ZIP，也不依赖 OSS 或 Package Registry。设备请求 /enterprise/api/v1/skills/{releaseId}/artifact 时，Server 从固定 commit 回源，再执行一次归档、路径、frontmatter、大小和 SHA-256 校验后返回。回源失败只影响本次安装；设备保留旧的完整副本。
 
-数据库只保存 release 元数据、来源坐标、固定 commit、制品长度和 SHA-256。服务端本地 filesystem / GitLab Package adapter 仅保留为已有代码的可替换接口，不作为当前默认路径或验收依赖。
+数据库只保存 release 元数据、来源坐标、固定 commit、凭据引用、制品长度和 SHA-256；仓库 token 以 SecretCipher 加密保存，列表只返回脱敏提示。服务端本地 filesystem / GitLab Package adapter 仅保留为已有代码的可替换接口，不作为当前默认路径或验收依赖。
 
 ### 4.3 信任边界
 
@@ -124,7 +124,7 @@ OpenAPI 真源位于 contracts/components/skill.yaml 和 contracts/paths/skill.y
 
 ### Runtime
 
-- GET /enterprise/api/v1/skills：返回所有已发布 release 的脱敏目录和 bootstrap revision。
+- GET /enterprise/api/v1/skills：返回每个 Skill 当前生效的已发布 release 脱敏目录和 bootstrap revision。
 - GET /enterprise/api/v1/skills/{releaseId}/artifact：按 release 固定来源回源并返回 ZIP。
 
 Runtime 响应不带 assignment、inventory、用户权限或设备权限字段。已发布即进入 Catalog，对当前登录设备可见；设备安装事实留在客户端。
@@ -132,16 +132,19 @@ Runtime 响应不带 assignment、inventory、用户权限或设备权限字段�
 ### Admin
 
 - GET /enterprise/admin/v1/skills：分页读取 release 目录。
-- POST /enterprise/admin/v1/skills/imports：从公开 GitHub/GitLab 固定 revision 导入 DRAFT。
+- POST /enterprise/admin/v1/skills/imports：从公开/私有 GitHub/GitLab 固定 revision 导入 DRAFT；请求只携带 visibility 和凭据 ID。
 - POST /enterprise/admin/v1/skills/releases：登记已校验的 DRAFT 元数据。
-- POST /enterprise/admin/v1/skills/releases/{id}/actions/publish：CAS 发布。
+- POST /enterprise/admin/v1/skill-credentials：创建或列出仓库访问凭据。
+- POST /enterprise/admin/v1/skill-credentials/{id}/actions/rotate：CAS 轮换凭据。
+- POST /enterprise/admin/v1/skill-credentials/{id}/actions/revoke：CAS 撤销凭据。
+- POST /enterprise/admin/v1/skills/releases/{id}/actions/publish：CAS 发布或将历史版本切为当前版本。
 - POST /enterprise/admin/v1/skills/releases/{id}/actions/revoke：CAS 撤销。
 
 Skill 管理接口不使用 `ent:skill:*` 权限，也不做用户、角色、设备或租户分配；已有登录管理会话即可维护目录，运行时仍由设备会话保护。
 
 ### 数据表
 
-ent_skill_release 只保存 release 元数据、来源坐标、固定 commit、artifact provider/ref、大小、SHA-256、状态和 revision。没有 Skill assignment 表、设备 Skill inventory 表或项目绑定字段。
+ent_skill_release 只保存 release 元数据、来源坐标、固定 commit、来源凭据 ID、发布说明、当前版本指针、artifact provider/ref、大小、SHA-256、状态和 revision。ent_skill_source_credential 保存加密仓库 token 与 host/project 范围。没有 Skill assignment 表、设备 Skill inventory 表或项目绑定字段。
 
 ## 8. 设置页
 
@@ -165,7 +168,8 @@ OwnDsh 设置页 Tab 顺序：账号 → 技能 → MCP；插件发现和安装�
 - 拒绝路径穿越、绝对路径、重复文件、符号链接、加密 ZIP、坏 CRC、超限归档和坏 frontmatter。
 - Server 回源或客户端校验失败时不替换旧副本。
 - 撤销 release 后，新的安装和更新请求失败；已经安装的本地副本可以离线继续运行，用户可自行卸载。
-- 不接收客户端源仓库 token；源仓库访问只发生在 Server。
+- 不接收客户端源仓库 token；管理员只在 Server 管理端写入一次，源仓库访问只发生在 Server。
+- 凭据过期或撤销只阻止新的私有仓库预检、安装和升级；已安装的完整本地副本继续离线运行。
 - 不执行脚本沙箱或额外权限裁决；脚本遵循 DSH/Harness 现有工具权限和用户确认机制。
 - frontmatter、描述、图标和脚本输出均按不可信输入处理，不直接拼进管理端 HTML 或系统 prompt。
 
@@ -174,7 +178,7 @@ OwnDsh 设置页 Tab 顺序：账号 → 技能 → MCP；插件发现和安装�
 ### 已实现纵向切片
 
 1. OpenAPI Skill release/catalog/artifact 契约。
-2. Server 公开 GitHub/GitLab 固定 commit 导入、DRAFT/PUBLISHED/REVOKED 状态机和请求时回源。
+2. Server 公开/私有 GitHub/GitLab 固定 commit 导入、加密仓库凭据、DRAFT/PUBLISHED/REVOKED 状态机、当前版本切换和请求时回源。
 3. Client ZIP 校验、SHA-256、原子安装、启用/卸载、本地缓存和 Host 文件动作。
 4. DSH provider 隔离、invalidate() 接缝和 WorkBuddy 元数据投影。
 5. Console 管理目录和 OwnDsh 设置“技能”Tab。
@@ -184,7 +188,7 @@ OwnDsh 设置页 Tab 顺序：账号 → 技能 → MCP；插件发现和安装�
 - customSkillDirs + includeDefaultRoots: false 只发现 OwnDsh 目录，官方 provider 仍与其共存。
 - 安装、原子替换、删除和启用变化后，invalidate() 使下一次 list/get 返回新事实。
 - 四种 disable-model-invocation / user-invocable 组合符合 DSH 原生语义。
-- GitHub 公开源固定 commit 导入、runtime 回源、长度/SHA-256 校验、源不可达保留旧副本。
+- GitHub/GitLab 公开和私有源固定 commit 导入、runtime 回源、长度/SHA-256 校验、源不可达保留旧副本；私有源凭据过期不影响已安装副本。
 - OwnDsh 不扫描或修改其他 Skill 根目录，页面不出现项目/外部 Skill。
 - Server Java 21 环境下编译、Skill 单测、迁移测试；Plugin/Console 构建和测试通过。
 
@@ -198,6 +202,6 @@ dsh-skill-hub 和 dsh-skills-manager 证明了固定 commit、临时目录、归
 - **最小实现**：没有新建 assignment、inventory、权限矩阵、Runner 或 OSS 层。
 - **兼容优先**：WorkBuddy 字段直接保留，DSH 调用策略由官方 provider 解释。
 - **可恢复**：旧副本在下载、校验、回源或服务故障时保留。
-- **可演进**：未来若支持私有仓库，只增加 Server 端凭据和独立门禁，不改变客户端目录和运行时模型。
+- **可演进**：仓库凭据只存在 Server 端，不改变客户端目录和运行时模型；当前版本指针让发布、回滚和安装保持同一条事实链。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

@@ -76,7 +76,8 @@ public final class SkillCatalogService {
 
     public SkillRelease publish(SkillMutationContext context, long releaseId, long expectedRevision) {
         return changeStatus(context, releaseId, expectedRevision, SkillRelease.Status.PUBLISHED,
-            SkillAuditMetadata.Operation.PUBLISH, SkillRelease.Status.DRAFT, SkillRelease.Status.REVOKED);
+            SkillAuditMetadata.Operation.PUBLISH, SkillRelease.Status.DRAFT, SkillRelease.Status.PUBLISHED,
+            SkillRelease.Status.REVOKED);
     }
 
     public SkillRelease revoke(SkillMutationContext context, long releaseId, long expectedRevision) {
@@ -90,7 +91,7 @@ public final class SkillCatalogService {
             SkillRelease current = skills.findRelease(context.tenantId(), releaseId)
                 .orElseThrow(SkillResourceNotFoundException::new);
             requireRevision(current.revision(), expectedRevision);
-            if (current.status() == to) return current;
+            if (current.status() == to && (to != SkillRelease.Status.PUBLISHED || current.current())) return current;
             if (!List.of(from).contains(current.status())) throw new IllegalArgumentException("skill release 状态迁移非法");
             if (!skills.transitionRelease(context.tenantId(), releaseId, current.status(), to, expectedRevision)) {
                 throw releaseConflict(context.tenantId(), releaseId, expectedRevision);
@@ -145,7 +146,9 @@ public final class SkillCatalogService {
             && current.sourceSubpath().equals(draft.sourceSubpath())
             && Objects.equals(current.resolvedCommit(), draft.resolvedCommit())
             && current.artifactProvider().equals(draft.artifactProvider())
-            && current.artifactRef().equals(draft.artifactRef());
+            && current.artifactRef().equals(draft.artifactRef())
+            && Objects.equals(current.sourceCredentialId(), draft.sourceCredentialId())
+            && current.releaseNotes().equals(draft.releaseNotes());
     }
 
     public record RegistrationResult(SkillRelease release, boolean created) { }
@@ -153,7 +156,7 @@ public final class SkillCatalogService {
     public record SkillReleaseDraft(String name, String version, String description, String license, String author,
         boolean userInvocable, boolean modelInvocable, List<String> categories, long artifactSizeBytes,
         String artifactSha256, String sourceType, String sourceLocator, String sourceSubpath, String resolvedCommit,
-        String artifactProvider, String artifactRef) {
+        String artifactProvider, String artifactRef, Long sourceCredentialId, String releaseNotes) {
         public SkillReleaseDraft {
             categories = List.copyOf(Objects.requireNonNull(categories, "categories"));
         }
@@ -162,13 +165,15 @@ public final class SkillCatalogService {
             boolean userInvocable, boolean modelInvocable, List<String> categories, long artifactSizeBytes,
             String artifactSha256) {
             this(name, version, description, license, author, userInvocable, modelInvocable, categories,
-                artifactSizeBytes, artifactSha256, "MANUAL", "", "", null, "SOURCE_ARCHIVE", artifactSha256 + ".zip");
+                artifactSizeBytes, artifactSha256, "MANUAL", "", "", null, "SOURCE_ARCHIVE", artifactSha256 + ".zip",
+                null, "");
         }
 
         SkillRelease toRelease(long id, String tenantId) {
             return new SkillRelease(id, tenantId, name, version, description, license, author, userInvocable,
                 modelInvocable, categories, artifactSizeBytes, artifactSha256, sourceType, sourceLocator,
-                sourceSubpath, resolvedCommit, artifactProvider, artifactRef, SkillRelease.Status.DRAFT, 0);
+                sourceSubpath, resolvedCommit, artifactProvider, artifactRef, sourceCredentialId, releaseNotes,
+                false, SkillRelease.Status.DRAFT, 0);
         }
     }
 

@@ -32,7 +32,8 @@ public final class SkillViews {
         return new ReleaseMetadataView(Long.toString(value.id()), value.name(), value.version(),
             value.description(), value.license(), value.author(), value.userInvocable(), value.modelInvocable(),
             value.categories(), value.artifactSizeBytes(), value.artifactSha256(), value.status().name(), value.revision(),
-            repositoryUrl(value), repositoryPath(value));
+            repositoryUrl(value), repositoryPath(value), value.resolvedCommit(), value.sourceCredentialId() == null ? null : Long.toString(value.sourceCredentialId()),
+            value.releaseNotes(), value.current());
     }
 
     private static String repositoryUrl(SkillRelease value) {
@@ -79,7 +80,8 @@ public final class SkillViews {
     public record ReleaseMetadataView(String id, String name, String version, String description, String license,
         String author, boolean userInvocable, boolean modelInvocable, List<String> categories,
         long artifactSizeBytes, String artifactSha256, String status, long revision,
-        String repositoryUrl, String repositoryPath) {
+        String repositoryUrl, String repositoryPath, String resolvedCommit, String credentialId,
+        String releaseNotes, boolean current) {
     }
 
     public record ImportedReleaseView(String resolvedCommit, ReleaseMetadataView release, boolean created) {

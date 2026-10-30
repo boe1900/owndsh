@@ -305,16 +305,21 @@ public final class EnterpriseExceptionHandler {
     ) {
         HttpStatus status = switch (exception.kind()) {
             case INVALID_REQUEST -> HttpStatus.BAD_REQUEST;
+            case AUTH_FAILED -> HttpStatus.BAD_REQUEST;
             case UPSTREAM_INVALID -> HttpStatus.BAD_GATEWAY;
             case UPSTREAM_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
         };
         String code = switch (exception.kind()) {
             case INVALID_REQUEST -> "ENT_INVALID_REQUEST";
+            case AUTH_FAILED -> "ENT_SOURCE_CREDENTIAL_INVALID";
             case UPSTREAM_INVALID -> "ENT_UPSTREAM_INVALID_RESPONSE";
             case UPSTREAM_UNAVAILABLE -> "ENT_UPSTREAM_UNAVAILABLE";
         };
         boolean retryable = exception.kind() == HttpSkillSourceClient.Kind.UPSTREAM_UNAVAILABLE;
-        return error(status, code, "技能源码源暂时不可用或返回无效响应", retryable, null, request);
+        String message = exception.kind() == HttpSkillSourceClient.Kind.AUTH_FAILED
+            ? "仓库访问凭据无权读取该源码"
+            : "技能源码源暂时不可用或返回无效响应";
+        return error(status, code, message, retryable, null, request);
     }
 
     @ExceptionHandler(SkillResourceNotFoundException.class)

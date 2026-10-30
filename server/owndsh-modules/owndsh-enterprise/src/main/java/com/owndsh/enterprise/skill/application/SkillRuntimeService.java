@@ -17,12 +17,19 @@ public final class SkillRuntimeService {
     private final DeviceService devices;
     private final EffectiveSkillResolver catalog;
     private final com.owndsh.enterprise.skill.persistence.SkillStore skills;
+    private final SkillSourceCredentialService credentials;
 
     public SkillRuntimeService(DeviceService devices, EffectiveSkillResolver catalog,
         com.owndsh.enterprise.skill.persistence.SkillStore skills) {
+        this(devices, catalog, skills, null);
+    }
+
+    public SkillRuntimeService(DeviceService devices, EffectiveSkillResolver catalog,
+        com.owndsh.enterprise.skill.persistence.SkillStore skills, SkillSourceCredentialService credentials) {
         this.devices = Objects.requireNonNull(devices, "devices");
         this.catalog = Objects.requireNonNull(catalog, "catalog");
         this.skills = Objects.requireNonNull(skills, "skills");
+        this.credentials = credentials;
     }
 
     public EffectiveSkillResolver.ResolvedSkills skills(DeviceCallContext context) {
@@ -35,5 +42,9 @@ public final class SkillRuntimeService {
         return skills.findRelease(context.tenantId(), releaseId)
             .filter(release -> release.status() == SkillRelease.Status.PUBLISHED)
             .orElseThrow(SkillResourceNotFoundException::new);
+    }
+
+    public char[] sourceCredential(SkillRelease release, String tenantId) {
+        return credentials == null ? null : credentials.secret(tenantId, release.sourceCredentialId(), release.sourceLocator());
     }
 }

@@ -209,6 +209,12 @@ paths:
     $ref: './paths/skill.yaml#/AdminSkillPublish'
   /enterprise/admin/v1/skills/releases/{releaseId}/actions/revoke:
     $ref: './paths/skill.yaml#/AdminSkillRevoke'
+  /enterprise/admin/v1/skill-credentials:
+    $ref: './paths/skill.yaml#/AdminSkillCredentials'
+  /enterprise/admin/v1/skill-credentials/{credentialId}/actions/rotate:
+    $ref: './paths/skill.yaml#/AdminSkillCredentialRotate'
+  /enterprise/admin/v1/skill-credentials/{credentialId}/actions/revoke:
+    $ref: './paths/skill.yaml#/AdminSkillCredentialRevoke'
 
 x-enterprise-error-statuses:
   '400':
@@ -1251,3 +1257,5 @@ components:
     SkillSourceImportRequest: {$ref: './components/skill.yaml#/SkillSourceImportRequest'}
     SkillImportedRelease: {$ref: './components/skill.yaml#/SkillImportedRelease'}
     SkillImportedReleaseResponse: {$ref: './components/skill.yaml#/SkillImportedReleaseResponse'}
+    SkillSourceCredential: {$ref: './components/skill.yaml#/SkillSourceCredential'}
+    SkillSourceCredentialWriteRequest: {$ref: './components/skill.yaml#/SkillSourceCredentialWriteRequest'}

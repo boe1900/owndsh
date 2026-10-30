@@ -21,26 +21,36 @@ public final class JdbcSkillStore implements SkillStore {
     private static final String COLUMNS = """
         id,tenant_id,skill_name,version,description,license,author,user_invocable,
         model_invocable,categories_json,artifact_size_bytes,artifact_sha256,source_type,source_locator,
-        source_subpath,resolved_commit,artifact_provider,artifact_ref,status,revision
+        source_subpath,resolved_commit,artifact_provider,artifact_ref,source_credential_id,release_notes,
+        current_release,status,revision
         """;
     private static final String LIST_RELEASES = "select " + COLUMNS +
         " from ent_skill_release where tenant_id=? and id>? order by id limit ?";
     private static final String LIST_PUBLISHED = "select " + COLUMNS +
-        " from ent_skill_release where tenant_id=? and status='PUBLISHED' order by skill_name, version desc limit ?";
+        " from ent_skill_release where tenant_id=? and status='PUBLISHED' and current_release=true " +
+        "order by skill_name, version desc limit ?";
     private static final String FIND_RELEASE = "select " + COLUMNS +
         " from ent_skill_release where tenant_id=? and id=?";
     private static final String FIND_RELEASE_BY_VERSION = "select " + COLUMNS +
         " from ent_skill_release where tenant_id=? and skill_name=? and version=?";
     private static final String TRANSITION_RELEASE = """
-        update ent_skill_release set status=?, revision=revision+1
-        where tenant_id=? and id=? and status=? and revision=?
+        with target as (select skill_name from ent_skill_release where tenant_id=? and id=? and status=? and revision=?)
+        update ent_skill_release release
+        set status=case when release.id=? then ? else release.status end,
+            current_release=case when release.id=? then (?='PUBLISHED') else false end,
+            revision=revision+1
+        where release.tenant_id=? and (release.id=? or
+            (?='PUBLISHED' and release.skill_name=(select skill_name from target)
+                and release.current_release=true))
+            and exists (select 1 from target)
         """;
     private static final String INSERT_RELEASE = """
         insert into ent_skill_release(
             id,tenant_id,skill_name,version,description,license,author,user_invocable,
             model_invocable,categories_json,artifact_size_bytes,artifact_sha256,source_type,source_locator,
-            source_subpath,resolved_commit,artifact_provider,artifact_ref,status,created_by,revision
-        ) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            source_subpath,resolved_commit,artifact_provider,artifact_ref,source_credential_id,release_notes,
+            current_release,status,created_by,revision
+        ) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """;
 
     private final JdbcOperations jdbc;
@@ -76,7 +86,8 @@ public final class JdbcSkillStore implements SkillStore {
     @Override
     public boolean transitionRelease(String tenantId, long releaseId, SkillRelease.Status from,
         SkillRelease.Status to, long expectedRevision) {
-        return jdbc.update(TRANSITION_RELEASE, to.name(), tenantId, releaseId, from.name(), expectedRevision) == 1;
+        return jdbc.update(TRANSITION_RELEASE, tenantId, releaseId, from.name(), expectedRevision,
+            releaseId, to.name(), releaseId, to.name(), tenantId, releaseId, to.name()) >= 1;
     }
 
     @Override
@@ -85,7 +96,8 @@ public final class JdbcSkillStore implements SkillStore {
             value.license(), value.author(), value.userInvocable(), value.modelInvocable(),
             json.writeValueAsString(value.categories()), value.artifactSizeBytes(), value.artifactSha256(),
             value.sourceType(), value.sourceLocator(), value.sourceSubpath(), value.resolvedCommit(),
-            value.artifactProvider(), value.artifactRef(), value.status().name(), createdBy, value.revision());
+            value.artifactProvider(), value.artifactRef(), value.sourceCredentialId(), value.releaseNotes(),
+            value.current(), value.status().name(), createdBy, value.revision());
     }
 
     private List<String> readCategories(String value) {
@@ -104,7 +116,8 @@ public final class JdbcSkillStore implements SkillStore {
             readCategories(rs.getString("categories_json")), rs.getLong("artifact_size_bytes"),
             rs.getString("artifact_sha256"), rs.getString("source_type"), rs.getString("source_locator"),
             rs.getString("source_subpath"), rs.getString("resolved_commit"), rs.getString("artifact_provider"),
-            rs.getString("artifact_ref"), SkillRelease.Status.valueOf(rs.getString("status")), rs.getLong("revision")
+            rs.getString("artifact_ref"), (Long) rs.getObject("source_credential_id"), rs.getString("release_notes"),
+            rs.getBoolean("current_release"), SkillRelease.Status.valueOf(rs.getString("status")), rs.getLong("revision")
         );
     }
 }

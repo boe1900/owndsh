@@ -2709,10 +2709,39 @@ export const zSkillSkillReleaseStatus = z.enum([
 
 export const zSkillReleaseStatus = zSkillSkillReleaseStatus;
 
+export const zSkillSkillSourceCredential = z.object({
+    id: zSkillSkillReleaseId,
+    name: z.string().min(1).max(120),
+    host: z.string().min(1).max(255),
+    projectPath: z.string().max(500).nullish(),
+    tokenHint: z.string().max(32),
+    expiresAt: z.iso.datetime({ offset: true }).nullish(),
+    status: z.enum([
+        'ACTIVE',
+        'EXPIRED',
+        'REVOKED'
+    ]),
+    revision: zRevision
+}).strict();
+
+export const zSkillSourceCredential = zSkillSkillSourceCredential;
+
+export const zSkillSkillSourceCredentialWriteRequest = z.object({
+    name: z.string().min(1).max(120),
+    host: z.string().min(1).max(255),
+    projectPath: z.string().max(500).nullish(),
+    expiresAt: z.iso.datetime({ offset: true }).nullish()
+}).strict();
+
+export const zSkillSourceCredentialWriteRequest = zSkillSkillSourceCredentialWriteRequest;
+
 export const zSkillSkillSourceImportRequest = z.object({
     repositoryUrl: z.url().max(500).regex(/^https:\/\/[^?#]+$/),
     revision: z.string().min(1).max(256).regex(/^[^\/?#]+$/),
-    subpath: z.string().max(256).regex(/^(|[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*)$/)
+    subpath: z.string().max(256).regex(/^(|[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*)$/),
+    visibility: z.enum(['PUBLIC', 'PRIVATE']),
+    credentialId: z.string().regex(/^[1-9][0-9]{0,18}$/).nullish(),
+    releaseNotes: z.string().max(2000).optional()
 }).strict();
 
 export const zSkillSourceImportRequest = zSkillSkillSourceImportRequest;
@@ -2807,7 +2836,11 @@ export const zSkillSkillRelease = z.object({
     status: zSkillSkillReleaseStatus,
     revision: zRevision,
     repositoryUrl: z.url().max(500).regex(/^https:\/\/[^?#]+$/).nullish(),
-    repositoryPath: z.string().max(256).nullish()
+    repositoryPath: z.string().max(256).nullish(),
+    resolvedCommit: z.string().regex(/^[0-9a-f]{7,64}$/).nullish(),
+    credentialId: z.string().regex(/^[1-9][0-9]{0,18}$/).nullish(),
+    releaseNotes: z.string().max(2000),
+    current: z.boolean()
 }).strict();
 
 export const zSkillRelease = zSkillSkillRelease;
@@ -3034,6 +3067,12 @@ export const zRuntimeSessionItem = z.unknown();
 export const zRuntimeSessionRestoreRecord = z.unknown();
 
 export const zAdminSkillCollection = z.unknown();
+
+export const zAdminSkillCredentialRevoke = z.unknown();
+
+export const zAdminSkillCredentialRotate = z.unknown();
+
+export const zAdminSkillCredentials = z.unknown();
 
 export const zAdminSkillImport = z.unknown();
 
@@ -3269,6 +3308,16 @@ export const zModelProviderProbeRequestWritable = z.object({
 
 export const zProviderProbeRequestWritable = zModelProviderProbeRequestWritable;
 
+export const zSkillSkillSourceCredentialWriteRequestWritable = z.object({
+    name: z.string().min(1).max(120),
+    host: z.string().min(1).max(255),
+    projectPath: z.string().max(500).nullish(),
+    expiresAt: z.iso.datetime({ offset: true }).nullish(),
+    token: z.string().min(4).max(4096)
+}).strict();
+
+export const zSkillSourceCredentialWriteRequestWritable = zSkillSkillSourceCredentialWriteRequestWritable;
+
 export const zCurrentAccountPasswordWritable = z.unknown();
 
 export const zPasswordWritable = z.unknown();
@@ -3289,6 +3338,10 @@ export const zProviderConnectionCollectionWritable = z.unknown();
 export const zProviderConnectionItemWritable = z.unknown();
 
 export const zProviderConnectionProbeWritable = z.unknown();
+
+export const zAdminSkillCredentialRotateWritable = z.unknown();
+
+export const zAdminSkillCredentialsWritable = z.unknown();
 
 export const zAuthClientId = zAuthPlatformClient;
 
@@ -4727,3 +4780,55 @@ export const zRevokeSkillReleasePath = z.object({
  * Revoked skill release.
  */
 export const zRevokeSkillReleaseResponse = zSkillSkillReleaseResponse;
+
+/**
+ * Available source credentials.
+ */
+export const zListSkillSourceCredentialsResponse = z.object({
+    data: z.array(zSkillSkillSourceCredential),
+    requestId: zRequestId
+});
+
+export const zCreateSkillSourceCredentialBody = zSkillSkillSourceCredentialWriteRequestWritable;
+
+/**
+ * Created source credential.
+ */
+export const zCreateSkillSourceCredentialResponse = z.object({
+    data: zSkillSkillSourceCredential,
+    requestId: zRequestId
+});
+
+export const zRotateSkillSourceCredentialBody = zSkillSkillSourceCredentialWriteRequestWritable;
+
+export const zRotateSkillSourceCredentialHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zRotateSkillSourceCredentialPath = z.object({
+    credentialId: zSkillSkillReleaseId
+});
+
+/**
+ * Rotated source credential.
+ */
+export const zRotateSkillSourceCredentialResponse = z.object({
+    data: zSkillSkillSourceCredential,
+    requestId: zRequestId
+});
+
+export const zRevokeSkillSourceCredentialHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zRevokeSkillSourceCredentialPath = z.object({
+    credentialId: zSkillSkillReleaseId
+});
+
+/**
+ * Revoked source credential.
+ */
+export const zRevokeSkillSourceCredentialResponse = z.object({
+    data: zSkillSkillSourceCredential,
+    requestId: zRequestId
+});

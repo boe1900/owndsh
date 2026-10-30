@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 接收已验证 skill 的 WorkBuddy 元数据、制品长度/hash 与发布状态。
- * [OUTPUT]: 对外提供不含正文、凭据和路径的不可变 release 事实。
- * [POS]: skill/domain 的发布身份；客户端安装事实不进入 release，也不复制来源秘密。
+ * [OUTPUT]: 对外提供不含正文和 token 的不可变 release 事实、当前版本标记与发布说明。
+ * [POS]: skill/domain 的发布身份；客户端安装事实不进入 release，来源凭据只以 ID 关联。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.skill.domain;
@@ -29,6 +29,9 @@ public record SkillRelease(
     String resolvedCommit,
     String artifactProvider,
     String artifactRef,
+    Long sourceCredentialId,
+    String releaseNotes,
+    boolean current,
     Status status,
     long revision
 ) {
@@ -58,6 +61,10 @@ public record SkillRelease(
         }
         requireText(artifactProvider, 32, "artifactProvider");
         requireText(artifactRef, 1000, "artifactRef");
+        if (sourceCredentialId != null && sourceCredentialId <= 0) {
+            throw new IllegalArgumentException("sourceCredentialId 非法");
+        }
+        requireOptionalText(releaseNotes, 2000, "releaseNotes");
         Objects.requireNonNull(status, "status");
         categories = List.copyOf(Objects.requireNonNull(categories, "categories"));
         if (categories.size() > 12 || categories.stream().anyMatch(value -> value == null || value.isBlank() || value.length() > 40)) {
@@ -70,7 +77,17 @@ public record SkillRelease(
         long artifactSizeBytes, String artifactSha256, Status status, long revision) {
         this(id, tenantId, name, version, description, license, author, userInvocable, modelInvocable, categories,
             artifactSizeBytes, artifactSha256, "MANUAL", "", "", null, "SOURCE_ARCHIVE", artifactSha256 + ".zip",
-            status, revision);
+            null, "", status == Status.PUBLISHED, status, revision);
+    }
+
+    public SkillRelease(long id, String tenantId, String name, String version, String description, String license,
+        String author, boolean userInvocable, boolean modelInvocable, List<String> categories,
+        long artifactSizeBytes, String artifactSha256, String sourceType, String sourceLocator,
+        String sourceSubpath, String resolvedCommit, String artifactProvider, String artifactRef,
+        Status status, long revision) {
+        this(id, tenantId, name, version, description, license, author, userInvocable, modelInvocable, categories,
+            artifactSizeBytes, artifactSha256, sourceType, sourceLocator, sourceSubpath, resolvedCommit,
+            artifactProvider, artifactRef, null, "", status == Status.PUBLISHED, status, revision);
     }
 
     private static void requireText(String value, int max, String field) {

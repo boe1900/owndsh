@@ -152265,7 +152265,9 @@
                               "artifactSizeBytes",
                               "artifactSha256",
                               "status",
-                              "revision"
+                              "revision",
+                              "releaseNotes",
+                              "current"
                             ],
                             "properties": {
                               "id": {
@@ -152346,6 +152348,27 @@
                                   "null"
                                 ],
                                 "maxLength": 256
+                              },
+                              "resolvedCommit": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "pattern": "^[0-9a-f]{7,64}$"
+                              },
+                              "credentialId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "pattern": "^[1-9][0-9]{0,18}$"
+                              },
+                              "releaseNotes": {
+                                "type": "string",
+                                "maxLength": 2000
+                              },
+                              "current": {
+                                "type": "boolean"
                               }
                             }
                           }
@@ -152719,7 +152742,8 @@
                 "required": [
                   "repositoryUrl",
                   "revision",
-                  "subpath"
+                  "subpath",
+                  "visibility"
                 ],
                 "properties": {
                   "repositoryUrl": {
@@ -152738,6 +152762,24 @@
                     "type": "string",
                     "maxLength": 256,
                     "pattern": "^(|[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*)$"
+                  },
+                  "visibility": {
+                    "type": "string",
+                    "enum": [
+                      "PUBLIC",
+                      "PRIVATE"
+                    ]
+                  },
+                  "credentialId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "pattern": "^[1-9][0-9]{0,18}$"
+                  },
+                  "releaseNotes": {
+                    "type": "string",
+                    "maxLength": 2000
                   }
                 }
               }
@@ -152786,7 +152828,9 @@
                             "artifactSizeBytes",
                             "artifactSha256",
                             "status",
-                            "revision"
+                            "revision",
+                            "releaseNotes",
+                            "current"
                           ],
                           "properties": {
                             "id": {
@@ -152867,6 +152911,27 @@
                                 "null"
                               ],
                               "maxLength": 256
+                            },
+                            "resolvedCommit": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "pattern": "^[0-9a-f]{7,64}$"
+                            },
+                            "credentialId": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "pattern": "^[1-9][0-9]{0,18}$"
+                            },
+                            "releaseNotes": {
+                              "type": "string",
+                              "maxLength": 2000
+                            },
+                            "current": {
+                              "type": "boolean"
                             }
                           }
                         },
@@ -152929,7 +152994,9 @@
                             "artifactSizeBytes",
                             "artifactSha256",
                             "status",
-                            "revision"
+                            "revision",
+                            "releaseNotes",
+                            "current"
                           ],
                           "properties": {
                             "id": {
@@ -153010,6 +153077,27 @@
                                 "null"
                               ],
                               "maxLength": 256
+                            },
+                            "resolvedCommit": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "pattern": "^[0-9a-f]{7,64}$"
+                            },
+                            "credentialId": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "pattern": "^[1-9][0-9]{0,18}$"
+                            },
+                            "releaseNotes": {
+                              "type": "string",
+                              "maxLength": 2000
+                            },
+                            "current": {
+                              "type": "boolean"
                             }
                           }
                         },
@@ -154356,7 +154444,9 @@
                         "artifactSizeBytes",
                         "artifactSha256",
                         "status",
-                        "revision"
+                        "revision",
+                        "releaseNotes",
+                        "current"
                       ],
                       "properties": {
                         "id": {
@@ -154437,6 +154527,27 @@
                             "null"
                           ],
                           "maxLength": 256
+                        },
+                        "resolvedCommit": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "pattern": "^[0-9a-f]{7,64}$"
+                        },
+                        "credentialId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "pattern": "^[1-9][0-9]{0,18}$"
+                        },
+                        "releaseNotes": {
+                          "type": "string",
+                          "maxLength": 2000
+                        },
+                        "current": {
+                          "type": "boolean"
                         }
                       }
                     },
@@ -154481,7 +154592,9 @@
                         "artifactSizeBytes",
                         "artifactSha256",
                         "status",
-                        "revision"
+                        "revision",
+                        "releaseNotes",
+                        "current"
                       ],
                       "properties": {
                         "id": {
@@ -154562,6 +154675,27 @@
                             "null"
                           ],
                           "maxLength": 256
+                        },
+                        "resolvedCommit": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "pattern": "^[0-9a-f]{7,64}$"
+                        },
+                        "credentialId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "pattern": "^[1-9][0-9]{0,18}$"
+                        },
+                        "releaseNotes": {
+                          "type": "string",
+                          "maxLength": 2000
+                        },
+                        "current": {
+                          "type": "boolean"
                         }
                       }
                     },
@@ -155249,7 +155383,9 @@
                         "artifactSizeBytes",
                         "artifactSha256",
                         "status",
-                        "revision"
+                        "revision",
+                        "releaseNotes",
+                        "current"
                       ],
                       "properties": {
                         "id": {
@@ -155330,6 +155466,27 @@
                             "null"
                           ],
                           "maxLength": 256
+                        },
+                        "resolvedCommit": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "pattern": "^[0-9a-f]{7,64}$"
+                        },
+                        "credentialId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "pattern": "^[1-9][0-9]{0,18}$"
+                        },
+                        "releaseNotes": {
+                          "type": "string",
+                          "maxLength": 2000
+                        },
+                        "current": {
+                          "type": "boolean"
                         }
                       }
                     },
@@ -156321,7 +156478,9 @@
                         "artifactSizeBytes",
                         "artifactSha256",
                         "status",
-                        "revision"
+                        "revision",
+                        "releaseNotes",
+                        "current"
                       ],
                       "properties": {
                         "id": {
@@ -156402,6 +156561,27 @@
                             "null"
                           ],
                           "maxLength": 256
+                        },
+                        "resolvedCommit": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "pattern": "^[0-9a-f]{7,64}$"
+                        },
+                        "credentialId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "pattern": "^[1-9][0-9]{0,18}$"
+                        },
+                        "releaseNotes": {
+                          "type": "string",
+                          "maxLength": 2000
+                        },
+                        "current": {
+                          "type": "boolean"
                         }
                       }
                     },
@@ -156724,6 +156904,2359 @@
           },
           "404": {
             "description": "Resource not found.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server-generated request correlation ID.",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                  "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                  "examples": [
+                    "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId",
+                        "retryable"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "ENT_INVALID_REQUEST",
+                            "ENT_INVALID_REDIRECT_URI",
+                            "ENT_PKCE_REQUIRED",
+                            "ENT_SESSION_FORMAT_UNSUPPORTED",
+                            "ENT_AUTH_REQUIRED",
+                            "ENT_AUTH_CODE_INVALID",
+                            "ENT_PKCE_INVALID",
+                            "ENT_AUTH_SESSION_EXPIRED",
+                            "ENT_PERMISSION_DENIED",
+                            "ENT_DEVICE_REVOKED",
+                            "ENT_MODEL_NOT_ASSIGNED",
+                            "ENT_PLUGIN_NOT_ASSIGNED",
+                            "ENT_RESOURCE_NOT_OWNED",
+                            "ENT_RESOURCE_NOT_FOUND",
+                            "ENT_SESSION_CONTENT_EXPIRED",
+                            "ENT_REVISION_CONFLICT",
+                            "ENT_RESOURCE_IN_USE",
+                            "ENT_LAST_ENTERPRISE_ADMIN",
+                            "ENT_LAST_MEMBER_IDENTITY",
+                            "ENT_REQUEST_IN_PROGRESS",
+                            "ENT_REQUEST_ALREADY_COMPLETED",
+                            "ENT_SESSION_SEQ_GAP",
+                            "ENT_SESSION_DIVERGED",
+                            "ENT_SESSION_SOURCE_DEVICE_CONFLICT",
+                            "ENT_IDENTITY_ALREADY_LINKED",
+                            "ENT_DEVICE_ALREADY_BOUND",
+                            "ENT_MCP_CONFLICT",
+                            "ENT_MCP_CATALOG_STALE",
+                            "ENT_MCP_POLICY_INVALID",
+                            "ENT_MCP_UNSUPPORTED",
+                            "ENT_REQUEST_TOO_LARGE",
+                            "ENT_SESSION_BATCH_TOO_LARGE",
+                            "ENT_QUOTA_FIVE_HOURS_EXCEEDED",
+                            "ENT_QUOTA_DAILY_EXCEEDED",
+                            "ENT_QUOTA_WEEKLY_EXCEEDED",
+                            "ENT_QUOTA_MONTHLY_EXCEEDED",
+                            "ENT_QUOTA_RPM_EXCEEDED",
+                            "ENT_QUOTA_CONCURRENCY_EXCEEDED",
+                            "ENT_UPSTREAM_RATE_LIMITED",
+                            "ENT_UPSTREAM_QUOTA_EXCEEDED",
+                            "ENT_UPSTREAM_AUTH_FAILED",
+                            "ENT_UPSTREAM_INVALID_RESPONSE",
+                            "ENT_PLATFORM_UNAVAILABLE",
+                            "ENT_UPSTREAM_UNAVAILABLE",
+                            "ENT_UPSTREAM_TIMEOUT"
+                          ]
+                        },
+                        "message": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                          "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                          "examples": [
+                            "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                          ]
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "details": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "violations"
+                              ],
+                              "properties": {
+                                "violations": {
+                                  "type": "array",
+                                  "minItems": 1,
+                                  "maxItems": 50,
+                                  "items": {
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "required": [
+                                      "field",
+                                      "reason"
+                                    ],
+                                    "properties": {
+                                      "field": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 128
+                                      },
+                                      "reason": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 256
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "actualRevision",
+                                "expectedRevision"
+                              ],
+                              "properties": {
+                                "actualRevision": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991,
+                                  "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                                  "examples": [
+                                    7
+                                  ]
+                                },
+                                "expectedRevision": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991,
+                                  "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                                  "examples": [
+                                    7
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "policyId",
+                                "resetsAt"
+                              ],
+                              "properties": {
+                                "policyId": {
+                                  "type": "string",
+                                  "pattern": "^[1-9][0-9]{0,18}$"
+                                },
+                                "resetsAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "originalRequestId",
+                                "result"
+                              ],
+                              "properties": {
+                                "originalRequestId": {
+                                  "type": "string",
+                                  "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                                  "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                                  "examples": [
+                                    "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                                  ]
+                                },
+                                "result": {
+                                  "type": "string",
+                                  "enum": [
+                                    "IN_PROGRESS",
+                                    "COMPLETED"
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "modelGrantCount",
+                                "modelSetCount",
+                                "modelQuotaPolicyCount",
+                                "usageReservationCount",
+                                "usageLedgerCount"
+                              ],
+                              "properties": {
+                                "modelGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "modelSetCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "modelQuotaPolicyCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "usageReservationCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "usageLedgerCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "modelGrantCount",
+                                "quotaPolicyCount"
+                              ],
+                              "properties": {
+                                "modelGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "quotaPolicyCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "modelGrantCount",
+                                "mcpGrantCount",
+                                "externalGroupMappingCount"
+                              ],
+                              "properties": {
+                                "modelGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "mcpGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "externalGroupMappingCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "quotaWindowCount"
+                              ],
+                              "properties": {
+                                "quotaWindowCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision, idempotency, or state conflict.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server-generated request correlation ID.",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                  "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                  "examples": [
+                    "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId",
+                        "retryable"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "ENT_INVALID_REQUEST",
+                            "ENT_INVALID_REDIRECT_URI",
+                            "ENT_PKCE_REQUIRED",
+                            "ENT_SESSION_FORMAT_UNSUPPORTED",
+                            "ENT_AUTH_REQUIRED",
+                            "ENT_AUTH_CODE_INVALID",
+                            "ENT_PKCE_INVALID",
+                            "ENT_AUTH_SESSION_EXPIRED",
+                            "ENT_PERMISSION_DENIED",
+                            "ENT_DEVICE_REVOKED",
+                            "ENT_MODEL_NOT_ASSIGNED",
+                            "ENT_PLUGIN_NOT_ASSIGNED",
+                            "ENT_RESOURCE_NOT_OWNED",
+                            "ENT_RESOURCE_NOT_FOUND",
+                            "ENT_SESSION_CONTENT_EXPIRED",
+                            "ENT_REVISION_CONFLICT",
+                            "ENT_RESOURCE_IN_USE",
+                            "ENT_LAST_ENTERPRISE_ADMIN",
+                            "ENT_LAST_MEMBER_IDENTITY",
+                            "ENT_REQUEST_IN_PROGRESS",
+                            "ENT_REQUEST_ALREADY_COMPLETED",
+                            "ENT_SESSION_SEQ_GAP",
+                            "ENT_SESSION_DIVERGED",
+                            "ENT_SESSION_SOURCE_DEVICE_CONFLICT",
+                            "ENT_IDENTITY_ALREADY_LINKED",
+                            "ENT_DEVICE_ALREADY_BOUND",
+                            "ENT_MCP_CONFLICT",
+                            "ENT_MCP_CATALOG_STALE",
+                            "ENT_MCP_POLICY_INVALID",
+                            "ENT_MCP_UNSUPPORTED",
+                            "ENT_REQUEST_TOO_LARGE",
+                            "ENT_SESSION_BATCH_TOO_LARGE",
+                            "ENT_QUOTA_FIVE_HOURS_EXCEEDED",
+                            "ENT_QUOTA_DAILY_EXCEEDED",
+                            "ENT_QUOTA_WEEKLY_EXCEEDED",
+                            "ENT_QUOTA_MONTHLY_EXCEEDED",
+                            "ENT_QUOTA_RPM_EXCEEDED",
+                            "ENT_QUOTA_CONCURRENCY_EXCEEDED",
+                            "ENT_UPSTREAM_RATE_LIMITED",
+                            "ENT_UPSTREAM_QUOTA_EXCEEDED",
+                            "ENT_UPSTREAM_AUTH_FAILED",
+                            "ENT_UPSTREAM_INVALID_RESPONSE",
+                            "ENT_PLATFORM_UNAVAILABLE",
+                            "ENT_UPSTREAM_UNAVAILABLE",
+                            "ENT_UPSTREAM_TIMEOUT"
+                          ]
+                        },
+                        "message": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                          "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                          "examples": [
+                            "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                          ]
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "details": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "violations"
+                              ],
+                              "properties": {
+                                "violations": {
+                                  "type": "array",
+                                  "minItems": 1,
+                                  "maxItems": 50,
+                                  "items": {
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "required": [
+                                      "field",
+                                      "reason"
+                                    ],
+                                    "properties": {
+                                      "field": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 128
+                                      },
+                                      "reason": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 256
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "actualRevision",
+                                "expectedRevision"
+                              ],
+                              "properties": {
+                                "actualRevision": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991,
+                                  "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                                  "examples": [
+                                    7
+                                  ]
+                                },
+                                "expectedRevision": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991,
+                                  "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                                  "examples": [
+                                    7
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "policyId",
+                                "resetsAt"
+                              ],
+                              "properties": {
+                                "policyId": {
+                                  "type": "string",
+                                  "pattern": "^[1-9][0-9]{0,18}$"
+                                },
+                                "resetsAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "originalRequestId",
+                                "result"
+                              ],
+                              "properties": {
+                                "originalRequestId": {
+                                  "type": "string",
+                                  "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                                  "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                                  "examples": [
+                                    "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                                  ]
+                                },
+                                "result": {
+                                  "type": "string",
+                                  "enum": [
+                                    "IN_PROGRESS",
+                                    "COMPLETED"
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "modelGrantCount",
+                                "modelSetCount",
+                                "modelQuotaPolicyCount",
+                                "usageReservationCount",
+                                "usageLedgerCount"
+                              ],
+                              "properties": {
+                                "modelGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "modelSetCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "modelQuotaPolicyCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "usageReservationCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "usageLedgerCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "modelGrantCount",
+                                "quotaPolicyCount"
+                              ],
+                              "properties": {
+                                "modelGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "quotaPolicyCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "modelGrantCount",
+                                "mcpGrantCount",
+                                "externalGroupMappingCount"
+                              ],
+                              "properties": {
+                                "modelGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "mcpGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "externalGroupMappingCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "quotaWindowCount"
+                              ],
+                              "properties": {
+                                "quotaWindowCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/enterprise/admin/v1/skill-credentials": {
+      "get": {
+        "operationId": "listSkillSourceCredentials",
+        "responses": {
+          "200": {
+            "description": "Available source credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "id",
+                          "name",
+                          "host",
+                          "tokenHint",
+                          "status",
+                          "revision"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "pattern": "^[1-9][0-9]{0,18}$"
+                          },
+                          "name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 120
+                          },
+                          "host": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 255
+                          },
+                          "projectPath": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "maxLength": 500
+                          },
+                          "tokenHint": {
+                            "type": "string",
+                            "maxLength": 32
+                          },
+                          "expiresAt": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "ACTIVE",
+                              "EXPIRED",
+                              "REVOKED"
+                            ]
+                          },
+                          "revision": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991,
+                            "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                            "examples": [
+                              7
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "requestId": {
+                      "type": "string",
+                      "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                      "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                      "examples": [
+                        "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server-generated request correlation ID.",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                  "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                  "examples": [
+                    "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId",
+                        "retryable"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "ENT_INVALID_REQUEST",
+                            "ENT_INVALID_REDIRECT_URI",
+                            "ENT_PKCE_REQUIRED",
+                            "ENT_SESSION_FORMAT_UNSUPPORTED",
+                            "ENT_AUTH_REQUIRED",
+                            "ENT_AUTH_CODE_INVALID",
+                            "ENT_PKCE_INVALID",
+                            "ENT_AUTH_SESSION_EXPIRED",
+                            "ENT_PERMISSION_DENIED",
+                            "ENT_DEVICE_REVOKED",
+                            "ENT_MODEL_NOT_ASSIGNED",
+                            "ENT_PLUGIN_NOT_ASSIGNED",
+                            "ENT_RESOURCE_NOT_OWNED",
+                            "ENT_RESOURCE_NOT_FOUND",
+                            "ENT_SESSION_CONTENT_EXPIRED",
+                            "ENT_REVISION_CONFLICT",
+                            "ENT_RESOURCE_IN_USE",
+                            "ENT_LAST_ENTERPRISE_ADMIN",
+                            "ENT_LAST_MEMBER_IDENTITY",
+                            "ENT_REQUEST_IN_PROGRESS",
+                            "ENT_REQUEST_ALREADY_COMPLETED",
+                            "ENT_SESSION_SEQ_GAP",
+                            "ENT_SESSION_DIVERGED",
+                            "ENT_SESSION_SOURCE_DEVICE_CONFLICT",
+                            "ENT_IDENTITY_ALREADY_LINKED",
+                            "ENT_DEVICE_ALREADY_BOUND",
+                            "ENT_MCP_CONFLICT",
+                            "ENT_MCP_CATALOG_STALE",
+                            "ENT_MCP_POLICY_INVALID",
+                            "ENT_MCP_UNSUPPORTED",
+                            "ENT_REQUEST_TOO_LARGE",
+                            "ENT_SESSION_BATCH_TOO_LARGE",
+                            "ENT_QUOTA_FIVE_HOURS_EXCEEDED",
+                            "ENT_QUOTA_DAILY_EXCEEDED",
+                            "ENT_QUOTA_WEEKLY_EXCEEDED",
+                            "ENT_QUOTA_MONTHLY_EXCEEDED",
+                            "ENT_QUOTA_RPM_EXCEEDED",
+                            "ENT_QUOTA_CONCURRENCY_EXCEEDED",
+                            "ENT_UPSTREAM_RATE_LIMITED",
+                            "ENT_UPSTREAM_QUOTA_EXCEEDED",
+                            "ENT_UPSTREAM_AUTH_FAILED",
+                            "ENT_UPSTREAM_INVALID_RESPONSE",
+                            "ENT_PLATFORM_UNAVAILABLE",
+                            "ENT_UPSTREAM_UNAVAILABLE",
+                            "ENT_UPSTREAM_TIMEOUT"
+                          ]
+                        },
+                        "message": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                          "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                          "examples": [
+                            "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                          ]
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "details": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "violations"
+                              ],
+                              "properties": {
+                                "violations": {
+                                  "type": "array",
+                                  "minItems": 1,
+                                  "maxItems": 50,
+                                  "items": {
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "required": [
+                                      "field",
+                                      "reason"
+                                    ],
+                                    "properties": {
+                                      "field": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 128
+                                      },
+                                      "reason": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 256
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "actualRevision",
+                                "expectedRevision"
+                              ],
+                              "properties": {
+                                "actualRevision": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991,
+                                  "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                                  "examples": [
+                                    7
+                                  ]
+                                },
+                                "expectedRevision": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991,
+                                  "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                                  "examples": [
+                                    7
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "policyId",
+                                "resetsAt"
+                              ],
+                              "properties": {
+                                "policyId": {
+                                  "type": "string",
+                                  "pattern": "^[1-9][0-9]{0,18}$"
+                                },
+                                "resetsAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "originalRequestId",
+                                "result"
+                              ],
+                              "properties": {
+                                "originalRequestId": {
+                                  "type": "string",
+                                  "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                                  "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                                  "examples": [
+                                    "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                                  ]
+                                },
+                                "result": {
+                                  "type": "string",
+                                  "enum": [
+                                    "IN_PROGRESS",
+                                    "COMPLETED"
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "modelGrantCount",
+                                "modelSetCount",
+                                "modelQuotaPolicyCount",
+                                "usageReservationCount",
+                                "usageLedgerCount"
+                              ],
+                              "properties": {
+                                "modelGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "modelSetCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "modelQuotaPolicyCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "usageReservationCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "usageLedgerCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "modelGrantCount",
+                                "quotaPolicyCount"
+                              ],
+                              "properties": {
+                                "modelGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "quotaPolicyCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "modelGrantCount",
+                                "mcpGrantCount",
+                                "externalGroupMappingCount"
+                              ],
+                              "properties": {
+                                "modelGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "mcpGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "externalGroupMappingCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "quotaWindowCount"
+                              ],
+                              "properties": {
+                                "quotaWindowCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createSkillSourceCredential",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "host",
+                  "token"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "host": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "projectPath": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 500
+                  },
+                  "expiresAt": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date-time"
+                  },
+                  "token": {
+                    "type": "string",
+                    "minLength": 4,
+                    "maxLength": 4096,
+                    "writeOnly": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Created source credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "id",
+                        "name",
+                        "host",
+                        "tokenHint",
+                        "status",
+                        "revision"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[1-9][0-9]{0,18}$"
+                        },
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 120
+                        },
+                        "host": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        },
+                        "projectPath": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "maxLength": 500
+                        },
+                        "tokenHint": {
+                          "type": "string",
+                          "maxLength": 32
+                        },
+                        "expiresAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "ACTIVE",
+                            "EXPIRED",
+                            "REVOKED"
+                          ]
+                        },
+                        "revision": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991,
+                          "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                          "examples": [
+                            7
+                          ]
+                        }
+                      }
+                    },
+                    "requestId": {
+                      "type": "string",
+                      "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                      "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                      "examples": [
+                        "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server-generated request correlation ID.",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                  "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                  "examples": [
+                    "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId",
+                        "retryable"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "ENT_INVALID_REQUEST",
+                            "ENT_INVALID_REDIRECT_URI",
+                            "ENT_PKCE_REQUIRED",
+                            "ENT_SESSION_FORMAT_UNSUPPORTED",
+                            "ENT_AUTH_REQUIRED",
+                            "ENT_AUTH_CODE_INVALID",
+                            "ENT_PKCE_INVALID",
+                            "ENT_AUTH_SESSION_EXPIRED",
+                            "ENT_PERMISSION_DENIED",
+                            "ENT_DEVICE_REVOKED",
+                            "ENT_MODEL_NOT_ASSIGNED",
+                            "ENT_PLUGIN_NOT_ASSIGNED",
+                            "ENT_RESOURCE_NOT_OWNED",
+                            "ENT_RESOURCE_NOT_FOUND",
+                            "ENT_SESSION_CONTENT_EXPIRED",
+                            "ENT_REVISION_CONFLICT",
+                            "ENT_RESOURCE_IN_USE",
+                            "ENT_LAST_ENTERPRISE_ADMIN",
+                            "ENT_LAST_MEMBER_IDENTITY",
+                            "ENT_REQUEST_IN_PROGRESS",
+                            "ENT_REQUEST_ALREADY_COMPLETED",
+                            "ENT_SESSION_SEQ_GAP",
+                            "ENT_SESSION_DIVERGED",
+                            "ENT_SESSION_SOURCE_DEVICE_CONFLICT",
+                            "ENT_IDENTITY_ALREADY_LINKED",
+                            "ENT_DEVICE_ALREADY_BOUND",
+                            "ENT_MCP_CONFLICT",
+                            "ENT_MCP_CATALOG_STALE",
+                            "ENT_MCP_POLICY_INVALID",
+                            "ENT_MCP_UNSUPPORTED",
+                            "ENT_REQUEST_TOO_LARGE",
+                            "ENT_SESSION_BATCH_TOO_LARGE",
+                            "ENT_QUOTA_FIVE_HOURS_EXCEEDED",
+                            "ENT_QUOTA_DAILY_EXCEEDED",
+                            "ENT_QUOTA_WEEKLY_EXCEEDED",
+                            "ENT_QUOTA_MONTHLY_EXCEEDED",
+                            "ENT_QUOTA_RPM_EXCEEDED",
+                            "ENT_QUOTA_CONCURRENCY_EXCEEDED",
+                            "ENT_UPSTREAM_RATE_LIMITED",
+                            "ENT_UPSTREAM_QUOTA_EXCEEDED",
+                            "ENT_UPSTREAM_AUTH_FAILED",
+                            "ENT_UPSTREAM_INVALID_RESPONSE",
+                            "ENT_PLATFORM_UNAVAILABLE",
+                            "ENT_UPSTREAM_UNAVAILABLE",
+                            "ENT_UPSTREAM_TIMEOUT"
+                          ]
+                        },
+                        "message": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                          "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                          "examples": [
+                            "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                          ]
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "details": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "violations"
+                              ],
+                              "properties": {
+                                "violations": {
+                                  "type": "array",
+                                  "minItems": 1,
+                                  "maxItems": 50,
+                                  "items": {
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "required": [
+                                      "field",
+                                      "reason"
+                                    ],
+                                    "properties": {
+                                      "field": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 128
+                                      },
+                                      "reason": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 256
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "actualRevision",
+                                "expectedRevision"
+                              ],
+                              "properties": {
+                                "actualRevision": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991,
+                                  "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                                  "examples": [
+                                    7
+                                  ]
+                                },
+                                "expectedRevision": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991,
+                                  "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                                  "examples": [
+                                    7
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "policyId",
+                                "resetsAt"
+                              ],
+                              "properties": {
+                                "policyId": {
+                                  "type": "string",
+                                  "pattern": "^[1-9][0-9]{0,18}$"
+                                },
+                                "resetsAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "originalRequestId",
+                                "result"
+                              ],
+                              "properties": {
+                                "originalRequestId": {
+                                  "type": "string",
+                                  "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                                  "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                                  "examples": [
+                                    "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                                  ]
+                                },
+                                "result": {
+                                  "type": "string",
+                                  "enum": [
+                                    "IN_PROGRESS",
+                                    "COMPLETED"
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "modelGrantCount",
+                                "modelSetCount",
+                                "modelQuotaPolicyCount",
+                                "usageReservationCount",
+                                "usageLedgerCount"
+                              ],
+                              "properties": {
+                                "modelGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "modelSetCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "modelQuotaPolicyCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "usageReservationCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "usageLedgerCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "modelGrantCount",
+                                "quotaPolicyCount"
+                              ],
+                              "properties": {
+                                "modelGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "quotaPolicyCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "modelGrantCount",
+                                "mcpGrantCount",
+                                "externalGroupMappingCount"
+                              ],
+                              "properties": {
+                                "modelGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "mcpGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "externalGroupMappingCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "quotaWindowCount"
+                              ],
+                              "properties": {
+                                "quotaWindowCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/enterprise/admin/v1/skill-credentials/{credentialId}/actions/rotate": {
+      "parameters": [
+        {
+          "name": "credentialId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "rotateSkillSourceCredential",
+        "parameters": [
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "description": "Current resource revision used for compare-and-swap updates.",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991,
+              "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+              "examples": [
+                7
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "host",
+                  "token"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "host": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "projectPath": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 500
+                  },
+                  "expiresAt": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date-time"
+                  },
+                  "token": {
+                    "type": "string",
+                    "minLength": 4,
+                    "maxLength": 4096,
+                    "writeOnly": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rotated source credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "id",
+                        "name",
+                        "host",
+                        "tokenHint",
+                        "status",
+                        "revision"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[1-9][0-9]{0,18}$"
+                        },
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 120
+                        },
+                        "host": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        },
+                        "projectPath": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "maxLength": 500
+                        },
+                        "tokenHint": {
+                          "type": "string",
+                          "maxLength": 32
+                        },
+                        "expiresAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "ACTIVE",
+                            "EXPIRED",
+                            "REVOKED"
+                          ]
+                        },
+                        "revision": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991,
+                          "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                          "examples": [
+                            7
+                          ]
+                        }
+                      }
+                    },
+                    "requestId": {
+                      "type": "string",
+                      "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                      "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                      "examples": [
+                        "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server-generated request correlation ID.",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                  "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                  "examples": [
+                    "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId",
+                        "retryable"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "ENT_INVALID_REQUEST",
+                            "ENT_INVALID_REDIRECT_URI",
+                            "ENT_PKCE_REQUIRED",
+                            "ENT_SESSION_FORMAT_UNSUPPORTED",
+                            "ENT_AUTH_REQUIRED",
+                            "ENT_AUTH_CODE_INVALID",
+                            "ENT_PKCE_INVALID",
+                            "ENT_AUTH_SESSION_EXPIRED",
+                            "ENT_PERMISSION_DENIED",
+                            "ENT_DEVICE_REVOKED",
+                            "ENT_MODEL_NOT_ASSIGNED",
+                            "ENT_PLUGIN_NOT_ASSIGNED",
+                            "ENT_RESOURCE_NOT_OWNED",
+                            "ENT_RESOURCE_NOT_FOUND",
+                            "ENT_SESSION_CONTENT_EXPIRED",
+                            "ENT_REVISION_CONFLICT",
+                            "ENT_RESOURCE_IN_USE",
+                            "ENT_LAST_ENTERPRISE_ADMIN",
+                            "ENT_LAST_MEMBER_IDENTITY",
+                            "ENT_REQUEST_IN_PROGRESS",
+                            "ENT_REQUEST_ALREADY_COMPLETED",
+                            "ENT_SESSION_SEQ_GAP",
+                            "ENT_SESSION_DIVERGED",
+                            "ENT_SESSION_SOURCE_DEVICE_CONFLICT",
+                            "ENT_IDENTITY_ALREADY_LINKED",
+                            "ENT_DEVICE_ALREADY_BOUND",
+                            "ENT_MCP_CONFLICT",
+                            "ENT_MCP_CATALOG_STALE",
+                            "ENT_MCP_POLICY_INVALID",
+                            "ENT_MCP_UNSUPPORTED",
+                            "ENT_REQUEST_TOO_LARGE",
+                            "ENT_SESSION_BATCH_TOO_LARGE",
+                            "ENT_QUOTA_FIVE_HOURS_EXCEEDED",
+                            "ENT_QUOTA_DAILY_EXCEEDED",
+                            "ENT_QUOTA_WEEKLY_EXCEEDED",
+                            "ENT_QUOTA_MONTHLY_EXCEEDED",
+                            "ENT_QUOTA_RPM_EXCEEDED",
+                            "ENT_QUOTA_CONCURRENCY_EXCEEDED",
+                            "ENT_UPSTREAM_RATE_LIMITED",
+                            "ENT_UPSTREAM_QUOTA_EXCEEDED",
+                            "ENT_UPSTREAM_AUTH_FAILED",
+                            "ENT_UPSTREAM_INVALID_RESPONSE",
+                            "ENT_PLATFORM_UNAVAILABLE",
+                            "ENT_UPSTREAM_UNAVAILABLE",
+                            "ENT_UPSTREAM_TIMEOUT"
+                          ]
+                        },
+                        "message": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                          "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                          "examples": [
+                            "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                          ]
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "details": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "violations"
+                              ],
+                              "properties": {
+                                "violations": {
+                                  "type": "array",
+                                  "minItems": 1,
+                                  "maxItems": 50,
+                                  "items": {
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "required": [
+                                      "field",
+                                      "reason"
+                                    ],
+                                    "properties": {
+                                      "field": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 128
+                                      },
+                                      "reason": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 256
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "actualRevision",
+                                "expectedRevision"
+                              ],
+                              "properties": {
+                                "actualRevision": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991,
+                                  "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                                  "examples": [
+                                    7
+                                  ]
+                                },
+                                "expectedRevision": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991,
+                                  "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                                  "examples": [
+                                    7
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "policyId",
+                                "resetsAt"
+                              ],
+                              "properties": {
+                                "policyId": {
+                                  "type": "string",
+                                  "pattern": "^[1-9][0-9]{0,18}$"
+                                },
+                                "resetsAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "originalRequestId",
+                                "result"
+                              ],
+                              "properties": {
+                                "originalRequestId": {
+                                  "type": "string",
+                                  "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                                  "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                                  "examples": [
+                                    "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                                  ]
+                                },
+                                "result": {
+                                  "type": "string",
+                                  "enum": [
+                                    "IN_PROGRESS",
+                                    "COMPLETED"
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "modelGrantCount",
+                                "modelSetCount",
+                                "modelQuotaPolicyCount",
+                                "usageReservationCount",
+                                "usageLedgerCount"
+                              ],
+                              "properties": {
+                                "modelGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "modelSetCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "modelQuotaPolicyCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "usageReservationCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "usageLedgerCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "modelGrantCount",
+                                "quotaPolicyCount"
+                              ],
+                              "properties": {
+                                "modelGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "quotaPolicyCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "modelGrantCount",
+                                "mcpGrantCount",
+                                "externalGroupMappingCount"
+                              ],
+                              "properties": {
+                                "modelGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "mcpGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "externalGroupMappingCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "quotaWindowCount"
+                              ],
+                              "properties": {
+                                "quotaWindowCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision, idempotency, or state conflict.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server-generated request correlation ID.",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                  "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                  "examples": [
+                    "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId",
+                        "retryable"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "ENT_INVALID_REQUEST",
+                            "ENT_INVALID_REDIRECT_URI",
+                            "ENT_PKCE_REQUIRED",
+                            "ENT_SESSION_FORMAT_UNSUPPORTED",
+                            "ENT_AUTH_REQUIRED",
+                            "ENT_AUTH_CODE_INVALID",
+                            "ENT_PKCE_INVALID",
+                            "ENT_AUTH_SESSION_EXPIRED",
+                            "ENT_PERMISSION_DENIED",
+                            "ENT_DEVICE_REVOKED",
+                            "ENT_MODEL_NOT_ASSIGNED",
+                            "ENT_PLUGIN_NOT_ASSIGNED",
+                            "ENT_RESOURCE_NOT_OWNED",
+                            "ENT_RESOURCE_NOT_FOUND",
+                            "ENT_SESSION_CONTENT_EXPIRED",
+                            "ENT_REVISION_CONFLICT",
+                            "ENT_RESOURCE_IN_USE",
+                            "ENT_LAST_ENTERPRISE_ADMIN",
+                            "ENT_LAST_MEMBER_IDENTITY",
+                            "ENT_REQUEST_IN_PROGRESS",
+                            "ENT_REQUEST_ALREADY_COMPLETED",
+                            "ENT_SESSION_SEQ_GAP",
+                            "ENT_SESSION_DIVERGED",
+                            "ENT_SESSION_SOURCE_DEVICE_CONFLICT",
+                            "ENT_IDENTITY_ALREADY_LINKED",
+                            "ENT_DEVICE_ALREADY_BOUND",
+                            "ENT_MCP_CONFLICT",
+                            "ENT_MCP_CATALOG_STALE",
+                            "ENT_MCP_POLICY_INVALID",
+                            "ENT_MCP_UNSUPPORTED",
+                            "ENT_REQUEST_TOO_LARGE",
+                            "ENT_SESSION_BATCH_TOO_LARGE",
+                            "ENT_QUOTA_FIVE_HOURS_EXCEEDED",
+                            "ENT_QUOTA_DAILY_EXCEEDED",
+                            "ENT_QUOTA_WEEKLY_EXCEEDED",
+                            "ENT_QUOTA_MONTHLY_EXCEEDED",
+                            "ENT_QUOTA_RPM_EXCEEDED",
+                            "ENT_QUOTA_CONCURRENCY_EXCEEDED",
+                            "ENT_UPSTREAM_RATE_LIMITED",
+                            "ENT_UPSTREAM_QUOTA_EXCEEDED",
+                            "ENT_UPSTREAM_AUTH_FAILED",
+                            "ENT_UPSTREAM_INVALID_RESPONSE",
+                            "ENT_PLATFORM_UNAVAILABLE",
+                            "ENT_UPSTREAM_UNAVAILABLE",
+                            "ENT_UPSTREAM_TIMEOUT"
+                          ]
+                        },
+                        "message": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                          "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                          "examples": [
+                            "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                          ]
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "details": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "violations"
+                              ],
+                              "properties": {
+                                "violations": {
+                                  "type": "array",
+                                  "minItems": 1,
+                                  "maxItems": 50,
+                                  "items": {
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "required": [
+                                      "field",
+                                      "reason"
+                                    ],
+                                    "properties": {
+                                      "field": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 128
+                                      },
+                                      "reason": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 256
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "actualRevision",
+                                "expectedRevision"
+                              ],
+                              "properties": {
+                                "actualRevision": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991,
+                                  "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                                  "examples": [
+                                    7
+                                  ]
+                                },
+                                "expectedRevision": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991,
+                                  "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                                  "examples": [
+                                    7
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "policyId",
+                                "resetsAt"
+                              ],
+                              "properties": {
+                                "policyId": {
+                                  "type": "string",
+                                  "pattern": "^[1-9][0-9]{0,18}$"
+                                },
+                                "resetsAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "originalRequestId",
+                                "result"
+                              ],
+                              "properties": {
+                                "originalRequestId": {
+                                  "type": "string",
+                                  "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                                  "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                                  "examples": [
+                                    "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                                  ]
+                                },
+                                "result": {
+                                  "type": "string",
+                                  "enum": [
+                                    "IN_PROGRESS",
+                                    "COMPLETED"
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "modelGrantCount",
+                                "modelSetCount",
+                                "modelQuotaPolicyCount",
+                                "usageReservationCount",
+                                "usageLedgerCount"
+                              ],
+                              "properties": {
+                                "modelGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "modelSetCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "modelQuotaPolicyCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "usageReservationCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "usageLedgerCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "modelGrantCount",
+                                "quotaPolicyCount"
+                              ],
+                              "properties": {
+                                "modelGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "quotaPolicyCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "modelGrantCount",
+                                "mcpGrantCount",
+                                "externalGroupMappingCount"
+                              ],
+                              "properties": {
+                                "modelGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "mcpGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "externalGroupMappingCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "quotaWindowCount"
+                              ],
+                              "properties": {
+                                "quotaWindowCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/enterprise/admin/v1/skill-credentials/{credentialId}/actions/revoke": {
+      "parameters": [
+        {
+          "name": "credentialId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "revokeSkillSourceCredential",
+        "parameters": [
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "description": "Current resource revision used for compare-and-swap updates.",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991,
+              "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+              "examples": [
+                7
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Revoked source credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "id",
+                        "name",
+                        "host",
+                        "tokenHint",
+                        "status",
+                        "revision"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[1-9][0-9]{0,18}$"
+                        },
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 120
+                        },
+                        "host": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        },
+                        "projectPath": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "maxLength": 500
+                        },
+                        "tokenHint": {
+                          "type": "string",
+                          "maxLength": 32
+                        },
+                        "expiresAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "ACTIVE",
+                            "EXPIRED",
+                            "REVOKED"
+                          ]
+                        },
+                        "revision": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991,
+                          "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                          "examples": [
+                            7
+                          ]
+                        }
+                      }
+                    },
+                    "requestId": {
+                      "type": "string",
+                      "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                      "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                      "examples": [
+                        "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed.",
             "headers": {
               "X-Request-Id": {
                 "description": "Server-generated request correlation ID.",
@@ -187265,7 +189798,9 @@
           "artifactSizeBytes",
           "artifactSha256",
           "status",
-          "revision"
+          "revision",
+          "releaseNotes",
+          "current"
         ],
         "properties": {
           "id": {
@@ -187346,6 +189881,27 @@
               "null"
             ],
             "maxLength": 256
+          },
+          "resolvedCommit": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9a-f]{7,64}$"
+          },
+          "credentialId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "releaseNotes": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "current": {
+            "type": "boolean"
           }
         }
       },
@@ -187376,7 +189932,9 @@
                 "artifactSizeBytes",
                 "artifactSha256",
                 "status",
-                "revision"
+                "revision",
+                "releaseNotes",
+                "current"
               ],
               "properties": {
                 "id": {
@@ -187457,6 +190015,27 @@
                     "null"
                   ],
                   "maxLength": 256
+                },
+                "resolvedCommit": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "pattern": "^[0-9a-f]{7,64}$"
+                },
+                "credentialId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "pattern": "^[1-9][0-9]{0,18}$"
+                },
+                "releaseNotes": {
+                  "type": "string",
+                  "maxLength": 2000
+                },
+                "current": {
+                  "type": "boolean"
                 }
               }
             }
@@ -187532,7 +190111,9 @@
                     "artifactSizeBytes",
                     "artifactSha256",
                     "status",
-                    "revision"
+                    "revision",
+                    "releaseNotes",
+                    "current"
                   ],
                   "properties": {
                     "id": {
@@ -187613,6 +190194,27 @@
                         "null"
                       ],
                       "maxLength": 256
+                    },
+                    "resolvedCommit": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "pattern": "^[0-9a-f]{7,64}$"
+                    },
+                    "credentialId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "pattern": "^[1-9][0-9]{0,18}$"
+                    },
+                    "releaseNotes": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "current": {
+                      "type": "boolean"
                     }
                   }
                 }
@@ -187687,7 +190289,9 @@
               "artifactSizeBytes",
               "artifactSha256",
               "status",
-              "revision"
+              "revision",
+              "releaseNotes",
+              "current"
             ],
             "properties": {
               "id": {
@@ -187768,6 +190372,27 @@
                   "null"
                 ],
                 "maxLength": 256
+              },
+              "resolvedCommit": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^[0-9a-f]{7,64}$"
+              },
+              "credentialId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^[1-9][0-9]{0,18}$"
+              },
+              "releaseNotes": {
+                "type": "string",
+                "maxLength": 2000
+              },
+              "current": {
+                "type": "boolean"
               }
             }
           },
@@ -187787,7 +190412,8 @@
         "required": [
           "repositoryUrl",
           "revision",
-          "subpath"
+          "subpath",
+          "visibility"
         ],
         "properties": {
           "repositoryUrl": {
@@ -187806,6 +190432,24 @@
             "type": "string",
             "maxLength": 256,
             "pattern": "^(|[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*)$"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "PUBLIC",
+              "PRIVATE"
+            ]
+          },
+          "credentialId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "releaseNotes": {
+            "type": "string",
+            "maxLength": 2000
           }
         }
       },
@@ -187838,7 +190482,9 @@
               "artifactSizeBytes",
               "artifactSha256",
               "status",
-              "revision"
+              "revision",
+              "releaseNotes",
+              "current"
             ],
             "properties": {
               "id": {
@@ -187919,6 +190565,27 @@
                   "null"
                 ],
                 "maxLength": 256
+              },
+              "resolvedCommit": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^[0-9a-f]{7,64}$"
+              },
+              "credentialId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^[1-9][0-9]{0,18}$"
+              },
+              "releaseNotes": {
+                "type": "string",
+                "maxLength": 2000
+              },
+              "current": {
+                "type": "boolean"
               }
             }
           },
@@ -187964,7 +190631,9 @@
                   "artifactSizeBytes",
                   "artifactSha256",
                   "status",
-                  "revision"
+                  "revision",
+                  "releaseNotes",
+                  "current"
                 ],
                 "properties": {
                   "id": {
@@ -188045,6 +190714,27 @@
                       "null"
                     ],
                     "maxLength": 256
+                  },
+                  "resolvedCommit": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "pattern": "^[0-9a-f]{7,64}$"
+                  },
+                  "credentialId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "pattern": "^[1-9][0-9]{0,18}$"
+                  },
+                  "releaseNotes": {
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "current": {
+                    "type": "boolean"
                   }
                 }
               },
@@ -188060,6 +190750,110 @@
             "examples": [
               "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
             ]
+          }
+        }
+      },
+      "SkillSourceCredential": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "host",
+          "tokenHint",
+          "status",
+          "revision"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "host": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "projectPath": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500
+          },
+          "tokenHint": {
+            "type": "string",
+            "maxLength": 32
+          },
+          "expiresAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "EXPIRED",
+              "REVOKED"
+            ]
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+            "examples": [
+              7
+            ]
+          }
+        }
+      },
+      "SkillSourceCredentialWriteRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "host",
+          "token"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "host": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "projectPath": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500
+          },
+          "expiresAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "token": {
+            "type": "string",
+            "minLength": 4,
+            "maxLength": 4096,
+            "writeOnly": true
           }
         }
       }
