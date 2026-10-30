@@ -59,7 +59,7 @@ public final class AdminSkillController {
     }
 
     @GetMapping
-    public EnterpriseResponse<CursorPageData<SkillViews.ReleaseView>> list(
+    public EnterpriseResponse<CursorPageData<SkillViews.ReleaseMetadataView>> list(
         @RequestParam(required = false) String cursor,
         @RequestParam(defaultValue = "50") int limit,
         HttpServletRequest request

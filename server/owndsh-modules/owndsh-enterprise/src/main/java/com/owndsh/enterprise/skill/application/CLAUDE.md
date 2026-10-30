@@ -4,7 +4,7 @@
 
 成员清单
 
-SkillCatalogService.java: 草稿登记、发布/撤销和审计/revision 编排；Git 源导入复用 register。
+SkillCatalogService.java: 草稿登记、发布/撤销/恢复和审计/revision 编排；Git 源导入复用 register。
 SkillArchiveValidator.java: 规范化 GitLab/GitHub ZIP、解析 WorkBuddy frontmatter、限制路径/大小/文件数并计算 SHA-256。
 SkillSourceClient.java: 公开源码固定 revision 导入端口与不可变归档 DTO。
 HttpSkillSourceClient.java: GitHub API/codeload 与自托管 GitLab API/archive 的 HTTPS 只读 adapter。

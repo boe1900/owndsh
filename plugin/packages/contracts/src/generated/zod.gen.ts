@@ -2805,7 +2805,9 @@ export const zSkillSkillRelease = z.object({
     artifactSizeBytes: z.int().gte(1).lte(67108864),
     artifactSha256: z.string().regex(/^[0-9a-f]{64}$/),
     status: zSkillSkillReleaseStatus,
-    revision: zRevision
+    revision: zRevision,
+    repositoryUrl: z.url().max(500).regex(/^https:\/\/[^?#]+$/).nullish(),
+    repositoryPath: z.string().max(256).nullish()
 }).strict();
 
 export const zSkillRelease = zSkillSkillRelease;
@@ -4709,7 +4711,7 @@ export const zPublishSkillReleasePath = z.object({
 });
 
 /**
- * Published skill release.
+ * Published or restored skill release.
  */
 export const zPublishSkillReleaseResponse = zSkillSkillReleaseResponse;
 

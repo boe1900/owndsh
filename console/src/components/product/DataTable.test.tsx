@@ -100,4 +100,32 @@ describe('ProductDataTable', () => {
     fireEvent.click(within(menu).getByRole('checkbox', { name: '状态' }));
     expect(screen.queryByRole('columnheader', { name: /状态/ })).toBeNull();
   });
+
+  it('clears a business-provided default filter when selecting all statuses', () => {
+    render(
+      <ProductDataTable
+        ariaLabel="资源"
+        columns={columns}
+        data={data}
+        emptyText="暂无资源"
+        filter={{
+          columnId: 'status',
+          defaultFilterValue: 'ACTIVE',
+          label: '全部状态',
+          options: [
+            { label: '启用', value: 'ACTIVE' },
+            { label: '停用', value: 'DISABLED' }
+          ]
+        }}
+        getRowId={(row) => row.id}
+        searchPlaceholder="搜索资源"
+      />
+    );
+
+    fireEvent.change(screen.getByRole('combobox', { name: '全部状态' }), { target: { value: '' } });
+
+    expect((screen.getByRole('combobox', { name: '全部状态' }) as HTMLSelectElement).value).toBe('');
+    expect(screen.getByText('Item 01')).toBeTruthy();
+    expect(screen.getByText('Item 02')).toBeTruthy();
+  });
 });

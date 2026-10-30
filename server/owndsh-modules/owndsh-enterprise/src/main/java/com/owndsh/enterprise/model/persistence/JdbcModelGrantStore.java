@@ -70,7 +70,7 @@ public final class JdbcModelGrantStore implements ModelGrantStore {
         """;
     private static final String EFFECTIVE_SQL = """
         select m.id as model_id, m.alias, m.display_name, m.context_window,
-               m.max_output_tokens, m.input_modalities, p.api_protocol, m.reasoning_efforts, m.reasoning_compat,
+               m.max_output_tokens, m.input_modalities, c.api_protocol, m.reasoning_efforts, m.reasoning_compat,
                m.sort_order
         from ent_model_grant g
         join ent_managed_model m on m.tenant_id = g.tenant_id and (

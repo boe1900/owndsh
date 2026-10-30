@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 SkillStore、租户 bootstrap revision、审计 sink 和管理 mutation context。
- * [OUTPUT]: 提供 skill 草稿登记、发布/撤销和目录查询的事务编排。
+ * [OUTPUT]: 提供 skill 草稿登记、发布/撤销/恢复和目录查询的事务编排。
  * [POS]: skill/application 的管理边界；Skill 可见性只由发布状态决定。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -75,24 +75,24 @@ public final class SkillCatalogService {
     }
 
     public SkillRelease publish(SkillMutationContext context, long releaseId, long expectedRevision) {
-        return changeStatus(context, releaseId, expectedRevision, SkillRelease.Status.DRAFT,
-            SkillRelease.Status.PUBLISHED, SkillAuditMetadata.Operation.PUBLISH);
+        return changeStatus(context, releaseId, expectedRevision, SkillRelease.Status.PUBLISHED,
+            SkillAuditMetadata.Operation.PUBLISH, SkillRelease.Status.DRAFT, SkillRelease.Status.REVOKED);
     }
 
     public SkillRelease revoke(SkillMutationContext context, long releaseId, long expectedRevision) {
-        return changeStatus(context, releaseId, expectedRevision, SkillRelease.Status.PUBLISHED,
-            SkillRelease.Status.REVOKED, SkillAuditMetadata.Operation.REVOKE);
+        return changeStatus(context, releaseId, expectedRevision, SkillRelease.Status.REVOKED,
+            SkillAuditMetadata.Operation.REVOKE, SkillRelease.Status.PUBLISHED);
     }
 
     private SkillRelease changeStatus(SkillMutationContext context, long releaseId, long expectedRevision,
-        SkillRelease.Status from, SkillRelease.Status to, SkillAuditMetadata.Operation operation) {
+        SkillRelease.Status to, SkillAuditMetadata.Operation operation, SkillRelease.Status... from) {
         return requireResult(transactions.execute(status -> {
             SkillRelease current = skills.findRelease(context.tenantId(), releaseId)
                 .orElseThrow(SkillResourceNotFoundException::new);
             requireRevision(current.revision(), expectedRevision);
             if (current.status() == to) return current;
-            if (current.status() != from) throw new IllegalArgumentException("skill release 状态迁移非法");
-            if (!skills.transitionRelease(context.tenantId(), releaseId, from, to, expectedRevision)) {
+            if (!List.of(from).contains(current.status())) throw new IllegalArgumentException("skill release 状态迁移非法");
+            if (!skills.transitionRelease(context.tenantId(), releaseId, current.status(), to, expectedRevision)) {
                 throw releaseConflict(context.tenantId(), releaseId, expectedRevision);
             }
             long bootstrapRevision = revisions.increment(context.tenantId());

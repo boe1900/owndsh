@@ -1,5 +1,5 @@
 # [INPUT]: 依赖 skill.yaml DTO 与根协议的 runtime 认证、错误 response
-# [OUTPUT]: 提供公开目录查询、固定源码导入、制品代理下载与 catalog 管理 operation；不提供 skill assignment/inventory
+# [OUTPUT]: 提供公开目录查询、固定源码导入、制品代理下载与 catalog 管理 operation；支持发布恢复，不提供 skill assignment/inventory
 # [POS]: contracts/paths 的技能市场纵向分片；已发布 Skill 对登录设备可见，安装事实留在客户端
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -107,7 +107,7 @@ AdminSkillPublish:
       - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
     responses:
       '200':
-        description: Published skill release.
+        description: Published or restored skill release.
         content:
           application/json:
             schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/SkillReleaseResponse'}

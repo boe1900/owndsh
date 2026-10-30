@@ -107,6 +107,14 @@ SkillRelease:
     artifactSha256: {type: string, pattern: '^[0-9a-f]{64}$'}
     status: {$ref: '#/SkillReleaseStatus'}
     revision: {$ref: '../enterprise-openapi.yaml#/components/schemas/Revision'}
+    repositoryUrl:
+      type: [string, 'null']
+      format: uri
+      pattern: '^https://[^?#]+$'
+      maxLength: 500
+    repositoryPath:
+      type: [string, 'null']
+      maxLength: 256
 SkillReleasePageData:
   type: object
   additionalProperties: false

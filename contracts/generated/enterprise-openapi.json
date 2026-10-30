@@ -152330,6 +152330,22 @@
                                 "examples": [
                                   7
                                 ]
+                              },
+                              "repositoryUrl": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "format": "uri",
+                                "pattern": "^https://[^?#]+$",
+                                "maxLength": 500
+                              },
+                              "repositoryPath": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "maxLength": 256
                               }
                             }
                           }
@@ -152835,6 +152851,22 @@
                               "examples": [
                                 7
                               ]
+                            },
+                            "repositoryUrl": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "uri",
+                              "pattern": "^https://[^?#]+$",
+                              "maxLength": 500
+                            },
+                            "repositoryPath": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "maxLength": 256
                             }
                           }
                         },
@@ -152962,6 +152994,22 @@
                               "examples": [
                                 7
                               ]
+                            },
+                            "repositoryUrl": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "format": "uri",
+                              "pattern": "^https://[^?#]+$",
+                              "maxLength": 500
+                            },
+                            "repositoryPath": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "maxLength": 256
                             }
                           }
                         },
@@ -154373,6 +154421,22 @@
                           "examples": [
                             7
                           ]
+                        },
+                        "repositoryUrl": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "uri",
+                          "pattern": "^https://[^?#]+$",
+                          "maxLength": 500
+                        },
+                        "repositoryPath": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "maxLength": 256
                         }
                       }
                     },
@@ -154482,6 +154546,22 @@
                           "examples": [
                             7
                           ]
+                        },
+                        "repositoryUrl": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "uri",
+                          "pattern": "^https://[^?#]+$",
+                          "maxLength": 500
+                        },
+                        "repositoryPath": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "maxLength": 256
                         }
                       }
                     },
@@ -155142,7 +155222,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Published skill release.",
+            "description": "Published or restored skill release.",
             "content": {
               "application/json": {
                 "schema": {
@@ -155234,6 +155314,22 @@
                           "examples": [
                             7
                           ]
+                        },
+                        "repositoryUrl": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "uri",
+                          "pattern": "^https://[^?#]+$",
+                          "maxLength": 500
+                        },
+                        "repositoryPath": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "maxLength": 256
                         }
                       }
                     },
@@ -156290,6 +156386,22 @@
                           "examples": [
                             7
                           ]
+                        },
+                        "repositoryUrl": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "uri",
+                          "pattern": "^https://[^?#]+$",
+                          "maxLength": 500
+                        },
+                        "repositoryPath": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "maxLength": 256
                         }
                       }
                     },
@@ -187218,6 +187330,22 @@
             "examples": [
               7
             ]
+          },
+          "repositoryUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "pattern": "^https://[^?#]+$",
+            "maxLength": 500
+          },
+          "repositoryPath": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 256
           }
         }
       },
@@ -187313,6 +187441,22 @@
                   "examples": [
                     7
                   ]
+                },
+                "repositoryUrl": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uri",
+                  "pattern": "^https://[^?#]+$",
+                  "maxLength": 500
+                },
+                "repositoryPath": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "maxLength": 256
                 }
               }
             }
@@ -187453,6 +187597,22 @@
                       "examples": [
                         7
                       ]
+                    },
+                    "repositoryUrl": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "uri",
+                      "pattern": "^https://[^?#]+$",
+                      "maxLength": 500
+                    },
+                    "repositoryPath": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "maxLength": 256
                     }
                   }
                 }
@@ -187592,6 +187752,22 @@
                 "examples": [
                   7
                 ]
+              },
+              "repositoryUrl": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uri",
+                "pattern": "^https://[^?#]+$",
+                "maxLength": 500
+              },
+              "repositoryPath": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 256
               }
             }
           },
@@ -187727,6 +187903,22 @@
                 "examples": [
                   7
                 ]
+              },
+              "repositoryUrl": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uri",
+                "pattern": "^https://[^?#]+$",
+                "maxLength": 500
+              },
+              "repositoryPath": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 256
               }
             }
           },
@@ -187837,6 +188029,22 @@
                     "examples": [
                       7
                     ]
+                  },
+                  "repositoryUrl": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uri",
+                    "pattern": "^https://[^?#]+$",
+                    "maxLength": 500
+                  },
+                  "repositoryPath": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 256
                   }
                 }
               },

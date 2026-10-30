@@ -2568,6 +2568,8 @@ export type SkillSkillRelease = {
     artifactSha256: string;
     status: SkillSkillReleaseStatus;
     revision: Revision;
+    repositoryUrl?: string | null;
+    repositoryPath?: string | null;
 };
 
 export type SkillSkillReleaseId = string;
@@ -8082,7 +8084,7 @@ export type PublishSkillReleaseError = PublishSkillReleaseErrors[keyof PublishSk
 
 export type PublishSkillReleaseResponses = {
     /**
-     * Published skill release.
+     * Published or restored skill release.
      */
     200: SkillSkillReleaseResponse;
 };

@@ -35,21 +35,23 @@ class SkillCatalogServiceTest {
     );
 
     @Test
-    void registersDraftThenPublishesAndRevokesWithCas() {
+    void registersDraftThenPublishesRevokesAndRestoresWithCas() {
         SkillStore skills = mock(SkillStore.class);
         BootstrapRevisionStore revisions = mock(BootstrapRevisionStore.class);
         SkillRelease draft = release(SkillRelease.Status.DRAFT, 0);
         SkillRelease published = release(SkillRelease.Status.PUBLISHED, 1);
         SkillRelease revoked = release(SkillRelease.Status.REVOKED, 2);
         when(skills.findRelease("000000", "code-review", "1.0.0"))
-            .thenReturn(Optional.empty(), Optional.of(draft), Optional.of(published), Optional.of(published), Optional.of(revoked));
+            .thenReturn(Optional.empty(), Optional.of(draft), Optional.of(published), Optional.of(published), Optional.of(revoked), Optional.of(revoked));
         when(skills.findRelease("000000", 9001L))
-            .thenReturn(Optional.of(draft), Optional.of(published), Optional.of(published), Optional.of(revoked));
+            .thenReturn(Optional.of(draft), Optional.of(published), Optional.of(published), Optional.of(revoked), Optional.of(revoked), Optional.of(published));
         when(skills.transitionRelease("000000", 9001, SkillRelease.Status.DRAFT,
             SkillRelease.Status.PUBLISHED, 0)).thenReturn(true);
         when(skills.transitionRelease("000000", 9001, SkillRelease.Status.PUBLISHED,
             SkillRelease.Status.REVOKED, 1)).thenReturn(true);
-        when(revisions.increment("000000")).thenReturn(11L, 12L);
+        when(skills.transitionRelease("000000", 9001, SkillRelease.Status.REVOKED,
+            SkillRelease.Status.PUBLISHED, 2)).thenReturn(true);
+        when(revisions.increment("000000")).thenReturn(11L, 12L, 13L);
         TransactionOperations transactions = new TransactionOperations() {
             @Override
             public <T> T execute(TransactionCallback<T> action) {
@@ -66,6 +68,7 @@ class SkillCatalogServiceTest {
         assertThat(service.register(CONTEXT, input).release().status()).isEqualTo(SkillRelease.Status.DRAFT);
         assertThat(service.publish(CONTEXT, 9001, 0).status()).isEqualTo(SkillRelease.Status.PUBLISHED);
         assertThat(service.revoke(CONTEXT, 9001, 1).status()).isEqualTo(SkillRelease.Status.REVOKED);
+        assertThat(service.publish(CONTEXT, 9001, 2).status()).isEqualTo(SkillRelease.Status.PUBLISHED);
         verify(skills).insertRelease(any(SkillRelease.class), eq(7L));
     }
 
