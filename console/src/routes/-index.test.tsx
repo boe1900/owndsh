@@ -879,8 +879,8 @@ describe('product console access', () => {
     fireEvent.change(within(dialog).getByLabelText('Base URL'), { target: { value: 'https://api.example.com/v1' } });
     fireEvent.change(within(dialog).getByLabelText('API Key'), { target: { value: 'secret' } });
     fireEvent.click(within(dialog).getByRole('button', { name: '继续' }));
-    expect(within(dialog).getAllByText('获取并添加模型').length).toBeGreaterThan(0);
-    fireEvent.click(within(dialog).getByRole('button', { name: /手动添加模型/ }));
+    expect(within(dialog).getAllByText('获取可用模型').length).toBeGreaterThan(0);
+    fireEvent.click(within(dialog).getByRole('button', { name: /手动维护模型/ }));
     expect(within(dialog).getByLabelText('上游模型 ID')).toBeTruthy();
   });
 
