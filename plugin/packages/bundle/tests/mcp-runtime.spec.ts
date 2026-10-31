@@ -73,6 +73,26 @@ describe('MCP exposure and discovery', () => {
     expect((await call(ctx, 'mcp__docs__read_report')).isError).toBe(false)
   })
 
+  it('temporarily suspends a dropped connection without poisoning its abort signal', async () => {
+    const ctx = await host()
+    const surface = mountMcpTools(ctx, { fresh: () => true, refresh: async () => {} })
+    disposals.push(() => surface.dispose())
+    const connection = surface.begin('docs', 'Docs', { exposure: 'direct' })
+    ctx.tools.register(tool('mcp__docs__read_report'))
+    surface.ready(connection)
+    expect((await ctx.systemPrompt.assemble({ scope: first, agent: first })).tools.map(value => value.name))
+      .toContain('mcp__docs__read_report')
+
+    surface.suspend(connection)
+    expect(connection.abort.signal.aborted).toBe(false)
+    expect((await ctx.systemPrompt.assemble({ scope: first, agent: first })).tools.map(value => value.name))
+      .not.toContain('mcp__docs__read_report')
+
+    surface.ready(connection)
+    expect((await ctx.systemPrompt.assemble({ scope: first, agent: first })).tools.map(value => value.name))
+      .toContain('mcp__docs__read_report')
+  })
+
   it('keeps selection isolated per Agent and removes hidden tools from the native surface', async () => {
     const ctx = await host('native')
     const surface = mountMcpTools(ctx, { fresh: () => true, refresh: async () => {} })

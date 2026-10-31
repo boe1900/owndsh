@@ -5,8 +5,8 @@
 成员清单
 
 web-mcp.test.mjs: 0.2.1-rc.5 真实 Web/AgentLoop 回归，复制已安装 profile，以本地模型/MCP/OAuth 桩覆盖分页、无工具资源服务器、未声明 resources 能力的服务器、英文 tool_search 累加/去重/下一轮生效/Agent 隔离、中文查询无匹配、凭据重启恢复和官方 Plugins → Discover 入口；`OWNDSH_E2E_TOOLS_MODE` 接受 `native`/`ptc`，`OWNDSH_E2E_SCENARIO=structured` 另跑 outputSchema、structuredContent、PTC A→B 字段传递、无 schema 对象和 isError；证据写入 `OWNDSH_E2E_OUTPUT`。
-desktop-auth.test.mjs: 消费显式 OWNDSH_TEST_RUNTIME 的 macOS/Chromium 认证闭环，验证闲置零请求、过期续期、网络恢复与设备撤销；使用隔离 profile。
-skill-desktop.test.mjs: 消费显式 OWNDSH_E2E_LAUNCH_URL/OWNDSH_E2E_SCENE 的真实 Host 技能页现场，覆盖技能 Tab、已安装条件筛选、分类筛选、搜索、安装、启用/禁用、编辑/打开文件夹/卸载、卸载后回到发现和安装恢复；保存技能页截图与 result.json，不接管或清理调用方现场。
+desktop-auth.test.mjs: 消费显式 OWNDSH_TEST_RUNTIME 与 OWNDSH_TEST_PROFILE 的 macOS/Chromium 认证闭环，复制已安装 web profile，验证闲置零请求、过期续期、网络恢复与设备撤销。
+skill-desktop.test.mjs: 消费显式 OWNDSH_E2E_LAUNCH_URL/OWNDSH_E2E_SCENE 的真实 Host 技能页现场，覆盖技能 Tab、已安装条件筛选、分类筛选、搜索、安装、启用/禁用、编辑/打开文件夹/卸载、卸载后回到发现和安装恢复；可通过 OWNDSH_E2E_AUTH_URL_FILE 自动完成 PKCE 登录；保存技能页截图与 result.json，不接管或清理调用方现场。
 
 t01-harness-smoke.mjs: T01/T06/T14 真实组合验收器，将零业务配置 bundle 安装到锁定临时 profile，验证 `UNCONFIGURED`、Server API/settings 持久化、Client bundle、本地状态/无 SSE 与上游清洁度。
 t02-contract-consumer.mjs: T02 真实包验收器，把 contracts tgz 安装到全新临时 consumer，验证公开 ESM、品牌构造、严格错误解码和协议 hash。

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖平台 bootstrap 身份/授权快照、绑定身份与目标的 credentials、官方 Harness 身份、MCP client、用户本地 exposure 偏好与 mcp-tools 门禁。
- * [OUTPUT]: 提供 mountMcpRuntime，组合用户连接路由、OAuth 失效状态、快照租约、按服务器曝光配置与可撤销的 MCP 子 fiber；认证值原样发送，OAuth 使用本机 loopback callback。
+ * [OUTPUT]: 提供 mountMcpRuntime，组合回环同源用户连接路由、OAuth 失效状态、严格快照租约、按服务器曝光配置与可撤销的 MCP 子 fiber；认证值原样发送，OAuth 使用 issuer/endpoint 约束、本机 loopback callback 与有界重连。
  * [POS]: bundle 的端侧 MCP 组合器；平台提供连接事实，用户偏好决定工具曝光，秘密与连接只留在当前 Host。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -14,11 +14,20 @@ import { apply as applyMcpClient, createMcpToolDefinition, type Config as McpCli
 import { auth as mcpOAuthAuth, Client, StreamableHTTPClientTransport, type Tool } from '@modelcontextprotocol/client'
 import type { McpResourceProvider, McpResourceRequest } from '@deepseek-ai/dsh-mcp-resources'
 import type { ToolExecution } from '@deepseek-ai/dsh-tools'
-import { OWNDSH_SETTINGS_ENTRY, startLoopbackCallback, type EnterprisePlatformService, type WebServerRoutePort } from '@owndsh/platform-client'
+import { zMcpSnapshotResponse } from '@owndsh/contracts'
+import { isTrustedLocalRequest, OWNDSH_SETTINGS_ENTRY, startLoopbackCallback, type EnterprisePlatformService, type WebServerRoutePort } from '@owndsh/platform-client'
 import { McpCredentialManager, McpOAuthProvider, mcpCredentialBinding, mcpOwnerDigest } from './mcp-oauth.js'
 import { mountMcpTools, publicMcpToolName, type McpConnection, type McpExposureInput } from './mcp-tools.js'
 
-type OAuthAssignment = { type?: string; clientId?: string; scopes?: string[]; resource?: string }
+type OAuthAssignment = {
+  type?: string
+  issuer?: string
+  clientId?: string
+  scopes?: string[]
+  resource?: string
+  authorizationEndpoint?: string
+  tokenEndpoint?: string
+}
 
 declare module '@deepseek-ai/cordis' {
   interface Events {
@@ -130,13 +139,29 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
     refresh: () => refresh(),
     authorizationRequired: () => [...managers].filter(([name, manager]) => !isPaused(name) && manager.authorizationRequired()).map(([name]) => name),
   })
+  const localWebServer: WebServerRoutePort = {
+    host: ctx.webServer.host,
+    port: ctx.webServer.port,
+    register(route) {
+      return ctx.webServer.register({
+        ...route,
+        handler: (request, response) => {
+          if (!isTrustedLocalRequest(request, ctx.webServer)) {
+            response.writeHead(403, { 'cache-control': 'no-store' }).end()
+            return
+          }
+          return route.handler(request, response)
+        },
+      })
+    },
+  }
   const retire = async (serverName: string, current: MountedMcp): Promise<void> => {
     toolsSurface.revoke(current.connection)
     current.disposal ??= current.fiber.dispose()
     await current.disposal
     if (mounted.get(serverName) === current) mounted.delete(serverName)
   }
-  const oauthRoute = ctx.webServer.register({
+  const oauthRoute = localWebServer.register({
     kind: 'exact',
     path: '/enterprise/api/v1/local/mcp/oauth/start',
     handler: async (request, response) => {
@@ -158,8 +183,23 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
         oauthFlows.set(flowId, flow)
         const callback = await startLoopbackCallback({ expectedState: flowId, timeoutMs: 300_000, signal: flow.abort.signal })
         void callback.result.catch(() => undefined)
-        const provider = new McpOAuthProvider(manager, { callback, clientId: auth.clientId, scopes: auth.scopes, resource: auth.resource, serverUrl: url, state: flowId, signal: flow.abort.signal })
-        void mcpOAuthAuth(provider, { serverUrl: url, ...(auth.scopes?.length ? { scope: auth.scopes.join(' ') } : {}) }).then(() => {
+        const provider = new McpOAuthProvider(manager, {
+          callback,
+          clientId: auth.clientId,
+          scopes: auth.scopes,
+          issuer: auth.issuer,
+          resource: auth.resource,
+          authorizationEndpoint: auth.authorizationEndpoint,
+          tokenEndpoint: auth.tokenEndpoint,
+          serverUrl: url,
+          state: flowId,
+          signal: flow.abort.signal,
+        })
+        void mcpOAuthAuth(provider, {
+          serverUrl: url,
+          ...(auth.scopes?.length ? { scope: auth.scopes.join(' ') } : {}),
+          fetchFn: (input, init) => provider.fetch(input, init),
+        }).then(() => {
           if (oauthFlows.get(flowId) === flow && !flow.abort.signal.aborted && platformReady() && !stopped && managers.get(serverName) === manager
             && latestAssignments.some(value => value.serverName === serverName && value.revision === flow.revision)) {
             oauthFlows.set(flowId, { ...flow, status: 'SUCCEEDED' })
@@ -174,7 +214,7 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
       } catch { response.writeHead(400, { 'content-type': 'application/json' }).end(JSON.stringify({ error: { code: 'ENT_INVALID_REQUEST' } })) }
     },
   })
-  const oauthStatusRoute = ctx.webServer.register({
+  const oauthStatusRoute = localWebServer.register({
     kind: 'exact', path: '/enterprise/api/v1/local/mcp/oauth/status', handler: async (request, response) => {
       if (request.method !== 'GET') { response.writeHead(405).end(); return }
       const flowId = new URL(request.url ?? '/', 'http://localhost').searchParams.get('flowId') ?? ''
@@ -182,7 +222,7 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
       response.writeHead(flow === undefined ? 404 : 200, { 'cache-control': 'no-store', 'content-type': 'application/json' }).end(JSON.stringify(flow === undefined ? { error: { code: 'ENT_INVALID_REQUEST' } } : { data: { flowId, serverName: flow.serverName, status: flow.status, ...(flow.error === undefined ? {} : { error: flow.error }) } }))
     },
   })
-  const mcpStatusRoute = ctx.webServer.register({
+  const mcpStatusRoute = localWebServer.register({
     kind: 'exact', path: '/enterprise/api/v1/local/mcp/status', handler: async (request, response) => {
       if (request.method !== 'GET') { response.writeHead(405).end(); return }
       try {
@@ -208,7 +248,7 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
       } catch { response.writeHead(503, { 'content-type': 'application/json' }).end(JSON.stringify({ error: { code: 'ENT_PLATFORM_UNAVAILABLE' } })) }
     },
   })
-  const mcpConnectRoute = ctx.webServer.register({
+  const mcpConnectRoute = localWebServer.register({
     kind: 'exact', path: '/enterprise/api/v1/local/mcp/connect', handler: async (request, response) => {
       if (request.method !== 'POST') { response.writeHead(405).end(); return }
       try {
@@ -232,7 +272,7 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
       } catch { response.writeHead(400, { 'content-type': 'application/json' }).end(JSON.stringify({ error: { code: 'ENT_INVALID_REQUEST' } })) }
     },
   })
-  const mcpDisconnectRoute = ctx.webServer.register({
+  const mcpDisconnectRoute = localWebServer.register({
     kind: 'exact', path: '/enterprise/api/v1/local/mcp/disconnect', handler: async (request, response) => {
       if (request.method !== 'POST') { response.writeHead(405).end(); return }
       let serverName: string | undefined
@@ -265,7 +305,7 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
       }
     },
   })
-  const mcpPauseRoute = ctx.webServer.register({
+  const mcpPauseRoute = localWebServer.register({
     kind: 'exact', path: '/enterprise/api/v1/local/mcp/pause', handler: async (request, response) => {
       if (request.method !== 'POST') { response.writeHead(405).end(); return }
       try {
@@ -280,7 +320,7 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
       } catch { response.writeHead(400, { 'content-type': 'application/json' }).end(JSON.stringify({ error: { code: 'ENT_INVALID_REQUEST' } })) }
     },
   })
-  const mcpReconnectRoute = ctx.webServer.register({
+  const mcpReconnectRoute = localWebServer.register({
     kind: 'exact', path: '/enterprise/api/v1/local/mcp/reconnect', handler: async (request, response) => {
       if (request.method !== 'POST') { response.writeHead(405).end(); return }
       try {
@@ -293,7 +333,7 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
       } catch { response.writeHead(400, { 'content-type': 'application/json' }).end(JSON.stringify({ error: { code: 'ENT_INVALID_REQUEST' } })) }
     },
   })
-  const oauthCancelRoute = ctx.webServer.register({
+  const oauthCancelRoute = localWebServer.register({
     kind: 'exact', path: '/enterprise/api/v1/local/mcp/oauth/cancel', handler: async (request, response) => {
       if (request.method !== 'POST') { response.writeHead(405).end(); return }
       try {
@@ -312,36 +352,47 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
     const url = parseMcpEndpoint(assignment.url, assignment.allowInsecureTransport).toString()
     const auth = assignment.auth as OAuthAssignment
     const timeout = typeof assignment.toolCallTimeoutMs === 'number' ? assignment.toolCallTimeoutMs : 60_000
-    const state = randomUUID()
-    const callback = await startLoopbackCallback({ expectedState: state, timeoutMs: 24 * 60 * 60 * 1000, signal: manager.abort.signal })
-    void callback.result.catch(() => undefined)
-    const provider = new McpOAuthProvider(manager, {
-      callback,
-      clientId: auth.clientId,
-      scopes: auth.scopes,
-      resource: auth.resource,
-      serverUrl: url,
-      state,
-      signal: manager.abort.signal,
-    })
-    const client = new Client({ name: 'owndsh-mcp-client', version: APP_IDENTITY.version }, {
-      capabilities: {},
-      versionNegotiation: { mode: 'auto' },
-      listChanged: { tools: { autoRefresh: false, debounceMs: 0, onChanged: () => { void enqueueSync() } } },
-    })
-    const transport = new StreamableHTTPClientTransport(new URL(url), {
-      authProvider: provider,
-      requestInit: { headers: (assignment.headers ?? {}) as Record<string, string> },
-    })
+    const reconnect = (assignment.reconnect ?? {}) as ReconnectConfig
+    const policy = {
+      enabled: reconnect.enabled ?? true,
+      initialDelayMs: reconnect.initialDelayMs ?? 500,
+      maxDelayMs: reconnect.maxDelayMs ?? 30_000,
+      maxAttempts: reconnect.maxAttempts ?? 10,
+    }
+    type Generation = {
+      client: Client
+      transport: StreamableHTTPClientTransport
+      callback: Awaited<ReturnType<typeof startLoopbackCallback>>
+      closed: boolean
+    }
+    let current: Generation | undefined
+    let disposed = false
+    let reconnectTimer: ReturnType<typeof setTimeout> | undefined
+    let failedAttempts = 0
+    let connectedAt: number | undefined
     let disposers = new Map<string, () => void>()
     let syncing = Promise.resolve()
     let resourceDisposer = (): void => {}
     let instructionDisposer = (): void => {}
-    let disposed = false
-    const sync = async (): Promise<void> => {
-      const response = client.getServerCapabilities()?.tools === undefined
+
+    const clearPresentation = (): void => {
+      connection.ready = false
+      toolsSurface.suspend(connection)
+      resourceDisposer()
+      instructionDisposer()
+      resourceDisposer = (): void => {}
+      instructionDisposer = (): void => {}
+      for (const dispose of disposers.values()) dispose()
+      disposers = new Map()
+      connection.instructions = undefined
+      delete connection.rawToolNames
+    }
+    const sync = async (generation: Generation): Promise<void> => {
+      if (disposed || current !== generation) return
+      const response = generation.client.getServerCapabilities()?.tools === undefined
         ? { tools: [] as Tool[] }
-        : await client.listTools(undefined, { cacheMode: 'refresh' })
+        : await generation.client.listTools(undefined, { cacheMode: 'refresh' })
+      if (disposed || current !== generation) return
       const definitions = new Map<string, ReturnType<typeof createMcpToolDefinition>>()
       const rawToolNames = new Map<string, string>()
       for (const tool of response.tools) {
@@ -355,7 +406,7 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
           inputSchema: tool.inputSchema as Record<string, unknown>,
           outputSchema: tool.outputSchema,
           taskRequired: tool.execution?.taskSupport === 'required',
-          call: (args, execution) => client.callTool({ name: tool.name, arguments: args }, {
+          call: (args, execution) => generation.client.callTool({ name: tool.name, arguments: args }, {
             signal: execution.signal,
             timeout,
             toolDefinition: tool,
@@ -373,58 +424,137 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
       disposers = next
       connection.rawToolNames = rawToolNames
     }
-    function enqueueSync(): Promise<void> {
-      const task = syncing.then(sync)
+    const enqueueSync = (generation: Generation): Promise<void> => {
+      const task = syncing.then(() => sync(generation))
       syncing = task.catch(() => undefined)
       return task
     }
-    try {
-      await client.connect(transport)
-      await enqueueSync()
-      const resources = ctx.get('mcpResources') as { register(server: string, provider: McpResourceProvider): () => void } | undefined
-      if (resources === undefined) throw new Error('MCP_RESOURCES_UNAVAILABLE')
-      const resourceProvider: McpResourceProvider = {
-        request: async (request: McpResourceRequest, execution: ToolExecution) => {
-          const options = { signal: execution.signal, timeout }
-          if (request.method === 'resources/list') return await client.listResources(request.cursor === undefined ? undefined : { cursor: request.cursor }, options) as never
-          if (request.method === 'resources/templates/list') return await client.listResourceTemplates(request.cursor === undefined ? undefined : { cursor: request.cursor }, options) as never
-          if (request.method === 'resources/read') return await client.readResource({ uri: request.uri }, options) as never
-          throw new Error('MCP_RESOURCE_METHOD_INVALID')
-        },
+    const scheduleReconnect = (): void => {
+      if (disposed || !policy.enabled || reconnectTimer !== undefined) return
+      if (connectedAt !== undefined && Date.now() - connectedAt >= policy.maxDelayMs) failedAttempts = 0
+      connectedAt = undefined
+      failedAttempts += 1
+      if (failedAttempts > policy.maxAttempts) {
+        ctx.logger.error('owndsh: OAuth MCP reconnect budget exhausted: %s', serverName)
+        return
       }
-      resourceDisposer = resources.register(serverName, resourceProvider)
-      const systemPrompt = ctx.get('systemPrompt') as { getSectionOrder(name: string): number; section(value: { name: string; order: number; interpolate: boolean; text: () => string }): () => void } | undefined
-      if (systemPrompt === undefined) throw new Error('MCP_SYSTEM_PROMPT_UNAVAILABLE')
-      const instructions = client.getInstructions()?.trimEnd() ?? ''
-      if (Buffer.byteLength(instructions) > 32 * 1024) throw new Error('MCP_INSTRUCTIONS_TOO_LARGE')
-      connection.instructions = instructions || undefined
-      instructionDisposer = systemPrompt.section({
-        name: `mcp:${serverName}`,
-        order: systemPrompt.getSectionOrder('MCP_SERVERS'),
-        interpolate: false,
-        text: () => instructions ? `### MCP server: ${serverName}\n\n${instructions}` : '',
+      const delay = Math.min(policy.maxDelayMs, policy.initialDelayMs * 2 ** (failedAttempts - 1))
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = undefined
+        void connectGeneration(false).catch(error => ctx.logger.warn('owndsh: OAuth MCP reconnect failed: %s', String(error)))
+      }, delay)
+    }
+    const closeGeneration = async (generation: Generation): Promise<void> => {
+      generation.closed = true
+      generation.callback.cancel()
+      await generation.client.close().catch(() => undefined)
+      await generation.transport.close().catch(() => undefined)
+    }
+    const handleDown = async (generation: Generation): Promise<void> => {
+      if (disposed || current !== generation) return
+      current = undefined
+      clearPresentation()
+      await closeGeneration(generation)
+      scheduleReconnect()
+    }
+    const connectGeneration = async (startup: boolean): Promise<void> => {
+      const state = randomUUID()
+      const callback = await startLoopbackCallback({ expectedState: state, timeoutMs: 24 * 60 * 60 * 1000, signal: manager.abort.signal })
+      void callback.result.catch(() => undefined)
+      const provider = new McpOAuthProvider(manager, {
+        callback,
+        clientId: auth.clientId,
+        scopes: auth.scopes,
+        issuer: auth.issuer,
+        resource: auth.resource,
+        authorizationEndpoint: auth.authorizationEndpoint,
+        tokenEndpoint: auth.tokenEndpoint,
+        serverUrl: url,
+        state,
+        signal: manager.abort.signal,
       })
-      connection.ready = true
-      return {
-        async dispose(): Promise<void> {
-          if (disposed) return
-          disposed = true
-          connection.ready = false
-          resourceDisposer()
-          instructionDisposer()
-          for (const dispose of disposers.values()) dispose()
-          disposers = new Map()
-          await syncing.catch(() => undefined)
-          await client.close().catch(() => undefined)
-          await transport.close().catch(() => undefined)
-          callback.cancel()
-        },
+      const generation: Generation = {
+        client: new Client({ name: 'owndsh-mcp-client', version: APP_IDENTITY.version }, {
+          capabilities: {},
+          versionNegotiation: { mode: 'auto' },
+          listChanged: { tools: { autoRefresh: false, debounceMs: 0, onChanged: () => { void enqueueSync(generation) } } },
+        }),
+        transport: undefined as unknown as StreamableHTTPClientTransport,
+        callback,
+        closed: false,
       }
-    } catch (error) {
-      callback.cancel()
-      await client.close().catch(() => undefined)
-      await transport.close().catch(() => undefined)
-      throw error
+      generation.transport = new StreamableHTTPClientTransport(new URL(url), {
+        authProvider: provider,
+        fetch: (input, init) => provider.fetch(input, init),
+        requestInit: { headers: (assignment.headers ?? {}) as Record<string, string> },
+        reconnectionOptions: {
+          initialReconnectionDelay: policy.initialDelayMs,
+          maxReconnectionDelay: policy.maxDelayMs,
+          reconnectionDelayGrowFactor: 2,
+          maxRetries: policy.maxAttempts,
+        },
+      })
+      current = generation
+      generation.transport.onclose = () => { void handleDown(generation) }
+      try {
+        await generation.client.connect(generation.transport)
+        await enqueueSync(generation)
+        if (disposed || current !== generation) throw new Error('MCP_CONNECTION_CLOSED')
+        const resources = ctx.get('mcpResources') as { register(server: string, provider: McpResourceProvider): () => void } | undefined
+        if (resources === undefined) throw new Error('MCP_RESOURCES_UNAVAILABLE')
+        resourceDisposer = resources.register(serverName, {
+          request: async (request: McpResourceRequest, execution: ToolExecution) => {
+            const options = { signal: execution.signal, timeout }
+            const listable = generation.client.getServerCapabilities()?.resources !== undefined
+            if (request.method === 'resources/list') return listable
+              ? await generation.client.listResources(request.cursor === undefined ? undefined : { cursor: request.cursor }, options) as never
+              : { resources: [] } as never
+            if (request.method === 'resources/templates/list') return listable
+              ? await generation.client.listResourceTemplates(request.cursor === undefined ? undefined : { cursor: request.cursor }, options) as never
+              : { resourceTemplates: [] } as never
+            if (request.method === 'resources/read') return await generation.client.readResource({ uri: request.uri }, options) as never
+            throw new Error('MCP_RESOURCE_METHOD_INVALID')
+          },
+        })
+        const systemPrompt = ctx.get('systemPrompt') as { getSectionOrder(name: string): number; section(value: { name: string; order: number; interpolate: boolean; text: () => string }): () => void } | undefined
+        if (systemPrompt === undefined) throw new Error('MCP_SYSTEM_PROMPT_UNAVAILABLE')
+        const instructions = generation.client.getInstructions()?.trimEnd() ?? ''
+        if (Buffer.byteLength(instructions) > 32 * 1024) throw new Error('MCP_INSTRUCTIONS_TOO_LARGE')
+        if (disposed || current !== generation) throw new Error('MCP_CONNECTION_CLOSED')
+        connection.instructions = instructions || undefined
+        instructionDisposer = systemPrompt.section({
+          name: `mcp:${serverName}`,
+          order: systemPrompt.getSectionOrder('MCP_SERVERS'),
+          interpolate: false,
+          text: () => instructions ? `### MCP server: ${serverName}\n\n${instructions}` : '',
+        })
+        connection.ready = true
+        toolsSurface.ready(connection)
+        connectedAt = Date.now()
+        if (!startup) ctx.logger.info('owndsh: OAuth MCP reconnected: %s', serverName)
+      } catch (error) {
+        if (current === generation) {
+          current = undefined
+          clearPresentation()
+        }
+        await closeGeneration(generation)
+        if (!startup) scheduleReconnect()
+        throw error
+      }
+    }
+
+    await connectGeneration(true)
+    return {
+      async dispose(): Promise<void> {
+        disposed = true
+        if (reconnectTimer !== undefined) clearTimeout(reconnectTimer)
+        const generation = current
+        current = undefined
+        clearPresentation()
+        connection.abort.abort()
+        if (generation !== undefined) await closeGeneration(generation)
+        await syncing.catch(() => undefined)
+      },
     }
   }
   const reconcile = async (assignments: Array<Record<string, unknown>>, generation: number): Promise<void> => {
@@ -492,7 +622,8 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
           ? JSON.stringify({ revision: serverRevision, url, headers, auth, exposure })
           : JSON.stringify({ revision: serverRevision, ...clientConfig, exposure })
         const previous = mounted.get(serverName)
-        if (previous?.signature === signature && !previous.connection.abort.signal.aborted) {
+        if (previous?.signature === signature && !previous.connection.abort.signal.aborted
+          && (auth?.type !== 'oauth' || previous.connection.ready)) {
           continue
         }
         if (previous !== undefined) await retire(serverName, previous)
@@ -507,7 +638,7 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
           mounted.set(serverName, current)
           await fiber
           if (stopped || generation !== assignmentGeneration || isPaused(serverName)) await retire(serverName, current)
-          else toolsSurface.ready(connection)
+          else if (auth?.type !== 'oauth') toolsSurface.ready(connection)
         } catch {
           toolsSurface.revoke(connection)
           throw new Error('MCP_CONNECT_FAILED')
@@ -546,13 +677,12 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
           }
           return
         }
-        const body = await response.json() as { data?: { assignments?: Array<Record<string, unknown>>; revision?: number; validForMs?: number } }
+        const parsed = zMcpSnapshotResponse.safeParse(await response.json())
         if (stopped || generation !== assignmentGeneration || !platformReady()) return
-        if (!Array.isArray(body.data?.assignments) || !Number.isSafeInteger(body.data.revision)
-          || body.data.revision! < revision || body.data.validForMs !== 60_000) throw new Error('MCP_SNAPSHOT_INVALID')
-        latestAssignments = body.data.assignments
-        revision = body.data.revision!
-        leaseUntil = sentAt + body.data.validForMs
+        if (!parsed.success || parsed.data.data.revision < revision) throw new Error('MCP_SNAPSHOT_INVALID')
+        latestAssignments = parsed.data.data.assignments as Array<Record<string, unknown>>
+        revision = parsed.data.data.revision
+        leaseUntil = sentAt + parsed.data.data.validForMs
         await reconcile(latestAssignments, generation)
       } catch {
         ctx.logger.debug('owndsh: MCP assignments unavailable')

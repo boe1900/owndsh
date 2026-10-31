@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Harness credentials 原子记录、官方 MCP SDK v2 OAuthClientProvider、平台浏览器与回环 callback。
- * [OUTPUT]: 提供身份/目标绑定的凭据与 OAuthClientProvider；持久化 SDK 凭据并在授权生命周期内保存 discovery/verifier。
+ * [OUTPUT]: 提供身份/目标绑定的凭据与带 issuer/endpoint 校验的 OAuthClientProvider；持久化 SDK 凭据并在授权生命周期内保存 discovery/verifier。
  * [POS]: bundle 的 MCP 秘密边界；OwnDsh 不实现 discovery、PKCE、token exchange 或 refresh，只隔离凭据并交接系统浏览器与回环回调。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -224,7 +224,10 @@ export interface McpOAuthProviderOptions {
   callback: LoopbackCallback
   clientId?: string | undefined
   scopes?: string[] | undefined
+  issuer?: string | undefined
   resource?: string | undefined
+  authorizationEndpoint?: string | undefined
+  tokenEndpoint?: string | undefined
   serverUrl: string
   state: string
   signal: AbortSignal
@@ -248,7 +251,31 @@ export class McpOAuthProvider implements OAuthClientProvider {
 
   state(): string { return this.options.state }
 
+  private assertIssuer(issuer: string | undefined): void {
+    if (issuer === undefined || this.options.issuer === undefined) return
+    const expected = this.options.issuer.endsWith('/') ? this.options.issuer.slice(0, -1) : this.options.issuer
+    const actual = issuer.endsWith('/') ? issuer.slice(0, -1) : issuer
+    if (actual !== expected) throw new Error('MCP_OAUTH_ISSUER_MISMATCH')
+  }
+
+  private endpointMatches(actual: URL, expected: string | undefined): boolean {
+    if (expected === undefined) return true
+    const configured = new URL(expected)
+    return actual.origin === configured.origin && actual.pathname === configured.pathname
+      && actual.search === configured.search
+  }
+
+  async fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+    const method = init?.method ?? (typeof Request !== 'undefined' && input instanceof Request ? input.method : undefined)
+    if (this.options.tokenEndpoint !== undefined && method?.toUpperCase() === 'POST') {
+      const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url)
+      if (!this.endpointMatches(url, this.options.tokenEndpoint)) throw new Error('MCP_OAUTH_TOKEN_ENDPOINT_MISMATCH')
+    }
+    return fetch(input, init)
+  }
+
   clientInformation(ctx?: OAuthClientInformationContext): Promise<StoredOAuthClientInformation | undefined> {
+    this.assertIssuer(ctx?.issuer)
     return this.manager.clientInformation(ctx).then(info => info ?? (this.options.clientId === undefined ? undefined : {
       client_id: this.options.clientId,
       ...(ctx?.issuer === undefined ? {} : { issuer: ctx.issuer }),
@@ -256,14 +283,24 @@ export class McpOAuthProvider implements OAuthClientProvider {
   }
 
   saveClientInformation(info: StoredOAuthClientInformation, ctx?: OAuthClientInformationContext): Promise<void> {
+    this.assertIssuer(ctx?.issuer)
     return this.manager.saveClientInformation(info, ctx)
   }
 
-  tokens(ctx?: OAuthClientInformationContext): Promise<StoredOAuthTokens | undefined> { return this.manager.tokens(ctx) }
-  saveTokens(tokens: StoredOAuthTokens, ctx?: OAuthClientInformationContext): Promise<void> { return this.manager.saveTokens(tokens, ctx) }
+  tokens(ctx?: OAuthClientInformationContext): Promise<StoredOAuthTokens | undefined> {
+    this.assertIssuer(ctx?.issuer)
+    return this.manager.tokens(ctx)
+  }
+  saveTokens(tokens: StoredOAuthTokens, ctx?: OAuthClientInformationContext): Promise<void> {
+    this.assertIssuer(ctx?.issuer)
+    return this.manager.saveTokens(tokens, ctx)
+  }
+
+  saveAuthorizationServerUrl(issuer: string): void { this.assertIssuer(issuer) }
 
   async redirectToAuthorization(url: URL): Promise<void> {
     this.options.signal.throwIfAborted()
+    if (!this.endpointMatches(url, this.options.authorizationEndpoint)) throw new Error('MCP_OAUTH_AUTHORIZATION_ENDPOINT_MISMATCH')
     await openSystemBrowser(url.toString(), this.options.signal)
     const callback = await this.options.callback.result
     this.options.signal.throwIfAborted()
@@ -272,6 +309,7 @@ export class McpOAuthProvider implements OAuthClientProvider {
       authorizationCode: callback.code,
       ...(callback.iss === undefined ? {} : { iss: callback.iss }),
       ...(this.options.scopes?.length ? { scope: this.options.scopes.join(' ') } : {}),
+      fetchFn: (input, init) => this.fetch(input, init),
     })
     if (result !== 'AUTHORIZED') throw new Error('MCP_OAUTH_AUTHORIZATION_INCOMPLETE')
   }

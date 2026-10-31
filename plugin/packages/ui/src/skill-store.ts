@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖同源 local-api 的已安装/可安装 skill 投影、设备级启用/安装/卸载动作和可取消请求
- * [OUTPUT]: 提供技能 Tab 的可安装/可更新/已安装 loading/ready/error snapshot、串行动作和刷新生命周期
+ * [OUTPUT]: 提供技能 Tab 的可安装/可更新/已安装 loading/ready/error snapshot、账号边界重置、串行动作和刷新生命周期
  * [POS]: dsh-ui 的 skill 状态控制器；不解析 SKILL.md、不操作路径、不接触 Server 凭据
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -33,6 +33,14 @@ export class EnterpriseSkillStore {
   constructor(api: EnterpriseLocalApi) { this.#api = api }
 
   readonly getSnapshot = (): EnterpriseSkillSnapshot => this.#snapshot
+
+  /** 清除上一账号的技能事实；订阅中的页面会立即重新读取当前账号。 */
+  reset(): void {
+    this.#request?.abort()
+    ++this.#generation
+    this.#set({ phase: 'loading', skills: [], availableSkills: [] })
+    if (this.#listeners.size > 0) void this.refresh()
+  }
 
   readonly subscribe = (listener: () => void): (() => void) => {
     this.#listeners.add(listener)
@@ -111,7 +119,11 @@ export class EnterpriseSkillStore {
     this.#set({ ...this.#snapshot, busy: `install:${name}`, errorCode: undefined })
     try {
       await action(name, new AbortController().signal)
-      return await this.refresh()
+      const refreshed = await this.refresh()
+      if (!refreshed && this.#snapshot.busy === `install:${name}`) {
+        this.#set({ ...this.#snapshot, busy: undefined })
+      }
+      return refreshed
     } catch (error) {
       this.#set({ ...this.#snapshot, busy: undefined, errorCode: failureCode(error) })
       return false

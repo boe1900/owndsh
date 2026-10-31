@@ -326,6 +326,7 @@ export {
   zSessionSequence,
   zSessionStatus,
   zRevision,
+  zMcpSnapshotResponse,
   zRuntimePluginAssignment,
   zRuntimePluginAssignments,
   zRuntimePluginAssignmentsResponse,

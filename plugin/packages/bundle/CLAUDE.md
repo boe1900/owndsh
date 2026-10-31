@@ -12,8 +12,8 @@ cordis.patch.yml: 官方 profile layer，覆盖企业 default、停用 API Key/�
 scripts/build.mjs: 内联产品模块但 externalize 官方 Cordis/credentials/LLM/MCP client/resources、MCP SDK v2、tools/settings/Schemastery 与 Client ui-primitives 单例的双端构建器。
 src/index.ts: Web/Desktop 共用 Host 组合入口，绑定 credentials/pi-ai/官方 pluginManager/pluginMarket、插件 inventory 上报、隔离 skill provider、整包卸载重启与 mcp-runtime；通过 loopback 代理以内存 Bearer 读取受保护的 Server 索引并维护 DSH 官方索引源，MCP 与 OwnDsh skill 仍属于唯一 owndsh-plugin，不新增 Loader row。
 src/skill-provider.ts: 复用官方 dsh-skill/dsh-skill-filesystem，将 `customSkillDirs` 固定到 `$DSH_HOME/enterprise/skills/` 并关闭默认 root；只增加设备 manifest 的 disabled 过滤和重注册失效接缝，不复制 parser、rank 或 watcher。
-src/mcp-runtime.ts: 本地 MCP 路由与官方 client 子 fiber 组合器，按可信身份、公共快照、连接意愿、凭据与用户本地 exposure 偏好调和；提供 connect/pause/reconnect/disconnect 与 MCP_AUTH_REQUIRED 状态；活动触发 60 秒租约验证，平台失效先关门禁，再释放连接；API Key 认证值原样放入指定 Header 并合并公共固定 headers，OAuth 固定使用本机 loopback callback。
-src/mcp-tools.ts: 官方注册表的有界目录与连接代次；复用 Pi vendored 的英文 schema 文档与 BM25，按四档 exposure 计算 direct/deferred/codemode/hidden 的 native/PTC 投影；统一 tool_search 管理每个 Agent 的下一轮选择，本步 presented 快照负责执行门禁，实时撤权优先，控制工具名称冲突拒绝。
+src/mcp-runtime.ts: 本地 MCP 路由与官方 client 子 fiber 组合器，按回环同源请求、严格公共快照、连接意愿、凭据与用户本地 exposure 偏好调和；提供 connect/pause/reconnect/disconnect 与 MCP_AUTH_REQUIRED 状态；活动触发 60 秒租约验证，平台失效先关门禁，再释放连接；API Key 认证值原样放入指定 Header 并合并公共固定 headers，OAuth 使用 issuer/endpoint 约束、本机 loopback callback 与有界重连 supervisor。
+src/mcp-tools.ts: 官方注册表的有界目录与连接代次；复用 Pi vendored 的英文 schema 文档与 BM25，按四档 exposure 计算 direct/deferred/codemode/hidden 的 native/PTC 投影；统一 tool_search 管理每个 Agent 的下一轮选择，本步 presented 快照负责执行门禁，传输掉线可暂时撤下并恢复呈现，实时撤权优先，控制工具名称冲突拒绝。
 src/mcp-pi-search.ts: Pi MIT 纯逻辑 vendoring（基线 `3dd803d`）；提供英文 tokenizer、schema 文档构造、BM25 排名与 OwnDsh 四档运行时 exposure 解析，接受 Pi 五档输入并隔离 Pi Agent 的 active set/loadout 与运行时。
 src/mcp-oauth.ts: 官方 MCP SDK v2 `OAuthClientProvider` 的宿主接缝；以确定性摘要隔离 grant，持久化官方 client information/tokens，短生命周期保存 SDK discovery/verifier 以绑定授权回调，并交接系统浏览器与 loopback callback，不实现 OAuth 协议。
 tests/mcp-oauth.spec.ts: 身份/目标绑定、官方 StoredOAuth* 记录、discovery/issuer/iss 绑定、官方 SDK OAuth 委托与取消生命周期；不复制 OAuth 协议测试。

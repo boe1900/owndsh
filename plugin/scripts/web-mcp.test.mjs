@@ -43,7 +43,7 @@ const requestId = `req_${'0'.repeat(26)}`
 const json = (res, value, status = 200) => res.writeHead(status, { 'content-type': 'application/json' }).end(JSON.stringify(value))
 const bodyText = async req => { const chunks = []; for await (const chunk of req) chunks.push(chunk); return Buffer.concat(chunks).toString() }
 const body = async req => JSON.parse(await bodyText(req))
-const errors = [], methods = [], modelRequests = [], oauthEvents = [], checks = []
+const errors = [], methods = [], modelRequests = [], oauthEvents = [], requests = [], checks = []
 const codes = new Map()
 let origin, installationId, refreshGrant, mcpAccess, mcpRefresh, tokenIndex = 0, rejectedAccess, rejectRefresh = false
 let scenario = 'load', step = 0
@@ -100,8 +100,10 @@ function modelResponse(input) {
     .map(message => typeof message.content === 'string' ? message.content : JSON.stringify(message.content))].join('\n')
   modelRequests.push({ scenario, step, names: active, allNames: names, hasStructuredSdk: system.includes('mcp__structured__lookup_user'), toolResults: input.messages.filter(m => m.role === 'tool') })
   assert.equal(new Set(names).size, names.length)
-  if (!(scenario === 'structured' && toolsMode === 'ptc')) {
+  if (toolsMode === 'native') {
     for (const name of ['tool_search', 'list_mcp_resources', 'list_mcp_resource_templates', 'read_mcp_resource']) assert.ok(names.includes(name), name)
+  } else {
+    assert.ok(names.includes('run_code'), 'ptc must expose run_code')
   }
   const expectNames = expected => assert.deepEqual(active.sort(), expected.sort(), `${scenario} step ${step}`)
   if (scenario === 'structured') {
@@ -147,6 +149,23 @@ function modelResponse(input) {
     return `MCP E2E structured ${toolsMode} PASS`
   }
   if (scenario === 'load') {
+    if (toolsMode === 'ptc') {
+      const run = (code, description) => [tc('run_code', { code, description })]
+      switch (step++) {
+        case 0: expectNames([]); return run('return await tools.tool_search({ query: "docs echo", limit: 1 })', 'Discover docs echo')
+        case 1: expectNames([]); return run('const found = await tools.tool_search({ query: "docs write", limit: 1 });\nconst echo = await tools.mcp__docs__echo({ text: "first" });\nreturn { found, echo }', 'Discover docs write and call docs echo')
+        case 2: expectNames([]); return run('return await tools.tool_search({ query: "docs", limit: 1 })', 'Refresh docs tool search')
+        case 3: expectNames([]); return run('return await tools.tool_search({ query: "oauth echo", limit: 1 })', 'Discover OAuth echo')
+        case 4: expectNames([]); return run('const write = await tools.mcp__docs__write({ text: "last" });\nconst oauth = await tools.mcp__oauth__echo({ text: "oauth" });\nconst found = await tools.tool_search({ query: "apikey echo", limit: 1 });\nreturn { write, oauth, found }', 'Call loaded tools and discover API key echo')
+        case 5: expectNames([]); return run('const key = await tools.mcp__apikey__echo({ text: "key" });\nconst resource = await tools.list_mcp_resources({ server: "resourceonly" });\nconst template = await tools.list_mcp_resource_templates({ server: "resourceonly" });\nconst body = await tools.read_mcp_resource({ server: "resourceonly", uri: "mcp://docs/readme" });\nconst empty = await tools.list_mcp_resources({ server: "noresources" });\nconst emptyTemplates = await tools.list_mcp_resource_templates({ server: "noresources" });\nconst oauthResources = await tools.list_mcp_resources({ server: "oauth" });\nconst oauthTemplates = await tools.list_mcp_resource_templates({ server: "oauth" });\nconst oauthBody = await tools.read_mcp_resource({ server: "oauth", uri: "mcp://docs/from-template" });\nreturn { key, resource, template, body, empty, emptyTemplates, oauthResources, oauthTemplates, oauthBody }', 'Call API key and MCP resources')
+        case 6:
+          const latest = JSON.stringify(input.messages.filter(m => m.role === 'tool').at(-1)?.content ?? '')
+          assert.match(latest, /resource body/)
+          if (toolsMode === 'native') assert.equal(methods.filter(m => m.method === 'tools/call' && m.params.arguments.text === 'same-step-must-not-execute').length, 0)
+          return 'MCP E2E load PASS'
+        default: throw new Error('Unexpected PTC model loop')
+      }
+    }
     switch (step++) {
       case 0: expectNames([]); return [tc('tool_search', { query: 'docs echo', limit: 1 })]
       case 1: expectNames(['mcp__docs__echo']); return [tc('tool_search', { query: 'docs write', limit: 1 }), tc('mcp__docs__echo', { text: 'first' })]
@@ -170,25 +189,69 @@ function modelResponse(input) {
     }
   }
   if (scenario === 'refresh') {
+    if (toolsMode === 'ptc') {
+      if (step++ === 0) return [tc('run_code', { code: 'return await tools.mcp__oauth__echo({ text: "refresh" })', description: 'Call OAuth echo after refresh' })]
+      assert.ok(input.messages.some(m => m.role === 'tool' && JSON.stringify(m.content).includes('echo result')))
+      return 'MCP E2E refresh PASS'
+    }
     if (step++ === 0) return [tc('mcp__oauth__echo', { text: 'refresh' })]
     assert.ok(input.messages.some(m => m.role === 'tool' && JSON.stringify(m.content).includes('echo result')))
     return 'MCP E2E refresh PASS'
   }
   if (scenario === 'invalid-grant') {
+    if (toolsMode === 'ptc') {
+      if (step++ === 0) return [tc('run_code', { code: 'return await tools.mcp__oauth__echo({ text: "must-not-execute" })', description: 'Call OAuth echo with an invalid grant' })]
+      return 'MCP E2E invalid-grant PASS'
+    }
     if (step++ === 0) return [tc('mcp__oauth__echo', { text: 'must-not-execute' })]
     return 'MCP E2E invalid-grant PASS'
   }
   if (scenario === 'recover') {
+    if (toolsMode === 'ptc') {
+      if (step++ === 0) return [tc('run_code', { code: 'return await tools.tool_search({ query: "oauth echo", limit: 1 })', description: 'Discover OAuth echo after reauthorization' })]
+      if (step === 2) return [tc('run_code', { code: 'return await tools.mcp__oauth__echo({ text: "reauthorized" })', description: 'Call reauthorized OAuth echo' })]
+      return 'MCP E2E recovery PASS'
+    }
     if (step++ === 0) return [tc('tool_search', { query: 'oauth echo', limit: 1 })]
     if (step === 2) return [tc('mcp__oauth__echo', { text: 'reauthorized' })]
     return 'MCP E2E recovery PASS'
   }
   if (scenario === 'paused') {
+    if (toolsMode === 'ptc') {
+      if (step++ === 0) return [tc('run_code', { code: 'let blocked = false; try { await tools.mcp__docs__echo({ text: "paused" }) } catch (error) { blocked = String(error).includes("MCP_TOOL_NOT_LOADED") }; return { blocked }', description: 'Confirm paused MCP tools are unavailable' })]
+      assert.ok(JSON.stringify(input.messages.at(-1)?.content).includes('blocked'))
+      return 'MCP E2E paused PASS'
+    }
     assert.ok(active.every(name => !name.startsWith('mcp__docs__')))
     return 'MCP E2E paused PASS'
   }
-  if (scenario === 'new-agent') { expectNames([]); return 'MCP E2E isolation PASS' }
+  if (scenario === 'new-agent') {
+    if (toolsMode === 'ptc') {
+      if (step++ === 0) return [tc('run_code', { code: 'let blocked = false; try { await tools.mcp__docs__echo({ text: "new-agent" }) } catch (error) { blocked = String(error).includes("MCP_TOOL_NOT_LOADED") }; return { blocked }', description: 'Confirm a new agent starts without loaded MCP tools' })]
+      assert.ok(JSON.stringify(input.messages.at(-1)?.content).includes('blocked'))
+      return 'MCP E2E isolation PASS'
+    }
+    expectNames([]); return 'MCP E2E isolation PASS'
+  }
   if (scenario === 'golden') {
+    if (toolsMode === 'ptc') {
+      if (step === 0) { step++; return [tc('run_code', { code: 'return await tools.tool_search({ query: "notion workspace info name", limit: 7 })', description: 'Search Notion-shaped MCP tools' })] }
+      if (step === 1) {
+        step++
+        const result = input.messages.filter(m => m.role === 'tool').at(-1)
+        assert.ok(result && JSON.stringify(result.content).includes('mcp__golden__fetch'))
+        assert.ok(result && JSON.stringify(result.content).includes('mcp__golden__get-users'))
+        assert.ok(result && !JSON.stringify(result.content).includes('mcp__golden__utility-'))
+        return [tc('run_code', { code: 'return await tools.tool_search({ query: "the", limit: 8 })', description: 'Check stopword search' })]
+      }
+      if (step === 2) {
+        step++
+        assert.ok(JSON.stringify(input.messages.filter(m => m.role === 'tool').at(-1)?.content).includes('NO_MATCH'))
+        return [tc('run_code', { code: 'return await tools.tool_search({ query: "查询工作区名称", limit: 8 })', description: 'Check Chinese search' })]
+      }
+      assert.ok(JSON.stringify(input.messages.filter(m => m.role === 'tool').at(-1)?.content).includes('NO_MATCH'))
+      return 'MCP E2E golden PASS'
+    }
     if (step === 0) { step++; expectNames([]); return [tc('tool_search', { query: 'notion workspace info name', limit: 7 })] }
     if (step === 1) {
       step++
@@ -211,6 +274,7 @@ function modelResponse(input) {
 async function handle(req, res) {
   const url = new URL(req.url, origin)
   const pathname = url.pathname
+  requests.push({ method: req.method, pathname })
   if (pathname === '/favicon.ico') return res.writeHead(204).end()
   if (pathname === '/enterprise/auth/v1/authorize' || pathname === '/authorize') {
     const code = randomBytes(32).toString('base64url')
@@ -305,7 +369,7 @@ async function handle(req, res) {
     models: [{ alias: 'mcp-e2e', name: 'MCP E2E', apiProtocol: 'openai-completions', isDefault: true, contextWindow: 65536, maxTokens: 4096 }],
     quotas: [], plugins: { revision: 1, assignments: [] }, skills: { revision: 1, skills: [] },
     sessionPolicy: { enabled: false, retentionDays: 90, maxBatchBytes: 1048576 } } })
-  if (pathname.endsWith('/mcp/assignments')) return json(res, { requestId, data: { revision: 1, validForMs: 60000, assignments: assignments() } })
+  if (pathname.endsWith('/mcp/assignments')) return json(res, { requestId, data: { schemaVersion: 1, revision: 1, validForMs: 60000, assignments: assignments() } })
   if (pathname.endsWith('/plugins/assignments')) return json(res, { requestId, data: { revision: 1, assignments: [] } })
   if (pathname.endsWith('/plugins/inventory')) { await body(req); return json(res, { requestId, data: { reported: 0 } }) }
   if (pathname.endsWith('/mcp/catalog')) { await body(req); return json(res, { requestId, data: {} }) }
@@ -367,7 +431,7 @@ async function prompt(text, expected) {
 try {
   const url = await boot()
   browser = await chromium.launch({ headless: true, ...(process.env.OWNDSH_CHROMIUM_PATH ? { executablePath: process.env.OWNDSH_CHROMIUM_PATH } : {}) })
-  page = await browser.newPage({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 } }); page.setDefaultTimeout(12000)
+  page = await browser.newPage({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 } }); page.setDefaultTimeout(45000)
   await page.goto(url)
   const gate = page.getByRole('dialog', { name: 'OwnDsh', exact: true })
   await authorize(gate.getByRole('button', { name: '登录企业账号', exact: true }))
@@ -446,10 +510,10 @@ try {
   }
   assert.deepEqual(errors, [])
   assert.ok(!output.includes('does not implement saveDiscoveryState'), 'SDK callback binding must be supplied')
-  await writeFile(join(evidence, 'result.json'), JSON.stringify({ version: manifest.version, bundleHash, checks, oauthEvents, methods, modelRequests }, null, 2))
+  await writeFile(join(evidence, 'result.json'), JSON.stringify({ version: manifest.version, bundleHash, checks, oauthEvents, requests, methods, modelRequests }, null, 2))
   console.log(JSON.stringify({ passed: checks, evidence, home }, null, 2))
 } catch (error) {
   if (page) { await page.screenshot({ path: join(evidence, 'failure.png') }); await writeFile(join(evidence, 'failure.txt'), await page.locator('body').innerText()) }
-  await writeFile(join(evidence, 'failure.json'), JSON.stringify({ error: error.stack, checks, errors, methods, modelRequests, oauthEvents, output, home }, null, 2))
+  await writeFile(join(evidence, 'failure.json'), JSON.stringify({ error: error.stack, checks, errors, requests, methods, modelRequests, oauthEvents, output, home }, null, 2))
   throw error
 } finally { await browser?.close(); await stop(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)) }

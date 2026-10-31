@@ -8,6 +8,7 @@
 import { createServer, type Server } from 'node:http'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  isTrustedLocalRequest,
   registerEnterpriseLocalApi,
   type EnterpriseLocalPlatformPort,
   type EnterprisePlatformStatus,
@@ -90,6 +91,16 @@ describe('enterprise local API', () => {
     const rejected = await fetch(`${baseUrl}/enterprise/api/v1/local/status`, { method: 'POST' })
     expect(rejected.status).toBe(405)
     expect(rejected.headers.get('allow')).toBe('GET')
+  })
+
+  it('rejects non-loopback and cross-site control-plane requests', async () => {
+    const request = (remoteAddress: string, headers: Record<string, string> = {}) => ({
+      socket: { remoteAddress }, headers,
+    }) as any
+    expect(isTrustedLocalRequest(request('10.0.0.2'), { port: 43123 })).toBe(false)
+    expect(isTrustedLocalRequest(request('127.0.0.1', { origin: 'https://evil.example', 'sec-fetch-site': 'cross-site' }), { port: 43123 })).toBe(false)
+    expect(isTrustedLocalRequest(request('127.0.0.1', { origin: 'http://127.0.0.1:43124' }), { port: 43123 })).toBe(false)
+    expect(isTrustedLocalRequest(request('127.0.0.1', { origin: 'http://127.0.0.1:43123', 'sec-fetch-site': 'same-origin' }), { port: 43123 })).toBe(true)
   })
 
   it('serves only the local skill projection and validates enable/remove actions', async () => {

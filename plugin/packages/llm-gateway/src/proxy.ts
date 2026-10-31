@@ -124,7 +124,19 @@ async function relay(upstream: Response, response: ServerResponse): Promise<void
     while (true) {
       const item = await reader.read()
       if (item.done) break
-      response.write(Buffer.from(item.value))
+      if (!response.write(Buffer.from(item.value))) {
+        await new Promise<void>(resolve => {
+          const done = (): void => {
+            response.off('drain', done)
+            response.off('close', done)
+            response.off('error', done)
+            resolve()
+          }
+          response.once('drain', done)
+          response.once('close', done)
+          response.once('error', done)
+        })
+      }
     }
     response.end()
   } finally {

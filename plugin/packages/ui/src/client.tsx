@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖官方 slots/remote/configForms/connection 生命周期事件与 EnterpriseAccountStore，不创建传输连接
- * [OUTPUT]: 注册 OwnDsh 设置与访问门禁；插件发现和安装由官方 Plugins → Discover 页面提供，MCP exposure 通过官方 configForms 写入
+ * [OUTPUT]: 注册 OwnDsh 设置与访问门禁，协调账号边界下的技能事实刷新；插件发现和安装由官方 Plugins → Discover 页面提供，MCP exposure 通过官方 configForms 写入
  * [POS]: dsh-ui 的浏览器组合根，只向 React 注入共享脱敏 store 和配置表单，不传递 Host Context
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -47,7 +47,10 @@ export function apply(ctx: ClientContext): void {
   const store = new EnterpriseAccountStore(localApi)
   const skillStore = new EnterpriseSkillStore(localApi)
   runtime.effect(() => {
-    const refresh = () => { void store.refresh() }
+    const refresh = () => {
+      skillStore.reset()
+      void store.refresh().then(() => skillStore.refresh())
+    }
     const disposers = [
       runtime.remote.$on('llm/adapters-updated', refresh),
       runtime.remote.$on('credentials/reference-updated', refresh),

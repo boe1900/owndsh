@@ -196,4 +196,27 @@ describe('enterprise skill runtime', () => {
       .rejects.toThrow('SHA-256')
     await expect(runtime.list()).resolves.toMatchObject([{ name: 'code-review', version: '1.0.0' }])
   })
+
+  it('restores the previous skill when manifest commit fails', async () => {
+    const dshHome = await home()
+    const runtime = new EnterpriseSkillRuntime({ dshHome })
+    const original = zipSkill('code-review', '---\nname: code-review\ndescription: original\nversion: 1.0.0\n---\n\noriginal\n')
+    const originalSha256 = createHash('sha256').update(original).digest('hex')
+    const catalog = {
+      releaseId: '990',
+      metadata: { name: 'code-review', version: '1.0.0', description: 'original', license: 'MIT', author: 'OwnDsh', userInvocable: true, modelInvocable: true },
+      artifactSizeBytes: original.byteLength,
+      artifactSha256: originalSha256,
+    }
+    await runtime.install(catalog, async () => original)
+
+    const manifestPath = resolveEnterpriseSkillManifestPath({ dshHome })
+    await rm(manifestPath)
+    await mkdir(manifestPath)
+    const revised = zipSkill('code-review', '---\nname: code-review\ndescription: revised\nversion: 1.1.0\n---\n\nrevised\n')
+    await expect(runtime.install({ ...catalog, releaseId: '991', metadata: { ...catalog.metadata, version: '1.1.0', description: 'revised' }, artifactSizeBytes: revised.byteLength, artifactSha256: createHash('sha256').update(revised).digest('hex') }, async () => revised))
+      .rejects.toMatchObject({ code: 'ENT_SKILL_LOCAL_INVALID' })
+    await expect(readFile(join(resolveEnterpriseSkillRoot({ dshHome }), 'code-review', 'SKILL.md'), 'utf8'))
+      .resolves.toContain('description: original')
+  })
 })

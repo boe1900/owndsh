@@ -150,6 +150,9 @@ importers:
       '@modelcontextprotocol/client':
         specifier: 2.2.0
         version: 2.2.0
+      '@owndsh/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@owndsh/llm-gateway':
         specifier: workspace:*
         version: link:../llm-gateway

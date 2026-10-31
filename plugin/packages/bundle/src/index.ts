@@ -185,7 +185,11 @@ export function ownDshMarketIndexUrls(
   current: string | undefined,
 ): string[] {
   const next = configured.filter(url => {
-    try { return new URL(url).pathname !== OWNDSH_MARKET_INDEX_PATH } catch { return true }
+    try {
+      const parsed = new URL(url)
+      const loopback = ['127.0.0.1', 'localhost', '[::1]', '::1'].includes(parsed.hostname)
+      return !(loopback && parsed.pathname === OWNDSH_MARKET_INDEX_PATH)
+    } catch { return true }
   })
   if (current !== undefined) next.push(current)
   return [...new Set(next)]

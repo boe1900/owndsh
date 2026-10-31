@@ -6,12 +6,13 @@
  */
 
 import assert from 'node:assert/strict'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { test } from 'node:test'
 
 const launchUrl = process.env.OWNDSH_E2E_LAUNCH_URL
 const scene = process.env.OWNDSH_E2E_SCENE
+const authorizeFile = process.env.OWNDSH_E2E_AUTH_URL_FILE
 const skillName = process.env.OWNDSH_E2E_SKILL_NAME ?? 'yt-dlp-downloader'
 const playwrightModule = process.env.OWNDSH_PLAYWRIGHT_MODULE ?? 'playwright'
 const browserPath = process.env.OWNDSH_E2E_BROWSER_PATH ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
@@ -41,12 +42,30 @@ test('OwnDsh skill settings uses the real Host and published catalog artifact', 
   try {
     await page.goto(launchUrl)
     await page.waitForTimeout(800)
-    const continuePreview = page.getByRole('button', { name: '继续', exact: true })
-    if (await continuePreview.count() > 0 && await continuePreview.isVisible()) await continuePreview.click()
+    const continuePreview = page.getByText(/^(继续|Continue)$/, { exact: true }).first()
+    await continuePreview.waitFor({ state: 'visible', timeout: 5_000 }).then(() => continuePreview.click()).catch(() => undefined)
     await page.waitForTimeout(300)
     const apiPrompt = page.getByRole('dialog', { name: '添加一个 API Key 开始使用', exact: true })
     if (await apiPrompt.count() > 0 && await apiPrompt.isVisible()) {
       await apiPrompt.getByRole('button', { name: '稍后配置', exact: true }).click()
+    }
+    if (authorizeFile !== undefined) {
+      const gate = page.getByRole('dialog', { name: 'OwnDsh', exact: true })
+      const login = gate.getByRole('button', { name: '登录企业账号', exact: true })
+      await login.waitFor({ state: 'visible', timeout: 15_000 })
+      await rm(authorizeFile, { force: true })
+      await login.click({ force: true })
+      let url = ''
+      for (let attempt = 0; attempt < 200 && !url; attempt++) {
+        url = await readFile(authorizeFile, 'utf8').catch(() => '')
+        if (!url) await page.waitForTimeout(50)
+      }
+      assert.ok(url, 'Host must open the PKCE authorization URL')
+      const loginPage = await browser.newPage({ locale: 'zh-CN' })
+      await loginPage.goto(url)
+      await loginPage.getByRole('link', { name: '确认登录' }).click()
+      await gate.waitFor({ state: 'hidden', timeout: 15_000 })
+      await loginPage.close()
     }
     await page.getByRole('button', { name: '账号菜单' }).click()
     await page.getByText(/^(设置|Settings)$/, { exact: true }).last().click()

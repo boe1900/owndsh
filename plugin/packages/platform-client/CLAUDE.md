@@ -10,11 +10,11 @@ tsconfig.json: Host TypeScript 构建边界，从 `src/` 生成 ESM、声明与 
 src/browser.ts: 通过无 shell argv 调用系统 URL/文件 opener，向 PKCE 事务和技能编辑/目录动作提供可取消 Host 交接。
 src/index.ts: package 公开入口，集中导出 Service、PKCE、installation、bootstrap 与本地 API 契约。
 src/installation.ts: 统一解析 DSH_HOME 并原子维护 `enterprise/device.json`，严格限定 UUID v4、显示名和创建时间。
-src/local-api.ts: exact/prefix 同源路由暴露整包卸载、可安装目录、技能清单/图标/安装/启用/卸载和 Host 文件动作，以及 Server/账号/Session JSON 与显式刷新；插件发现、安装、更新、启停和卸载均由官方 Host/plugin-market 承担，本地 API 不再投影插件目录。
+src/local-api.ts: exact/prefix 回环同源路由暴露整包卸载、可安装目录、技能清单/图标/安装/启用/卸载和 Host 文件动作，以及 Server/账号/Session JSON 与显式刷新；插件发现、安装、更新、启停和卸载均由官方 Host/plugin-market 承担，本地 API 不再投影插件目录。
 src/pkce.ts: PKCE S256 生成、仅绑定 `127.0.0.1` 的 callback、state/取消/超时生命周期；保留回调 iss 供官方 MCP OAuth SDK 校验，启动前或监听期间取消也由 callback.result 返回稳定失败，不泄漏未处理拒绝。
 src/platform-credentials.ts: 独占官方 GrantRecord 与内存 Access Token，在 credentials 原子修改边界内轮换 Refresh Token，并阻止过期 origin 或已销毁 Service 重新装载认证态。
 src/platform-service.ts: 注册 `ctx.enterprisePlatform`，通过官方 SettingsForms 写入 volatile `owndsh.baseUrl`，将运行时 Server 修改收敛到无活动会话时的凭据清理与 settings 写入，保存期间禁止登录；同时持有 OwnDsh skill runtime，编排技能启用/卸载/图标读取、受控文件打开和可选 Composer 接缝；继续负责登出、带退避的启动恢复、按需续期/401 单次重放、会话代次隔离、显式 bootstrap 刷新与插件 inventory replacement 上报。
-src/skill-runtime.ts: OwnDsh 专用 `$DSH_HOME/enterprise/skills/` 的本地真相层；解析 WorkBuddy frontmatter，接收平台已鉴权制品并完成 SHA-256/原子同步，读出脱敏卡片，原子维护设备级启用清单和卸载，动作入口复核完整副本并拒绝符号链接，再通过显式回调通知官方 provider 失效；不直连远端或其他 skill 根目录。
+src/skill-runtime.ts: OwnDsh 专用 `$DSH_HOME/enterprise/skills/` 的本地真相层；解析 WorkBuddy frontmatter，接收平台已鉴权制品并完成 SHA-256/目录与 manifest 可回滚同步，读出脱敏卡片，原子维护设备级启用清单和卸载，动作入口复核完整副本并拒绝符号链接，再通过显式回调通知官方 provider 失效；不直连远端或其他 skill 根目录。
 src/skill-archive.ts: 员工端制品信任边界；以标准库解压 ZIP，限制大小/文件数，拒绝路径穿越、重复文件、加密项和符号链接，并校验 CRC。
 src/types.ts: 以生成契约严格校验 bootstrap 用户、设备、模型（含 text/image 输入模态与推理映射）、配额、插件和 Session 策略，避免端侧快照与目录 schema 漂移。
 tests/installation.spec.ts: 并发首次启动、0600 权限、字段白名单与损坏文件 fail-closed 验收。

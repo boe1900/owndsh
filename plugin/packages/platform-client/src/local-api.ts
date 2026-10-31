@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Harness `ctx.webServer.register()` route port、平台操作端口及组合层注入的插件动作端口
- * [OUTPUT]: 提供账号/配置按需刷新与技能目录、安装/更新操作的严格同源 JSON 路由，无常驻状态连接
+ * [OUTPUT]: 提供回环同源账号/配置按需刷新与技能目录、安装/更新操作的严格 JSON 路由，无常驻状态连接
  * [POS]: platform-client 的 Host/Client 同源协作边界，只序列化脱敏 DTO 并把认证 HTTP 留在 Host Service
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -27,6 +27,49 @@ export interface WebServerRoutePort {
     readonly path: string
     readonly handler: (request: IncomingMessage, response: ServerResponse) => void | Promise<void>
   }): () => void
+}
+
+function loopbackAddress(value: string | undefined): boolean {
+  return value === '127.0.0.1' || value === '::1' || value === '::ffff:127.0.0.1'
+}
+
+/** 本地控制面只接受回环连接和本地同源浏览器请求。 */
+export function isTrustedLocalRequest(request: IncomingMessage, webServer: Pick<WebServerRoutePort, 'port'>): boolean {
+  if (!loopbackAddress(request.socket.remoteAddress)) return false
+  const fetchSite = request.headers['sec-fetch-site']
+  if (fetchSite !== undefined && fetchSite !== 'same-origin' && fetchSite !== 'same-site' && fetchSite !== 'none') return false
+  const origin = request.headers.origin
+  if (origin === undefined) return true
+  if (Array.isArray(origin) || origin.length === 0) return false
+  try {
+    const url = new URL(origin)
+    const encrypted = 'encrypted' in request.socket && Boolean((request.socket as { encrypted?: unknown }).encrypted)
+    if (url.protocol !== (encrypted ? 'https:' : 'http:')) return false
+    if (!['127.0.0.1', 'localhost', '[::1]', '::1'].includes(url.hostname)) return false
+    const originPort = url.port || (url.protocol === 'https:' ? '443' : '80')
+    return webServer.port === undefined || originPort === String(webServer.port)
+  } catch {
+    return false
+  }
+}
+
+function trustedWebServer(webServer: WebServerRoutePort): WebServerRoutePort {
+  return {
+    host: webServer.host,
+    port: webServer.port,
+    register(route) {
+      return webServer.register({
+        ...route,
+        handler: (request, response) => {
+          if (!isTrustedLocalRequest(request, webServer)) {
+            writeJson(response, 403, { error: { code: 'ENT_PERMISSION_DENIED' } })
+            return
+          }
+          return route.handler(request, response)
+        },
+      })
+    },
+  }
 }
 
 /** 挂载到本地同源 API 的脱敏 Service 操作端口。 */
@@ -214,10 +257,11 @@ export function registerEnterpriseLocalApi(
   options: EnterpriseLocalApiOptions,
 ): () => void {
   const disposers: (() => void)[] = []
+  const localWebServer = trustedWebServer(webServer)
 
   try {
-    disposers.push(registerJsonAction(webServer, '/refresh', () => options.platform.refresh()))
-    disposers.push(webServer.register({
+    disposers.push(registerJsonAction(localWebServer, '/refresh', () => options.platform.refresh()))
+    disposers.push(localWebServer.register({
       kind: 'exact',
       path: `${LOCAL_API_PREFIX}/status`,
       handler: (request, response) => {
@@ -229,7 +273,7 @@ export function registerEnterpriseLocalApi(
       },
     }))
 
-    disposers.push(webServer.register({
+    disposers.push(localWebServer.register({
       kind: 'exact',
       path: `${LOCAL_API_PREFIX}/server`,
       handler: async (request, response) => {
@@ -249,17 +293,17 @@ export function registerEnterpriseLocalApi(
       },
     }))
 
-    disposers.push(registerJsonAction(webServer, '/auth/start', async () => options.platform.startLogin()))
-    disposers.push(registerJsonAction(webServer, '/auth/cancel', async () => ({
+    disposers.push(registerJsonAction(localWebServer, '/auth/start', async () => options.platform.startLogin()))
+    disposers.push(registerJsonAction(localWebServer, '/auth/cancel', async () => ({
       cancelled: options.platform.cancelLogin(),
     })))
-    disposers.push(registerJsonAction(webServer, '/logout', async () => {
+    disposers.push(registerJsonAction(localWebServer, '/logout', async () => {
       await options.platform.logout()
       return { loggedOut: true }
     }))
 
     if (options.uninstallPlugin !== undefined) {
-      disposers.push(webServer.register({
+      disposers.push(localWebServer.register({
         kind: 'exact',
         path: `${LOCAL_API_PREFIX}/uninstall`,
         handler: async (request, response) => {
@@ -283,7 +327,7 @@ export function registerEnterpriseLocalApi(
       }))
     }
 
-    disposers.push(webServer.register({
+    disposers.push(localWebServer.register({
       kind: 'exact',
       path: `${LOCAL_API_PREFIX}/bootstrap`,
       handler: (request, response) => {
@@ -297,7 +341,7 @@ export function registerEnterpriseLocalApi(
 
     if (options.platform.skills !== undefined
       && options.platform.setSkillEnabled !== undefined
-      && options.platform.removeSkill !== undefined) disposers.push(webServer.register({
+      && options.platform.removeSkill !== undefined) disposers.push(localWebServer.register({
       kind: 'prefix',
       path: `${LOCAL_API_PREFIX}/skills`,
       handler: async (request, response) => {
@@ -351,7 +395,7 @@ export function registerEnterpriseLocalApi(
       },
     }))
 
-    if (options.platform.availableSkills !== undefined) disposers.push(webServer.register({
+    if (options.platform.availableSkills !== undefined) disposers.push(localWebServer.register({
       kind: 'exact',
       path: `${LOCAL_API_PREFIX}/skill-catalog`,
       handler: async (request, response) => {
@@ -369,10 +413,10 @@ export function registerEnterpriseLocalApi(
       ['open-file', options.platform.openSkillFile],
       ['open-directory', options.platform.openSkillDirectory],
     ] as const) {
-      if (handler !== undefined) disposers.push(registerSkillAction(webServer, action, handler))
+      if (handler !== undefined) disposers.push(registerSkillAction(localWebServer, action, handler))
     }
 
-    if (options.platform.skillIcon !== undefined) disposers.push(webServer.register({
+    if (options.platform.skillIcon !== undefined) disposers.push(localWebServer.register({
       kind: 'prefix',
       path: `${LOCAL_API_PREFIX}/skill-icons`,
       handler: async (request, response) => {

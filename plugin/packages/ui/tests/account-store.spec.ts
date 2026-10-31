@@ -115,6 +115,30 @@ describe('EnterpriseAccountStore', () => {
     expect(api.mcpStatus).toHaveBeenCalledTimes(pending === 'status' ? 3 : 2)
   })
 
+  it('does not write a late MCP action failure into the next account', async () => {
+    let status: EnterpriseLocalStatus = { ...base, state: 'READY', user: { id: '1', username: 'old', displayName: 'Old', departmentId: null } }
+    let rejectConnect!: (error: Error) => void
+    let oldSignal!: AbortSignal
+    const api = {
+      status: vi.fn(async () => status), refresh: vi.fn(), bootstrap: vi.fn(),
+      mcpStatus: vi.fn(async () => ({ assignments: [] })),
+      connectMcp: vi.fn(async (_name: string, _key: string | undefined, signal: AbortSignal) => {
+        oldSignal = signal
+        await new Promise<void>((_resolve, reject) => { rejectConnect = reject })
+      }),
+    }
+    const store = new EnterpriseAccountStore(api as unknown as EnterpriseLocalApi)
+    await store.refresh()
+    const action = store.connectMcp('docs')
+    await vi.waitFor(() => expect(rejectConnect).toBeDefined())
+    status = { ...status, user: { id: '2', username: 'new', displayName: 'New', departmentId: null } }
+    await store.refresh()
+    expect(oldSignal.aborted).toBe(true)
+    rejectConnect(new Error('old account failed'))
+    await action
+    expect(store.getSnapshot().mcpErrorCode).toBeUndefined()
+  })
+
   it('reports failed and busy saves as unsuccessful, and refreshes local state after a failed logout', async () => {
     let status: EnterpriseLocalStatus = { ...base, state: 'READY' }
     const api: EnterpriseLocalApi = {

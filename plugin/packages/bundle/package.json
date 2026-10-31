@@ -89,6 +89,7 @@
     "@deepseek-ai/dsh-plugin-market": "^0.2.1-rc.5"
   },
   "devDependencies": {
+    "@owndsh/contracts": "workspace:*",
     "@deepseek-ai/dsh-attachment": "0.2.1-rc.5",
     "@deepseek-ai/dsh-agent": "0.2.1-rc.5",
     "@deepseek-ai/dsh-authorization": "0.2.1-rc.5",

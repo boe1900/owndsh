@@ -30,15 +30,20 @@ describe('enterprise bundle', () => {
     const current = 'https://new.example.com/enterprise/plugin-market/index.json'
     expect(ownDshMarketIndexUrls([
       'https://community.example/index.json',
-      'https://old.example/enterprise/plugin-market/index.json',
+      'http://127.0.0.1:43122/enterprise/plugin-market/index.json',
       'https://community.example/index.json',
     ], current)).toEqual([
       'https://community.example/index.json', current,
     ])
     expect(ownDshMarketIndexUrls([
       'https://community.example/index.json',
-      'https://old.example/enterprise/plugin-market/index.json',
+      'http://127.0.0.1:43122/enterprise/plugin-market/index.json',
     ], undefined)).toEqual(['https://community.example/index.json'])
+    expect(ownDshMarketIndexUrls([
+      'https://community.example/enterprise/plugin-market/index.json',
+    ], current)).toEqual([
+      'https://community.example/enterprise/plugin-market/index.json', current,
+    ])
   })
 
   it('writes the OwnDsh index through the official market service once connected', async () => {
@@ -69,7 +74,7 @@ describe('enterprise bundle', () => {
       { status: () => ({ state: 'SIGNED_OUT', platformUrl: 'http://192.168.5.111:18080', bundleVersion: 'test', transport: 'webServer.register' }) } as any,
       { listIndexes: () => [
         { url: 'https://community.example/index.json' },
-        { url: 'http://192.168.5.111:18080/enterprise/plugin-market/index.json' },
+        { url: 'http://127.0.0.1:43122/enterprise/plugin-market/index.json' },
       ], setIndexes } as any,
       { warn: vi.fn() } as any,
       'http://127.0.0.1:43123/enterprise/plugin-market/index.json',

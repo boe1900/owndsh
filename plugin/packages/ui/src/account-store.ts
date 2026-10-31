@@ -140,20 +140,24 @@ export class EnterpriseAccountStore {
     this.#set({ ...snapshot, ...(errorCode === undefined ? {} : { mcpErrorCode: errorCode }) })
   }
   async connectMcp(serverName: string, apiKey?: string): Promise<void> {
-    try { await this.#api.connectMcp(serverName, apiKey, this.#accountSignal()); await this.#loadMcp() }
-    catch (error) { if (!this.#accountSignal().aborted) this.#set({ ...this.#snapshot, mcpErrorCode: failureCode(error) }) }
+    const signal = this.#accountSignal()
+    try { await this.#api.connectMcp(serverName, apiKey, signal); if (!signal.aborted) await this.#loadMcp() }
+    catch (error) { if (!signal.aborted) this.#set({ ...this.#snapshot, mcpErrorCode: failureCode(error) }) }
   }
   async disconnectMcp(serverName: string): Promise<void> {
-    try { await this.#api.disconnectMcp(serverName, this.#accountSignal()); await this.#loadMcp() }
-    catch (error) { if (!this.#accountSignal().aborted) this.#set({ ...this.#snapshot, mcpErrorCode: failureCode(error) }) }
+    const signal = this.#accountSignal()
+    try { await this.#api.disconnectMcp(serverName, signal); if (!signal.aborted) await this.#loadMcp() }
+    catch (error) { if (!signal.aborted) this.#set({ ...this.#snapshot, mcpErrorCode: failureCode(error) }) }
   }
   async pauseMcp(serverName: string): Promise<void> {
-    try { await this.#api.pauseMcp(serverName, this.#accountSignal()); await this.#loadMcp() }
-    catch (error) { if (!this.#accountSignal().aborted) this.#set({ ...this.#snapshot, mcpErrorCode: failureCode(error) }) }
+    const signal = this.#accountSignal()
+    try { await this.#api.pauseMcp(serverName, signal); if (!signal.aborted) await this.#loadMcp() }
+    catch (error) { if (!signal.aborted) this.#set({ ...this.#snapshot, mcpErrorCode: failureCode(error) }) }
   }
   async reconnectMcp(serverName: string): Promise<void> {
-    try { await this.#api.reconnectMcp(serverName, this.#accountSignal()); await this.#loadMcp() }
-    catch (error) { if (!this.#accountSignal().aborted) this.#set({ ...this.#snapshot, mcpErrorCode: failureCode(error) }) }
+    const signal = this.#accountSignal()
+    try { await this.#api.reconnectMcp(serverName, signal); if (!signal.aborted) await this.#loadMcp() }
+    catch (error) { if (!signal.aborted) this.#set({ ...this.#snapshot, mcpErrorCode: failureCode(error) }) }
   }
 
   async startLogin(): Promise<void> {

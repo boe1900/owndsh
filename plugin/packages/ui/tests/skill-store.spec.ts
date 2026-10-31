@@ -77,6 +77,32 @@ describe('EnterpriseSkillStore', () => {
     expect(store.getSnapshot().busy).toBeUndefined()
   })
 
+  it('clears the previous account before refreshing the next one', async () => {
+    const local = api({
+      skills: vi.fn().mockResolvedValue([skill]),
+      availableSkills: vi.fn().mockResolvedValue([availableSkill]),
+    })
+    const store = new EnterpriseSkillStore(local)
+    const unsubscribe = store.subscribe(() => {})
+    await vi.waitFor(() => expect(store.getSnapshot().phase).toBe('ready'))
+    store.reset()
+    expect(store.getSnapshot()).toMatchObject({ phase: 'loading', skills: [], availableSkills: [] })
+    await vi.waitFor(() => expect(store.getSnapshot().phase).toBe('ready'))
+    unsubscribe()
+  })
+
+  it('clears install busy after a post-install refresh failure', async () => {
+    const local = api({
+      installSkill: vi.fn(async () => undefined),
+      skills: vi.fn().mockResolvedValueOnce([]).mockRejectedValueOnce(new Error('offline')),
+      availableSkills: vi.fn().mockResolvedValue([availableSkill]),
+    })
+    const store = new EnterpriseSkillStore(local)
+    await store.refresh()
+    await expect(store.install(availableSkill.name)).resolves.toBe(false)
+    expect(store.getSnapshot().busy).toBeUndefined()
+  })
+
   it('keeps the catalog source authoritative after local uninstall', async () => {
     const local = api({
       skills: vi.fn()

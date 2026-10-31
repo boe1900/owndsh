@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 DSH_HOME 下 OwnDsh 专用 skill 根目录、WorkBuddy frontmatter 和一个 provider 失效回调
- * [OUTPUT]: 提供全局 skill 的脱敏读取、按需制品校验/原子安装更新、启用/禁用、卸载及固定目录解析
+ * [OUTPUT]: 提供全局 skill 的脱敏读取、按需制品校验/可回滚安装更新、启用/禁用、卸载及固定目录解析
  * [POS]: platform-client 的本地 skill 真相层；只接收平台已鉴权的制品字节，不直连 Server/GitLab，不扫描其他 Agent 目录，不把路径交给 Client
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -258,21 +258,32 @@ export class EnterpriseSkillRuntime {
       const current = await this.#find(skill.metadata.name)
       if (current?.version === skill.metadata.version && current.artifactSha256 === skill.artifactSha256) return
       const bytes = await download(skill.releaseId, signal)
-      await this.#installArchive(skill.metadata.name, skill.metadata.version, skill.artifactSha256,
+      const install = await this.#installArchive(skill.metadata.name, skill.metadata.version, skill.artifactSha256,
         skill.artifactSizeBytes, bytes)
-      const manifest = await readManifest(this.#manifestPath)
-      await writeManifest(this.#manifestPath, {
-        version: 1,
-        skills: {
-          ...manifest.skills,
-          [skill.metadata.name]: {
-            enabled: manifest.skills[skill.metadata.name]?.enabled ?? true,
-            releaseId: skill.releaseId,
-            version: skill.metadata.version,
-            artifactSha256: skill.artifactSha256,
+      let committed = false
+      try {
+        const manifest = await readManifest(this.#manifestPath)
+        await writeManifest(this.#manifestPath, {
+          version: 1,
+          skills: {
+            ...manifest.skills,
+            [skill.metadata.name]: {
+              enabled: manifest.skills[skill.metadata.name]?.enabled ?? true,
+              releaseId: skill.releaseId,
+              version: skill.metadata.version,
+              artifactSha256: skill.artifactSha256,
+            },
           },
-        },
-      })
+        })
+        committed = true
+      } finally {
+        if (committed) {
+          if (install.backup !== undefined) await rm(install.backup, { recursive: true, force: true })
+        } else {
+          await rm(install.target, { recursive: true, force: true }).catch(() => undefined)
+          if (install.backup !== undefined) await rename(install.backup, install.target).catch(() => undefined)
+        }
+      }
       this.#invalidate()
     })
   }
@@ -354,7 +365,7 @@ export class EnterpriseSkillRuntime {
     expectedSha256: string,
     expectedSize: number,
     bytes: Uint8Array,
-  ): Promise<void> {
+  ): Promise<{ readonly target: string; readonly backup?: string }> {
     if (bytes.byteLength !== expectedSize || createHash('sha256').update(bytes).digest('hex') !== expectedSha256) {
       throw new SkillArchiveError('skill artifact 长度或 SHA-256 不匹配')
     }
@@ -383,7 +394,7 @@ export class EnterpriseSkillRuntime {
         if (existing !== undefined) await rename(backup, target).catch(() => undefined)
         throw error
       }
-      await rm(backup, { recursive: true, force: true })
+      return { target, ...(existing === undefined ? {} : { backup }) }
     } finally {
       await rm(temporary, { recursive: true, force: true })
     }

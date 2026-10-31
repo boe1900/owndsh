@@ -11,7 +11,7 @@ scripts/generate.mjs: 校验、bundle 并解引用模块化 OpenAPI，在临时�
 src/generated/: 从唯一 OpenAPI 真源生成含 code/refresh Token 联合类型的通用、身份/auth/device、model/quota/gateway/plugin/Session/audit DTO、Fetch client、strict Zod 与协议元数据，禁止手工编辑。
 src/brands.ts: 把 OpenAPI 字符串 schema 收窄为五类不可互换的品牌 ID，并只通过 Zod 校验后构造。
 src/errors.ts: 严格解码统一错误 envelope，并从生成映射返回稳定 HTTP status。
-src/index.ts: contracts 公共入口，只暴露品牌 ID、错误契约和身份/设备/模型/配额/插件/bootstrap/gateway 所需生成 DTO/Zod schema。
+src/index.ts: contracts 公共入口，只暴露品牌 ID、错误契约和身份/设备/模型/配额/插件/bootstrap/gateway/MCP snapshot 所需生成 DTO/Zod schema。
 tests/contracts.spec.ts: 遍历 OpenAPI 正反 fixture，验证 Zod、错误码映射、bootstrap/成员/gateway、必填安装配置、发布升级的旧版 ID/包 revision 严格输入、封闭审计及秘密字段拒绝和品牌隔离。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

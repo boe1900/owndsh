@@ -186,4 +186,25 @@ describe('MCP OAuth host seam', () => {
     expect(manager.discoveryState()).toBeUndefined()
     expect(() => manager.saveDiscoveryState({ authorizationServerUrl: 'https://issuer.example' })).toThrow()
   })
+
+  it('pins issuer and OAuth endpoints supplied by the assignment', async () => {
+    const manager = createManager(new MemoryCredentials())
+    const provider = new McpOAuthProvider(manager, {
+      callback: callback(Promise.resolve({ code: 'unused', state: 'state' })),
+      issuer: 'https://issuer.example/',
+      authorizationEndpoint: 'https://issuer.example/authorize',
+      tokenEndpoint: 'https://issuer.example/token',
+      serverUrl: 'https://mcp.example/mcp',
+      state: 'state',
+      signal: new AbortController().signal,
+    })
+
+    expect(() => provider.saveAuthorizationServerUrl('https://evil.example')).toThrow('MCP_OAUTH_ISSUER_MISMATCH')
+    await expect(provider.redirectToAuthorization(new URL('https://evil.example/authorize')))
+      .rejects.toThrow('MCP_OAUTH_AUTHORIZATION_ENDPOINT_MISMATCH')
+    await expect(provider.fetch('https://evil.example/token', { method: 'POST' }))
+      .rejects.toThrow('MCP_OAUTH_TOKEN_ENDPOINT_MISMATCH')
+    await expect(provider.fetch(new Request('https://evil.example/token', { method: 'POST' })))
+      .rejects.toThrow('MCP_OAUTH_TOKEN_ENDPOINT_MISMATCH')
+  })
 })

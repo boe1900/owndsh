@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖官方 ToolRuntime 注册表/guard、SystemPrompt assembly、TS/Python SDK renderer、Pi vendored 检索纯逻辑与 runtime 的有效授权租约。
- * [OUTPUT]: 提供 mountMcpTools 与 MCP 连接代次，按工具曝光档维护发现目录、下一轮选择状态、本步声明快照和执行守卫。
+ * [OUTPUT]: 提供 mountMcpTools 与 MCP 连接代次，按工具曝光档维护发现目录、下一轮选择状态、本步声明快照和执行守卫，并支持传输掉线时暂时撤下呈现。
  * [POS]: bundle 的 MCP 呈现与执行边界；保持官方注册表和 DSH 模式，只管理 OwnDsh 保留的 namespaces。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -345,6 +345,12 @@ export function mountMcpTools(ctx: Context, access: { fresh(): boolean; refresh(
     ready(connection: McpConnection): void {
       if (stopped || connections.get(connection.serverName) !== connection) return
       connection.ready = true
+      rebuild()
+    },
+    suspend(connection: McpConnection): void {
+      if (stopped || connections.get(connection.serverName) !== connection) return
+      connection.ready = false
+      for (const [exec, call] of dispatching) if (call.entry.connection === connection) call.abort.abort()
       rebuild()
     },
     revoke(connection: McpConnection): void {

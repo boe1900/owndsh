@@ -9,7 +9,8 @@ import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { createHash, randomBytes } from 'node:crypto'
 import { once } from 'node:events'
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { cp, mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -19,7 +20,8 @@ import { test } from 'node:test'
 
 const root = dirname(fileURLToPath(import.meta.url))
 const runtime = process.env.OWNDSH_TEST_RUNTIME
-assert.ok(runtime, 'Set OWNDSH_TEST_RUNTIME to a prepared OwnDsh Desktop runtime containing the plugin under test')
+const profile = process.env.OWNDSH_TEST_PROFILE
+assert.ok(runtime && profile, 'Set OWNDSH_TEST_RUNTIME and OWNDSH_TEST_PROFILE (an installed web profile)')
 const { chromium } = await import(process.env.OWNDSH_PLAYWRIGHT_MODULE ?? 'playwright')
 const requestId = `req_${'0'.repeat(26)}`
 const json = (response, status, value) => {
@@ -122,6 +124,8 @@ globalThis.Date = class extends NativeDate {
         quotas: [], plugins: { revision: 1, assignments: [] }, skills: { revision: 1, skills: [] },
         sessionPolicy: { enabled: false, retentionDays: 90, maxBatchBytes: 1048576 },
       } })
+    } else if (url.pathname.endsWith('/mcp/assignments')) {
+      json(response, 200, { data: { schemaVersion: 1, revision: 1, validForMs: 60000, assignments: [] } })
     } else if (url.pathname.endsWith('/plugins/inventory')) {
       json(response, 200, { data: { reported: (await readBody(request)).items.length } })
     } else if (url.pathname.endsWith('/chat/completions')) {
@@ -142,11 +146,18 @@ globalThis.Date = class extends NativeDate {
   }
   await new Promise(resolve => backend.listen(0, '127.0.0.1', resolve))
   const platformUrl = `http://127.0.0.1:${backend.address().port}`
-  await writeFile(join(home, 'settings.yaml'), `owndsh:\n  serverUrl: ${platformUrl}\n`)
-  await mkdir(join(home, 'profiles/web'), { recursive: true })
+  await writeFile(join(home, 'settings.yaml'), `owndsh:\n  baseUrl: ${platformUrl}\n`)
+  await cp(profile, join(home, 'profiles/web'), { recursive: true })
+  await mkdir(join(home, 'workspace'))
   await writeFile(join(home, 'profiles/web/cordis.patch.yml'), '- id: session-title-llm\n  disabled: true\n')
-  const child = spawn(join(runtime, 'bin/node'), [join(runtime, 'launcher.mjs')], {
-    env: { HOME: home, DSH_HOME: home, PATH: `${opener}:/usr/bin:/bin:/usr/sbin:/sbin`, OWNDSH_AUTH_URL_FILE: authorizeFile,
+  const packaged = existsSync(join(runtime, 'bin/node')) && existsSync(join(runtime, 'launcher.mjs'))
+  const command = packaged ? join(runtime, 'bin/node') : process.execPath
+  const args = packaged
+    ? [join(runtime, 'launcher.mjs')]
+    : [join(runtime, 'apps/cli/lib/bin.js'), '--profile', 'web', '--port', '0', '--no-open']
+  const child = spawn(command, args, {
+    cwd: join(home, 'workspace'),
+    env: { ...process.env, HOME: home, DSH_HOME: home, PATH: `${opener}:${dirname(process.execPath)}:/usr/bin:/bin:/usr/sbin:/sbin`, OWNDSH_AUTH_URL_FILE: authorizeFile,
       // 无人值守 Host 使用官方 browse 文件夹选择器，避免打开 macOS 原生弹窗。
       SSH_TTY: 'auth-e2e', OWNDSH_TEST_CLOCK: clockFile, NODE_OPTIONS: `--import=${pathToFileURL(preload)}` },
     stdio: ['pipe', 'pipe', 'pipe'],
@@ -158,21 +169,42 @@ globalThis.Date = class extends NativeDate {
       let output = ''
       child.once('error', reject)
       child.once('exit', code => reject(new Error(`Harness exited ${code}`)))
-      child.stdout.on('data', chunk => {
+      const inspect = chunk => {
         output += chunk
-        const match = output.match(/OWNDSH_READY (http:\/\/127\.0\.0\.1:\d+\/\?token=[A-Za-z0-9_-]+)/)
+        const match = output.match(/(?:OWNDSH_READY|dsh web:) ?(http:\/\/127\.0\.0\.1:\d+\/\?token=[A-Za-z0-9_-]+)/)
         if (match) { clearTimeout(timer); resolve(match[1]) }
-      })
+      }
+      child.stdout.on('data', inspect)
+      child.stderr.on('data', inspect)
     })
     browser = await chromium.launch({ headless: true })
-    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } })
+    const page = await browser.newPage({ locale: 'zh-CN', viewport: { width: 1400, height: 900 } })
     const requests = []
     page.on('request', request => { if (request.url().includes('/enterprise/api/v1/local/')) requests.push(new URL(request.url()).pathname) })
     const gate = page.getByRole('dialog', { name: 'OwnDsh', exact: true })
     await page.goto(launchUrl)
+    await page.waitForTimeout(800)
+    const continuePreview = page.getByText(/^(继续|Continue)$/, { exact: true }).first()
+    await continuePreview.waitFor({ state: 'visible', timeout: 5_000 }).then(() => continuePreview.click()).catch(() => undefined)
+    const apiPrompt = page.getByRole('dialog', { name: '添加一个 API Key 开始使用', exact: true })
+    if (await apiPrompt.count() > 0 && await apiPrompt.isVisible()) {
+      await apiPrompt.getByRole('button', { name: '稍后配置', exact: true }).click()
+    }
     async function signIn() {
       await rm(authorizeFile, { force: true })
-      await gate.getByRole('button', { name: '登录企业账号', exact: true }).click()
+      const loginButton = () => page.getByRole('dialog', { name: 'OwnDsh', exact: true })
+        .getByRole('button', { name: '登录企业账号', exact: true })
+      for (let attempt = 0; attempt < 3; attempt++) {
+        await loginButton().waitFor({ state: 'visible', timeout: 15_000 })
+        try {
+          await loginButton().click({ timeout: 5_000, force: true })
+          break
+        } catch (error) {
+          if (await readFile(authorizeFile, 'utf8').then(Boolean).catch(() => false)) break
+          if (attempt === 2) throw error
+          await delay(250)
+        }
+      }
       let url
       for (let attempt = 0; attempt < 100; attempt++) {
         url = await readFile(authorizeFile, 'utf8').catch(() => '')
@@ -204,11 +236,6 @@ globalThis.Date = class extends NativeDate {
       assert.ok(requests.every(path => !path.endsWith('/events')))
     }
     await signIn()
-    await page.getByRole('button', { name: 'Choose workspace', exact: true }).click()
-    await page.getByRole('button', { name: 'Edit path', exact: true }).click()
-    await page.getByRole('textbox', { name: 'Edit path', exact: true }).fill(join(home, 'workspace'))
-    await page.getByRole('textbox', { name: 'Edit path', exact: true }).press('Enter')
-    await page.getByRole('button', { name: 'Open', exact: true }).click()
     await idle()
     const before = refreshCalls
     await prompt('Say hello for the successful refresh check')
@@ -255,14 +282,19 @@ globalThis.Date = class extends NativeDate {
     if (page) {
       await mkdir(join(root, '.build'), { recursive: true })
       await page.screenshot({ path: join(root, '.build/auth-failure.png') })
-      await writeFile(join(root, '.build/auth-failure.txt'), `${await page.locator('body').innerText()}\nBackend errors: ${JSON.stringify(serverErrors)}\n${await readFile(join(home, 'desktop.log'), 'utf8')}`)
+      const desktopLog = await readFile(join(home, 'desktop.log'), 'utf8').catch(() => '')
+      const buttons = await page.locator('button').evaluateAll(items => items.map(item => ({ text: item.textContent, aria: item.getAttribute('aria-label'), disabled: item.disabled, html: item.outerHTML.slice(0, 500) }))).catch(() => [])
+      await writeFile(join(root, '.build/auth-failure.txt'), `${await page.locator('body').innerText()}\nButtons: ${JSON.stringify(buttons)}\nBackend errors: ${JSON.stringify(serverErrors)}\n${desktopLog}`)
     }
     throw error
   } finally {
     await browser?.close()
-    const exited = child.exitCode === null ? once(child, 'exit') : Promise.resolve()
-    child.stdin.end()
-    await exited
+    if (child.exitCode === null) {
+      const exited = once(child, 'exit')
+      child.stdin.end()
+      child.kill('SIGINT')
+      await exited
+    }
     backend.closeAllConnections()
     await new Promise(resolve => backend.close(resolve))
     await rm(home, { recursive: true, force: true })
