@@ -27,7 +27,11 @@ function api(overrides: Partial<EnterpriseLocalApi> = {}): EnterpriseLocalApi {
 
 describe('EnterpriseSkillStore', () => {
   it('refreshes and applies device actions without mutating the source object', async () => {
-    const local = api()
+    const local = api({
+      skills: vi.fn()
+        .mockResolvedValueOnce([skill])
+        .mockResolvedValueOnce([]),
+    })
     const store = new EnterpriseSkillStore(local)
     expect(await store.refresh()).toBe(true)
     expect(store.getSnapshot().skills).toEqual([skill])
@@ -75,12 +79,17 @@ describe('EnterpriseSkillStore', () => {
 
   it('keeps the catalog source authoritative after local uninstall', async () => {
     const local = api({
-      availableSkills: vi.fn(async () => []),
+      skills: vi.fn()
+        .mockResolvedValueOnce([skill])
+        .mockResolvedValueOnce([]),
+      availableSkills: vi.fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([availableSkill]),
     })
     const store = new EnterpriseSkillStore(local)
     expect(await store.refresh()).toBe(true)
     expect(await store.remove(skill.name)).toBe(true)
     expect(store.getSnapshot().skills).toEqual([])
-    expect(store.getSnapshot().availableSkills).toEqual([])
+    expect(store.getSnapshot().availableSkills).toEqual([availableSkill])
   })
 })

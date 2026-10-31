@@ -119,7 +119,7 @@ globalThis.Date = class extends NativeDate {
         revision: 1, user: { id: '10031', username: 'auth-test', displayName: 'Auth Test', departmentId: null },
         device: { id: '90018', installationId, status: 'ACTIVE' },
         models: [{ alias: 'auth-e2e', name: 'Auth E2E', apiProtocol: 'openai-completions', isDefault: true, contextWindow: 65536, maxTokens: 1024 }],
-        quotas: [], plugins: { revision: 1, assignments: [] },
+        quotas: [], plugins: { revision: 1, assignments: [] }, skills: { revision: 1, skills: [] },
         sessionPolicy: { enabled: false, retentionDays: 90, maxBatchBytes: 1048576 },
       } })
     } else if (url.pathname.endsWith('/plugins/inventory')) {

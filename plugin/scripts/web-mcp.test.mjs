@@ -301,7 +301,8 @@ async function handle(req, res) {
   if (pathname.endsWith('/bootstrap')) return json(res, { requestId, data: { revision: 1,
     user: { id: '10031', username: 'e2e', displayName: 'E2E', departmentId: null }, device: { id: '90018', installationId, status: 'ACTIVE' },
     models: [{ alias: 'mcp-e2e', name: 'MCP E2E', apiProtocol: 'openai-completions', isDefault: true, contextWindow: 65536, maxTokens: 4096 }],
-    quotas: [], plugins: { revision: 1, assignments: [] }, sessionPolicy: { enabled: false, retentionDays: 90, maxBatchBytes: 1048576 } } })
+    quotas: [], plugins: { revision: 1, assignments: [] }, skills: { revision: 1, skills: [] },
+    sessionPolicy: { enabled: false, retentionDays: 90, maxBatchBytes: 1048576 } } })
   if (pathname.endsWith('/mcp/assignments')) return json(res, { requestId, data: { revision: 1, validForMs: 60000, assignments: assignments() } })
   if (pathname.endsWith('/plugins/assignments')) return json(res, { requestId, data: { revision: 1, assignments: [] } })
   if (pathname.endsWith('/plugins/inventory')) { await body(req); return json(res, { requestId, data: { reported: 0 } }) }
@@ -351,7 +352,8 @@ async function authorize(button) {
   try { await login.goto(url); await login.getByRole('link', { name: '确认登录' }).click() } finally { await login.close() }
 }
 async function settings() {
-  await page.getByRole('button', { name: /^(设置|Settings)$/ }).click()
+  await page.getByRole('button', { name: '账号菜单' }).click()
+  await page.getByText(/^(设置|Settings)$/, { exact: true }).last().click()
   await page.getByRole('button', { name: 'OwnDsh 设置', exact: true }).click()
   await page.getByRole('tab', { name: 'MCP', exact: true }).click()
 }

@@ -95,8 +95,8 @@ export class EnterpriseSkillStore {
     this.#set({ ...this.#snapshot, busy: `remove:${name}`, errorCode: undefined })
     try {
       await action(name, new AbortController().signal)
-      const removed = this.#snapshot.skills.find(skill => skill.name === name)
       this.#set({ ...this.#snapshot, skills: this.#snapshot.skills.filter(skill => skill.name !== name), busy: undefined })
+      await this.refresh()
       return true
     } catch (error) {
       this.#set({ ...this.#snapshot, busy: undefined, errorCode: failureCode(error) })

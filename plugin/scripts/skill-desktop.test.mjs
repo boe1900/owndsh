@@ -48,7 +48,8 @@ test('OwnDsh skill settings uses the real Host and published catalog artifact', 
     if (await apiPrompt.count() > 0 && await apiPrompt.isVisible()) {
       await apiPrompt.getByRole('button', { name: '稍后配置', exact: true }).click()
     }
-    await page.getByRole('button', { name: '设置', exact: true }).click()
+    await page.getByRole('button', { name: '账号菜单' }).click()
+    await page.getByText(/^(设置|Settings)$/, { exact: true }).last().click()
     await page.getByRole('button', { name: 'OwnDsh 设置', exact: true }).click()
     await page.getByRole('tab', { name: '技能', exact: true }).click()
 
@@ -73,6 +74,19 @@ test('OwnDsh skill settings uses the real Host and published catalog artifact', 
     evidence.checks.skillViews = true
     evidence.checks.initialSkill = (await card.innerText()).includes(skillName)
 
+    const category = market.getByRole('button', { name: 'media', exact: true })
+    await category.click()
+    await card.waitFor()
+    await allCategory.click()
+
+    const initialInstall = card.getByRole('button', { name: '安装', exact: true })
+    if (await initialInstall.count() > 0) {
+      await initialInstall.click()
+      await installedButton().getByText(/已安装/).waitFor({ timeout: 20_000 })
+      await card.getByRole('switch').waitFor({ timeout: 20_000 })
+    }
+    evidence.checks.initialInstall = true
+
     await search.fill(skillName)
     assert.equal(await market.locator(`[data-skill-name="${skillName}"]`).count(), 1)
     await search.fill('__missing_skill__')
@@ -91,7 +105,7 @@ test('OwnDsh skill settings uses the real Host and published catalog artifact', 
     evidence.checks.enableDisable = true
 
     const openMenu = async () => {
-      await card.getByRole('button', { name: `打开 ${skillName} 操作菜单`, exact: true }).click()
+      await card.getByRole('button', { name: /打开 .* 操作菜单/ }).click()
       const menu = page.getByRole('menu')
       await menu.waitFor()
       return menu
