@@ -5,10 +5,10 @@
 成员清单
 
 README.md: npm 员工用户入口，说明 `next` 安装、Server 登录、官方 Discover 自定义索引与兼容基线。
-package.json: npm 发布清单与 `dsh.bundle`/`dsh.client` 双入口，官方 Harness 依赖锁定 `0.2.1-rc.3`，Client 只注入设置页、布局和官方 Remote 所需服务，不创建未绑定 workspace 的技能会话；MCP OAuth/transport 使用官方 `@modelcontextprotocol/client` 2.2，检索使用 Pi vendored 英文 BM25 纯逻辑。
+package.json: npm 发布清单与 `dsh.bundle`/`dsh.client` 双入口，官方 Harness 依赖锁定 `0.2.1-rc.5`，Client 只注入设置页、布局和官方 Remote 所需服务，不创建未绑定 workspace 的技能会话；MCP OAuth/transport 使用官方 `@modelcontextprotocol/client` 2.2，检索使用 Pi vendored 英文 BM25 纯逻辑。
 screenshots.json: 社区市场从插件源码目录读取的四张原始截图清单，通过 GitHub 固定提交 URL 复用 docs/assets 媒体并控制展示顺序，不改变 npm 运行包。
 tsconfig.json: bundle Host 公开声明的 emit-only TypeScript 边界，通过 workspace 声明消费产品模块，并局部跳过链接上游损坏声明检查。
-cordis.patch.yml: 官方 profile layer，覆盖企业 default、停用 API Key/个人账号 provider 与模型设置并插入 OwnDsh，同时启用 DSH 官方 plugin-market 与 Discover 页面；备用市场行使用独立 entry id，官方可选 bundle 同时存在时按模块身份禁用备用行，避免 Settings 重复配置；MCP resources 复用 0.2.1-rc.3 base 已有 row。
+cordis.patch.yml: 官方 profile layer，覆盖企业 default、停用 API Key/个人账号 provider 与模型设置并插入 OwnDsh，同时启用 DSH 官方 plugin-market 与 Discover 页面；备用市场行使用独立 entry id，官方可选 bundle 同时存在时按模块身份禁用备用行，避免 Settings 重复配置；MCP resources 复用 0.2.1-rc.5 base 已有 row。
 scripts/build.mjs: 内联产品模块但 externalize 官方 Cordis/credentials/LLM/MCP client/resources、MCP SDK v2、tools/settings/Schemastery 与 Client ui-primitives 单例的双端构建器。
 src/index.ts: Web/Desktop 共用 Host 组合入口，绑定 credentials/pi-ai/官方 pluginManager/pluginMarket、插件 inventory 上报、隔离 skill provider、整包卸载重启与 mcp-runtime；通过 loopback 代理以内存 Bearer 读取受保护的 Server 索引并维护 DSH 官方索引源，MCP 与 OwnDsh skill 仍属于唯一 owndsh-plugin，不新增 Loader row。
 src/skill-provider.ts: 复用官方 dsh-skill/dsh-skill-filesystem，将 `customSkillDirs` 固定到 `$DSH_HOME/enterprise/skills/` 并关闭默认 root；只增加设备 manifest 的 disabled 过滤和重注册失效接缝，不复制 parser、rank 或 watcher。

@@ -26,7 +26,7 @@ const hash = value => createHash('sha256').update(value).digest('hex')
 const bundleHash = hash(await readFile(join(profile, 'node_modules/owndsh-plugin/lib/index.js')))
 assert.equal(bundleHash, hash(await readFile(new URL('../packages/bundle/lib/index.js', import.meta.url))), 'Installed profile must contain the current built bundle')
 const manifest = requireRuntime('@deepseek-ai/dsh/package.json')
-assert.equal(manifest.version, '0.2.1-rc.3')
+assert.equal(manifest.version, '0.2.1-rc.5')
 const dshEntry = join(dirname(requireRuntime.resolve('@deepseek-ai/dsh/package.json')), 'lib/bin.js')
 const { chromium } = await import(process.env.OWNDSH_PLAYWRIGHT_MODULE ?? 'playwright')
 const home = await mkdtemp(join(tmpdir(), 'owndsh-web-mcp-'))
@@ -88,6 +88,7 @@ function assignments() {
   return [assignment('1', 'docs', { type: 'none' }), assignment('2', 'resourceonly', { type: 'none' }),
     assignment('3', 'oauth', { type: 'oauth', issuer: origin, resource: `${origin}/oauth`, clientId: 'e2e', scopes: ['read'] }),
     assignment('4', 'apikey', { type: 'api-key', headerName: 'X-API-Key' }), assignment('5', 'golden', { type: 'none' }, 'Notion'),
+    assignment('7', 'noresources', { type: 'none' }, 'No Resources'),
     assignment('6', 'structured', { type: 'none' }, 'Structured')]
 }
 const tc = (name, args = {}) => ({ name, arguments: JSON.stringify(args) })
@@ -158,6 +159,7 @@ function modelResponse(input) {
       case 5: expectNames(['mcp__docs__echo', 'mcp__docs__write', 'mcp__oauth__echo', 'mcp__apikey__echo']); return [tc('mcp__apikey__echo', { text: 'key' }),
         tc('list_mcp_resources', { server: 'resourceonly' }), tc('list_mcp_resource_templates', { server: 'resourceonly' }),
         tc('read_mcp_resource', { server: 'resourceonly', uri: 'mcp://docs/readme' }),
+        tc('list_mcp_resources', { server: 'noresources' }), tc('list_mcp_resource_templates', { server: 'noresources' }),
         tc('list_mcp_resources', { server: 'oauth' }), tc('list_mcp_resource_templates', { server: 'oauth' }),
         tc('read_mcp_resource', { server: 'oauth', uri: 'mcp://docs/from-template' })]
       case 6:
@@ -252,7 +254,7 @@ async function handle(req, res) {
     mcpAccess = `mcp-access-${++tokenIndex}`; mcpRefresh = `mcp-refresh-${tokenIndex}`
     return json(res, { access_token: mcpAccess, refresh_token: mcpRefresh, token_type: 'Bearer', expires_in: 3600 })
   }
-  if (['/docs', '/resourceonly', '/oauth', '/apikey', '/golden', '/structured'].includes(pathname)) {
+  if (['/docs', '/resourceonly', '/noresources', '/oauth', '/apikey', '/golden', '/structured'].includes(pathname)) {
     if (pathname === '/oauth' && (!mcpAccess || req.headers.authorization !== `Bearer ${mcpAccess}` || mcpAccess === rejectedAccess)) {
       res.setHeader('WWW-Authenticate', `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource/oauth"`)
       return json(res, { error: 'unauthorized' }, 401)
@@ -265,7 +267,7 @@ async function handle(req, res) {
     // 旧协议服务器拒绝新版探测方法，官方 SDK 应自动回退 initialize。
     if (input.method === 'server/discover') return json(res, { jsonrpc: '2.0', id: input.id, error: { code: -32601, message: 'Method not found' } })
     let result
-    if (input.method === 'initialize') result = { protocolVersion: '2025-03-26', capabilities: { ...(pathname === '/resourceonly' ? {} : { tools: {} }), resources: {} }, serverInfo: { name: pathname.slice(1), version: '1' } }
+    if (input.method === 'initialize') result = { protocolVersion: '2025-03-26', capabilities: { ...(pathname === '/resourceonly' ? {} : { tools: {} }), ...(pathname === '/noresources' ? {} : { resources: {} }) }, serverInfo: { name: pathname.slice(1), version: '1' } }
     else if (input.method === 'tools/list') {
       assert.notEqual(pathname, '/resourceonly', 'resource-only server must never receive tools/list')
       result = pathname === '/golden' ? { tools: goldenTools } : pathname === '/structured' ? { tools: structuredTools }
@@ -440,6 +442,7 @@ try {
     checks.push('Host restart restores enterprise/OAuth credentials without another browser login')
     for (const name of ['docs', 'oauth', 'apikey']) assert.ok(methods.some(m => m.server === name && m.method === 'tools/list' && m.params?.cursor === 'page-2'))
     assert.equal(methods.filter(m => m.server === 'resourceonly' && m.method === 'tools/list').length, 0)
+    assert.equal(methods.filter(m => m.server === 'noresources' && ['resources/list', 'resources/templates/list'].includes(m.method)).length, 0)
   }
   assert.deepEqual(errors, [])
   assert.ok(!output.includes('does not implement saveDiscoveryState'), 'SDK callback binding must be supplied')

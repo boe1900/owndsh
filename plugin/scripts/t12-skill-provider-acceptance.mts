@@ -1,5 +1,5 @@
 /**
- * [INPUT]: dsh-v0.2.1-rc.3 checkout，临时 DSH_HOME 和四组 WorkBuddy frontmatter。
+ * [INPUT]: dsh-v0.2.1-rc.5 checkout，临时 DSH_HOME 和四组 WorkBuddy frontmatter。
  * [OUTPUT]: 验证 OwnDsh 专用 customSkillDirs 的隔离、Desktop 双 provider 组成、watcher 失效和四种调用策略。
  * [POS]: plugin/scripts 的 DSH skill 兼容门禁；不进入产品运行时，也不实现 custom provider。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -14,8 +14,8 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import assert from 'node:assert/strict'
 
-const EXPECTED_COMMIT = '687f282e8625c6b8d11ff58211a90524be2e4317'
-const EXPECTED_VERSION = '0.2.1-rc.3'
+const EXPECTED_COMMIT = 'b830ec950faba0a46dda564be3e2d854afed94f1'
+const EXPECTED_VERSION = '0.2.1-rc.5'
 const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const harnessRoot = resolve(process.argv[2] ?? process.env.OWNDSH_SKILL_HARNESS_ROOT ?? join(PROJECT_ROOT, '..', 'deepseek-harness'))
 const desktopHarnessRoot = resolve(process.argv[3] ?? process.env.OWNDSH_DESKTOP_HARNESS_ROOT ?? join(PROJECT_ROOT, '..', 'owndsh-desktop', '.build', 'official-harness'))
