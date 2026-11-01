@@ -6,11 +6,19 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { providerGradient } from './model-editors';
+import { discoveredCapacity, providerGradient } from './model-editors';
 
 describe('providerGradient', () => {
   it('uses the stable provider id instead of the display name', () => {
     expect(providerGradient('provider-1', 'OpenAI')).toBe(providerGradient('provider-1', 'Renamed provider'));
     expect(providerGradient(undefined, 'Custom provider')).toMatch(/^from-[a-z0-9-]+ to-[a-z0-9-]+$/);
+  });
+});
+
+describe('discoveredCapacity', () => {
+  it('omits missing upstream capacity instead of rendering null', () => {
+    expect(discoveredCapacity(null)).toBeUndefined();
+    expect(discoveredCapacity(undefined)).toBeUndefined();
+    expect(discoveredCapacity(256_000)).toBe('256K');
   });
 });
