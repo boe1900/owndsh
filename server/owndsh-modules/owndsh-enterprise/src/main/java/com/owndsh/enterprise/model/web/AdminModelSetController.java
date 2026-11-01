@@ -88,7 +88,7 @@ public final class AdminModelSetController {
     ) {
         EnterpriseApiValidation.requireUuidV4(idempotencyKey, "Idempotency-Key");
         EnterpriseRequestContext context = contexts.resolve(request);
-        ModelSet value = sets.create(mutation(context), body.name(), body.parsedModelIds());
+        ModelSet value = sets.create(mutation(context), body.name(), body.description(), body.parsedModelIds());
         return ResponseEntity.status(HttpStatus.CREATED).body(response(ModelSetView.from(value), context));
     }
 
@@ -102,7 +102,7 @@ public final class AdminModelSetController {
     ) {
         EnterpriseRequestContext context = contexts.resolve(request);
         return response(ModelSetView.from(sets.update(
-            mutation(context), modelSetId, expectedRevision, body.name(), body.parsedModelIds()
+            mutation(context), modelSetId, expectedRevision, body.name(), body.description(), body.parsedModelIds()
         )), context);
     }
 

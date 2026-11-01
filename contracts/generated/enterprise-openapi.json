@@ -72997,6 +72997,7 @@
                             "required": [
                               "id",
                               "name",
+                              "description",
                               "modelIds",
                               "modelCount",
                               "revision"
@@ -73010,6 +73011,10 @@
                                 "type": "string",
                                 "minLength": 1,
                                 "maxLength": 120
+                              },
+                              "description": {
+                                "type": "string",
+                                "maxLength": 500
                               },
                               "modelIds": {
                                 "type": "array",
@@ -73733,6 +73738,10 @@
                     "minLength": 1,
                     "maxLength": 120
                   },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
                   "modelIds": {
                     "type": "array",
                     "uniqueItems": true,
@@ -73767,6 +73776,7 @@
                       "required": [
                         "id",
                         "name",
+                        "description",
                         "modelIds",
                         "modelCount",
                         "revision"
@@ -73780,6 +73790,10 @@
                           "type": "string",
                           "minLength": 1,
                           "maxLength": 120
+                        },
+                        "description": {
+                          "type": "string",
+                          "maxLength": 500
                         },
                         "modelIds": {
                           "type": "array",
@@ -74771,6 +74785,7 @@
                       "required": [
                         "id",
                         "name",
+                        "description",
                         "modelIds",
                         "modelCount",
                         "revision"
@@ -74784,6 +74799,10 @@
                           "type": "string",
                           "minLength": 1,
                           "maxLength": 120
+                        },
+                        "description": {
+                          "type": "string",
+                          "maxLength": 500
                         },
                         "modelIds": {
                           "type": "array",
@@ -75777,6 +75796,10 @@
                     "minLength": 1,
                     "maxLength": 120
                   },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
                   "modelIds": {
                     "type": "array",
                     "uniqueItems": true,
@@ -75811,6 +75834,7 @@
                       "required": [
                         "id",
                         "name",
+                        "description",
                         "modelIds",
                         "modelCount",
                         "revision"
@@ -75824,6 +75848,10 @@
                           "type": "string",
                           "minLength": 1,
                           "maxLength": 120
+                        },
+                        "description": {
+                          "type": "string",
+                          "maxLength": 500
                         },
                         "modelIds": {
                           "type": "array",
@@ -172549,6 +172577,10 @@
             "minLength": 1,
             "maxLength": 120
           },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
           "modelIds": {
             "type": "array",
             "uniqueItems": true,
@@ -172567,6 +172599,7 @@
         "required": [
           "id",
           "name",
+          "description",
           "modelIds",
           "modelCount",
           "revision"
@@ -172580,6 +172613,10 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
           },
           "modelIds": {
             "type": "array",
@@ -172621,6 +172658,7 @@
             "required": [
               "id",
               "name",
+              "description",
               "modelIds",
               "modelCount",
               "revision"
@@ -172634,6 +172672,10 @@
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 120
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 500
               },
               "modelIds": {
                 "type": "array",
@@ -172688,6 +172730,7 @@
               "required": [
                 "id",
                 "name",
+                "description",
                 "modelIds",
                 "modelCount",
                 "revision"
@@ -172701,6 +172744,10 @@
                   "type": "string",
                   "minLength": 1,
                   "maxLength": 120
+                },
+                "description": {
+                  "type": "string",
+                  "maxLength": 500
                 },
                 "modelIds": {
                   "type": "array",
@@ -172790,6 +172837,7 @@
                   "required": [
                     "id",
                     "name",
+                    "description",
                     "modelIds",
                     "modelCount",
                     "revision"
@@ -172803,6 +172851,10 @@
                       "type": "string",
                       "minLength": 1,
                       "maxLength": 120
+                    },
+                    "description": {
+                      "type": "string",
+                      "maxLength": 500
                     },
                     "modelIds": {
                       "type": "array",

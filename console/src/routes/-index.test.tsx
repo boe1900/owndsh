@@ -384,14 +384,14 @@ function mockApi(role: AuthBuiltInRole, logoutStatus = 200, permissions: string[
         ? json({ data: { id: 'set-1', deleted: true }, requestId: 'req_model_set_deleted' })
         : json({
             data: {
-              id: 'set-1', name: '旗舰模型', modelIds: ['model-1'], modelCount: 1, revision: 2
+              id: 'set-1', name: '旗舰模型', description: 'Updated coding models', modelIds: ['model-1'], modelCount: 1, revision: 2
             },
             requestId: 'req_model_set_updated'
           });
     }
     if (pathname.endsWith('/enterprise/admin/v1/model-sets')) {
       if (request.method === 'POST') {
-        const body = await request.clone().json() as { name: string; modelIds: string[] };
+        const body = await request.clone().json() as { name: string; description?: string; modelIds: string[] };
         writes.push({
           body,
           idempotencyKey: request.headers.get('Idempotency-Key'),
@@ -401,7 +401,7 @@ function mockApi(role: AuthBuiltInRole, logoutStatus = 200, permissions: string[
         });
         return json({
           data: {
-            id: 'set-2', name: body.name, modelIds: body.modelIds,
+            id: 'set-2', name: body.name, description: body.description ?? '', modelIds: body.modelIds,
             modelCount: body.modelIds.length, revision: 0
           },
           requestId: 'req_model_set_created'
@@ -410,7 +410,7 @@ function mockApi(role: AuthBuiltInRole, logoutStatus = 200, permissions: string[
       return json({
         data: {
           items: [{
-            id: 'set-1', name: '编码模型', modelIds: ['model-1'], modelCount: 1, revision: 1
+            id: 'set-1', name: '编码模型', description: '共享编码模型', modelIds: ['model-1'], modelCount: 1, revision: 1
           }],
           page: { hasMore: false, limit: 100, nextCursor: null }
         },
@@ -884,40 +884,62 @@ describe('product console access', () => {
     expect(within(dialog).getByLabelText('上游模型 ID')).toBeTruthy();
   });
 
+  it('collapses all maintained model cards together', async () => {
+    renderRoute('/', 'enterprise_admin', 200, ['ent:model:write']);
+    expect(await screen.findByText('GPT 5.6 Sol')).toBeTruthy();
+    fireEvent.click((await screen.findAllByRole('button', { name: '维护模型' }))[0]);
+    const dialog = await screen.findByRole('dialog', { name: '维护模型' });
+
+    fireEvent.click(within(dialog).getByRole('button', { name: '新增模型' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: '全部收起' }));
+    expect(within(dialog).getAllByRole('button', { name: '展开配置' })).toHaveLength(2);
+
+    fireEvent.click(within(dialog).getByRole('button', { name: '全部展开' }));
+    expect(within(dialog).getAllByRole('button', { name: '收起配置' })).toHaveLength(2);
+  });
+
   it('creates, updates and deletes a flat model set with write guards', async () => {
     const writes = renderRoute('/', 'enterprise_admin', 200, ['ent:model:write']);
     expect(await screen.findByText('GPT 5.6 Sol')).toBeTruthy();
     fireEvent.click(screen.getByRole('tab', { name: '模型集' }));
     expect(await screen.findByText('编码模型')).toBeTruthy();
+    expect(screen.getByRole('tab', { name: '模型集' }).textContent).toContain('1');
 
     fireEvent.click(screen.getByRole('button', { name: '新建模型集' }));
     let dialog = screen.getByRole('dialog', { name: '新建模型集' });
     fireEvent.change(within(dialog).getByLabelText('模型集名称'), { target: { value: '旗舰模型' } });
-    const modelSelect = within(dialog).getByLabelText('模型') as HTMLSelectElement;
-    (within(modelSelect).getByRole('option', { name: 'OpenAI / gpt-5.6-sol' }) as HTMLOptionElement).selected = true;
-    fireEvent.change(modelSelect);
+    fireEvent.click(within(dialog).getByRole('button', { name: /GPT 5\.6 Sol/ }));
     fireEvent.click(within(dialog).getByRole('button', { name: '保存' }));
 
     await waitFor(() => expect(writes).toHaveLength(1));
     expect(writes[0]).toMatchObject({
-      body: { name: '旗舰模型', modelIds: ['model-1'] },
+      body: { name: '旗舰模型', description: '', modelIds: ['model-1'] },
       method: 'POST',
       pathname: '/enterprise/admin/v1/model-sets'
     });
     expect(writes[0]!.idempotencyKey).toMatch(/^[0-9a-f-]{36}$/);
 
-    fireEvent.click(await screen.findByRole('button', { name: '编辑 编码模型' }));
-    dialog = screen.getByRole('dialog', { name: '编辑模型集' });
-    fireEvent.change(within(dialog).getByLabelText('模型集名称'), { target: { value: '旗舰模型' } });
+    fireEvent.click(await screen.findByRole('button', { name: '复制 编码模型' }));
+    dialog = screen.getByRole('dialog', { name: /复制模型集/ });
+    expect(within(dialog).getByLabelText('模型集名称')).toHaveProperty('value', '编码模型 (副本)');
+    expect(within(dialog).getByLabelText('模型集描述')).toHaveProperty('value', '共享编码模型');
+    expect(writes).toHaveLength(1);
     fireEvent.click(within(dialog).getByRole('button', { name: '保存' }));
     await waitFor(() => expect(writes).toHaveLength(2));
-    expect(writes[1]).toMatchObject({ ifMatch: '1', method: 'PUT', pathname: '/enterprise/admin/v1/model-sets/set-1' });
+    expect(writes[1]).toMatchObject({ body: { name: '编码模型 (副本)', description: '共享编码模型', modelIds: ['model-1'] }, method: 'POST' });
+
+    fireEvent.click(await screen.findByRole('button', { name: '编辑 编码模型' }));
+    dialog = screen.getByRole('dialog', { name: /编辑模型集/ });
+    fireEvent.change(within(dialog).getByLabelText('模型集名称'), { target: { value: '旗舰模型' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: '保存' }));
+    await waitFor(() => expect(writes).toHaveLength(3));
+    expect(writes[2]).toMatchObject({ ifMatch: '1', method: 'PUT', pathname: '/enterprise/admin/v1/model-sets/set-1' });
 
     fireEvent.click(await screen.findByRole('button', { name: '删除 编码模型' }));
     dialog = screen.getByRole('dialog', { name: '确认删除' });
     fireEvent.click(within(dialog).getByRole('button', { name: '删除' }));
-    await waitFor(() => expect(writes).toHaveLength(3));
-    expect(writes[2]).toMatchObject({ ifMatch: '1', method: 'DELETE', pathname: '/enterprise/admin/v1/model-sets/set-1' });
+    await waitFor(() => expect(writes).toHaveLength(4));
+    expect(writes[3]).toMatchObject({ ifMatch: '1', method: 'DELETE', pathname: '/enterprise/admin/v1/model-sets/set-1' });
   });
 
   it('renders model access, token limits and rate limits from Server facts', async () => {

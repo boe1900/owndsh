@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖事务、模型集/受管模型 JDBC 事实、bootstrap revision、审计与 ID generator。
- * [OUTPUT]: 对外提供模型集 list/get/create/update/delete、成员整体替换和 revision CAS。
+ * [OUTPUT]: 对外提供带名称/描述的模型集 list/get/create/update/delete、成员整体替换和 revision CAS。
  * [POS]: model/application 的扁平模型集合用例，不实现层级、动态标签或路由规则。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -31,7 +31,7 @@ import java.util.function.LongSupplier;
 
 public final class ModelSetService {
     private static final String SELECT = """
-        select s.id, s.tenant_id, s.name, s.revision,
+        select s.id, s.tenant_id, s.name, s.description, s.revision,
                array(select sm.model_id from ent_model_set_member sm
                      where sm.model_set_id = s.id order by sm.model_id) as model_ids
         from ent_model_set s
@@ -85,15 +85,15 @@ public final class ModelSetService {
         ).stream().findFirst().orElseThrow(ModelResourceNotFoundException::new);
     }
 
-    public ModelSet create(ModelMutationContext context, String name, List<Long> modelIds) {
+    public ModelSet create(ModelMutationContext context, String name, String description, List<Long> modelIds) {
         long id = positiveId();
-        ModelSet value = new ModelSet(id, context.tenantId(), name, normalizedIds(modelIds), 1);
+        ModelSet value = new ModelSet(id, context.tenantId(), name, description, normalizedIds(modelIds), 1);
         try {
             transactions.executeWithoutResult(status -> {
                 requireModels(value.tenantId(), value.modelIds());
                 jdbc.update(
-                    "insert into ent_model_set(id, tenant_id, name, revision) values (?, ?, ?, ?)",
-                    value.id(), value.tenantId(), value.name(), value.revision()
+                    "insert into ent_model_set(id, tenant_id, name, description, revision) values (?, ?, ?, ?, ?)",
+                    value.id(), value.tenantId(), value.name(), value.description(), value.revision()
                 );
                 replaceMembers(value.id(), value.modelIds());
                 revisions.increment(value.tenantId());
@@ -110,6 +110,7 @@ public final class ModelSetService {
         long id,
         long expectedRevision,
         String name,
+        String description,
         List<Long> modelIds
     ) {
         List<Long> normalized = normalizedIds(modelIds);
@@ -119,8 +120,8 @@ public final class ModelSetService {
                 requireRevision(current, expectedRevision);
                 requireModels(context.tenantId(), normalized);
                 if (jdbc.update(
-                    "update ent_model_set set name = ?, revision = revision + 1 where tenant_id = ? and id = ? and revision = ?",
-                    requireName(name), context.tenantId(), id, expectedRevision
+                    "update ent_model_set set name = ?, description = ?, revision = revision + 1 where tenant_id = ? and id = ? and revision = ?",
+                    requireName(name), requireDescription(description), context.tenantId(), id, expectedRevision
                 ) != 1) {
                     throw new RevisionConflictException(expectedRevision, lock(context.tenantId(), id).revision());
                 }
@@ -203,7 +204,7 @@ public final class ModelSetService {
         for (Object value : values) modelIds.add(((Number) value).longValue());
         if (array != null) array.free();
         return new ModelSet(
-            resultSet.getLong("id"), resultSet.getString("tenant_id"), resultSet.getString("name"),
+            resultSet.getLong("id"), resultSet.getString("tenant_id"), resultSet.getString("name"), resultSet.getString("description"),
             modelIds, resultSet.getLong("revision")
         );
     }
@@ -214,7 +215,11 @@ public final class ModelSetService {
     }
 
     private static String requireName(String name) {
-        return new ModelSet(1, "tenant", name, List.of(), 0).name();
+        return new ModelSet(1, "tenant", name, "", List.of(), 0).name();
+    }
+
+    private static String requireDescription(String description) {
+        return new ModelSet(1, "tenant", "name", description, List.of(), 0).description();
     }
 
     private static void requireRevision(ModelSet value, long expected) {

@@ -1790,6 +1790,7 @@ export type ModelReasoningEffortsMap = {
 export type ModelModelSet = {
     id: ModelModelSetId;
     name: string;
+    description: string;
     modelIds: Array<ManagedModelId>;
     modelCount: number;
     revision: Revision;
@@ -1814,6 +1815,7 @@ export type ModelModelSetResponse = {
 
 export type ModelModelSetWriteRequest = {
     name: string;
+    description?: string;
     modelIds: Array<ManagedModelId>;
 };
 

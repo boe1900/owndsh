@@ -129,7 +129,7 @@ class T08ApiContractTest {
         bootstrap = mock(BootstrapService.class);
         provider = provider();
         model = model();
-        modelSet = new ModelSet(Long.parseLong(MODEL_ID) + 1, "000000", "Coding Models", List.of(model.id()), 0);
+        modelSet = new ModelSet(Long.parseLong(MODEL_ID) + 1, "000000", "Coding Models", "Shared coding models", List.of(model.id()), 0);
         grant = grant();
 
         IdentityAdminRequestContextResolver adminContexts = request -> new EnterpriseRequestContext(
@@ -175,8 +175,8 @@ class T08ApiContractTest {
 
         when(modelSets.list("000000", 0, 51)).thenReturn(List.of(modelSet));
         when(modelSets.get("000000", modelSet.id())).thenReturn(modelSet);
-        when(modelSets.create(any(), anyString(), any())).thenReturn(modelSet);
-        when(modelSets.update(any(), anyLong(), anyLong(), anyString(), any())).thenReturn(modelSet);
+        when(modelSets.create(any(), anyString(), anyString(), any())).thenReturn(modelSet);
+        when(modelSets.update(any(), anyLong(), anyLong(), anyString(), anyString(), any())).thenReturn(modelSet);
 
         when(grants.list("000000", 0, 51)).thenReturn(List.of(grant));
         when(grants.create(any(), any())).thenReturn(grant);
@@ -468,7 +468,7 @@ class T08ApiContractTest {
 
     private static String modelSetRequest() {
         return """
-            {"name":"Coding Models","modelIds":["%s"]}
+            {"name":"Coding Models","description":"Shared coding models","modelIds":["%s"]}
             """.formatted(MODEL_ID).trim();
     }
 

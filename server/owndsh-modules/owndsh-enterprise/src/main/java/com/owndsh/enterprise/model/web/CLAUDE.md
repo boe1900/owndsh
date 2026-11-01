@@ -19,8 +19,8 @@ ModelGrantWriteRequest.java: MODEL_SET/MODEL 资源与 ALL_MEMBERS/ACCESS_GROUP/
 ModelGrantBatchRequest.java: 最多 200 条授权的原子批量请求边界。
 ModelGrantView.java: nullable subjectId、subject/model 展示名与 revision 的管理投影。
 AdminModelGrantController.java: 授权 list/create/update/delete/batch 与 ent:grant 权限入口。
-ModelSetWriteRequest.java: 模型集名称与完整模型 ID 列表写入边界。
-ModelSetView.java: 模型集名称、成员模型 ID、计数和 revision 管理投影。
+ModelSetWriteRequest.java: 模型集名称、可选管理说明与完整模型 ID 列表写入边界。
+ModelSetView.java: 模型集名称、管理说明、成员模型 ID、计数和 revision 管理投影。
 AdminModelSetController.java: 模型集 list/get/create/update/delete 与 ent:model 权限入口。
 DeletedModelResourceView.java: 模型/授权删除成功的统一 id/deleted 投影。
 BootstrapView.java: 完整脱敏 bootstrap，汇总模型/配额并复用 PluginViews 的安装配置投影，避免目录接口漂移。

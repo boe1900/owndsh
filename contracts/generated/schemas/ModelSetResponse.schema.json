@@ -14,6 +14,7 @@
       "required": [
         "id",
         "name",
+        "description",
         "modelIds",
         "modelCount",
         "revision"
@@ -27,6 +28,10 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 120
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 500
         },
         "modelIds": {
           "type": "array",

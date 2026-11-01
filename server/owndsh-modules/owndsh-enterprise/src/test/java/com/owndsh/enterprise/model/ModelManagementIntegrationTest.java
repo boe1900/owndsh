@@ -204,7 +204,7 @@ class ModelManagementIntegrationTest {
             "insert into ent_access_group_member(group_id, user_id, source_type) values (?, ?, 'MANUAL')",
             accessGroupId, user.id()
         );
-        ModelSet batchSet = sets.create(context, "T08 Batch Models", List.of(batchModel.id()));
+        ModelSet batchSet = sets.create(context, "T08 Batch Models", "Models used by the batch policy", List.of(batchModel.id()));
         ModelGrant groupChat = grants.create(context, new ModelGrantSpec(
             GrantResourceType.MODEL, chat.id(), GrantSubjectType.ACCESS_GROUP, accessGroupId, ModelStatus.ACTIVE
         ));

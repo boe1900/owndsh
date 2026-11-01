@@ -2,6 +2,7 @@
   "data": {
     "id": "1900800000000000101",
     "name": "Coding",
+    "description": "Shared coding models",
     "modelIds": ["1900800000000000002"],
     "modelCount": 1,
     "revision": 1

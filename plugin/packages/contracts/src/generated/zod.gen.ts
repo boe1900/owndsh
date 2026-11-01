@@ -1628,6 +1628,7 @@ export const zModelSetId = zModelModelSetId;
 export const zModelModelSet = z.object({
     id: zModelModelSetId,
     name: z.string().min(1).max(120),
+    description: z.string().max(500),
     modelIds: z.array(zManagedModelId).max(200),
     modelCount: z.int().gte(0).lte(200),
     revision: zRevision
@@ -1658,6 +1659,7 @@ export const zModelSetResponse = zModelModelSetResponse;
 
 export const zModelModelSetWriteRequest = z.object({
     name: z.string().min(1).max(120),
+    description: z.string().max(500).optional(),
     modelIds: z.array(zManagedModelId).max(200)
 }).strict();
 

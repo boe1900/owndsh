@@ -425,6 +425,9 @@ ModelSetWriteRequest:
       type: string
       minLength: 1
       maxLength: 120
+    description:
+      type: string
+      maxLength: 500
     modelIds:
       type: array
       uniqueItems: true
@@ -434,13 +437,16 @@ ModelSetWriteRequest:
 ModelSet:
   type: object
   additionalProperties: false
-  required: [id, name, modelIds, modelCount, revision]
+  required: [id, name, description, modelIds, modelCount, revision]
   properties:
     id: {$ref: '#/ModelSetId'}
     name:
       type: string
       minLength: 1
       maxLength: 120
+    description:
+      type: string
+      maxLength: 500
     modelIds:
       type: array
       uniqueItems: true
