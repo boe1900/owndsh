@@ -166,7 +166,7 @@ class ModelGatewayServiceTest {
         "OPENAI_RESPONSES,max_output_tokens,false", "OPENAI_RESPONSES,max_output_tokens,true",
         "ANTHROPIC_MESSAGES,max_tokens,false", "ANTHROPIC_MESSAGES,max_tokens,true"
     })
-    void fillsMissingOrNullOutputLimitsWithTheReservedModelLimit(
+    void leavesMissingOrNullOutputLimitsOutOfTheUpstreamRequest(
         ProviderApiProtocol protocol, String field, boolean explicitNull
     ) {
         route = route(protocol);
@@ -175,10 +175,10 @@ class ModelGatewayServiceTest {
 
         service(upstream).open(context(), request, protocol, Map.of(), IDEMPOTENCY).close();
 
-        assertThat(json.readTree(upstream.requestBody).path(field).intValue()).isEqualTo(1024);
+        assertThat(json.readTree(upstream.requestBody).has(field)).isFalse();
         ArgumentCaptor<QuotaReservationCommand> command = ArgumentCaptor.forClass(QuotaReservationCommand.class);
         verify(quotas).reserve(command.capture());
-        assertThat(command.getValue().estimatedTokens()).isEqualTo((request.visibleUtf8Bytes() + 2L) / 3L + 1024);
+        assertThat(command.getValue().estimatedTokens()).isEqualTo((request.visibleUtf8Bytes() + 2L) / 3L);
     }
 
     @ParameterizedTest
@@ -186,17 +186,17 @@ class ModelGatewayServiceTest {
         "OPENAI_COMPLETIONS,max_tokens", "OPENAI_COMPLETIONS,max_completion_tokens",
         "OPENAI_RESPONSES,max_output_tokens", "ANTHROPIC_MESSAGES,max_tokens"
     })
-    void rejectsOverLimitRequestsBeforeQuotaReservationOrUpstreamConnection(ProviderApiProtocol protocol, String field) {
+    void forwardsExplicitOutputLimitsAboveTheModelProfile(ProviderApiProtocol protocol, String field) {
         route = route(protocol);
         FakeUpstream upstream = new FakeUpstream(List.of(), null, -1);
 
-        assertThatThrownBy(() -> service(upstream).open(
-            context(), request(protocol, field, 1025), protocol, Map.of(), IDEMPOTENCY
-        )).isInstanceOf(IllegalArgumentException.class);
+        GatewayChatRequest request = request(protocol, field, 1025);
+        service(upstream).open(context(), request, protocol, Map.of(), IDEMPOTENCY).close();
 
-        verify(quotas, never()).reserve(any());
-        assertThat(upstream.openCalls).isZero();
-        assertThat(audits).isEmpty();
+        assertThat(json.readTree(upstream.requestBody).path(field).intValue()).isEqualTo(1025);
+        ArgumentCaptor<QuotaReservationCommand> command = ArgumentCaptor.forClass(QuotaReservationCommand.class);
+        verify(quotas).reserve(command.capture());
+        assertThat(command.getValue().estimatedTokens()).isEqualTo((request.visibleUtf8Bytes() + 2L) / 3L + 1025);
     }
 
     @Test

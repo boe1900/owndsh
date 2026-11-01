@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 parser 提取的三协议 JSON、受管 alias、可见字节数、可选输出上限及其 wire 字段名。
- * [OUTPUT]: 对外提供防御性复制的请求事实，以及写入已校验输出上限和模型/治理字段的原生上游请求体。
+ * [OUTPUT]: 对外提供防御性复制的请求事实，以及写入客户端可选输出上限和模型/治理字段的原生上游请求体。
  * [POS]: model/gateway 的短生命周期 wire 容器，不解释消息、工具、推理或 replay 语义。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -42,11 +42,11 @@ public final class GatewayChatRequest {
         return visibleUtf8Bytes;
     }
 
-    ObjectNode upstreamBody(String modelId, ProviderApiProtocol protocol, int effectiveMaxTokens) {
+    ObjectNode upstreamBody(String modelId, ProviderApiProtocol protocol, Integer requestedMaxTokens) {
         ObjectNode result = body.deepCopy();
         result.put("model", requireText(modelId, "modelId"));
         result.put("stream", true);
-        result.put(maxTokensField, effectiveMaxTokens);
+        if (requestedMaxTokens != null) result.put(maxTokensField, requestedMaxTokens);
         if (protocol == ProviderApiProtocol.OPENAI_COMPLETIONS) {
             JsonNode existing = result.get("stream_options");
             ObjectNode streamOptions = existing != null && existing.isObject()

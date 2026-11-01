@@ -12,7 +12,7 @@ QuotaPolicyInUseException.java: 配额策略已有历史窗口记录时的稳定
 QuotaPolicyService.java: 策略 CRUD/状态 CAS、subject 校验、revision 与审计事务编排。
 EffectiveQuotaResolver.java: ORGANIZATION/MEMBER 主体与可选模型资源 ACTIVE 策略按 ID 排序叠加解析器。
 QuotaWindowCalculator.java: 策略锚点连续 5 小时与冻结部署时区自然日/周/月 start/reset 计算器。
-QuotaTokenEstimator.java: 可见 system/messages/tools UTF-8 字节除三向上取整并叠加输出预留。
+QuotaTokenEstimator.java: 可见 system/messages/tools UTF-8 字节除三向上取整，并只叠加客户端请求明确给出的输出预留；不读取模型 profile。
 QuotaRateLimiter.java: 全部适用 policy 的 Redis RPM/并发原子 lease 端口。
 QuotaExceededException.java: 5 小时/日/周/月/RPM/并发 429 稳定错误与 policy/reset 事实。
 QuotaRejectionMetadata.java: QUOTA_REJECTED 审计的类别、policy 和估算量白名单。

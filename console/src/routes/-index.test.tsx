@@ -835,7 +835,7 @@ describe('product console access', () => {
   it('renders real managed models in the unified provider workspace', async () => {
     renderRoute('/', 'enterprise_admin', 200, ['ent:grant:read']);
     expect(await screen.findByText('GPT 5.6 Sol')).toBeTruthy();
-    expect(screen.queryByText(/1M/)).toBeNull();
+    expect(screen.getByText(/窗口 1M · 输出 128K/)).toBeTruthy();
     expect(screen.queryByRole('columnheader', { name: /上游模型 ID/ })).toBeNull();
     fireEvent.click(screen.getByRole('tab', { name: '模型与供应商' }));
     expect(await screen.findByText('OpenAI')).toBeTruthy();

@@ -6,7 +6,7 @@
 
 EnterpriseGatewayProperties.java: 模型请求体与单个 SSE event 的部署上限配置，启动时拒绝非正值。
 GatewayException.java: 网关稳定错误码与仅供服务端诊断的封闭失败阶段，允许状态/request ID/合法 Retry-After 且禁止正文、URL 和 credential。
-GatewayChatRequest.java: 原生请求的防御性副本，在上游发送前写入已校验的有效输出上限、受管模型与流式 usage/no-store 治理字段。
+GatewayChatRequest.java: 原生请求的防御性副本，在上游发送前写入客户端提供的输出上限（缺省则省略）、受管模型与流式 usage/no-store 治理字段。
 GatewayChatRequestParser.java: 校验受管 model、stream 与协议输出上限，支持 Completions 新旧上限字段，拒绝非正整数、非空字段混用并提取唯一 wire 字段；JSON 语法失败记录协议、长度、字节偏移与堆栈，其余原生协议字段保持透明。
 GatewayRouteResolver.java: 每请求重读 ACTIVE 设备、用户、授权、模型和 provider 的可信 route 裁决器。
 DeepSeekUpstreamClient.java: 三种 Harness wire API 的 SSE 建连端口与脱敏 event/exchange 契约。

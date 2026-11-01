@@ -8,13 +8,15 @@
 const THOUSAND = 1_000;
 const MILLION = 1_000_000;
 const MAX_TOKENS = 2_147_483_647;
-const TOKEN_CAPACITY_PATTERN = /^(\d+(?:\.\d+)?)\s*([KM])?$/i;
+const TOKEN_CAPACITY_PATTERN = /^(\d+(?:\.\d+)?)([KM])?$/i;
 
 export const TOKEN_CAPACITY_ERROR = '请输入正整数，或使用 256K、1M 格式';
 
 export function parseTokenCapacity(value: string | number | undefined): number | undefined {
   if (value === undefined || value === '') return undefined;
-  const match = String(value).trim().match(TOKEN_CAPACITY_PATTERN);
+  const text = String(value).trim();
+  if (text === '') return undefined;
+  const match = text.match(TOKEN_CAPACITY_PATTERN);
   if (!match) throw new Error(TOKEN_CAPACITY_ERROR);
 
   const unit = match[2]?.toUpperCase();
@@ -29,6 +31,7 @@ export function parseTokenCapacity(value: string | number | undefined): number |
 
 export function formatTokenCapacity(value: number | undefined): string {
   if (value === undefined) return '';
+  if (!Number.isInteger(value) || value <= 0) return String(value);
   if (value % MILLION === 0) return `${value / MILLION}M`;
   if (value % THOUSAND === 0) return `${value / THOUSAND}K`;
   return String(value);

@@ -48,11 +48,15 @@ class QuotaWindowCalculatorTest {
     }
 
     @Test
-    void estimatesVisibleUtf8BytesByCeilingAndReservesOutput() {
-        assertThat(QuotaTokenEstimator.estimate(0, null, 8_192)).isEqualTo(8_192);
-        assertThat(QuotaTokenEstimator.estimate(1, 100, 8_192)).isEqualTo(101);
-        assertThat(QuotaTokenEstimator.estimate(4, 100, 8_192)).isEqualTo(102);
-        assertThatThrownBy(() -> QuotaTokenEstimator.estimate(1, 8_193, 8_192))
+    void estimatesVisibleUtf8BytesByCeilingAndReservesOnlyRequestedOutput() {
+        assertThat(QuotaTokenEstimator.estimate(0, null)).isZero();
+        assertThat(QuotaTokenEstimator.estimate(1, null)).isEqualTo(1);
+        assertThat(QuotaTokenEstimator.estimate(1, 100)).isEqualTo(101);
+        assertThat(QuotaTokenEstimator.estimate(4, 100)).isEqualTo(102);
+        assertThat(QuotaTokenEstimator.estimate(1, 8_193)).isEqualTo(8_194);
+        assertThatThrownBy(() -> QuotaTokenEstimator.estimate(1, 0))
+            .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> QuotaTokenEstimator.estimate(1, -1))
             .isInstanceOf(IllegalArgumentException.class);
     }
 }
