@@ -81,7 +81,9 @@ services:
     tmpfs:
       - /tmp:size=128m,mode=1777
       - /app/tmp:size=128m,mode=1777
-    networks: [backend]
+    networks:
+      backend:
+        aliases: [owndsh-server]
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     stop_grace_period: 40s

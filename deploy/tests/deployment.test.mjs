@@ -65,6 +65,7 @@ test('compose publishes only the HTTP Console and pins all third-party images', 
   assert.equal(config.services.server.environment.ENT_ALLOW_INSECURE_OIDC, 'false')
   assert.equal(config.services.server.environment.XDG_CACHE_HOME, '/tmp')
   assert.equal(config.services.server.read_only, true)
+  assert.deepEqual(config.services.server.networks.backend.aliases, ['owndsh-server'])
   assert.deepEqual(Object.keys(config.volumes).sort(), ['postgres_data', 'redis_data'])
   assert.ok(config.services.server.tmpfs.some(mount =>
     typeof mount === 'string' ? mount.split(':')[0] === '/tmp' : mount.target === '/tmp'
@@ -183,6 +184,7 @@ test('HTTP gateway preserves an upstream HTTP(S) origin and keeps model SSE unbu
   assert.doesNotMatch(nginx, /\$server_port/)
   assert.doesNotMatch(nginx, /\$proxy_add_x_forwarded_for/)
   assert.doesNotMatch(nginx, /\/prod-api/)
+  assert.match(nginx, /upstream enterprise_server \{[\s\S]*?server owndsh-server:8080;/)
   assert.match(nginx, /location ~ \^\/enterprise\/gateway\/v1\/\(\?:chat\/completions\|responses\|messages\)\$/)
   assert.match(nginx, /enterprise\/gateway\/v1\/[\s\S]*?proxy_buffering off;/)
   assert.match(nginx, /location = \/enterprise\/plugin-market\/index\.json \{[\s\S]*?proxy_pass http:\/\/enterprise_server;/)
