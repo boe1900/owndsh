@@ -7,6 +7,7 @@
 ProviderWriteRequest.java: 供应商名称与类型元信息写 DTO；endpoint 和 credential 不在此边界出现。
 ProviderConnectionView.java: 连接脱敏管理投影。
 ProviderConnectionWriteRequest.java: 连接写入、模型发现路径与一次性密钥边界。
+ProviderProbeRequest.java: 未保存模型接入探测请求与一次性密钥边界，不承载连接名称或持久化字段。
 AdminProviderConnectionController.java: 连接管理 API。
 AdminProviderConnectionProbeController.java: 未保存连接模型发现 API。
 AdminProviderConnectionTestController.java: 已保存连接模型发现 API。

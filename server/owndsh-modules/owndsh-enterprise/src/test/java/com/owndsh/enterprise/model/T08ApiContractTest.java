@@ -163,7 +163,7 @@ class T08ApiContractTest {
             .thenReturn(connection);
         when(connections.test(anyString(), anyLong(), nullable(ProviderSecretInput.class)))
             .thenReturn(new ProviderProbe.ProviderProbeResult(true, 12, ProviderProbe.ProviderProbeCategory.SUCCESS));
-        when(connections.probe(any(), any()))
+        when(connections.probeDraft(any(), any()))
             .thenReturn(new ProviderProbe.ProviderProbeResult(true, 12, ProviderProbe.ProviderProbeCategory.SUCCESS));
 
         when(models.list("000000", 0, 51)).thenReturn(List.of(model));
@@ -201,7 +201,7 @@ class T08ApiContractTest {
             .content(providerRequest(true, false)), 200), "ProviderResponse");
         assertThat(response(get("/enterprise/admin/v1/providers/{providerId}/connections", PROVIDER_ID), 200)).contains("\"items\"");
         assertThat(response(get("/enterprise/admin/v1/providers/{providerId}/connections/{connectionId}", PROVIDER_ID, CONNECTION_ID), 200)).contains("production");
-        String connectionRequest = connectionRequest(false);
+        String connectionRequest = connectionRequest();
         String createdConnection = response(post("/enterprise/admin/v1/providers/{providerId}/connections", PROVIDER_ID)
             .header("Idempotency-Key", IDEMPOTENCY_KEY).contentType(MediaType.APPLICATION_JSON)
             .content(connectionRequest), 201);
@@ -210,7 +210,7 @@ class T08ApiContractTest {
         assertThat(response(put("/enterprise/admin/v1/providers/{providerId}/connections/{connectionId}", PROVIDER_ID, CONNECTION_ID)
             .header("If-Match", "0").contentType(MediaType.APPLICATION_JSON).content(connectionRequest), 200)).contains("production");
         assertSchema(response(post("/enterprise/admin/v1/provider-connections/actions/probe")
-            .contentType(MediaType.APPLICATION_JSON).content(connectionRequest(true)), 200), "ProviderProbeResponse");
+            .contentType(MediaType.APPLICATION_JSON).content(probeRequest()), 200), "ProviderProbeResponse");
         assertSchema(response(post("/enterprise/admin/v1/provider-connections/{connectionId}/actions/test", CONNECTION_ID), 200), "ProviderProbeResponse");
         for (String action : List.of("enable", "disable")) {
             assertSchema(response(post("/enterprise/admin/v1/providers/{id}/actions/{action}", PROVIDER_ID, action)
@@ -452,9 +452,16 @@ class T08ApiContractTest {
             """;
     }
 
-    private static String connectionRequest(boolean probe) {
+    private static String connectionRequest() {
         return """
             {"name":"production","apiProtocol":"anthropic-messages","baseUrl":"https://api.deepseek.com/anthropic",
+             "credential":"%s","connectTimeoutMs":5000,"readTimeoutMs":30000}
+            """.formatted(SECRET).trim();
+    }
+
+    private static String probeRequest() {
+        return """
+            {"apiProtocol":"anthropic-messages","baseUrl":"https://api.deepseek.com/anthropic",
              "credential":"%s","connectTimeoutMs":5000,"readTimeoutMs":30000}
             """.formatted(SECRET).trim();
     }
