@@ -343,6 +343,23 @@ function mockApi(role: AuthBuiltInRole, logoutStatus = 200, permissions: string[
       });
     }
     if (pathname.endsWith('/enterprise/admin/v1/providers/provider-1/connections')) {
+      if (request.method === 'POST') {
+        const body = await request.clone().json();
+        writes.push({
+          body,
+          idempotencyKey: request.headers.get('Idempotency-Key'),
+          ifMatch: request.headers.get('If-Match'),
+          method: request.method,
+          pathname
+        });
+        return json({
+          data: {
+            ...(body as object), id: 'connection-2', providerId: 'provider-1', providerName: 'OpenAI',
+            credentialConfigured: true, status: 'ACTIVE', revision: 0
+          },
+          requestId: 'req_connection_created'
+        }, 201);
+      }
       return json({
         data: {
           items: [{
@@ -892,6 +909,8 @@ describe('product console access', () => {
     expect(await screen.findByText('GPT 5.6 Sol')).toBeTruthy();
     fireEvent.click((await screen.findAllByRole('button', { name: '维护模型' }))[0]);
     const dialog = await screen.findByRole('dialog', { name: '维护模型' });
+    expect(within(dialog).queryByText('设默认')).toBeNull();
+    expect(within(dialog).queryByText('参数预览')).toBeNull();
 
     fireEvent.click(within(dialog).getByRole('button', { name: '新增模型' }));
     fireEvent.click(within(dialog).getByRole('button', { name: '全部收起' }));
@@ -904,9 +923,10 @@ describe('product console access', () => {
   it('creates, updates and deletes a flat model set with write guards', async () => {
     const writes = renderRoute('/', 'enterprise_admin', 200, ['ent:model:write']);
     expect(await screen.findByText('GPT 5.6 Sol')).toBeTruthy();
+    expect(screen.getByRole('tab', { name: '模型集' }).textContent).toContain('1');
     fireEvent.click(screen.getByRole('tab', { name: '模型集' }));
     expect(await screen.findByText('编码模型')).toBeTruthy();
-    expect(screen.getByRole('tab', { name: '模型集' }).textContent).toContain('1');
+    expect(screen.queryByText(/共\s*\d+\s*个模型集/)).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: '新建模型集' }));
     let dialog = screen.getByRole('dialog', { name: '新建模型集' });
@@ -943,6 +963,29 @@ describe('product console access', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: '删除' }));
     await waitFor(() => expect(writes).toHaveLength(4));
     expect(writes[3]).toMatchObject({ ifMatch: '1', method: 'DELETE', pathname: '/enterprise/admin/v1/model-sets/set-1' });
+  });
+
+  it('saves a new connection without opening model maintenance', async () => {
+    const writes = renderRoute('/', 'enterprise_admin', 200, ['ent:model:write']);
+    expect(await screen.findByText('OpenAI 生产连接')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '新建连接' }));
+    const dialog = screen.getByRole('dialog', { name: '新建连接 · OpenAI' });
+    fireEvent.change(within(dialog).getByLabelText('连接名称'), { target: { value: 'OpenAI 测试连接' } });
+    fireEvent.change(within(dialog).getByLabelText('Base URL'), { target: { value: 'https://api.example.com/v1' } });
+    fireEvent.change(within(dialog).getByLabelText('API Key'), { target: { value: 'secret' } });
+    expect(within(dialog).getByRole('button', { name: '保存连接' })).toBeTruthy();
+    expect(within(dialog).queryByRole('button', { name: '继续配置模型' })).toBeNull();
+    fireEvent.click(within(dialog).getByRole('button', { name: '保存连接' }));
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]).toMatchObject({
+      body: { name: 'OpenAI 测试连接', baseUrl: 'https://api.example.com/v1', credential: 'secret' },
+      method: 'POST',
+      pathname: '/enterprise/admin/v1/providers/provider-1/connections'
+    });
+    expect(screen.queryByRole('dialog', { name: '新建连接 · OpenAI' })).toBeNull();
+    expect(screen.queryByRole('dialog', { name: '维护模型' })).toBeNull();
   });
 
   it('renders model access, token limits and rate limits from Server facts', async () => {

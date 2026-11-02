@@ -471,7 +471,7 @@ export function ModelSetManagement({ active = true, canWrite, connectionNames, c
             {modelSetSearch ? <button type="button" aria-label="清除模型集搜索" className="absolute right-2.5 top-2.5 text-zinc-400 hover:text-zinc-600" onClick={() => setModelSetSearch('')}><X aria-hidden className="size-3.5" /></button> : null}
           </label>
         </div>
-        <div className="flex items-center gap-3"><div className="text-xs text-zinc-400">共 <strong className="font-semibold text-zinc-700">{filteredRows.length}</strong> 个模型集</div>{canWrite ? <Button type="button" variant="primary" size="sm" className="bg-zinc-900 text-white hover:bg-zinc-800" disabled={models.isLoading || models.isError} onClick={openCreate}><Plus aria-hidden className="size-3.5" />新建模型集</Button> : null}</div>
+        {canWrite ? <Button type="button" variant="primary" size="sm" className="self-end bg-zinc-900 text-white hover:bg-zinc-800 sm:self-auto" disabled={models.isLoading || models.isError} onClick={openCreate}><Plus aria-hidden className="size-3.5" />新建模型集</Button> : null}
       </div>
 
       {sets.error ? <div role="alert" className="rounded-xl border border-rose-200/70 bg-rose-50 px-4 py-3 text-xs text-rose-700">模型集加载失败：{message(sets.error, '模型集加载失败')}<Button type="button" variant="quiet" size="xs" className="ml-2 underline" onClick={() => void sets.refetch()}>重试</Button></div> : null}
