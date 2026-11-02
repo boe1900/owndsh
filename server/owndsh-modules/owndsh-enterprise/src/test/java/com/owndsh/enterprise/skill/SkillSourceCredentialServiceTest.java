@@ -33,18 +33,25 @@ class SkillSourceCredentialServiceTest {
     );
 
     @Test
-    void encryptsAndScopesCredentialWhileClearingInput() {
+    void encryptsCredentialAndKeepsLegacyScopeWhileClearingInput() {
         SkillSourceCredentialStore store = mock(SkillSourceCredentialStore.class);
         SkillSourceCredentialService service = new SkillSourceCredentialService(
             transactions(), store, new SecretCipher(new byte[32]), new AtomicLong(9000)::incrementAndGet);
         SkillSourceCredentialService.CredentialInput input = new SkillSourceCredentialService.CredentialInput(
-            "内网 GitLab", "gitlab.example.com", "team/skills", Instant.now().plusSeconds(3600),
-            "glpat-secret-value".toCharArray());
+            "内网 GitLab", "glpat-secret-value".toCharArray());
 
         SkillSourceCredential created = service.create(CONTEXT, input);
         when(store.find("000000", created.id())).thenReturn(Optional.of(created));
 
         assertThat(created.tokenHint()).isEqualTo("glpat-••••alue");
+        assertThat(service.secret("000000", created.id(), "https://gitlab.example.com/other/repo"))
+            .containsExactly("glpat-secret-value".toCharArray());
+
+        SkillSourceCredential legacyScoped = new SkillSourceCredential(created.id(), created.tenantId(), created.name(),
+            "gitlab.example.com", "team/skills", created.tokenHint(), created.expiresAt(), created.status(),
+            created.secret(), created.revision());
+        when(store.find("000000", created.id())).thenReturn(Optional.of(legacyScoped));
+
         assertThat(service.secret("000000", created.id(), "https://gitlab.example.com/team/skills.git"))
             .containsExactly("glpat-secret-value".toCharArray());
         assertThat(input.token()).containsOnly('\0');
@@ -52,13 +59,19 @@ class SkillSourceCredentialServiceTest {
             .isInstanceOf(SkillSourceCredentialService.SourceCredentialException.class)
             .hasMessageContaining("项目范围不匹配");
 
-        SkillSourceCredential expired = service.create(CONTEXT, new SkillSourceCredentialService.CredentialInput(
-            "已过期", "gitlab.example.com", "team/skills", Instant.now().minusSeconds(1),
-            "glpat-expired".toCharArray()));
-        when(store.find("000000", expired.id())).thenReturn(Optional.of(expired));
-        assertThatThrownBy(() -> service.secret("000000", expired.id(), "https://gitlab.example.com/team/skills.git"))
+        SkillSourceCredential activeWithOldExpiry = new SkillSourceCredential(created.id(), created.tenantId(),
+            created.name(), "gitlab.example.com", "team/skills", created.tokenHint(), Instant.now().minusSeconds(1),
+            SkillSourceCredential.Status.ACTIVE, created.secret(), created.revision());
+        when(store.find("000000", created.id())).thenReturn(Optional.of(activeWithOldExpiry));
+        assertThat(service.secret("000000", created.id(), "https://gitlab.example.com/team/skills.git"))
+            .containsExactly("glpat-secret-value".toCharArray());
+
+        SkillSourceCredential revoked = new SkillSourceCredential(created.id(), created.tenantId(), created.name(),
+            "", null, created.tokenHint(), null, SkillSourceCredential.Status.REVOKED, created.secret(), created.revision());
+        when(store.find("000000", created.id())).thenReturn(Optional.of(revoked));
+        assertThatThrownBy(() -> service.secret("000000", created.id(), "https://gitlab.example.com/team/skills.git"))
             .isInstanceOf(SkillSourceCredentialService.SourceCredentialException.class)
-            .hasMessageContaining("过期或已撤销");
+            .hasMessageContaining("已撤销");
     }
 
     private static TransactionOperations transactions() {

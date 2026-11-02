@@ -2752,10 +2752,7 @@ export const zSkillReleaseStatus = zSkillSkillReleaseStatus;
 export const zSkillSkillSourceCredential = z.object({
     id: zSkillSkillReleaseId,
     name: z.string().min(1).max(120),
-    host: z.string().min(1).max(255),
-    projectPath: z.string().max(500).nullish(),
     tokenHint: z.string().max(32),
-    expiresAt: z.iso.datetime({ offset: true }).nullish(),
     status: z.enum([
         'ACTIVE',
         'EXPIRED',
@@ -2767,10 +2764,7 @@ export const zSkillSkillSourceCredential = z.object({
 export const zSkillSourceCredential = zSkillSkillSourceCredential;
 
 export const zSkillSkillSourceCredentialWriteRequest = z.object({
-    name: z.string().min(1).max(120),
-    host: z.string().min(1).max(255),
-    projectPath: z.string().max(500).nullish(),
-    expiresAt: z.iso.datetime({ offset: true }).nullish()
+    name: z.string().min(1).max(120)
 }).strict();
 
 export const zSkillSourceCredentialWriteRequest = zSkillSkillSourceCredentialWriteRequest;
@@ -3359,9 +3353,6 @@ export const zProviderProbeRequestWritable = zModelProviderProbeRequestWritable;
 
 export const zSkillSkillSourceCredentialWriteRequestWritable = z.object({
     name: z.string().min(1).max(120),
-    host: z.string().min(1).max(255),
-    projectPath: z.string().max(500).nullish(),
-    expiresAt: z.iso.datetime({ offset: true }).nullish(),
     token: z.string().min(4).max(4096)
 }).strict();
 

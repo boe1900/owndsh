@@ -56,7 +56,7 @@ public final class SkillSourceCredentialService {
             try {
                 EncryptedSecret secret = encrypt(context.tenantId(), id, token);
                 SkillSourceCredential value = new SkillSourceCredential(id, context.tenantId(), input.name(),
-                    input.host(), input.projectPath(), mask(token), input.expiresAt(),
+                    "", null, mask(token), null,
                     SkillSourceCredential.Status.ACTIVE, secret, 0);
                 return Objects.requireNonNull(transactions.execute(status -> {
                     credentials.insert(value, context.actorId());
@@ -78,8 +78,8 @@ public final class SkillSourceCredentialService {
             char[] token = input.token();
             try {
                 EncryptedSecret secret = encrypt(context.tenantId(), id, token);
-                SkillSourceCredential updated = new SkillSourceCredential(id, current.tenantId(), input.name(), input.host(),
-                    input.projectPath(), mask(token), input.expiresAt(), SkillSourceCredential.Status.ACTIVE,
+                SkillSourceCredential updated = new SkillSourceCredential(id, current.tenantId(), input.name(), "",
+                    null, mask(token), null, SkillSourceCredential.Status.ACTIVE,
                     secret, expectedRevision + 1);
                 return Objects.requireNonNull(transactions.execute(status -> {
                     if (!credentials.update(updated, expectedRevision)) throw new RevisionConflictException(expectedRevision,
@@ -107,10 +107,11 @@ public final class SkillSourceCredentialService {
     public char[] secret(String tenantId, Long credentialId, String repositoryUrl) {
         if (credentialId == null) return null;
         SkillSourceCredential credential = get(tenantId, credentialId);
-        if (!credential.usable(Instant.now())) throw new SourceCredentialException("Skill 仓库凭据已过期或已撤销");
+        if (!credential.usable(Instant.now())) throw new SourceCredentialException("Skill 仓库凭据已撤销或不可用");
         if (repositoryUrl != null && !repositoryUrl.isBlank()) {
             java.net.URI uri = java.net.URI.create(repositoryUrl);
-            if (!credential.host().equalsIgnoreCase(uri.getHost())) throw new SourceCredentialException("Skill 仓库凭据 host 不匹配");
+            if (credential.host() != null && !credential.host().isBlank()
+                && !credential.host().equalsIgnoreCase(uri.getHost())) throw new SourceCredentialException("Skill 仓库凭据 host 不匹配");
             String project = uri.getPath().replaceFirst("^/", "");
             if (project.endsWith(".git")) project = project.substring(0, project.length() - 4);
             if (credential.projectPath() != null && !credential.projectPath().isBlank()
@@ -177,19 +178,12 @@ public final class SkillSourceCredentialService {
     }
 
     private SkillSourceCredential effective(SkillSourceCredential value) {
-        if (value.status() == SkillSourceCredential.Status.ACTIVE && value.expiresAt() != null
-            && !value.expiresAt().isAfter(Instant.now())) {
-            return new SkillSourceCredential(value.id(), value.tenantId(), value.name(), value.host(),
-                value.projectPath(), value.tokenHint(), value.expiresAt(), SkillSourceCredential.Status.EXPIRED,
-                value.secret(), value.revision());
-        }
         return value;
     }
 
-    public record CredentialInput(String name, String host, String projectPath, Instant expiresAt, char[] token) {
+    public record CredentialInput(String name, char[] token) {
         public CredentialInput {
             if (name == null || name.isBlank() || name.length() > 120) throw new IllegalArgumentException("凭据名称非法");
-            if (host == null || host.isBlank()) throw new IllegalArgumentException("凭据 host 不能为空");
             token = token == null ? null : token.clone();
         }
 

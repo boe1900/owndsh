@@ -159453,7 +159453,6 @@
                         "required": [
                           "id",
                           "name",
-                          "host",
                           "tokenHint",
                           "status",
                           "revision"
@@ -159468,28 +159467,9 @@
                             "minLength": 1,
                             "maxLength": 120
                           },
-                          "host": {
-                            "type": "string",
-                            "minLength": 1,
-                            "maxLength": 255
-                          },
-                          "projectPath": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "maxLength": 500
-                          },
                           "tokenHint": {
                             "type": "string",
                             "maxLength": 32
-                          },
-                          "expiresAt": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "format": "date-time"
                           },
                           "status": {
                             "type": "string",
@@ -159842,7 +159822,6 @@
                 "additionalProperties": false,
                 "required": [
                   "name",
-                  "host",
                   "token"
                 ],
                 "properties": {
@@ -159850,25 +159829,6 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 120
-                  },
-                  "host": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 255
-                  },
-                  "projectPath": {
-                    "type": [
-                      "string",
-                      "null"
-                    ],
-                    "maxLength": 500
-                  },
-                  "expiresAt": {
-                    "type": [
-                      "string",
-                      "null"
-                    ],
-                    "format": "date-time"
                   },
                   "token": {
                     "type": "string",
@@ -159899,7 +159859,6 @@
                       "required": [
                         "id",
                         "name",
-                        "host",
                         "tokenHint",
                         "status",
                         "revision"
@@ -159914,28 +159873,9 @@
                           "minLength": 1,
                           "maxLength": 120
                         },
-                        "host": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 255
-                        },
-                        "projectPath": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "maxLength": 500
-                        },
                         "tokenHint": {
                           "type": "string",
                           "maxLength": 32
-                        },
-                        "expiresAt": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "format": "date-time"
                         },
                         "status": {
                           "type": "string",
@@ -160317,7 +160257,6 @@
                 "additionalProperties": false,
                 "required": [
                   "name",
-                  "host",
                   "token"
                 ],
                 "properties": {
@@ -160325,25 +160264,6 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 120
-                  },
-                  "host": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 255
-                  },
-                  "projectPath": {
-                    "type": [
-                      "string",
-                      "null"
-                    ],
-                    "maxLength": 500
-                  },
-                  "expiresAt": {
-                    "type": [
-                      "string",
-                      "null"
-                    ],
-                    "format": "date-time"
                   },
                   "token": {
                     "type": "string",
@@ -160374,7 +160294,6 @@
                       "required": [
                         "id",
                         "name",
-                        "host",
                         "tokenHint",
                         "status",
                         "revision"
@@ -160389,28 +160308,9 @@
                           "minLength": 1,
                           "maxLength": 120
                         },
-                        "host": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 255
-                        },
-                        "projectPath": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "maxLength": 500
-                        },
                         "tokenHint": {
                           "type": "string",
                           "maxLength": 32
-                        },
-                        "expiresAt": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "format": "date-time"
                         },
                         "status": {
                           "type": "string",
@@ -161106,7 +161006,6 @@
                       "required": [
                         "id",
                         "name",
-                        "host",
                         "tokenHint",
                         "status",
                         "revision"
@@ -161121,28 +161020,9 @@
                           "minLength": 1,
                           "maxLength": 120
                         },
-                        "host": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 255
-                        },
-                        "projectPath": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "maxLength": 500
-                        },
                         "tokenHint": {
                           "type": "string",
                           "maxLength": 32
-                        },
-                        "expiresAt": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "format": "date-time"
                         },
                         "status": {
                           "type": "string",
@@ -193691,7 +193571,6 @@
         "required": [
           "id",
           "name",
-          "host",
           "tokenHint",
           "status",
           "revision"
@@ -193706,28 +193585,9 @@
             "minLength": 1,
             "maxLength": 120
           },
-          "host": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 255
-          },
-          "projectPath": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "maxLength": 500
-          },
           "tokenHint": {
             "type": "string",
             "maxLength": 32
-          },
-          "expiresAt": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "format": "date-time"
           },
           "status": {
             "type": "string",
@@ -193753,7 +193613,6 @@
         "additionalProperties": false,
         "required": [
           "name",
-          "host",
           "token"
         ],
         "properties": {
@@ -193761,25 +193620,6 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 120
-          },
-          "host": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 255
-          },
-          "projectPath": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "maxLength": 500
-          },
-          "expiresAt": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "format": "date-time"
           },
           "token": {
             "type": "string",

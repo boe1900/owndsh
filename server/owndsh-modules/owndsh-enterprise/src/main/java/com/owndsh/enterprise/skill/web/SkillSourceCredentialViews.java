@@ -12,10 +12,8 @@ public final class SkillSourceCredentialViews {
     private SkillSourceCredentialViews() {}
 
     public static View view(SkillSourceCredential value) {
-        return new View(Long.toString(value.id()), value.name(), value.host(), value.projectPath(),
-            value.tokenHint(), value.expiresAt(), value.status().name(), value.revision());
+        return new View(Long.toString(value.id()), value.name(), value.tokenHint(), value.status().name(), value.revision());
     }
 
-    public record View(String id, String name, String host, String projectPath, String tokenHint,
-        java.time.Instant expiresAt, String status, long revision) {}
+    public record View(String id, String name, String tokenHint, String status, long revision) {}
 }

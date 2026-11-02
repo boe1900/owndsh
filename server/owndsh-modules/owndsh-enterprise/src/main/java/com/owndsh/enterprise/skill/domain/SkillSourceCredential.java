@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖租户、仓库 host/project、凭据密文和凭据生命周期状态。
+ * [INPUT]: 依赖租户、凭据备注、兼容性来源范围、密文和平台撤销状态。
  * [OUTPUT]: 对外提供脱敏的仓库访问凭据事实；密文仅在服务端内部使用。
  * [POS]: skill/domain 的来源凭据身份，与 SkillRelease 通过 credentialId 关联。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -31,8 +31,9 @@ public record SkillSourceCredential(
         if (id <= 0 || revision < 0) throw new IllegalArgumentException("skill credential 数值非法");
         require(tenantId, 20, "tenantId");
         require(name, 120, "name");
-        require(host, 255, "host");
-        if (!HOST.matcher(host).matches()) throw new IllegalArgumentException("skill credential host 非法");
+        if (host != null && !host.isBlank() && !HOST.matcher(host).matches()) {
+            throw new IllegalArgumentException("skill credential host 非法");
+        }
         if (projectPath != null && !projectPath.isBlank() && !PROJECT.matcher(projectPath).matches()) {
             throw new IllegalArgumentException("skill credential projectPath 非法");
         }
@@ -48,7 +49,7 @@ public record SkillSourceCredential(
     }
 
     public boolean usable(Instant now) {
-        return status == Status.ACTIVE && (expiresAt == null || expiresAt.isAfter(now));
+        return status == Status.ACTIVE;
     }
 
     public enum Status { ACTIVE, EXPIRED, REVOKED }

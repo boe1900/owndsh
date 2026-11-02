@@ -2640,19 +2640,13 @@ export type SkillSkillReleaseStatus = 'DRAFT' | 'PUBLISHED' | 'REVOKED';
 export type SkillSkillSourceCredential = {
     id: SkillSkillReleaseId;
     name: string;
-    host: string;
-    projectPath?: string | null;
     tokenHint: string;
-    expiresAt?: string | null;
     status: 'ACTIVE' | 'EXPIRED' | 'REVOKED';
     revision: Revision;
 };
 
 export type SkillSkillSourceCredentialWriteRequest = {
     name: string;
-    host: string;
-    projectPath?: string | null;
-    expiresAt?: string | null;
 };
 
 export type SkillSkillSourceImportRequest = {
@@ -3109,9 +3103,6 @@ export type ModelProviderProbeRequestWritable = {
 
 export type SkillSkillSourceCredentialWriteRequestWritable = {
     name: string;
-    host: string;
-    projectPath?: string | null;
-    expiresAt?: string | null;
     token: string;
 };
 

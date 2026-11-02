@@ -64,7 +64,7 @@ GitHub 使用 commit API / codeload；GitLab 使用 commit API / repository/arch
 
 OwnDsh 不保存 ZIP，也不依赖 OSS 或 Package Registry。设备请求 /enterprise/api/v1/skills/{releaseId}/artifact 时，Server 从固定 commit 回源，再执行一次归档、路径、frontmatter、大小和 SHA-256 校验后返回。回源失败只影响本次安装；设备保留旧的完整副本。
 
-数据库只保存 release 元数据、来源坐标、固定 commit、凭据引用、制品长度和 SHA-256；仓库 token 以 SecretCipher 加密保存，列表只返回脱敏提示。服务端本地 filesystem / GitLab Package adapter 仅保留为已有代码的可替换接口，不作为当前默认路径或验收依赖。
+数据库只保存 release 元数据、来源坐标、固定 commit、凭据引用、制品长度和 SHA-256；仓库 token 以 SecretCipher 加密保存，列表只返回脱敏提示。新凭据只要求备注名称和 token，历史记录的 host/project/expiry 列继续保留并用于兼容性校验；平台不主动判断外部 token 有效期，撤销仍由平台控制。服务端本地 filesystem / GitLab Package adapter 仅保留为已有代码的可替换接口，不作为当前默认路径或验收依赖。
 
 ### 4.3 信任边界
 
@@ -169,7 +169,7 @@ OwnDsh 设置页 Tab 顺序：账号 → 技能 → MCP；插件发现和安装�
 - Server 回源或客户端校验失败时不替换旧副本。
 - 撤销 release 后，新的安装和更新请求失败；已经安装的本地副本可以离线继续运行，用户可自行卸载。
 - 不接收客户端源仓库 token；管理员只在 Server 管理端写入一次，源仓库访问只发生在 Server。
-- 凭据过期或撤销只阻止新的私有仓库预检、安装和升级；已安装的完整本地副本继续离线运行。
+- 凭据被平台撤销只阻止新的私有仓库预检、安装和升级；外部 token 的过期或失效由 Git 服务商在实际访问时返回；已安装的完整本地副本继续离线运行。
 - 不执行脚本沙箱或额外权限裁决；脚本遵循 DSH/Harness 现有工具权限和用户确认机制。
 - frontmatter、描述、图标和脚本输出均按不可信输入处理，不直接拼进管理端 HTML 或系统 prompt。
 

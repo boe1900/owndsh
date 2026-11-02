@@ -188,24 +188,18 @@ SkillImportedReleaseResponse:
 SkillSourceCredential:
   type: object
   additionalProperties: false
-  required: [id, name, host, tokenHint, status, revision]
+  required: [id, name, tokenHint, status, revision]
   properties:
     id: {$ref: '#/SkillReleaseId'}
     name: {type: string, minLength: 1, maxLength: 120}
-    host: {type: string, minLength: 1, maxLength: 255}
-    projectPath: {type: [string, 'null'], maxLength: 500}
     tokenHint: {type: string, maxLength: 32}
-    expiresAt: {type: [string, 'null'], format: date-time}
     status: {type: string, enum: [ACTIVE, EXPIRED, REVOKED]}
     revision: {$ref: '../enterprise-openapi.yaml#/components/schemas/Revision'}
 
 SkillSourceCredentialWriteRequest:
   type: object
   additionalProperties: false
-  required: [name, host, token]
+  required: [name, token]
   properties:
     name: {type: string, minLength: 1, maxLength: 120}
-    host: {type: string, minLength: 1, maxLength: 255}
-    projectPath: {type: [string, 'null'], maxLength: 500}
-    expiresAt: {type: [string, 'null'], format: date-time}
     token: {type: string, minLength: 4, maxLength: 4096, writeOnly: true}
