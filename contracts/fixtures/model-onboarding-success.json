@@ -1,0 +1,47 @@
+{
+  "data": {
+    "provider": {
+      "id": "1900800000000000001",
+      "providerKey": "deepseek-official",
+      "name": "DeepSeek",
+      "description": "官方兼容连接",
+      "status": "ACTIVE",
+      "connectionCount": 1,
+      "revision": 2
+    },
+    "connection": {
+      "id": "1900800000000000051",
+      "providerId": "1900800000000000001",
+      "providerName": "DeepSeek",
+      "name": "production",
+      "apiProtocol": "openai-completions",
+      "baseUrl": "https://api.deepseek.com/v1",
+      "modelDiscoveryPath": "/models",
+      "credentialConfigured": true,
+      "status": "ACTIVE",
+      "connectTimeoutMs": 5000,
+      "readTimeoutMs": 30000,
+      "revision": 1
+    },
+    "models": [
+      {
+        "id": "1900800000000000101",
+        "providerId": "1900800000000000001",
+        "connectionId": "1900800000000000051",
+        "providerName": "DeepSeek",
+        "alias": "deepseek-chat",
+        "modelId": "deepseek-chat",
+        "name": "DeepSeek Chat",
+        "contextWindow": 65536,
+        "maxTokens": 8192,
+        "input": ["text"],
+        "reasoningEfforts": false,
+        "compat": {"thinkingFormat": "deepseek", "supportsReasoningEffort": false},
+        "sortOrder": 10,
+        "status": "ACTIVE",
+        "revision": 1
+      }
+    ]
+  },
+  "requestId": "req_01K2W3V4X5Y6Z7A8B9C0D1E2F3"
+}

@@ -58518,6 +58518,1519 @@
         }
       }
     },
+    "/enterprise/admin/v1/model-onboardings": {
+      "post": {
+        "operationId": "createModelOnboarding",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Caller-generated UUID v4 reused only for one logical write.",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "minLength": 36,
+              "maxLength": 36,
+              "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "connection",
+                  "models"
+                ],
+                "properties": {
+                  "providerId": {
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]{0,18}$"
+                  },
+                  "provider": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "name"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                      },
+                      "description": {
+                        "type": "string",
+                        "maxLength": 500
+                      }
+                    }
+                  },
+                  "connection": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "name",
+                      "apiProtocol",
+                      "baseUrl",
+                      "credential",
+                      "connectTimeoutMs",
+                      "readTimeoutMs"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                      },
+                      "apiProtocol": {
+                        "type": "string",
+                        "enum": [
+                          "openai-completions",
+                          "openai-responses",
+                          "anthropic-messages"
+                        ]
+                      },
+                      "baseUrl": {
+                        "type": "string",
+                        "format": "uri",
+                        "minLength": 1,
+                        "maxLength": 500
+                      },
+                      "modelDiscoveryPath": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255,
+                        "pattern": "^/(?!/)[^?#]*$"
+                      },
+                      "credential": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 4096,
+                        "writeOnly": true
+                      },
+                      "connectTimeoutMs": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 600000
+                      },
+                      "readTimeoutMs": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 600000
+                      }
+                    }
+                  },
+                  "models": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 200,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "modelId",
+                        "sortOrder"
+                      ],
+                      "properties": {
+                        "modelId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        },
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 120
+                        },
+                        "contextWindow": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 2147483647
+                        },
+                        "maxTokens": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 2147483647
+                        },
+                        "input": {
+                          "type": "array",
+                          "minItems": 1,
+                          "uniqueItems": true,
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "text",
+                              "image"
+                            ]
+                          }
+                        },
+                        "reasoningEfforts": {
+                          "oneOf": [
+                            {
+                              "type": "boolean",
+                              "const": false
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "minProperties": 1,
+                              "properties": {
+                                "off": {
+                                  "oneOf": [
+                                    {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 255
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "minimal": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 255
+                                },
+                                "low": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 255
+                                },
+                                "medium": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 255
+                                },
+                                "high": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 255
+                                },
+                                "xhigh": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 255
+                                },
+                                "max": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 255
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        "compat": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "minProperties": 1,
+                          "properties": {
+                            "thinkingFormat": {
+                              "type": "string",
+                              "enum": [
+                                "openai",
+                                "deepseek",
+                                "openrouter",
+                                "together",
+                                "zai",
+                                "qwen",
+                                "string-thinking",
+                                "ant-ling"
+                              ]
+                            },
+                            "supportsReasoningEffort": {
+                              "type": "boolean"
+                            }
+                          }
+                        },
+                        "sortOrder": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 2147483647
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Atomically created provider, connection and managed models.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "data",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "provider",
+                        "connection",
+                        "models"
+                      ],
+                      "properties": {
+                        "provider": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "id",
+                            "providerKey",
+                            "name",
+                            "description",
+                            "status",
+                            "revision"
+                          ],
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "pattern": "^[1-9][0-9]{0,18}$"
+                            },
+                            "providerKey": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 120,
+                              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+                            },
+                            "name": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 120
+                            },
+                            "description": {
+                              "type": "string",
+                              "maxLength": 500
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "ACTIVE",
+                                "DISABLED"
+                              ]
+                            },
+                            "connectionCount": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "revision": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991,
+                              "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                              "examples": [
+                                7
+                              ]
+                            }
+                          }
+                        },
+                        "connection": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "id",
+                            "providerId",
+                            "providerName",
+                            "name",
+                            "apiProtocol",
+                            "baseUrl",
+                            "modelDiscoveryPath",
+                            "credentialConfigured",
+                            "status",
+                            "connectTimeoutMs",
+                            "readTimeoutMs",
+                            "revision"
+                          ],
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "pattern": "^[1-9][0-9]{0,18}$"
+                            },
+                            "providerId": {
+                              "type": "string",
+                              "pattern": "^[1-9][0-9]{0,18}$"
+                            },
+                            "providerName": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 120
+                            },
+                            "name": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 120
+                            },
+                            "apiProtocol": {
+                              "type": "string",
+                              "enum": [
+                                "openai-completions",
+                                "openai-responses",
+                                "anthropic-messages"
+                              ]
+                            },
+                            "baseUrl": {
+                              "type": "string",
+                              "format": "uri",
+                              "minLength": 1,
+                              "maxLength": 500
+                            },
+                            "modelDiscoveryPath": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 255,
+                              "pattern": "^/(?!/)[^?#]*$"
+                            },
+                            "credentialConfigured": {
+                              "type": "boolean"
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "ACTIVE",
+                                "DISABLED"
+                              ]
+                            },
+                            "connectTimeoutMs": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 600000
+                            },
+                            "readTimeoutMs": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 600000
+                            },
+                            "revision": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991,
+                              "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                              "examples": [
+                                7
+                              ]
+                            }
+                          }
+                        },
+                        "models": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "id",
+                              "providerId",
+                              "connectionId",
+                              "providerName",
+                              "alias",
+                              "modelId",
+                              "sortOrder",
+                              "status",
+                              "revision"
+                            ],
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "pattern": "^[1-9][0-9]{0,18}$",
+                                "description": "Managed model snowflake ID serialized as a string."
+                              },
+                              "providerId": {
+                                "type": "string",
+                                "pattern": "^[1-9][0-9]{0,18}$"
+                              },
+                              "connectionId": {
+                                "type": "string",
+                                "pattern": "^[1-9][0-9]{0,18}$"
+                              },
+                              "providerName": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 120
+                              },
+                              "alias": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 120,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+                              },
+                              "modelId": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 255
+                              },
+                              "name": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 120
+                              },
+                              "contextWindow": {
+                                "type": "integer",
+                                "minimum": 1
+                              },
+                              "maxTokens": {
+                                "type": "integer",
+                                "minimum": 1
+                              },
+                              "input": {
+                                "type": "array",
+                                "minItems": 1,
+                                "uniqueItems": true,
+                                "items": {
+                                  "type": "string",
+                                  "enum": [
+                                    "text",
+                                    "image"
+                                  ]
+                                }
+                              },
+                              "reasoningEfforts": {
+                                "oneOf": [
+                                  {
+                                    "type": "boolean",
+                                    "const": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "minProperties": 1,
+                                    "properties": {
+                                      "off": {
+                                        "oneOf": [
+                                          {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "maxLength": 255
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "minimal": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 255
+                                      },
+                                      "low": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 255
+                                      },
+                                      "medium": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 255
+                                      },
+                                      "high": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 255
+                                      },
+                                      "xhigh": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 255
+                                      },
+                                      "max": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 255
+                                      }
+                                    }
+                                  }
+                                ]
+                              },
+                              "compat": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "minProperties": 1,
+                                "properties": {
+                                  "thinkingFormat": {
+                                    "type": "string",
+                                    "enum": [
+                                      "openai",
+                                      "deepseek",
+                                      "openrouter",
+                                      "together",
+                                      "zai",
+                                      "qwen",
+                                      "string-thinking",
+                                      "ant-ling"
+                                    ]
+                                  },
+                                  "supportsReasoningEffort": {
+                                    "type": "boolean"
+                                  }
+                                }
+                              },
+                              "sortOrder": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "ACTIVE",
+                                  "DISABLED"
+                                ]
+                              },
+                              "revision": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991,
+                                "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                                "examples": [
+                                  7
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "requestId": {
+                      "type": "string",
+                      "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                      "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                      "examples": [
+                        "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server-generated request correlation ID.",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                  "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                  "examples": [
+                    "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId",
+                        "retryable"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "ENT_INVALID_REQUEST",
+                            "ENT_SOURCE_CREDENTIAL_INVALID",
+                            "ENT_INVALID_REDIRECT_URI",
+                            "ENT_PKCE_REQUIRED",
+                            "ENT_SESSION_FORMAT_UNSUPPORTED",
+                            "ENT_AUTH_REQUIRED",
+                            "ENT_AUTH_CODE_INVALID",
+                            "ENT_PKCE_INVALID",
+                            "ENT_AUTH_SESSION_EXPIRED",
+                            "ENT_PERMISSION_DENIED",
+                            "ENT_DEVICE_REVOKED",
+                            "ENT_MODEL_NOT_ASSIGNED",
+                            "ENT_PLUGIN_NOT_ASSIGNED",
+                            "ENT_RESOURCE_NOT_OWNED",
+                            "ENT_RESOURCE_NOT_FOUND",
+                            "ENT_SESSION_CONTENT_EXPIRED",
+                            "ENT_REVISION_CONFLICT",
+                            "ENT_RESOURCE_IN_USE",
+                            "ENT_LAST_ENTERPRISE_ADMIN",
+                            "ENT_LAST_MEMBER_IDENTITY",
+                            "ENT_REQUEST_IN_PROGRESS",
+                            "ENT_REQUEST_ALREADY_COMPLETED",
+                            "ENT_SESSION_SEQ_GAP",
+                            "ENT_SESSION_DIVERGED",
+                            "ENT_SESSION_SOURCE_DEVICE_CONFLICT",
+                            "ENT_IDENTITY_ALREADY_LINKED",
+                            "ENT_DEVICE_ALREADY_BOUND",
+                            "ENT_MCP_CONFLICT",
+                            "ENT_MCP_CATALOG_STALE",
+                            "ENT_MCP_POLICY_INVALID",
+                            "ENT_MCP_UNSUPPORTED",
+                            "ENT_REQUEST_TOO_LARGE",
+                            "ENT_SESSION_BATCH_TOO_LARGE",
+                            "ENT_QUOTA_FIVE_HOURS_EXCEEDED",
+                            "ENT_QUOTA_DAILY_EXCEEDED",
+                            "ENT_QUOTA_WEEKLY_EXCEEDED",
+                            "ENT_QUOTA_MONTHLY_EXCEEDED",
+                            "ENT_QUOTA_RPM_EXCEEDED",
+                            "ENT_QUOTA_CONCURRENCY_EXCEEDED",
+                            "ENT_UPSTREAM_RATE_LIMITED",
+                            "ENT_UPSTREAM_QUOTA_EXCEEDED",
+                            "ENT_UPSTREAM_AUTH_FAILED",
+                            "ENT_UPSTREAM_INVALID_RESPONSE",
+                            "ENT_PLATFORM_UNAVAILABLE",
+                            "ENT_UPSTREAM_UNAVAILABLE",
+                            "ENT_UPSTREAM_TIMEOUT"
+                          ]
+                        },
+                        "message": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                          "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                          "examples": [
+                            "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                          ]
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "details": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "violations"
+                              ],
+                              "properties": {
+                                "violations": {
+                                  "type": "array",
+                                  "minItems": 1,
+                                  "maxItems": 50,
+                                  "items": {
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "required": [
+                                      "field",
+                                      "reason"
+                                    ],
+                                    "properties": {
+                                      "field": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 128
+                                      },
+                                      "reason": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 256
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "actualRevision",
+                                "expectedRevision"
+                              ],
+                              "properties": {
+                                "actualRevision": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991,
+                                  "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                                  "examples": [
+                                    7
+                                  ]
+                                },
+                                "expectedRevision": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991,
+                                  "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                                  "examples": [
+                                    7
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "policyId",
+                                "resetsAt"
+                              ],
+                              "properties": {
+                                "policyId": {
+                                  "type": "string",
+                                  "pattern": "^[1-9][0-9]{0,18}$"
+                                },
+                                "resetsAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "originalRequestId",
+                                "result"
+                              ],
+                              "properties": {
+                                "originalRequestId": {
+                                  "type": "string",
+                                  "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                                  "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                                  "examples": [
+                                    "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                                  ]
+                                },
+                                "result": {
+                                  "type": "string",
+                                  "enum": [
+                                    "IN_PROGRESS",
+                                    "COMPLETED"
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "modelGrantCount",
+                                "modelSetCount",
+                                "modelQuotaPolicyCount",
+                                "usageReservationCount",
+                                "usageLedgerCount"
+                              ],
+                              "properties": {
+                                "modelGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "modelSetCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "modelQuotaPolicyCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "usageReservationCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "usageLedgerCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "modelGrantCount",
+                                "quotaPolicyCount"
+                              ],
+                              "properties": {
+                                "modelGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "quotaPolicyCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "modelGrantCount",
+                                "mcpGrantCount",
+                                "externalGroupMappingCount"
+                              ],
+                              "properties": {
+                                "modelGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "mcpGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "externalGroupMappingCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "quotaWindowCount"
+                              ],
+                              "properties": {
+                                "quotaWindowCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server-generated request correlation ID.",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                  "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                  "examples": [
+                    "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId",
+                        "retryable"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "ENT_INVALID_REQUEST",
+                            "ENT_SOURCE_CREDENTIAL_INVALID",
+                            "ENT_INVALID_REDIRECT_URI",
+                            "ENT_PKCE_REQUIRED",
+                            "ENT_SESSION_FORMAT_UNSUPPORTED",
+                            "ENT_AUTH_REQUIRED",
+                            "ENT_AUTH_CODE_INVALID",
+                            "ENT_PKCE_INVALID",
+                            "ENT_AUTH_SESSION_EXPIRED",
+                            "ENT_PERMISSION_DENIED",
+                            "ENT_DEVICE_REVOKED",
+                            "ENT_MODEL_NOT_ASSIGNED",
+                            "ENT_PLUGIN_NOT_ASSIGNED",
+                            "ENT_RESOURCE_NOT_OWNED",
+                            "ENT_RESOURCE_NOT_FOUND",
+                            "ENT_SESSION_CONTENT_EXPIRED",
+                            "ENT_REVISION_CONFLICT",
+                            "ENT_RESOURCE_IN_USE",
+                            "ENT_LAST_ENTERPRISE_ADMIN",
+                            "ENT_LAST_MEMBER_IDENTITY",
+                            "ENT_REQUEST_IN_PROGRESS",
+                            "ENT_REQUEST_ALREADY_COMPLETED",
+                            "ENT_SESSION_SEQ_GAP",
+                            "ENT_SESSION_DIVERGED",
+                            "ENT_SESSION_SOURCE_DEVICE_CONFLICT",
+                            "ENT_IDENTITY_ALREADY_LINKED",
+                            "ENT_DEVICE_ALREADY_BOUND",
+                            "ENT_MCP_CONFLICT",
+                            "ENT_MCP_CATALOG_STALE",
+                            "ENT_MCP_POLICY_INVALID",
+                            "ENT_MCP_UNSUPPORTED",
+                            "ENT_REQUEST_TOO_LARGE",
+                            "ENT_SESSION_BATCH_TOO_LARGE",
+                            "ENT_QUOTA_FIVE_HOURS_EXCEEDED",
+                            "ENT_QUOTA_DAILY_EXCEEDED",
+                            "ENT_QUOTA_WEEKLY_EXCEEDED",
+                            "ENT_QUOTA_MONTHLY_EXCEEDED",
+                            "ENT_QUOTA_RPM_EXCEEDED",
+                            "ENT_QUOTA_CONCURRENCY_EXCEEDED",
+                            "ENT_UPSTREAM_RATE_LIMITED",
+                            "ENT_UPSTREAM_QUOTA_EXCEEDED",
+                            "ENT_UPSTREAM_AUTH_FAILED",
+                            "ENT_UPSTREAM_INVALID_RESPONSE",
+                            "ENT_PLATFORM_UNAVAILABLE",
+                            "ENT_UPSTREAM_UNAVAILABLE",
+                            "ENT_UPSTREAM_TIMEOUT"
+                          ]
+                        },
+                        "message": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                          "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                          "examples": [
+                            "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                          ]
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "details": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "violations"
+                              ],
+                              "properties": {
+                                "violations": {
+                                  "type": "array",
+                                  "minItems": 1,
+                                  "maxItems": 50,
+                                  "items": {
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "required": [
+                                      "field",
+                                      "reason"
+                                    ],
+                                    "properties": {
+                                      "field": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 128
+                                      },
+                                      "reason": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 256
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "actualRevision",
+                                "expectedRevision"
+                              ],
+                              "properties": {
+                                "actualRevision": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991,
+                                  "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                                  "examples": [
+                                    7
+                                  ]
+                                },
+                                "expectedRevision": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991,
+                                  "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                                  "examples": [
+                                    7
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "policyId",
+                                "resetsAt"
+                              ],
+                              "properties": {
+                                "policyId": {
+                                  "type": "string",
+                                  "pattern": "^[1-9][0-9]{0,18}$"
+                                },
+                                "resetsAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "originalRequestId",
+                                "result"
+                              ],
+                              "properties": {
+                                "originalRequestId": {
+                                  "type": "string",
+                                  "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                                  "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                                  "examples": [
+                                    "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                                  ]
+                                },
+                                "result": {
+                                  "type": "string",
+                                  "enum": [
+                                    "IN_PROGRESS",
+                                    "COMPLETED"
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "modelGrantCount",
+                                "modelSetCount",
+                                "modelQuotaPolicyCount",
+                                "usageReservationCount",
+                                "usageLedgerCount"
+                              ],
+                              "properties": {
+                                "modelGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "modelSetCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "modelQuotaPolicyCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "usageReservationCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "usageLedgerCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "modelGrantCount",
+                                "quotaPolicyCount"
+                              ],
+                              "properties": {
+                                "modelGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "quotaPolicyCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "modelGrantCount",
+                                "mcpGrantCount",
+                                "externalGroupMappingCount"
+                              ],
+                              "properties": {
+                                "modelGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "mcpGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "externalGroupMappingCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "quotaWindowCount"
+                              ],
+                              "properties": {
+                                "quotaWindowCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied.",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server-generated request correlation ID.",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                  "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                  "examples": [
+                    "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "code",
+                        "message",
+                        "requestId",
+                        "retryable"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "ENT_INVALID_REQUEST",
+                            "ENT_SOURCE_CREDENTIAL_INVALID",
+                            "ENT_INVALID_REDIRECT_URI",
+                            "ENT_PKCE_REQUIRED",
+                            "ENT_SESSION_FORMAT_UNSUPPORTED",
+                            "ENT_AUTH_REQUIRED",
+                            "ENT_AUTH_CODE_INVALID",
+                            "ENT_PKCE_INVALID",
+                            "ENT_AUTH_SESSION_EXPIRED",
+                            "ENT_PERMISSION_DENIED",
+                            "ENT_DEVICE_REVOKED",
+                            "ENT_MODEL_NOT_ASSIGNED",
+                            "ENT_PLUGIN_NOT_ASSIGNED",
+                            "ENT_RESOURCE_NOT_OWNED",
+                            "ENT_RESOURCE_NOT_FOUND",
+                            "ENT_SESSION_CONTENT_EXPIRED",
+                            "ENT_REVISION_CONFLICT",
+                            "ENT_RESOURCE_IN_USE",
+                            "ENT_LAST_ENTERPRISE_ADMIN",
+                            "ENT_LAST_MEMBER_IDENTITY",
+                            "ENT_REQUEST_IN_PROGRESS",
+                            "ENT_REQUEST_ALREADY_COMPLETED",
+                            "ENT_SESSION_SEQ_GAP",
+                            "ENT_SESSION_DIVERGED",
+                            "ENT_SESSION_SOURCE_DEVICE_CONFLICT",
+                            "ENT_IDENTITY_ALREADY_LINKED",
+                            "ENT_DEVICE_ALREADY_BOUND",
+                            "ENT_MCP_CONFLICT",
+                            "ENT_MCP_CATALOG_STALE",
+                            "ENT_MCP_POLICY_INVALID",
+                            "ENT_MCP_UNSUPPORTED",
+                            "ENT_REQUEST_TOO_LARGE",
+                            "ENT_SESSION_BATCH_TOO_LARGE",
+                            "ENT_QUOTA_FIVE_HOURS_EXCEEDED",
+                            "ENT_QUOTA_DAILY_EXCEEDED",
+                            "ENT_QUOTA_WEEKLY_EXCEEDED",
+                            "ENT_QUOTA_MONTHLY_EXCEEDED",
+                            "ENT_QUOTA_RPM_EXCEEDED",
+                            "ENT_QUOTA_CONCURRENCY_EXCEEDED",
+                            "ENT_UPSTREAM_RATE_LIMITED",
+                            "ENT_UPSTREAM_QUOTA_EXCEEDED",
+                            "ENT_UPSTREAM_AUTH_FAILED",
+                            "ENT_UPSTREAM_INVALID_RESPONSE",
+                            "ENT_PLATFORM_UNAVAILABLE",
+                            "ENT_UPSTREAM_UNAVAILABLE",
+                            "ENT_UPSTREAM_TIMEOUT"
+                          ]
+                        },
+                        "message": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                          "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                          "examples": [
+                            "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                          ]
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        },
+                        "details": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "violations"
+                              ],
+                              "properties": {
+                                "violations": {
+                                  "type": "array",
+                                  "minItems": 1,
+                                  "maxItems": 50,
+                                  "items": {
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "required": [
+                                      "field",
+                                      "reason"
+                                    ],
+                                    "properties": {
+                                      "field": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 128
+                                      },
+                                      "reason": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 256
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "actualRevision",
+                                "expectedRevision"
+                              ],
+                              "properties": {
+                                "actualRevision": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991,
+                                  "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                                  "examples": [
+                                    7
+                                  ]
+                                },
+                                "expectedRevision": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991,
+                                  "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                                  "examples": [
+                                    7
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "policyId",
+                                "resetsAt"
+                              ],
+                              "properties": {
+                                "policyId": {
+                                  "type": "string",
+                                  "pattern": "^[1-9][0-9]{0,18}$"
+                                },
+                                "resetsAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "originalRequestId",
+                                "result"
+                              ],
+                              "properties": {
+                                "originalRequestId": {
+                                  "type": "string",
+                                  "description": "Server-generated req_ prefix followed by one canonical ULID.",
+                                  "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+                                  "examples": [
+                                    "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                                  ]
+                                },
+                                "result": {
+                                  "type": "string",
+                                  "enum": [
+                                    "IN_PROGRESS",
+                                    "COMPLETED"
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "modelGrantCount",
+                                "modelSetCount",
+                                "modelQuotaPolicyCount",
+                                "usageReservationCount",
+                                "usageLedgerCount"
+                              ],
+                              "properties": {
+                                "modelGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "modelSetCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "modelQuotaPolicyCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "usageReservationCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "usageLedgerCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "modelGrantCount",
+                                "quotaPolicyCount"
+                              ],
+                              "properties": {
+                                "modelGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "quotaPolicyCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "modelGrantCount",
+                                "mcpGrantCount",
+                                "externalGroupMappingCount"
+                              ],
+                              "properties": {
+                                "modelGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "mcpGrantCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "externalGroupMappingCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "quotaWindowCount"
+                              ],
+                              "properties": {
+                                "quotaWindowCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/enterprise/admin/v1/provider-connections/actions/probe": {
       "post": {
         "operationId": "probeProviderConnection",
@@ -160494,6 +162007,11 @@
       "valid": true
     },
     {
+      "file": "fixtures/model-onboarding-success.json",
+      "schema": "ModelOnboardingResponse",
+      "valid": true
+    },
+    {
       "file": "fixtures/model-list-success.json",
       "schema": "ManagedModelListResponse",
       "valid": true
@@ -171123,6 +172641,1020 @@
                         "type": "null"
                       }
                     ]
+                  }
+                }
+              }
+            }
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated req_ prefix followed by one canonical ULID.",
+            "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+            "examples": [
+              "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+            ]
+          }
+        }
+      },
+      "ModelOnboardingModelWriteRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "modelId",
+          "sortOrder"
+        ],
+        "properties": {
+          "modelId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "contextWindow": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "maxTokens": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "input": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "text",
+                "image"
+              ]
+            }
+          },
+          "reasoningEfforts": {
+            "oneOf": [
+              {
+                "type": "boolean",
+                "const": false
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "minProperties": 1,
+                "properties": {
+                  "off": {
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "minimal": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "low": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "medium": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "high": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "xhigh": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "max": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  }
+                }
+              }
+            ]
+          },
+          "compat": {
+            "type": "object",
+            "additionalProperties": false,
+            "minProperties": 1,
+            "properties": {
+              "thinkingFormat": {
+                "type": "string",
+                "enum": [
+                  "openai",
+                  "deepseek",
+                  "openrouter",
+                  "together",
+                  "zai",
+                  "qwen",
+                  "string-thinking",
+                  "ant-ling"
+                ]
+              },
+              "supportsReasoningEffort": {
+                "type": "boolean"
+              }
+            }
+          },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          }
+        }
+      },
+      "ModelOnboardingWriteRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "connection",
+          "models"
+        ],
+        "properties": {
+          "providerId": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "provider": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 500
+              }
+            }
+          },
+          "connection": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "apiProtocol",
+              "baseUrl",
+              "credential",
+              "connectTimeoutMs",
+              "readTimeoutMs"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "apiProtocol": {
+                "type": "string",
+                "enum": [
+                  "openai-completions",
+                  "openai-responses",
+                  "anthropic-messages"
+                ]
+              },
+              "baseUrl": {
+                "type": "string",
+                "format": "uri",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "modelDiscoveryPath": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255,
+                "pattern": "^/(?!/)[^?#]*$"
+              },
+              "credential": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096,
+                "writeOnly": true
+              },
+              "connectTimeoutMs": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 600000
+              },
+              "readTimeoutMs": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 600000
+              }
+            }
+          },
+          "models": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 200,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "modelId",
+                "sortOrder"
+              ],
+              "properties": {
+                "modelId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                },
+                "contextWindow": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "maxTokens": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "input": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "text",
+                      "image"
+                    ]
+                  }
+                },
+                "reasoningEfforts": {
+                  "oneOf": [
+                    {
+                      "type": "boolean",
+                      "const": false
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "minProperties": 1,
+                      "properties": {
+                        "off": {
+                          "oneOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 255
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "minimal": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        },
+                        "low": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        },
+                        "medium": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        },
+                        "high": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        },
+                        "xhigh": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        },
+                        "max": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        }
+                      }
+                    }
+                  ]
+                },
+                "compat": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "minProperties": 1,
+                  "properties": {
+                    "thinkingFormat": {
+                      "type": "string",
+                      "enum": [
+                        "openai",
+                        "deepseek",
+                        "openrouter",
+                        "together",
+                        "zai",
+                        "qwen",
+                        "string-thinking",
+                        "ant-ling"
+                      ]
+                    },
+                    "supportsReasoningEffort": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "sortOrder": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 2147483647
+                }
+              }
+            }
+          }
+        }
+      },
+      "ModelOnboarding": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "provider",
+          "connection",
+          "models"
+        ],
+        "properties": {
+          "provider": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "providerKey",
+              "name",
+              "description",
+              "status",
+              "revision"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[1-9][0-9]{0,18}$"
+              },
+              "providerKey": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120,
+                "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "ACTIVE",
+                  "DISABLED"
+                ]
+              },
+              "connectionCount": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                "examples": [
+                  7
+                ]
+              }
+            }
+          },
+          "connection": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "providerId",
+              "providerName",
+              "name",
+              "apiProtocol",
+              "baseUrl",
+              "modelDiscoveryPath",
+              "credentialConfigured",
+              "status",
+              "connectTimeoutMs",
+              "readTimeoutMs",
+              "revision"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[1-9][0-9]{0,18}$"
+              },
+              "providerId": {
+                "type": "string",
+                "pattern": "^[1-9][0-9]{0,18}$"
+              },
+              "providerName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "apiProtocol": {
+                "type": "string",
+                "enum": [
+                  "openai-completions",
+                  "openai-responses",
+                  "anthropic-messages"
+                ]
+              },
+              "baseUrl": {
+                "type": "string",
+                "format": "uri",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "modelDiscoveryPath": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255,
+                "pattern": "^/(?!/)[^?#]*$"
+              },
+              "credentialConfigured": {
+                "type": "boolean"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "ACTIVE",
+                  "DISABLED"
+                ]
+              },
+              "connectTimeoutMs": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 600000
+              },
+              "readTimeoutMs": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 600000
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                "examples": [
+                  7
+                ]
+              }
+            }
+          },
+          "models": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "providerId",
+                "connectionId",
+                "providerName",
+                "alias",
+                "modelId",
+                "sortOrder",
+                "status",
+                "revision"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]{0,18}$",
+                  "description": "Managed model snowflake ID serialized as a string."
+                },
+                "providerId": {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]{0,18}$"
+                },
+                "connectionId": {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]{0,18}$"
+                },
+                "providerName": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                },
+                "alias": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+                },
+                "modelId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                },
+                "contextWindow": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "maxTokens": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "input": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "text",
+                      "image"
+                    ]
+                  }
+                },
+                "reasoningEfforts": {
+                  "oneOf": [
+                    {
+                      "type": "boolean",
+                      "const": false
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "minProperties": 1,
+                      "properties": {
+                        "off": {
+                          "oneOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 255
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "minimal": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        },
+                        "low": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        },
+                        "medium": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        },
+                        "high": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        },
+                        "xhigh": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        },
+                        "max": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        }
+                      }
+                    }
+                  ]
+                },
+                "compat": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "minProperties": 1,
+                  "properties": {
+                    "thinkingFormat": {
+                      "type": "string",
+                      "enum": [
+                        "openai",
+                        "deepseek",
+                        "openrouter",
+                        "together",
+                        "zai",
+                        "qwen",
+                        "string-thinking",
+                        "ant-ling"
+                      ]
+                    },
+                    "supportsReasoningEffort": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "sortOrder": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "ACTIVE",
+                    "DISABLED"
+                  ]
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                  "examples": [
+                    7
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "ModelOnboardingResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "requestId"
+        ],
+        "properties": {
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "provider",
+              "connection",
+              "models"
+            ],
+            "properties": {
+              "provider": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "providerKey",
+                  "name",
+                  "description",
+                  "status",
+                  "revision"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]{0,18}$"
+                  },
+                  "providerKey": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120,
+                    "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "ACTIVE",
+                      "DISABLED"
+                    ]
+                  },
+                  "connectionCount": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991,
+                    "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                    "examples": [
+                      7
+                    ]
+                  }
+                }
+              },
+              "connection": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "providerId",
+                  "providerName",
+                  "name",
+                  "apiProtocol",
+                  "baseUrl",
+                  "modelDiscoveryPath",
+                  "credentialConfigured",
+                  "status",
+                  "connectTimeoutMs",
+                  "readTimeoutMs",
+                  "revision"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]{0,18}$"
+                  },
+                  "providerId": {
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]{0,18}$"
+                  },
+                  "providerName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "apiProtocol": {
+                    "type": "string",
+                    "enum": [
+                      "openai-completions",
+                      "openai-responses",
+                      "anthropic-messages"
+                    ]
+                  },
+                  "baseUrl": {
+                    "type": "string",
+                    "format": "uri",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "modelDiscoveryPath": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255,
+                    "pattern": "^/(?!/)[^?#]*$"
+                  },
+                  "credentialConfigured": {
+                    "type": "boolean"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "ACTIVE",
+                      "DISABLED"
+                    ]
+                  },
+                  "connectTimeoutMs": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 600000
+                  },
+                  "readTimeoutMs": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 600000
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991,
+                    "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                    "examples": [
+                      7
+                    ]
+                  }
+                }
+              },
+              "models": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "providerId",
+                    "connectionId",
+                    "providerName",
+                    "alias",
+                    "modelId",
+                    "sortOrder",
+                    "status",
+                    "revision"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[1-9][0-9]{0,18}$",
+                      "description": "Managed model snowflake ID serialized as a string."
+                    },
+                    "providerId": {
+                      "type": "string",
+                      "pattern": "^[1-9][0-9]{0,18}$"
+                    },
+                    "connectionId": {
+                      "type": "string",
+                      "pattern": "^[1-9][0-9]{0,18}$"
+                    },
+                    "providerName": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 120
+                    },
+                    "alias": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 120,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+                    },
+                    "modelId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 255
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 120
+                    },
+                    "contextWindow": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "maxTokens": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "input": {
+                      "type": "array",
+                      "minItems": 1,
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "text",
+                          "image"
+                        ]
+                      }
+                    },
+                    "reasoningEfforts": {
+                      "oneOf": [
+                        {
+                          "type": "boolean",
+                          "const": false
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "minProperties": 1,
+                          "properties": {
+                            "off": {
+                              "oneOf": [
+                                {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 255
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "minimal": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 255
+                            },
+                            "low": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 255
+                            },
+                            "medium": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 255
+                            },
+                            "high": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 255
+                            },
+                            "xhigh": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 255
+                            },
+                            "max": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 255
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "compat": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "minProperties": 1,
+                      "properties": {
+                        "thinkingFormat": {
+                          "type": "string",
+                          "enum": [
+                            "openai",
+                            "deepseek",
+                            "openrouter",
+                            "together",
+                            "zai",
+                            "qwen",
+                            "string-thinking",
+                            "ant-ling"
+                          ]
+                        },
+                        "supportsReasoningEffort": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "sortOrder": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ACTIVE",
+                        "DISABLED"
+                      ]
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "description": "Monotonic compare-and-swap revision safe in JavaScript.",
+                      "examples": [
+                        7
+                      ]
+                    }
                   }
                 }
               }

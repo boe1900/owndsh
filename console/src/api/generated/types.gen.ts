@@ -247,6 +247,14 @@ export type ProviderConnectionPageData = ModelProviderConnectionPageData;
 
 export type ProviderConnectionListResponse = ModelProviderConnectionListResponse;
 
+export type ModelOnboardingModelWriteRequest = ModelModelOnboardingModelWriteRequest;
+
+export type ModelOnboardingWriteRequest = ModelModelOnboardingWriteRequest;
+
+export type ModelOnboarding = ModelModelOnboarding;
+
+export type ModelOnboardingResponse = ModelModelOnboardingResponse;
+
 export type ProviderResponse = ModelProviderResponse;
 
 export type ProviderPageData = ModelProviderPageData;
@@ -1766,6 +1774,35 @@ export type ModelModelInputModality = 'text' | 'image';
 
 export type ModelName = string;
 
+export type ModelModelOnboarding = {
+    provider: ModelProvider;
+    connection: ModelProviderConnection;
+    models: Array<ModelManagedModel>;
+};
+
+export type ModelModelOnboardingModelWriteRequest = {
+    modelId: string;
+    name?: ModelName;
+    contextWindow?: number;
+    maxTokens?: number;
+    input?: Array<ModelModelInputModality>;
+    reasoningEfforts?: ModelReasoningEfforts;
+    compat?: ModelReasoningCompat;
+    sortOrder: number;
+};
+
+export type ModelModelOnboardingResponse = {
+    data: ModelModelOnboarding;
+    requestId: RequestId;
+};
+
+export type ModelModelOnboardingWriteRequest = {
+    providerId?: ModelModelProviderId;
+    provider?: ModelProviderCreateRequest;
+    connection: ModelProviderConnectionCreateRequest;
+    models: Array<ModelModelOnboardingModelWriteRequest>;
+};
+
 export type ModelModelProviderConnectionId = string;
 
 export type ModelModelProviderId = string;
@@ -2743,6 +2780,8 @@ export type ModelEnable = unknown;
 
 export type ModelItem = unknown;
 
+export type ModelModelOnboarding2 = unknown;
+
 export type ModelSetCollection = unknown;
 
 export type ModelSetItem = unknown;
@@ -2905,6 +2944,8 @@ export type ProviderConnectionCreateRequestWritable = ModelProviderConnectionCre
 
 export type ProviderConnectionUpdateRequestWritable = ModelProviderConnectionUpdateRequestWritable;
 
+export type ModelOnboardingWriteRequestWritable = ModelModelOnboardingWriteRequestWritable;
+
 export type ProviderProbeCategoryWritable = ModelProviderProbeCategory;
 
 export type PluginPackageIdWritable = PluginPluginPackageId;
@@ -3030,6 +3071,13 @@ export type MemberLocalMemberCreateRequestWritable = {
     initialPassword: string;
 };
 
+export type ModelModelOnboardingWriteRequestWritable = {
+    providerId?: ModelModelProviderId;
+    provider?: ModelProviderCreateRequest;
+    connection: ModelProviderConnectionCreateRequestWritable;
+    models: Array<ModelModelOnboardingModelWriteRequest>;
+};
+
 export type ModelProviderConnectionCreateRequestWritable = {
     name: string;
     apiProtocol: ModelProviderApiProtocol;
@@ -3081,6 +3129,8 @@ export type _1Enterprise1Admin1V11IdentitySourcesWritable = unknown;
 export type _1Enterprise1Admin1V11IdentitySources1SourceIdWritable = unknown;
 
 export type MemberCollectionWritable = unknown;
+
+export type ModelModelOnboarding2Writable = unknown;
 
 export type ProviderConnectionCollectionWritable = unknown;
 
@@ -5077,6 +5127,45 @@ export type UpdateProviderConnectionResponses = {
 };
 
 export type UpdateProviderConnectionResponse = UpdateProviderConnectionResponses[keyof UpdateProviderConnectionResponses];
+
+export type CreateModelOnboardingData = {
+    body: ModelModelOnboardingWriteRequestWritable;
+    headers: {
+        /**
+         * Caller-generated UUID v4 reused only for one logical write.
+         */
+        'Idempotency-Key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/enterprise/admin/v1/model-onboardings';
+};
+
+export type CreateModelOnboardingErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type CreateModelOnboardingError = CreateModelOnboardingErrors[keyof CreateModelOnboardingErrors];
+
+export type CreateModelOnboardingResponses = {
+    /**
+     * Atomically created provider, connection and managed models.
+     */
+    201: ModelModelOnboardingResponse;
+};
+
+export type CreateModelOnboardingResponse = CreateModelOnboardingResponses[keyof CreateModelOnboardingResponses];
 
 export type ProbeProviderConnectionData = {
     body: ModelProviderProbeRequestWritable;

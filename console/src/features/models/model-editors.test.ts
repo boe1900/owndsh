@@ -1,12 +1,12 @@
 /**
  * [INPUT]: 依赖模型编辑器导出的 Provider ID 配色规则与 Vitest。
- * [OUTPUT]: 锁定供应商改名后仍保持同一渐变，并锁定连接复制的非敏感字段预填规则。
- * [POS]: features/models 的视觉身份规则门禁，不渲染具体表单。
+ * [OUTPUT]: 锁定供应商改名后仍保持同一渐变、连接复制的非敏感字段预填规则和推理档位增补顺序。
+ * [POS]: features/models 的编辑器规则门禁，不渲染具体表单。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { describe, expect, it } from 'vitest';
-import { connectionDraftDefaults, discoveredCapacity, providerGradient } from './model-editors';
+import { connectionDraftDefaults, discoveredCapacity, nextReasoningLevel, providerGradient } from './model-editors';
 
 describe('providerGradient', () => {
   it('uses the stable provider id instead of the display name', () => {
@@ -48,5 +48,17 @@ describe('connectionDraftDefaults', () => {
       connectTimeoutMs: 8000,
       readTimeoutMs: 90000
     });
+  });
+});
+
+describe('reasoning tiers', () => {
+  it('adds the next unused canonical level after the highest configured row', () => {
+    expect(nextReasoningLevel([
+      { id: 'off', name: 'off', value: null },
+      { id: 'low', name: 'low', value: 'low' },
+      { id: 'medium', name: 'medium', value: 'medium' },
+      { id: 'high', name: 'high', value: 'high' },
+    ])).toBe('xhigh');
+    expect(nextReasoningLevel([{ id: 'low', name: 'low', value: 'low' }, { id: 'max', name: 'max', value: 'max' }])).toBe('off');
   });
 });

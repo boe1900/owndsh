@@ -302,6 +302,67 @@ ProviderConnectionListResponse:
     requestId:
       $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
 
+ModelOnboardingModelWriteRequest:
+  type: object
+  additionalProperties: false
+  required: [modelId, sortOrder]
+  properties:
+    modelId:
+      type: string
+      minLength: 1
+      maxLength: 255
+    name: {$ref: '#/ModelName'}
+    contextWindow:
+      type: integer
+      minimum: 1
+      maximum: 2147483647
+    maxTokens:
+      type: integer
+      minimum: 1
+      maximum: 2147483647
+    input:
+      type: array
+      minItems: 1
+      uniqueItems: true
+      items: {$ref: '#/ModelInputModality'}
+    reasoningEfforts: {$ref: '#/ModelReasoningEfforts'}
+    compat: {$ref: '#/ModelReasoningCompat'}
+    sortOrder:
+      type: integer
+      minimum: 0
+      maximum: 2147483647
+ModelOnboardingWriteRequest:
+  type: object
+  additionalProperties: false
+  required: [connection, models]
+  properties:
+    providerId: {$ref: '#/ModelProviderId'}
+    provider: {$ref: '#/ProviderCreateRequest'}
+    connection: {$ref: '#/ProviderConnectionCreateRequest'}
+    models:
+      type: array
+      minItems: 1
+      maxItems: 200
+      items: {$ref: '#/ModelOnboardingModelWriteRequest'}
+ModelOnboarding:
+  type: object
+  additionalProperties: false
+  required: [provider, connection, models]
+  properties:
+    provider: {$ref: '#/Provider'}
+    connection: {$ref: '#/ProviderConnection'}
+    models:
+      type: array
+      items: {$ref: '#/ManagedModel'}
+ModelOnboardingResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data: {$ref: '#/ModelOnboarding'}
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+
 ManagedModelWriteRequest:
   type: object
   additionalProperties: false

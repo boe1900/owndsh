@@ -31,6 +31,7 @@ import com.owndsh.enterprise.model.application.BootstrapUser;
 import com.owndsh.enterprise.model.application.EffectiveModelResolver;
 import com.owndsh.enterprise.model.application.ManagedModelService;
 import com.owndsh.enterprise.model.application.ModelGrantService;
+import com.owndsh.enterprise.model.application.ModelOnboardingService;
 import com.owndsh.enterprise.model.application.ModelResourceNotFoundException;
 import com.owndsh.enterprise.model.application.ModelSetService;
 import com.owndsh.enterprise.model.application.ProviderProbe;
@@ -48,6 +49,7 @@ import com.owndsh.enterprise.model.domain.ProviderApiProtocol;
 import com.owndsh.enterprise.model.domain.ProviderConnection;
 import com.owndsh.enterprise.model.web.AdminManagedModelController;
 import com.owndsh.enterprise.model.web.AdminModelGrantController;
+import com.owndsh.enterprise.model.web.AdminModelOnboardingController;
 import com.owndsh.enterprise.model.web.AdminModelSetController;
 import com.owndsh.enterprise.model.web.AdminProviderController;
 import com.owndsh.enterprise.model.web.AdminProviderConnectionController;
@@ -112,6 +114,7 @@ class T08ApiContractTest {
     private ManagedModelService models;
     private ModelSetService modelSets;
     private ModelGrantService grants;
+    private ModelOnboardingService onboarding;
     private BootstrapService bootstrap;
     private MockMvc mvc;
     private ModelProvider provider;
@@ -126,6 +129,7 @@ class T08ApiContractTest {
         models = mock(ManagedModelService.class);
         modelSets = mock(ModelSetService.class);
         grants = mock(ModelGrantService.class);
+        onboarding = mock(ModelOnboardingService.class);
         bootstrap = mock(BootstrapService.class);
         provider = provider();
         model = model();
@@ -142,6 +146,7 @@ class T08ApiContractTest {
             new AdminProviderConnectionController(connections, adminContexts, cursors),
             new AdminProviderConnectionProbeController(connections, adminContexts),
             new AdminProviderConnectionTestController(connections, adminContexts),
+            new AdminModelOnboardingController(onboarding, adminContexts),
             new AdminManagedModelController(models, adminContexts, cursors),
             new AdminModelSetController(modelSets, adminContexts, cursors),
             new AdminModelGrantController(grants, adminContexts, cursors),
@@ -165,6 +170,8 @@ class T08ApiContractTest {
             .thenReturn(new ProviderProbe.ProviderProbeResult(true, 12, ProviderProbe.ProviderProbeCategory.SUCCESS));
         when(connections.probeDraft(any(), any()))
             .thenReturn(new ProviderProbe.ProviderProbeResult(true, 12, ProviderProbe.ProviderProbeCategory.SUCCESS));
+        when(onboarding.create(any(), nullable(Long.class), nullable(com.owndsh.enterprise.model.application.ProviderSpec.class), any(), any(), any()))
+            .thenReturn(new ModelOnboardingService.Result(provider, connection, List.of(model)));
 
         when(models.list("000000", 0, 51)).thenReturn(List.of(model));
         when(models.get("000000", model.id())).thenReturn(model);
@@ -212,6 +219,9 @@ class T08ApiContractTest {
         assertSchema(response(post("/enterprise/admin/v1/provider-connections/actions/probe")
             .contentType(MediaType.APPLICATION_JSON).content(probeRequest()), 200), "ProviderProbeResponse");
         assertSchema(response(post("/enterprise/admin/v1/provider-connections/{connectionId}/actions/test", CONNECTION_ID), 200), "ProviderProbeResponse");
+        assertSchema(response(post("/enterprise/admin/v1/model-onboardings")
+            .header("Idempotency-Key", IDEMPOTENCY_KEY).contentType(MediaType.APPLICATION_JSON)
+            .content(onboardingRequest()), 201), "ModelOnboardingResponse");
         for (String action : List.of("enable", "disable")) {
             assertSchema(response(post("/enterprise/admin/v1/providers/{id}/actions/{action}", PROVIDER_ID, action)
                 .header("If-Match", "0"), 200), "ProviderResponse");
@@ -326,6 +336,7 @@ class T08ApiContractTest {
         ));
         assertPermissions(AdminProviderConnectionProbeController.class, Map.of("probe", "ent:model:write"));
         assertPermissions(AdminProviderConnectionTestController.class, Map.of("test", "ent:model:write"));
+        assertPermissions(AdminModelOnboardingController.class, Map.of("create", "ent:model:write"));
         assertPermissions(AdminManagedModelController.class, Map.of(
             "list", "ent:model:read", "get", "ent:model:read", "create", "ent:model:write",
             "update", "ent:model:write", "delete", "ent:model:write", "enable", "ent:model:write",
@@ -471,6 +482,15 @@ class T08ApiContractTest {
             {"connectionId":"%s","modelId":"deepseek-chat","name":"DeepSeek Chat",
              "contextWindow":65536,"maxTokens":8192,"sortOrder":10}
             """.formatted(CONNECTION_ID);
+    }
+
+    private static String onboardingRequest() {
+        return """
+            {"providerId":"%s","connection":{"name":"production","apiProtocol":"anthropic-messages",
+             "baseUrl":"https://api.deepseek.com/anthropic","credential":"%s","connectTimeoutMs":5000,
+             "readTimeoutMs":30000},"models":[{"modelId":"deepseek-chat","name":"DeepSeek Chat",
+             "contextWindow":65536,"maxTokens":8192,"sortOrder":10}]}
+            """.formatted(PROVIDER_ID, SECRET).trim();
     }
 
     private static String modelSetRequest() {

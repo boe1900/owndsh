@@ -13,6 +13,7 @@ import com.owndsh.enterprise.model.application.BootstrapService;
 import com.owndsh.enterprise.model.application.EffectiveModelResolver;
 import com.owndsh.enterprise.model.application.JdkProviderProbe;
 import com.owndsh.enterprise.model.application.ManagedModelService;
+import com.owndsh.enterprise.model.application.ModelOnboardingService;
 import com.owndsh.enterprise.model.application.ModelGrantService;
 import com.owndsh.enterprise.model.application.ModelSetService;
 import com.owndsh.enterprise.model.application.ProviderProbe;
@@ -102,6 +103,18 @@ public class EnterpriseModelConfiguration {
         return new ManagedModelService(
             new TransactionTemplate(transactionManager), modelStore, connectionStore,
             bootstrapRevisionStore, auditSink, ids
+        );
+    }
+
+    @Bean
+    ModelOnboardingService enterpriseModelOnboardingService(
+        PlatformTransactionManager transactionManager,
+        ProviderService providerService,
+        ProviderConnectionService connectionService,
+        ManagedModelService managedModelService
+    ) {
+        return new ModelOnboardingService(
+            new TransactionTemplate(transactionManager), providerService, connectionService, managedModelService
         );
     }
 

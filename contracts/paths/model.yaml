@@ -172,6 +172,27 @@ ProviderConnectionTest:
       '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
       '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
       '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+
+ModelOnboarding:
+  post:
+    operationId: createModelOnboarding
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ModelOnboardingWriteRequest'}
+    responses:
+      '201':
+        description: Atomically created provider, connection and managed models.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ModelOnboardingResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+
 ProviderEnable:
   parameters:
     - $ref: '../enterprise-openapi.yaml#/components/parameters/ProviderIdPath'

@@ -1,13 +1,13 @@
 /**
  * [INPUT]: 依赖生成的模型集/受管模型 operation、TanStack Query、供应商连接名称/端点投影、产品对话框与模型集专用筛选状态。
- * [OUTPUT]: 提供按供应商→连接→模型两层展示的模型集卡片，以及与原型一致的分组选择表单、成员快速移除/增删、复制和删除操作。
- * [POS]: features/models 的批量授权资源管理器；内部只保存受管模型 ID，供应商信息来自目录投影。
+ * [OUTPUT]: 提供模型集筛选栏创建入口、按供应商→连接→模型两层展示的模型集卡片，以及与原型一致的分组选择表单、成员快速移除/增删、复制和删除操作。
+ * [POS]: features/models 的批量授权资源管理器；内部只保存受管模型 ID，供应商信息来自目录投影，创建入口与列表筛选保持同层。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Copy, Image as ImageIcon, Layers, Pencil, Plus, Search, Server, Trash2, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createModelSet, deleteModelSet, listManagedModels, listModelSets, updateModelSet } from '@/api/generated/sdk.gen';
 import type {
   EnterpriseErrorResponse,
@@ -365,7 +365,7 @@ function ModelSetEditor({
   );
 }
 
-export function ModelSetManagement({ active = true, canWrite, connectionNames, connectionEndpoints, createRequest = 0, onCountChange }: { active?: boolean; canWrite: boolean; connectionNames: ReadonlyMap<string, string>; connectionEndpoints: ReadonlyMap<string, string>; createRequest?: number; onCountChange?: (count: number) => void }) {
+export function ModelSetManagement({ active = true, canWrite, connectionNames, connectionEndpoints, onCountChange }: { active?: boolean; canWrite: boolean; connectionNames: ReadonlyMap<string, string>; connectionEndpoints: ReadonlyMap<string, string>; onCountChange?: (count: number) => void }) {
   const queryClient = useQueryClient();
   const [editor, setEditor] = useState<'create' | ModelSet>();
   const [duplicateSource, setDuplicateSource] = useState<ModelSet>();
@@ -381,7 +381,6 @@ export function ModelSetManagement({ active = true, canWrite, connectionNames, c
   });
   const models = useQuery({ queryKey: ['models', 'set-options'], queryFn: loadAllModels, staleTime: 30_000 });
   const rows = useMemo(() => sets.data?.pages.flatMap((page) => page.items) ?? [], [sets.data]);
-  const lastCreateRequest = useRef(createRequest);
   const filteredRows = useMemo(() => {
     const query = modelSetSearch.trim().toLowerCase();
     if (!query) return rows;
@@ -458,13 +457,6 @@ export function ModelSetManagement({ active = true, canWrite, connectionNames, c
     onCountChange?.(rows.length);
   }, [onCountChange, rows.length]);
 
-  useEffect(() => {
-    if (createRequest !== lastCreateRequest.current) {
-      lastCreateRequest.current = createRequest;
-      openCreate();
-    }
-  }, [createRequest]);
-
   if (!active) return null;
 
   return (
@@ -479,7 +471,7 @@ export function ModelSetManagement({ active = true, canWrite, connectionNames, c
             {modelSetSearch ? <button type="button" aria-label="清除模型集搜索" className="absolute right-2.5 top-2.5 text-zinc-400 hover:text-zinc-600" onClick={() => setModelSetSearch('')}><X aria-hidden className="size-3.5" /></button> : null}
           </label>
         </div>
-        <div className="text-xs text-zinc-400">共 <strong className="font-semibold text-zinc-700">{filteredRows.length}</strong> 个模型集</div>
+        <div className="flex items-center gap-3"><div className="text-xs text-zinc-400">共 <strong className="font-semibold text-zinc-700">{filteredRows.length}</strong> 个模型集</div>{canWrite ? <Button type="button" variant="primary" size="sm" className="bg-zinc-900 text-white hover:bg-zinc-800" disabled={models.isLoading || models.isError} onClick={openCreate}><Plus aria-hidden className="size-3.5" />新建模型集</Button> : null}</div>
       </div>
 
       {sets.error ? <div role="alert" className="rounded-xl border border-rose-200/70 bg-rose-50 px-4 py-3 text-xs text-rose-700">模型集加载失败：{message(sets.error, '模型集加载失败')}<Button type="button" variant="quiet" size="xs" className="ml-2 underline" onClick={() => void sets.refetch()}>重试</Button></div> : null}
@@ -488,7 +480,6 @@ export function ModelSetManagement({ active = true, canWrite, connectionNames, c
           <div className="mx-auto grid size-10 place-items-center rounded-xl bg-zinc-100 text-zinc-500"><Layers aria-hidden className="size-5" /></div>
           <h2 className="m-0 text-sm font-semibold text-zinc-900">{modelSetSearch ? '暂未找到匹配的模型集' : '暂无模型集'}</h2>
           <p className="mx-auto m-0 max-w-md text-xs leading-5 text-zinc-500">{modelSetSearch ? '尝试搜索模型集名称或其中的模型。' : '创建模型集后，可以在访问策略中批量授权一组受管模型。'}</p>
-          {canWrite && !modelSetSearch ? <Button type="button" variant="primary" size="sm" className="bg-zinc-900 text-white hover:bg-zinc-800" disabled={models.isLoading || models.isError} onClick={openCreate}><Plus aria-hidden className="size-3.5" />新建模型集</Button> : null}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">

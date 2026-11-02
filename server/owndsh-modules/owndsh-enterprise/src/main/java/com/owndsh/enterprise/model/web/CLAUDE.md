@@ -7,12 +7,16 @@
 ProviderWriteRequest.java: 供应商名称与类型元信息写 DTO；endpoint 和 credential 不在此边界出现。
 ProviderConnectionView.java: 连接脱敏管理投影。
 ProviderConnectionWriteRequest.java: 连接写入、模型发现路径与一次性密钥边界。
+ModelOnboardingModelWriteRequest.java: 原子模型接入中的单模型写 DTO，不承载临时 connectionId。
+ModelOnboardingWriteRequest.java: 原子模型接入向导的供应商/连接/模型组合写 DTO，并负责凭据清零。
+ModelOnboardingView.java: 原子模型接入结果的 provider/connection/models 脱敏投影。
 ProviderProbeRequest.java: 未保存模型接入探测请求与一次性密钥边界，不承载连接名称或持久化字段。
 AdminProviderConnectionController.java: 连接管理 API。
 AdminProviderConnectionProbeController.java: 未保存连接模型发现 API。
 AdminProviderConnectionTestController.java: 已保存连接模型发现 API。
 ProviderView.java: providerKey/type/status 管理投影，不公开连接 endpoint 和 credential。
 AdminProviderController.java: provider list/get/create/update/enable/disable 与 ent:model 权限入口。
+AdminModelOnboardingController.java: 供应商、连接和首批模型的单事务创建入口。
 ManagedModelWriteRequest.java: 受管模型创建/更新协议到 application spec 的转换 DTO，保留 reasoningEfforts 省略/false/object 三态。
 ManagedModelView.java: provider 名称、容量、reasoningEfforts 与 completions compat 的管理安全投影。
 AdminManagedModelController.java: 模型 CRUD/排序字段更新/启停与 ent:model 权限入口。

@@ -10,6 +10,7 @@ ProviderConnectionSpec.java: 连接写 command，约束 endpoint、协议、模�
 ProviderProbeSpec.java: 未保存模型接入探测 command，复用 endpoint/路径/超时约束但不引入连接名称或持久化字段。
 ProviderSpec.java: 不含 endpoint 和密钥的 provider 元信息写 command。
 ManagedModelSpec.java: 模型写 command，约束 alias、上游标识、容量、reasoningEfforts/compat、排序和 default sentinel 边界。
+ModelOnboardingSpec.java: 组合接入中的单个模型配置，待连接创建后绑定真实 connectionId。
 ModelGrantSpec.java: 授权写 command，封装模型/模型集资源、全员/用户组/成员主体与状态事实。
 ProviderProbe.java: provider `/models` 探测端口，只允许分类、延迟与脱敏模型 ID 候选越过边界。
 JdkProviderProbe.java: JDK HttpClient 无重定向探测 adapter，以 4 MiB 上限解析 OpenAI `data[].id` 且丢弃其余正文。
@@ -23,6 +24,7 @@ ModelSetInUseException.java: 模型集仍被授权或配额策略引用时的稳
 ProviderConnectionService.java: 连接 endpoint、协议、模型发现路径、密钥加解密、探测与 CAS/bootstrap revision 编排。
 ProviderService.java: 供应商元信息 CRUD、后台生成 providerKey、CAS/bootstrap revision/审计事务。
 ManagedModelService.java: 模型含 reasoning 配置的 CRUD/排序/启停、协议兼容校验及 CAS/bootstrap revision/审计事务编排。
+ModelOnboardingService.java: 供应商、连接和首批受管模型的单事务创建编排，任一步失败整体回滚。
 ModelGrantService.java: 单条/批量授权、重复约束、主体/资源校验、CAS/幂等删除和原子审计编排。
 ModelSetService.java: 模型集名称/说明 CRUD、成员整体替换、引用保护、revision/bootstrap revision 与审计事务编排。
 EffectiveModelResolver.java: 全员与当前成员授权并集、模型去重及排序首项 fallback default 的纯裁决器，原样携带模型推理事实到 bootstrap 与网关。

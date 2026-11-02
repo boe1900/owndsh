@@ -91,6 +91,8 @@ paths:
     $ref: './paths/model.yaml#/ProviderConnectionCollection'
   /enterprise/admin/v1/providers/{providerId}/connections/{connectionId}:
     $ref: './paths/model.yaml#/ProviderConnectionItem'
+  /enterprise/admin/v1/model-onboardings:
+    $ref: './paths/model.yaml#/ModelOnboarding'
   /enterprise/admin/v1/provider-connections/actions/probe:
     $ref: './paths/model.yaml#/ProviderConnectionProbe'
   /enterprise/admin/v1/provider-connections/{connectionId}/actions/test:
@@ -362,6 +364,9 @@ x-enterprise-fixtures:
     valid: true
   - file: fixtures/model-success.json
     schema: ManagedModelResponse
+    valid: true
+  - file: fixtures/model-onboarding-success.json
+    schema: ModelOnboardingResponse
     valid: true
   - file: fixtures/model-list-success.json
     schema: ManagedModelListResponse
@@ -842,6 +847,10 @@ components:
     ProviderConnectionResponse: {$ref: './components/model.yaml#/ProviderConnectionResponse'}
     ProviderConnectionPageData: {$ref: './components/model.yaml#/ProviderConnectionPageData'}
     ProviderConnectionListResponse: {$ref: './components/model.yaml#/ProviderConnectionListResponse'}
+    ModelOnboardingModelWriteRequest: {$ref: './components/model.yaml#/ModelOnboardingModelWriteRequest'}
+    ModelOnboardingWriteRequest: {$ref: './components/model.yaml#/ModelOnboardingWriteRequest'}
+    ModelOnboarding: {$ref: './components/model.yaml#/ModelOnboarding'}
+    ModelOnboardingResponse: {$ref: './components/model.yaml#/ModelOnboardingResponse'}
     ProviderResponse: {$ref: './components/model.yaml#/ProviderResponse'}
     ProviderPageData: {$ref: './components/model.yaml#/ProviderPageData'}
     ProviderListResponse: {$ref: './components/model.yaml#/ProviderListResponse'}

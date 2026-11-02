@@ -1757,6 +1757,19 @@ export const zModelManagedModelWriteRequest = z.object({
 
 export const zManagedModelWriteRequest = zModelManagedModelWriteRequest;
 
+export const zModelModelOnboardingModelWriteRequest = z.object({
+    modelId: z.string().min(1).max(255),
+    name: zModelName.optional(),
+    contextWindow: z.int().gte(1).lte(2147483647).optional(),
+    maxTokens: z.int().gte(1).lte(2147483647).optional(),
+    input: z.array(zModelModelInputModality).min(1).optional(),
+    reasoningEfforts: zModelReasoningEfforts.optional(),
+    compat: zModelReasoningCompat.optional(),
+    sortOrder: z.int().gte(0).lte(2147483647)
+}).strict();
+
+export const zModelOnboardingModelWriteRequest = zModelModelOnboardingModelWriteRequest;
+
 export const zModelProviderApiProtocol = z.enum([
     'openai-completions',
     'openai-responses',
@@ -1928,6 +1941,21 @@ export const zModelProviderConnection = z.object({
 
 export const zProviderConnection = zModelProviderConnection;
 
+export const zModelModelOnboarding = z.object({
+    provider: zModelProvider,
+    connection: zModelProviderConnection,
+    models: z.array(zModelManagedModel)
+}).strict();
+
+export const zModelOnboarding = zModelModelOnboarding;
+
+export const zModelModelOnboardingResponse = z.object({
+    data: zModelModelOnboarding,
+    requestId: zRequestId
+}).strict();
+
+export const zModelOnboardingResponse = zModelModelOnboardingResponse;
+
 export const zModelProviderConnectionCreateRequest = z.object({
     name: z.string().min(1).max(120),
     apiProtocol: zModelProviderApiProtocol,
@@ -1938,6 +1966,15 @@ export const zModelProviderConnectionCreateRequest = z.object({
 }).strict();
 
 export const zProviderConnectionCreateRequest = zModelProviderConnectionCreateRequest;
+
+export const zModelModelOnboardingWriteRequest = z.object({
+    providerId: zModelModelProviderId.optional(),
+    provider: zModelProviderCreateRequest.optional(),
+    connection: zModelProviderConnectionCreateRequest,
+    models: z.array(zModelModelOnboardingModelWriteRequest).min(1).max(200)
+}).strict();
+
+export const zModelOnboardingWriteRequest = zModelModelOnboardingWriteRequest;
 
 export const zModelProviderConnectionPageData = z.object({
     items: z.array(zModelProviderConnection).max(200),
@@ -2997,6 +3034,8 @@ export const zModelEnable = z.unknown();
 
 export const zModelItem = z.unknown();
 
+export const zModelModelOnboarding2 = z.unknown();
+
 export const zModelSetCollection = z.unknown();
 
 export const zModelSetItem = z.unknown();
@@ -3286,6 +3325,15 @@ export const zModelProviderConnectionCreateRequestWritable = z.object({
 
 export const zProviderConnectionCreateRequestWritable = zModelProviderConnectionCreateRequestWritable;
 
+export const zModelModelOnboardingWriteRequestWritable = z.object({
+    providerId: zModelModelProviderId.optional(),
+    provider: zModelProviderCreateRequest.optional(),
+    connection: zModelProviderConnectionCreateRequestWritable,
+    models: z.array(zModelModelOnboardingModelWriteRequest).min(1).max(200)
+}).strict();
+
+export const zModelOnboardingWriteRequestWritable = zModelModelOnboardingWriteRequestWritable;
+
 export const zModelProviderConnectionUpdateRequestWritable = z.object({
     name: z.string().min(1).max(120),
     baseUrl: zProviderBaseUrl,
@@ -3333,6 +3381,8 @@ export const z1Enterprise1Admin1V11IdentitySourcesWritable = z.unknown();
 export const z1Enterprise1Admin1V11IdentitySources1SourceIdWritable = z.unknown();
 
 export const zMemberCollectionWritable = z.unknown();
+
+export const zModelModelOnboarding2Writable = z.unknown();
 
 export const zProviderConnectionCollectionWritable = z.unknown();
 
@@ -3947,6 +3997,17 @@ export const zUpdateProviderConnectionPath = z.object({
  * Updated provider connection.
  */
 export const zUpdateProviderConnectionResponse = zModelProviderConnectionResponse;
+
+export const zCreateModelOnboardingBody = zModelModelOnboardingWriteRequestWritable;
+
+export const zCreateModelOnboardingHeaders = z.object({
+    'Idempotency-Key': z.uuid().length(36).regex(/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/)
+});
+
+/**
+ * Atomically created provider, connection and managed models.
+ */
+export const zCreateModelOnboardingResponse = zModelModelOnboardingResponse;
 
 export const zProbeProviderConnectionBody = zModelProviderProbeRequestWritable;
 
