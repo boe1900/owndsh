@@ -19,6 +19,7 @@ import type {
 } from '@/api/generated/types.gen';
 import { randomUuid } from '@/lib/crypto';
 import { Button } from '@/components/atoms/Button';
+import { ConfirmDialog } from '@/components/product/ConfirmDialog';
 import { ProductDialog } from '@/components/product/Dialog';
 import { DialogFooter } from '@/components/product/DialogFooter';
 import { formatTokenCapacity } from './token-capacity';
@@ -147,9 +148,11 @@ function ModelSetCard({
   const members = membersOf(set, models);
   const providerTree = groupModelSetMembers(members, connectionNames, connectionEndpoints);
   const [collapsedConnections, setCollapsedConnections] = useState<Record<string, boolean>>({});
+  const [removingModel, setRemovingModel] = useState<ManagedModel>();
   const maxVisibleModels = 8;
 
   return (
+    <>
     <article className="flex flex-col overflow-hidden rounded-2xl border border-zinc-200/90 bg-white shadow-[0_1px_2px_rgba(0,0,0,.03)] transition hover:border-zinc-300">
       <div className="border-b border-zinc-100 p-5">
         <div className="flex items-start justify-between gap-3">
@@ -203,7 +206,7 @@ function ModelSetCard({
                         <span className="font-mono">{formatTokenCapacity(model.contextWindow) || '—'}</span>
                         {model.input?.includes('image') ? <><span className="text-zinc-300">·</span><span className="inline-flex items-center gap-0.5 font-medium text-purple-600" title="支持图片输入"><ImageIcon aria-hidden className="size-2.5" />图</span></> : null}
                       </span>
-                      {canWrite ? <button type="button" className="ml-0.5 text-zinc-400 transition hover:text-rose-600" title="移出模型" aria-label={'从 ' + set.name + ' 移出 ' + modelLabel(model)} disabled={busy} onClick={() => onRemoveModel(model)}><X aria-hidden className="size-3" /></button> : null}
+                      {canWrite ? <button type="button" className="ml-0.5 text-zinc-400 transition hover:text-rose-600" title="移出模型" aria-label={'从 ' + set.name + ' 移出 ' + modelLabel(model)} disabled={busy} onClick={() => setRemovingModel(model)}><X aria-hidden className="size-3" /></button> : null}
                     </span>)}
                     {collapsed && hasMany ? <button type="button" className="inline-flex items-center rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-2.5 py-1 text-xs font-medium text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800" onClick={() => setCollapsedConnections((items) => ({ ...items, [key]: false }))}>+{connection.models.length - maxVisibleModels} 更多模型</button> : null}
                   </div>
@@ -218,6 +221,8 @@ function ModelSetCard({
         {canWrite ? <button type="button" className="inline-flex items-center gap-1 font-medium text-zinc-600 hover:text-zinc-900" onClick={onEdit}><Plus aria-hidden className="size-3" />管理集合内模型</button> : null}
       </div>
     </article>
+    {removingModel ? <ConfirmDialog title="确认移出模型" description={'确定从“' + set.name + '”移出模型“' + modelLabel(removingModel) + '”？'} confirmLabel="移出" saving={busy} onClose={() => { if (!busy) setRemovingModel(undefined); }} onConfirm={() => { onRemoveModel(removingModel); setRemovingModel(undefined); }} /> : null}
+    </>
   );
 }
 
