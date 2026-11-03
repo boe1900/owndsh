@@ -7,10 +7,11 @@
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouteContext } from '@tanstack/react-router';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Building2, Cpu, Globe, Layers, Pencil, Plus, Server, Trash2, UserCheck, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
   createModelGrant,
+  createModelGrantBatch,
   createQuotaPolicy,
   deleteModelGrant,
   deleteQuotaPolicy,
@@ -44,7 +45,8 @@ import { Button } from '@/components/atoms/Button';
 import { SegmentedControl } from '@/components/atoms/SegmentedControl';
 import { StatusPill } from '@/components/atoms/StatusPill';
 import { ProductDataTable, type ProductTableColumn } from '@/components/product/DataTable';
-import { DeletePolicyDialog, GrantEditorDialog, QuotaEditorDialog } from './policy-editors';
+import { DeletePolicyDialog, GrantEditorDialog, QuotaEditorDialog, type GrantEditorValue } from './policy-editors';
+import { useMembers } from '@/features/member-select';
 
 const SECTIONS = ['模型访问', 'Token 配额', '速率限制'] as const;
 const STATUS_FILTER = {
@@ -166,15 +168,15 @@ const grantColumns: ReadonlyArray<ProductTableColumn<ModelGrant>> = [
   {
     accessorKey: 'resourceName',
     header: '资源',
-    cell: ({ row }) => <div className="min-w-0"><div className="truncate font-medium" title={row.original.resourceName}>{row.original.resourceName}</div><div className="text-[11px] text-ink-3">{resourceTypeLabel(row.original)}</div></div>,
-    meta: { label: '资源', className: 'w-[280px]', cellClassName: 'w-[280px]' }
+    cell: ({ row }) => { const isSet = row.original.resourceType === 'MODEL_SET'; const Icon = isSet ? Layers : Cpu; return <div className="flex min-w-0 items-start gap-2.5"><span className={`grid size-8 shrink-0 place-items-center rounded-lg border ${isSet ? 'border-line bg-ink text-surface dark:bg-accent dark:text-white' : 'border-accent/30 bg-accent-tint text-accent'}`}><Icon className="size-4" /></span><div className="min-w-0"><div className="flex flex-wrap items-center gap-1.5"><div className="truncate font-medium text-ink" title={row.original.resourceName}>{row.original.resourceName}</div><span className={`rounded border px-1.5 py-0.5 text-[10px] font-medium ${isSet ? 'border-line bg-field text-ink-2' : 'border-accent/30 bg-accent-tint text-accent-ink'}`}>{resourceTypeLabel(row.original)}</span></div><div className="mt-0.5 flex items-center gap-1 text-[11px] text-ink-3">{isSet ? <><span>批量授权集合</span><span>·</span><span>资源 ID {row.original.resourceId}</span></> : <><Server className="size-3" /><span>受管模型 · ID {row.original.resourceId}</span></>}</div></div></div>; },
+    meta: { label: '资源', className: 'w-[360px]', cellClassName: 'w-[360px]' }
   },
   {
     id: 'subject',
     accessorFn: subjectLabel,
     header: '授权对象',
-    cell: ({ row, getValue }) => <div className="min-w-0"><div className="truncate" title={String(getValue())}>{String(getValue())}</div><div className="text-[11px] text-ink-3">{subjectTypeLabel(row.original)}</div></div>,
-    meta: { label: '授权对象', className: 'w-[280px]', cellClassName: 'w-[280px]' }
+    cell: ({ row, getValue }) => { const Icon = row.original.subjectType === 'ALL_MEMBERS' ? Globe : row.original.subjectType === 'ACCESS_GROUP' ? Users : UserCheck; return <div className="flex min-w-0 items-center gap-2"><span className={`grid size-7 shrink-0 place-items-center rounded-lg ${row.original.subjectType === 'ALL_MEMBERS' ? 'bg-green-tint text-green' : row.original.subjectType === 'ACCESS_GROUP' ? 'bg-accent-tint text-accent' : 'bg-orange-tint text-orange'}`}><Icon className="size-3.5" /></span><div className="min-w-0"><div className="truncate text-ink" title={String(getValue())}>{String(getValue())}</div><div className="text-[11px] text-ink-3">{subjectTypeLabel(row.original)}{row.original.subjectType !== 'ALL_MEMBERS' ? ` · ${row.original.subjectId ?? ''}` : ' · 全员开放'}</div></div></div>; },
+    meta: { label: '授权对象', className: 'w-[270px]', cellClassName: 'w-[270px]' }
   },
   {
     accessorKey: 'status',
@@ -274,6 +276,8 @@ export function AccessPolicyPage() {
   const [grantEditor, setGrantEditor] = useState<'create' | ModelGrant | null>(null);
   const [quotaEditor, setQuotaEditor] = useState<'create' | QuotaPolicy | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [bulkDeleteTarget, setBulkDeleteTarget] = useState<ReadonlyArray<ModelGrant> | null>(null);
+  const [grantResourceFilter, setGrantResourceFilter] = useState<'ALL' | 'MODEL_SET' | 'MODEL'>('ALL');
   const grants = useInfiniteQuery({
     queryKey: ['access', 'model-grants'],
     queryFn: ({ pageParam }) => loadGrants(pageParam),
@@ -293,6 +297,7 @@ export function AccessPolicyPage() {
   const models = useQuery({ queryKey: ['access', 'model-options'], queryFn: loadAllModels, enabled: canWrite, staleTime: 30_000 });
   const modelSets = useQuery({ queryKey: ['access', 'model-sets'], queryFn: loadAllModelSets, enabled: canWrite, staleTime: 30_000 });
   const accessGroups = useQuery({ queryKey: ['access', 'access-groups'], queryFn: loadAllAccessGroups, enabled: canWrite, staleTime: 30_000 });
+  const members = useMembers(canWrite);
   const editingQuotaId = quotaEditor && quotaEditor !== 'create' ? quotaEditor.id : undefined;
   const editingQuotaType = quotaEditor && quotaEditor !== 'create'
     ? quotaEditor.policyType
@@ -306,12 +311,22 @@ export function AccessPolicyPage() {
     enabled: editingQuotaId !== undefined && editingQuotaType === 'TOKEN'
   });
   const saveGrant = useMutation({
-    mutationFn: async ({ current, value }: { current?: ModelGrant; value: ModelGrantWriteRequest }) => unwrap(
-      current
-        ? await updateModelGrant({ body: value, headers: { 'If-Match': current.revision }, path: { grantId: current.id } })
-        : await createModelGrant({ body: value, headers: { 'Idempotency-Key': randomUuid() } }),
-      '模型授权保存失败'
-    ),
+    mutationFn: async ({ current, value }: { current?: ModelGrant; value: GrantEditorValue }) => {
+      const subjectIds: Array<string | null> = value.subjectType === 'ALL_MEMBERS' ? [null] : value.subjectIds;
+      const body = (subjectId: string | null): ModelGrantWriteRequest => ({ resourceType: value.resourceType, resourceId: value.resourceId, subjectType: value.subjectType, subjectId, status: value.status });
+      if (!current) {
+        if (subjectIds.length === 1) return unwrap(await createModelGrant({ body: body(subjectIds[0]), headers: { 'Idempotency-Key': randomUuid() } }), '模型授权保存失败');
+        const batch = await createModelGrantBatch({ body: { items: subjectIds.map(body) }, headers: { 'Idempotency-Key': randomUuid() } });
+        if (batch.error !== undefined || batch.data === undefined) throw new Error(errorMessage(batch.error, '模型授权保存失败'));
+        return batch.data.data[0];
+      }
+      const [first, ...rest] = subjectIds;
+      const updated = unwrap(await updateModelGrant({ body: body(first), headers: { 'If-Match': current.revision }, path: { grantId: current.id } }), '模型授权保存失败');
+      if (rest.length > 0) {
+        await unwrap(await createModelGrantBatch({ body: { items: rest.map(body) }, headers: { 'Idempotency-Key': randomUuid() } }), '模型授权保存失败');
+      }
+      return updated;
+    },
     onSuccess: async () => {
       setGrantEditor(null);
       await queryClient.invalidateQueries({ queryKey: ['access', 'model-grants'] });
@@ -341,6 +356,24 @@ export function AccessPolicyPage() {
       await queryClient.invalidateQueries({ queryKey: target.kind === 'grant' ? ['access', 'model-grants'] : ['access', 'quotas'] });
     }
   });
+  const bulkStatus = useMutation({
+    mutationFn: async ({ rows, status }: { rows: ReadonlyArray<ModelGrant>; status: ModelGrant['status'] }) => {
+      await Promise.all(rows.map(async (row) => unwrap(
+        await updateModelGrant({ body: { resourceType: row.resourceType, resourceId: row.resourceId, subjectType: row.subjectType, subjectId: row.subjectId, status }, headers: { 'If-Match': row.revision }, path: { grantId: row.id } }),
+        '策略状态更新失败'
+      )));
+    },
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ['access', 'model-grants'] }); }
+  });
+  const bulkRemove = useMutation({
+    mutationFn: async (rows: ReadonlyArray<ModelGrant>) => {
+      await Promise.all(rows.map(async (row) => unwrap(
+        await deleteModelGrant({ headers: { 'If-Match': row.revision }, path: { grantId: row.id } }),
+        '策略删除失败'
+      )));
+    },
+    onSuccess: async () => { setBulkDeleteTarget(null); await queryClient.invalidateQueries({ queryKey: ['access', 'model-grants'] }); }
+  });
   const closeDelete = () => {
     if (remove.isPending) return;
     remove.reset();
@@ -352,16 +385,20 @@ export function AccessPolicyPage() {
     () => quotaRows.filter((policy) => policy.policyType === (section === 'Token 配额' ? 'TOKEN' : 'RATE')),
     [quotaRows, section]
   );
-  const optionsLoading = models.isLoading || modelSets.isLoading || accessGroups.isLoading;
-  const optionsError = models.error ?? modelSets.error ?? accessGroups.error;
+  const optionsLoading = models.isLoading || modelSets.isLoading || accessGroups.isLoading || members.isLoading;
+  const optionsError = models.error ?? modelSets.error ?? accessGroups.error ?? members.error;
+  const visibleGrantRows = useMemo(
+    () => grantResourceFilter === 'ALL' ? grantRows : grantRows.filter((grant) => grant.resourceType === grantResourceFilter),
+    [grantResourceFilter, grantRows]
+  );
 
   const table = section === '模型访问' ? (
     <ProductDataTable
       ariaLabel="模型访问策略"
       columns={withGrantActions(grantColumns, canWrite, (value) => { saveGrant.reset(); setGrantEditor(value); }, (value) => { remove.reset(); setDeleteTarget({ kind: 'grant', value }); })}
-      data={grantRows}
+      data={visibleGrantRows}
       emptyText="暂无模型访问策略"
-      error={grants.error}
+      error={grants.error ?? bulkStatus.error ?? bulkRemove.error}
       filter={STATUS_FILTER}
       getRowId={(row) => row.id}
       hasMore={grants.hasNextPage}
@@ -370,7 +407,8 @@ export function AccessPolicyPage() {
       onLoadMore={() => void grants.fetchNextPage()}
       onRetry={() => void grants.refetch()}
       searchPlaceholder="搜索模型、模型集、用户组或成员"
-      toolbarAction={canWrite ? <Button variant="primary" size="xs" disabled={optionsLoading || optionsError !== null} onClick={() => { saveGrant.reset(); setGrantEditor('create'); }}><Plus aria-hidden className="size-3.5" />新建授权</Button> : undefined}
+      selectionActions={canWrite ? (rows, clear) => <><Button variant="quiet" size="xs" className="h-8 rounded-lg bg-green-tint px-2.5 text-[12px] font-medium text-green hover:brightness-95" disabled={bulkStatus.isPending} onClick={() => { clear(); bulkStatus.mutate({ rows, status: 'ACTIVE' }); }}>批量启用</Button><Button variant="quiet" size="xs" className="h-8 rounded-lg bg-field px-2.5 text-[12px] font-medium text-ink-2 hover:bg-hover" disabled={bulkStatus.isPending} onClick={() => { clear(); bulkStatus.mutate({ rows, status: 'DISABLED' }); }}>批量停用</Button><Button variant="quiet" size="xs" className="h-8 rounded-lg bg-red-tint px-2.5 text-[12px] font-medium text-red hover:brightness-95" disabled={bulkRemove.isPending} onClick={() => setBulkDeleteTarget(rows)}>批量删除</Button></> : undefined}
+      toolbarAction={<><select aria-label="资源类型" value={grantResourceFilter} onChange={(event) => setGrantResourceFilter(event.target.value as typeof grantResourceFilter)} className="h-8 rounded-lg border border-line bg-surface px-2.5 text-[12.5px] text-ink-2 outline-none focus:border-accent"><option value="ALL">全部资源类型</option><option value="MODEL_SET">仅看模型集</option><option value="MODEL">仅看单个模型</option></select>{canWrite ? <Button variant="primary" size="xs" disabled={optionsLoading || optionsError !== null} onClick={() => { saveGrant.reset(); setGrantEditor('create'); }}><Plus aria-hidden className="size-3.5" />新建授权</Button> : null}</>}
     />
   ) : (
     <ProductDataTable
@@ -394,13 +432,14 @@ export function AccessPolicyPage() {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto flex min-h-full w-full max-w-[1320px] flex-col gap-5 px-5 py-7 sm:px-8 sm:py-9">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-5"><h1 className="m-0 text-[22px] font-semibold leading-tight text-ink">访问策略</h1><SegmentedControl options={SECTIONS} value={section} onChange={setSection} /></header>
+        <header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5"><div><div className="flex flex-wrap items-center gap-2.5"><h1 className="m-0 text-[22px] font-semibold leading-tight text-ink">访问策略</h1><span className="inline-flex items-center gap-2 rounded-full border border-line bg-field px-2.5 py-1 text-[11px] text-ink-2"><span>授权规则 <strong className="font-semibold text-ink">{section === '模型访问' ? grantRows.length : visibleQuotaRows.length}</strong></span><span className="text-ink-3">·</span><span>生效中 <strong className="font-semibold text-green">{section === '模型访问' ? grantRows.filter((grant) => grant.status === 'ACTIVE').length : visibleQuotaRows.filter((policy) => policy.status === 'ACTIVE').length}</strong></span></span></div><p className="m-0 mt-1 text-xs text-ink-3">集中管控模型集与单个受管模型的访问授权范围，支持全员、用户组和指定成员。</p></div><SegmentedControl options={SECTIONS} value={section} onChange={setSection} /></header>
         {optionsError && canWrite ? <p role="alert" className="m-0 text-[12.5px] text-red">{errorMessage(optionsError, '策略选项加载失败')}</p> : null}
         {table}
       </div>
-      {grantEditor ? <GrantEditorDialog key={grantEditor === 'create' ? 'create' : grantEditor.id} current={grantEditor === 'create' ? undefined : grantEditor} error={saveGrant.error ? errorMessage(saveGrant.error, '模型授权保存失败') : undefined} accessGroups={accessGroups.data ?? []} modelSets={modelSets.data ?? []} models={models.data ?? []} saving={saveGrant.isPending} onClose={() => setGrantEditor(null)} onSave={(value) => saveGrant.mutate({ current: grantEditor === 'create' ? undefined : grantEditor, value })} /> : null}
+      {grantEditor ? <GrantEditorDialog key={grantEditor === 'create' ? 'create' : grantEditor.id} current={grantEditor === 'create' ? undefined : grantEditor} error={saveGrant.error ? errorMessage(saveGrant.error, '模型授权保存失败') : undefined} accessGroups={accessGroups.data ?? []} members={members.data ?? []} modelSets={modelSets.data ?? []} models={models.data ?? []} saving={saveGrant.isPending} onClose={() => setGrantEditor(null)} onSave={(value) => saveGrant.mutate({ current: grantEditor === 'create' ? undefined : grantEditor, value })} /> : null}
       {quotaEditor ? <QuotaEditorDialog key={quotaEditor === 'create' ? `create-${editingQuotaType}` : quotaEditor.id} current={quotaEditor === 'create' ? undefined : quotaEditor} error={saveQuota.error ? errorMessage(saveQuota.error, '配额策略保存失败') : quotaWindows.error ? errorMessage(quotaWindows.error, '当前配额用量加载失败') : undefined} modelSets={modelSets.data ?? []} models={models.data ?? []} policyType={editingQuotaType} windows={quotaWindows.data ?? []} windowsLoading={quotaWindows.isLoading} saving={saveQuota.isPending} onClose={() => setQuotaEditor(null)} onSave={(value) => saveQuota.mutate({ current: quotaEditor === 'create' ? undefined : quotaEditor, value })} /> : null}
       {deleteTarget ? <DeletePolicyDialog kind={deleteTarget.kind} error={remove.error ? errorMessage(remove.error, '策略删除失败') : undefined} label={deleteTarget.kind === 'grant' ? deleteTarget.value.resourceName : deleteTarget.value.name} saving={remove.isPending} onClose={closeDelete} onConfirm={() => remove.mutate(deleteTarget)} /> : null}
+      {bulkDeleteTarget ? <DeletePolicyDialog kind="grant" error={bulkRemove.error ? errorMessage(bulkRemove.error, '批量删除策略失败') : undefined} label={`${bulkDeleteTarget.length} 条模型授权`} saving={bulkRemove.isPending} onClose={() => { if (!bulkRemove.isPending) { bulkRemove.reset(); setBulkDeleteTarget(null); } }} onConfirm={() => bulkRemove.mutate(bulkDeleteTarget)} /> : null}
     </div>
   );
 }

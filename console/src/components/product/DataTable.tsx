@@ -93,6 +93,7 @@ type ProductDataTableProps<TData extends object> = {
   error?: unknown;
   onLoadMore?: () => void;
   onRetry?: () => void;
+  selectionActions?: (rows: ReadonlyArray<TData>, clearSelection: () => void) => ReactNode;
   toolbarAction?: ReactNode;
 };
 
@@ -145,6 +146,7 @@ export function ProductDataTable<TData extends object>({
   onLoadMore,
   onRetry,
   searchPlaceholder,
+  selectionActions,
   toolbarAction
 }: ProductDataTableProps<TData>) {
   const selectionColumn: ProductTableColumn<TData> = {
@@ -197,6 +199,7 @@ export function ProductDataTable<TData extends object>({
 
   const statusColumn = filter ? table.getColumn(filter.columnId) : undefined;
   const selectedCount = table.getSelectedRowIds().length;
+  const selectedRows = data.filter((item) => table.getSelectedRowIds().includes(getRowId(item)));
   const filteredCount = table.getPrePaginatedRowModel().rows.length;
   const rows = table.getRowModel().rows;
   const pageCount = table.getPageCount();
@@ -237,13 +240,7 @@ export function ProductDataTable<TData extends object>({
             </select>
           ) : null}
           {selectedCount > 0 ? (
-            <button
-              type="button"
-              onClick={() => table.resetRowSelection(true)}
-              className="h-8 rounded-lg bg-accent-tint px-2.5 text-[12px] font-medium text-accent-ink hover:bg-hover"
-            >
-              已选择 {selectedCount} 项
-            </button>
+            <div className="flex items-center gap-1.5"><button type="button" onClick={() => table.resetRowSelection(true)} className="h-8 rounded-lg bg-accent-tint px-2.5 text-[12px] font-medium text-accent-ink hover:bg-hover">已选择 {selectedCount} 项</button>{selectionActions?.(selectedRows, () => table.resetRowSelection(true))}</div>
           ) : null}
         </div>
         <div className="flex w-full shrink-0 items-center justify-end gap-1.5 sm:w-auto">
