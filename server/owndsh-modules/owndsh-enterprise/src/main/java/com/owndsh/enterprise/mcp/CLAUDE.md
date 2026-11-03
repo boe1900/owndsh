@@ -15,7 +15,7 @@ persistence/McpStore.java: MCP 持久化 DIP 端口。
 persistence/JdbcMcpStore.java: PostgreSQL adapter；主体锁及授权行锁/CAS 保证并发写入；GROUP 复用手工/身份源成员，exists 求并集。
 persistence/McpIdempotencyRecord.java: MCP 创建幂等占位与完成资源 ID 的只读事实投影。
 web/McpServerRequest.java: 管理端写入 DTO。
-web/McpViews.java: server/grant/snapshot 安全投影，ID 以字符串输出，不回传 tenant/创建者内部字段。
+web/McpViews.java: 管理端 server/grant 与端侧 assignment/snapshot 安全投影，按接口契约分别裁剪字段，ID 以字符串输出，不回传 tenant/创建者内部字段。
 web/McpRequestFingerprint.java: 使用 RFC 8785 JCS 与 SHA-256 生成稳定管理请求摘要。
 web/AdminMcpController.java: 管理端 server CRUD 与状态 API，复用 tenant cursor 和 items/page envelope。
 web/RuntimeMcpController.java: 端侧 assignments bootstrap API。

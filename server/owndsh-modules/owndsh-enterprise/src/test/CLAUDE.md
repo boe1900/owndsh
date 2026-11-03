@@ -4,7 +4,7 @@
 
 成员清单
 
-java/com/owndsh/enterprise/mcp/: MCP 组授权的 PostgreSQL/MockMvc 纵向门禁；局部地图见 mcp/CLAUDE.md。
+java/com/owndsh/enterprise/mcp/: MCP 组授权的 PostgreSQL/MockMvc 纵向门禁与端侧投影契约；局部地图见 mcp/CLAUDE.md。
 
 java/com/owndsh/enterprise/crypto/SecretCipherTest.java: 验证全部封闭用途 AES-GCM round trip、随机 nonce、AAD/用途隔离、篡改认证与防御性复制。
 java/com/owndsh/enterprise/auth/: 身份、PKCE、Access/Refresh Session、成员治理与认证 HTTP 契约门禁；局部地图见 auth/CLAUDE.md。

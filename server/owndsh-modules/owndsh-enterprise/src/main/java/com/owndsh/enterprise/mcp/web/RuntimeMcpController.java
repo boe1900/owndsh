@@ -18,5 +18,5 @@ import org.springframework.web.bind.annotation.*;
 public final class RuntimeMcpController {
     private final McpService service; private final DeviceRequestContextResolver contexts;
     public RuntimeMcpController(McpService service,DeviceRequestContextResolver contexts){this.service=service;this.contexts=contexts;}
-    @GetMapping("/assignments") public EnterpriseResponse<McpViews.Snapshot> assignments(HttpServletRequest req){DeviceCallContext c=contexts.resolve(req);var a=service.assignments(c.tenantId(),c.session().userId()).stream().map(McpViews::server).toList();return new EnterpriseResponse<>(new McpViews.Snapshot(1,service.revision(c.tenantId()),60000,a),c.requestId());}
+    @GetMapping("/assignments") public EnterpriseResponse<McpViews.Snapshot> assignments(HttpServletRequest req){DeviceCallContext c=contexts.resolve(req);var a=service.assignments(c.tenantId(),c.session().userId()).stream().map(McpViews::assignment).toList();return new EnterpriseResponse<>(new McpViews.Snapshot(1,service.revision(c.tenantId()),60000,a),c.requestId());}
 }

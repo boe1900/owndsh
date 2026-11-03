@@ -14,7 +14,9 @@ import java.util.List;
 public final class McpViews {
     private McpViews() {}
     public static ServerView server(McpServer s) { return new ServerView(Long.toString(s.id()),s.revision(),s.serverName(),s.displayName(),s.description(),s.transport(),s.url(),s.allowInsecureTransport(),s.headers(),s.auth(),s.toolCallTimeoutMs(),s.reconnect(),s.status().name(),s.createdAt(),s.updatedAt()); }
+    public static AssignmentView assignment(McpServer s) { return new AssignmentView(Long.toString(s.id()),s.revision(),s.serverName(),s.displayName(),s.description(),s.transport(),s.url(),s.allowInsecureTransport(),s.headers(),s.auth(),s.toolCallTimeoutMs(),s.reconnect()); }
     public record ServerView(String id,long revision,String serverName,String displayName,String description,String transport,String url,boolean allowInsecureTransport,java.util.Map<String,String> headers,java.util.Map<String,Object> auth,int toolCallTimeoutMs,java.util.Map<String,Object> reconnect,String status,Instant createdAt,Instant updatedAt) {}
+    public record AssignmentView(String id,long revision,String serverName,String displayName,String description,String transport,String url,boolean allowInsecureTransport,java.util.Map<String,String> headers,java.util.Map<String,Object> auth,int toolCallTimeoutMs,java.util.Map<String,Object> reconnect) {}
     public static GrantView grant(McpGrant g) {
         return new GrantView(Long.toString(g.id()), g.revision(), Long.toString(g.serverId()),
             g.subjectType().name(), g.subjectId() == null ? null : Long.toString(g.subjectId()),
@@ -22,5 +24,5 @@ public final class McpViews {
     }
     public record GrantView(String id, long revision, String serverId, String subjectType, String subjectId,
                             String status, Instant createdAt, Instant updatedAt) {}
-    public record Snapshot(int schemaVersion,long revision,int validForMs,List<ServerView> assignments) {}
+    public record Snapshot(int schemaVersion,long revision,int validForMs,List<AssignmentView> assignments) {}
 }
