@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 React portal/state、Lucide 免费图标、GlideMenu 与可选工作区品牌/导航数据。
- * [OUTPUT]: 对外提供保留上游默认行为且可注入产品导航和工作区图标的 SidebarNav、SidebarNavItem、SidebarWorkspace 类型。
+ * [OUTPUT]: 对外提供保留上游默认行为且可注入分组产品导航、工作区图标的 SidebarNav、SidebarNavGroup、SidebarNavItem、SidebarWorkspace 类型。
  * [POS]: components/primitives 的共享 Harness 侧栏；examples 使用上游默认值，产品壳只注入业务数据和动作。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -21,6 +21,7 @@ import GlideMenu from "@/components/primitives/GlideMenu";
 
 export type SidebarWorkspace = { key: string; name: string; monogram: string; icon?: ReactNode };
 export type SidebarNavItem = { key: string; label: string; icon: ReactNode; count?: string };
+export type SidebarNavGroup = { label: string; items: SidebarNavItem[] };
 export type SidebarWorkspaceAction = { label: string; icon: ReactNode; onClick?: () => void; separated?: boolean };
 
 const DEFAULT_WORKSPACE: SidebarWorkspace = { key: "creamery", name: "Creamery Ops", monogram: "C" };
@@ -64,6 +65,7 @@ type SidebarNavProps = {
   fill?: boolean;
   historyLabel?: string | null;
   navItems?: SidebarNavItem[];
+  navGroups?: SidebarNavGroup[];
   onNewChat?: () => void;
   onPick?: (id: string, label: string, prompt?: string) => void;
   /** controlled primary-nav selection (e.g. "home" | "invite") */
@@ -219,6 +221,7 @@ export default function SidebarNav({
   fill = false,
   historyLabel = "Chats",
   navItems = DEFAULT_NAV_ITEMS,
+  navGroups,
   onNewChat,
   onPick,
   activeNav,
@@ -353,29 +356,56 @@ export default function SidebarNav({
           )}
         </div>
 
-        <GlideGroup>
+        <div className="flex flex-col">
           {primaryAction && (
-            <RailButton
-              icon={primaryAction.icon}
-              label={primaryAction.label}
-              onClick={() => {
-                if (activeTitle === undefined) setDemoActiveTitle(null);
-                selectNav(primaryAction.key);
-                onNewChat?.();
-              }}
-            />
+            <GlideGroup>
+              <RailButton
+                icon={primaryAction.icon}
+                label={primaryAction.label}
+                onClick={() => {
+                  if (activeTitle === undefined) setDemoActiveTitle(null);
+                  selectNav(primaryAction.key);
+                  onNewChat?.();
+                }}
+              />
+            </GlideGroup>
           )}
-          {navItems.map((item) => (
-            <RailButton
-              key={item.key}
-              icon={item.icon}
-              label={item.label}
-              count={item.count}
-              active={currentNav === item.key}
-              onClick={() => selectNav(item.key)}
-            />
-          ))}
-        </GlideGroup>
+          {navGroups ? navGroups.map((group, index) => (
+            <div key={group.label} className={index === 0 ? "" : "mt-4"}>
+              <div
+                aria-hidden={isCollapsed}
+                className={`mx-3 mb-1 ${isCollapsed ? "h-px bg-line" : "px-1 text-[11px] font-semibold tracking-[0.08em] text-ink-3"}`}
+              >
+                {!isCollapsed && <span className="sidebar-copy">{group.label}</span>}
+              </div>
+              <GlideGroup>
+                {group.items.map((item) => (
+                  <RailButton
+                    key={item.key}
+                    icon={item.icon}
+                    label={item.label}
+                    count={item.count}
+                    active={currentNav === item.key}
+                    onClick={() => selectNav(item.key)}
+                  />
+                ))}
+              </GlideGroup>
+            </div>
+          )) : (
+            <GlideGroup>
+              {navItems.map((item) => (
+                <RailButton
+                  key={item.key}
+                  icon={item.icon}
+                  label={item.label}
+                  count={item.count}
+                  active={currentNav === item.key}
+                  onClick={() => selectNav(item.key)}
+                />
+              ))}
+            </GlideGroup>
+          )}
+        </div>
 
         {historyLabel ? <div className="mt-3 min-h-0 flex-1 overflow-y-auto">
           <div className="sidebar-copy relative mx-2 mb-1 h-8">

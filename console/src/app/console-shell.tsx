@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖上游 SidebarNav/ThemeToggle、OwnDsh 鲸鱼品牌资源、静态控制台路由、TanStack navigation 与 Beautiful UI Harness tab bar 结构。
- * [OUTPUT]: 提供 OwnDsh 品牌工作区入口、角色过滤产品侧栏、用户中心导航/Sign out、深浅主题、可关闭页面 tab、移动抽屉和内容窗口。
+ * [OUTPUT]: 提供 OwnDsh 品牌工作区入口、按模型/扩展/团队分组的角色过滤产品侧栏、用户中心导航/Sign out、深浅主题、可关闭页面 tab、移动抽屉和内容窗口。
  * [POS]: app 的产品外壳；DOM、尺寸和交互直接由 Beautiful UI Harness 3ea4c181 迁移，工作区菜单只提供产品动作。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -10,6 +10,7 @@ import { CircleUserRound, LogOut, Menu, UserPlus, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { logoutCurrentSession } from '@/auth/session';
 import SidebarNav, {
+  type SidebarNavGroup,
   type SidebarNavItem,
   type SidebarWorkspaceAction
 } from '@/components/primitives/SidebarNav';
@@ -32,11 +33,15 @@ export function ConsoleShell() {
 
   const go = (to: ProductRoute) => void navigate({ to });
   const closeMobileNav = () => dialogRef.current?.close();
-  const navItems: SidebarNavItem[] = availableRoutes.map(({ to, label, icon: Icon }) => ({
-    key: to,
-    label,
-    icon: <Icon size={18} />
-  }));
+  const navItemFor = (to: string): SidebarNavItem | undefined => {
+    const route = availableRoutes.find((item) => item.to === to);
+    return route ? { key: route.to, label: route.label, icon: <route.icon size={18} /> } : undefined;
+  };
+  const navGroups: SidebarNavGroup[] = [
+    { label: '模型', items: ['/','/access'].flatMap((to) => navItemFor(to) ?? []) },
+    { label: '扩展', items: ['/plugins','/skills','/mcp'].flatMap((to) => navItemFor(to) ?? []) },
+    { label: '团队', items: ['/members','/activity'].flatMap((to) => navItemFor(to) ?? []) }
+  ].filter((group) => group.items.length > 0);
   const workspaceActions: SidebarWorkspaceAction[] = [];
   if (availableRoutes.some((route) => route.to === '/members')) {
     workspaceActions.push({ label: '邀请成员', icon: <UserPlus size={16} />, onClick: () => go('/members') });
@@ -73,7 +78,7 @@ export function ConsoleShell() {
       fill
       footerLabel={null}
       historyLabel={null}
-      navItems={navItems}
+      navGroups={navGroups}
       onNavigate={(key) => {
         if (isProductRoute(key)) go(key);
         if (mobile) closeMobileNav();
