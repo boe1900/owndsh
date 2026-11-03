@@ -157,7 +157,7 @@ function ModelSetCard({
       <div className="border-b border-zinc-100 dark:border-line p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-zinc-900 dark:bg-ink text-white shadow-sm"><Layers aria-hidden className="size-4" /></div>
+            <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-zinc-900 dark:bg-accent text-white shadow-sm"><Layers aria-hidden className="size-4" /></div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="m-0 truncate text-sm font-semibold text-zinc-900 dark:text-ink" title={set.name}>{set.name}</h2>
@@ -178,7 +178,7 @@ function ModelSetCard({
         {providerTree.length === 0 ? <div className="py-6 text-center text-xs text-zinc-400 dark:text-ink-3">此模型集尚未包含任何有效受管模型</div> : providerTree.map((provider) => (
           <div key={provider.providerId} className="overflow-hidden rounded-xl border border-zinc-200/90 dark:border-line bg-white dark:bg-surface shadow-[0_1px_2px_rgba(0,0,0,.02)]">
             <div className="flex items-center gap-2 border-b border-zinc-200/60 dark:border-line bg-zinc-100/80 dark:bg-field px-3 py-2">
-              <span className="grid size-4 shrink-0 place-items-center rounded bg-zinc-800 dark:bg-ink text-[9px] font-bold text-white">{provider.providerName.slice(0, 1).toUpperCase()}</span>
+              <span className="grid size-4 shrink-0 place-items-center rounded bg-zinc-800 dark:bg-accent text-[9px] font-bold text-white">{provider.providerName.slice(0, 1).toUpperCase()}</span>
               <span className="text-xs font-semibold text-zinc-900 dark:text-ink">{provider.providerName}</span>
               <span className="text-[11px] text-zinc-400 dark:text-ink-3">({provider.connections.length} 条连接)</span>
             </div>
@@ -315,10 +315,10 @@ function ModelSetEditor({
                 return <section key={provider.providerId} className="overflow-hidden rounded-xl border border-zinc-200/90 dark:border-line bg-white dark:bg-surface">
                   <button type="button" className="flex w-full items-center justify-between border-b border-zinc-200/70 dark:border-line bg-zinc-50 dark:bg-canvas px-3.5 py-2.5 text-left transition hover:bg-zinc-100/70 dark:hover:bg-field" onClick={() => toggleModels(providerModels)}>
                     <span className="flex items-center gap-2">
-                      <span className={'grid size-4 place-items-center rounded border transition ' + (providerSelected ? 'border-zinc-900 bg-zinc-900 dark:bg-ink text-white' : selectedCount > 0 ? 'border-zinc-400 dark:border-line-strong bg-zinc-200 dark:bg-line text-zinc-800 dark:text-ink' : 'border-zinc-300 dark:border-line-strong bg-white dark:bg-surface')}>
-                        {providerSelected ? <Check aria-hidden className="size-3 stroke-[3]" /> : selectedCount > 0 ? <span className="h-0.5 w-2 rounded bg-zinc-800 dark:bg-ink" /> : null}
+                      <span className={'grid size-4 place-items-center rounded border transition ' + (providerSelected ? 'border-zinc-900 bg-zinc-900 dark:bg-accent text-white' : selectedCount > 0 ? 'border-zinc-400 dark:border-line-strong bg-zinc-200 dark:bg-line text-zinc-800 dark:text-ink' : 'border-zinc-300 dark:border-line-strong bg-white dark:bg-surface')}>
+                        {providerSelected ? <Check aria-hidden className="size-3 stroke-[3]" /> : selectedCount > 0 ? <span className="h-0.5 w-2 rounded bg-zinc-800 dark:bg-accent" /> : null}
                       </span>
-                      <span className="grid size-4 place-items-center rounded bg-zinc-800 dark:bg-ink text-[9px] font-bold text-white">{provider.providerName.slice(0, 1).toUpperCase()}</span>
+                      <span className="grid size-4 place-items-center rounded bg-zinc-800 dark:bg-accent text-[9px] font-bold text-white">{provider.providerName.slice(0, 1).toUpperCase()}</span>
                       <span className="text-xs font-semibold text-zinc-900 dark:text-ink">{provider.providerName}</span>
                       <span className="text-[11px] text-zinc-400 dark:text-ink-3">({provider.connections.length} 条连接)</span>
                     </span>
@@ -362,7 +362,7 @@ function ModelSetEditor({
           <span className="text-xs text-zinc-500 dark:text-ink-3">已选择 <strong className="font-semibold text-zinc-900 dark:text-ink">{modelIds.length}</strong> 个模型</span>
           <div className="flex items-center gap-2">
             <Button type="button" size="sm" className="border border-zinc-200 dark:border-line bg-white dark:bg-surface text-zinc-600 dark:text-ink-2 hover:bg-zinc-100 dark:hover:bg-field" disabled={saving} onClick={onClose}>取消</Button>
-            <Button type="submit" variant="primary" size="sm" className="bg-zinc-900 dark:bg-ink text-white hover:bg-zinc-800 dark:hover:bg-ink" disabled={saving || !name.trim() || modelIds.length === 0}>{saving ? '保存中' : '保存'}</Button>
+            <Button type="submit" variant="primary" size="sm" className="bg-zinc-900 dark:bg-accent text-white hover:bg-zinc-800 dark:hover:bg-accent" disabled={saving || !name.trim() || modelIds.length === 0}>{saving ? '保存中' : '保存'}</Button>
           </div>
         </div>
       </form>
@@ -476,7 +476,7 @@ export function ModelSetManagement({ active = true, canWrite, connectionNames, c
             {modelSetSearch ? <button type="button" aria-label="清除模型集搜索" className="absolute right-2.5 top-2.5 text-zinc-400 dark:text-ink-3 hover:text-zinc-600 dark:hover:text-ink-2" onClick={() => setModelSetSearch('')}><X aria-hidden className="size-3.5" /></button> : null}
           </label>
         </div>
-        {canWrite ? <Button type="button" variant="primary" size="sm" className="self-end bg-zinc-900 dark:bg-ink text-white hover:bg-zinc-800 dark:hover:bg-ink sm:self-auto" disabled={models.isLoading || models.isError} onClick={openCreate}><Plus aria-hidden className="size-3.5" />新建模型集</Button> : null}
+        {canWrite ? <Button type="button" variant="primary" size="sm" className="self-end bg-zinc-900 dark:bg-accent text-white hover:bg-zinc-800 dark:hover:bg-accent sm:self-auto" disabled={models.isLoading || models.isError} onClick={openCreate}><Plus aria-hidden className="size-3.5" />新建模型集</Button> : null}
       </div>
 
       {sets.error ? <div role="alert" className="rounded-xl border border-rose-200/70 dark:border-red bg-rose-50 dark:bg-red-tint px-4 py-3 text-xs text-rose-700 dark:text-red">模型集加载失败：{message(sets.error, '模型集加载失败')}<Button type="button" variant="quiet" size="xs" className="ml-2 underline" onClick={() => void sets.refetch()}>重试</Button></div> : null}
