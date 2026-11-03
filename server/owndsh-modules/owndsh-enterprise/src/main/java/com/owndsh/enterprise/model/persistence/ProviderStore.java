@@ -17,4 +17,6 @@ public interface ProviderStore {
     void insert(ModelProvider provider);
     boolean update(ModelProvider provider, long expectedRevision);
     boolean updateStatus(String tenantId, long providerId, ModelStatus status, long expectedRevision);
+
+    boolean delete(String tenantId, long providerId, long expectedRevision);
 }

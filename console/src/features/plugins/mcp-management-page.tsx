@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 MCP/成员/用户组生成 API、console 权限事实、TanStack Query、SegmentedControl、ProductDataTable 与 ProductDialog。
- * [OUTPUT]: 提供默认筛选启用项的 MCP 服务配置与访问授权目录；配置与授权通过统一弹窗提交，删除失败只在当前确认弹窗呈现且关闭后清理状态，编辑携带 revision 并保留未改配置，OAuth URL 和固定公共请求头提交前按字段校验，用户认证头由端侧生成。
+ * [OUTPUT]: 提供默认筛选启用项的 MCP 服务配置与访问授权目录；配置与授权通过统一弹窗提交，服务/授权启停与删除均先确认，失败只在当前确认弹窗呈现且关闭后清理状态，编辑携带 revision 并保留未改配置，OAuth URL 和固定公共请求头提交前按字段校验，用户认证头由端侧生成。
  * [POS]: features/plugins 中独立 /mcp 路由的管理工作台，和插件版本页面共享组件但不再共享菜单或 tab；服务端只保存协议元数据。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -15,6 +15,7 @@ import { Button } from '@/components/atoms/Button';
 import { SegmentedControl } from '@/components/atoms/SegmentedControl';
 import { StatusPill } from '@/components/atoms/StatusPill';
 import { ProductDataTable, type ProductTableColumn } from '@/components/product/DataTable';
+import { ConfirmDialog } from '@/components/product/ConfirmDialog';
 import { ProductDialog } from '@/components/product/Dialog';
 import { DialogFooter } from '@/components/product/DialogFooter';
 import { useMembers } from '@/features/member-select';
@@ -101,7 +102,7 @@ const serverColumns: ReadonlyArray<ProductTableColumn<McpMcpServer>> = [{ access
 
 export function McpManagementPage() {
   const [section, setSection] = useState<(typeof SECTIONS)[number]>('服务配置');
-  const { bootstrap } = useRouteContext({ from: '/_console' }); const canRead = bootstrap.permissions.includes('ent:mcp:read'); const canWrite = bootstrap.permissions.includes('ent:mcp:write'); const canGrant = bootstrap.permissions.includes('ent:mcp:grant'); const canReadMembers = bootstrap.permissions.includes('ent:member:read'); const queryClient = useQueryClient(); const [serverEditor, setServerEditor] = useState<'create' | McpMcpServer | null>(null); const [grantDialog, setGrantDialog] = useState(false); const [deleting, setDeleting] = useState<McpMcpGrant>();
+  const { bootstrap } = useRouteContext({ from: '/_console' }); const canRead = bootstrap.permissions.includes('ent:mcp:read'); const canWrite = bootstrap.permissions.includes('ent:mcp:write'); const canGrant = bootstrap.permissions.includes('ent:mcp:grant'); const canReadMembers = bootstrap.permissions.includes('ent:member:read'); const queryClient = useQueryClient(); const [serverEditor, setServerEditor] = useState<'create' | McpMcpServer | null>(null); const [grantDialog, setGrantDialog] = useState(false); const [deleting, setDeleting] = useState<McpMcpGrant>(); const [serverToggleTarget, setServerToggleTarget] = useState<McpMcpServer>(); const [grantToggleTarget, setGrantToggleTarget] = useState<{ item: McpMcpGrant; action: 'enable' | 'disable' }>();
   const servers = useQuery({ queryKey: ['mcp', 'servers'], queryFn: () => loadDirectory((cursor) => listMcpServers({ query: { limit: 200, ...(cursor ? { cursor } : {}) } }), 'MCP 服务加载失败'), enabled: canRead, staleTime: 15_000 }); const grants = useQuery({ queryKey: ['mcp', 'grants'], queryFn: () => loadDirectory((cursor) => listMcpGrants({ query: { limit: 200, ...(cursor ? { cursor } : {}) } }), 'MCP 授权加载失败'), enabled: canRead, staleTime: 15_000 }); const members = useMembers(canGrant && canReadMembers); const groups = useQuery({ queryKey: ['access-groups', 'directory'], queryFn: () => loadDirectory((cursor) => listAccessGroups({ query: { limit: 200, ...(cursor ? { cursor } : {}) } }), '用户组目录加载失败'), enabled: canGrant && canReadMembers, staleTime: 60_000 });
   const saveServer = useMutation({
     mutationFn: async ({ current, value }: { current?: McpMcpServer; value: ServerForm }) => {
@@ -143,7 +144,7 @@ export function McpManagementPage() {
     onSuccess: () => setServerEditor(null),
     onSettled: () => void queryClient.invalidateQueries({ queryKey: ['mcp', 'servers'] })
   });
-  const toggle = useMutation({ mutationFn: async (server: McpMcpServer) => { const action = server.status === 'ACTIVE' ? disableMcpServer : enableMcpServer; const result = await action({ path: { id: server.id }, headers: { 'If-Match': server.revision }, body: {} }); if (result.error) throw new Error(errorMessage(result.error, 'MCP 状态更新失败')); }, onSettled: () => void queryClient.invalidateQueries({ queryKey: ['mcp', 'servers'] }) }); const saveGrant = useMutation({ mutationFn: async (value: { serverId: string; subjectType: 'ALL' | 'USER' | 'GROUP'; subjectId: string | null }) => { const result = await createMcpGrants({ headers: { 'Idempotency-Key': randomUuid() }, body: { items: [{ ...value, status: 'ACTIVE' }] } }); if (result.error) throw new Error(errorMessage(result.error, 'MCP 授权失败')); }, onSuccess: async () => { setGrantDialog(false); await queryClient.invalidateQueries({ queryKey: ['mcp', 'grants'] }); } }); const changeGrant = useMutation({
+  const toggle = useMutation({ mutationFn: async (server: McpMcpServer) => { const action = server.status === 'ACTIVE' ? disableMcpServer : enableMcpServer; const result = await action({ path: { id: server.id }, headers: { 'If-Match': server.revision }, body: {} }); if (result.error) throw new Error(errorMessage(result.error, 'MCP 状态更新失败')); }, onSuccess: async () => { setServerToggleTarget(undefined); await queryClient.invalidateQueries({ queryKey: ['mcp', 'servers'] }); } }); const saveGrant = useMutation({ mutationFn: async (value: { serverId: string; subjectType: 'ALL' | 'USER' | 'GROUP'; subjectId: string | null }) => { const result = await createMcpGrants({ headers: { 'Idempotency-Key': randomUuid() }, body: { items: [{ ...value, status: 'ACTIVE' }] } }); if (result.error) throw new Error(errorMessage(result.error, 'MCP 授权失败')); }, onSuccess: async () => { setGrantDialog(false); await queryClient.invalidateQueries({ queryKey: ['mcp', 'grants'] }); } }); const changeGrant = useMutation({
     mutationFn: async ({ item, action }: { item: McpMcpGrant; action: 'enable' | 'disable' | 'delete' }) => {
       const options = { path: { id: item.id }, headers: { 'If-Match': item.revision } };
       const result = action === 'delete'
@@ -151,7 +152,7 @@ export function McpManagementPage() {
         : await updateMcpGrant({ ...options, body: { status: action === 'enable' ? 'ACTIVE' : 'DISABLED' } });
       if (result.error) throw new Error(errorMessage(result.error, action === 'delete' ? 'MCP 授权删除失败' : 'MCP 授权更新失败'));
     },
-    onSuccess: (_data, variables) => { if (variables.action === 'delete') setDeleting(undefined); },
+    onSuccess: (_data, variables) => { if (variables.action === 'delete') setDeleting(undefined); else setGrantToggleTarget(undefined); },
     onSettled: () => void queryClient.invalidateQueries({ queryKey: ['mcp', 'grants'] })
   });
   const closeDelete = () => {
@@ -162,13 +163,13 @@ export function McpManagementPage() {
 
   const rows = servers.data ?? [];
   const grantRows = grants.data ?? [];
-  const grantColumns: ReadonlyArray<ProductTableColumn<McpMcpGrant>> = [{ id: 'server', accessorFn: (row) => rows.find((server) => server.id === row.serverId)?.displayName ?? `服务 ${row.serverId}`, header: 'MCP 服务', meta: { label: 'MCP 服务', className: 'w-[240px]', cellClassName: 'w-[240px]' } }, { id: 'subject', accessorFn: (row) => row.subjectType === 'ALL' ? '所有成员' : row.subjectType === 'USER' ? `成员：${members.data?.find((member) => member.id === row.subjectId)?.displayName ?? row.subjectId}` : `用户组：${groups.data?.find((group) => group.id === row.subjectId)?.name ?? row.subjectId}`, header: '授权对象', meta: { label: '授权对象', className: 'w-[300px]', cellClassName: 'w-[300px]' } }, { accessorKey: 'status', header: '状态', cell: ({ getValue }) => <StatusPill tone={getValue() === 'ACTIVE' ? 'green' : 'neutral'}>{getValue() === 'ACTIVE' ? '启用' : '停用'}</StatusPill>, filterFn: 'equalsString', meta: { label: '状态', className: 'w-[100px]', cellClassName: 'w-[100px]' } }, ...(canGrant ? [{ id: 'actions', header: '操作', enableGlobalFilter: false, enableHiding: false, enableSorting: false, cell: ({ row }: any) => <div className="flex items-center gap-1"><Button variant="quiet" size="xs" className="size-7 rounded-md p-0" aria-label={`${row.original.status === 'ACTIVE' ? '停用' : '启用'}授权`} disabled={changeGrant.isPending} onClick={() => changeGrant.mutate({ item: row.original, action: row.original.status === 'ACTIVE' ? 'disable' : 'enable' })}>{row.original.status === 'ACTIVE' ? <PowerOff className="size-3.5" /> : <Power className="size-3.5" />}</Button><Button variant="quiet" size="xs" className="size-7 rounded-md p-0 text-red" aria-label="删除授权" disabled={changeGrant.isPending} onClick={() => { changeGrant.reset(); setDeleting(row.original); }}><Trash2 className="size-3.5" /></Button></div>, meta: { label: '操作', className: 'w-[90px]', cellClassName: 'w-[90px]' } }] : [])]; if (!canRead) return <p role="status" className="p-5 text-sm text-ink-3">没有 MCP 查看权限</p>;
+  const grantColumns: ReadonlyArray<ProductTableColumn<McpMcpGrant>> = [{ id: 'server', accessorFn: (row) => rows.find((server) => server.id === row.serverId)?.displayName ?? `服务 ${row.serverId}`, header: 'MCP 服务', meta: { label: 'MCP 服务', className: 'w-[240px]', cellClassName: 'w-[240px]' } }, { id: 'subject', accessorFn: (row) => row.subjectType === 'ALL' ? '所有成员' : row.subjectType === 'USER' ? `成员：${members.data?.find((member) => member.id === row.subjectId)?.displayName ?? row.subjectId}` : `用户组：${groups.data?.find((group) => group.id === row.subjectId)?.name ?? row.subjectId}`, header: '授权对象', meta: { label: '授权对象', className: 'w-[300px]', cellClassName: 'w-[300px]' } }, { accessorKey: 'status', header: '状态', cell: ({ getValue }) => <StatusPill tone={getValue() === 'ACTIVE' ? 'green' : 'neutral'}>{getValue() === 'ACTIVE' ? '启用' : '停用'}</StatusPill>, filterFn: 'equalsString', meta: { label: '状态', className: 'w-[100px]', cellClassName: 'w-[100px]' } }, ...(canGrant ? [{ id: 'actions', header: '操作', enableGlobalFilter: false, enableHiding: false, enableSorting: false, cell: ({ row }: any) => <div className="flex items-center gap-1"><Button variant="quiet" size="xs" className="size-7 rounded-md p-0" aria-label={`${row.original.status === 'ACTIVE' ? '停用' : '启用'}授权`} disabled={changeGrant.isPending} onClick={() => { changeGrant.reset(); setGrantToggleTarget({ item: row.original, action: row.original.status === 'ACTIVE' ? 'disable' : 'enable' }); }}>{row.original.status === 'ACTIVE' ? <PowerOff className="size-3.5" /> : <Power className="size-3.5" />}</Button><Button variant="quiet" size="xs" className="size-7 rounded-md p-0 text-red" aria-label="删除授权" disabled={changeGrant.isPending} onClick={() => { changeGrant.reset(); setDeleting(row.original); }}><Trash2 className="size-3.5" /></Button></div>, meta: { label: '操作', className: 'w-[90px]', cellClassName: 'w-[90px]' } }] : [])]; if (!canRead) return <p role="status" className="p-5 text-sm text-ink-3">没有 MCP 查看权限</p>;
 
   const serverTableColumns: ReadonlyArray<ProductTableColumn<McpMcpServer>> = canWrite ? [...serverColumns, {
     id: 'actions', header: '操作', enableGlobalFilter: false, enableHiding: false, enableSorting: false,
     cell: ({ row }) => <div className="flex items-center gap-0.5">
       <Button variant="quiet" size="xs" className="size-7 rounded-md p-0" disabled={saveServer.isPending || toggle.isPending} aria-label={`编辑 ${row.original.displayName}`} title="编辑" onClick={() => { saveServer.reset(); setServerEditor(row.original); }}><Pencil aria-hidden className="size-3.5" /></Button>
-      <Button variant="quiet" size="xs" className="size-7 rounded-md p-0" disabled={saveServer.isPending || toggle.isPending} aria-label={`${row.original.status === 'ACTIVE' ? '停用' : '启用'} MCP 服务`} title={row.original.status === 'ACTIVE' ? '停用' : '启用'} onClick={() => toggle.mutate(row.original)}>{row.original.status === 'ACTIVE' ? <PowerOff aria-hidden className="size-3.5" /> : <Power aria-hidden className="size-3.5" />}</Button>
+      <Button variant="quiet" size="xs" className="size-7 rounded-md p-0" disabled={saveServer.isPending || toggle.isPending} aria-label={`${row.original.status === 'ACTIVE' ? '停用' : '启用'} MCP 服务`} title={row.original.status === 'ACTIVE' ? '停用' : '启用'} onClick={() => { toggle.reset(); setServerToggleTarget(row.original); }}>{row.original.status === 'ACTIVE' ? <PowerOff aria-hidden className="size-3.5" /> : <Power aria-hidden className="size-3.5" />}</Button>
     </div>,
     meta: { label: '操作', className: 'w-[90px]', cellClassName: 'w-[90px]' }
   }] : serverColumns;
@@ -186,5 +187,21 @@ export function McpManagementPage() {
           </DialogFooter>
         </div>
       </ProductDialog>
-    ) : null}</div>;
+    ) : null}{serverToggleTarget ? <ConfirmDialog
+      title={serverToggleTarget.status === 'ACTIVE' ? '停用 MCP 服务' : '启用 MCP 服务'}
+      description={`确认${serverToggleTarget.status === 'ACTIVE' ? '停用' : '启用'} MCP 服务“${serverToggleTarget.displayName}”？`}
+      confirmLabel={serverToggleTarget.status === 'ACTIVE' ? '停用' : '启用'}
+      saving={toggle.isPending}
+      error={toggle.error ? errorMessage(toggle.error, 'MCP 状态更新失败') : undefined}
+      onClose={() => { if (!toggle.isPending) setServerToggleTarget(undefined); }}
+      onConfirm={() => toggle.mutate(serverToggleTarget)}
+    /> : null}{grantToggleTarget ? <ConfirmDialog
+      title={grantToggleTarget.action === 'disable' ? '停用 MCP 授权' : '启用 MCP 授权'}
+      description={`确认${grantToggleTarget.action === 'disable' ? '停用' : '启用'}这条 MCP 访问授权？`}
+      confirmLabel={grantToggleTarget.action === 'disable' ? '停用' : '启用'}
+      saving={changeGrant.isPending}
+      error={changeGrant.error ? errorMessage(changeGrant.error, 'MCP 授权更新失败') : undefined}
+      onClose={() => { if (!changeGrant.isPending) setGrantToggleTarget(undefined); }}
+      onConfirm={() => changeGrant.mutate(grantToggleTarget)}
+    /> : null}</div>;
 }

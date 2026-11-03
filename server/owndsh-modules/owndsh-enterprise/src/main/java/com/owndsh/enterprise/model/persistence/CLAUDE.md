@@ -4,11 +4,11 @@
 
 成员清单
 
-ProviderStore.java: provider 元信息 keyset/find/insert/update/status CAS 持久化端口。
-ProviderConnectionStore.java: 连接 keyset/find/insert/update/status CAS 持久化端口。
+ProviderStore.java: provider 元信息 keyset/find/insert/update/status/delete CAS 持久化端口。
+ProviderConnectionStore.java: 连接 keyset/find/insert/update/status/delete CAS 与 Provider 子项计数端口。
 JdbcProviderStore.java: V46 ent_model_provider 元信息 JDBC adapter。
 JdbcProviderConnectionStore.java: V46/V49 连接 endpoint/协议/模型发现路径/密文 JDBC adapter。
-ManagedModelStore.java: 模型 keyset/find/insert/update/status/delete CAS 持久化端口。
+ManagedModelStore.java: 模型 keyset/find/insert/update/status/delete CAS 与 Connection 子项计数持久化端口。
 ManagedModelDeleteBlockers.java: 模型删除前的授权、模型集、配额和用量引用计数事实。
 ModelSetDeleteBlockers.java: 模型集删除前的模型授权和配额策略引用计数事实。
 JdbcManagedModelStore.java: V46 ent_managed_model 经 Connection/Provider 两跳 join 的 PostgreSQL adapter，使用 JSONB 往返输入模态与 reasoning/compat，并在删除事务内统计阻塞引用。

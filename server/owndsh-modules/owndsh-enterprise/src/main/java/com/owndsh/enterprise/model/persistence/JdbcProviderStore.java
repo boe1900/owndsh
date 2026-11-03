@@ -29,6 +29,7 @@ public final class JdbcProviderStore implements ProviderStore {
     public void insert(ModelProvider provider) { jdbc.update(INSERT_SQL, provider.id(), provider.tenantId(), provider.providerKey(), provider.name(), provider.description(), provider.status().name(), provider.revision()); }
     public boolean update(ModelProvider provider, long expectedRevision) { return jdbc.update(UPDATE_SQL, provider.name(), provider.description(), provider.tenantId(), provider.id(), expectedRevision) == 1; }
     public boolean updateStatus(String tenantId, long providerId, ModelStatus status, long expectedRevision) { return jdbc.update(STATUS_SQL, status.name(), tenantId, providerId, expectedRevision) == 1; }
+    public boolean delete(String tenantId, long providerId, long expectedRevision) { return jdbc.update("delete from ent_model_provider where tenant_id = ? and id = ? and revision = ?", tenantId, providerId, expectedRevision) == 1; }
     private ModelProvider map(ResultSet rs, int row) throws SQLException { return new ModelProvider(rs.getLong("id"), rs.getString("tenant_id"), rs.getString("provider_key"), rs.getString("name"), rs.getString("description"), ModelStatus.valueOf(rs.getString("status")), rs.getLong("revision")); }
     private static void requirePage(long afterId, int limit) { if (afterId < 0 || limit < 1 || limit > 201) throw new IllegalArgumentException("provider page 非法"); }
 }

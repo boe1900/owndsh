@@ -69,6 +69,21 @@ ProviderItem:
       '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
       '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
       '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+  delete:
+    operationId: deleteModelProvider
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    responses:
+      '200':
+        description: Deleted provider.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/DeletedResourceResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
 ProviderConnectionCollection:
   parameters:
     - $ref: '../enterprise-openapi.yaml#/components/parameters/ProviderIdPath'
@@ -135,6 +150,21 @@ ProviderConnectionItem:
         content:
           application/json:
             schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ProviderConnectionResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
+      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
+      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
+  delete:
+    operationId: deleteProviderConnection
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    responses:
+      '200':
+        description: Deleted provider connection.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/DeletedResourceResponse'}
       '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
       '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
       '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}

@@ -29,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -108,6 +109,18 @@ public final class AdminProviderController {
     ) {
         EnterpriseRequestContext context = contexts.resolve(request);
         return response(ProviderView.from(providers.update(mutation(context), providerId, expectedRevision, body.spec())), context);
+    }
+
+    @DeleteMapping("/{providerId}")
+    @SaCheckPermission("ent:model:write")
+    public EnterpriseResponse<DeletedModelResourceView> delete(
+        @PathVariable long providerId,
+        @RequestHeader("If-Match") long expectedRevision,
+        HttpServletRequest request
+    ) {
+        EnterpriseRequestContext context = contexts.resolve(request);
+        providers.delete(mutation(context), providerId, expectedRevision);
+        return response(DeletedModelResourceView.of(providerId), context);
     }
 
     @PostMapping("/{providerId}/actions/enable")

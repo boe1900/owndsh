@@ -4,6 +4,6 @@
 
 成员清单
 
-skill-management-page.tsx: 管理端公开/私有 skill release 导入预检、导入页内创建及独立管理凭据、发布/撤销/恢复、版本历史和回滚工作台，并展示固定 commit 的源码链接；只消费生成的 OpenAPI SDK，不管理用户、设备或租户分配。
+skill-management-page.tsx: 管理端公开/私有 skill release 导入预检、导入页内创建及独立管理凭据、发布/撤销/恢复、版本历史和回滚工作台；发布、撤销、回滚和凭据撤销统一确认，并展示固定 commit 的源码链接；只消费生成的 OpenAPI SDK，不管理用户、设备或租户分配。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

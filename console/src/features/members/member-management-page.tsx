@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖成员/身份源 operation、用户组/身份接入管理器、console 权限、TanStack Query 与产品表格/对话框，共享 lib/crypto 生成 HTTP/HTTPS 通用幂等键。
- * [OUTPUT]: 提供默认筛选启用成员的目录、LOCAL 创建、LDAP 单人导入、用户组、身份接入、角色/状态和身份绑定治理。
+ * [OUTPUT]: 提供默认筛选启用成员的目录、LOCAL 创建、LDAP 单人导入、用户组、身份接入、角色/状态和身份绑定治理；状态切换与身份解除统一经确认弹窗。
  * [POS]: features/members 的产品治理工作台；Server 独占 revision、身份源组同步、最后管理员和设备撤销裁决。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -34,6 +34,7 @@ import { Button } from '@/components/atoms/Button';
 import { SegmentedControl } from '@/components/atoms/SegmentedControl';
 import { StatusPill } from '@/components/atoms/StatusPill';
 import { ProductDataTable, type ProductTableColumn } from '@/components/product/DataTable';
+import { ConfirmDialog } from '@/components/product/ConfirmDialog';
 import { ProductDialog } from '@/components/product/Dialog';
 import { DialogFooter } from '@/components/product/DialogFooter';
 import { loadMemberPage } from '@/features/member-select';
@@ -280,6 +281,7 @@ function MemberDetailDialog({
 }) {
   const [roles, setRoles] = useState<AuthBuiltInRole[]>(detail.member.roles);
   const [sourceId, setSourceId] = useState('');
+  const [confirmAction, setConfirmAction] = useState<{ kind: 'status'; status: MemberStatus } | { kind: 'unlink'; identityId: string; sourceName: string }>();
   const sameRoles = roles.length === detail.member.roles.length
     && roles.every((role) => detail.member.roles.includes(role));
   const targetStatus: MemberStatus = detail.member.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE';
@@ -287,6 +289,7 @@ function MemberDetailDialog({
   const availableSources = linkSources.filter((source) => !boundSourceIds.has(source.id));
 
   return (
+    <>
     <ProductDialog className="max-w-[720px]" title={detail.member.displayName} onClose={onClose}>
       <div className="grid gap-5 p-5">
         <section>
@@ -390,10 +393,7 @@ function MemberDetailDialog({
                         disabled={saving}
                         aria-label={`解除 ${identity.sourceName}`}
                         title="解除登录身份"
-                        onClick={() => {
-                          if (!window.confirm(`确认解除 ${identity.sourceName}？`)) return;
-                          onUnlink(identity.identityId!);
-                        }}
+                        onClick={() => setConfirmAction({ kind: 'unlink', identityId: identity.identityId!, sourceName: identity.sourceName })}
                       >
                         <Unlink aria-hidden className="size-3.5" />
                       </Button>
@@ -433,10 +433,7 @@ function MemberDetailDialog({
             variant="quiet"
             size="sm"
             disabled={saving}
-            onClick={() => {
-              if (targetStatus === 'DISABLED' && !window.confirm(`确认停用 ${detail.member.displayName}？`)) return;
-              onStatus(targetStatus);
-            }}
+            onClick={() => setConfirmAction({ kind: 'status', status: targetStatus })}
           >
             {targetStatus === 'DISABLED' ? <PowerOff aria-hidden className="size-3.5" /> : <Power aria-hidden className="size-3.5" />}
             {targetStatus === 'DISABLED' ? '停用成员' : '启用成员'}
@@ -445,6 +442,23 @@ function MemberDetailDialog({
         <Button type="button" size="sm" onClick={onClose}>关闭</Button>
       </DialogFooter>
     </ProductDialog>
+    {confirmAction?.kind === 'status' ? <ConfirmDialog
+      title={confirmAction.status === 'DISABLED' ? '停用成员' : '启用成员'}
+      description={`确认${confirmAction.status === 'DISABLED' ? '停用' : '启用'}成员“${detail.member.displayName}”？`}
+      confirmLabel={confirmAction.status === 'DISABLED' ? '停用' : '启用'}
+      saving={saving}
+      onClose={() => { if (!saving) setConfirmAction(undefined); }}
+      onConfirm={() => { setConfirmAction(undefined); onStatus(confirmAction.status); }}
+    /> : null}
+    {confirmAction?.kind === 'unlink' ? <ConfirmDialog
+      title="解除登录身份"
+      description={`确认解除“${confirmAction.sourceName}”登录身份？`}
+      confirmLabel="解除身份"
+      saving={saving}
+      onClose={() => { if (!saving) setConfirmAction(undefined); }}
+      onConfirm={() => { setConfirmAction(undefined); onUnlink(confirmAction.identityId); }}
+    /> : null}
+    </>
   );
 }
 

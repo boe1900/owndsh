@@ -102,7 +102,7 @@ ProviderChangeAuditMetadata:
   additionalProperties: false
   required: [operation, protectedValueChanged, resourceRevision, bootstrapRevision]
   properties:
-    operation: {type: string, enum: [CREATE, UPDATE, ENABLE, DISABLE]}
+    operation: {type: string, enum: [CREATE, UPDATE, ENABLE, DISABLE, DELETE]}
     protectedValueChanged: {type: boolean}
     resourceRevision: {type: integer, minimum: 0}
     bootstrapRevision: {type: integer, minimum: 0}
@@ -113,7 +113,7 @@ ProviderConnectionChangeAuditMetadata:
   properties:
     connectionId: {type: integer, minimum: 1}
     providerId: {type: integer, minimum: 1}
-    operation: {type: string, enum: [CREATE, UPDATE, ENABLE, DISABLE]}
+    operation: {type: string, enum: [CREATE, UPDATE, ENABLE, DISABLE, DELETE]}
     secretReplaced: {type: boolean}
     resourceRevision: {type: integer, minimum: 0}
     bootstrapRevision: {type: integer, minimum: 0}

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖身份源 operation、TanStack Query、产品表格/编辑器与 LDAP 组映射弹窗，共享 lib/crypto 生成 HTTP/HTTPS 通用幂等键。
- * [OUTPUT]: 提供默认筛选启用项的 OIDC/LDAP/LOCAL 身份接入、连接测试、启停，以及绑定具体 LDAP 来源的组映射入口。
+ * [OUTPUT]: 提供默认筛选启用项的 OIDC/LDAP/LOCAL 身份接入、连接测试、确认后的启停，以及绑定具体 LDAP 来源的组映射入口。
  * [POS]: features/members 的身份接入工作台；Server 独占 secret、endpoint、revision 和身份源状态裁决。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -26,6 +26,7 @@ import type {
 } from '@/api/generated/types.gen';
 import { randomUuid } from '@/lib/crypto';
 import { Button } from '@/components/atoms/Button';
+import { ConfirmDialog } from '@/components/product/ConfirmDialog';
 import { StatusPill } from '@/components/atoms/StatusPill';
 import { ProductDataTable, type ProductTableColumn } from '@/components/product/DataTable';
 import { IdentitySourceEditorDialog } from './identity-source-editor';
@@ -64,6 +65,7 @@ async function loadSources(cursor?: string) {
 export function IdentitySourceManagement({ canWrite }: { canWrite: boolean }) {
   const [editor, setEditor] = useState<IdentitySource | 'new'>();
   const [mappingSource, setMappingSource] = useState<IdentitySource>();
+  const [toggleTarget, setToggleTarget] = useState<IdentitySource>();
   const [notice, setNotice] = useState<string>();
   const queryClient = useQueryClient();
   const sources = useInfiniteQuery({ queryKey: ['identity-sources', 'management'], queryFn: ({ pageParam }) => loadSources(pageParam), initialPageParam: undefined as string | undefined, getNextPageParam: nextCursor });
@@ -88,6 +90,7 @@ export function IdentitySourceManagement({ canWrite }: { canWrite: boolean }) {
   const toggle = useMutation({
     mutationFn: async (source: IdentitySource) => unwrapData<IdentitySource>(await (source.status === 'ACTIVE' ? disableIdentitySource : enableIdentitySource)({ headers: { 'If-Match': source.revision }, path: { sourceId: source.id } }), '身份源状态更新失败'),
     onSuccess: async (source) => {
+      setToggleTarget(undefined);
       setNotice(`${source.name} 已${source.status === 'ACTIVE' ? '启用' : '停用'}`);
       await queryClient.invalidateQueries({ queryKey: ['identity-sources'] });
     }
@@ -107,7 +110,7 @@ export function IdentitySourceManagement({ canWrite }: { canWrite: boolean }) {
         {canWrite ? <>
           <Button variant="quiet" size="xs" className="size-7 rounded-md p-0" aria-label={`编辑 ${row.original.name}`} title="编辑" onClick={() => { save.reset(); setEditor(row.original); }}><Pencil aria-hidden className="size-3.5" /></Button>
           {row.original.type !== 'LOCAL' ? <Button variant="quiet" size="xs" className="size-7 rounded-md p-0" disabled={test.isPending} aria-label={`测试 ${row.original.name}`} title="连接测试" onClick={() => test.mutate(row.original)}><FlaskConical aria-hidden className="size-3.5" /></Button> : null}
-          <Button variant="quiet" size="xs" className="size-7 rounded-md p-0" disabled={toggle.isPending} aria-label={`${row.original.status === 'ACTIVE' ? '停用' : '启用'} ${row.original.name}`} title={row.original.status === 'ACTIVE' ? '停用' : '启用'} onClick={() => { if (row.original.status !== 'ACTIVE' || window.confirm(`确认停用 ${row.original.name}？`)) toggle.mutate(row.original); }}>{row.original.status === 'ACTIVE' ? <PowerOff aria-hidden className="size-3.5" /> : <Power aria-hidden className="size-3.5" />}</Button>
+          <Button variant="quiet" size="xs" className="size-7 rounded-md p-0" disabled={toggle.isPending} aria-label={`${row.original.status === 'ACTIVE' ? '停用' : '启用'} ${row.original.name}`} title={row.original.status === 'ACTIVE' ? '停用' : '启用'} onClick={() => { toggle.reset(); setToggleTarget(row.original); }}>{row.original.status === 'ACTIVE' ? <PowerOff aria-hidden className="size-3.5" /> : <Power aria-hidden className="size-3.5" />}</Button>
         </> : null}
       </div>,
       meta: { label: '操作', className: 'w-[150px]', cellClassName: 'w-[150px]' }
@@ -122,6 +125,15 @@ export function IdentitySourceManagement({ canWrite }: { canWrite: boolean }) {
       <ProductDataTable ariaLabel="身份源" columns={columns} data={rows} emptyText="暂无身份源" error={sources.error} filter={{ columnId: 'status', defaultFilterValue: 'ACTIVE', label: '全部状态', options: [{ label: '启用', value: 'ACTIVE' }, { label: '停用', value: 'DISABLED' }] }} getRowId={(row) => row.id} hasMore={sources.hasNextPage} isLoading={sources.isLoading} isLoadingMore={sources.isFetchingNextPage} onLoadMore={() => void sources.fetchNextPage()} onRetry={() => void sources.refetch()} searchPlaceholder="搜索名称、类型或端点" toolbarAction={canWrite ? <Button variant="primary" size="xs" onClick={() => { save.reset(); setEditor('new'); }}><Plus aria-hidden className="size-3.5" />新建身份源</Button> : undefined} />
       {editor ? <IdentitySourceEditorDialog current={editor === 'new' ? undefined : editor} error={save.error ? errorMessage(save.error, '身份源保存失败') : undefined} saving={save.isPending} onClose={() => setEditor(undefined)} onSave={(value) => save.mutate({ current: editor === 'new' ? undefined : editor, value })} /> : null}
       {mappingSource ? <LdapGroupMappingDialog source={mappingSource} canWrite={canWrite} onClose={() => setMappingSource(undefined)} /> : null}
+      {toggleTarget ? <ConfirmDialog
+        title={toggleTarget.status === 'ACTIVE' ? '停用身份源' : '启用身份源'}
+        description={`确认${toggleTarget.status === 'ACTIVE' ? '停用' : '启用'}身份源“${toggleTarget.name}”？`}
+        confirmLabel={toggleTarget.status === 'ACTIVE' ? '停用' : '启用'}
+        saving={toggle.isPending}
+        error={toggle.error ? errorMessage(toggle.error, '身份源状态更新失败') : undefined}
+        onClose={() => { if (!toggle.isPending) setToggleTarget(undefined); }}
+        onConfirm={() => toggle.mutate(toggleTarget)}
+      /> : null}
     </div>
   );
 }

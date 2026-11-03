@@ -116,6 +116,11 @@ public final class JdbcManagedModelStore implements ManagedModelStore {
     }
 
     @Override
+    public long countByConnection(String tenantId, long connectionId) {
+        return jdbc.queryForObject("select count(*) from ent_managed_model where tenant_id = ? and connection_id = ?", Long.class, tenantId, connectionId);
+    }
+
+    @Override
     public ManagedModelDeleteBlockers deleteBlockers(String tenantId, long modelId) {
         return jdbc.queryForObject(
             DELETE_BLOCKERS_SQL,

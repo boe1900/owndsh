@@ -23,6 +23,8 @@ public interface ManagedModelStore {
 
     boolean updateStatus(String tenantId, long modelId, ModelStatus status, long expectedRevision);
 
+    long countByConnection(String tenantId, long connectionId);
+
     ManagedModelDeleteBlockers deleteBlockers(String tenantId, long modelId);
 
     boolean delete(String tenantId, long modelId, long expectedRevision);

@@ -381,7 +381,8 @@ export const zProviderChangeAuditMetadata = z.object({
         'CREATE',
         'UPDATE',
         'ENABLE',
-        'DISABLE'
+        'DISABLE',
+        'DELETE'
     ]),
     protectedValueChanged: z.boolean(),
     resourceRevision: z.int().gte(0),
@@ -395,7 +396,8 @@ export const zProviderConnectionChangeAuditMetadata = z.object({
         'CREATE',
         'UPDATE',
         'ENABLE',
-        'DISABLE'
+        'DISABLE',
+        'DELETE'
     ]),
     secretReplaced: z.boolean(),
     resourceRevision: z.int().gte(0),
@@ -3910,6 +3912,19 @@ export const zCreateModelProviderHeaders = z.object({
  */
 export const zCreateModelProviderResponse = zModelProviderResponse;
 
+export const zDeleteModelProviderHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zDeleteModelProviderPath = z.object({
+    providerId: zModelModelProviderId
+});
+
+/**
+ * Deleted provider.
+ */
+export const zDeleteModelProviderResponse = zIdentityDeletedResourceResponse;
+
 export const zGetModelProviderPath = z.object({
     providerId: zModelModelProviderId
 });
@@ -3962,6 +3977,20 @@ export const zCreateProviderConnectionPath = z.object({
  * Created provider connection.
  */
 export const zCreateProviderConnectionResponse = zModelProviderConnectionResponse;
+
+export const zDeleteProviderConnectionHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zDeleteProviderConnectionPath = z.object({
+    providerId: zModelModelProviderId,
+    connectionId: zModelModelProviderConnectionId
+});
+
+/**
+ * Deleted provider connection.
+ */
+export const zDeleteProviderConnectionResponse = zIdentityDeletedResourceResponse;
 
 export const zGetProviderConnectionPath = z.object({
     providerId: zModelModelProviderId,

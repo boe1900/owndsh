@@ -25,7 +25,7 @@ public record ProviderConnectionChangeMetadata(
         if (resourceRevision < 0 || bootstrapRevision < 0) throw new IllegalArgumentException("revision 不能为负数");
     }
 
-    public enum Operation { CREATE, UPDATE, ENABLE, DISABLE }
+    public enum Operation { CREATE, UPDATE, ENABLE, DISABLE, DELETE }
 
     @Override
     public AuditAction action() {

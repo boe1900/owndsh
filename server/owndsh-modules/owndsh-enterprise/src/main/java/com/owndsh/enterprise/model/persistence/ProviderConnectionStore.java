@@ -17,4 +17,8 @@ public interface ProviderConnectionStore {
     void insert(ProviderConnection connection);
     boolean update(ProviderConnection connection, long expectedRevision);
     boolean updateStatus(String tenantId, long connectionId, ModelStatus status, long expectedRevision);
+
+    long countByProvider(String tenantId, long providerId);
+
+    boolean delete(String tenantId, long connectionId, long expectedRevision);
 }

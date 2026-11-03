@@ -77,18 +77,19 @@ public class EnterpriseModelConfiguration {
     ProviderService enterpriseProviderService(
         PlatformTransactionManager transactionManager,
         ProviderStore providerStore,
+        ProviderConnectionStore connectionStore,
         SecretCipher secretCipher,
         ProviderProbe providerProbe,
         BootstrapRevisionStore bootstrapRevisionStore,
         AuditSink auditSink,
         @Qualifier("enterpriseIdSupplier") LongSupplier ids
     ) {
-        return new ProviderService(new TransactionTemplate(transactionManager), providerStore, bootstrapRevisionStore, auditSink, ids);
+        return new ProviderService(new TransactionTemplate(transactionManager), providerStore, connectionStore, bootstrapRevisionStore, auditSink, ids);
     }
 
     @Bean
-    ProviderConnectionService enterpriseProviderConnectionService(PlatformTransactionManager transactionManager, ProviderStore providerStore, ProviderConnectionStore connectionStore, SecretCipher secretCipher, ProviderProbe probe, BootstrapRevisionStore revisions, AuditSink audit, @Qualifier("enterpriseIdSupplier") LongSupplier ids) {
-        return new ProviderConnectionService(new TransactionTemplate(transactionManager), providerStore, connectionStore, secretCipher, probe, revisions, audit, ids);
+    ProviderConnectionService enterpriseProviderConnectionService(PlatformTransactionManager transactionManager, ProviderStore providerStore, ProviderConnectionStore connectionStore, ManagedModelStore modelStore, SecretCipher secretCipher, ProviderProbe probe, BootstrapRevisionStore revisions, AuditSink audit, @Qualifier("enterpriseIdSupplier") LongSupplier ids) {
+        return new ProviderConnectionService(new TransactionTemplate(transactionManager), providerStore, connectionStore, modelStore, secretCipher, probe, revisions, audit, ids);
     }
 
     @Bean

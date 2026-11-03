@@ -26,6 +26,8 @@ import com.owndsh.enterprise.device.application.DeviceNotFoundException;
 import com.owndsh.enterprise.model.application.ModelResourceNotFoundException;
 import com.owndsh.enterprise.model.application.ManagedModelInUseException;
 import com.owndsh.enterprise.model.application.ModelSetInUseException;
+import com.owndsh.enterprise.model.application.ProviderInUseException;
+import com.owndsh.enterprise.model.application.ProviderConnectionInUseException;
 import com.owndsh.enterprise.crypto.SecretCipherException;
 import com.owndsh.enterprise.mcp.application.McpResourceNotFoundException;
 import com.owndsh.enterprise.mcp.application.McpIdempotencyConflictException;
@@ -190,6 +192,16 @@ public final class EnterpriseExceptionHandler {
     @ExceptionHandler(ModelResourceNotFoundException.class)
     public ResponseEntity<EnterpriseErrorResponse> modelNotFound(HttpServletRequest request) {
         return error(HttpStatus.NOT_FOUND, "ENT_RESOURCE_NOT_FOUND", "模型资源不存在", false, null, request);
+    }
+
+    @ExceptionHandler(ProviderInUseException.class)
+    public ResponseEntity<EnterpriseErrorResponse> providerInUse(ProviderInUseException exception, HttpServletRequest request) {
+        return error(HttpStatus.CONFLICT, ProviderInUseException.ERROR_CODE, exception.getMessage(), false, null, request);
+    }
+
+    @ExceptionHandler(ProviderConnectionInUseException.class)
+    public ResponseEntity<EnterpriseErrorResponse> providerConnectionInUse(ProviderConnectionInUseException exception, HttpServletRequest request) {
+        return error(HttpStatus.CONFLICT, ProviderConnectionInUseException.ERROR_CODE, exception.getMessage(), false, null, request);
     }
 
     @ExceptionHandler(SecretCipherException.class)

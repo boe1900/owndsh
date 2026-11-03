@@ -347,7 +347,8 @@
                           "CREATE",
                           "UPDATE",
                           "ENABLE",
-                          "DISABLE"
+                          "DISABLE",
+                          "DELETE"
                         ]
                       },
                       "protectedValueChanged": {
@@ -389,7 +390,8 @@
                           "CREATE",
                           "UPDATE",
                           "ENABLE",
-                          "DISABLE"
+                          "DISABLE",
+                          "DELETE"
                         ]
                       },
                       "secretReplaced": {

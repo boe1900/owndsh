@@ -784,7 +784,7 @@ export type PluginAuditMetadata = {
 };
 
 export type ProviderChangeAuditMetadata = {
-    operation: 'CREATE' | 'UPDATE' | 'ENABLE' | 'DISABLE';
+    operation: 'CREATE' | 'UPDATE' | 'ENABLE' | 'DISABLE' | 'DELETE';
     protectedValueChanged: boolean;
     resourceRevision: number;
     bootstrapRevision: number;
@@ -793,7 +793,7 @@ export type ProviderChangeAuditMetadata = {
 export type ProviderConnectionChangeAuditMetadata = {
     connectionId: number;
     providerId: number;
-    operation: 'CREATE' | 'UPDATE' | 'ENABLE' | 'DISABLE';
+    operation: 'CREATE' | 'UPDATE' | 'ENABLE' | 'DISABLE' | 'DELETE';
     secretReplaced: boolean;
     resourceRevision: number;
     bootstrapRevision: number;
@@ -4860,6 +4860,55 @@ export type CreateModelProviderResponses = {
 
 export type CreateModelProviderResponse = CreateModelProviderResponses[keyof CreateModelProviderResponses];
 
+export type DeleteModelProviderData = {
+    body?: never;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        providerId: ModelModelProviderId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/providers/{providerId}';
+};
+
+export type DeleteModelProviderErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type DeleteModelProviderError = DeleteModelProviderErrors[keyof DeleteModelProviderErrors];
+
+export type DeleteModelProviderResponses = {
+    /**
+     * Deleted provider.
+     */
+    200: IdentityDeletedResourceResponse;
+};
+
+export type DeleteModelProviderResponse = DeleteModelProviderResponses[keyof DeleteModelProviderResponses];
+
 export type GetModelProviderData = {
     body?: never;
     path: {
@@ -5032,6 +5081,56 @@ export type CreateProviderConnectionResponses = {
 };
 
 export type CreateProviderConnectionResponse = CreateProviderConnectionResponses[keyof CreateProviderConnectionResponses];
+
+export type DeleteProviderConnectionData = {
+    body?: never;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        providerId: ModelModelProviderId;
+        connectionId: ModelModelProviderConnectionId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/providers/{providerId}/connections/{connectionId}';
+};
+
+export type DeleteProviderConnectionErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type DeleteProviderConnectionError = DeleteProviderConnectionErrors[keyof DeleteProviderConnectionErrors];
+
+export type DeleteProviderConnectionResponses = {
+    /**
+     * Deleted provider connection.
+     */
+    200: IdentityDeletedResourceResponse;
+};
+
+export type DeleteProviderConnectionResponse = DeleteProviderConnectionResponses[keyof DeleteProviderConnectionResponses];
 
 export type GetProviderConnectionData = {
     body?: never;

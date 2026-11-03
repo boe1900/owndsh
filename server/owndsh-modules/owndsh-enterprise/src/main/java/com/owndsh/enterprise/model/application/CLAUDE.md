@@ -19,10 +19,12 @@ ProviderConnectionChangeMetadata.java: MODEL_CONNECTION_CHANGED 审计 metadata 
 ManagedModelChangeMetadata.java: MODEL_CHANGED 审计 metadata 白名单。
 ModelGrantChangeMetadata.java: MODEL_GRANT_CHANGED 审计 metadata 白名单。
 ModelResourceNotFoundException.java: 模型纵向资源不存在的稳定领域异常。
+ProviderInUseException.java: 供应商仍有连接时拒绝删除并返回连接数量。
+ProviderConnectionInUseException.java: 连接仍有受管模型时拒绝删除并返回模型数量。
 ManagedModelInUseException.java: 模型仍被配置或使用记录引用时的稳定领域异常，携带删除阻塞计数。
 ModelSetInUseException.java: 模型集仍被授权或配额策略引用时的稳定领域异常，携带删除阻塞计数。
-ProviderConnectionService.java: 连接 endpoint、协议、模型发现路径、密钥加解密、探测与 CAS/bootstrap revision 编排。
-ProviderService.java: 供应商元信息 CRUD、后台生成 providerKey、CAS/bootstrap revision/审计事务。
+ProviderConnectionService.java: 连接 endpoint、协议、模型发现路径、密钥加解密、探测、删除约束与 CAS/bootstrap revision 编排。
+ProviderService.java: 供应商元信息 CRUD、无连接删除约束、后台生成 providerKey、CAS/bootstrap revision/审计事务。
 ManagedModelService.java: 模型含 reasoning 配置的 CRUD/排序/启停、协议兼容校验及 CAS/bootstrap revision/审计事务编排。
 ModelOnboardingService.java: 供应商、连接和首批受管模型的单事务创建编排，任一步失败整体回滚。
 ModelGrantService.java: 单条/批量授权、重复约束、主体/资源校验、CAS/幂等删除和原子审计编排。
