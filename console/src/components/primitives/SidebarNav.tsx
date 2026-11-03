@@ -374,7 +374,7 @@ export default function SidebarNav({
             <div key={group.label} className={index === 0 ? "" : "mt-4"}>
               <div
                 aria-hidden={isCollapsed}
-                className={`mx-3 mb-1 ${isCollapsed ? "h-px bg-line" : "px-1 text-[11px] font-semibold tracking-[0.08em] text-ink-3"}`}
+                className={isCollapsed ? "mx-2 mb-1 h-px bg-line" : "mx-3 mb-1 px-1 text-[11px] font-semibold tracking-[0.08em] text-ink-3"}
               >
                 {!isCollapsed && <span className="sidebar-copy">{group.label}</span>}
               </div>
