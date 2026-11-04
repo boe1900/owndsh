@@ -7,7 +7,7 @@
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouteContext } from '@tanstack/react-router';
-import { Cpu, Globe, Layers, Pencil, Plus, Power, Server, Trash2, UserCheck, Users } from 'lucide-react';
+import { Cpu, Globe, Layers, Pencil, Plus, Power, Server, Trash2, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
   createModelGrant,
@@ -63,6 +63,9 @@ const STATUS_FILTER = {
     { label: '停用', value: 'DISABLED' }
   ]
 } as const;
+
+const GRANT_HEADER_CLASS = 'h-11 px-4';
+const GRANT_CELL_CLASS = 'h-[68px] px-4';
 
 function errorMessage(error: unknown, fallback: string) {
   if (error && typeof error === 'object' && 'error' in error) {
@@ -201,7 +204,7 @@ function grantColumns(modelSets: ReadonlyArray<ModelSet>, models: ReadonlyArray<
       const detail = isSet ? modelSet?.description || '未填写描述' : connectionNames.get(model?.connectionId ?? '') || '未命名连接';
       return <div className="flex min-w-0 items-center gap-3"><span className={`grid size-8 shrink-0 place-items-center rounded-lg border ${isSet ? 'border-ink bg-ink text-white dark:bg-accent' : 'border-accent/30 bg-accent-tint text-accent'}`}><Icon aria-hidden className="size-4" /></span><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><div className="truncate font-semibold text-ink" title={row.original.resourceName}>{row.original.resourceName}</div><span className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium ${isSet ? 'border-line bg-field text-ink-2' : 'border-accent/30 bg-accent-tint text-accent-ink'}`}>{isSet ? '模型集' : '单个模型'}{isSet && modelSet ? <><span className="text-ink-3">·</span><span>{modelSet.modelCount} 个模型</span></> : null}</span></div><div className="mt-1 flex min-w-0 items-center gap-1.5 truncate text-[11px] text-ink-3" title={detail}>{!isSet ? <Server aria-hidden className="size-3 shrink-0" /> : null}<span className="truncate">{detail}</span></div></div></div>;
     },
-    meta: { label: '授权资源', className: 'w-[390px]', cellClassName: 'w-[390px]' }
+    meta: { label: '授权资源', className: `w-[390px] ${GRANT_HEADER_CLASS}`, cellClassName: `w-[390px] ${GRANT_CELL_CLASS}` }
   },
   {
     id: 'subject',
@@ -209,19 +212,19 @@ function grantColumns(modelSets: ReadonlyArray<ModelSet>, models: ReadonlyArray<
     header: '授权对象（Scope & Principals）',
     cell: ({ row }) => {
       const subjectType = row.original.subjectType;
-      const label = subjectType === 'ALL_MEMBERS' ? '所有成员' : subjectType === 'ACCESS_GROUP' ? '用户组' : '指定成员';
-      const Icon = subjectType === 'ALL_MEMBERS' ? Globe : subjectType === 'ACCESS_GROUP' ? Users : UserCheck;
-      const tone = subjectType === 'ALL_MEMBERS' ? 'bg-green-tint text-green' : subjectType === 'ACCESS_GROUP' ? 'bg-accent-tint text-accent-ink' : 'bg-orange-tint text-orange';
-      return <div className="flex min-w-0 items-center gap-2"><span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-1 text-[11px] font-medium ${tone}`}>{subjectType === 'MEMBER' ? <Monogram color={monogramColor(row.original.subjectName)} className="size-4 text-[9px]">{row.original.subjectName.slice(0, 1)}</Monogram> : <Icon aria-hidden className="size-3.5" />}{label}</span>{subjectType !== 'ALL_MEMBERS' ? <span className="min-w-0 truncate text-xs text-ink" title={row.original.subjectName}>{row.original.subjectName}</span> : null}</div>;
+      const subjectName = row.original.subjectName ?? (subjectType === 'ACCESS_GROUP' ? '未知用户组' : '未知成员');
+      if (subjectType === 'ALL_MEMBERS') return <span className="inline-flex items-center gap-1.5 rounded-lg border border-green bg-green-tint px-2.5 py-1 text-xs font-medium text-green"><Globe aria-hidden className="size-3.5" />所有成员</span>;
+      if (subjectType === 'ACCESS_GROUP') return <div className="flex min-w-0 flex-wrap items-center gap-1.5"><span className="shrink-0 rounded border border-accent/60 bg-accent-tint px-1.5 py-0.5 text-[10px] font-semibold text-accent-ink">用户组</span><span className="inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-md border border-line bg-field px-2 py-0.5 text-xs font-medium text-ink-2"><Users aria-hidden className="size-3 shrink-0 text-ink-3" /><span className="truncate" title={subjectName}>{subjectName}</span></span></div>;
+      return <div className="flex min-w-0 flex-wrap items-center gap-1.5"><span className="shrink-0 rounded border border-orange/60 bg-orange-tint px-1.5 py-0.5 text-[10px] font-semibold text-orange">指定成员</span><span className="inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-full border border-line bg-field py-0.5 pl-1 pr-2 text-xs font-medium text-ink"><Monogram color={monogramColor(subjectName)}>{subjectName.slice(0, 1)}</Monogram><span className="truncate" title={subjectName}>{subjectName}</span></span></div>;
     },
-    meta: { label: '授权对象', className: 'w-[290px]', cellClassName: 'w-[290px]' }
+    meta: { label: '授权对象', className: `w-[290px] ${GRANT_HEADER_CLASS}`, cellClassName: `w-[290px] ${GRANT_CELL_CLASS}` }
   },
   {
     accessorKey: 'status',
     header: '状态',
     cell: ({ getValue }) => <PolicyStatus status={getValue() as ModelGrant['status']} />,
     filterFn: 'equalsString',
-    meta: { label: '状态', className: 'w-[110px]', cellClassName: 'w-[110px]' }
+    meta: { label: '状态', className: `w-[110px] ${GRANT_HEADER_CLASS}`, cellClassName: `w-[110px] ${GRANT_CELL_CLASS}` }
   },
   {
     id: 'updatedAt',
@@ -229,7 +232,7 @@ function grantColumns(modelSets: ReadonlyArray<ModelSet>, models: ReadonlyArray<
     header: '最后更新',
     cell: ({ row }) => <span className="font-mono text-[11px] text-ink-3">{formatUpdatedAt(row.original.updatedAt)}</span>,
     enableSorting: false,
-    meta: { label: '最后更新', className: 'w-[120px]', cellClassName: 'w-[120px]' }
+    meta: { label: '最后更新', className: `w-[120px] ${GRANT_HEADER_CLASS}`, cellClassName: `w-[120px] ${GRANT_CELL_CLASS}` }
   }
   ];
 }
