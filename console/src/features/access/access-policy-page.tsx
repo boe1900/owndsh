@@ -7,7 +7,7 @@
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouteContext } from '@tanstack/react-router';
-import { Building2, CheckSquare, Cpu, Edit2, Globe, Layers, Pencil, Plus, Power, Search, Server, Square, Trash2, UserCheck, Users, X } from 'lucide-react';
+import { Cpu, Globe, Layers, Pencil, Plus, Power, Server, Trash2, UserCheck, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
   createModelGrant,
@@ -168,16 +168,16 @@ function PolicyStatus({ status }: { status: 'ACTIVE' | 'DISABLED' }) {
 const grantColumns: ReadonlyArray<ProductTableColumn<ModelGrant>> = [
   {
     accessorKey: 'resourceName',
-    header: '资源',
-    cell: ({ row }) => { const isSet = row.original.resourceType === 'MODEL_SET'; const Icon = isSet ? Layers : Cpu; return <div className="flex min-w-0 items-start gap-2.5"><span className={`grid size-8 shrink-0 place-items-center rounded-lg border ${isSet ? 'border-line bg-ink text-surface dark:bg-accent dark:text-white' : 'border-accent/30 bg-accent-tint text-accent'}`}><Icon className="size-4" /></span><div className="min-w-0"><div className="flex flex-wrap items-center gap-1.5"><div className="truncate font-medium text-ink" title={row.original.resourceName}>{row.original.resourceName}</div><span className={`rounded border px-1.5 py-0.5 text-[10px] font-medium ${isSet ? 'border-line bg-field text-ink-2' : 'border-accent/30 bg-accent-tint text-accent-ink'}`}>{resourceTypeLabel(row.original)}</span></div><div className="mt-0.5 flex items-center gap-1 text-[11px] text-ink-3">{isSet ? <><span>批量授权集合</span><span>·</span><span>资源 ID {row.original.resourceId}</span></> : <><Server className="size-3" /><span>受管模型 · ID {row.original.resourceId}</span></>}</div></div></div>; },
-    meta: { label: '资源', className: 'w-[360px]', cellClassName: 'w-[360px]' }
+    header: '授权资源（模型集 / 单个模型）',
+    cell: ({ row }) => { const isSet = row.original.resourceType === 'MODEL_SET'; const Icon = isSet ? Layers : Cpu; return <div className="flex min-w-0 items-start gap-3"><span className={`grid size-8 shrink-0 place-items-center rounded-lg border ${isSet ? 'border-ink bg-ink text-white dark:bg-accent' : 'border-accent/30 bg-accent-tint text-accent'}`}><Icon aria-hidden className="size-4" /></span><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><div className="truncate font-semibold text-ink" title={row.original.resourceName}>{row.original.resourceName}</div><span className={`rounded border px-1.5 py-0.5 text-[10px] font-medium ${isSet ? 'border-line bg-field text-ink-2' : 'border-accent/30 bg-accent-tint text-accent-ink'}`}>{isSet ? '模型集' : '单个模型'}</span></div><div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-ink-3">{isSet ? <><span>批量授权模型集合</span><span>·</span><span>资源 ID {row.original.resourceId}</span></> : <><Server aria-hidden className="size-3" /><span>受管模型实例</span><span>·</span><span>资源 ID {row.original.resourceId}</span></>}</div></div></div>; },
+    meta: { label: '授权资源', className: 'w-[390px]', cellClassName: 'w-[390px]' }
   },
   {
     id: 'subject',
     accessorFn: subjectLabel,
-    header: '授权对象',
-    cell: ({ row, getValue }) => { const Icon = row.original.subjectType === 'ALL_MEMBERS' ? Globe : row.original.subjectType === 'ACCESS_GROUP' ? Users : UserCheck; return <div className="flex min-w-0 items-center gap-2"><span className={`grid size-7 shrink-0 place-items-center rounded-lg ${row.original.subjectType === 'ALL_MEMBERS' ? 'bg-green-tint text-green' : row.original.subjectType === 'ACCESS_GROUP' ? 'bg-accent-tint text-accent' : 'bg-orange-tint text-orange'}`}><Icon className="size-3.5" /></span><div className="min-w-0"><div className="truncate text-ink" title={String(getValue())}>{String(getValue())}</div><div className="text-[11px] text-ink-3">{subjectTypeLabel(row.original)}{row.original.subjectType !== 'ALL_MEMBERS' ? ` · ${row.original.subjectId ?? ''}` : ' · 全员开放'}</div></div></div>; },
-    meta: { label: '授权对象', className: 'w-[270px]', cellClassName: 'w-[270px]' }
+    header: '授权对象（Scope & Principals）',
+    cell: ({ row, getValue }) => { const Icon = row.original.subjectType === 'ALL_MEMBERS' ? Globe : row.original.subjectType === 'ACCESS_GROUP' ? Users : UserCheck; const tone = row.original.subjectType === 'ALL_MEMBERS' ? 'bg-green-tint text-green' : row.original.subjectType === 'ACCESS_GROUP' ? 'bg-accent-tint text-accent-ink' : 'bg-orange-tint text-orange'; return <div className="flex min-w-0 items-center gap-2"><span className={`grid size-7 shrink-0 place-items-center rounded-lg ${tone}`}><Icon aria-hidden className="size-3.5" /></span><div className="min-w-0"><div className="truncate text-ink" title={String(getValue())}>{row.original.subjectType === 'ALL_MEMBERS' ? <><span>所有成员</span><span className="text-ink-3">（全员开放）</span></> : String(getValue())}</div><div className="text-[11px] text-ink-3">{subjectTypeLabel(row.original)}{row.original.subjectType !== 'ALL_MEMBERS' ? ` · ${row.original.subjectId ?? ''}` : ''}</div></div></div>; },
+    meta: { label: '授权对象', className: 'w-[290px]', cellClassName: 'w-[290px]' }
   },
   {
     accessorKey: 'status',
@@ -185,6 +185,14 @@ const grantColumns: ReadonlyArray<ProductTableColumn<ModelGrant>> = [
     cell: ({ getValue }) => <PolicyStatus status={getValue() as ModelGrant['status']} />,
     filterFn: 'equalsString',
     meta: { label: '状态', className: 'w-[110px]', cellClassName: 'w-[110px]' }
+  },
+  {
+    id: 'updatedAt',
+    accessorFn: () => '',
+    header: '最后更新',
+    cell: () => <span className="font-mono text-[11px] text-ink-3">—</span>,
+    enableSorting: false,
+    meta: { label: '最后更新', className: 'w-[120px]', cellClassName: 'w-[120px]' }
   }
 ];
 
@@ -241,7 +249,7 @@ const rateColumns: ReadonlyArray<ProductTableColumn<QuotaPolicy>> = [
   quotaColumns.at(-1)!
 ];
 
-function withGrantActions(columns: ReadonlyArray<ProductTableColumn<ModelGrant>>, canWrite: boolean, onEdit: (value: ModelGrant) => void, onDelete: (value: ModelGrant) => void) {
+function withGrantActions(columns: ReadonlyArray<ProductTableColumn<ModelGrant>>, canWrite: boolean, onEdit: (value: ModelGrant) => void, onDelete: (value: ModelGrant) => void, onToggle: (value: ModelGrant) => void) {
   if (!canWrite) return columns;
   return [...columns, {
     id: 'actions',
@@ -249,8 +257,8 @@ function withGrantActions(columns: ReadonlyArray<ProductTableColumn<ModelGrant>>
     enableGlobalFilter: false,
     enableHiding: false,
     enableSorting: false,
-    cell: ({ row }) => <div className="flex items-center gap-1"><Button variant="quiet" size="xs" className="size-7 rounded-md p-0" aria-label="编辑模型授权" title="编辑" onClick={() => onEdit(row.original)}><Pencil aria-hidden className="size-3.5" /></Button><Button variant="quiet" size="xs" className="size-7 rounded-md p-0 text-red" aria-label="删除模型授权" title="删除" onClick={() => onDelete(row.original)}><Trash2 aria-hidden className="size-3.5" /></Button></div>,
-    meta: { label: '操作', className: 'w-[90px]', cellClassName: 'w-[90px]' }
+    cell: ({ row }) => <div className="flex items-center gap-1"><Button variant="quiet" size="xs" className="size-7 rounded-lg p-0" aria-label="编辑模型授权" title="编辑授权" onClick={() => onEdit(row.original)}><Pencil aria-hidden className="size-3.5" /></Button><Button variant="quiet" size="xs" className="size-7 rounded-lg p-0" aria-label={row.original.status === 'ACTIVE' ? '停用策略' : '启用策略'} title={row.original.status === 'ACTIVE' ? '停用策略' : '启用策略'} onClick={() => onToggle(row.original)}><Power aria-hidden className="size-3.5" /></Button><Button variant="quiet" size="xs" className="size-7 rounded-lg p-0 text-red" aria-label="删除模型授权" title="删除授权" onClick={() => onDelete(row.original)}><Trash2 aria-hidden className="size-3.5" /></Button></div>,
+    meta: { label: '操作', className: 'w-[112px]', cellClassName: 'w-[112px]' }
   } satisfies ProductTableColumn<ModelGrant>];
 }
 
@@ -279,9 +287,6 @@ export function AccessPolicyPage() {
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [bulkDeleteTarget, setBulkDeleteTarget] = useState<ReadonlyArray<ModelGrant> | null>(null);
   const [grantResourceFilter, setGrantResourceFilter] = useState<'ALL' | 'MODEL_SET' | 'MODEL'>('ALL');
-  const [grantSearch, setGrantSearch] = useState('');
-  const [grantStatusFilter, setGrantStatusFilter] = useState<'ALL' | ModelGrant['status']>('ALL');
-  const [selectedGrantIds, setSelectedGrantIds] = useState<ReadonlyArray<string>>([]);
   const grants = useInfiniteQuery({
     queryKey: ['access', 'model-grants'],
     queryFn: ({ pageParam }) => loadGrants(pageParam),
@@ -395,81 +400,31 @@ export function AccessPolicyPage() {
   const optionsLoading = models.isLoading || modelSets.isLoading || accessGroups.isLoading || members.isLoading;
   const optionsError = models.error ?? modelSets.error ?? accessGroups.error ?? members.error;
   const visibleGrantRows = useMemo(
-    () => {
-      const query = grantSearch.trim().toLowerCase();
-      return grantRows.filter((grant) => {
-        const resourceMatches = grantResourceFilter === 'ALL' || grant.resourceType === grantResourceFilter;
-        const statusMatches = grantStatusFilter === 'ALL' || grant.status === grantStatusFilter;
-        const searchMatches = !query || [
-          grant.resourceName,
-          grant.subjectName,
-          grant.resourceType === 'MODEL_SET' ? '模型集' : '单个模型',
-          grant.subjectType === 'ALL_MEMBERS' ? '所有成员 全员开放' : grant.subjectType === 'ACCESS_GROUP' ? '用户组' : '指定成员'
-        ].some((value) => value.toLowerCase().includes(query));
-        return resourceMatches && statusMatches && searchMatches;
-      });
-    },
-    [grantResourceFilter, grantRows, grantSearch, grantStatusFilter]
+    () => grantResourceFilter === 'ALL' ? grantRows : grantRows.filter((grant) => grant.resourceType === grantResourceFilter),
+    [grantResourceFilter, grantRows]
   );
 
-  const selectedGrants = useMemo(
-    () => visibleGrantRows.filter((grant) => selectedGrantIds.includes(grant.id)),
-    [selectedGrantIds, visibleGrantRows]
-  );
-  const allVisibleSelected = visibleGrantRows.length > 0 && visibleGrantRows.every((grant) => selectedGrantIds.includes(grant.id));
-  const modelById = useMemo(() => new Map((models.data ?? []).map((model) => [model.id, model])), [models.data]);
-  const modelSetById = useMemo(() => new Map((modelSets.data ?? []).map((modelSet) => [modelSet.id, modelSet])), [modelSets.data]);
-  const groupById = useMemo(() => new Map((accessGroups.data ?? []).map((group) => [group.id, group])), [accessGroups.data]);
-  const memberById = useMemo(() => new Map((members.data ?? []).map((member) => [member.id, member])), [members.data]);
-
-  const modelAccessTable = (
-    <section className="min-w-0 overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_1px_2px_oklch(0_0_0/0.05)]" aria-label="模型访问策略">
-      <div className="flex flex-col justify-between gap-3 border-b border-line px-3.5 py-3.5 sm:flex-row sm:items-center">
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2.5">
-          <label className="relative min-w-[260px] flex-1 sm:max-w-[420px]">
-            <span className="sr-only">搜索模型、模型集、用户组或成员</span>
-            <Search aria-hidden className="pointer-events-none absolute left-3 top-2.5 size-3.5 text-ink-3" />
-            <input type="search" value={grantSearch} onChange={(event) => setGrantSearch(event.target.value)} placeholder="搜索模型、模型集、用户组或成员..." className="h-8 w-full rounded-lg border border-line bg-canvas pl-8 pr-8 text-[12px] text-ink outline-none placeholder:text-ink-3 focus:border-line-strong focus:bg-surface" />
-            {grantSearch ? <button type="button" aria-label="清除搜索" className="absolute right-2.5 top-2 text-ink-3 hover:text-ink" onClick={() => setGrantSearch('')}><X aria-hidden className="size-3.5" /></button> : null}
-          </label>
-          <select aria-label="资源类型" value={grantResourceFilter} onChange={(event) => setGrantResourceFilter(event.target.value as typeof grantResourceFilter)} className="h-8 appearance-none rounded-lg border border-line bg-canvas px-3 text-[12px] font-medium text-ink-2 outline-none focus:border-line-strong">
-            <option value="ALL">全部资源类型</option><option value="MODEL_SET">仅看模型集</option><option value="MODEL">仅看单个模型</option>
-          </select>
-          <select aria-label="状态" value={grantStatusFilter} onChange={(event) => setGrantStatusFilter(event.target.value as typeof grantStatusFilter)} className="h-8 appearance-none rounded-lg border border-line bg-canvas px-3 text-[12px] font-medium text-ink-2 outline-none focus:border-line-strong">
-            <option value="ALL">全部状态</option><option value="ACTIVE">启用</option><option value="DISABLED">停用</option>
-          </select>
-        </div>
-        {canWrite ? <Button variant="primary" size="xs" disabled={optionsLoading || optionsError !== null} onClick={() => { saveGrant.reset(); setGrantEditor('create'); }}><Plus aria-hidden className="size-3.5" />新建授权</Button> : null}
-      </div>
-      {selectedGrants.length > 0 ? <div className="flex flex-wrap items-center justify-between gap-2 bg-ink px-4 py-2.5 text-xs text-white"><span className="font-medium">已选中 <strong className="text-green">{selectedGrants.length}</strong> 条授权策略</span><div className="flex items-center gap-2"><Button variant="quiet" size="xs" className="h-7 rounded-md bg-green px-2.5 text-[11px] font-medium text-white hover:brightness-95" disabled={bulkStatus.isPending} onClick={() => { setSelectedGrantIds([]); bulkStatus.mutate({ rows: selectedGrants, status: 'ACTIVE' }); }}>批量启用</Button><Button variant="quiet" size="xs" className="h-7 rounded-md bg-field px-2.5 text-[11px] font-medium text-ink-2 hover:bg-hover" disabled={bulkStatus.isPending} onClick={() => { setSelectedGrantIds([]); bulkStatus.mutate({ rows: selectedGrants, status: 'DISABLED' }); }}>批量停用</Button><Button variant="quiet" size="xs" className="h-7 rounded-md bg-red px-2.5 text-[11px] font-medium text-white hover:brightness-95" disabled={bulkRemove.isPending} onClick={() => setBulkDeleteTarget(selectedGrants)}>批量删除</Button></div></div> : null}
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[1060px] border-collapse text-left">
-          <thead><tr className="border-b border-line bg-field/70 text-[11px] font-semibold tracking-wide text-ink-3"><th className="w-11 px-4 py-3 text-center"><button type="button" aria-label="选择当前页" className="text-ink-3 hover:text-ink" onClick={() => setSelectedGrantIds(allVisibleSelected ? [] : visibleGrantRows.map((grant) => grant.id))}>{allVisibleSelected ? <CheckSquare aria-hidden className="mx-auto size-4 text-ink" /> : <Square aria-hidden className="mx-auto size-4" />}</button></th><th className="px-4 py-3">授权资源（模型集 / 单个模型）</th><th className="px-4 py-3">授权对象（Scope &amp; Principals）</th><th className="w-28 px-4 py-3">状态</th><th className="w-32 px-4 py-3">最后更新</th><th className="w-32 px-4 py-3 text-right">操作</th></tr></thead>
-          <tbody className="divide-y divide-line text-xs">
-            {grants.isLoading ? <tr><td colSpan={6} className="h-48 text-center text-ink-3">正在读取</td></tr> : grants.error || bulkStatus.error || bulkRemove.error ? <tr><td colSpan={6} className="h-48 text-center text-red">{errorMessage(grants.error ?? bulkStatus.error ?? bulkRemove.error, '暂时无法读取数据')}<button type="button" className="ml-3 rounded-md border border-line px-2 py-1 text-xs text-ink-2" onClick={() => void grants.refetch()}>重试</button></td></tr> : visibleGrantRows.length === 0 ? <tr><td colSpan={6} className="h-48 text-center text-ink-3">暂无匹配的模型访问授权规则</td></tr> : visibleGrantRows.map((grant) => {
-              const isSet = grant.resourceType === 'MODEL_SET';
-              const linkedSet = isSet ? modelSetById.get(grant.resourceId) : undefined;
-              const linkedModel = !isSet ? modelById.get(grant.resourceId) : undefined;
-              const group = grant.subjectType === 'ACCESS_GROUP' && grant.subjectId ? groupById.get(grant.subjectId) : undefined;
-              const member = grant.subjectType === 'MEMBER' && grant.subjectId ? memberById.get(grant.subjectId) : undefined;
-              const selected = selectedGrantIds.includes(grant.id);
-              return <tr key={grant.id} className={`group transition-colors ${selected ? 'bg-field' : 'hover:bg-hover/55'}`}>
-                <td className="px-4 py-3.5 text-center"><button type="button" aria-label={`选择授权 ${grant.resourceName}`} className="text-ink-3 hover:text-ink" onClick={() => setSelectedGrantIds((ids) => ids.includes(grant.id) ? ids.filter((id) => id !== grant.id) : [...ids, grant.id])}>{selected ? <CheckSquare aria-hidden className="mx-auto size-4 text-ink" /> : <Square aria-hidden className="mx-auto size-4" />}</button></td>
-                <td className="px-4 py-3.5"><div className="flex items-start gap-3"><span className={`grid size-8 shrink-0 place-items-center rounded-lg border ${isSet ? 'border-ink bg-ink text-white dark:bg-accent dark:text-white' : 'border-accent/30 bg-accent-tint text-accent'}`}>{isSet ? <Layers aria-hidden className="size-4" /> : <Cpu aria-hidden className="size-4" />}</span><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="font-semibold text-ink">{grant.resourceName}</span><span className={`rounded border px-1.5 py-0.5 text-[10px] font-medium ${isSet ? 'border-line bg-field text-ink-2' : 'border-accent/30 bg-accent-tint text-accent-ink'}`}>{isSet ? `模型集 · ${linkedSet?.modelCount ?? '集合'} 个模型` : '单个模型'}</span></div><div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-ink-3">{isSet ? <span className="max-w-xs truncate">{linkedSet?.description || '批量授权模型集合'}</span> : linkedModel ? <><span className="font-medium text-ink-2">{linkedModel.providerName}</span><span>·</span><span className="inline-flex items-center gap-1 rounded border border-line bg-field px-1.5 py-0.5 text-ink-2"><Server aria-hidden className="size-2.5" />{linkedModel.connectionId}</span><span className="font-mono text-[10px]">{linkedModel.contextWindow ? `(${linkedModel.contextWindow.toLocaleString()}K)` : ''}</span></> : <span>受管模型实例</span>}</div></div></div></td>
-                <td className="px-4 py-3.5">{grant.subjectType === 'ALL_MEMBERS' ? <span className="inline-flex items-center gap-1.5 rounded-lg border border-green bg-green-tint px-2.5 py-1 text-xs font-medium text-green"><Globe aria-hidden className="size-3.5" />所有成员（全员开放）</span> : grant.subjectType === 'ACCESS_GROUP' ? <span className="inline-flex items-center gap-1.5 rounded-md border border-accent/25 bg-accent-tint px-2 py-1 text-xs font-medium text-accent-ink"><Building2 aria-hidden className="size-3" />{group?.name ?? grant.subjectName}{group ? <span className="text-[10px] opacity-70">（{group.memberCount}人）</span> : null}</span> : <span className="inline-flex items-center gap-1.5 rounded-full border border-orange/25 bg-orange-tint px-2 py-1 text-xs font-medium text-orange"><UserCheck aria-hidden className="size-3" />{member?.displayName ?? grant.subjectName}</span>}</td>
-                <td className="px-4 py-3.5"><span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${grant.status === 'ACTIVE' ? 'border-green bg-green-tint text-green' : 'border-line bg-field text-ink-3'}`}><span className={`size-1.5 rounded-full ${grant.status === 'ACTIVE' ? 'bg-green' : 'bg-ink-3'}`} />{grant.status === 'ACTIVE' ? '启用' : '停用'}</span></td>
-                <td className="px-4 py-3.5 font-mono text-[11px] text-ink-3">版本 {grant.revision}</td>
-                <td className="px-4 py-3.5 text-right"><div className="inline-flex items-center justify-end gap-1"><button type="button" aria-label="编辑授权" title="编辑授权" className="rounded-lg p-1.5 text-ink-3 hover:bg-hover hover:text-ink" onClick={() => { saveGrant.reset(); setGrantEditor(grant); }}><Edit2 aria-hidden className="size-3.5" /></button>{canWrite ? <button type="button" aria-label={grant.status === 'ACTIVE' ? '停用策略' : '启用策略'} title={grant.status === 'ACTIVE' ? '停用策略' : '启用策略'} className="rounded-lg p-1.5 text-ink-3 hover:bg-hover hover:text-ink" onClick={() => bulkStatus.mutate({ rows: [grant], status: grant.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE' })}><Power aria-hidden className="size-3.5" /></button> : null}{canWrite ? <button type="button" aria-label="删除授权" title="删除授权" className="rounded-lg p-1.5 text-ink-3 hover:bg-red-tint hover:text-red" onClick={() => { remove.reset(); setDeleteTarget({ kind: 'grant', value: grant }); }}><Trash2 aria-hidden className="size-3.5" /></button> : null}</div></td>
-              </tr>;
-            })}
-          </tbody>
-        </table>
-      </div>
-      <footer className="flex min-h-12 flex-wrap items-center justify-between gap-2 border-t border-line bg-field/40 px-4 py-2.5 text-xs text-ink-3"><span>{visibleGrantRows.length} 项{grants.hasNextPage ? '，仍有更多' : ''}</span><div className="flex items-center gap-3"><span className="rounded-md border border-line bg-surface px-2.5 py-1 text-[11px] text-ink-2">10 / 页</span><span className="text-[11px]">1 / 1</span>{grants.hasNextPage ? <Button size="xs" disabled={grants.isFetchingNextPage} onClick={() => void grants.fetchNextPage()}>{grants.isFetchingNextPage ? '加载中' : '加载更多'}</Button> : null}</div></footer>
-    </section>
-  );
-
-  const table = section === '模型访问' ? modelAccessTable : (
+  const table = section === '模型访问' ? (
+    <ProductDataTable
+      ariaLabel="模型访问策略"
+      columns={withGrantActions(grantColumns, canWrite, (value) => { saveGrant.reset(); setGrantEditor(value); }, (value) => { remove.reset(); setDeleteTarget({ kind: 'grant', value }); }, (value) => { bulkStatus.mutate({ rows: [value], status: value.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE' }); })}
+      data={visibleGrantRows}
+      emptyText="暂无模型访问策略"
+      error={grants.error ?? bulkStatus.error ?? bulkRemove.error}
+      filter={STATUS_FILTER}
+      getRowId={(row) => row.id}
+      hasMore={grants.hasNextPage}
+      isLoading={grants.isLoading}
+      isLoadingMore={grants.isFetchingNextPage}
+      onLoadMore={() => void grants.fetchNextPage()}
+      onRetry={() => void grants.refetch()}
+      searchPlaceholder="搜索模型、模型集、用户组或成员"
+      selectionActions={canWrite ? (rows, clear) => <><Button variant="quiet" size="xs" className="h-8 rounded-lg bg-green-tint px-2.5 text-[12px] font-medium text-green hover:brightness-95" disabled={bulkStatus.isPending} onClick={() => { clear(); bulkStatus.mutate({ rows, status: 'ACTIVE' }); }}>批量启用</Button><Button variant="quiet" size="xs" className="h-8 rounded-lg bg-field px-2.5 text-[12px] font-medium text-ink-2 hover:bg-hover" disabled={bulkStatus.isPending} onClick={() => { clear(); bulkStatus.mutate({ rows, status: 'DISABLED' }); }}>批量停用</Button><Button variant="quiet" size="xs" className="h-8 rounded-lg bg-red-tint px-2.5 text-[12px] font-medium text-red hover:brightness-95" disabled={bulkRemove.isPending} onClick={() => setBulkDeleteTarget(rows)}>批量删除</Button></> : undefined}
+      toolbarFilters={<select aria-label="资源类型" value={grantResourceFilter} onChange={(event) => setGrantResourceFilter(event.target.value as typeof grantResourceFilter)} className="h-8 rounded-lg border border-line bg-surface px-2.5 text-[12.5px] text-ink-2 outline-none focus:border-accent"><option value="ALL">全部资源类型</option><option value="MODEL_SET">仅看模型集</option><option value="MODEL">仅看单个模型</option></select>}
+      showColumnToggle={false}
+      toolbarAction={canWrite ? <Button variant="primary" size="xs" disabled={optionsLoading || optionsError !== null} onClick={() => { saveGrant.reset(); setGrantEditor('create'); }}><Plus aria-hidden className="size-3.5" />新建授权</Button> : null}
+    />
+  ) : (
     <ProductDataTable
       ariaLabel={section}
       columns={withQuotaActions(section === 'Token 配额' ? quotaColumns : rateColumns, canWrite, (value) => { saveQuota.reset(); setQuotaEditor(value); }, (value) => { remove.reset(); setDeleteTarget({ kind: 'quota', value }); })}

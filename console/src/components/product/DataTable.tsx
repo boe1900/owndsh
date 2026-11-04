@@ -94,7 +94,9 @@ type ProductDataTableProps<TData extends object> = {
   onLoadMore?: () => void;
   onRetry?: () => void;
   selectionActions?: (rows: ReadonlyArray<TData>, clearSelection: () => void) => ReactNode;
+  toolbarFilters?: ReactNode;
   toolbarAction?: ReactNode;
+  showColumnToggle?: boolean;
 };
 
 function TableCheckbox({
@@ -147,7 +149,9 @@ export function ProductDataTable<TData extends object>({
   onRetry,
   searchPlaceholder,
   selectionActions,
-  toolbarAction
+  toolbarAction,
+  showColumnToggle = true,
+  toolbarFilters
 }: ProductDataTableProps<TData>) {
   const selectionColumn: ProductTableColumn<TData> = {
     id: 'select',
@@ -239,13 +243,14 @@ export function ProductDataTable<TData extends object>({
               ))}
             </select>
           ) : null}
+          {toolbarFilters}
           {selectedCount > 0 ? (
             <div className="flex items-center gap-1.5"><button type="button" onClick={() => table.resetRowSelection(true)} className="h-8 rounded-lg bg-accent-tint px-2.5 text-[12px] font-medium text-accent-ink hover:bg-hover">已选择 {selectedCount} 项</button>{selectionActions?.(selectedRows, () => table.resetRowSelection(true))}</div>
           ) : null}
         </div>
         <div className="flex w-full shrink-0 items-center justify-end gap-1.5 sm:w-auto">
           {toolbarAction}
-          <details className="relative">
+          {showColumnToggle ? <details className="relative">
             <summary className="flex h-8 cursor-pointer list-none items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 text-[12.5px] text-ink-2 hover:bg-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent [&::-webkit-details-marker]:hidden">
               <Columns3 aria-hidden className="size-3.5" />
               列
@@ -266,7 +271,7 @@ export function ProductDataTable<TData extends object>({
                 );
               })}
             </div>
-          </details>
+          </details> : null}
         </div>
       </div>
 
