@@ -587,6 +587,8 @@ ModelGrant:
     - subjectName
     - status
     - revision
+    - createdAt
+    - updatedAt
   properties:
     id: {$ref: '#/ModelGrantId'}
     resourceType: {$ref: '#/GrantResourceType'}
@@ -610,6 +612,12 @@ ModelGrant:
     status: {$ref: '#/ModelStatus'}
     revision:
       $ref: '../enterprise-openapi.yaml#/components/schemas/Revision'
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
 ModelGrantResponse:
   type: object
   additionalProperties: false

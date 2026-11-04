@@ -27,6 +27,12 @@ export function Monogram({
   );
 }
 
+const MONOGRAM_COLORS = ['#2563eb', '#7c3aed', '#db2777', '#ea580c', '#059669', '#0891b2'] as const;
+
+export function monogramColor(name: string) {
+  return MONOGRAM_COLORS[(name.codePointAt(0) ?? 0) % MONOGRAM_COLORS.length];
+}
+
 /** Inline entity reference — a monogram + name in a soft field pill.
  *  Names a supplier, person, or record inside running text. Softer than a
  *  StatusPill (no dot, no state) and not a mono token (see Chip). */

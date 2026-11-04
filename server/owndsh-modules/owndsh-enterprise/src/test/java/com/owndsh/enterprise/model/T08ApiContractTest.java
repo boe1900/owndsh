@@ -431,7 +431,8 @@ class T08ApiContractTest {
     private static ModelGrant grant() {
         return new ModelGrant(
             Long.parseLong(GRANT_ID), "000000", GrantResourceType.MODEL, Long.parseLong(MODEL_ID), "deepseek-chat",
-            GrantSubjectType.MEMBER, Long.parseLong(USER_ID), "Alice", ModelStatus.ACTIVE, 0
+            GrantSubjectType.MEMBER, Long.parseLong(USER_ID), "Alice", ModelStatus.ACTIVE, 0,
+            Instant.parse("2026-08-18T08:00:00Z"), Instant.parse("2026-08-18T08:00:00Z")
         );
     }
 

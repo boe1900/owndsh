@@ -83769,7 +83769,9 @@
                               "subjectId",
                               "subjectName",
                               "status",
-                              "revision"
+                              "revision",
+                              "createdAt",
+                              "updatedAt"
                             ],
                             "properties": {
                               "id": {
@@ -83831,6 +83833,14 @@
                                 "examples": [
                                   7
                                 ]
+                              },
+                              "createdAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "updatedAt": {
+                                "type": "string",
+                                "format": "date-time"
                               }
                             }
                           }
@@ -84595,7 +84605,9 @@
                         "subjectId",
                         "subjectName",
                         "status",
-                        "revision"
+                        "revision",
+                        "createdAt",
+                        "updatedAt"
                       ],
                       "properties": {
                         "id": {
@@ -84657,6 +84669,14 @@
                           "examples": [
                             7
                           ]
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
                         }
                       }
                     },
@@ -85709,7 +85729,9 @@
                           "subjectId",
                           "subjectName",
                           "status",
-                          "revision"
+                          "revision",
+                          "createdAt",
+                          "updatedAt"
                         ],
                         "properties": {
                           "id": {
@@ -85771,6 +85793,14 @@
                             "examples": [
                               7
                             ]
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
                           }
                         }
                       }
@@ -86819,7 +86849,9 @@
                         "subjectId",
                         "subjectName",
                         "status",
-                        "revision"
+                        "revision",
+                        "createdAt",
+                        "updatedAt"
                       ],
                       "properties": {
                         "id": {
@@ -86881,6 +86913,14 @@
                           "examples": [
                             7
                           ]
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
                         }
                       }
                     },
@@ -89549,7 +89589,9 @@
                           "subjectId",
                           "subjectName",
                           "status",
-                          "revision"
+                          "revision",
+                          "createdAt",
+                          "updatedAt"
                         ],
                         "properties": {
                           "id": {
@@ -89611,6 +89653,14 @@
                             "examples": [
                               7
                             ]
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
                           }
                         }
                       }
@@ -180400,7 +180450,9 @@
           "subjectId",
           "subjectName",
           "status",
-          "revision"
+          "revision",
+          "createdAt",
+          "updatedAt"
         ],
         "properties": {
           "id": {
@@ -180462,6 +180514,14 @@
             "examples": [
               7
             ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -180485,7 +180545,9 @@
               "subjectId",
               "subjectName",
               "status",
-              "revision"
+              "revision",
+              "createdAt",
+              "updatedAt"
             ],
             "properties": {
               "id": {
@@ -180547,6 +180609,14 @@
                 "examples": [
                   7
                 ]
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time"
               }
             }
           },
@@ -180583,7 +180653,9 @@
                 "subjectId",
                 "subjectName",
                 "status",
-                "revision"
+                "revision",
+                "createdAt",
+                "updatedAt"
               ],
               "properties": {
                 "id": {
@@ -180645,6 +180717,14 @@
                   "examples": [
                     7
                   ]
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "format": "date-time"
                 }
               }
             }
@@ -180716,7 +180796,9 @@
                     "subjectId",
                     "subjectName",
                     "status",
-                    "revision"
+                    "revision",
+                    "createdAt",
+                    "updatedAt"
                   ],
                   "properties": {
                     "id": {
@@ -180778,6 +180860,14 @@
                       "examples": [
                         7
                       ]
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
                     }
                   }
                 }
@@ -180852,7 +180942,9 @@
                 "subjectId",
                 "subjectName",
                 "status",
-                "revision"
+                "revision",
+                "createdAt",
+                "updatedAt"
               ],
               "properties": {
                 "id": {
@@ -180914,6 +181006,14 @@
                   "examples": [
                     7
                   ]
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "format": "date-time"
                 }
               }
             }

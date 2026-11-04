@@ -59,5 +59,6 @@ V49__model_connection_discovery_path.sql: 为每条模型连接增加默认 /mod
 V50__enterprise_skill_source_credentials.sql: 建立加密仓库访问凭据、Skill Release 当前版本指针和发布说明字段，支持私有源码按 commit 回源安装。
 V51__enterprise_skill_single_source.sql: 删除 Skill 来源子路径；每个仓库归档必须唯一包含一个 SKILL.md。
 V52__model_set_description.sql: 为模型集增加可选管理说明，历史模型集默认空字符串。
+V53__model_grant_timestamps.sql: 为模型授权补齐创建时间与最后更新时间，历史记录按迁移时刻回填。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

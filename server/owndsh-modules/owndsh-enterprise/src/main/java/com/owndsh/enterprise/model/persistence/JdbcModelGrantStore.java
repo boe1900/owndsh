@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Spring JdbcOperations、grant/model-set/model/provider、产品用户组与 Host sys_user。
- * [OUTPUT]: 对外提供三类主体到模型/模型集授权 CRUD 及携带协议/推理事实的 ACTIVE 有效候选 SQL。
+ * [OUTPUT]: 对外提供三类主体到模型/模型集授权 CRUD、时间投影及携带协议/推理事实的 ACTIVE 有效候选 SQL。
  * [POS]: model/persistence 的授权 PostgreSQL adapter，企业事实按 tenant 约束，Host 主体使用固定部署的全局主键。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -19,6 +19,8 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -36,7 +38,7 @@ public final class JdbcModelGrantStore implements ModelGrantStore {
         g.id, g.tenant_id, g.resource_type, g.resource_id,
         case g.resource_type when 'MODEL' then m.alias when 'MODEL_SET' then ms.name end as resource_name,
         g.subject_type,
-        g.subject_id, %s, g.status, g.revision
+        g.subject_id, %s, g.status, g.revision, g.created_at, g.updated_at
         """.formatted(SUBJECT_NAME);
     private static final String FROM = """
         from ent_model_grant g
@@ -57,12 +59,12 @@ public final class JdbcModelGrantStore implements ModelGrantStore {
         """;
     private static final String INSERT_SQL = """
         insert into ent_model_grant(
-            id, tenant_id, resource_type, resource_id, subject_type, subject_id, status, revision
-        ) values (?, ?, ?, ?, ?, ?, ?, ?)
+            id, tenant_id, resource_type, resource_id, subject_type, subject_id, status, revision, created_at, updated_at
+        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
     private static final String UPDATE_SQL = """
         update ent_model_grant set resource_type = ?, resource_id = ?, subject_type = ?, subject_id = ?,
-            status = ?, revision = revision + 1
+            status = ?, revision = revision + 1, updated_at = ?
         where tenant_id = ? and id = ? and revision = ?
         """;
     private static final String DELETE_SQL = """
@@ -117,7 +119,7 @@ public final class JdbcModelGrantStore implements ModelGrantStore {
             INSERT_SQL,
             grant.id(), grant.tenantId(), grant.resourceType().name(), grant.resourceId(),
             grant.subjectType().name(), grant.subjectId(),
-            grant.status().name(), grant.revision()
+            grant.status().name(), grant.revision(), at(grant.createdAt()), at(grant.updatedAt())
         );
     }
 
@@ -126,7 +128,7 @@ public final class JdbcModelGrantStore implements ModelGrantStore {
         return jdbc.update(
             UPDATE_SQL,
             grant.resourceType().name(), grant.resourceId(), grant.subjectType().name(), grant.subjectId(),
-            grant.status().name(), grant.tenantId(), grant.id(), expectedRevision
+            grant.status().name(), at(grant.updatedAt()), grant.tenantId(), grant.id(), expectedRevision
         ) == 1;
     }
 
@@ -218,8 +220,14 @@ public final class JdbcModelGrantStore implements ModelGrantStore {
             resultSet.getString("resource_name"), GrantSubjectType.valueOf(resultSet.getString("subject_type")),
             nullableLong(resultSet, "subject_id"), resultSet.getString("subject_name"),
             ModelStatus.valueOf(resultSet.getString("status")),
-            resultSet.getLong("revision")
+            resultSet.getLong("revision"),
+            resultSet.getObject("created_at", OffsetDateTime.class).toInstant(),
+            resultSet.getObject("updated_at", OffsetDateTime.class).toInstant()
         );
+    }
+
+    private static java.sql.Timestamp at(Instant value) {
+        return java.sql.Timestamp.from(value);
     }
 
     private static Long nullableLong(ResultSet resultSet, String column) throws SQLException {

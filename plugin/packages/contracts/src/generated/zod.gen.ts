@@ -1680,7 +1680,9 @@ export const zModelModelGrant = z.object({
     subjectId: z.string().regex(/^[1-9][0-9]{0,18}$/).nullable(),
     subjectName: z.string().min(1).max(120),
     status: zModelModelStatus,
-    revision: zRevision
+    revision: zRevision,
+    createdAt: z.iso.datetime({ offset: true }),
+    updatedAt: z.iso.datetime({ offset: true })
 }).strict();
 
 export const zModelGrant = zModelModelGrant;

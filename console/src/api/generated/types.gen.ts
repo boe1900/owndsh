@@ -1734,6 +1734,8 @@ export type ModelModelGrant = {
     subjectName: string;
     status: ModelModelStatus;
     revision: Revision;
+    createdAt: string;
+    updatedAt: string;
 };
 
 export type ModelModelGrantBatchRequest = {

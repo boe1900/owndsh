@@ -48,6 +48,7 @@ t19-audit-closure-acceptance.md: T19 独立验收证据，记录 30-action metad
 t20-security-fault-acceptance.md: T20 独立验收证据，记录分层安全上限、drain、秘密扫描、服务/磁盘故障与四类恢复演练。
 t21-deployment-delivery-acceptance.md: T21 独立验收证据，区分当前 HTTP Compose 静态回归与历史 TLS 全量演练，并记录一次性管理员、secret、健康检查、数据/key 分离恢复、升级与仅应用回滚。
 t22-manual-acceptance.md: T22 人工验收真源，记录自动总编排退役决策、单后端/单 Harness 启动方式与逐功能确认清单。
+mcp-ptc-live-e2e-20261103.md: MCP codemode/ptc 通道实机验收证据，记录 ptc 档 69 个 mcp__notion__ 绑定全量预基线、tool_search loaded/truncated、codemode 搜索/fetch/并行调用、无检索门禁负例与 validation_error/MCP_SEARCH_INVALID 错误契约，并裁决 native 8 工具曝光归属。
 assets/: 无密钥验收与社区展示媒体，保存 T05、T07、T12、T15、T18、T19 的真实页面流程截图/GIF，以及维护者提供的社区介绍原图；局部地图见 assets/CLAUDE.md。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

@@ -18,8 +18,10 @@ import {
   getQuotaPolicyWindows,
   listAccessGroups,
   listManagedModels,
+  listModelProviders,
   listModelGrants,
   listModelSets,
+  listProviderConnections,
   listQuotaPolicies,
   replaceModelGrantSubjects,
   updateModelGrant,
@@ -31,11 +33,13 @@ import type {
   EnterpriseErrorResponse,
   ManagedModel,
   ManagedModelPageData,
+  ModelProviderConnectionPageData,
   ModelGrant,
   ModelGrantPageData,
   ModelGrantWriteRequest,
   ModelSet,
   ModelSetPageData,
+  ProviderPageData,
   QuotaPolicy,
   QuotaPolicyPageData,
   QuotaPolicyWriteRequest,
@@ -45,6 +49,7 @@ import { randomUuid } from '@/lib/crypto';
 import { Button } from '@/components/atoms/Button';
 import { SegmentedControl } from '@/components/atoms/SegmentedControl';
 import { StatusPill } from '@/components/atoms/StatusPill';
+import { Monogram, monogramColor } from '@/components/atoms/EntityChip';
 import { ProductDataTable, type ProductTableColumn } from '@/components/product/DataTable';
 import { DeletePolicyDialog, GrantEditorDialog, QuotaEditorDialog, type GrantEditorValue } from './policy-editors';
 import { useMembers } from '@/features/member-select';
@@ -117,6 +122,15 @@ async function loadAllModelSets() {
   return items;
 }
 
+async function loadAllConnections() {
+  const providers = unwrap<ProviderPageData>(await listModelProviders({ query: { limit: 200 } }), '供应商加载失败');
+  const pages = await Promise.all(providers.items.map(async (provider) => unwrap<ModelProviderConnectionPageData>(
+    await listProviderConnections({ path: { providerId: provider.id }, query: { limit: 200 } }),
+    '连接加载失败'
+  )));
+  return pages.flatMap((page) => page.items);
+}
+
 async function loadAllAccessGroups() {
   const items: AccessGroup[] = [];
   let cursor: string | undefined;
@@ -165,18 +179,41 @@ function PolicyStatus({ status }: { status: 'ACTIVE' | 'DISABLED' }) {
   return <StatusPill tone={status === 'ACTIVE' ? 'green' : 'neutral'}>{status === 'ACTIVE' ? '启用' : '停用'}</StatusPill>;
 }
 
-const grantColumns: ReadonlyArray<ProductTableColumn<ModelGrant>> = [
+function formatUpdatedAt(value: string | null | undefined) {
+  if (!value) return '—';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat('zh-CN', { dateStyle: 'short', timeStyle: 'short' }).format(date);
+}
+
+function grantColumns(modelSets: ReadonlyArray<ModelSet>, models: ReadonlyArray<ManagedModel>, connectionNames: ReadonlyMap<string, string>): ReadonlyArray<ProductTableColumn<ModelGrant>> {
+  const modelSetById = new Map(modelSets.map((set) => [set.id, set]));
+  const modelById = new Map(models.map((model) => [model.id, model]));
+  return [
   {
     accessorKey: 'resourceName',
     header: '授权资源（模型集 / 单个模型）',
-    cell: ({ row }) => { const isSet = row.original.resourceType === 'MODEL_SET'; const Icon = isSet ? Layers : Cpu; return <div className="flex min-w-0 items-start gap-3"><span className={`grid size-8 shrink-0 place-items-center rounded-lg border ${isSet ? 'border-ink bg-ink text-white dark:bg-accent' : 'border-accent/30 bg-accent-tint text-accent'}`}><Icon aria-hidden className="size-4" /></span><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><div className="truncate font-semibold text-ink" title={row.original.resourceName}>{row.original.resourceName}</div><span className={`rounded border px-1.5 py-0.5 text-[10px] font-medium ${isSet ? 'border-line bg-field text-ink-2' : 'border-accent/30 bg-accent-tint text-accent-ink'}`}>{isSet ? '模型集' : '单个模型'}</span></div><div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-ink-3">{isSet ? <><span>批量授权模型集合</span><span>·</span><span>资源 ID {row.original.resourceId}</span></> : <><Server aria-hidden className="size-3" /><span>受管模型实例</span><span>·</span><span>资源 ID {row.original.resourceId}</span></>}</div></div></div>; },
+    cell: ({ row }) => {
+      const isSet = row.original.resourceType === 'MODEL_SET';
+      const Icon = isSet ? Layers : Cpu;
+      const resourceId = row.original.resourceId;
+      const modelSet = isSet ? modelSetById.get(resourceId) : undefined;
+      const model = isSet ? undefined : modelById.get(resourceId);
+      const detail = isSet ? modelSet?.description || '未填写描述' : connectionNames.get(model?.connectionId ?? '') || '未命名连接';
+      return <div className="flex min-w-0 items-center gap-3"><span className={`grid size-8 shrink-0 place-items-center rounded-lg border ${isSet ? 'border-ink bg-ink text-white dark:bg-accent' : 'border-accent/30 bg-accent-tint text-accent'}`}><Icon aria-hidden className="size-4" /></span><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><div className="truncate font-semibold text-ink" title={row.original.resourceName}>{row.original.resourceName}</div><span className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium ${isSet ? 'border-line bg-field text-ink-2' : 'border-accent/30 bg-accent-tint text-accent-ink'}`}>{isSet ? '模型集' : '单个模型'}{isSet && modelSet ? <><span className="text-ink-3">·</span><span>{modelSet.modelCount} 个模型</span></> : null}</span></div><div className="mt-1 flex min-w-0 items-center gap-1.5 truncate text-[11px] text-ink-3" title={detail}>{!isSet ? <Server aria-hidden className="size-3 shrink-0" /> : null}<span className="truncate">{detail}</span></div></div></div>;
+    },
     meta: { label: '授权资源', className: 'w-[390px]', cellClassName: 'w-[390px]' }
   },
   {
     id: 'subject',
     accessorFn: subjectLabel,
     header: '授权对象（Scope & Principals）',
-    cell: ({ row, getValue }) => { const Icon = row.original.subjectType === 'ALL_MEMBERS' ? Globe : row.original.subjectType === 'ACCESS_GROUP' ? Users : UserCheck; const tone = row.original.subjectType === 'ALL_MEMBERS' ? 'bg-green-tint text-green' : row.original.subjectType === 'ACCESS_GROUP' ? 'bg-accent-tint text-accent-ink' : 'bg-orange-tint text-orange'; return <div className="flex min-w-0 items-center gap-2"><span className={`grid size-7 shrink-0 place-items-center rounded-lg ${tone}`}><Icon aria-hidden className="size-3.5" /></span><div className="min-w-0"><div className="truncate text-ink" title={String(getValue())}>{row.original.subjectType === 'ALL_MEMBERS' ? <><span>所有成员</span><span className="text-ink-3">（全员开放）</span></> : String(getValue())}</div><div className="text-[11px] text-ink-3">{subjectTypeLabel(row.original)}{row.original.subjectType !== 'ALL_MEMBERS' ? ` · ${row.original.subjectId ?? ''}` : ''}</div></div></div>; },
+    cell: ({ row }) => {
+      const subjectType = row.original.subjectType;
+      const label = subjectType === 'ALL_MEMBERS' ? '所有成员' : subjectType === 'ACCESS_GROUP' ? '用户组' : '指定成员';
+      const Icon = subjectType === 'ALL_MEMBERS' ? Globe : subjectType === 'ACCESS_GROUP' ? Users : UserCheck;
+      const tone = subjectType === 'ALL_MEMBERS' ? 'bg-green-tint text-green' : subjectType === 'ACCESS_GROUP' ? 'bg-accent-tint text-accent-ink' : 'bg-orange-tint text-orange';
+      return <div className="flex min-w-0 items-center gap-2"><span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-1 text-[11px] font-medium ${tone}`}>{subjectType === 'MEMBER' ? <Monogram color={monogramColor(row.original.subjectName)} className="size-4 text-[9px]">{row.original.subjectName.slice(0, 1)}</Monogram> : <Icon aria-hidden className="size-3.5" />}{label}</span>{subjectType !== 'ALL_MEMBERS' ? <span className="min-w-0 truncate text-xs text-ink" title={row.original.subjectName}>{row.original.subjectName}</span> : null}</div>;
+    },
     meta: { label: '授权对象', className: 'w-[290px]', cellClassName: 'w-[290px]' }
   },
   {
@@ -188,13 +225,14 @@ const grantColumns: ReadonlyArray<ProductTableColumn<ModelGrant>> = [
   },
   {
     id: 'updatedAt',
-    accessorFn: () => '',
+    accessorFn: (row) => row.updatedAt,
     header: '最后更新',
-    cell: () => <span className="font-mono text-[11px] text-ink-3">—</span>,
+    cell: ({ row }) => <span className="font-mono text-[11px] text-ink-3">{formatUpdatedAt(row.original.updatedAt)}</span>,
     enableSorting: false,
     meta: { label: '最后更新', className: 'w-[120px]', cellClassName: 'w-[120px]' }
   }
-];
+  ];
+}
 
 const quotaBaseColumns: ReadonlyArray<ProductTableColumn<QuotaPolicy>> = [
   {
@@ -305,6 +343,7 @@ export function AccessPolicyPage() {
   });
   const models = useQuery({ queryKey: ['access', 'model-options'], queryFn: loadAllModels, enabled: canWrite, staleTime: 30_000 });
   const modelSets = useQuery({ queryKey: ['access', 'model-sets'], queryFn: loadAllModelSets, enabled: canWrite, staleTime: 30_000 });
+  const connections = useQuery({ queryKey: ['access', 'connections'], queryFn: loadAllConnections, enabled: canWrite, staleTime: 30_000 });
   const accessGroups = useQuery({ queryKey: ['access', 'access-groups'], queryFn: loadAllAccessGroups, enabled: canWrite, staleTime: 30_000 });
   const members = useMembers(canWrite);
   const editingQuotaId = quotaEditor && quotaEditor !== 'create' ? quotaEditor.id : undefined;
@@ -397,8 +436,9 @@ export function AccessPolicyPage() {
     () => quotaRows.filter((policy) => policy.policyType === (section === 'Token 配额' ? 'TOKEN' : 'RATE')),
     [quotaRows, section]
   );
-  const optionsLoading = models.isLoading || modelSets.isLoading || accessGroups.isLoading || members.isLoading;
-  const optionsError = models.error ?? modelSets.error ?? accessGroups.error ?? members.error;
+  const optionsLoading = models.isLoading || modelSets.isLoading || connections.isLoading || accessGroups.isLoading || members.isLoading;
+  const optionsError = models.error ?? modelSets.error ?? connections.error ?? accessGroups.error ?? members.error;
+  const connectionNames = useMemo(() => new Map((connections.data ?? []).map((connection) => [connection.id, connection.name])), [connections.data]);
   const visibleGrantRows = useMemo(
     () => grantResourceFilter === 'ALL' ? grantRows : grantRows.filter((grant) => grant.resourceType === grantResourceFilter),
     [grantResourceFilter, grantRows]
@@ -407,7 +447,7 @@ export function AccessPolicyPage() {
   const table = section === '模型访问' ? (
     <ProductDataTable
       ariaLabel="模型访问策略"
-      columns={withGrantActions(grantColumns, canWrite, (value) => { saveGrant.reset(); setGrantEditor(value); }, (value) => { remove.reset(); setDeleteTarget({ kind: 'grant', value }); }, (value) => { bulkStatus.mutate({ rows: [value], status: value.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE' }); })}
+      columns={withGrantActions(grantColumns(modelSets.data ?? [], models.data ?? [], connectionNames), canWrite, (value) => { saveGrant.reset(); setGrantEditor(value); }, (value) => { remove.reset(); setDeleteTarget({ kind: 'grant', value }); }, (value) => { bulkStatus.mutate({ rows: [value], status: value.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE' }); })}
       data={visibleGrantRows}
       emptyText="暂无模型访问策略"
       error={grants.error ?? bulkStatus.error ?? bulkRemove.error}
@@ -446,11 +486,11 @@ export function AccessPolicyPage() {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto flex min-h-full w-full max-w-[1320px] flex-col gap-5 px-5 py-7 sm:px-8 sm:py-9">
-        <header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5"><div><div className="flex flex-wrap items-center gap-2.5"><h1 className="m-0 text-[22px] font-semibold leading-tight text-ink">访问策略</h1><span className="inline-flex items-center gap-2 rounded-full border border-line bg-field px-2.5 py-1 text-[11px] text-ink-2"><span>授权规则 <strong className="font-semibold text-ink">{section === '模型访问' ? grantRows.length : visibleQuotaRows.length}</strong></span><span className="text-ink-3">·</span><span>生效中 <strong className="font-semibold text-green">{section === '模型访问' ? grantRows.filter((grant) => grant.status === 'ACTIVE').length : visibleQuotaRows.filter((policy) => policy.status === 'ACTIVE').length}</strong></span></span></div><p className="m-0 mt-1 text-xs text-ink-3">集中管控模型集与单个受管模型的访问授权范围，支持全员、用户组和指定成员。</p></div><SegmentedControl options={SECTIONS} value={section} onChange={setSection} /></header>
+        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-line pb-5"><h1 className="m-0 text-[22px] font-semibold leading-tight text-ink">访问策略</h1><SegmentedControl options={SECTIONS} value={section} onChange={setSection} /></header>
         {optionsError && canWrite ? <p role="alert" className="m-0 text-[12.5px] text-red">{errorMessage(optionsError, '策略选项加载失败')}</p> : null}
         {table}
       </div>
-      {grantEditor ? <GrantEditorDialog key={grantEditor === 'create' ? 'create' : grantEditor.id} current={grantEditor === 'create' ? undefined : grantEditor} error={saveGrant.error ? errorMessage(saveGrant.error, '模型授权保存失败') : undefined} accessGroups={accessGroups.data ?? []} members={members.data ?? []} modelSets={modelSets.data ?? []} models={models.data ?? []} saving={saveGrant.isPending} onClose={() => setGrantEditor(null)} onSave={(value) => saveGrant.mutate({ current: grantEditor === 'create' ? undefined : grantEditor, value })} /> : null}
+      {grantEditor ? <GrantEditorDialog key={grantEditor === 'create' ? 'create' : grantEditor.id} current={grantEditor === 'create' ? undefined : grantEditor} error={saveGrant.error ? errorMessage(saveGrant.error, '模型授权保存失败') : undefined} accessGroups={accessGroups.data ?? []} connections={connectionNames} members={members.data ?? []} modelSets={modelSets.data ?? []} models={models.data ?? []} saving={saveGrant.isPending} onClose={() => setGrantEditor(null)} onSave={(value) => saveGrant.mutate({ current: grantEditor === 'create' ? undefined : grantEditor, value })} /> : null}
       {quotaEditor ? <QuotaEditorDialog key={quotaEditor === 'create' ? `create-${editingQuotaType}` : quotaEditor.id} current={quotaEditor === 'create' ? undefined : quotaEditor} error={saveQuota.error ? errorMessage(saveQuota.error, '配额策略保存失败') : quotaWindows.error ? errorMessage(quotaWindows.error, '当前配额用量加载失败') : undefined} modelSets={modelSets.data ?? []} models={models.data ?? []} policyType={editingQuotaType} windows={quotaWindows.data ?? []} windowsLoading={quotaWindows.isLoading} saving={saveQuota.isPending} onClose={() => setQuotaEditor(null)} onSave={(value) => saveQuota.mutate({ current: quotaEditor === 'create' ? undefined : quotaEditor, value })} /> : null}
       {deleteTarget ? <DeletePolicyDialog kind={deleteTarget.kind} error={remove.error ? errorMessage(remove.error, '策略删除失败') : undefined} label={deleteTarget.kind === 'grant' ? deleteTarget.value.resourceName : deleteTarget.value.name} saving={remove.isPending} onClose={closeDelete} onConfirm={() => remove.mutate(deleteTarget)} /> : null}
       {bulkDeleteTarget ? <DeletePolicyDialog kind="grant" error={bulkRemove.error ? errorMessage(bulkRemove.error, '批量删除策略失败') : undefined} label={`${bulkDeleteTarget.length} 条模型授权`} saving={bulkRemove.isPending} onClose={() => { if (!bulkRemove.isPending) { bulkRemove.reset(); setBulkDeleteTarget(null); } }} onConfirm={() => bulkRemove.mutate(bulkDeleteTarget)} /> : null}

@@ -22,7 +22,7 @@ ManagedModelView.java: provider 名称、容量、reasoningEfforts 与 completio
 AdminManagedModelController.java: 模型 CRUD/排序字段更新/启停与 ent:model 权限入口。
 ModelGrantWriteRequest.java: MODEL_SET/MODEL 资源与 ALL_MEMBERS/ACCESS_GROUP/MEMBER 主体的单条授权写 DTO 及 application spec 转换。
 ModelGrantBatchRequest.java: 最多 200 条授权的原子批量请求边界。
-ModelGrantView.java: nullable subjectId、subject/model 展示名与 revision 的管理投影。
+ModelGrantView.java: nullable subjectId、subject/model 展示名、revision 与创建/更新时间的管理投影。
 AdminModelGrantController.java: 授权 list/create/update/delete/batch 及主体替换与 ent:grant 权限入口。
 ModelSetWriteRequest.java: 模型集名称、可选管理说明与完整模型 ID 列表写入边界。
 ModelSetView.java: 模型集名称、管理说明、成员模型 ID、计数和 revision 管理投影。

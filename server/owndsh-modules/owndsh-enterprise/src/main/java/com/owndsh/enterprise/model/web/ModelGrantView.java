@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 投影 ModelGrant 的资源类型/名称、主体名称、状态与 revision。
+ * [INPUT]: 投影 ModelGrant 的资源类型/名称、主体名称、状态、revision 与时间。
  * [OUTPUT]: 对外提供模型授权管理响应 DTO。
  * [POS]: model/web 的授权输出边界，展示名来自服务端 join 且不参与 runtime 授权裁决。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -10,6 +10,7 @@ import com.owndsh.enterprise.model.domain.GrantResourceType;
 import com.owndsh.enterprise.model.domain.GrantSubjectType;
 import com.owndsh.enterprise.model.domain.ModelGrant;
 import com.owndsh.enterprise.model.domain.ModelStatus;
+import java.time.Instant;
 
 public record ModelGrantView(
     String id,
@@ -20,14 +21,16 @@ public record ModelGrantView(
     String subjectId,
     String subjectName,
     ModelStatus status,
-    long revision
+    long revision,
+    Instant createdAt,
+    Instant updatedAt
 ) {
     public static ModelGrantView from(ModelGrant grant) {
         return new ModelGrantView(
             Long.toString(grant.id()), grant.resourceType(), Long.toString(grant.resourceId()), grant.resourceName(),
             grant.subjectType(),
             grant.subjectId() == null ? null : Long.toString(grant.subjectId()),
-            grant.subjectName(), grant.status(), grant.revision()
+            grant.subjectName(), grant.status(), grant.revision(), grant.createdAt(), grant.updatedAt()
         );
     }
 }

@@ -8,7 +8,9 @@
     "subjectId": "1761100000000000003",
     "subjectName": "Alice",
     "status": "ACTIVE",
-    "revision": 0
+    "revision": 0,
+    "createdAt": "2026-08-18T08:00:00Z",
+    "updatedAt": "2026-08-18T08:00:00Z"
   },
   "requestId": "req_01K2W3V4X5Y6Z7A8B9C0D1E2F3"
 }

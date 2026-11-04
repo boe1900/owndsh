@@ -855,7 +855,7 @@ describe('product console access', () => {
     expect(screen.getByText(/窗口 1M · 输出 128K/)).toBeTruthy();
     expect(screen.queryByText('管理视角：')).toBeNull();
     expect(screen.queryByText(/全局模型大表/)).toBeNull();
-    expect(screen.getByRole('button', { name: '收起' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '展开' })).toBeTruthy();
     expect(screen.queryByRole('columnheader', { name: /上游模型 ID/ })).toBeNull();
     fireEvent.click(screen.getByRole('tab', { name: '模型与供应商' }));
     expect(await screen.findByText('OpenAI')).toBeTruthy();

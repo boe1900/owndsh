@@ -183,10 +183,11 @@ public final class ModelGrantService {
     private ModelGrant newGrant(String tenantId, ModelGrantSpec spec) {
         requireResource(tenantId, spec);
         String subjectName = requireSubject(tenantId, spec);
+        Instant now = Instant.now(clock);
         return new ModelGrant(
             positiveId(), tenantId, spec.resourceType(), spec.resourceId(),
             grants.resourceName(tenantId, spec.resourceType(), spec.resourceId()), spec.subjectType(), spec.subjectId(),
-            subjectName, spec.status(), 0
+            subjectName, spec.status(), 0, now, now
         );
     }
 
@@ -196,7 +197,7 @@ public final class ModelGrantService {
         return new ModelGrant(
             current.id(), current.tenantId(), spec.resourceType(), spec.resourceId(),
             grants.resourceName(tenantId, spec.resourceType(), spec.resourceId()), spec.subjectType(),
-            spec.subjectId(), subjectName, spec.status(), expectedRevision + 1
+            spec.subjectId(), subjectName, spec.status(), expectedRevision + 1, current.createdAt(), Instant.now(clock)
         );
     }
 

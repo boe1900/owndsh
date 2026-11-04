@@ -1,11 +1,12 @@
 /**
- * [INPUT]: 聚合模型/模型集资源、全员/用户组/成员主体、状态、revision 与展示名称。
- * [OUTPUT]: 对外提供 ModelGrant 领域记录。
+ * [INPUT]: 聚合模型/模型集资源、全员/用户组/成员主体、状态、revision、时间与展示名称。
+ * [OUTPUT]: 对外提供带创建/更新时间的 ModelGrant 领域记录。
  * [POS]: model/domain 的显式授权事实，modelAlias/subjectName 是可信 join 投影而非授权依据。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.model.domain;
 
+import java.time.Instant;
 import java.util.Objects;
 
 public record ModelGrant(
@@ -18,7 +19,9 @@ public record ModelGrant(
     Long subjectId,
     String subjectName,
     ModelStatus status,
-    long revision
+    long revision,
+    Instant createdAt,
+    Instant updatedAt
 ) {
     public ModelGrant {
         if (id <= 0 || resourceId <= 0) {
@@ -34,7 +37,7 @@ public record ModelGrant(
         }
         subjectName = requireText(subjectName, "subjectName", 120);
         Objects.requireNonNull(status, "status");
-        if (revision < 0) throw new IllegalArgumentException("revision 不能为负数");
+        if (revision < 0 || createdAt == null || updatedAt == null) throw new IllegalArgumentException("grant 时间或 revision 非法");
     }
 
     private static String requireText(String value, String name, int maximum) {
