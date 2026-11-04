@@ -21,6 +21,7 @@ import {
   listModelGrants,
   listModelSets,
   listQuotaPolicies,
+  replaceModelGrantSubjects,
   updateModelGrant,
   updateQuotaPolicy
 } from '@/api/generated/sdk.gen';
@@ -320,12 +321,15 @@ export function AccessPolicyPage() {
         if (batch.error !== undefined || batch.data === undefined) throw new Error(errorMessage(batch.error, '模型授权保存失败'));
         return batch.data.data[0];
       }
-      const [first, ...rest] = subjectIds;
-      const updated = unwrap(await updateModelGrant({ body: body(first), headers: { 'If-Match': current.revision }, path: { grantId: current.id } }), '模型授权保存失败');
-      if (rest.length > 0) {
-        await unwrap(await createModelGrantBatch({ body: { items: rest.map(body) }, headers: { 'Idempotency-Key': randomUuid() } }), '模型授权保存失败');
+      if (subjectIds.length > 1) {
+        const replaced = await replaceModelGrantSubjects({
+          body: { items: subjectIds.map(body) },
+          headers: { 'If-Match': current.revision, 'Idempotency-Key': randomUuid() },
+          path: { grantId: current.id }
+        });
+        return unwrap(replaced, '模型授权保存失败')[0];
       }
-      return updated;
+      return unwrap(await updateModelGrant({ body: body(subjectIds[0]), headers: { 'If-Match': current.revision }, path: { grantId: current.id } }), '模型授权保存失败');
     },
     onSuccess: async () => {
       setGrantEditor(null);

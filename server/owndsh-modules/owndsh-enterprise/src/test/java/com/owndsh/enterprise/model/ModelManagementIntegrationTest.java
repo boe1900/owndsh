@@ -261,6 +261,21 @@ class ModelManagementIntegrationTest {
         assertThat(jdbc.queryForObject("select count(*) from ent_model_grant", Long.class)).isEqualTo(grantsBeforeBatch);
         assertThat(revisions.current(TENANT)).isEqualTo(revisionBeforeBatch);
 
+        List<ModelGrant> replaced = grants.replaceSubjects(context, memberReasoner.id(), memberReasoner.revision(), List.of(
+            new ModelGrantSpec(GrantResourceType.MODEL, reasoner.id(), GrantSubjectType.MEMBER, user.id(), ModelStatus.DISABLED),
+            new ModelGrantSpec(GrantResourceType.MODEL, reasoner.id(), GrantSubjectType.ACCESS_GROUP, accessGroupId, ModelStatus.ACTIVE)
+        ));
+        assertThat(replaced).extracting(ModelGrant::subjectType)
+            .containsExactly(GrantSubjectType.MEMBER, GrantSubjectType.ACCESS_GROUP);
+        assertThat(replaced.getFirst().revision()).isEqualTo(1);
+        long grantsBeforeReplaceConflict = jdbc.queryForObject("select count(*) from ent_model_grant", Long.class);
+        assertThatThrownBy(() -> grants.replaceSubjects(context, memberReasoner.id(), 1, List.of(
+            new ModelGrantSpec(GrantResourceType.MODEL, reasoner.id(), GrantSubjectType.MEMBER, user.id(), ModelStatus.ACTIVE),
+            new ModelGrantSpec(GrantResourceType.MODEL, reasoner.id(), GrantSubjectType.ACCESS_GROUP, accessGroupId, ModelStatus.DISABLED)
+        ))).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("授权重复");
+        assertThat(jdbc.queryForObject("select count(*) from ent_model_grant", Long.class)).isEqualTo(grantsBeforeReplaceConflict);
+        assertThat(grants.get(TENANT, memberReasoner.id()).revision()).isEqualTo(1);
+
         grants.update(context, memberChat.id(), 0, new ModelGrantSpec(
             GrantResourceType.MODEL, chat.id(), GrantSubjectType.MEMBER, user.id(), ModelStatus.DISABLED
         ));

@@ -119,6 +119,8 @@ paths:
     $ref: './paths/model.yaml#/GrantBatch'
   /enterprise/admin/v1/model-grants/{grantId}:
     $ref: './paths/model.yaml#/GrantItem'
+  /enterprise/admin/v1/model-grants/{grantId}/actions/replace-subjects:
+    $ref: './paths/model.yaml#/GrantSubjectReplacement'
   /enterprise/api/v1/bootstrap:
     $ref: './paths/model.yaml#/Bootstrap'
   /enterprise/admin/v1/quotas:

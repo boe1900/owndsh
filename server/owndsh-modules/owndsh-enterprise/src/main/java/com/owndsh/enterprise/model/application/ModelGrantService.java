@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖事务、Grant/Model stores、bootstrap revision、AuditSink 与 ID generator。
- * [OUTPUT]: 对外提供授权 list/get/create/update/delete 及最多 200 条全成全败批量创建。
+ * [OUTPUT]: 对外提供授权 list/get/create/update/delete、批量创建及编辑授权主体的原子替换。
  * [POS]: model/application 的授权用例编排，主体存在性、重复约束、revision 和审计统一在事务内裁决。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -100,6 +100,48 @@ public final class ModelGrantService {
         }
     }
 
+    public List<ModelGrant> replaceSubjects(
+        ModelMutationContext context,
+        long grantId,
+        long expectedRevision,
+        List<ModelGrantSpec> specs
+    ) {
+        Objects.requireNonNull(context, "context");
+        specs = List.copyOf(Objects.requireNonNull(specs, "specs"));
+        if (specs.isEmpty() || specs.size() > 200) throw new IllegalArgumentException("items 必须在 1..200");
+        List<ModelGrantSpec> immutableSpecs = specs;
+        try {
+            return requireResult(transactions.execute(status -> {
+                ModelGrant current = grants.find(context.tenantId(), grantId)
+                    .orElseThrow(ModelResourceNotFoundException::new);
+                requireRevision(current, expectedRevision);
+
+                ModelGrantSpec firstSpec = immutableSpecs.getFirst();
+                ModelGrant updated = updatedGrant(context.tenantId(), current, expectedRevision, firstSpec);
+                if (!grants.update(updated, expectedRevision)) {
+                    throw conflict(context.tenantId(), grantId, expectedRevision);
+                }
+
+                List<ModelGrant> replaced = new ArrayList<>(immutableSpecs.size());
+                replaced.add(updated);
+                for (ModelGrantSpec spec : immutableSpecs.subList(1, immutableSpecs.size())) {
+                    ModelGrant created = newGrant(context.tenantId(), spec);
+                    grants.insert(created);
+                    replaced.add(created);
+                }
+
+                long bootstrapRevision = bootstrapRevisions.increment(context.tenantId());
+                audit(context, updated, ModelGrantChangeMetadata.Operation.UPDATE, bootstrapRevision);
+                replaced.stream().skip(1).forEach(grant ->
+                    audit(context, grant, ModelGrantChangeMetadata.Operation.CREATE, bootstrapRevision)
+                );
+                return List.copyOf(replaced);
+            }));
+        } catch (DataIntegrityViolationException exception) {
+            throw new IllegalArgumentException("授权重复", exception);
+        }
+    }
+
     public ModelGrant update(
         ModelMutationContext context,
         long grantId,
@@ -110,13 +152,7 @@ public final class ModelGrantService {
         requireRevision(current, expectedRevision);
         try {
             return requireResult(transactions.execute(status -> {
-                requireResource(context.tenantId(), spec);
-                String subjectName = requireSubject(context.tenantId(), spec);
-                ModelGrant updated = new ModelGrant(
-                    current.id(), current.tenantId(), spec.resourceType(), spec.resourceId(),
-                    grants.resourceName(context.tenantId(), spec.resourceType(), spec.resourceId()), spec.subjectType(),
-                    spec.subjectId(), subjectName, spec.status(), expectedRevision + 1
-                );
+                ModelGrant updated = updatedGrant(context.tenantId(), current, expectedRevision, spec);
                 if (!grants.update(updated, expectedRevision)) {
                     throw conflict(context.tenantId(), grantId, expectedRevision);
                 }
@@ -151,6 +187,16 @@ public final class ModelGrantService {
             positiveId(), tenantId, spec.resourceType(), spec.resourceId(),
             grants.resourceName(tenantId, spec.resourceType(), spec.resourceId()), spec.subjectType(), spec.subjectId(),
             subjectName, spec.status(), 0
+        );
+    }
+
+    private ModelGrant updatedGrant(String tenantId, ModelGrant current, long expectedRevision, ModelGrantSpec spec) {
+        requireResource(tenantId, spec);
+        String subjectName = requireSubject(tenantId, spec);
+        return new ModelGrant(
+            current.id(), current.tenantId(), spec.resourceType(), spec.resourceId(),
+            grants.resourceName(tenantId, spec.resourceType(), spec.resourceId()), spec.subjectType(),
+            spec.subjectId(), subjectName, spec.status(), expectedRevision + 1
         );
     }
 

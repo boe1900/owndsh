@@ -188,6 +188,7 @@ class T08ApiContractTest {
         when(grants.list("000000", 0, 51)).thenReturn(List.of(grant));
         when(grants.create(any(), any())).thenReturn(grant);
         when(grants.createBatch(any(), any())).thenReturn(List.of(grant));
+        when(grants.replaceSubjects(any(), anyLong(), anyLong(), any())).thenReturn(List.of(grant));
         when(grants.update(any(), anyLong(), anyLong(), any())).thenReturn(grant);
         doNothing().when(grants).delete(any(), anyLong(), anyLong());
         when(bootstrap.load(any())).thenReturn(snapshot());
@@ -264,6 +265,10 @@ class T08ApiContractTest {
         assertSchema(response(post("/enterprise/admin/v1/model-grants/batch")
             .header("Idempotency-Key", IDEMPOTENCY_KEY).contentType(MediaType.APPLICATION_JSON)
             .content("{\"items\":[" + grantRequest() + "]}"), 201), "ModelGrantBatchResponse");
+        assertSchema(response(post("/enterprise/admin/v1/model-grants/{id}/actions/replace-subjects", GRANT_ID)
+            .header("Idempotency-Key", IDEMPOTENCY_KEY).header("If-Match", "0")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"items\":[" + grantRequest() + "]}"), 200), "ModelGrantBatchResponse");
         assertSchema(response(put("/enterprise/admin/v1/model-grants/{id}", GRANT_ID)
             .header("If-Match", "0").contentType(MediaType.APPLICATION_JSON)
             .content(grantRequest()), 200), "ModelGrantResponse");
@@ -348,7 +353,7 @@ class T08ApiContractTest {
         ));
         assertPermissions(AdminModelGrantController.class, Map.of(
             "list", "ent:grant:read", "create", "ent:grant:write", "createBatch", "ent:grant:write",
-            "update", "ent:grant:write", "delete", "ent:grant:write"
+            "replaceSubjects", "ent:grant:write", "update", "ent:grant:write", "delete", "ent:grant:write"
         ));
     }
 

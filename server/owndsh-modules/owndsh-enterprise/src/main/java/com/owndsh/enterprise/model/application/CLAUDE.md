@@ -27,7 +27,7 @@ ProviderConnectionService.java: 连接 endpoint、协议、模型发现路径、
 ProviderService.java: 供应商元信息 CRUD、无连接删除约束、后台生成 providerKey、CAS/bootstrap revision/审计事务。
 ManagedModelService.java: 模型含 reasoning 配置的 CRUD/排序/启停、协议兼容校验及 CAS/bootstrap revision/审计事务编排。
 ModelOnboardingService.java: 供应商、连接和首批受管模型的单事务创建编排，任一步失败整体回滚。
-ModelGrantService.java: 单条/批量授权、重复约束、主体/资源校验、CAS/幂等删除和原子审计编排。
+ModelGrantService.java: 单条/批量授权、编辑主体原子替换、重复约束、主体/资源校验、CAS/幂等删除和原子审计编排。
 ModelSetService.java: 模型集名称/说明 CRUD、成员整体替换、引用保护、revision/bootstrap revision 与审计事务编排。
 EffectiveModelResolver.java: 全员与当前成员授权并集、模型去重及排序首项 fallback default 的纯裁决器，原样携带模型推理事实到 bootstrap 与网关。
 BootstrapUser.java: runtime bootstrap 所需的当前 Host 用户最小事实。

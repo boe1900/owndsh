@@ -2766,6 +2766,8 @@ export type GrantCollection = unknown;
 
 export type GrantItem = unknown;
 
+export type GrantSubjectReplacement = unknown;
+
 export type ModelCollection = unknown;
 
 export type ModelDisable = unknown;
@@ -6130,6 +6132,59 @@ export type UpdateModelGrantResponses = {
 };
 
 export type UpdateModelGrantResponse = UpdateModelGrantResponses[keyof UpdateModelGrantResponses];
+
+export type ReplaceModelGrantSubjectsData = {
+    body: ModelModelGrantBatchRequest;
+    headers: {
+        /**
+         * Caller-generated UUID v4 reused only for one logical write.
+         */
+        'Idempotency-Key': string;
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        grantId: ModelModelGrantId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/model-grants/{grantId}/actions/replace-subjects';
+};
+
+export type ReplaceModelGrantSubjectsErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type ReplaceModelGrantSubjectsError = ReplaceModelGrantSubjectsErrors[keyof ReplaceModelGrantSubjectsErrors];
+
+export type ReplaceModelGrantSubjectsResponses = {
+    /**
+     * Atomically replaced the edited grant and created its additional subjects.
+     */
+    200: ModelModelGrantBatchResponse;
+};
+
+export type ReplaceModelGrantSubjectsResponse = ReplaceModelGrantSubjectsResponses[keyof ReplaceModelGrantSubjectsResponses];
 
 export type GetEnterpriseBootstrapData = {
     body?: never;

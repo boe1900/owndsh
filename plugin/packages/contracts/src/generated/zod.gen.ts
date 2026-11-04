@@ -3022,6 +3022,8 @@ export const zGrantCollection = z.unknown();
 
 export const zGrantItem = z.unknown();
 
+export const zGrantSubjectReplacement = z.unknown();
+
 export const zModelCollection = z.unknown();
 
 export const zModelDisable = z.unknown();
@@ -4272,6 +4274,22 @@ export const zUpdateModelGrantPath = z.object({
  * Updated model grant.
  */
 export const zUpdateModelGrantResponse = zModelModelGrantResponse;
+
+export const zReplaceModelGrantSubjectsBody = zModelModelGrantBatchRequest;
+
+export const zReplaceModelGrantSubjectsHeaders = z.object({
+    'Idempotency-Key': z.uuid().length(36).regex(/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/),
+    'If-Match': zRevision
+});
+
+export const zReplaceModelGrantSubjectsPath = z.object({
+    grantId: zModelModelGrantId
+});
+
+/**
+ * Atomically replaced the edited grant and created its additional subjects.
+ */
+export const zReplaceModelGrantSubjectsResponse = zModelModelGrantBatchResponse;
 
 /**
  * Complete desensitized bootstrap snapshot for the active Harness device.
