@@ -6,7 +6,7 @@
  */
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdir, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -16,15 +16,13 @@ test('独立构建只发布公开文件，并清理旧产物', async () => {
   await mkdir(dist, { recursive: true });
   await writeFile(new URL('stale.txt', dist), 'old build');
   execFileSync(process.execPath, [fileURLToPath(new URL('./build.mjs', import.meta.url))], { cwd: tmpdir() });
-  assert.deepEqual((await readdir(dist)).sort(), ['404.html', '_headers', 'assets', 'index.html', 'script.js', 'styles.css']);
+  assert.deepEqual((await readdir(dist)).sort(), ['404.html', '_headers', 'assets', 'index.html', 'robots.txt', 'script.js', 'sitemap.xml', 'styles.css']);
+  const pageHtml = await readFile(new URL('index.html', dist), 'utf8');
+  assert.equal(pageHtml.includes('(function () {'), false, 'index.html 不得出现裸脚本文本');
+  assert.equal((pageHtml.match(/<script/g) || []).length, (pageHtml.match(/<\/script>/g) || []).length, 'script 标签必须配对');
   assert.deepEqual((await readdir(new URL('assets/', dist))).sort(), [
-    'INTER-LICENSE.txt',
-    'LUCIDE-LICENSE.txt',
-    'console.jpg',
-    'desktop.jpg',
+    'OFL-LICENSE.txt',
     'favicon.png',
-    'inter-latin.woff2',
-    'whale-animated.png',
-    'whale.jpg',
+    'og.png',
   ]);
 });

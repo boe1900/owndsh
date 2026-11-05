@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://owndsh.1024300.xyz/sitemap.xml

@@ -6,7 +6,7 @@
 -->
 # OwnDsh 官网
 
-纯 HTML + CSS + JavaScript，零第三方构建依赖。品牌、真实截图和字体均由本站提供，不依赖外部 CDN 或业务 API。官网部署与 OwnDsh 控制面服务独立。
+纯 HTML + CSS + JavaScript，零第三方构建依赖。字体子集内嵌于 styles.css，除下载菜单对 api.github.com 的 releases/latest 查询外不依赖任何外部服务。官网部署与 OwnDsh 控制面服务独立。
 
 ## 线上站点
 
@@ -59,9 +59,9 @@ Wrangler 会引导登录，并发布到现有 `owndsh` 项目的生产分支 `ma
 
 ## 维护
 
-- 文案与安装命令以根 `README.md` 为准。当前发布通道为 `next`，产品仍为预发布状态。
-- `assets/console.jpg`、`assets/desktop.jpg` 来自仓库维护者提供的社区截图，只移除产品外部边框并压缩，未制作虚假产品数据。
-- `assets/whale-animated.png` 直接复用控制台已有眨眼 APNG，保留原始动画帧。系统启用“减少动态效果”时由原生 `<picture>` 选择 `assets/whale.jpg` 静态图；`assets/favicon.png` 仍使用静态品牌图标。
-- Inter 5.3.0 来自控制台已安装的字体包，随包保留 SIL OFL。内联 Lucide 图标来自控制台已安装的 1.37.0，保留 ISC 授权。
-- `_headers` 由 Pages 自动应用；CSP 只允许本站素材。添加外部服务时需要同步检查该策略。
+- 文案与安装命令以根 `README.md` 为准；官网不写阶段、通道与版本状态，跟随发版现状更新。
+- 设计为瑞士风单页，零截图零照片：hero 几何与治理拓扑为内联 SVG，下载入口为两处同构的三平台弹出菜单（`script.js` 平台识别置顶推荐 + GitHub releases/latest 接管，HTML 钉住版本兜底；owndsh-desktop 发新版时同步 `index.html` 两处菜单 href）。
+- 字体为 Inter / Noto Sans SC / JetBrains Mono 的按文子集（woff2 data: URI，SIL OFL 1.1），授权见 `assets/OFL-LICENSE.txt`；大改 `index.html` 文案后如出现缺字，用歸藏 gz-fonts 流程重生成字体块回贴 `styles.css`。
+- SEO：`robots.txt`、`sitemap.xml`、canonical/og:image（`assets/og.png` 1200×630）与 SoftwareApplication JSON-LD 已就位；部署后在 [Google Search Console](https://search.google.com/search-console) 添加资源 `owndsh.1024300.xyz` 并提交 `sitemap.xml`，可显著加快收录。
+- `_headers` 由 Pages 自动应用；CSP 保持 script/style 同源严格，放行 `data:` 字体与 `connect-src https://api.github.com`。添加外部服务时需要同步检查该策略。
 - `dist/` 是可重建产物，`.wrangler/` 是本地部署缓存，均由仓库 `.gitignore` 排除。构建采用白名单，不发布 CLAUDE 地图或内部部署文件。

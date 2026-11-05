@@ -12,7 +12,7 @@ const root = fileURLToPath(new URL('.', import.meta.url));
 const dist = join(root, 'dist');
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
-for (const file of ['index.html', '404.html', 'styles.css', 'script.js', '_headers', 'assets']) {
+for (const file of ['index.html', '404.html', 'styles.css', 'script.js', '_headers', 'robots.txt', 'sitemap.xml', 'assets']) {
   await cp(join(root, file), join(dist, file), {
     recursive: true,
     filter: (source) => basename(source) !== 'CLAUDE.md',

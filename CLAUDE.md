@@ -6,7 +6,7 @@ Java 21 + Spring Boot 4.1 + Sa-Token + PostgreSQL + React 19 + TypeScript + Deep
 .github/ - GitHub Actions 自动验证，一次构建同时发布 GHCR/阿里云 ACR 前后端测试镜像，并提供可下载插件包与 npm next 插件
 server/ - OwnDsh 后端锁定源码，T03 起承载 owndsh-enterprise 模块
 console/ - 第二阶段独立 Vite/TanStack 产品控制台，使用静态路由与 OpenAPI Fetch client，不依赖旧 Umi 管理端
-website/ - 独立零依赖静态官网，复用品牌与真实产品截图，以 Node 白名单构建发布到 Cloudflare Pages，不依赖控制台或后端运行时
+website/ - 独立零依赖静态官网，瑞士风单页（内嵌字体子集、三平台下载菜单与 GitHub Releases 最新版接管），以 Node 白名单构建发布到 Cloudflare Pages，不依赖控制台或后端运行时
 contracts/ - OpenAPI 3.1 协议真源、跨语言 schema 和 fixture 验收
 deploy/ - Linux amd64/arm64 单机 Compose 与 amd64 离线 release、一次性初始化与备份/恢复/升级/回滚交付；TLS 由部署方终止
 docs/ - 产品预研、MVP 实施规格与逐任务验收证据
