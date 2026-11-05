@@ -16,7 +16,7 @@ test('独立构建只发布公开文件，并清理旧产物', async () => {
   await mkdir(dist, { recursive: true });
   await writeFile(new URL('stale.txt', dist), 'old build');
   execFileSync(process.execPath, [fileURLToPath(new URL('./build.mjs', import.meta.url))], { cwd: tmpdir() });
-  assert.deepEqual((await readdir(dist)).sort(), ['404.html', '_headers', 'assets', 'index.html', 'robots.txt', 'script.js', 'sitemap.xml', 'styles.css']);
+  assert.deepEqual((await readdir(dist)).sort(), ['404.html', '_headers', 'assets', 'index.html', 'robots.txt', 'script.js', 'sitemap.xml', 'styles.css', 'theme.js']);
   const pageHtml = await readFile(new URL('index.html', dist), 'utf8');
   assert.equal(pageHtml.includes('(function () {'), false, 'index.html 不得出现裸脚本文本');
   assert.equal((pageHtml.match(/<script/g) || []).length, (pageHtml.match(/<\/script>/g) || []).length, 'script 标签必须配对');
