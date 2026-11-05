@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Spring ResponseCookie、Servlet 请求与服务端签发的 enterprise-admin opaque Token。
- * [OUTPUT]: 提供随外部 HTTP(S) 地址选择名称/Secure 属性的管理端 Cookie 签发/删除、可信值校验与同源写保护。
+ * [OUTPUT]: 提供随外部 HTTP(S) 地址选择名称/Secure 属性的管理端 Cookie 签发/删除、可信值校验、同源写保护与部署调试 origin 豁免。
  * [POS]: auth/web 的浏览器会话边界，HTTPS 保留 __Host- 强化，HTTP 保持可用且不改变 Desktop Bearer Token。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -8,6 +8,7 @@ package com.owndsh.enterprise.auth.web;
 
 import jakarta.servlet.http.HttpServletRequest;
 import com.owndsh.enterprise.auth.application.AuthFlowException;
+import com.owndsh.enterprise.auth.domain.ConsoleDevOrigins;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 
@@ -45,15 +46,23 @@ public final class AdminSessionCookie {
         return value != null && !value.isBlank() && value.length() <= MAX_VALUE_LENGTH;
     }
 
-    public static void requireSameOriginForUnsafe(HttpServletRequest request) {
+    public static void requireSameOriginForUnsafe(
+        HttpServletRequest request,
+        ConsoleDevOrigins consoleDevOrigins
+    ) {
+        Objects.requireNonNull(consoleDevOrigins, "consoleDevOrigins");
         if (SAFE_METHODS.contains(request.getMethod())) return;
         String source = request.getHeader(HttpHeaders.ORIGIN);
         if (source == null || source.isBlank()) source = request.getHeader(HttpHeaders.REFERER);
         if (source == null || source.isBlank()) return;
         try {
             URI uri = URI.create(source);
-            if (uri.getUserInfo() != null
-                || !request.getScheme().equalsIgnoreCase(uri.getScheme())
+            if (uri.getUserInfo() != null) {
+                throw new AuthFlowException("ENT_AUTH_REQUIRED");
+            }
+            // 部署显式声明的 loopback 调试 origin 视同同源；SameSite=Strict Cookie 仍阻止真正的跨站携带。
+            if (consoleDevOrigins.trusts(uri)) return;
+            if (!request.getScheme().equalsIgnoreCase(uri.getScheme())
                 || !request.getServerName().equalsIgnoreCase(uri.getHost())
                 || effectivePort(request.getScheme(), request.getServerPort())
                     != effectivePort(uri.getScheme(), uri.getPort())) {

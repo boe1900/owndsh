@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 JDBC/Jackson/事务/Redisson/ID generator、部署 URI/环境 master key 与 Host 登录/会话 ports。
+ * [INPUT]: 依赖 JDBC/Jackson/事务/Redisson/ID generator、部署 URI/环境 master key 与 Host 登录/会话 ports，并装配 ConsoleDevOrigins 调试白名单。
  * [OUTPUT]: 对外装配身份、成员目录、Redis PKCE、PostgreSQL Refresh Session 与统一 HTTP(S) authority 校验。
  * [POS]: auth 纵向模块的 Spring composition root，领域与 adapter 均不使用静态容器查找。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -28,6 +28,7 @@ import com.owndsh.enterprise.auth.application.MemberManagementService;
 import com.owndsh.enterprise.auth.application.PlatformAuthorizationService;
 import com.owndsh.enterprise.auth.application.PlatformSessionGateway;
 import com.owndsh.enterprise.auth.application.RefreshSessionService;
+import com.owndsh.enterprise.auth.domain.ConsoleDevOrigins;
 import com.owndsh.enterprise.auth.persistence.ExternalGroupMappingStore;
 import com.owndsh.enterprise.auth.persistence.ExternalIdentityStore;
 import com.owndsh.enterprise.auth.persistence.IdentitySourceStore;
@@ -318,7 +319,8 @@ public class EnterpriseIdentityConfiguration {
             new TransactionTemplate(transactionManager),
             auditSink,
             ids,
-            requirePublicBaseUrl(properties.getPublicBaseUrl())
+            requirePublicBaseUrl(properties.getPublicBaseUrl()),
+            ConsoleDevOrigins.of(properties.getConsoleDevOrigins())
         );
     }
 

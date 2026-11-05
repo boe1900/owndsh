@@ -22,6 +22,7 @@ import com.owndsh.enterprise.auth.application.PasswordChangeRequiredException;
 import com.owndsh.enterprise.auth.application.RefreshSessionService;
 import com.owndsh.enterprise.auth.application.TokenExchangeResult;
 import com.owndsh.enterprise.auth.domain.Pkce;
+import com.owndsh.enterprise.auth.domain.ConsoleDevOrigins;
 import com.owndsh.enterprise.auth.domain.IdentityPrincipal;
 import com.owndsh.enterprise.auth.domain.IdentitySource;
 import com.owndsh.enterprise.auth.domain.IdentitySourceStatus;
@@ -46,6 +47,7 @@ import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -127,7 +129,29 @@ class PlatformAuthorizationSecurityTest {
             TransactionOperations.withoutTransaction(),
             mock(AuditSink.class),
             new AtomicLong(10_000)::incrementAndGet,
-            URI.create("https://platform.example")
+            URI.create("https://platform.example"),
+            ConsoleDevOrigins.of(null)
+        );
+    }
+
+    private PlatformAuthorizationService newService(ConsoleDevOrigins consoleDevOrigins) {
+        return new PlatformAuthorizationService(
+            loginTransactions,
+            store,
+            store,
+            store,
+            identitySources,
+            adapters,
+            mock(OidcIdentityAdapter.class),
+            captchaVerifier,
+            identities,
+            sessions,
+            refreshSessions,
+            TransactionOperations.withoutTransaction(),
+            mock(AuditSink.class),
+            new AtomicLong(10_000)::incrementAndGet,
+            URI.create("https://platform.example"),
+            consoleDevOrigins
         );
     }
 
@@ -162,6 +186,55 @@ class PlatformAuthorizationSecurityTest {
                 "ENT_INVALID_REDIRECT_URI"
             );
         }
+    }
+
+    @Test
+    void acceptsOnlyDeploymentConfiguredConsoleDevOriginCallback() {
+        PlatformAuthorizationService devOriginService = newService(
+            ConsoleDevOrigins.of(List.of(URI.create("http://127.0.0.1:62209")))
+        );
+
+        // 部署显式声明的 loopback 调试 origin 可派生管理回调
+        assertThat(devOriginService.authorize(
+            PlatformClient.ENTERPRISE_ADMIN,
+            URI.create("http://127.0.0.1:62209/enterprise/auth/callback"),
+            "client-state-0001", "S256", CHALLENGE, null
+        )).isNotBlank();
+
+        // 未声明的端口、Desktop 回调与默认空白名单实例一律维持 public base 精确匹配
+        assertCode(
+            () -> devOriginService.authorize(
+                PlatformClient.ENTERPRISE_ADMIN,
+                URI.create("http://127.0.0.1:62210/enterprise/auth/callback"),
+                "client-state-0001", "S256", CHALLENGE, null
+            ),
+            "ENT_INVALID_REDIRECT_URI"
+        );
+        // 调试回调不得豁免 installationId 参数违规
+        assertCode(
+            () -> devOriginService.authorize(
+                PlatformClient.ENTERPRISE_ADMIN,
+                URI.create("http://127.0.0.1:62209/enterprise/auth/callback"),
+                "client-state-0001", "S256", CHALLENGE, INSTALLATION
+            ),
+            "ENT_INVALID_REDIRECT_URI"
+        );
+        assertCode(
+            () -> devOriginService.authorize(
+                PlatformClient.DSH_DESKTOP,
+                URI.create("http://127.0.0.1:62209/enterprise/auth/callback"),
+                "client-state-0001", "S256", CHALLENGE, INSTALLATION
+            ),
+            "ENT_INVALID_REDIRECT_URI"
+        );
+        assertCode(
+            () -> service.authorize(
+                PlatformClient.ENTERPRISE_ADMIN,
+                URI.create("http://127.0.0.1:62209/enterprise/auth/callback"),
+                "client-state-0001", "S256", CHALLENGE, null
+            ),
+            "ENT_INVALID_REDIRECT_URI"
+        );
     }
 
     @Test

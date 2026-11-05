@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 PlatformAuthorizationService、固定 HTTP(S) enterprise 配置、可信 metadata、密码表单与管理端 Cookie。
+ * [INPUT]: 依赖 PlatformAuthorizationService、固定 HTTP(S) enterprise 配置（含 console 调试 origin 白名单）、可信 metadata、密码表单与管理端 Cookie。
  * [OUTPUT]: 提供 authorize 的 HTML/同源 JSON 启动、sources/password challenge/OIDC、Desktop Access/Refresh Token、浏览器 HttpOnly 会话和 logout。
  * [POS]: auth/web 的平台登录门面，管理端在自身登录页完成 Cookie 会话，Desktop 使用 code/refresh 两类 grant。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -14,6 +14,7 @@ import com.owndsh.enterprise.auth.application.IdentityLoginContext;
 import com.owndsh.enterprise.auth.application.PlatformAuthorizationService;
 import com.owndsh.enterprise.auth.application.PasswordChangeRequiredException;
 import com.owndsh.enterprise.auth.application.TokenExchangeResult;
+import com.owndsh.enterprise.auth.domain.ConsoleDevOrigins;
 import com.owndsh.enterprise.auth.domain.PlatformClient;
 import com.owndsh.enterprise.common.api.EnterpriseRequestMetadata;
 import com.owndsh.enterprise.common.api.EnterpriseResponse;
@@ -39,6 +40,7 @@ public final class PlatformAuthController {
     private final PlatformAuthorizationService authorization;
     private final String tenantId;
     private final URI publicBaseUrl;
+    private final ConsoleDevOrigins consoleDevOrigins;
 
     public PlatformAuthController(
         PlatformAuthorizationService authorization,
@@ -47,6 +49,7 @@ public final class PlatformAuthController {
         this.authorization = authorization;
         this.tenantId = properties.getTenantId();
         this.publicBaseUrl = properties.getPublicBaseUrl();
+        this.consoleDevOrigins = ConsoleDevOrigins.of(properties.getConsoleDevOrigins());
     }
 
     @GetMapping("/authorize")
@@ -229,7 +232,7 @@ public final class PlatformAuthController {
         HttpServletRequest request,
         HttpServletResponse response
     ) {
-        AdminSessionCookie.requireSameOriginForUnsafe(request);
+        AdminSessionCookie.requireSameOriginForUnsafe(request, consoleDevOrigins);
         response.addHeader(HttpHeaders.SET_COOKIE, AdminSessionCookie.clear(publicBaseUrl));
         EnterpriseRequestMetadata metadata = EnterpriseRequestMetadata.from(request);
         authorization.logout(tenantId, loginContext(metadata));

@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 Redis 登录/challenge/OIDC/code 短期状态、身份源/adapter/验证码/绑定服务、Access/Refresh 会话、审计与 CSPRNG。
  * [OUTPUT]: 提供 authorize/sources/password 两阶段改密/OIDC/code exchange/refresh/logout/cancel，以及复用新鲜认证的一次性成员身份绑定。
- * [POS]: auth application 的状态机，管理回调由唯一 public base 派生，登录/绑定/code/refresh 均绑定 client 与 installation。
+ * [POS]: auth application 的状态机，管理回调由唯一 public base 派生，部署 loopback 调试 origin 白名单可额外派生管理回调，登录/绑定/code/refresh 均绑定 client 与 installation。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.auth.application;
@@ -16,6 +16,7 @@ import com.owndsh.enterprise.auth.adapter.IdentityAuthenticationException;
 import com.owndsh.enterprise.auth.adapter.LocalPasswordChangeRequiredException;
 import com.owndsh.enterprise.auth.adapter.LocalPasswordChangeRejectedException;
 import com.owndsh.enterprise.auth.adapter.OidcIdentityAdapter;
+import com.owndsh.enterprise.auth.domain.ConsoleDevOrigins;
 import com.owndsh.enterprise.auth.domain.IdentityCredential;
 import com.owndsh.enterprise.auth.domain.IdentityPrincipal;
 import com.owndsh.enterprise.auth.domain.IdentitySource;
@@ -69,6 +70,7 @@ public final class PlatformAuthorizationService {
     private final AuditSink auditSink;
     private final LongSupplier ids;
     private final URI publicBaseUrl;
+    private final ConsoleDevOrigins consoleDevOrigins;
     private final SecureRandom random;
     private final Clock clock;
 
@@ -87,12 +89,13 @@ public final class PlatformAuthorizationService {
         TransactionOperations databaseTransactions,
         AuditSink auditSink,
         LongSupplier ids,
-        URI publicBaseUrl
+        URI publicBaseUrl,
+        ConsoleDevOrigins consoleDevOrigins
     ) {
         this(
             transactions, passwordChanges, codes, oidcStates, sources, adapters, oidcAdapter, captchaVerifier,
             identities, sessions, refreshSessions,
-            databaseTransactions, auditSink, ids, publicBaseUrl,
+            databaseTransactions, auditSink, ids, publicBaseUrl, consoleDevOrigins,
             new SecureRandom(), Clock.systemUTC()
         );
     }
@@ -113,6 +116,7 @@ public final class PlatformAuthorizationService {
         AuditSink auditSink,
         LongSupplier ids,
         URI publicBaseUrl,
+        ConsoleDevOrigins consoleDevOrigins,
         SecureRandom random,
         Clock clock
     ) {
@@ -131,6 +135,7 @@ public final class PlatformAuthorizationService {
         this.auditSink = Objects.requireNonNull(auditSink, "auditSink");
         this.ids = Objects.requireNonNull(ids, "ids");
         this.publicBaseUrl = Objects.requireNonNull(publicBaseUrl, "publicBaseUrl");
+        this.consoleDevOrigins = Objects.requireNonNull(consoleDevOrigins, "consoleDevOrigins");
         this.random = Objects.requireNonNull(random, "random");
         this.clock = Objects.requireNonNull(clock, "clock");
     }
@@ -154,7 +159,14 @@ public final class PlatformAuthorizationService {
                 publicBaseUrl.resolve("/enterprise/auth/callback")
             );
         } catch (IllegalArgumentException exception) {
-            throw new AuthFlowException("ENT_INVALID_REDIRECT_URI");
+            // 只豁免「回调地址不等于 public base 派生值」这一种失败：
+            // 部署声明的 loopback 调试 origin + 无 installationId 的管理端才允许派生调试回调，
+            // installationId 等参数违规维持 ENT_INVALID_REDIRECT_URI，不得借调试白名单复活。
+            if (client != PlatformClient.ENTERPRISE_ADMIN
+                || installationId != null
+                || !consoleDevOrigins.containsCallback(redirectUri)) {
+                throw new AuthFlowException("ENT_INVALID_REDIRECT_URI");
+            }
         }
         for (int attempt = 0; attempt < MAX_RANDOM_COLLISIONS; attempt++) {
             String transactionId = "tx_" + randomToken(24);

@@ -54,6 +54,8 @@ user:
 enterprise:
   tenant-id: ${ENT_TENANT_ID:000000}
   public-base-url: ${ENT_PUBLIC_BASE_URL:}
+  # 管理端本地调试 origin 白名单：仅 loopback 主机 + 1024 以上显式端口，逗号分隔；生产必须留空
+  console-dev-origins: ${ENT_CONSOLE_DEV_ORIGINS:}
   crypto:
     master-key: ${ENT_MASTER_KEY:}
   deployment:
