@@ -172,10 +172,11 @@ sa-token:
   jwt-secret-key: ${SA_TOKEN_JWT_SECRET_KEY}
 
 # 企业管理端经同源反向代理访问，默认不为任何跨域 origin 授权。
+# 本地控制台经代理调试时浏览器 POST 携带 loopback Origin，与 ENT_CONSOLE_DEV_ORIGINS 共用同一显式声明放行。
 web:
   cors:
     allow-credentials: false
-    allowed-origin-patterns: []
+    allowed-origin-patterns: ${ENT_CONSOLE_DEV_ORIGINS:}
 
 # security配置
 security:

@@ -14,6 +14,7 @@ import ch.qos.logback.classic.util.LogbackMDCAdapter;
 import ch.qos.logback.core.ConsoleAppender;
 import ch.qos.logback.core.status.Status;
 import com.owndsh.common.web.config.FilterConfig;
+import com.owndsh.common.web.config.properties.CorsProperties;
 import com.owndsh.common.web.config.properties.XssProperties;
 import com.owndsh.common.web.filter.RepeatableFilter;
 import com.owndsh.common.web.filter.XssFilter;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.context.properties.source.ConfigurationPropertySources;
+import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
 import org.springframework.boot.env.YamlPropertySourceLoader;
 import org.springframework.core.env.MutablePropertySources;
 import org.springframework.core.env.PropertySource;
@@ -35,6 +37,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -111,8 +114,20 @@ class EnterpriseSafetyDefaultsTest {
     @Test
     void rejectsCrossOriginAndRequiresAnExternalJwtSecret() {
         assertThat(property("web.cors.allow-credentials")).isEqualTo(false);
-        assertThat(property("web.cors.allowed-origin-patterns")).isEqualTo("");
+        assertThat(property("web.cors.allowed-origin-patterns")).isEqualTo("${ENT_CONSOLE_DEV_ORIGINS:}");
         assertThat(property("sa-token.jwt-secret-key")).isEqualTo("${SA_TOKEN_JWT_SECRET_KEY}");
+    }
+
+    @Test
+    void bindsCorsAllowedOriginPatternsFromCommaSeparatedEnvironmentValue() {
+        // 运行时由 Environment 解析占位符后按逗号切分绑定：空串=空列表（默认拒绝不变），逗号串=多 origin
+        assertThat(new Binder(new MapConfigurationPropertySource(Map.of(
+            "web.cors.allowed-origin-patterns", ""
+        ))).bind("web.cors", CorsProperties.class).get().getAllowedOriginPatterns()).isEmpty();
+        assertThat(new Binder(new MapConfigurationPropertySource(Map.of(
+            "web.cors.allowed-origin-patterns", "http://127.0.0.1:62209,http://localhost:5173"
+        ))).bind("web.cors", CorsProperties.class).get().getAllowedOriginPatterns())
+            .containsExactly("http://127.0.0.1:62209", "http://localhost:5173");
     }
 
     @Test
