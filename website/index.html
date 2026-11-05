@@ -9,6 +9,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#fafaf8" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#141412" media="(prefers-color-scheme: dark)" />
 <title>OwnDsh · 真正拥有你的 DeepSeek Harness</title>
 <meta name="description" content="OwnDsh 是 DeepSeek Harness（DSH）的开源自托管团队控制面。统一管理身份、模型、API Key、访问策略、插件、技能、MCP 与审计，员工继续在自己的 DSH Desktop / Harness Web 中工作。" />
 <meta name="keywords" content="DeepSeek Harness, DSH, DSH Desktop, OwnDsh, owndsh-plugin, 自托管, 团队控制面, 模型治理, 开源" />
@@ -86,16 +88,16 @@
     </div>
     <div class="hero-art" aria-hidden="true">
       <svg viewBox="0 0 420 320" fill="none">
-        <g stroke="#0a0a0a" stroke-opacity=".14"><path d="M0 80h420M0 160h420M0 240h420M105 0v320M210 0v320M315 0v320"/></g>
-        <circle cx="290" cy="150" r="118" stroke="#0a0a0a" stroke-opacity=".55" stroke-width="2"/>
-        <circle cx="290" cy="150" r="82" stroke="#0a0a0a" stroke-opacity=".3"/>
+        <g stroke="currentColor" stroke-opacity=".14"><path d="M0 80h420M0 160h420M0 240h420M105 0v320M210 0v320M315 0v320"/></g>
+        <circle cx="290" cy="150" r="118" stroke="currentColor" stroke-opacity=".55" stroke-width="2"/>
+        <circle cx="290" cy="150" r="82" stroke="currentColor" stroke-opacity=".3"/>
         <circle cx="290" cy="150" r="46" stroke="#bdf36a" stroke-width="2.5"/>
-        <circle cx="290" cy="150" r="4.5" fill="#0a0a0a"/>
+        <circle cx="290" cy="150" r="4.5" fill="currentColor"/>
         <circle cx="208" cy="150" r="3.5" fill="#8ec132"/>
-        <circle cx="372" cy="150" r="3.5" fill="#0a0a0a" fill-opacity=".4"/>
-        <g stroke="#0a0a0a" stroke-opacity=".5" stroke-width="1.5"><path d="M105 76v8M101 80h8"/><path d="M210 236v8M206 240h8"/><path d="M315 36v8M311 40h8"/><path d="M40 156v8M36 160h8"/></g>
-        <path d="M20 300h380" stroke="#0a0a0a" stroke-opacity=".65" stroke-width="3"/>
-        <text x="30" y="290" font-family="JetBrains Mono, monospace" font-size="11" letter-spacing="2" fill="#547800">SELF-HOSTED · TEAM-READY · YOURS</text>
+        <circle cx="372" cy="150" r="3.5" fill="currentColor" fill-opacity=".4"/>
+        <g stroke="currentColor" stroke-opacity=".5" stroke-width="1.5"><path d="M105 76v8M101 80h8"/><path d="M210 236v8M206 240h8"/><path d="M315 36v8M311 40h8"/><path d="M40 156v8M36 160h8"/></g>
+        <path d="M20 300h380" stroke="currentColor" stroke-opacity=".65" stroke-width="3"/>
+        <text x="30" y="290" font-family="JetBrains Mono, monospace" font-size="11" letter-spacing="2" style="fill:var(--accent-ink)">SELF-HOSTED · TEAM-READY · YOURS</text>
       </svg>
     </div>
   </div>
@@ -236,30 +238,30 @@
     <div class="gov">
       <div class="diagram">
         <svg viewBox="0 0 680 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="治理拓扑：员工设备经 owndsh-plugin 连接 OwnDsh Server，由服务端注入密钥连接模型供应商">
-          <rect x="16" y="66" width="170" height="106" fill="#fafaf8" stroke="#d4d4d2"/>
-          <text x="101" y="98" text-anchor="middle" font-size="14" font-weight="600" fill="#0a0a0a">员工设备</text>
-          <text x="101" y="119" text-anchor="middle" font-size="11" fill="#525252">DSH Desktop · Harness Web</text>
-          <rect x="41" y="134" width="120" height="22" fill="none" stroke="#d4d4d2"/>
-          <text x="101" y="149" text-anchor="middle" font-size="10.5" font-family="JetBrains Mono, monospace" fill="#525252">owndsh-plugin</text>
-          <rect x="255" y="50" width="170" height="138" fill="#fafaf8" stroke="#bdf36a" stroke-width="2"/>
-          <text x="340" y="82" text-anchor="middle" font-size="15" font-weight="700" fill="#547800">OwnDsh Server</text>
-          <text x="340" y="106" text-anchor="middle" font-size="11" fill="#525252">身份 · 授权 · 配额</text>
-          <text x="340" y="124" text-anchor="middle" font-size="11" fill="#525252">插件 · 技能 · MCP · 审计</text>
-          <text x="340" y="156" text-anchor="middle" font-size="10" fill="#737373">你的服务器 · 你的数据</text>
-          <rect x="494" y="66" width="170" height="106" fill="#fafaf8" stroke="#d4d4d2"/>
-          <text x="579" y="98" text-anchor="middle" font-size="14" font-weight="600" fill="#0a0a0a">模型供应商</text>
-          <text x="579" y="119" text-anchor="middle" font-size="11" fill="#525252">DeepSeek · 自定义兼容端点</text>
-          <text x="579" y="146" text-anchor="middle" font-size="10.5" font-family="JetBrains Mono, monospace" fill="#525252">三协议 SSE</text>
-          <g stroke="#0a0a0a" stroke-opacity=".8" stroke-width="1.5" fill="none">
+          <rect x="16" y="66" width="170" height="106" style="fill:var(--paper);stroke:var(--line)"/>
+          <text x="101" y="98" text-anchor="middle" font-size="14" font-weight="600" fill="currentColor">员工设备</text>
+          <text x="101" y="119" text-anchor="middle" font-size="11" style="fill:var(--text-secondary)">DSH Desktop · Harness Web</text>
+          <rect x="41" y="134" width="120" height="22" fill="none" style="stroke:var(--line)"/>
+          <text x="101" y="149" text-anchor="middle" font-size="10.5" font-family="JetBrains Mono, monospace" style="fill:var(--text-secondary)">owndsh-plugin</text>
+          <rect x="255" y="50" width="170" height="138" style="fill:var(--paper)" stroke="#bdf36a" stroke-width="2"/>
+          <text x="340" y="82" text-anchor="middle" font-size="15" font-weight="700" style="fill:var(--accent-ink)">OwnDsh Server</text>
+          <text x="340" y="106" text-anchor="middle" font-size="11" style="fill:var(--text-secondary)">身份 · 授权 · 配额</text>
+          <text x="340" y="124" text-anchor="middle" font-size="11" style="fill:var(--text-secondary)">插件 · 技能 · MCP · 审计</text>
+          <text x="340" y="156" text-anchor="middle" font-size="10" style="fill:var(--text-helper)">你的服务器 · 你的数据</text>
+          <rect x="494" y="66" width="170" height="106" style="fill:var(--paper);stroke:var(--line)"/>
+          <text x="579" y="98" text-anchor="middle" font-size="14" font-weight="600" fill="currentColor">模型供应商</text>
+          <text x="579" y="119" text-anchor="middle" font-size="11" style="fill:var(--text-secondary)">DeepSeek · 自定义兼容端点</text>
+          <text x="579" y="146" text-anchor="middle" font-size="10.5" font-family="JetBrains Mono, monospace" style="fill:var(--text-secondary)">三协议 SSE</text>
+          <g stroke="currentColor" stroke-opacity=".8" stroke-width="1.5" fill="none">
             <path d="M186 118h63"/><path d="M243 112l8 6-8 6"/>
             <path d="M425 118h63"/><path d="M482 112l8 6-8 6"/>
           </g>
-          <text x="221" y="104" text-anchor="middle" font-size="10" font-family="JetBrains Mono, monospace" fill="#737373">官方扩展点</text>
-          <text x="461" y="104" text-anchor="middle" font-size="10" font-family="JetBrains Mono, monospace" fill="#737373">服务端注入密钥</text>
-          <g stroke="#d4d4d2" stroke-dasharray="3 4"><path d="M101 190v36"/><path d="M340 196v30"/><path d="M579 190v36"/></g>
-          <text x="101" y="242" text-anchor="middle" font-size="10.5" fill="#737373">本地工作区保留</text>
-          <text x="340" y="242" text-anchor="middle" font-size="10.5" fill="#737373">治理集中</text>
-          <text x="579" y="242" text-anchor="middle" font-size="10.5" fill="#737373">密钥归属服务端</text>
+          <text x="221" y="104" text-anchor="middle" font-size="10" font-family="JetBrains Mono, monospace" style="fill:var(--text-helper)">官方扩展点</text>
+          <text x="461" y="104" text-anchor="middle" font-size="10" font-family="JetBrains Mono, monospace" style="fill:var(--text-helper)">服务端注入密钥</text>
+          <g style="stroke:var(--line)" stroke-dasharray="3 4"><path d="M101 190v36"/><path d="M340 196v30"/><path d="M579 190v36"/></g>
+          <text x="101" y="242" text-anchor="middle" font-size="10.5" style="fill:var(--text-helper)">本地工作区保留</text>
+          <text x="340" y="242" text-anchor="middle" font-size="10.5" style="fill:var(--text-helper)">治理集中</text>
+          <text x="579" y="242" text-anchor="middle" font-size="10.5" style="fill:var(--text-helper)">密钥归属服务端</text>
         </svg>
         <div class="cap">员工设备与供应商之间，所有凭据只进不出 OwnDsh。</div>
       </div>

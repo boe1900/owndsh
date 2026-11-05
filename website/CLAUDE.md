@@ -5,7 +5,7 @@
 成员清单
 
 index.html: 中文官网语义入口——瑞士风单页（hero 三平台下载菜单、两个使用面、七入口能力、请求旅程与治理边界、部署指引、FAQ），零截图零外部素材；文案原则：功能与使用视角优先，不含会过时的阶段/通道/版本表述（设计迭代见 git 历史与歸藏作品库）；favicon 走 assets/ 相对路径。SEO：canonical/og:url 固定 https://owndsh.1024300.xyz/，og:image 指向 assets/og.png（1200×630，由 hero 同款临时页经歸藏 export.mjs 渲染重生成），SoftwareApplication JSON-LD 描述 DSH 关键词。
-styles.css: 唯一样式真源：设计 token（歸藏品牌主题 #c2f970 收敛色阶）+ 全部版式组件 + gz-fonts 生成的 Inter/Noto Sans SC/JetBrains Mono 子集（woff2 data: URI）；改 index.html 文案后如缺字，用歸藏 gz-fonts.mjs embed 流程按可见文字重生成字体块并回贴本文件。
+styles.css: 唯一样式真源：设计 token（歸藏品牌主题 #c2f970 收敛色阶）+ 全部版式组件 + gz-fonts 生成的 Inter/Noto Sans SC/JetBrains Mono 子集（woff2 data: URI）；深色模式为 prefers-color-scheme 纯 CSS token 覆盖组（零 JS、无手动开关），内联 SVG 颜色一律 currentColor/var，CTA 带固定黑底不随主题反转；改 index.html 文案后如缺字，用歸藏 gz-fonts.mjs embed 流程按可见文字重生成字体块并回贴本文件。
 script.js: 官网唯一脚本：两处同构三平台下载菜单开关、平台识别置顶推荐（UAData 高熵架构 → WebGL 渲染器兜底）与 GitHub releases/latest 接管（[data-os] 双位置同步，失败静默回退 HTML 钉住版本）；无 JS 时按钮退化为 Releases 页外链。下载直链发新版时同步 index.html 两处菜单的 href。
 build.mjs: Node 标准库白名单发布器，只将公开页面、样式、脚本、响应头与静态素材写入 dist，排除 CLAUDE 地图与内部文件。
 site.test.mjs: Node 原生测试，验证发布文件白名单（index/404/styles/script/_headers/robots.txt/sitemap.xml/assets[OFL-LICENSE.txt, favicon.png, og.png]）、清除旧产物和独立构建。
