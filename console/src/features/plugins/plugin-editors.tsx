@@ -207,7 +207,7 @@ export function RegisterPluginVersionDialog({ baseVersion, versions = [], catego
         </details> : metadata}
         {validationError || error ? <p role="alert" className="m-0 text-[12.5px] text-red">{validationError ?? error}</p> : null}
       </div>
-      <DialogFooter className="mx-0 mb-0">
+      <DialogFooter>
         <Button type="button" size="sm" onClick={onClose}>取消</Button>
         <Button type="submit" variant="primary" size="sm" disabled={saving}>{saving ? '保存中' : '保存版本'}</Button>
       </DialogFooter>
@@ -245,7 +245,7 @@ export function PublishPluginVersionDialog({ pluginPackage, version, sourceVersi
           : '发布后需在“可见范围”中分配此版本，员工才能看到并安装。'}</p>
         {error ? <p role="alert" className="m-0 text-[12.5px] text-red">{error}</p> : null}
       </div>
-      <DialogFooter className="mx-0 mb-0">
+      <DialogFooter>
         <Button type="button" size="sm" disabled={saving} onClick={onClose}>取消</Button>
         <Button type="submit" variant="primary" size="sm" disabled={saving}>{saving ? '发布中' : sourceVersionId ? '发布并更新范围' : '确认发布'}</Button>
       </DialogFooter>
@@ -393,7 +393,7 @@ export function PluginAssignmentDialog({
         </div>
         {validationError || error ? <p role="alert" className="m-0 text-[12.5px] text-red">{validationError ?? error}</p> : null}
       </div>
-      <DialogFooter className="mx-0 mb-0">
+      <DialogFooter>
         <Button type="button" size="sm" onClick={onClose}>取消</Button>
         <Button type="button" variant="primary" size="sm" disabled={saving || !pluginPackage} onClick={submit}>{saving ? '保存中' : '保存范围'}</Button>
       </DialogFooter>
@@ -420,7 +420,7 @@ export function RetirePluginVersionDialog({
         <p className="m-0">确认退休 <strong className="text-ink">{version.packageName}@{version.version}</strong>？</p>
         {error ? <p role="alert" className="m-0 text-[12.5px] text-red">{error}</p> : null}
       </div>
-      <DialogFooter className="mx-0 mb-0">
+      <DialogFooter>
         <Button type="button" size="sm" onClick={onClose}>取消</Button>
         <Button type="button" variant="primary" size="sm" disabled={saving} onClick={onConfirm}>{saving ? '处理中' : '确认退休'}</Button>
       </DialogFooter>

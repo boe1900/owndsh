@@ -128,4 +128,35 @@ describe('ProductDataTable', () => {
     expect(screen.getByText('Item 01')).toBeTruthy();
     expect(screen.getByText('Item 02')).toBeTruthy();
   });
+
+  it('prunes the selection bar when selected rows disappear from data', () => {
+    const view = render(
+      <ProductDataTable
+        ariaLabel="资源"
+        columns={columns}
+        data={data}
+        emptyText="暂无资源"
+        getRowId={(row) => row.id}
+        searchPlaceholder="搜索资源"
+      />
+    );
+
+    fireEvent.click(screen.getByRole('checkbox', { name: '选择第 1 行' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: '选择第 2 行' }));
+    expect(screen.getByRole('button', { name: '已选择 2 项' })).toBeTruthy();
+
+    view.rerender(
+      <ProductDataTable
+        ariaLabel="资源"
+        columns={columns}
+        data={data.filter((item) => item.id !== '1' && item.id !== '2')}
+        emptyText="暂无资源"
+        getRowId={(row) => row.id}
+        searchPlaceholder="搜索资源"
+      />
+    );
+
+    expect(screen.queryByText(/已选择/)).toBeNull();
+    expect(screen.getByText('Item 03')).toBeTruthy();
+  });
 });

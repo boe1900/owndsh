@@ -103,7 +103,7 @@ export function LdapMemberImportDialog({
         ) : null}
         {error ? <p role="alert" className="m-0 text-[12.5px] text-red">{message(error, 'LDAP 操作失败')}</p> : null}
       </div>
-      <DialogFooter className="mx-0 mb-0"><Button type="button" size="sm" onClick={onClose}>关闭</Button></DialogFooter>
+      <DialogFooter><Button type="button" size="sm" onClick={onClose}>关闭</Button></DialogFooter>
     </ProductDialog>
   );
 }

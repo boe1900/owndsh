@@ -116,7 +116,7 @@ function GroupEditor({ current, error, onClose, onSave, saving }: {
           )}
         </form.Field>
         {error ? <p role="alert" className="m-0 rounded-md bg-red-tint px-3 py-2 text-[12.5px] text-red">{error}</p> : null}
-        <DialogFooter>
+        <DialogFooter sticky>
           <Button type="button" size="sm" onClick={onClose}>取消</Button>
           <form.Subscribe selector={(state) => state.canSubmit}>
             {(canSubmit) => <Button type="submit" variant="primary" size="sm" disabled={!canSubmit || saving || members.isLoading}>{saving ? '保存中' : '保存'}</Button>}
@@ -202,7 +202,7 @@ export function AccessGroupManagement({ canWrite }: { canWrite: boolean }) {
         toolbarAction={canWrite ? <Button variant="primary" size="xs" onClick={() => { save.reset(); setEditor('create'); }}><Plus aria-hidden className="size-3.5" />新建用户组</Button> : undefined}
       />
       {editor ? <GroupEditor key={editor === 'create' ? 'create' : editor.id} current={editor === 'create' ? undefined : editor} error={save.error ? message(save.error, '用户组保存失败') : undefined} saving={save.isPending} onClose={() => setEditor(undefined)} onSave={(value) => save.mutate({ current: editor === 'create' ? undefined : editor, value })} /> : null}
-      {deleting ? <ProductDialog title="确认删除" onClose={closeDelete}><div className="grid gap-5 p-5"><p className="m-0 text-[13px] text-ink-2">确定删除“{deleting.name}”？</p><p className="m-0 text-[12px] leading-5 text-ink-3">如果该用户组已被模型/MCP 授权或外部组映射引用，需先解除关联。</p>{remove.error ? <p role="alert" className="m-0 text-[12.5px] text-red">{message(remove.error, '用户组删除失败')}</p> : null}<DialogFooter><Button size="sm" disabled={remove.isPending} onClick={closeDelete}>取消</Button><Button variant="primary" size="sm" className="bg-red text-white" disabled={remove.isPending} onClick={() => remove.mutate(deleting)}>{remove.isPending ? '删除中' : '删除'}</Button></DialogFooter></div></ProductDialog> : null}
+      {deleting ? <ProductDialog title="确认删除" onClose={closeDelete}><div className="grid gap-5 p-5"><p className="m-0 text-[13px] text-ink-2">确定删除“{deleting.name}”？</p><p className="m-0 text-[12px] leading-5 text-ink-3">如果该用户组已被模型/MCP 授权或外部组映射引用，需先解除关联。</p>{remove.error ? <p role="alert" className="m-0 text-[12.5px] text-red">{message(remove.error, '用户组删除失败')}</p> : null}<DialogFooter sticky><Button size="sm" disabled={remove.isPending} onClick={closeDelete}>取消</Button><Button variant="primary" size="sm" className="bg-red text-white" disabled={remove.isPending} onClick={() => remove.mutate(deleting)}>{remove.isPending ? '删除中' : '删除'}</Button></DialogFooter></div></ProductDialog> : null}
     </>
   );
 }

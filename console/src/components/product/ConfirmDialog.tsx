@@ -29,7 +29,7 @@ export function ConfirmDialog({
     <div className="grid gap-5 p-5">
       <p className="m-0 text-[13px] leading-5 text-ink-2">{description}</p>
       {error ? <p role="alert" className="m-0 rounded-md bg-red-tint px-3 py-2 text-[12.5px] text-red">{error}</p> : null}
-      <DialogFooter>
+      <DialogFooter sticky>
         <Button size="sm" disabled={saving} onClick={onClose}>取消</Button>
         <Button variant="primary" size="sm" className="bg-red text-white" disabled={saving} onClick={onConfirm}>{saving ? '处理中' : confirmLabel}</Button>
       </DialogFooter>

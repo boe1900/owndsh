@@ -219,7 +219,7 @@ export function IdentitySourceEditorDialog({
         ) : null}
         {value.type !== 'LOCAL' ? <TextField label={current ? '替换密钥（留空保留）' : value.type === 'OIDC' ? 'Client Secret' : 'Manager Password'} type="password" required={!current} autoComplete="new-password" value={value.secret} onChange={(next) => set('secret', next)} /> : null}
         {validationError || error ? <p role="alert" className="m-0 text-[12.5px] text-red">{validationError ?? error}</p> : null}
-        <DialogFooter className="mt-1">
+        <DialogFooter className="mt-1" sticky>
           <Button type="button" size="sm" onClick={onClose}>取消</Button>
           <Button type="submit" variant="primary" size="sm" disabled={saving}>{saving ? '保存中' : '保存'}</Button>
         </DialogFooter>

@@ -8,7 +8,7 @@ Button.tsx: Beautiful UI 按钮原子，集中处理 variant、size 与 class �
 Chip.tsx: 紧凑标签原子，用于低层级元数据展示。
 EntityChip.tsx: 实体引用标签、首字母头像与稳定颜色函数，供推荐和访问策略等复合组件显示对象身份。
 ProgressRing.tsx: 环形进度原子，提供紧凑数值反馈。
-SegmentedControl.tsx: 分段选择控件，用于少量互斥模式切换。
+SegmentedControl.tsx: 分段选择控件，用于少量互斥模式切换；可选 counts 为分段渲染 aria-hidden 计数徽章（不污染 accessible name）。
 Shimmer.tsx: 流式生成期间的文本 shimmer 原子。
 StatusPill.tsx: 语义状态胶囊，统一成功、警告、错误和强调色。
 StreamText.tsx: 逐段文本显示原子，供选择操作等生成态复用。

@@ -545,7 +545,7 @@ export function PluginManagementPage() {
   );
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto">
+    <div className="min-h-0 flex-1 overflow-y-auto scrollbar-stable">
       <div className="mx-auto flex min-h-full w-full max-w-[1320px] flex-col gap-5 px-5 py-7 sm:px-8 sm:py-9">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-5">
           <h1 className="m-0 text-[22px] font-semibold leading-tight text-ink">企业插件</h1>
@@ -623,7 +623,7 @@ export function PluginManagementPage() {
             删除后无法恢复，设备上已安装的插件不会卸载。
           </p>
           {deletion.error ? <p role="alert" className="m-0 rounded-md bg-red-tint px-3 py-2 text-[12.5px] text-red">{deletion.error.message}</p> : null}
-          <DialogFooter>
+          <DialogFooter sticky>
             <Button size="sm" autoFocus disabled={deletion.isPending} onClick={closeDelete}>取消</Button>
             <Button variant="primary" size="sm" className="bg-red text-white" disabled={deletion.isPending}
               onClick={() => deletion.mutate(deleteTarget)}>{deletion.isPending ? '删除中' : '确认删除'}</Button>

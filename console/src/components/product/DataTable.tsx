@@ -209,9 +209,18 @@ export function ProductDataTable<TData extends object>({
   const pageCount = table.getPageCount();
   const pageIndex = table.state.pagination.pageIndex;
 
+  // 数据更替（如批量删除）后剪除已消失的选中行：防止批量条悬挂旧计数、动作回调拿到空行集
+  useEffect(() => {
+    const validIds = new Set(data.map(getRowId));
+    const selectedIds = Object.keys(table.state.rowSelection).filter((id) => table.state.rowSelection[id]);
+    if (selectedIds.some((id) => !validIds.has(id))) {
+      table.setRowSelection(Object.fromEntries(selectedIds.filter((id) => validIds.has(id)).map((id) => [id, true])));
+    }
+  }, [data, getRowId, table]);
+
   return (
-    <section className="min-w-0 overflow-hidden rounded-lg border border-line bg-surface shadow-[0_1px_2px_oklch(0_0_0/0.05)]" aria-label={ariaLabel}>
-      <div className="flex min-h-13 flex-wrap items-center justify-between gap-2 border-b border-line-strong px-2.5 py-2">
+    <section className="min-w-0 overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_1px_2px_oklch(0_0_0/0.05)]" aria-label={ariaLabel}>
+      <div className="flex min-h-13 flex-wrap items-center justify-between gap-2 border-b border-line px-3.5 py-3">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
           <label className="relative min-w-[190px] flex-1 sm:max-w-[320px]">
             <span className="sr-only">{searchPlaceholder}</span>
@@ -244,9 +253,6 @@ export function ProductDataTable<TData extends object>({
             </select>
           ) : null}
           {toolbarFilters}
-          {selectedCount > 0 ? (
-            <div className="flex items-center gap-1.5"><button type="button" onClick={() => table.resetRowSelection(true)} className="h-8 rounded-lg bg-accent-tint px-2.5 text-[12px] font-medium text-accent-ink hover:bg-hover">已选择 {selectedCount} 项</button>{selectionActions?.(selectedRows, () => table.resetRowSelection(true))}</div>
-          ) : null}
         </div>
         <div className="flex w-full shrink-0 items-center justify-end gap-1.5 sm:w-auto">
           {toolbarAction}
@@ -275,6 +281,13 @@ export function ProductDataTable<TData extends object>({
         </div>
       </div>
 
+      {selectedCount > 0 ? (
+        <div className="flex min-h-10 flex-wrap items-center justify-between gap-2 bg-ink px-4 py-2 text-[12px] font-medium text-canvas">
+          <button type="button" onClick={() => table.resetRowSelection(true)} className="rounded-md px-1 py-0.5 underline-offset-2 hover:underline">已选择 {selectedCount} 项</button>
+          <div className="flex flex-wrap items-center gap-1.5">{selectionActions?.(selectedRows, () => table.resetRowSelection(true))}</div>
+        </div>
+      ) : null}
+
       <div className="max-h-[min(60vh,620px)] overflow-auto overscroll-contain" tabIndex={0}>
         <table className="w-full min-w-[960px] table-fixed border-separate border-spacing-0 text-left text-[13px] text-ink">
           <thead>
@@ -288,7 +301,7 @@ export function ProductDataTable<TData extends object>({
                       key={header.id}
                       colSpan={header.colSpan}
                       className={cn(
-                        'sticky top-0 z-10 h-9 border-b border-r border-line bg-surface px-3 text-[12px] font-medium text-ink-2 last:border-r-0',
+                        'sticky top-0 z-10 h-9 border-b border-line bg-field px-3 text-[11px] font-semibold uppercase tracking-wide text-ink-3',
                         meta?.className
                       )}
                     >
@@ -343,7 +356,7 @@ export function ProductDataTable<TData extends object>({
                     <td
                       key={cell.id}
                       className={cn(
-                        'h-12 overflow-hidden border-b border-r border-line px-3 align-middle font-normal last:border-r-0 group-hover:bg-hover/55',
+                        'h-12 overflow-hidden border-b border-line px-3 align-middle font-normal group-hover:bg-hover/55',
                         meta?.cellClassName
                       )}
                     >
@@ -357,7 +370,7 @@ export function ProductDataTable<TData extends object>({
         </table>
       </div>
 
-      <footer className="flex min-h-12 flex-wrap items-center justify-between gap-2 px-3 py-2 text-[12px] text-ink-3">
+      <footer className="flex min-h-12 flex-wrap items-center justify-between gap-2 border-t border-line bg-field/60 px-4 py-2 text-[12px] text-ink-3">
         <span>{filteredCount} 项{hasMore ? '，仍有更多' : ''}</span>
         <div className="flex items-center gap-1.5">
           {hasMore && onLoadMore ? (

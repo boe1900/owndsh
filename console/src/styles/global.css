@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖上游完整 beautiful-ui.css、Tailwind preflight 与本地 Inter/JetBrains Mono 字体变量。
- * [OUTPUT]: 提供 Vite 根尺寸、examples 页面滚动、登录品牌背景动效和产品要求的零字距覆盖。
+ * [OUTPUT]: 提供 Vite 根尺寸、examples 页面滚动、登录品牌背景动效、产品要求的零字距覆盖和 scrollbar-stable 工具类（滚动条槽位常驻，条出现/消失不挤压内容宽度）。
  * [POS]: styles 的宿主覆盖层，以独立登录品牌动效补充且不改写上游 token、primitive 样式。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -58,6 +58,12 @@ p {
 @keyframes login-brand-grid {
   0%, 100% { background-position: 0 0; opacity: 0.1; }
   50% { background-position: 48px -48px; opacity: 0.28; }
+}
+
+/* 页面级滚动容器预留滚动条槽位：条出现/消失不再挤压内容宽度（tab 切换重排根因）。
+ * 普通 CSS 类而非 @utility——global.css 不在 Tailwind 编译链内，且无需变体/theme 能力。 */
+.scrollbar-stable {
+  scrollbar-gutter: stable;
 }
 
 @media (prefers-reduced-motion: reduce) {

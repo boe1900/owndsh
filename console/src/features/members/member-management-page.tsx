@@ -126,7 +126,7 @@ function LocalMemberCreateDialog({
           </label>
           {formError || create.error ? <p role="alert" className="m-0 text-[12.5px] text-red">{formError ?? errorMessage(create.error, '本地成员创建失败')}</p> : null}
         </div>
-        <DialogFooter className="mx-0 mb-0">
+        <DialogFooter>
           <Button type="button" size="sm" disabled={create.isPending} onClick={onClose}>取消</Button>
           <Button type="submit" variant="primary" size="sm" disabled={create.isPending}>{create.isPending ? '创建中' : '创建'}</Button>
         </DialogFooter>
@@ -426,7 +426,7 @@ function MemberDetailDialog({
 
         {error ? <p role="alert" className="m-0 text-[12.5px] text-red">{error}</p> : null}
       </div>
-      <DialogFooter className="mx-0 mb-0">
+      <DialogFooter>
         {canWrite ? (
           <Button
             type="button"
@@ -539,7 +539,7 @@ export function MemberManagementPage() {
   const mutationError = roles.error ?? status.error ?? unlink.error ?? link.error ?? linkSources.error;
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto">
+    <div className="min-h-0 flex-1 overflow-y-auto scrollbar-stable">
       <div className="mx-auto flex min-h-full w-full max-w-[1320px] flex-col gap-5 px-5 py-7 sm:px-8 sm:py-9">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-5">
           <h1 className="m-0 text-[22px] font-semibold leading-tight text-ink">成员</h1>

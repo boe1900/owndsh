@@ -28,7 +28,7 @@ export function AccountLayout() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto">
+    <div className="min-h-0 flex-1 overflow-y-auto scrollbar-stable">
       <div className="mx-auto w-full max-w-[1080px] px-5 py-7 sm:px-8 sm:py-9">
         <header className="border-b border-line pb-5">
           <h1 className="m-0 text-[22px] font-semibold leading-tight text-ink">用户中心</h1>

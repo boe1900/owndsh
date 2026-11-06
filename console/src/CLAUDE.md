@@ -15,5 +15,6 @@ features/: 产品业务纵向切片；局部地图见 features/CLAUDE.md。
 lib/: HTTP/HTTPS 通用随机标识、上游组件注册表、元数据与 class 合并支撑层；局部地图见 lib/CLAUDE.md。
 routes/: 登录/回调/403、受保护产品 pathless layout 与独立 examples 静态路由；局部地图见 routes/CLAUDE.md。
 styles/: 全局视觉基础；局部地图见 styles/CLAUDE.md。
+test/: Vitest 全局 setupFiles 入口，统一 Testing Library 异步查询预算；局部地图见 test/CLAUDE.md。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

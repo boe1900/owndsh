@@ -24,8 +24,6 @@ import { ProductDialog } from '@/components/product/Dialog';
 import { DialogFooter } from '@/components/product/DialogFooter';
 import { formatTokenCapacity } from './token-capacity';
 
-const inputClass = 'h-9 w-full rounded-lg border border-line bg-canvas px-3 text-[13px] text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent-tint';
-
 type Notice = { error: boolean; text: string };
 
 function message(error: unknown, fallback: string) {
@@ -467,16 +465,16 @@ export function ModelSetManagement({ active = true, canWrite, connectionNames, c
   return (
     <>
       {notice ? <div role={notice.error ? 'alert' : 'status'} className={'rounded-lg border px-3 py-2 text-[12.5px] ' + (notice.error ? 'border-rose-200/70 dark:border-red bg-rose-50 dark:bg-red-tint text-rose-700 dark:text-red' : 'border-emerald-200/70 dark:border-green bg-emerald-50 dark:bg-green-tint text-emerald-700 dark:text-green')}>{notice.text}</div> : null}
-      <div className="flex flex-col gap-3 rounded-xl border border-zinc-200/90 dark:border-line bg-white dark:bg-surface p-3 shadow-[0_1px_2px_rgba(0,0,0,.03)] sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 rounded-xl border border-line bg-surface px-3.5 py-3 shadow-[0_1px_2px_oklch(0_0_0/0.03)] sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2.5">
           <label className="relative min-w-[260px] max-w-xl flex-1">
             <span className="sr-only">搜索模型集名称、描述或集合内的模型名称</span>
-            <Search aria-hidden className="pointer-events-none absolute left-3 top-2.5 size-3.5 text-zinc-400 dark:text-ink-3" />
-            <input type="search" value={modelSetSearch} onChange={(event) => setModelSetSearch(event.target.value)} placeholder="搜索模型集、供应商、连接或模型名称..." className={inputClass + ' bg-zinc-50/50 dark:bg-canvas pl-8 pr-8 placeholder:text-zinc-400'} />
-            {modelSetSearch ? <button type="button" aria-label="清除模型集搜索" className="absolute right-2.5 top-2.5 text-zinc-400 dark:text-ink-3 hover:text-zinc-600 dark:hover:text-ink-2" onClick={() => setModelSetSearch('')}><X aria-hidden className="size-3.5" /></button> : null}
+            <Search aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-ink-3" />
+            <input type="search" value={modelSetSearch} onChange={(event) => setModelSetSearch(event.target.value)} placeholder="搜索模型集、供应商、连接或模型名称..." className="h-8 w-full rounded-lg border border-line bg-canvas pl-8 pr-7 text-[12.5px] text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent-tint" />
+            {modelSetSearch ? <button type="button" aria-label="清除模型集搜索" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-3 hover:text-ink" onClick={() => setModelSetSearch('')}><X aria-hidden className="size-3.5" /></button> : null}
           </label>
         </div>
-        {canWrite ? <Button type="button" variant="primary" size="sm" className="self-end bg-zinc-900 dark:bg-accent text-white hover:bg-zinc-800 dark:hover:bg-accent sm:self-auto" disabled={models.isLoading || models.isError} onClick={openCreate}><Plus aria-hidden className="size-3.5" />新建模型集</Button> : null}
+        {canWrite ? <Button type="button" variant="primary" size="xs" className="self-end sm:self-auto" disabled={models.isLoading || models.isError} onClick={openCreate}><Plus aria-hidden className="size-3.5" />新建模型集</Button> : null}
       </div>
 
       {sets.error ? <div role="alert" className="rounded-xl border border-rose-200/70 dark:border-red bg-rose-50 dark:bg-red-tint px-4 py-3 text-xs text-rose-700 dark:text-red">模型集加载失败：{message(sets.error, '模型集加载失败')}<Button type="button" variant="quiet" size="xs" className="ml-2 underline" onClick={() => void sets.refetch()}>重试</Button></div> : null}
@@ -508,7 +506,7 @@ export function ModelSetManagement({ active = true, canWrite, connectionNames, c
       {sets.hasNextPage ? <div className="flex justify-center"><Button type="button" variant="quiet" size="sm" disabled={sets.isFetchingNextPage} onClick={() => void sets.fetchNextPage()}>{sets.isFetchingNextPage ? '加载中…' : '加载更多模型集'}</Button></div> : null}
 
       {editor ? <ModelSetEditor key={editor === 'create' ? duplicateSource?.id ?? 'create' : editor.id} current={editor === 'create' ? undefined : editor} initial={editor === 'create' ? duplicateSource : undefined} error={save.error ? message(save.error, '模型集保存失败') : undefined} models={models.data ?? []} connectionNames={connectionNames} connectionEndpoints={connectionEndpoints} saving={save.isPending} onClose={() => { save.reset(); setDuplicateSource(undefined); setEditor(undefined); }} onSave={(value) => save.mutate({ current: editor === 'create' ? undefined : editor, value })} /> : null}
-      {deleting ? <ProductDialog title="确认删除" onClose={() => { if (!remove.isPending) { remove.reset(); setDeleting(undefined); } }}><div className="grid gap-5 p-5"><p className="m-0 text-[13px] text-ink-2">确定删除“{deleting.name}”？</p><p className="m-0 text-[12px] leading-5 text-ink-3">如果该模型集已被访问授权或配额策略引用，需先解除关联。</p>{remove.error ? <p role="alert" className="m-0 rounded-md bg-red-tint px-3 py-2 text-[12.5px] text-red">{message(remove.error, '模型集删除失败')}</p> : null}<DialogFooter><Button type="button" size="sm" disabled={remove.isPending} onClick={() => { remove.reset(); setDeleting(undefined); }}>取消</Button><Button type="button" variant="primary" size="sm" className="bg-red text-white" disabled={remove.isPending} onClick={() => remove.mutate(deleting)}>{remove.isPending ? '删除中' : '删除'}</Button></DialogFooter></div></ProductDialog> : null}
+      {deleting ? <ProductDialog title="确认删除" onClose={() => { if (!remove.isPending) { remove.reset(); setDeleting(undefined); } }}><div className="grid gap-5 p-5"><p className="m-0 text-[13px] text-ink-2">确定删除“{deleting.name}”？</p><p className="m-0 text-[12px] leading-5 text-ink-3">如果该模型集已被访问授权或配额策略引用，需先解除关联。</p>{remove.error ? <p role="alert" className="m-0 rounded-md bg-red-tint px-3 py-2 text-[12.5px] text-red">{message(remove.error, '模型集删除失败')}</p> : null}<DialogFooter sticky><Button type="button" size="sm" disabled={remove.isPending} onClick={() => { remove.reset(); setDeleting(undefined); }}>取消</Button><Button type="button" variant="primary" size="sm" className="bg-red text-white" disabled={remove.isPending} onClick={() => remove.mutate(deleting)}>{remove.isPending ? '删除中' : '删除'}</Button></DialogFooter></div></ProductDialog> : null}
     </>
   );
 }
