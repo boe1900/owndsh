@@ -487,25 +487,6 @@ GrantCollection:
       '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
       '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
       '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
-GrantBatch:
-  post:
-    operationId: createModelGrantBatch
-    parameters:
-      - $ref: '../enterprise-openapi.yaml#/components/parameters/IdempotencyKey'
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ModelGrantBatchRequest'}
-    responses:
-      '201':
-        description: Atomically created model grants.
-        content:
-          application/json:
-            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ModelGrantBatchResponse'}
-      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
-      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
-      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
 GrantItem:
   parameters:
     - $ref: '../enterprise-openapi.yaml#/components/parameters/ModelGrantIdPath'
@@ -541,31 +522,6 @@ GrantItem:
             schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/DeletedResourceResponse'}
       '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
       '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
-      '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
-
-GrantSubjectReplacement:
-  parameters:
-    - $ref: '../enterprise-openapi.yaml#/components/parameters/ModelGrantIdPath'
-  post:
-    operationId: replaceModelGrantSubjects
-    parameters:
-      - $ref: '../enterprise-openapi.yaml#/components/parameters/IdempotencyKey'
-      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ModelGrantBatchRequest'}
-    responses:
-      '200':
-        description: Atomically replaced the edited grant and created its additional subjects.
-        content:
-          application/json:
-            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/ModelGrantBatchResponse'}
-      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
-      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
-      '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
-      '404': {$ref: '../enterprise-openapi.yaml#/components/responses/Error404'}
       '409': {$ref: '../enterprise-openapi.yaml#/components/responses/Error409'}
 
 Bootstrap:

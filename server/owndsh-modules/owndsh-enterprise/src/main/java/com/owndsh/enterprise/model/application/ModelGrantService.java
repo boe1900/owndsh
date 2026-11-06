@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖事务、Grant/Model stores、bootstrap revision、AuditSink 与 ID generator。
- * [OUTPUT]: 对外提供授权 list/get/create/update/delete、批量创建及编辑授权主体的原子替换。
- * [POS]: model/application 的授权用例编排，主体存在性、重复约束、revision 和审计统一在事务内裁决。
+ * [OUTPUT]: 对外提供多主体授权 list/get/create/update/delete，主体集合在单条 grant 内原子增删。
+ * [POS]: model/application 的授权用例编排，策略 = 资源 × 主体类型，主体存在性、重复约束、revision 和审计统一在事务内裁决。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.model.application;
@@ -11,8 +11,10 @@ import com.owndsh.enterprise.audit.AuditActorType;
 import com.owndsh.enterprise.audit.AuditEvent;
 import com.owndsh.enterprise.audit.AuditResult;
 import com.owndsh.enterprise.audit.AuditSink;
+import com.owndsh.enterprise.model.domain.GrantSubjectType;
 import com.owndsh.enterprise.model.domain.ManagedModel;
 import com.owndsh.enterprise.model.domain.ModelGrant;
+import com.owndsh.enterprise.model.domain.ModelGrantSubject;
 import com.owndsh.enterprise.model.persistence.ManagedModelStore;
 import com.owndsh.enterprise.model.persistence.ModelGrantStore;
 import com.owndsh.enterprise.revision.BootstrapRevisionStore;
@@ -74,68 +76,18 @@ public final class ModelGrantService {
     }
 
     public ModelGrant create(ModelMutationContext context, ModelGrantSpec spec) {
-        return createBatch(context, List.of(spec)).getFirst();
-    }
-
-    public List<ModelGrant> createBatch(ModelMutationContext context, List<ModelGrantSpec> specs) {
         Objects.requireNonNull(context, "context");
-        specs = List.copyOf(Objects.requireNonNull(specs, "specs"));
-        if (specs.isEmpty() || specs.size() > 200) throw new IllegalArgumentException("batch items 必须在 1..200");
-        List<ModelGrantSpec> immutableSpecs = specs;
-        try {
-            return requireResult(transactions.execute(status -> {
-                List<ModelGrant> created = new ArrayList<>(immutableSpecs.size());
-                for (ModelGrantSpec spec : immutableSpecs) {
-                    created.add(newGrant(context.tenantId(), spec));
-                }
-                created.forEach(grants::insert);
-                long bootstrapRevision = bootstrapRevisions.increment(context.tenantId());
-                created.forEach(grant -> audit(
-                    context, grant, ModelGrantChangeMetadata.Operation.CREATE, bootstrapRevision
-                ));
-                return List.copyOf(created);
-            }));
-        } catch (DataIntegrityViolationException exception) {
-            throw new IllegalArgumentException("授权重复", exception);
+        Objects.requireNonNull(spec, "spec");
+        if (spec.subjectIds().size() > ModelGrantSpec.MAX_SUBJECTS) {
+            throw new IllegalArgumentException("授权主体数量必须在 0.." + ModelGrantSpec.MAX_SUBJECTS);
         }
-    }
-
-    public List<ModelGrant> replaceSubjects(
-        ModelMutationContext context,
-        long grantId,
-        long expectedRevision,
-        List<ModelGrantSpec> specs
-    ) {
-        Objects.requireNonNull(context, "context");
-        specs = List.copyOf(Objects.requireNonNull(specs, "specs"));
-        if (specs.isEmpty() || specs.size() > 200) throw new IllegalArgumentException("items 必须在 1..200");
-        List<ModelGrantSpec> immutableSpecs = specs;
         try {
             return requireResult(transactions.execute(status -> {
-                ModelGrant current = grants.find(context.tenantId(), grantId)
-                    .orElseThrow(ModelResourceNotFoundException::new);
-                requireRevision(current, expectedRevision);
-
-                ModelGrantSpec firstSpec = immutableSpecs.getFirst();
-                ModelGrant updated = updatedGrant(context.tenantId(), current, expectedRevision, firstSpec);
-                if (!grants.update(updated, expectedRevision)) {
-                    throw conflict(context.tenantId(), grantId, expectedRevision);
-                }
-
-                List<ModelGrant> replaced = new ArrayList<>(immutableSpecs.size());
-                replaced.add(updated);
-                for (ModelGrantSpec spec : immutableSpecs.subList(1, immutableSpecs.size())) {
-                    ModelGrant created = newGrant(context.tenantId(), spec);
-                    grants.insert(created);
-                    replaced.add(created);
-                }
-
+                ModelGrant created = newGrant(context.tenantId(), spec);
+                grants.insert(created);
                 long bootstrapRevision = bootstrapRevisions.increment(context.tenantId());
-                audit(context, updated, ModelGrantChangeMetadata.Operation.UPDATE, bootstrapRevision);
-                replaced.stream().skip(1).forEach(grant ->
-                    audit(context, grant, ModelGrantChangeMetadata.Operation.CREATE, bootstrapRevision)
-                );
-                return List.copyOf(replaced);
+                audit(context, created, ModelGrantChangeMetadata.Operation.CREATE, bootstrapRevision);
+                return created;
             }));
         } catch (DataIntegrityViolationException exception) {
             throw new IllegalArgumentException("授权重复", exception);
@@ -148,8 +100,11 @@ public final class ModelGrantService {
         long expectedRevision,
         ModelGrantSpec spec
     ) {
+        Objects.requireNonNull(context, "context");
+        Objects.requireNonNull(spec, "spec");
         ModelGrant current = get(context.tenantId(), grantId);
         requireRevision(current, expectedRevision);
+        requireSubjectBudget(spec.subjectIds(), current.subjects());
         try {
             return requireResult(transactions.execute(status -> {
                 ModelGrant updated = updatedGrant(context.tenantId(), current, expectedRevision, spec);
@@ -182,22 +137,22 @@ public final class ModelGrantService {
 
     private ModelGrant newGrant(String tenantId, ModelGrantSpec spec) {
         requireResource(tenantId, spec);
-        String subjectName = requireSubject(tenantId, spec);
+        List<ModelGrantSubject> subjects = requireSubjects(tenantId, spec);
         Instant now = Instant.now(clock);
         return new ModelGrant(
             positiveId(), tenantId, spec.resourceType(), spec.resourceId(),
-            grants.resourceName(tenantId, spec.resourceType(), spec.resourceId()), spec.subjectType(), spec.subjectId(),
-            subjectName, spec.status(), 0, now, now
+            grants.resourceName(tenantId, spec.resourceType(), spec.resourceId()), spec.subjectType(),
+            subjects, spec.status(), 0, now, now
         );
     }
 
     private ModelGrant updatedGrant(String tenantId, ModelGrant current, long expectedRevision, ModelGrantSpec spec) {
         requireResource(tenantId, spec);
-        String subjectName = requireSubject(tenantId, spec);
+        List<ModelGrantSubject> subjects = requireSubjects(tenantId, spec);
         return new ModelGrant(
             current.id(), current.tenantId(), spec.resourceType(), spec.resourceId(),
             grants.resourceName(tenantId, spec.resourceType(), spec.resourceId()), spec.subjectType(),
-            spec.subjectId(), subjectName, spec.status(), expectedRevision + 1, current.createdAt(), Instant.now(clock)
+            subjects, spec.status(), expectedRevision + 1, current.createdAt(), Instant.now(clock)
         );
     }
 
@@ -209,11 +164,31 @@ public final class ModelGrantService {
         }
     }
 
-    private String requireSubject(String tenantId, ModelGrantSpec spec) {
-        if (!grants.subjectExists(tenantId, spec.subjectType(), spec.subjectId())) {
-            throw new IllegalArgumentException("授权主体不存在");
+    private List<ModelGrantSubject> requireSubjects(String tenantId, ModelGrantSpec spec) {
+        List<ModelGrantSubject> subjects = new ArrayList<>(spec.subjectIds().size());
+        for (Long subjectId : spec.subjectIds()) {
+            if (!grants.subjectExists(tenantId, spec.subjectType(), subjectId)) {
+                throw new IllegalArgumentException("授权主体不存在");
+            }
+            subjects.add(new ModelGrantSubject(subjectId, grants.subjectName(tenantId, spec.subjectType(), subjectId)));
         }
-        return grants.subjectName(tenantId, spec.subjectType(), spec.subjectId());
+        return List.copyOf(subjects);
+    }
+
+    /**
+     * 写主体预算：新建集合受 Spec 上限约束；存量迁移可能合并出超限策略，
+     * 其原样保存（启停/改资源）与缩减放行，仅禁止在超限状态引入既有集合之外的新主体。
+     */
+    private static void requireSubjectBudget(List<Long> next, List<ModelGrantSubject> current) {
+        if (next.size() <= ModelGrantSpec.MAX_SUBJECTS) return;
+        java.util.Set<Long> existing = current.stream()
+            .map(ModelGrantSubject::subjectId)
+            .collect(java.util.stream.Collectors.toSet());
+        if (!existing.containsAll(next)) {
+            throw new IllegalArgumentException(
+                "授权主体数量超过上限 " + ModelGrantSpec.MAX_SUBJECTS + "，仅允许保持或缩减既有超限集合"
+            );
+        }
     }
 
     private void audit(

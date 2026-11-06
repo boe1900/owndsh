@@ -60,5 +60,6 @@ V50__enterprise_skill_source_credentials.sql: 建立加密仓库访问凭据、S
 V51__enterprise_skill_single_source.sql: 删除 Skill 来源子路径；每个仓库归档必须唯一包含一个 SKILL.md。
 V52__model_set_description.sql: 为模型集增加可选管理说明，历史模型集默认空字符串。
 V53__model_grant_timestamps.sql: 为模型授权补齐创建时间与最后更新时间，历史记录按迁移时刻回填。
+V54__model_grant_multi_subject.sql: 授权升级为多主体策略——新增 grant 主体子表，按状态双轨迁移（ACTIVE 主体并入 ACTIVE keep 行、DISABLED 主体并入 DISABLED keep 行，纯停用组保留为可再启用的 DISABLED 策略，生效面迁移前后逐主体一致），同键唯一性以部分唯一索引约束至多一条 ACTIVE（状态是行内生命周期而非身份，停用不互撞、同键启停并存合法），并退役单数 subject_id 列。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

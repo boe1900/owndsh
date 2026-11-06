@@ -456,7 +456,7 @@ function mockApi(role: AuthBuiltInRole, logoutStatus = 200, permissions: string[
         data: {
           items: [{
             id: 'grant-1', resourceType: 'MODEL', resourceId: 'model-1', resourceName: 'gpt-5.6-sol',
-            subjectType: 'ALL_MEMBERS', subjectId: null, subjectName: '所有成员',
+            subjectType: 'ALL_MEMBERS', subjects: [],
             status: 'ACTIVE', revision: 0
           }],
           page: { hasMore: false, limit: 100, nextCursor: null }
@@ -753,13 +753,15 @@ describe('product console access', () => {
 
   it('unlinks an external member identity with member revision CAS', async () => {
     const writes = renderRoute('/members', 'enterprise_admin', 200, ['ent:member:write']);
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     expect(await screen.findByText('Developer One')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '查看 Developer One' }));
 
     const dialog = await screen.findByRole('dialog', { name: 'Developer One' });
     expect(await within(dialog).findByRole('option', { name: 'Microsoft Entra (OIDC)' })).toBeTruthy();
     fireEvent.click(within(dialog).getByRole('button', { name: '解除 Corporate LDAP' }));
+
+    const confirmDialog = await screen.findByRole('dialog', { name: '解除登录身份' });
+    fireEvent.click(within(confirmDialog).getByRole('button', { name: '解除身份' }));
 
     await waitFor(() => expect(writes).toHaveLength(1));
     expect(writes[0]).toMatchObject({
@@ -851,11 +853,13 @@ describe('product console access', () => {
 
   it('renders real managed models in the unified provider workspace', async () => {
     renderRoute('/', 'enterprise_admin', 200, ['ent:grant:read']);
+    expect(await screen.findByText('OpenAI 生产连接')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '展开' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '展开' }));
     expect(await screen.findByText('GPT 5.6 Sol')).toBeTruthy();
     expect(screen.getByText(/窗口 1M · 输出 128K/)).toBeTruthy();
     expect(screen.queryByText('管理视角：')).toBeNull();
     expect(screen.queryByText(/全局模型大表/)).toBeNull();
-    expect(screen.getByRole('button', { name: '展开' })).toBeTruthy();
     expect(screen.queryByRole('columnheader', { name: /上游模型 ID/ })).toBeNull();
     fireEvent.click(screen.getByRole('tab', { name: '模型与供应商' }));
     expect(await screen.findByText('OpenAI')).toBeTruthy();
@@ -864,7 +868,7 @@ describe('product console access', () => {
 
   it('edits provider metadata without introducing provider capacity', async () => {
     const writes = renderRoute('/', 'enterprise_admin', 200, ['ent:model:write', 'ent:grant:read', 'ent:grant:write']);
-    expect(await screen.findByText('GPT 5.6 Sol')).toBeTruthy();
+    expect(await screen.findByText('OpenAI 生产连接')).toBeTruthy();
     fireEvent.click(await screen.findByRole('button', { name: '编辑 OpenAI' }));
 
     const dialog = screen.getByRole('dialog', { name: '编辑供应商信息' });
@@ -906,7 +910,7 @@ describe('product console access', () => {
 
   it('collapses all maintained model cards together', async () => {
     renderRoute('/', 'enterprise_admin', 200, ['ent:model:write']);
-    expect(await screen.findByText('GPT 5.6 Sol')).toBeTruthy();
+    expect(await screen.findByText('OpenAI 生产连接')).toBeTruthy();
     fireEvent.click((await screen.findAllByRole('button', { name: '维护模型' }))[0]);
     const dialog = await screen.findByRole('dialog', { name: '维护模型' });
     expect(within(dialog).queryByText('设默认')).toBeNull();
@@ -922,6 +926,8 @@ describe('product console access', () => {
 
   it('creates, updates and deletes a flat model set with write guards', async () => {
     const writes = renderRoute('/', 'enterprise_admin', 200, ['ent:model:write']);
+    expect(await screen.findByText('OpenAI 生产连接')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '展开' }));
     expect(await screen.findByText('GPT 5.6 Sol')).toBeTruthy();
     expect(screen.getByRole('tab', { name: '模型集' }).textContent).toContain('1');
     fireEvent.click(screen.getByRole('tab', { name: '模型集' }));
@@ -991,7 +997,7 @@ describe('product console access', () => {
   it('renders model access, token limits and rate limits from Server facts', async () => {
     renderRoute('/access', 'model_admin');
     expect(await screen.findByText('gpt-5.6-sol')).toBeTruthy();
-    expect(screen.getByText('所有成员')).toBeTruthy();
+    expect(screen.getByText('所有成员 (全员开放)')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('tab', { name: 'Token 配额' }));
     expect(await screen.findByText('组织默认策略')).toBeTruthy();
@@ -1003,7 +1009,7 @@ describe('product console access', () => {
     expect(screen.getByText('4')).toBeTruthy();
   });
 
-  it('creates an all-members grant with a null subject and idempotency key', async () => {
+  it('creates an all-members grant with an empty subject set and idempotency key', async () => {
     const writes = renderRoute('/access', 'model_admin', 200, ['ent:grant:write']);
     expect(await screen.findByText('gpt-5.6-sol')).toBeTruthy();
 
@@ -1018,7 +1024,7 @@ describe('product console access', () => {
         resourceId: 'set-1',
         resourceType: 'MODEL_SET',
         status: 'ACTIVE',
-        subjectId: null,
+        subjectIds: [],
         subjectType: 'ALL_MEMBERS'
       },
       method: 'POST',
@@ -1042,7 +1048,7 @@ describe('product console access', () => {
     expect(writes[0]).toMatchObject({
       body: {
         resourceId: 'set-1', resourceType: 'MODEL_SET', status: 'ACTIVE',
-        subjectId: 'group-1', subjectType: 'ACCESS_GROUP'
+        subjectIds: ['group-1'], subjectType: 'ACCESS_GROUP'
       },
       pathname: '/enterprise/admin/v1/model-grants'
     });
@@ -1147,7 +1153,7 @@ describe('product console access', () => {
 
     await waitFor(() => expect(writes).toHaveLength(1));
     expect(writes[0]).toMatchObject({
-      body: { resourceId: 'model-1', resourceType: 'MODEL', status: 'ACTIVE', subjectId: '303', subjectType: 'MEMBER' },
+      body: { resourceId: 'model-1', resourceType: 'MODEL', status: 'ACTIVE', subjectIds: ['303'], subjectType: 'MEMBER' },
       pathname: '/enterprise/admin/v1/model-grants'
     });
   });

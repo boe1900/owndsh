@@ -205,12 +205,6 @@
       "zodExport": "zModelGrantListResponse"
     },
     {
-      "file": "fixtures/model-grant-batch-success.json",
-      "schema": "ModelGrantBatchResponse",
-      "valid": true,
-      "zodExport": "zModelGrantBatchResponse"
-    },
-    {
       "file": "fixtures/bootstrap-models-success.json",
       "schema": "BootstrapResponse",
       "valid": true,
@@ -307,5 +301,5 @@
       "zodExport": "zAuditEventListResponse"
     }
   ],
-  "protocolSha256": "90fff093806f3afb69913caf622338d9eab6eeaa2c48c6371b753701acfa0add"
+  "protocolSha256": "29618cbe914b0ebfc777fe6b76445a5dccb46aeeabdbade90af739cdfb9aeb31"
 }

@@ -163,7 +163,8 @@ public final class AccessGroupService {
 
     private AccessGroupDeleteBlockers deleteBlockers(String tenantId, long id) {
         long modelGrantCount = jdbc.queryForObject(
-            "select count(*) from ent_model_grant where tenant_id = ? and subject_type = 'ACCESS_GROUP' and subject_id = ?",
+            "select count(*) from ent_model_grant g join ent_model_grant_subject s on s.grant_id = g.id"
+                + " where g.tenant_id = ? and g.subject_type = 'ACCESS_GROUP' and s.subject_id = ?",
             Long.class, tenantId, id
         );
         long mcpGrantCount = jdbc.queryForObject(

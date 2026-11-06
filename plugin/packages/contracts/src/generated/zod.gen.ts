@@ -1594,6 +1594,11 @@ export const zModelModelGrantId = z.string().regex(/^[1-9][0-9]{0,18}$/);
 
 export const zModelGrantId = zModelModelGrantId;
 
+export const zModelGrantSubject = z.object({
+    subjectId: z.string().regex(/^[1-9][0-9]{0,18}$/),
+    subjectName: z.string().min(1).max(120)
+}).strict();
+
 export const zModelModelInputModality = z.enum(['text', 'image']);
 
 export const zModelInputModality = zModelModelInputModality;
@@ -1677,8 +1682,7 @@ export const zModelModelGrant = z.object({
     resourceId: z.string().regex(/^[1-9][0-9]{0,18}$/),
     resourceName: z.string().min(1).max(120),
     subjectType: zModelGrantSubjectType,
-    subjectId: z.string().regex(/^[1-9][0-9]{0,18}$/).nullable(),
-    subjectName: z.string().min(1).max(120),
+    subjects: z.array(zModelGrantSubject).min(0),
     status: zModelModelStatus,
     revision: zRevision,
     createdAt: z.iso.datetime({ offset: true }),
@@ -1686,13 +1690,6 @@ export const zModelModelGrant = z.object({
 }).strict();
 
 export const zModelGrant = zModelModelGrant;
-
-export const zModelModelGrantBatchResponse = z.object({
-    data: z.array(zModelModelGrant).min(1).max(200),
-    requestId: zRequestId
-}).strict();
-
-export const zModelGrantBatchResponse = zModelModelGrantBatchResponse;
 
 export const zModelModelGrantPageData = z.object({
     items: z.array(zModelModelGrant).max(200),
@@ -1719,17 +1716,11 @@ export const zModelModelGrantWriteRequest = z.object({
     resourceType: zModelGrantResourceType,
     resourceId: z.string().regex(/^[1-9][0-9]{0,18}$/),
     subjectType: zModelGrantSubjectType,
-    subjectId: z.string().regex(/^[1-9][0-9]{0,18}$/).nullable(),
+    subjectIds: z.array(z.string().regex(/^[1-9][0-9]{0,18}$/)).min(0),
     status: zModelModelStatus
 }).strict();
 
 export const zModelGrantWriteRequest = zModelModelGrantWriteRequest;
-
-export const zModelModelGrantBatchRequest = z.object({
-    items: z.array(zModelModelGrantWriteRequest).min(1).max(200)
-}).strict();
-
-export const zModelGrantBatchRequest = zModelModelGrantBatchRequest;
 
 export const zModelThinkingFormat = z.enum([
     'openai',
@@ -3018,13 +3009,9 @@ export const zMemberMemberStatus2 = z.unknown();
 
 export const zBootstrap = z.unknown();
 
-export const zGrantBatch = z.unknown();
-
 export const zGrantCollection = z.unknown();
 
 export const zGrantItem = z.unknown();
-
-export const zGrantSubjectReplacement = z.unknown();
 
 export const zModelCollection = z.unknown();
 
@@ -4238,17 +4225,6 @@ export const zCreateModelGrantHeaders = z.object({
  */
 export const zCreateModelGrantResponse = zModelModelGrantResponse;
 
-export const zCreateModelGrantBatchBody = zModelModelGrantBatchRequest;
-
-export const zCreateModelGrantBatchHeaders = z.object({
-    'Idempotency-Key': z.uuid().length(36).regex(/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/)
-});
-
-/**
- * Atomically created model grants.
- */
-export const zCreateModelGrantBatchResponse = zModelModelGrantBatchResponse;
-
 export const zDeleteModelGrantHeaders = z.object({
     'If-Match': zRevision
 });
@@ -4276,22 +4252,6 @@ export const zUpdateModelGrantPath = z.object({
  * Updated model grant.
  */
 export const zUpdateModelGrantResponse = zModelModelGrantResponse;
-
-export const zReplaceModelGrantSubjectsBody = zModelModelGrantBatchRequest;
-
-export const zReplaceModelGrantSubjectsHeaders = z.object({
-    'Idempotency-Key': z.uuid().length(36).regex(/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/),
-    'If-Match': zRevision
-});
-
-export const zReplaceModelGrantSubjectsPath = z.object({
-    grantId: zModelModelGrantId
-});
-
-/**
- * Atomically replaced the edited grant and created its additional subjects.
- */
-export const zReplaceModelGrantSubjectsResponse = zModelModelGrantBatchResponse;
 
 /**
  * Complete desensitized bootstrap snapshot for the active Harness device.

@@ -34,6 +34,7 @@ import com.owndsh.enterprise.model.domain.GrantSubjectType;
 import com.owndsh.enterprise.model.domain.GrantResourceType;
 import com.owndsh.enterprise.model.domain.ManagedModel;
 import com.owndsh.enterprise.model.domain.ModelGrant;
+import com.owndsh.enterprise.model.domain.ModelGrantSubject;
 import com.owndsh.enterprise.model.domain.ModelProvider;
 import com.owndsh.enterprise.model.domain.ModelReasoningEfforts;
 import com.owndsh.enterprise.model.domain.ModelSet;
@@ -161,7 +162,7 @@ class ModelManagementIntegrationTest {
         assertThat(jdbc.queryForObject(
             "select credential_nonce is not null and key_version = 1 from ent_model_provider_connection where id = ?",
             Boolean.class,
-            provider.id()
+            connection.id()
         )).isTrue();
 
         assertThatThrownBy(() -> providers.update(context, provider.id(), 99, providerSpec()))
@@ -175,13 +176,13 @@ class ModelManagementIntegrationTest {
         ManagedModel reasoner = models.create(context, modelSpec(connection.id(), "deepseek-reasoner", 10));
         ManagedModel batchModel = models.create(context, modelSpec(connection.id(), "deepseek-batch", 30));
         ModelGrant allMembersReasoner = grants.create(context, new ModelGrantSpec(
-            GrantResourceType.MODEL, reasoner.id(), GrantSubjectType.ALL_MEMBERS, null, ModelStatus.ACTIVE
+            GrantResourceType.MODEL, reasoner.id(), GrantSubjectType.ALL_MEMBERS, List.of(), ModelStatus.ACTIVE
         ));
         ModelGrant memberChat = grants.create(context, new ModelGrantSpec(
-            GrantResourceType.MODEL, chat.id(), GrantSubjectType.MEMBER, user.id(), ModelStatus.ACTIVE
+            GrantResourceType.MODEL, chat.id(), GrantSubjectType.MEMBER, List.of(user.id()), ModelStatus.ACTIVE
         ));
         ModelGrant memberReasoner = grants.create(context, new ModelGrantSpec(
-            GrantResourceType.MODEL, reasoner.id(), GrantSubjectType.MEMBER, user.id(), ModelStatus.ACTIVE
+            GrantResourceType.MODEL, reasoner.id(), GrantSubjectType.MEMBER, List.of(user.id()), ModelStatus.ACTIVE
         ));
 
         List<EffectiveModelResolver.EffectiveModel> effective = resolver.resolve(TENANT, user.id());
@@ -206,10 +207,10 @@ class ModelManagementIntegrationTest {
         );
         ModelSet batchSet = sets.create(context, "T08 Batch Models", "Models used by the batch policy", List.of(batchModel.id()));
         ModelGrant groupChat = grants.create(context, new ModelGrantSpec(
-            GrantResourceType.MODEL, chat.id(), GrantSubjectType.ACCESS_GROUP, accessGroupId, ModelStatus.ACTIVE
+            GrantResourceType.MODEL, chat.id(), GrantSubjectType.ACCESS_GROUP, List.of(accessGroupId), ModelStatus.ACTIVE
         ));
         ModelGrant allMembersBatch = grants.create(context, new ModelGrantSpec(
-            GrantResourceType.MODEL_SET, batchSet.id(), GrantSubjectType.ALL_MEMBERS, null, ModelStatus.ACTIVE
+            GrantResourceType.MODEL_SET, batchSet.id(), GrantSubjectType.ALL_MEMBERS, List.of(), ModelStatus.ACTIVE
         ));
         assertThat(resolver.resolve(TENANT, user.id())).extracting(EffectiveModelResolver.EffectiveModel::alias)
             .containsExactly(reasoner.alias(), chat.alias(), batchModel.alias());
@@ -242,7 +243,7 @@ class ModelManagementIntegrationTest {
             memberReasoner.id(),
             0,
             new ModelGrantSpec(
-                GrantResourceType.MODEL, reasoner.id(), GrantSubjectType.ALL_MEMBERS, null, ModelStatus.ACTIVE
+                GrantResourceType.MODEL, reasoner.id(), GrantSubjectType.ALL_MEMBERS, List.of(), ModelStatus.ACTIVE
             )
         )).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("授权重复");
         assertThat(revisions.current(TENANT)).isEqualTo(beforeDuplicateConflict);
@@ -254,30 +255,83 @@ class ModelManagementIntegrationTest {
         long grantsBeforeBatch = jdbc.queryForObject("select count(*) from ent_model_grant", Long.class);
         long revisionBeforeBatch = revisions.current(TENANT);
         ModelGrantSpec duplicate = new ModelGrantSpec(
-            GrantResourceType.MODEL, batchModel.id(), GrantSubjectType.MEMBER, user.id(), ModelStatus.ACTIVE
+            GrantResourceType.MODEL, batchModel.id(), GrantSubjectType.MEMBER, List.of(user.id()), ModelStatus.ACTIVE
         );
-        assertThatThrownBy(() -> grants.createBatch(context, List.of(duplicate, duplicate)))
-            .isInstanceOf(IllegalArgumentException.class);
+        ModelGrant duplicateCreated = grants.create(context, duplicate);
+        assertThatThrownBy(() -> grants.create(context, duplicate))
+            .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("授权重复");
+        assertThat(jdbc.queryForObject("select count(*) from ent_model_grant", Long.class)).isEqualTo(grantsBeforeBatch + 1);
+        assertThat(revisions.current(TENANT)).isGreaterThan(revisionBeforeBatch);
+        grants.delete(context, duplicateCreated.id(), duplicateCreated.revision());
         assertThat(jdbc.queryForObject("select count(*) from ent_model_grant", Long.class)).isEqualTo(grantsBeforeBatch);
-        assertThat(revisions.current(TENANT)).isEqualTo(revisionBeforeBatch);
 
-        List<ModelGrant> replaced = grants.replaceSubjects(context, memberReasoner.id(), memberReasoner.revision(), List.of(
-            new ModelGrantSpec(GrantResourceType.MODEL, reasoner.id(), GrantSubjectType.MEMBER, user.id(), ModelStatus.DISABLED),
-            new ModelGrantSpec(GrantResourceType.MODEL, reasoner.id(), GrantSubjectType.ACCESS_GROUP, accessGroupId, ModelStatus.ACTIVE)
+        long secondGroupId = sequence.incrementAndGet();
+        jdbc.update(
+            "insert into ent_access_group(id, tenant_id, name, revision) values (?, ?, 'T08 Platform', 0)",
+            secondGroupId, TENANT
+        );
+        ModelGrant replaced = grants.update(context, memberReasoner.id(), memberReasoner.revision(), new ModelGrantSpec(
+            GrantResourceType.MODEL, reasoner.id(), GrantSubjectType.ACCESS_GROUP,
+            List.of(accessGroupId, secondGroupId), ModelStatus.ACTIVE
         ));
-        assertThat(replaced).extracting(ModelGrant::subjectType)
-            .containsExactly(GrantSubjectType.MEMBER, GrantSubjectType.ACCESS_GROUP);
-        assertThat(replaced.getFirst().revision()).isEqualTo(1);
+        assertThat(replaced.subjects()).hasSize(2);
+        assertThat(replaced.revision()).isEqualTo(1);
         long grantsBeforeReplaceConflict = jdbc.queryForObject("select count(*) from ent_model_grant", Long.class);
-        assertThatThrownBy(() -> grants.replaceSubjects(context, memberReasoner.id(), 1, List.of(
-            new ModelGrantSpec(GrantResourceType.MODEL, reasoner.id(), GrantSubjectType.MEMBER, user.id(), ModelStatus.ACTIVE),
-            new ModelGrantSpec(GrantResourceType.MODEL, reasoner.id(), GrantSubjectType.ACCESS_GROUP, accessGroupId, ModelStatus.DISABLED)
+        assertThatThrownBy(() -> grants.update(context, memberChat.id(), memberChat.revision(), new ModelGrantSpec(
+            GrantResourceType.MODEL, reasoner.id(), GrantSubjectType.ACCESS_GROUP,
+            List.of(accessGroupId), ModelStatus.ACTIVE
         ))).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("授权重复");
         assertThat(jdbc.queryForObject("select count(*) from ent_model_grant", Long.class)).isEqualTo(grantsBeforeReplaceConflict);
         assertThat(grants.get(TENANT, memberReasoner.id()).revision()).isEqualTo(1);
 
+        // 存量规模回归：旧单数模型可累计远超早期上限的同键主体，读路径必须不设数量校验
+        long bulkGroupBase = sequence.incrementAndGet();
+        jdbc.update(
+            "insert into ent_access_group(id, tenant_id, name, revision)"
+                + " select ?::bigint + n, ?, 'T08 Bulk ' || n, 0 from generate_series(1, 250) as n",
+            bulkGroupBase, TENANT
+        );
+        List<Long> bulkGroupIds = java.util.stream.LongStream.rangeClosed(1, 250)
+            .map(offset -> bulkGroupBase + offset).boxed().toList();
+        ModelGrant bulkGrant = grants.create(context, new ModelGrantSpec(
+            GrantResourceType.MODEL, chat.id(), GrantSubjectType.ACCESS_GROUP, bulkGroupIds, ModelStatus.ACTIVE
+        ));
+        assertThat(grants.get(TENANT, bulkGrant.id()).subjects()).hasSize(250);
+
+        // 超限存量回归：迁移可合并出超上限策略——直接灌子表到 1001 模拟迁移产物，
+        // 原样保存（停用/启用）必须放行，引入既有集合之外的新主体必须拒绝
+        long bulkExtraBase = bulkGroupBase + 300;
+        jdbc.update(
+            "insert into ent_access_group(id, tenant_id, name, revision)"
+                + " select ?::bigint + n, ?, 'T08 Oversized ' || n, 0 from generate_series(1, 751) as n",
+            bulkExtraBase, TENANT
+        );
+        jdbc.update(
+            "insert into ent_model_grant_subject(grant_id, subject_id)"
+                + " select ?, ?::bigint + n from generate_series(1, 751) as n",
+            bulkGrant.id(), bulkExtraBase
+        );
+        ModelGrant oversized = grants.get(TENANT, bulkGrant.id());
+        assertThat(oversized.subjects()).hasSize(1001);
+        List<Long> oversizedIds = oversized.subjects().stream()
+            .map(ModelGrantSubject::subjectId).toList();
+        ModelGrant disabledOversized = grants.update(context, oversized.id(), oversized.revision(), new ModelGrantSpec(
+            GrantResourceType.MODEL, chat.id(), GrantSubjectType.ACCESS_GROUP, oversizedIds, ModelStatus.DISABLED
+        ));
+        assertThat(disabledOversized.status()).isEqualTo(ModelStatus.DISABLED);
+        ModelGrant reactivated = grants.update(context, disabledOversized.id(), disabledOversized.revision(), new ModelGrantSpec(
+            GrantResourceType.MODEL, chat.id(), GrantSubjectType.ACCESS_GROUP, oversizedIds, ModelStatus.ACTIVE
+        ));
+        assertThat(reactivated.status()).isEqualTo(ModelStatus.ACTIVE);
+        assertThatThrownBy(() -> grants.update(context, reactivated.id(), reactivated.revision(), new ModelGrantSpec(
+            GrantResourceType.MODEL, chat.id(), GrantSubjectType.ACCESS_GROUP,
+            java.util.stream.Stream.concat(oversizedIds.stream(), java.util.stream.Stream.of(bulkGroupBase + 299L)).toList(),
+            ModelStatus.ACTIVE
+        ))).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("保持或缩减");
+        grants.delete(context, reactivated.id(), reactivated.revision());
+
         grants.update(context, memberChat.id(), 0, new ModelGrantSpec(
-            GrantResourceType.MODEL, chat.id(), GrantSubjectType.MEMBER, user.id(), ModelStatus.DISABLED
+            GrantResourceType.MODEL, chat.id(), GrantSubjectType.MEMBER, List.of(user.id()), ModelStatus.DISABLED
         ));
         assertThat(resolver.resolve(TENANT, user.id()))
             .filteredOn(EffectiveModelResolver.EffectiveModel::isDefault)

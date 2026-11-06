@@ -20,10 +20,9 @@ AdminModelOnboardingController.java: 供应商、连接和首批模型的单事�
 ManagedModelWriteRequest.java: 受管模型创建/更新协议到 application spec 的转换 DTO，保留 reasoningEfforts 省略/false/object 三态。
 ManagedModelView.java: provider 名称、容量、reasoningEfforts 与 completions compat 的管理安全投影。
 AdminManagedModelController.java: 模型 CRUD/排序字段更新/启停与 ent:model 权限入口。
-ModelGrantWriteRequest.java: MODEL_SET/MODEL 资源与 ALL_MEMBERS/ACCESS_GROUP/MEMBER 主体的单条授权写 DTO 及 application spec 转换。
-ModelGrantBatchRequest.java: 最多 200 条授权的原子批量请求边界。
-ModelGrantView.java: nullable subjectId、subject/model 展示名、revision 与创建/更新时间的管理投影。
-AdminModelGrantController.java: 授权 list/create/update/delete/batch 及主体替换与 ent:grant 权限入口。
+ModelGrantWriteRequest.java: MODEL_SET/MODEL 资源与 ALL_MEMBERS/ACCESS_GROUP/MEMBER 主体集合的授权写 DTO 及 application spec 转换。
+ModelGrantView.java: subjects 数组、资源展示名、revision 与创建/更新时间的管理投影。
+AdminModelGrantController.java: 授权 list/create/update/delete 与 ent:grant 权限入口，主体集合在单条 grant 内原子增删。
 ModelSetWriteRequest.java: 模型集名称、可选管理说明与完整模型 ID 列表写入边界。
 ModelSetView.java: 模型集名称、管理说明、成员模型 ID、计数和 revision 管理投影。
 AdminModelSetController.java: 模型集 list/get/create/update/delete 与 ent:model 权限入口。

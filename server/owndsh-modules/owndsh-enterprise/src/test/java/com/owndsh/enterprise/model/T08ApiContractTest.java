@@ -42,6 +42,7 @@ import com.owndsh.enterprise.model.domain.GrantSubjectType;
 import com.owndsh.enterprise.model.domain.GrantResourceType;
 import com.owndsh.enterprise.model.domain.ManagedModel;
 import com.owndsh.enterprise.model.domain.ModelGrant;
+import com.owndsh.enterprise.model.domain.ModelGrantSubject;
 import com.owndsh.enterprise.model.domain.ModelProvider;
 import com.owndsh.enterprise.model.domain.ModelSet;
 import com.owndsh.enterprise.model.domain.ModelStatus;
@@ -187,8 +188,6 @@ class T08ApiContractTest {
 
         when(grants.list("000000", 0, 51)).thenReturn(List.of(grant));
         when(grants.create(any(), any())).thenReturn(grant);
-        when(grants.createBatch(any(), any())).thenReturn(List.of(grant));
-        when(grants.replaceSubjects(any(), anyLong(), anyLong(), any())).thenReturn(List.of(grant));
         when(grants.update(any(), anyLong(), anyLong(), any())).thenReturn(grant);
         doNothing().when(grants).delete(any(), anyLong(), anyLong());
         when(bootstrap.load(any())).thenReturn(snapshot());
@@ -262,13 +261,6 @@ class T08ApiContractTest {
         assertSchema(response(post("/enterprise/admin/v1/model-grants")
             .header("Idempotency-Key", IDEMPOTENCY_KEY).contentType(MediaType.APPLICATION_JSON)
             .content(grantRequest()), 201), "ModelGrantResponse");
-        assertSchema(response(post("/enterprise/admin/v1/model-grants/batch")
-            .header("Idempotency-Key", IDEMPOTENCY_KEY).contentType(MediaType.APPLICATION_JSON)
-            .content("{\"items\":[" + grantRequest() + "]}"), 201), "ModelGrantBatchResponse");
-        assertSchema(response(post("/enterprise/admin/v1/model-grants/{id}/actions/replace-subjects", GRANT_ID)
-            .header("Idempotency-Key", IDEMPOTENCY_KEY).header("If-Match", "0")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content("{\"items\":[" + grantRequest() + "]}"), 200), "ModelGrantBatchResponse");
         assertSchema(response(put("/enterprise/admin/v1/model-grants/{id}", GRANT_ID)
             .header("If-Match", "0").contentType(MediaType.APPLICATION_JSON)
             .content(grantRequest()), 200), "ModelGrantResponse");
@@ -319,8 +311,6 @@ class T08ApiContractTest {
         assertError(get("/enterprise/admin/v1/model-grants").param("cursor", "invalid"), 400);
         assertError(post("/enterprise/admin/v1/model-grants")
             .contentType(MediaType.APPLICATION_JSON).content(grantRequest()), 400);
-        assertError(post("/enterprise/admin/v1/model-grants/batch")
-            .contentType(MediaType.APPLICATION_JSON).content("{\"items\":[" + grantRequest() + "]}"), 400);
         assertError(put("/enterprise/admin/v1/model-grants/{id}", GRANT_ID)
             .contentType(MediaType.APPLICATION_JSON).content(grantRequest()), 400);
         assertError(delete("/enterprise/admin/v1/model-grants/{id}", GRANT_ID), 400);
@@ -333,11 +323,12 @@ class T08ApiContractTest {
     void protectsEveryManagementOperationWithFrozenPermissionCodes() {
         assertPermissions(AdminProviderController.class, Map.of(
             "list", "ent:model:read", "get", "ent:model:read", "create", "ent:model:write",
-            "update", "ent:model:write", "enable", "ent:model:write",
+            "update", "ent:model:write", "delete", "ent:model:write", "enable", "ent:model:write",
             "disable", "ent:model:write"
         ));
         assertPermissions(AdminProviderConnectionController.class, Map.of(
-            "list", "ent:model:read", "get", "ent:model:read", "create", "ent:model:write", "update", "ent:model:write"
+            "list", "ent:model:read", "get", "ent:model:read", "create", "ent:model:write", "update", "ent:model:write",
+            "delete", "ent:model:write"
         ));
         assertPermissions(AdminProviderConnectionProbeController.class, Map.of("probe", "ent:model:write"));
         assertPermissions(AdminProviderConnectionTestController.class, Map.of("test", "ent:model:write"));
@@ -352,8 +343,8 @@ class T08ApiContractTest {
             "update", "ent:model:write", "delete", "ent:model:write"
         ));
         assertPermissions(AdminModelGrantController.class, Map.of(
-            "list", "ent:grant:read", "create", "ent:grant:write", "createBatch", "ent:grant:write",
-            "replaceSubjects", "ent:grant:write", "update", "ent:grant:write", "delete", "ent:grant:write"
+            "list", "ent:grant:read", "create", "ent:grant:write",
+            "update", "ent:grant:write", "delete", "ent:grant:write"
         ));
     }
 
@@ -431,7 +422,7 @@ class T08ApiContractTest {
     private static ModelGrant grant() {
         return new ModelGrant(
             Long.parseLong(GRANT_ID), "000000", GrantResourceType.MODEL, Long.parseLong(MODEL_ID), "deepseek-chat",
-            GrantSubjectType.MEMBER, Long.parseLong(USER_ID), "Alice", ModelStatus.ACTIVE, 0,
+            GrantSubjectType.MEMBER, List.of(new ModelGrantSubject(Long.parseLong(USER_ID), "Alice")), ModelStatus.ACTIVE, 0,
             Instant.parse("2026-08-18T08:00:00Z"), Instant.parse("2026-08-18T08:00:00Z")
         );
     }
@@ -507,7 +498,7 @@ class T08ApiContractTest {
 
     private static String grantRequest() {
         return """
-            {"resourceType":"MODEL","resourceId":"%s","subjectType":"MEMBER","subjectId":"%s","status":"ACTIVE"}
+            {"resourceType":"MODEL","resourceId":"%s","subjectType":"MEMBER","subjectIds":["%s"],"status":"ACTIVE"}
             """.formatted(MODEL_ID, USER_ID).trim();
     }
 

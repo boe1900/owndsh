@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 ModelGrantService、可信 enterprise-admin 上下文、认证 cursor 与 ent:grant 权限码。
- * [OUTPUT]: 提供 /enterprise/admin/v1/model-grants 的 list/create/update/delete、原子 batch create 与主体替换。
+ * [OUTPUT]: 提供 /enterprise/admin/v1/model-grants 的 list/create/update/delete，主体集合在单条 grant 内原子增删。
  * [POS]: model/web 的授权管理入口，重复约束和主体事实仅由 application/数据库裁决。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -89,38 +89,6 @@ public final class AdminModelGrantController {
         EnterpriseRequestContext context = contexts.resolve(request);
         ModelGrant created = grants.create(mutation(context), body.spec());
         return ResponseEntity.status(HttpStatus.CREATED).body(response(ModelGrantView.from(created), context));
-    }
-
-    @PostMapping("/batch")
-    @SaCheckPermission("ent:grant:write")
-    public ResponseEntity<EnterpriseResponse<List<ModelGrantView>>> createBatch(
-        @RequestHeader("Idempotency-Key") UUID idempotencyKey,
-        @RequestBody ModelGrantBatchRequest body,
-        HttpServletRequest request
-    ) {
-        EnterpriseApiValidation.requireUuidV4(idempotencyKey, "Idempotency-Key");
-        EnterpriseRequestContext context = contexts.resolve(request);
-        List<ModelGrantView> created = grants.createBatch(mutation(context), body.specs())
-            .stream().map(ModelGrantView::from).toList();
-        return ResponseEntity.status(HttpStatus.CREATED).body(response(created, context));
-    }
-
-    @PostMapping("/{grantId}/actions/replace-subjects")
-    @SaCheckPermission("ent:grant:write")
-    public EnterpriseResponse<List<ModelGrantView>> replaceSubjects(
-        @PathVariable long grantId,
-        @RequestHeader("Idempotency-Key") UUID idempotencyKey,
-        @RequestHeader("If-Match") long expectedRevision,
-        @RequestBody ModelGrantBatchRequest body,
-        HttpServletRequest request
-    ) {
-        EnterpriseApiValidation.requireUuidV4(idempotencyKey, "Idempotency-Key");
-        EnterpriseRequestContext context = contexts.resolve(request);
-        return response(
-            grants.replaceSubjects(mutation(context), grantId, expectedRevision, body.specs())
-                .stream().map(ModelGrantView::from).toList(),
-            context
-        );
     }
 
     @PutMapping("/{grantId}")

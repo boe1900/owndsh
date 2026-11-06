@@ -5,7 +5,7 @@
 成员清单
 
 README.md: 协议真源使用规则，定义手写与生成边界、双端消费方式和漂移门禁。
-enterprise-openapi.yaml: OpenAPI 3.1 逻辑协议导航根，定义 Bearer 与 HTTP/HTTPS 管理端 Cookie、38 个稳定错误码和 131 个 operation，并引用受控 Path Item/schema 分片。
+enterprise-openapi.yaml: OpenAPI 3.1 逻辑协议导航根，定义 Bearer 与 HTTP/HTTPS 管理端 Cookie、38 个稳定错误码和 129 个 operation，并引用受控 Path Item/schema 分片。
 paths/: identity/auth/member/device/model/quota/gateway/plugin/skill/mcp/session/audit operation 分片目录；局部地图见 paths/CLAUDE.md。
 components/: 身份治理、认证、成员、设备、模型、配额、网关、插件、skill、MCP、Session 与审计协议 schema 分片；局部地图见 components/CLAUDE.md。
 fixtures/auth-sources-success.json: T05 登录事务、CSRF 与公开身份源成功响应样例。
@@ -30,9 +30,8 @@ fixtures/provider-probe-success.json: T08 provider test 脱敏成功/延迟/状�
 fixtures/model-success.json: T08 受管模型详情成功样例。
 fixtures/model-list-success.json: T08 受管模型 cursor 列表成功样例。
 fixtures/model-set-success.json: P2-08A 扁平模型集与完整模型成员成功响应样例。
-fixtures/model-grant-success.json: P2-08A 单条 ACCESS_GROUP 到 MODEL_SET 授权成功样例。
+fixtures/model-grant-success.json: 多主体授权成功样例，一条策略携带 MEMBER 主体集合。
 fixtures/model-grant-list-success.json: T08 模型授权 cursor 列表成功样例。
-fixtures/model-grant-batch-success.json: T08 原子批量授权成功样例。
 fixtures/bootstrap-models-success.json: ACTIVE 设备的模型、配额与必填安装配置示例。
 fixtures/quota-policy-success.json: P2-08A 成员/模型集 TOKEN policy 与 nullable 四窗口 limits 成功样例。
 fixtures/quota-policy-list-success.json: T09 quota policy 空 cursor page 成功样例。

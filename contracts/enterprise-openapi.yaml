@@ -115,12 +115,8 @@ paths:
     $ref: './paths/model.yaml#/ModelSetItem'
   /enterprise/admin/v1/model-grants:
     $ref: './paths/model.yaml#/GrantCollection'
-  /enterprise/admin/v1/model-grants/batch:
-    $ref: './paths/model.yaml#/GrantBatch'
   /enterprise/admin/v1/model-grants/{grantId}:
     $ref: './paths/model.yaml#/GrantItem'
-  /enterprise/admin/v1/model-grants/{grantId}/actions/replace-subjects:
-    $ref: './paths/model.yaml#/GrantSubjectReplacement'
   /enterprise/api/v1/bootstrap:
     $ref: './paths/model.yaml#/Bootstrap'
   /enterprise/admin/v1/quotas:
@@ -381,9 +377,6 @@ x-enterprise-fixtures:
     valid: true
   - file: fixtures/model-grant-list-success.json
     schema: ModelGrantListResponse
-    valid: true
-  - file: fixtures/model-grant-batch-success.json
-    schema: ModelGrantBatchResponse
     valid: true
   - file: fixtures/bootstrap-models-success.json
     schema: BootstrapResponse
@@ -871,12 +864,10 @@ components:
     ModelSetPageData: {$ref: './components/model.yaml#/ModelSetPageData'}
     ModelSetListResponse: {$ref: './components/model.yaml#/ModelSetListResponse'}
     ModelGrantWriteRequest: {$ref: './components/model.yaml#/ModelGrantWriteRequest'}
-    ModelGrantBatchRequest: {$ref: './components/model.yaml#/ModelGrantBatchRequest'}
     ModelGrant: {$ref: './components/model.yaml#/ModelGrant'}
     ModelGrantResponse: {$ref: './components/model.yaml#/ModelGrantResponse'}
     ModelGrantPageData: {$ref: './components/model.yaml#/ModelGrantPageData'}
     ModelGrantListResponse: {$ref: './components/model.yaml#/ModelGrantListResponse'}
-    ModelGrantBatchResponse: {$ref: './components/model.yaml#/ModelGrantBatchResponse'}
     BootstrapModel: {$ref: './components/model.yaml#/BootstrapModel'}
     BootstrapSnapshot: {$ref: './components/model.yaml#/BootstrapSnapshot'}
     BootstrapResponse: {$ref: './components/model.yaml#/BootstrapResponse'}

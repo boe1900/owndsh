@@ -73,7 +73,7 @@ export function GrantEditorDialog({ accessGroups, connections, current, error, m
   const [resourceType, setResourceType] = useState<GrantEditorValue['resourceType']>(current?.resourceType ?? 'MODEL_SET');
   const [resourceId, setResourceId] = useState(current?.resourceId ?? '');
   const [subjectType, setSubjectType] = useState<GrantEditorValue['subjectType']>(current?.subjectType ?? 'ALL_MEMBERS');
-  const [subjectIds, setSubjectIds] = useState<string[]>(current?.subjectId ? [current.subjectId] : []);
+  const [subjectIds, setSubjectIds] = useState<string[]>(current?.subjects.map((subject) => subject.subjectId) ?? []);
   const [status, setStatus] = useState<GrantEditorValue['status']>(current?.status ?? 'ACTIVE');
   const [resourceSearch, setResourceSearch] = useState('');
   const [targetSearch, setTargetSearch] = useState('');
@@ -129,7 +129,7 @@ export function GrantEditorDialog({ accessGroups, connections, current, error, m
         <section className="flex items-center justify-between rounded-xl border border-line bg-field/70 p-3.5"><div><strong className="block text-xs text-ink">策略启用状态</strong><span className="mt-0.5 block text-[11px] text-ink-3">保存后立即生效；若停用则暂时冻结该授权规则</span></div><div className="flex items-center gap-2.5"><span className={`text-xs font-medium ${status === 'ACTIVE' ? 'text-green' : 'text-ink-3'}`}>{status === 'ACTIVE' ? '启用' : '停用'}</span><button type="button" role="switch" aria-checked={status === 'ACTIVE'} onClick={() => setStatus((value) => value === 'ACTIVE' ? 'DISABLED' : 'ACTIVE')} className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition ${status === 'ACTIVE' ? 'bg-ink' : 'bg-line-strong'}`}><span className={`pointer-events-none size-5 rounded-full bg-white shadow-sm transition ${status === 'ACTIVE' ? 'translate-x-5' : 'translate-x-0'} `} /></button></div></section>
         {error ? <p role="alert" className="m-0 rounded-lg bg-red-tint px-3 py-2 text-xs text-red">{error}</p> : null}
       </div>
-      <DialogFooter className="mx-0 shrink-0 border-line bg-field px-6"><Button type="button" size="sm" className="rounded-full border border-line bg-surface px-4" onClick={onClose}>取消</Button><Button type="submit" variant="primary" size="sm" className="rounded-full px-5" disabled={!canSave || saving}>{saving ? '保存中' : '保存'}</Button></DialogFooter>
+      <DialogFooter className="shrink-0 border-line bg-field px-6"><Button type="button" size="sm" className="rounded-full border border-line bg-surface px-4" onClick={onClose}>取消</Button><Button type="submit" variant="primary" size="sm" className="rounded-full px-5" disabled={!canSave || saving}>{saving ? '保存中' : '保存'}</Button></DialogFooter>
     </form>
   </ProductDialog>;
 }
@@ -282,7 +282,7 @@ export function QuotaEditorDialog({ current, error, modelSets, models, onClose, 
         </fieldset> : null}
 
         {error ? <p role="alert" className="m-0 rounded-md bg-red-tint px-3 py-2 text-[12.5px] text-red">{error}</p> : null}
-        <DialogFooter><Button type="button" size="sm" onClick={onClose}>取消</Button><form.Subscribe selector={(state) => state.canSubmit}>{(canSubmit) => <Button type="submit" variant="primary" size="sm" disabled={!canSubmit || saving}>{saving ? '保存中' : '保存'}</Button>}</form.Subscribe></DialogFooter>
+        <DialogFooter sticky><Button type="button" size="sm" onClick={onClose}>取消</Button><form.Subscribe selector={(state) => state.canSubmit}>{(canSubmit) => <Button type="submit" variant="primary" size="sm" disabled={!canSubmit || saving}>{saving ? '保存中' : '保存'}</Button>}</form.Subscribe></DialogFooter>
       </form>
     </ProductDialog>
   );
@@ -302,7 +302,7 @@ export function DeletePolicyDialog({ error, kind, label, onClose, onConfirm, sav
         <p className="m-0 text-[13px] leading-6 text-ink-2">确定删除“{label}”？该操作会立即影响后续模型请求。</p>
         {kind === 'quota' ? <p className="m-0 text-[12px] leading-5 text-ink-3">已有使用窗口记录的配额策略不能删除，请改为停用。</p> : null}
         {error ? <p role="alert" className="m-0 rounded-md bg-red-tint px-3 py-2 text-[12.5px] text-red">{error}</p> : null}
-        <DialogFooter><Button type="button" size="sm" disabled={saving} onClick={onClose}>取消</Button><Button type="button" variant="primary" size="sm" className="bg-red text-white hover:brightness-95" disabled={saving} onClick={onConfirm}>{saving ? '删除中' : '删除'}</Button></DialogFooter>
+        <DialogFooter sticky><Button type="button" size="sm" disabled={saving} onClick={onClose}>取消</Button><Button type="button" variant="primary" size="sm" className="bg-red text-white hover:brightness-95" disabled={saving} onClick={onConfirm}>{saving ? '删除中' : '删除'}</Button></DialogFooter>
       </div>
     </ProductDialog>
   );
