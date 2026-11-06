@@ -33,7 +33,7 @@ fixtures/model-set-success.json: P2-08A 扁平模型集与完整模型成员成�
 fixtures/model-grant-success.json: 多主体授权成功样例，一条策略携带 MEMBER 主体集合。
 fixtures/model-grant-list-success.json: T08 模型授权 cursor 列表成功样例。
 fixtures/bootstrap-models-success.json: ACTIVE 设备的模型、配额与必填安装配置示例。
-fixtures/quota-policy-success.json: P2-08A 成员/模型集 TOKEN policy 与 nullable 四窗口 limits 成功样例。
+fixtures/quota-policy-success.json: 多主体 TOKEN policy 与 nullable 四窗口 limits 成功样例。
 fixtures/quota-policy-list-success.json: T09 quota policy 空 cursor page 成功样例。
 fixtures/quota-window-list-success.json: T09 当前自然日窗口计数与 reset time 成功样例。
 fixtures/quota-usage-me-success.json: P2-08A 员工生效 TOKEN 策略的资源范围与四窗口实时计数样例。

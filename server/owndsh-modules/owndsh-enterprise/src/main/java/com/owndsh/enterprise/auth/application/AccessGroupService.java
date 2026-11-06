@@ -167,6 +167,11 @@ public final class AccessGroupService {
                 + " where g.tenant_id = ? and g.subject_type = 'ACCESS_GROUP' and s.subject_id = ?",
             Long.class, tenantId, id
         );
+        long quotaPolicyCount = jdbc.queryForObject(
+            "select count(*) from ent_quota_policy p join ent_quota_policy_subject s on s.policy_id = p.id"
+                + " where p.tenant_id = ? and p.subject_type = 'ACCESS_GROUP' and s.subject_id = ?",
+            Long.class, tenantId, id
+        );
         long mcpGrantCount = jdbc.queryForObject(
             "select count(*) from ent_mcp_grant where tenant_id = ? and subject_type = 'GROUP' and subject_id = ?",
             Long.class, tenantId, id
@@ -175,7 +180,7 @@ public final class AccessGroupService {
             "select count(*) from ent_external_group_mapping where tenant_id = ? and access_group_id = ?",
             Long.class, tenantId, id
         );
-        return new AccessGroupDeleteBlockers(modelGrantCount, mcpGrantCount, externalGroupMappingCount);
+        return new AccessGroupDeleteBlockers(modelGrantCount, mcpGrantCount, quotaPolicyCount, externalGroupMappingCount);
     }
 
     private AccessGroup lock(String tenantId, long id) {

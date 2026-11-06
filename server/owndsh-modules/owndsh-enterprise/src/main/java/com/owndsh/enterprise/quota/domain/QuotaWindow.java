@@ -13,6 +13,7 @@ public record QuotaWindow(
     long id,
     String tenantId,
     long policyId,
+    long userId,
     QuotaWindowType type,
     Instant start,
     long usedTokens,
@@ -20,7 +21,7 @@ public record QuotaWindow(
     long revision
 ) {
     public QuotaWindow {
-        if (id <= 0 || policyId <= 0) throw new IllegalArgumentException("窗口 ID 必须为正数");
+        if (id <= 0 || policyId <= 0 || userId < 0) throw new IllegalArgumentException("窗口 ID 或用户非法");
         Objects.requireNonNull(tenantId, "tenantId");
         Objects.requireNonNull(type, "type");
         Objects.requireNonNull(start, "start");

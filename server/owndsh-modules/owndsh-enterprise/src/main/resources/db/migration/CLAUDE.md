@@ -61,5 +61,7 @@ V51__enterprise_skill_single_source.sql: 删除 Skill 来源子路径；每个�
 V52__model_set_description.sql: 为模型集增加可选管理说明，历史模型集默认空字符串。
 V53__model_grant_timestamps.sql: 为模型授权补齐创建时间与最后更新时间，历史记录按迁移时刻回填。
 V54__model_grant_multi_subject.sql: 授权升级为多主体策略——新增 grant 主体子表，按状态双轨迁移（ACTIVE 主体并入 ACTIVE keep 行、DISABLED 主体并入 DISABLED keep 行，纯停用组保留为可再启用的 DISABLED 策略，生效面迁移前后逐主体一致），同键唯一性以部分唯一索引约束至多一条 ACTIVE（状态是行内生命周期而非身份，停用不互撞、同键启停并存合法），并退役单数 subject_id 列。
+V55__quota_policy_multi_subject.sql: 配额主体多主体化——新增策略主体子表，先退旧主体约束再迁移 ORGANIZATION→ALL_MEMBERS 值与 MEMBER 主体，约束三态化，每租户一条 ORG 索引退役（叠加语义下重复集合由 service 拒绝），并退役单数 subject_id 列。
+V56__quota_window_per_user.sql: 配额窗口按用户隔离——存量 policy 级共享窗口整体归档进 ent_quota_window_legacy 保审计后清零，窗口唯一键升级为 (策略, 用户, 类型, 起点)，多主体策略下额度每人一份；Redis RATE key 同步按 (策略, 用户) 隔离，升级不阻塞已产生用量的实例。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

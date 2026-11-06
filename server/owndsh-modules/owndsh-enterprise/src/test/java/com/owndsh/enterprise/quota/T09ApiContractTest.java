@@ -306,7 +306,7 @@ class T09ApiContractTest {
 
     private static QuotaPolicy policy() {
         return new QuotaPolicy(
-            POLICY_ID, TENANT, "Engineering", QuotaPolicyType.TOKEN, QuotaSubjectType.MEMBER, USER_ID, "Alice",
+            POLICY_ID, TENANT, "Engineering", QuotaPolicyType.TOKEN, QuotaSubjectType.MEMBER, java.util.List.of(new com.owndsh.enterprise.quota.domain.QuotaPolicySubject(USER_ID, "Alice")),
             QuotaResourceType.ALL_MODELS, null, "全部模型", null, 500_000L, null, 10_000_000L,
             null, null, QuotaStatus.ACTIVE, WINDOW_START, 0
         );
@@ -326,7 +326,7 @@ class T09ApiContractTest {
     private static QuotaUsageQueryService.PolicyUsage policyUsage() {
         List<QuotaUsageQueryService.WindowUsage> windows = windows();
         return new QuotaUsageQueryService.PolicyUsage(
-            policy(), null, windows.get(0), null, windows.get(1),
+            policy(), USER_ID, null, windows.get(0), null, windows.get(1),
             null, null
         );
     }
@@ -355,7 +355,7 @@ class T09ApiContractTest {
 
     private static String policyRequest() {
         return """
-            {"name":"Engineering","policyType":"TOKEN","subjectType":"MEMBER","subjectId":"%s",
+            {"name":"Engineering","policyType":"TOKEN","subjectType":"MEMBER","subjectIds":["%s"],
              "resourceType":"ALL_MODELS","resourceId":null,
              "fiveHourTokenLimit":100000,"dailyTokenLimit":500000,
              "weeklyTokenLimit":2500000,"monthlyTokenLimit":10000000,"rpm":null,

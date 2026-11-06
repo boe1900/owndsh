@@ -401,6 +401,8 @@
                 <configuration>
                     <release>${java.version}</release>
                     <encoding>${project.build.sourceEncoding}</encoding>
+                    <!-- JDK 21.0.12+ 对隐式注解处理收紧：显式声明处理阶段，保证 Lombok/therapi 稳定运行 -->
+                    <proc>full</proc>
                     <annotationProcessorPaths>
                         <path>
                             <groupId>com.github.therapi</groupId>

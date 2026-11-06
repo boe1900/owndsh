@@ -25,6 +25,25 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @Tag("dev")
 class EnterpriseMigrationTest {
+
+    /** 从 classpath db/migration 推导最新迁移版本，避免每次新增迁移都要手工改断言。 */
+    private static String latestMigrationVersion() {
+        try (var stream = java.nio.file.Files.list(java.nio.file.Path.of(
+            EnterpriseMigrationTest.class.getClassLoader().getResource("db/migration").toURI()
+        ))) {
+            return stream
+                .map(path -> path.getFileName().toString())
+                .filter(name -> name.matches("V\\d+__.*\\.sql"))
+                .map(name -> name.substring(1, name.indexOf('_')))
+                .map(Integer::parseInt)
+                .max(Integer::compareTo)
+                .map(String::valueOf)
+                .orElseThrow(() -> new IllegalStateException("db/migration 无迁移脚本"));
+        } catch (Exception exception) {
+            throw new IllegalStateException("读取 db/migration 失败", exception);
+        }
+    }
+
     @Test
     void replacesUploadedPluginCatalogWithRequiredInstallationConfiguration() {
         var database = PostgresTestDatabase.create("plugin_sources");
@@ -110,13 +129,14 @@ class EnterpriseMigrationTest {
         assertThat(database.jdbc().queryForObject(
             "select type from flyway_schema_history where version='0'", String.class
         )).isEqualTo("SQL");
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("48");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo(latestMigrationVersion());
         Integer tableCount = database.jdbc().queryForObject("""
             select count(*) from information_schema.tables
             where table_schema = 'public' and table_name like 'ent_%'
             """, Integer.class);
         // Skill only has release/catalog facts; user/device assignment tables are intentionally absent.
-        assertThat(tableCount).isEqualTo(32);
+        // 含 V56 的 ent_quota_window_legacy 归档表；新增 ent_ 表时同步更新
+        assertThat(tableCount).isEqualTo(37);
         assertThat(database.jdbc().queryForObject("select count(*) from information_schema.tables where table_schema='public' and table_name in ('ent_skill_assignment','ent_skill_device_inventory')", Integer.class)).isZero();
         assertThat(database.jdbc().queryForObject("select count(*) from sys_menu where perms in ('ent:skill:read','ent:skill:write')", Integer.class)).isZero();
         assertThat(database.jdbc().queryForObject(
@@ -259,7 +279,7 @@ class EnterpriseMigrationTest {
 
         Flyway flyway = PostgresTestDatabase.migrate(database, null);
 
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("48");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo(latestMigrationVersion());
         assertThat(database.jdbc().queryForObject(
             "select type from flyway_schema_history where version='0'", String.class
         )).isEqualTo("BASELINE");
@@ -575,7 +595,7 @@ class EnterpriseMigrationTest {
             insert into ent_quota_policy(
                 id,tenant_id,name,policy_type,subject_type,subject_id,resource_type,resource_id,rpm,status
             ) values (1913000000000000831,'000000','Provider Rate','RATE','ORGANIZATION',null,
-                'MODEL',1913000000000000501,5,'ACTIVE')
+                'PROVIDER',1913000000000000501,5,'ACTIVE')
             """);
         assertThatThrownBy(() -> database.jdbc().update("""
             update ent_quota_policy set subject_type='MEMBER', subject_id=?
@@ -587,7 +607,7 @@ class EnterpriseMigrationTest {
             insert into ent_quota_policy(
                 id,tenant_id,name,policy_type,subject_type,subject_id,resource_type,resource_id,concurrency,status
             ) values (1913000000000000832,'000000','Duplicate Provider Rate','RATE','ORGANIZATION',null,
-                'MODEL',1913000000000000501,2,'ACTIVE')
+                'PROVIDER',1913000000000000501,2,'ACTIVE')
             """)).isInstanceOf(RuntimeException.class);
         Flyway versionTwentyEight = PostgresTestDatabase.migrate(database, "28");
         assertThat(versionTwentyEight.info().current().getVersion().getVersion()).isEqualTo("28");
@@ -610,6 +630,9 @@ class EnterpriseMigrationTest {
                 reservation, userId, "migration-usage-" + result, measured ? 10 : 0,
                 measured ? 5 : 640, measured ? 15 : 640, result);
         }
+        // V46 将退役 PROVIDER 资源范围且不迁移存量行：跨入 V46 前清理本用例的 PROVIDER 夹具
+        database.jdbc().update(
+            "delete from ent_quota_policy where resource_type = 'PROVIDER' and id in (1913000000000000831, 1913000000000000832)");
         Flyway versionTwentyNine = PostgresTestDatabase.migrate(database, "29");
         assertThat(versionTwentyNine.info().current().getVersion().getVersion()).isEqualTo("29");
         assertThat(database.jdbc().queryForMap("""
@@ -641,7 +664,7 @@ class EnterpriseMigrationTest {
             .run(context -> {
                 assertThat(context).hasSingleBean(Flyway.class);
                 assertThat(context.getBean(Flyway.class).info().current().getVersion().getVersion())
-                    .isEqualTo("48");
+                    .isEqualTo(latestMigrationVersion());
             });
     }
 
@@ -653,14 +676,15 @@ class EnterpriseMigrationTest {
         database.jdbc().update("""
             insert into ent_model_provider(
                 id,tenant_id,provider_key,name,provider_type,api_protocol,base_url,status,
-                connect_timeout_ms,read_timeout_ms,revision
+                connect_timeout_ms,read_timeout_ms,credential_ciphertext,credential_nonce,key_version,revision
             ) values (1913000000000000801,'000000','deepseek-official','DeepSeek',
-                'DEEPSEEK_OFFICIAL','openai-completions','https://api.deepseek.com/v1','ACTIVE',5000,30000,0)
+                'DEEPSEEK_OFFICIAL','openai-completions','https://api.deepseek.com/v1','ACTIVE',5000,30000,
+                decode('00','hex'),decode('00','hex'),1,0)
             """);
 
         Flyway flyway = PostgresTestDatabase.migrate(database, null);
 
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("48");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo(latestMigrationVersion());
         assertThat(database.jdbc().queryForMap("""
             select provider_key,name from ent_model_provider where id=1913000000000000801
             """)).containsEntry("provider_key", "deepseek-official")
@@ -690,4 +714,30 @@ class EnterpriseMigrationTest {
         )).isEqualTo("anthropic-messages");
     }
 
+
+    @Test
+    void archivesLegacyWindowsAndMigratesV56WithoutBlocking() {
+        var database = PostgresTestDatabase.create("v56_legacy_windows_archived");
+        PostgresTestDatabase.migrate(database, "55");
+        database.jdbc().update("""
+            insert into ent_quota_policy (id, tenant_id, name, policy_type, subject_type, resource_type, daily_token_limit, status, revision)
+            values (1913000000000000901, '000000', 'Legacy Window Policy', 'TOKEN', 'ALL_MEMBERS', 'ALL_MODELS', 100000, 'ACTIVE', 0)
+            """);
+        database.jdbc().update("""
+            insert into ent_quota_window (id, tenant_id, policy_id, window_type, window_start)
+            values (1913000000000000902, '000000', 1913000000000000901, 'DAY', now())
+            """);
+
+        PostgresTestDatabase.migrate(database, null);
+
+        // 存量共享计数整体归档保审计，新表按用户隔离从零开始，升级不被阻塞
+        assertThat(database.jdbc().queryForObject(
+            "select count(*) from ent_quota_window_legacy", Integer.class)).isEqualTo(1);
+        assertThat(database.jdbc().queryForObject(
+            "select count(*) from ent_quota_window", Integer.class)).isZero();
+        assertThat(database.jdbc().queryForObject("""
+            select count(*) from information_schema.columns
+            where table_name='ent_quota_window' and column_name='user_id'
+            """, Integer.class)).isEqualTo(1);
+    }
 }

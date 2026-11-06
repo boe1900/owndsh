@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖品牌 ID、统一错误边界与 OpenAPI 生成的 DTO/Zod/meta 模块
- * [OUTPUT]: 对外提供品牌 ID、错误边界及身份/设备/模型/配额/插件/Session/bootstrap/gateway 的稳定 DTO 与 strict Zod API
+ * [OUTPUT]: 对外提供（含 zAccessGroupInUseDetails 四字段删除阻塞投影）品牌 ID、错误边界及身份/设备/模型/配额/插件/Session/bootstrap/gateway 的稳定 DTO 与 strict Zod API
  * [POS]: contracts 的 package facade，约束后续 Harness 业务包只消费验证后的跨 HTTP 语义
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -194,6 +194,7 @@ export type {
 export {
   zAccessGroup,
   zAccessGroupId,
+  zAccessGroupInUseDetails,
   zAccessGroupListResponse,
   zAccessGroupPageData,
   zAccessGroupResponse,

@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
   decodeEnterpriseError,
+  zAccessGroupInUseDetails,
   enterpriseErrorHttpStatus,
   parseEnterpriseDeviceId,
   parseEnterpriseUserId,
@@ -116,6 +117,19 @@ describe('generated enterprise contracts', () => {
   it('keeps empty audit metadata strict without generating an invalid Zod chain', () => {
     expect(generatedSchemas.zEmptyAuditMetadata.safeParse({}).success).toBe(true)
     expect(generatedSchemas.zEmptyAuditMetadata.safeParse({ unexpected: true }).success).toBe(false)
+  })
+
+  it('accepts real access-group 409 details with quota policy references', () => {
+    // 后端 AccessGroupInUseDetails 恒返回四字段；strict schema 必须同步协议，否则新响应被拒绝
+    const real = {
+      modelGrantCount: 1,
+      mcpGrantCount: 0,
+      quotaPolicyCount: 2,
+      externalGroupMappingCount: 0,
+    }
+    expect(zAccessGroupInUseDetails.safeParse(real).success).toBe(true)
+    expect(zAccessGroupInUseDetails.safeParse({ ...real, quotaPolicyCount: undefined }).success).toBe(false)
+    expect(zAccessGroupInUseDetails.safeParse({ ...real, extra: 1 }).success).toBe(false)
   })
 
   it('strictly decodes known errors and rejects unknown enums or fields', async () => {

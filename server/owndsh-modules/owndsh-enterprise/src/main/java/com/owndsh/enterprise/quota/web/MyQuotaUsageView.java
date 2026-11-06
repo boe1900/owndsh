@@ -30,7 +30,7 @@ public record MyQuotaUsageView(
     public static MyQuotaUsageView from(QuotaUsageQueryService.PolicyUsage value) {
         return new MyQuotaUsageView(
             Long.toString(value.policy().id()), value.policy().name(), value.policy().subjectType(),
-            value.policy().subjectId() == null ? null : Long.toString(value.policy().subjectId()),
+            java.util.Optional.ofNullable(value.userId()).map(String::valueOf).orElse(null),
             value.policy().resourceType(),
             value.policy().resourceId() == null ? null : Long.toString(value.policy().resourceId()),
             value.policy().resourceName(), TokenWindow.from(value.fiveHours()), TokenWindow.from(value.daily()),

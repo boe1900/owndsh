@@ -38,11 +38,13 @@ function message(error: unknown, fallback: string) {
       if (payload.code === 'ENT_RESOURCE_IN_USE' && payload.details
         && typeof payload.details === 'object'
         && 'modelGrantCount' in payload.details && 'mcpGrantCount' in payload.details
+        && 'quotaPolicyCount' in payload.details
         && 'externalGroupMappingCount' in payload.details) {
         const details = payload.details;
         const references = [
           details.modelGrantCount > 0 ? `模型访问授权 ${details.modelGrantCount} 条` : undefined,
           details.mcpGrantCount > 0 ? `MCP 授权 ${details.mcpGrantCount} 条` : undefined,
+          details.quotaPolicyCount > 0 ? `配额策略 ${details.quotaPolicyCount} 条` : undefined,
           details.externalGroupMappingCount > 0 ? `外部组映射 ${details.externalGroupMappingCount} 条` : undefined
         ].filter((value): value is string => value !== undefined);
         return references.length > 0 ? `${payload.message}（${references.join('、')}）` : payload.message;

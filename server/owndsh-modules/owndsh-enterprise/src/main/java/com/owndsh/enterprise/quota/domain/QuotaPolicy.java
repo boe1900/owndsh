@@ -8,6 +8,7 @@ package com.owndsh.enterprise.quota.domain;
 
 import java.util.Objects;
 import java.time.Instant;
+import java.util.List;
 
 public record QuotaPolicy(
     long id,
@@ -15,8 +16,7 @@ public record QuotaPolicy(
     String name,
     QuotaPolicyType policyType,
     QuotaSubjectType subjectType,
-    Long subjectId,
-    String subjectName,
+    List<QuotaPolicySubject> subjects,
     QuotaResourceType resourceType,
     Long resourceId,
     String resourceName,
@@ -37,9 +37,9 @@ public record QuotaPolicy(
         Objects.requireNonNull(policyType, "policyType");
         Objects.requireNonNull(subjectType, "subjectType");
         Objects.requireNonNull(status, "status");
-        if ((subjectType == QuotaSubjectType.ORGANIZATION) != (subjectId == null)
-            || subjectId != null && subjectId <= 0) {
-            throw new IllegalArgumentException("ORGANIZATION/MEMBER 与 subjectId 约束不一致");
+        subjects = List.copyOf(Objects.requireNonNull(subjects, "subjects"));
+        if ((subjectType == QuotaSubjectType.ALL_MEMBERS) != subjects.isEmpty()) {
+            throw new IllegalArgumentException("ALL_MEMBERS 必须为空主体集合，ACCESS_GROUP/MEMBER 必须至少一个主体");
         }
         Objects.requireNonNull(resourceType, "resourceType");
         if ((resourceType == QuotaResourceType.ALL_MODELS) != (resourceId == null)

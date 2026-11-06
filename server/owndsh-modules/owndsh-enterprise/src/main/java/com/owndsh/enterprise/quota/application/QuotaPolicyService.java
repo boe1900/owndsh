@@ -12,6 +12,7 @@ import com.owndsh.enterprise.audit.AuditEvent;
 import com.owndsh.enterprise.audit.AuditResult;
 import com.owndsh.enterprise.audit.AuditSink;
 import com.owndsh.enterprise.quota.domain.QuotaPolicy;
+import com.owndsh.enterprise.quota.domain.QuotaPolicySubject;
 import com.owndsh.enterprise.quota.domain.QuotaStatus;
 import com.owndsh.enterprise.quota.persistence.QuotaPolicyStore;
 import com.owndsh.enterprise.revision.BootstrapRevisionStore;
@@ -67,9 +68,16 @@ public final class QuotaPolicyService {
         return policies.find(tenantId, id).orElseThrow(QuotaResourceNotFoundException::new);
     }
 
+    /** 写主体预算上限，与模型访问授权约定一致。 */
+    public static final int MAX_SUBJECTS = 1000;
+
     public QuotaPolicy create(QuotaMutationContext context, QuotaPolicySpec spec) {
-        requireReferences(context.tenantId(), spec);
+        if (spec.subjectIds().size() > MAX_SUBJECTS) {
+            throw new IllegalArgumentException("策略主体数量必须在 0.." + MAX_SUBJECTS);
+        }
         Long id = transactions.execute(status -> {
+            // 存在性检查必须在事务内：for key share 锁存活到提交，与用户组删除互斥
+            requireReferences(context.tenantId(), spec);
             long policyId = ids.getAsLong();
             QuotaPolicy policy = policy(policyId, context.tenantId(), spec, Instant.now(clock), 0);
             policies.insert(policy);
@@ -86,9 +94,10 @@ public final class QuotaPolicyService {
         long expectedRevision,
         QuotaPolicySpec spec
     ) {
-        requireReferences(context.tenantId(), spec);
         transactions.executeWithoutResult(status -> {
+            requireReferences(context.tenantId(), spec);
             QuotaPolicy current = get(context.tenantId(), id);
+            requireSubjectBudget(spec.subjectIds(), current.subjects());
             requireRevision(current, expectedRevision);
             QuotaPolicy next = policy(id, context.tenantId(), spec, current.windowAnchor(), expectedRevision + 1);
             if (!policies.update(next, expectedRevision)) throw conflict(context.tenantId(), id, expectedRevision);
@@ -138,9 +147,27 @@ public final class QuotaPolicyService {
         }
     }
 
+    /**
+     * 写主体预算：新建集合受上限约束；存量迁移可能合并出超限策略，
+     * 其原样保存（启停/改资源）与缩减放行，仅禁止在超限状态引入既有集合之外的新主体。
+     */
+    private static void requireSubjectBudget(List<Long> next, List<QuotaPolicySubject> current) {
+        if (next.size() <= MAX_SUBJECTS) return;
+        java.util.Set<Long> existing = current.stream()
+            .map(QuotaPolicySubject::subjectId)
+            .collect(java.util.stream.Collectors.toSet());
+        if (!existing.containsAll(next)) {
+            throw new IllegalArgumentException(
+                "策略主体数量超过上限 " + MAX_SUBJECTS + "，仅允许保持或缩减既有超限集合"
+            );
+        }
+    }
+
     private void requireReferences(String tenantId, QuotaPolicySpec spec) {
-        if (!policies.subjectExists(spec.subjectType(), spec.subjectId())) {
-            throw new IllegalArgumentException("quota subject 不存在");
+        for (Long subjectId : spec.subjectIds()) {
+            if (!policies.subjectExists(tenantId, spec.subjectType(), subjectId)) {
+                throw new IllegalArgumentException("quota subject 不存在");
+            }
         }
         if (!policies.resourceExists(tenantId, spec.resourceType(), spec.resourceId())) {
             throw new IllegalArgumentException("quota resource 不存在");
@@ -173,7 +200,7 @@ public final class QuotaPolicyService {
         if (current.revision() != expected) throw new RevisionConflictException(expected, current.revision());
     }
 
-    private static QuotaPolicy policy(
+    private QuotaPolicy policy(
         long id,
         String tenantId,
         QuotaPolicySpec spec,
@@ -181,17 +208,24 @@ public final class QuotaPolicyService {
         long revision
     ) {
         return new QuotaPolicy(
-            id, tenantId, spec.name(), spec.policyType(), spec.subjectType(), spec.subjectId(), null,
+            id, tenantId, spec.name(), spec.policyType(), spec.subjectType(), requireSubjects(tenantId, spec),
             spec.resourceType(), spec.resourceId(), null, spec.fiveHourTokenLimit(), spec.dailyTokenLimit(),
             spec.weeklyTokenLimit(), spec.monthlyTokenLimit(), spec.rpm(), spec.concurrency(),
             spec.status(), windowAnchor, revision
         );
     }
 
+    private List<QuotaPolicySubject> requireSubjects(String tenantId, QuotaPolicySpec spec) {
+        return spec.subjectIds().stream()
+            .map(subjectId -> new QuotaPolicySubject(
+                subjectId, policies.subjectName(tenantId, spec.subjectType(), subjectId)))
+            .toList();
+    }
+
     private static QuotaPolicy withStatus(QuotaPolicy current, QuotaStatus status) {
         return new QuotaPolicy(
-            current.id(), current.tenantId(), current.name(), current.policyType(), current.subjectType(), current.subjectId(),
-            current.subjectName(), current.resourceType(), current.resourceId(), current.resourceName(),
+            current.id(), current.tenantId(), current.name(), current.policyType(), current.subjectType(), current.subjects(),
+            current.resourceType(), current.resourceId(), current.resourceName(),
             current.fiveHourTokenLimit(), current.dailyTokenLimit(), current.weeklyTokenLimit(),
             current.monthlyTokenLimit(), current.rpm(), current.concurrency(), status, current.windowAnchor(),
             current.revision() + 1

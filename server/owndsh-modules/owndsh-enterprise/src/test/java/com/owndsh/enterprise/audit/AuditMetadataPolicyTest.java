@@ -113,7 +113,7 @@ class AuditMetadataPolicyTest {
                 1, reservationId, GatewayFinishedMetadata.Outcome.SETTLED, 90, 1000,
                 GatewayFinishedMetadata.Failure.NONE
             ),
-            new QuotaPolicyChangeMetadata(QuotaSubjectType.ORGANIZATION, QuotaStatus.ACTIVE, -1, 0),
+            new QuotaPolicyChangeMetadata(QuotaSubjectType.ALL_MEMBERS, QuotaStatus.ACTIVE, -1, 0),
             new QuotaRejectionMetadata(QuotaExceededException.Kind.DAILY, 1, 100),
             new ReservationRecoveredMetadata(ReservationState.RESERVED, ReservationState.RELEASED),
             plugin(PluginAuditMetadata.Operation.REGISTER),

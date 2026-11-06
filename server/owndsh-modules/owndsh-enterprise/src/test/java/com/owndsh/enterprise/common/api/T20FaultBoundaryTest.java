@@ -98,8 +98,8 @@ class T20FaultBoundaryTest {
             new ModelSetInUseException(new ModelSetDeleteBlockers(2, 1)), request
         ).getBody().error().details()).isEqualTo(new ModelSetInUseDetails(2, 1));
         assertThat(handler.accessGroupInUse(
-            new AccessGroupInUseException(new AccessGroupDeleteBlockers(1, 2, 3)), request
-        ).getBody().error().details()).isEqualTo(new AccessGroupInUseDetails(1, 2, 3));
+            new AccessGroupInUseException(new AccessGroupDeleteBlockers(1, 2, 0, 3)), request
+        ).getBody().error().details()).isEqualTo(new AccessGroupInUseDetails(1, 2, 0, 3));
         assertThat(handler.quotaPolicyInUse(
             new QuotaPolicyInUseException(4), request
         ).getBody().error().details()).isEqualTo(new QuotaPolicyInUseDetails(4));

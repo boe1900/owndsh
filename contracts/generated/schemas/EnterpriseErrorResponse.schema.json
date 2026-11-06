@@ -248,6 +248,7 @@
               "required": [
                 "modelGrantCount",
                 "mcpGrantCount",
+                "quotaPolicyCount",
                 "externalGroupMappingCount"
               ],
               "properties": {
@@ -256,6 +257,10 @@
                   "minimum": 0
                 },
                 "mcpGrantCount": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "quotaPolicyCount": {
                   "type": "integer",
                   "minimum": 0
                 },

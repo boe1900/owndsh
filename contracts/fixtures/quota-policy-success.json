@@ -4,8 +4,12 @@
     "name": "Engineering",
     "policyType": "TOKEN",
     "subjectType": "MEMBER",
-    "subjectId": "1761000000000000103",
-    "subjectName": "Alice",
+    "subjects": [
+      {
+        "subjectId": "1761000000000000103",
+        "subjectName": "Alice"
+      }
+    ],
     "resourceType": "MODEL_SET",
     "resourceId": "1900800000000000301",
     "resourceName": "Coding",

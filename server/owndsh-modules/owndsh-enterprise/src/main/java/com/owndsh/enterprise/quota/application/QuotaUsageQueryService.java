@@ -61,9 +61,10 @@ public final class QuotaUsageQueryService {
         List<QuotaPolicy> policies = resolver.resolve(tenantId, userId);
         Map<Long, QuotaRateLimiter.RateSnapshot> rateSnapshots = rates.snapshot(
             policies.stream().filter(policy -> policy.policyType() == QuotaPolicyType.RATE)
-                .map(QuotaPolicy::id).toList(), now
+                .map(policy -> new QuotaRateLimiter.RatePolicy(policy.id(), userId, policy.rpm(), policy.concurrency()))
+                .toList(), now
         );
-        return policies.stream().map(policy -> usage(tenantId, policy, rateSnapshots.get(policy.id()), now)).toList();
+        return policies.stream().map(policy -> usage(tenantId, userId, policy, rateSnapshots.get(policy.id()), now)).toList();
     }
 
     public List<WindowUsage> currentWindows(String tenantId, QuotaPolicy policy) {
@@ -91,16 +92,17 @@ public final class QuotaUsageQueryService {
 
     private PolicyUsage usage(
         String tenantId,
+        long userId,
         QuotaPolicy policy,
         QuotaRateLimiter.RateSnapshot rate,
         Instant now
     ) {
         WindowUsage fiveHours = window(
-            tenantId, policy, QuotaWindowType.FIVE_HOURS, policy.fiveHourTokenLimit(), now
+            tenantId, userId, policy, QuotaWindowType.FIVE_HOURS, policy.fiveHourTokenLimit(), now
         );
-        WindowUsage daily = window(tenantId, policy, QuotaWindowType.DAY, policy.dailyTokenLimit(), now);
-        WindowUsage weekly = window(tenantId, policy, QuotaWindowType.WEEK, policy.weeklyTokenLimit(), now);
-        WindowUsage monthly = window(tenantId, policy, QuotaWindowType.MONTH, policy.monthlyTokenLimit(), now);
+        WindowUsage daily = window(tenantId, userId, policy, QuotaWindowType.DAY, policy.dailyTokenLimit(), now);
+        WindowUsage weekly = window(tenantId, userId, policy, QuotaWindowType.WEEK, policy.weeklyTokenLimit(), now);
+        WindowUsage monthly = window(tenantId, userId, policy, QuotaWindowType.MONTH, policy.monthlyTokenLimit(), now);
         RateUsage rpm = policy.rpm() == null ? null : new RateUsage(
             policy.rpm(), rate == null ? 0 : rate.rpmCurrent(),
             rate == null ? now.plusSeconds(60) : rate.rpmResetsAt()
@@ -108,7 +110,7 @@ public final class QuotaUsageQueryService {
         ConcurrencyUsage concurrency = policy.concurrency() == null ? null : new ConcurrencyUsage(
             policy.concurrency(), rate == null ? 0 : rate.concurrencyCurrent()
         );
-        return new PolicyUsage(policy, fiveHours, daily, weekly, monthly, rpm, concurrency);
+        return new PolicyUsage(policy, userId, fiveHours, daily, weekly, monthly, rpm, concurrency);
     }
 
     private void addWindow(
@@ -119,12 +121,18 @@ public final class QuotaUsageQueryService {
         Long limit,
         Instant now
     ) {
-        WindowUsage value = window(tenantId, policy, type, limit, now);
-        if (value != null) target.add(value);
+        if (limit == null) return;
+        QuotaWindowCalculator.WindowBounds bounds = calculator.bounds(now, type, policy.windowAnchor());
+        QuotaWindowStore.WindowTotals value = windows.findAggregated(tenantId, policy.id(), type, bounds.start()).orElse(null);
+        target.add(new WindowUsage(
+            policy.id(), type, bounds.start(), bounds.resetsAt(), limit,
+            value == null ? 0 : value.usedTokens(), value == null ? 0 : value.reservedTokens()
+        ));
     }
 
     private WindowUsage window(
         String tenantId,
+        long userId,
         QuotaPolicy policy,
         QuotaWindowType type,
         Long limit,
@@ -132,7 +140,7 @@ public final class QuotaUsageQueryService {
     ) {
         if (limit == null) return null;
         QuotaWindowCalculator.WindowBounds bounds = calculator.bounds(now, type, policy.windowAnchor());
-        QuotaWindow value = windows.find(tenantId, policy.id(), type, bounds.start()).orElse(null);
+        QuotaWindow value = windows.findForUser(tenantId, policy.id(), userId, type, bounds.start()).orElse(null);
         return new WindowUsage(
             policy.id(), type, bounds.start(), bounds.resetsAt(), limit,
             value == null ? 0 : value.usedTokens(), value == null ? 0 : value.reservedTokens()
@@ -141,6 +149,7 @@ public final class QuotaUsageQueryService {
 
     public record PolicyUsage(
         QuotaPolicy policy,
+        Long userId,
         WindowUsage fiveHours,
         WindowUsage daily,
         WindowUsage weekly,

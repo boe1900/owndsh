@@ -12,6 +12,7 @@ package com.owndsh.enterprise.common.api;
 public record AccessGroupInUseDetails(
     long modelGrantCount,
     long mcpGrantCount,
+    long quotaPolicyCount,
     long externalGroupMappingCount
 ) {
     public AccessGroupInUseDetails {

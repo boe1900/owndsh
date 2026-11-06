@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Redisson RScript、StringCodec、60 秒滑窗与 120 秒并发 lease TTL。
- * [OUTPUT]: 对外提供全部适用 policy 原子 acquire、续租、释放和实时计数。
+ * [OUTPUT]: 对外提供全部适用 policy 按 (policy × user) 隔离的原子 acquire、续租、释放和实时计数。
  * [POS]: quota/persistence 的 Redis adapter，单 Lua 保证 RPM/并发多策略全成或全败。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -124,8 +124,8 @@ public final class RedisQuotaRateLimiter implements QuotaRateLimiter {
         arguments.add(rpmWindow.toMillis());
         arguments.add(leaseTtl.toMillis());
         for (RatePolicy policy : limited) {
-            keys.add(rpmKey(policy.policyId()));
-            keys.add(concurrencyKey(policy.policyId()));
+            keys.add(rpmKey(policy.policyId(), policy.userId()));
+            keys.add(concurrencyKey(policy.policyId(), policy.userId()));
             arguments.add(policy.rpm() == null ? -1 : policy.rpm());
             arguments.add(policy.concurrency() == null ? -1 : policy.concurrency());
             arguments.add(Long.toString(policy.policyId()));
@@ -142,18 +142,17 @@ public final class RedisQuotaRateLimiter implements QuotaRateLimiter {
                 : QuotaExceededException.Kind.CONCURRENCY;
             throw new QuotaExceededException(kind, policyId, resetsAt);
         }
-        List<Long> concurrencyPolicies = limited.stream()
+        List<RatePolicy> concurrencyPolicies = limited.stream()
             .filter(policy -> policy.concurrency() != null)
-            .map(RatePolicy::policyId)
             .toList();
         return new RateLease(reservationId, concurrencyPolicies);
     }
 
     @Override
     public void renew(RateLease lease, Instant now) {
-        if (lease.policyIds().isEmpty()) return;
-        List<Object> keys = lease.policyIds().stream().map(RedisQuotaRateLimiter::concurrencyKey)
-            .map(value -> (Object) value).toList();
+        if (lease.concurrencyPolicies().isEmpty()) return;
+        List<Object> keys = lease.concurrencyPolicies().stream()
+            .map(policy -> (Object) concurrencyKey(policy.policyId(), policy.userId())).toList();
         Long renewed = redisson.getScript(StringCodec.INSTANCE).eval(
             RScript.Mode.READ_WRITE,
             RENEW_SCRIPT,
@@ -166,9 +165,9 @@ public final class RedisQuotaRateLimiter implements QuotaRateLimiter {
 
     @Override
     public void release(RateLease lease) {
-        if (lease.policyIds().isEmpty()) return;
-        List<Object> keys = lease.policyIds().stream().map(RedisQuotaRateLimiter::concurrencyKey)
-            .map(value -> (Object) value).toList();
+        if (lease.concurrencyPolicies().isEmpty()) return;
+        List<Object> keys = lease.concurrencyPolicies().stream()
+            .map(policy -> (Object) concurrencyKey(policy.policyId(), policy.userId())).toList();
         redisson.getScript(StringCodec.INSTANCE).eval(
             RScript.Mode.READ_WRITE,
             RELEASE_SCRIPT,
@@ -179,19 +178,19 @@ public final class RedisQuotaRateLimiter implements QuotaRateLimiter {
     }
 
     @Override
-    public Map<Long, RateSnapshot> snapshot(List<Long> policyIds, Instant now) {
+    public Map<Long, RateSnapshot> snapshot(List<RatePolicy> policies, Instant now) {
         Map<Long, RateSnapshot> snapshots = new LinkedHashMap<>();
         double nowMs = now.toEpochMilli();
-        for (Long policyId : policyIds) {
-            RScoredSortedSet<String> rpm = set(rpmKey(policyId));
-            RScoredSortedSet<String> concurrency = set(concurrencyKey(policyId));
+        for (RatePolicy policy : policies) {
+            RScoredSortedSet<String> rpm = set(rpmKey(policy.policyId(), policy.userId()));
+            RScoredSortedSet<String> concurrency = set(concurrencyKey(policy.policyId(), policy.userId()));
             rpm.removeRangeByScore(-Double.MAX_VALUE, true, nowMs - rpmWindow.toMillis(), true);
             concurrency.removeRangeByScore(-Double.MAX_VALUE, true, nowMs, true);
             Double first = rpm.firstScore();
             Instant resetsAt = first == null
                 ? now.plus(rpmWindow)
                 : Instant.ofEpochMilli(first.longValue()).plus(rpmWindow);
-            snapshots.put(policyId, new RateSnapshot(rpm.size(), resetsAt, concurrency.size()));
+            snapshots.put(policy.policyId(), new RateSnapshot(rpm.size(), resetsAt, concurrency.size()));
         }
         return Map.copyOf(snapshots);
     }
@@ -200,12 +199,12 @@ public final class RedisQuotaRateLimiter implements QuotaRateLimiter {
         return redisson.getScoredSortedSet(key, StringCodec.INSTANCE);
     }
 
-    private static String rpmKey(long policyId) {
-        return RPM_PREFIX + policyId;
+    private static String rpmKey(long policyId, long userId) {
+        return RPM_PREFIX + policyId + ':' + userId;
     }
 
-    private static String concurrencyKey(long policyId) {
-        return CONCURRENCY_PREFIX + policyId;
+    private static String concurrencyKey(long policyId, long userId) {
+        return CONCURRENCY_PREFIX + policyId + ':' + userId;
     }
 
     private static Duration requirePositive(Duration value, String name) {

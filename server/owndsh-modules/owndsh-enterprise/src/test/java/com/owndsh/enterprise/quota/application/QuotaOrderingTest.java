@@ -30,9 +30,9 @@ class QuotaOrderingTest {
     void sortsEffectivePoliciesAndWindowLocksByTheSameStableOrder() {
         QuotaPolicyStore store = mock(QuotaPolicyStore.class);
         when(store.findEffective("000000", 101, null)).thenReturn(List.of(
-            policy(30, QuotaSubjectType.MEMBER, 101L),
-            policy(10, QuotaSubjectType.ORGANIZATION, null),
-            policy(20, QuotaSubjectType.MEMBER, 101L)
+            policy(30, QuotaSubjectType.MEMBER, java.util.List.of(101L)),
+            policy(10, QuotaSubjectType.ALL_MEMBERS, java.util.List.of()),
+            policy(20, QuotaSubjectType.MEMBER, java.util.List.of(101L))
         ));
 
         assertThat(new EffectiveQuotaResolver(store).resolve("000000", 101))
@@ -55,9 +55,15 @@ class QuotaOrderingTest {
             );
     }
 
-    private static QuotaPolicy policy(long id, QuotaSubjectType type, Long subjectId) {
+    private static java.util.List<com.owndsh.enterprise.quota.domain.QuotaPolicySubject> toSubjects(java.util.List<Long> subjectIds) {
+        return subjectIds.stream()
+            .map(id -> new com.owndsh.enterprise.quota.domain.QuotaPolicySubject(id, "S" + id))
+            .toList();
+    }
+
+    private static QuotaPolicy policy(long id, QuotaSubjectType type, java.util.List<Long> subjectIds) {
         return new QuotaPolicy(
-            id, "000000", "Policy " + id, QuotaPolicyType.TOKEN, type, subjectId, null,
+            id, "000000", "Policy " + id, QuotaPolicyType.TOKEN, type, toSubjects(subjectIds),
             QuotaResourceType.ALL_MODELS, null, "全部模型", null, 1_000L, null, null,
             null, null, QuotaStatus.ACTIVE, Instant.EPOCH, 0
         );

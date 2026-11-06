@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 TanStack Form、Zod、成员目录、产品对话框及生成的用户组/模型集/授权/配额 DTO。
- * [OUTPUT]: 提供模型授权、互斥 TOKEN/RATE 策略编辑器及删除确认对话框。
+ * [OUTPUT]: 提供模型授权、互斥 TOKEN/RATE 策略编辑器、删除确认对话框与 compactTokens/可读额度工具。
  * [POS]: features/access 的纯表单层；共享主体/资源外壳，但不让 Token 窗口与 RPM/并发出现在同一表单。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -16,7 +16,6 @@ import type {
   ModelSet,
   QuotaPolicy,
   QuotaPolicyWriteRequest,
-  QuotaWindow
 } from '@/api/generated/types.gen';
 import { Button } from '@/components/atoms/Button';
 import { Monogram, monogramColor } from '@/components/atoms/EntityChip';
@@ -136,8 +135,8 @@ export function GrantEditorDialog({ accessGroups, connections, current, error, m
 type QuotaFormValue = {
   name: string;
   policyType: 'TOKEN' | 'RATE';
-  subjectType: 'ORGANIZATION' | 'MEMBER';
-  subjectId: string;
+  subjectType: 'ALL_MEMBERS' | 'ACCESS_GROUP' | 'MEMBER';
+  subjectIds: string[];
   resourceType: 'ALL_MODELS' | 'MODEL_SET' | 'MODEL';
   resourceId: string;
   fiveHourTokenLimit: string;
@@ -150,54 +149,59 @@ type QuotaFormValue = {
 };
 
 const TOKEN_WINDOWS = [
-  { field: 'fiveHourTokenLimit', type: 'FIVE_HOURS', label: '5 小时' },
-  { field: 'dailyTokenLimit', type: 'DAY', label: '每日' },
-  { field: 'weeklyTokenLimit', type: 'WEEK', label: '每周' },
-  { field: 'monthlyTokenLimit', type: 'MONTH', label: '每月' }
+  { field: 'fiveHourTokenLimit', type: 'FIVE_HOURS', label: '5 小时', initial: '2000000' },
+  { field: 'dailyTokenLimit', type: 'DAY', label: '每日', initial: '10000000' },
+  { field: 'weeklyTokenLimit', type: 'WEEK', label: '每周', initial: '50000000' },
+  { field: 'monthlyTokenLimit', type: 'MONTH', label: '每月', initial: '200000000' }
 ] as const;
+
+const TOKEN_PRESETS = [
+  { label: '500K', value: '500000' },
+  { label: '2M', value: '2000000' },
+  { label: '10M', value: '10000000' },
+  { label: '50M', value: '50000000' },
+  { label: '200M', value: '200000000' }
+] as const;
+
+/** 任意输入（含千分位）解析为非负整数；空/非法返回 0。 */
+function parseTokens(value: string) {
+  const digits = value.replace(/[^0-9]/g, '');
+  return digits ? Number(digits) : 0;
+}
+
+/** Token 数量压缩为 K/M/B 可读文本，供表单徽章与列表胶囊共用。 */
+export function compactTokens(value: number | null | undefined) {
+  if (value == null) return '0';
+  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(value % 1_000_000_000 === 0 ? 0 : 1)}B`;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(value % 1_000_000 === 0 ? 0 : 1)}M`;
+  if (value >= 1_000) return `${Math.round(value / 1_000)}K`;
+  return String(value);
+}
 
 function nullableInteger(value: string) {
   return value === '' ? null : Number(value);
 }
 
-function tokenLabel(value: number) {
-  return new Intl.NumberFormat('zh-CN').format(value);
-}
 
-function resetLabel(value: string) {
-  return new Intl.DateTimeFormat('zh-CN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value));
-}
-
-function WindowUsage({ value }: { value?: QuotaWindow }) {
-  if (!value) return <span className="text-[11.5px] text-ink-3">暂无用量</span>;
-  const percent = Math.min(100, value.limit === 0 ? 0 : value.usedTokens / value.limit * 100);
-  return (
-    <div className="grid gap-1">
-      <div className="flex justify-between gap-3 text-[11.5px] tabular-nums text-ink-2"><span>{tokenLabel(value.usedTokens)} / {tokenLabel(value.limit)}</span><span className="text-ink-3">{resetLabel(value.resetsAt)} 重置</span></div>
-      <div className="h-1 overflow-hidden rounded-full bg-line"><div className={percent >= 100 ? 'h-full bg-red' : percent >= 80 ? 'h-full bg-amber-500' : 'h-full bg-green'} style={{ width: `${percent}%` }} /></div>
-    </div>
-  );
-}
-
-export function QuotaEditorDialog({ current, error, modelSets, models, onClose, onSave, policyType, saving, windows, windowsLoading }: {
+export function QuotaEditorDialog({ accessGroups, current, error, members, modelSets, models, onClose, onSave, policyType, saving }: {
+  accessGroups: ReadonlyArray<AccessGroup>;
   current?: QuotaPolicy;
   error?: string;
   modelSets: ReadonlyArray<ModelSet>;
+  members: ReadonlyArray<{ id: string; username: string; displayName: string; status: 'ACTIVE' | 'DISABLED' }>;
   models: ReadonlyArray<ManagedModel>;
   onClose: () => void;
   onSave: (value: QuotaPolicyWriteRequest) => void;
   policyType: 'TOKEN' | 'RATE';
   saving: boolean;
-  windows: ReadonlyArray<QuotaWindow>;
-  windowsLoading: boolean;
 }) {
   const type = current?.policyType ?? policyType;
   const form = useForm({
     defaultValues: {
       name: current?.name ?? '',
       policyType: type,
-      subjectType: current?.subjectType ?? 'MEMBER',
-      subjectId: current?.subjectId ?? '',
+      subjectType: current?.subjectType ?? 'ALL_MEMBERS',
+      subjectIds: current?.subjects.map((subject) => subject.subjectId) ?? [],
       resourceType: current?.resourceType ?? 'ALL_MODELS',
       resourceId: current?.resourceId ?? '',
       fiveHourTokenLimit: current?.fiveHourTokenLimit?.toString() ?? '',
@@ -212,7 +216,7 @@ export function QuotaEditorDialog({ current, error, modelSets, models, onClose, 
       name: value.name.trim(),
       policyType: value.policyType,
       subjectType: value.subjectType,
-      subjectId: value.subjectType === 'ORGANIZATION' ? null : value.subjectId,
+      subjectIds: value.subjectType === 'ALL_MEMBERS' ? [] : value.subjectIds,
       resourceType: value.resourceType,
       resourceId: value.resourceType === 'ALL_MODELS' ? null : value.resourceId,
       fiveHourTokenLimit: type === 'TOKEN' ? nullableInteger(value.fiveHourTokenLimit) : null,
@@ -234,8 +238,8 @@ export function QuotaEditorDialog({ current, error, modelSets, models, onClose, 
             <form.Field name="status">{(field) => <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">状态<select className={inputClass} value={field.state.value} onChange={(event) => field.handleChange(event.target.value as QuotaFormValue['status'])}><option value="ACTIVE">启用</option><option value="DISABLED">停用</option></select></label>}</form.Field>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <form.Field name="subjectType">{(field) => <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">适用对象<select className={inputClass} value={field.state.value} onChange={(event) => { field.handleChange(event.target.value as QuotaFormValue['subjectType']); form.setFieldValue('subjectId', ''); }}><option value="ORGANIZATION">整个组织</option><option value="MEMBER">指定成员</option></select></label>}</form.Field>
-            <form.Subscribe selector={(state) => state.values.subjectType}>{(subjectType) => subjectType === 'MEMBER' ? <form.Field name="subjectId" validators={{ onSubmit: requiredText }}>{(field) => <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">成员<MemberSelect className={inputClass} value={field.state.value} onBlur={field.handleBlur} onValueChange={field.handleChange} /><ErrorText errors={field.state.meta.errors} /></label>}</form.Field> : <div />}</form.Subscribe>
+            <form.Field name="subjectType">{(field) => <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">适用对象<select className={inputClass} value={field.state.value} onChange={(event) => { field.handleChange(event.target.value as QuotaFormValue['subjectType']); form.setFieldValue('subjectIds', []); }}><option value="ALL_MEMBERS">所有成员</option><option value="ACCESS_GROUP">指定用户组</option><option value="MEMBER">指定成员</option></select></label>}</form.Field>
+            <form.Subscribe selector={(state) => state.values.subjectType}>{(subjectType) => subjectType === 'ACCESS_GROUP' ? <form.Field name="subjectIds" validators={{ onSubmit: ({ value }) => value.length > 0 ? undefined : "至少选择 1 个用户组" }}>{(field) => <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">用户组<select multiple aria-label="用户组" className={`${inputClass} h-28`} value={field.state.value} onChange={(event) => field.handleChange(Array.from(event.target.selectedOptions, (option) => option.value))}>{accessGroups.map((group) => <option key={group.id} value={group.id}>{group.name} ({group.memberCount} 人)</option>)}</select><ErrorText errors={field.state.meta.errors} /></label>}</form.Field> : subjectType === 'MEMBER' ? <form.Field name="subjectIds" validators={{ onSubmit: ({ value }) => value.length > 0 ? undefined : "至少选择 1 位成员" }}>{(field) => <div className="grid gap-1.5"><span className="text-[12.5px] font-medium text-ink-2">成员</span><MemberSelect aria-label="成员" className={inputClass} value="" onValueChange={(id) => { if (id && !field.state.value.includes(id)) field.handleChange([...field.state.value, id]); }} />{field.state.value.length > 0 ? <div className="flex flex-wrap gap-1.5">{field.state.value.map((id) => { const member = members.find((candidate) => candidate.id === id); return <button key={id} type="button" className="inline-flex items-center gap-1 rounded-full border border-line bg-field py-0.5 pl-2.5 pr-1 text-xs text-ink transition hover:bg-hover" onClick={() => field.handleChange(field.state.value.filter((candidate) => candidate !== id))}>{member ? member.displayName : id}<X aria-label={`移除 ${member?.displayName ?? id}`} className="size-3 text-ink-3" /></button>; })}</div> : null}<ErrorText errors={field.state.meta.errors} /></div>}</form.Field> : <div />}</form.Subscribe>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <form.Field name="resourceType">{(field) => <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">资源范围<select className={inputClass} value={field.state.value} onChange={(event) => { field.handleChange(event.target.value as QuotaFormValue['resourceType']); form.setFieldValue('resourceId', ''); }}><option value="ALL_MODELS">全部模型</option><option value="MODEL_SET">模型集</option><option value="MODEL">单个模型</option></select></label>}</form.Field>
@@ -246,16 +250,23 @@ export function QuotaEditorDialog({ current, error, modelSets, models, onClose, 
         {type === 'TOKEN' ? <fieldset className="grid gap-0 overflow-hidden rounded-lg border border-line p-0">
           <legend className="mx-3 px-1 text-[12.5px] font-semibold text-ink">Token 额度</legend>
           {TOKEN_WINDOWS.map((item) => {
-            const usage = windows.find((window) => window.windowType === item.type);
             return (
               <form.Field key={item.field} name={item.field} validators={{ onSubmit: optionalPositiveInteger }}>
                 {(field) => {
                   const enabled = field.state.value !== '';
                   return (
-                    <div className="grid gap-2 border-b border-line px-4 py-3 last:border-b-0 sm:grid-cols-[95px_180px_minmax(220px,1fr)] sm:items-center">
-                      <label className="flex items-center gap-2 text-[12.5px] font-medium text-ink-2"><input type="checkbox" checked={enabled} onChange={(event) => field.handleChange(event.target.checked ? '1' : '')} />{item.label}</label>
-                      <div className="grid gap-1"><input aria-label={`${item.label} Token 额度`} type="number" min="1" step="1" placeholder="无限制" className={inputClass} disabled={!enabled} value={field.state.value} onBlur={field.handleBlur} onChange={(event) => field.handleChange(event.target.value)} /><ErrorText errors={field.state.meta.errors} /></div>
-                      {windowsLoading ? <span className="text-[11.5px] text-ink-3">正在读取用量...</span> : <WindowUsage value={usage} />}
+                    <div className="grid gap-2 border-b border-line px-4 py-3 last:border-b-0 sm:grid-cols-[100px_1fr] sm:items-center">
+                      <label className="flex items-center gap-2 text-[12.5px] font-medium text-ink-2"><input type="checkbox" checked={enabled} onChange={(event) => field.handleChange(event.target.checked ? item.initial : '')} />{item.label}</label>
+                      <div className="grid gap-1.5">
+                        {enabled ? <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="relative">
+                            <input aria-label={`${item.label} Token 额度`} type="number" min="1" step="1" className={`${inputClass} w-44 pr-16 font-mono`} value={field.state.value} onBlur={field.handleBlur} onChange={(event) => field.handleChange(event.target.value)} />
+                            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded bg-accent-tint px-1.5 py-0.5 font-mono text-[10px] font-semibold text-accent-ink">≈ {compactTokens(parseTokens(field.state.value))}</span>
+                          </span>
+                          {TOKEN_PRESETS.map((preset) => <button key={preset.label} type="button" className={`rounded-md border px-2 py-1 font-mono text-[11px] transition ${field.state.value === preset.value ? 'border-ink bg-ink font-semibold text-canvas' : 'border-line bg-field text-ink-3 hover:bg-hover hover:text-ink'}`} onClick={() => field.handleChange(preset.value)}>{preset.label}</button>)}
+                        </div> : <button type="button" className="flex h-9 items-center justify-between rounded-lg border border-line bg-field px-3 text-[12.5px] text-ink-3 transition hover:bg-hover" onClick={() => field.handleChange(item.initial)}><span>无限制</span><span className="text-[11px] font-medium">勾选左侧开启限制</span></button>}
+                        <ErrorText errors={field.state.meta.errors} />
+                      </div>
                     </div>
                   );
                 }}

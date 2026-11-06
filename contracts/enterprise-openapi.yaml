@@ -957,6 +957,7 @@ components:
     QuotaWindowType: {$ref: './components/quota.yaml#/QuotaWindowType'}
     UsageResult: {$ref: './components/quota.yaml#/UsageResult'}
     QuotaPolicyWriteRequest: {$ref: './components/quota.yaml#/QuotaPolicyWriteRequest'}
+    QuotaSubject: {$ref: './components/quota.yaml#/QuotaSubject'}
     QuotaPolicy: {$ref: './components/quota.yaml#/QuotaPolicy'}
     QuotaPolicyResponse: {$ref: './components/quota.yaml#/QuotaPolicyResponse'}
     QuotaPolicyPageData: {$ref: './components/quota.yaml#/QuotaPolicyPageData'}
@@ -1194,12 +1195,15 @@ components:
     AccessGroupInUseDetails:
       type: object
       additionalProperties: false
-      required: [modelGrantCount, mcpGrantCount, externalGroupMappingCount]
+      required: [modelGrantCount, mcpGrantCount, quotaPolicyCount, externalGroupMappingCount]
       properties:
         modelGrantCount:
           type: integer
           minimum: 0
         mcpGrantCount:
+          type: integer
+          minimum: 0
+        quotaPolicyCount:
           type: integer
           minimum: 0
         externalGroupMappingCount:

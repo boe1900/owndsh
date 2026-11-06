@@ -36,6 +36,7 @@ import com.owndsh.enterprise.quota.domain.QuotaSubjectType;
 import com.owndsh.enterprise.quota.domain.ReservationState;
 import com.owndsh.enterprise.quota.domain.UsageLedgerMetadata;
 import com.owndsh.enterprise.quota.domain.UsageResult;
+import com.owndsh.enterprise.quota.domain.QuotaWindowType;
 import com.owndsh.enterprise.quota.persistence.JdbcQuotaPolicyStore;
 import com.owndsh.enterprise.quota.persistence.JdbcQuotaRuntimeConfigStore;
 import com.owndsh.enterprise.quota.persistence.JdbcQuotaWindowStore;
@@ -62,6 +63,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -82,11 +84,15 @@ class QuotaManagementIntegrationTest {
     private static final long DEVICE_ID = 1_900_900_000_000_000_003L;
     private static final long MODEL_SET_ID = 1_900_900_000_000_000_004L;
     private static final long USER_ID = 1_900_900_000_000_900_001L;
+    private static final long SECOND_USER_ID = 1_900_900_000_000_900_002L;
     private static final long DEPARTMENT_ID = 1_761_000_000_000_000_103L;
     private static final UUID INSTALLATION = UUID.fromString("123e4567-e89b-42d3-a456-426614174099");
     private static final AtomicLong SEQUENCE = new AtomicLong(1_900_900_100_000_000_000L);
 
     private static PostgresTestDatabase.Database database;
+    private static TransactionTemplate SHARED_TRANSACTIONS;
+    private static JdbcAuditSink SHARED_AUDIT;
+    private static JdbcBootstrapRevisionStore SHARED_REVISIONS;
     private static QuotaPolicyStore policyStore;
     private static UsageReservationStore reservationStore;
     private static UsageLedgerStore ledgerStore;
@@ -100,19 +106,22 @@ class QuotaManagementIntegrationTest {
         database = PostgresTestDatabase.create("t09_quota_management");
         PostgresTestDatabase.migrate(database, null);
         PostgresTestDatabase.insertActiveUser(
+            database, SECOND_USER_ID, DEPARTMENT_ID, "quota-second", "Quota Second"
+        );
+        PostgresTestDatabase.insertActiveUser(
             database, USER_ID, DEPARTMENT_ID, "t09-quota-user", "T09 Quota User"
         );
         insertModelAndDevice();
 
         var transactionManager = new DataSourceTransactionManager(database.dataSource());
-        TransactionTemplate transactions = new TransactionTemplate(transactionManager);
+        TransactionTemplate transactions = SHARED_TRANSACTIONS = new TransactionTemplate(transactionManager);
         TransactionTemplate independent = new TransactionTemplate(transactionManager);
         independent.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         JsonMapper json = JsonMapper.builder().build();
         LongSupplier ids = SEQUENCE::incrementAndGet;
-        var audit = new JdbcAuditSink(database.jdbc(), json);
-        var revisions = new JdbcBootstrapRevisionStore(database.jdbc());
-        policyStore = new JdbcQuotaPolicyStore(database.jdbc());
+        var audit = SHARED_AUDIT = new JdbcAuditSink(database.jdbc(), json);
+        var revisions = SHARED_REVISIONS = new JdbcBootstrapRevisionStore(database.jdbc());
+        policyStore = new JdbcQuotaPolicyStore(database.jdbc(), tools.jackson.databind.json.JsonMapper.builder().build());
         QuotaWindowStore windows = new JdbcQuotaWindowStore(database.jdbc());
         reservationStore = new JdbcUsageReservationStore(database.jdbc(), json);
         ledgerStore = new JdbcUsageLedgerStore(database.jdbc());
@@ -173,18 +182,18 @@ class QuotaManagementIntegrationTest {
 
         QuotaMutationContext mutation = mutation("req_01ARZ3NDEKTSV4RRFFQ69G5FAA");
         QuotaPolicy memberRate = policyService.create(mutation, rateSpec(
-            "T09 Member Rate", QuotaSubjectType.MEMBER, USER_ID, 15, 3
+            "T09 Member Rate", QuotaSubjectType.MEMBER, java.util.List.of(USER_ID), 15, 3
         ));
         QuotaPolicy user = policyService.create(mutation, tokenSpec(
-            "T09 Member", QuotaSubjectType.MEMBER, USER_ID, 100_000L, 2_000_000L
+            "T09 Member", QuotaSubjectType.MEMBER, java.util.List.of(USER_ID), 100_000L, 2_000_000L
         ));
         assertThat(resolver.resolve(TENANT, USER_ID))
             .extracting(QuotaPolicy::subjectType)
-            .containsExactly(QuotaSubjectType.ORGANIZATION, QuotaSubjectType.MEMBER, QuotaSubjectType.MEMBER);
+            .containsExactly(QuotaSubjectType.ALL_MEMBERS, QuotaSubjectType.MEMBER, QuotaSubjectType.MEMBER);
         long userPolicyId = user.id();
         String userPolicyName = user.name();
         assertThatThrownBy(() -> policyService.update(mutation, userPolicyId, 99, tokenSpec(
-            userPolicyName, QuotaSubjectType.MEMBER, USER_ID, 100_000L, null
+            userPolicyName, QuotaSubjectType.MEMBER, java.util.List.of(USER_ID), 100_000L, null
         ))).isInstanceOf(RevisionConflictException.class);
 
         BootstrapView bootstrap = BootstrapView.from(new BootstrapService.BootstrapSnapshot(
@@ -202,18 +211,18 @@ class QuotaManagementIntegrationTest {
         assertThat(bootstrap.quotas().getLast().policyId()).isEqualTo(Long.toString(user.id()));
 
         QuotaPolicy temporary = policyService.create(mutation, rateSpec(
-            "T09 Temporary", QuotaSubjectType.MEMBER, USER_ID, 1, null
+            "T09 Temporary", QuotaSubjectType.MEMBER, java.util.List.of(USER_ID), 1, null
         ));
         policyService.delete(mutation, temporary.id(), 0);
         assertThatThrownBy(() -> policyService.get(TENANT, temporary.id()))
             .isInstanceOf(RuntimeException.class).hasMessageContaining("不存在");
 
         QuotaPolicy historical = policyService.create(mutation, rateSpec(
-            "T09 Historical", QuotaSubjectType.MEMBER, USER_ID, 1, null
+            "T09 Historical", QuotaSubjectType.MEMBER, java.util.List.of(USER_ID), 1, null
         ));
         database.jdbc().update(
-            "insert into ent_quota_window(id, tenant_id, policy_id, window_type, window_start) values (?, ?, ?, 'DAY', now())",
-            SEQUENCE.incrementAndGet(), TENANT, historical.id()
+            "insert into ent_quota_window(id, tenant_id, policy_id, user_id, window_type, window_start) values (?, ?, ?, ?, 'DAY', now())",
+            SEQUENCE.incrementAndGet(), TENANT, historical.id(), USER_ID
         );
         assertThatThrownBy(() -> policyService.delete(mutation, historical.id(), historical.revision()))
             .isInstanceOf(QuotaPolicyInUseException.class)
@@ -227,7 +236,7 @@ class QuotaManagementIntegrationTest {
         );
         memberRate = policyService.setStatus(mutation, memberRate.id(), memberRate.revision(), QuotaStatus.DISABLED);
         user = policyService.update(mutation, user.id(), user.revision(), tokenSpec(
-            user.name(), QuotaSubjectType.MEMBER, USER_ID, 250L, 10_000L
+            user.name(), QuotaSubjectType.MEMBER, java.util.List.of(USER_ID), 250L, 10_000L
         ));
         assertThat(resolver.resolve(TENANT, USER_ID)).containsExactly(user);
 
@@ -250,7 +259,7 @@ class QuotaManagementIntegrationTest {
         )).isZero();
 
         user = policyService.update(mutation, user.id(), user.revision(), tokenSpec(
-            user.name(), QuotaSubjectType.MEMBER, USER_ID, 100_000L, 2_000_000L
+            user.name(), QuotaSubjectType.MEMBER, java.util.List.of(USER_ID), 100_000L, 2_000_000L
         ));
         QuotaReservationService.ActiveReservation released = reservationService.reserve(command(20, "0FAB"));
         assertThatThrownBy(() -> reservationService.reserve(replay(released, 20)))
@@ -349,7 +358,7 @@ class QuotaManagementIntegrationTest {
         assertThat(memberRate.status()).isEqualTo(QuotaStatus.DISABLED);
 
         user = policyService.update(mutation, user.id(), user.revision(), tokenSpec(
-            user.name(), QuotaSubjectType.MEMBER, USER_ID, 110L, 2_000_000L
+            user.name(), QuotaSubjectType.MEMBER, java.util.List.of(USER_ID), 110L, 2_000_000L
         ));
         var last = reservationService.markSent(reservationService.reserve(command(10, "0FB0")));
         var inFlight = reservationService.markSent(reservationService.reserve(command(10, "0FB1")));
@@ -374,12 +383,12 @@ class QuotaManagementIntegrationTest {
     @Test
     void rejectsMixedTokenAndRatePoliciesAtDomainAndDatabaseBoundaries() {
         assertThatThrownBy(() -> new QuotaPolicySpec(
-            "Mixed", QuotaPolicyType.TOKEN, QuotaSubjectType.MEMBER, USER_ID,
+            "Mixed", QuotaPolicyType.TOKEN, QuotaSubjectType.MEMBER, java.util.List.of(USER_ID),
             QuotaResourceType.ALL_MODELS, null, null, 1000L, null, null, 10, null,
             QuotaStatus.ACTIVE
         )).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("TOKEN 策略");
         assertThatThrownBy(() -> new QuotaPolicySpec(
-            "Provider Resource", QuotaPolicyType.RATE, QuotaSubjectType.ORGANIZATION, null,
+            "Provider Resource", QuotaPolicyType.RATE, QuotaSubjectType.ALL_MEMBERS, null,
             null, PROVIDER_ID, null, null, null, null, 10, null, QuotaStatus.ACTIVE
         )).isInstanceOf(NullPointerException.class);
 
@@ -432,9 +441,13 @@ class QuotaManagementIntegrationTest {
     }
 
     private static QuotaReservationCommand command(long estimatedTokens, String suffix) {
+        return command(USER_ID, estimatedTokens, suffix);
+    }
+
+    private static QuotaReservationCommand command(long userId, long estimatedTokens, String suffix) {
         UUID key = UUID.randomUUID();
         return new QuotaReservationCommand(
-            TENANT, USER_ID, DEPARTMENT_ID, DEVICE_ID, MODEL_ID, key,
+            TENANT, userId, DEPARTMENT_ID, DEVICE_ID, MODEL_ID, key,
             "req_01ARZ3NDEKTSV4RRFFQ69G" + suffix, estimatedTokens, "127.0.0.1", new byte[32]
         );
     }
@@ -449,15 +462,23 @@ class QuotaManagementIntegrationTest {
         );
     }
 
+    private static QuotaPolicySpec groupTokenSpec(long groupId) {
+        return new QuotaPolicySpec(
+            "T09 Group Guarded", QuotaPolicyType.TOKEN, QuotaSubjectType.ACCESS_GROUP,
+            java.util.List.of(groupId), QuotaResourceType.ALL_MODELS, null,
+            null, 50_000L, null, null, null, null, QuotaStatus.ACTIVE
+        );
+    }
+
     private static QuotaPolicySpec tokenSpec(
         String name,
         QuotaSubjectType type,
-        Long subjectId,
+        java.util.List<Long> subjectIds,
         Long daily,
         Long monthly
     ) {
         return new QuotaPolicySpec(
-            name, QuotaPolicyType.TOKEN, type, subjectId, QuotaResourceType.ALL_MODELS, null,
+            name, QuotaPolicyType.TOKEN, type, subjectIds, QuotaResourceType.ALL_MODELS, null,
             null, daily, null, monthly, null, null, QuotaStatus.ACTIVE
         );
     }
@@ -465,12 +486,12 @@ class QuotaManagementIntegrationTest {
     private static QuotaPolicySpec rateSpec(
         String name,
         QuotaSubjectType type,
-        Long subjectId,
+        java.util.List<Long> subjectIds,
         Integer rpm,
         Integer concurrency
     ) {
         return new QuotaPolicySpec(
-            name, QuotaPolicyType.RATE, type, subjectId, QuotaResourceType.ALL_MODELS, null,
+            name, QuotaPolicyType.RATE, type, subjectIds, QuotaResourceType.ALL_MODELS, null,
             null, null, null, null, rpm, concurrency, QuotaStatus.ACTIVE
         );
     }
@@ -485,7 +506,7 @@ class QuotaManagementIntegrationTest {
         Long monthly
     ) {
         return new QuotaPolicySpec(
-            name, QuotaPolicyType.TOKEN, QuotaSubjectType.MEMBER, USER_ID, resourceType, resourceId,
+            name, QuotaPolicyType.TOKEN, QuotaSubjectType.MEMBER, java.util.List.of(USER_ID), resourceType, resourceId,
             fiveHours, daily, weekly, monthly, null, null, QuotaStatus.ACTIVE
         );
     }
@@ -546,10 +567,141 @@ class QuotaManagementIntegrationTest {
         }
 
         @Override
-        public Map<Long, RateSnapshot> snapshot(List<Long> policyIds, Instant now) {
+        public Map<Long, RateSnapshot> snapshot(List<RatePolicy> policies, Instant now) {
             Map<Long, RateSnapshot> values = new LinkedHashMap<>();
-            policyIds.forEach(id -> values.put(id, new RateSnapshot(0, now.plusSeconds(60), 0)));
+            policies.forEach(policy -> values.put(policy.policyId(), new RateSnapshot(0, now.plusSeconds(60), 0)));
             return Map.copyOf(values);
         }
+    }
+
+    @Test
+    void multiSubjectPolicyGrantsEachMemberAnIndependentWindow() {
+        QuotaMutationContext mutation = mutation("req_01ARZ3NDEKTSV4RRFFQ69G5FAA");
+        QuotaPolicy shared = policyService.create(mutation, tokenSpec(
+            "T09 Shared Two Members", QuotaSubjectType.MEMBER,
+            java.util.List.of(USER_ID, SECOND_USER_ID), 100_000L, null
+        ));
+
+        // 用户 A 消耗 80,000：窗口（A）满载，窗口（B）不受影响
+        var first = reservationService.reserve(command(USER_ID, 80_000, "0FB1"));
+        reservationService.settle(reservationService.markSent(first), new UsageTokens(80_000, 0, 0), null);
+
+        // 用户 A 再请求 25,000 → 超限；用户 B 同样额度请求 25,000 → 放行
+        assertThatThrownBy(() -> reservationService.reserve(command(USER_ID, 25_000, "0FB2")))
+            .isInstanceOf(QuotaExceededException.class);
+        var second = reservationService.reserve(command(SECOND_USER_ID, 25_000, "0FB3"));
+        assertThat(second).isNotNull();
+
+        // 两用户窗口行独立：同策略同类型同起点各持一行
+        var rows = database.jdbc().queryForList("""
+            select user_id, used_tokens from ent_quota_window
+             where policy_id = ? and window_type = 'DAY' and user_id in (?, ?)
+            """, shared.id(), USER_ID, SECOND_USER_ID);
+        assertThat(rows).hasSize(2);
+
+        // P1 回归：真实 JDBC 聚合读——管理端窗口接口跨主体合计（A 已用 80k + B 预留 25k）
+        var dayWindows = usageQuery.currentWindows(TENANT, shared).stream()
+            .filter(window -> window.type() == QuotaWindowType.DAY).findFirst().orElseThrow();
+        assertThat(dayWindows.usedTokens()).isEqualTo(80_000L);
+        assertThat(dayWindows.reservedTokens()).isEqualTo(25_000L);
+
+        // P1 回归：引用配额策略的用户组不可删除（否则策略孤儿化、成员绕过限制）
+        long groupId = SEQUENCE.incrementAndGet();
+        database.jdbc().update(
+            "insert into ent_access_group (id, tenant_id, name, revision) values (?, ?, 'quota-guarded', 0)",
+            groupId, TENANT
+        );
+        com.owndsh.enterprise.auth.application.AccessGroupService groupService =
+            new com.owndsh.enterprise.auth.application.AccessGroupService(
+                SHARED_TRANSACTIONS, database.jdbc(), SHARED_REVISIONS, SHARED_AUDIT, SEQUENCE::incrementAndGet);
+        QuotaPolicy groupQuota = policyService.create(mutation, groupTokenSpec(groupId));
+        var identityMutation = new com.owndsh.enterprise.auth.application.IdentityMutationContext(
+            TENANT, 1, "req_01ARZ3NDEKTSV4RRFFQ69G5FAA", "127.0.0.1", new byte[32]);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> groupService.delete(identityMutation, groupId, 0))
+            .isInstanceOf(com.owndsh.enterprise.auth.application.AccessGroupInUseException.class);
+        // 解除引用后删除成功
+        policyService.delete(mutation, groupQuota.id(), groupQuota.revision());
+        groupService.delete(identityMutation, groupId, 0);
+
+        // 直连清理：策略已产生窗口记录，走服务 delete 会被历史窗口保护拦截
+        database.jdbc().update("delete from ent_quota_window where policy_id = ?", shared.id());
+        database.jdbc().update("delete from ent_quota_policy_subject where policy_id = ?", shared.id());
+        database.jdbc().update("delete from ent_quota_policy where id = ?", shared.id());
+        database.jdbc().update("delete from ent_audit_event where request_id like 'req_01ARZ3NDEKTSV4RRFFQ69G0FB%'");
+        database.jdbc().update("delete from ent_usage_ledger where request_id like 'req_01ARZ3NDEKTSV4RRFFQ69G0FB%'");
+        database.jdbc().update("delete from ent_usage_reservation where request_id like 'req_01ARZ3NDEKTSV4RRFFQ69G0FB%'");
+    }
+
+    @Test
+    void concurrentGroupDeleteCannotOrphanAQuotaPolicy() throws Exception {
+        long groupId = SEQUENCE.incrementAndGet();
+        database.jdbc().update(
+            "insert into ent_access_group (id, tenant_id, name, revision) values (?, ?, 'race-guarded', 0)",
+            groupId, TENANT
+        );
+        var groupService = new com.owndsh.enterprise.auth.application.AccessGroupService(
+            SHARED_TRANSACTIONS, database.jdbc(), SHARED_REVISIONS, SHARED_AUDIT, SEQUENCE::incrementAndGet);
+        var identityMutation = new com.owndsh.enterprise.auth.application.IdentityMutationContext(
+            TENANT, 1, "req_01ARZ3NDEKTSV4RRFFQ69G5FB0", "127.0.0.1", new byte[32]);
+
+        // 同步点：在 create 服务事务内、insert 落库后挂起——此刻 requireReferences 的 key share
+        // 已由生产代码持有且事务未提交。若校验被移出服务事务或去掉锁，删除将不被阻塞并使断言失败。
+        var insertEntered = new java.util.concurrent.CountDownLatch(1);
+        var releaseInsert = new java.util.concurrent.CountDownLatch(1);
+        QuotaPolicyStore guarded = new DelegatingQuotaPolicyStore(policyStore) {
+            @Override
+            public void insert(QuotaPolicy policy) {
+                super.insert(policy);
+                insertEntered.countDown();
+                try {
+                    releaseInsert.await();
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException(exception);
+                }
+            }
+        };
+        QuotaPolicyService guardedService = new QuotaPolicyService(
+            SHARED_TRANSACTIONS, guarded, SHARED_REVISIONS, SHARED_AUDIT, SEQUENCE::incrementAndGet);
+
+        // 直接调用真实 create（服务自身事务边界，不额外包测试事务）
+        var creation = java.util.concurrent.CompletableFuture.runAsync(
+            () -> guardedService.create(mutation("req_01ARZ3NDEKTSV4RRFFQ69G5FB1"), groupTokenSpec(groupId)));
+        assertThat(insertEntered.await(10, java.util.concurrent.TimeUnit.SECONDS))
+            .as("create 应已在服务事务内完成主体加锁与插入").isTrue();
+
+        var deletion = java.util.concurrent.CompletableFuture.runAsync(
+            () -> groupService.delete(identityMutation, groupId, 0));
+        // 探测性等待：锁有效则删除被阻塞到超时（线程同步，而非固定 sleep 后的 isDone 竞态）
+        assertThatThrownBy(() -> deletion.get(600, java.util.concurrent.TimeUnit.MILLISECONDS))
+            .as("组删除应被 create 服务事务的 for key share 阻塞")
+            .isInstanceOf(java.util.concurrent.TimeoutException.class);
+
+        releaseInsert.countDown();
+        creation.get(10, java.util.concurrent.TimeUnit.SECONDS);
+        assertThatThrownBy(() -> deletion.get(10, java.util.concurrent.TimeUnit.SECONDS))
+            .isInstanceOf(java.util.concurrent.ExecutionException.class)
+            .hasCauseInstanceOf(com.owndsh.enterprise.auth.application.AccessGroupInUseException.class);
+
+        // 清理
+        database.jdbc().update("delete from ent_quota_policy where name = 'T09 Group Guarded' and tenant_id = ?", TENANT);
+        database.jdbc().update("delete from ent_access_group where id = ?", groupId);
+    }
+
+    /** 委托包装：单点拦截 insert 作为事务内同步点，其余直通真实 store。 */
+    private static class DelegatingQuotaPolicyStore implements QuotaPolicyStore {
+        private final QuotaPolicyStore delegate;
+        DelegatingQuotaPolicyStore(QuotaPolicyStore delegate) { this.delegate = delegate; }
+        @Override public List<QuotaPolicy> list(String tenantId, long afterId, int limit) { return delegate.list(tenantId, afterId, limit); }
+        @Override public Optional<QuotaPolicy> find(String tenantId, long id) { return delegate.find(tenantId, id); }
+        @Override public List<QuotaPolicy> findEffective(String tenantId, long userId, Long modelId) { return delegate.findEffective(tenantId, userId, modelId); }
+        @Override public boolean subjectExists(String tenantId, QuotaSubjectType type, Long subjectId) { return delegate.subjectExists(tenantId, type, subjectId); }
+        @Override public String subjectName(String tenantId, QuotaSubjectType type, Long subjectId) { return delegate.subjectName(tenantId, type, subjectId); }
+        @Override public boolean resourceExists(String tenantId, QuotaResourceType type, Long resourceId) { return delegate.resourceExists(tenantId, type, resourceId); }
+        @Override public void insert(QuotaPolicy policy) { delegate.insert(policy); }
+        @Override public boolean update(QuotaPolicy policy, long expectedRevision) { return delegate.update(policy, expectedRevision); }
+        @Override public boolean setStatus(String tenantId, long id, long expectedRevision, QuotaStatus status) { return delegate.setStatus(tenantId, id, expectedRevision, status); }
+        @Override public long windowCount(String tenantId, long id) { return delegate.windowCount(tenantId, id); }
+        @Override public boolean delete(String tenantId, long id, long expectedRevision) { return delegate.delete(tenantId, id, expectedRevision); }
     }
 }

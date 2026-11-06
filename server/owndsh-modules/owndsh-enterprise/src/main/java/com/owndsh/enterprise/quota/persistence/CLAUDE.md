@@ -5,11 +5,11 @@
 成员清单
 
 QuotaPolicyStore.java: 策略 CRUD/CAS、历史窗口计数、主体/资源存在性和按模型生效查询端口。
-JdbcQuotaPolicyStore.java: 带 TOKEN/RATE 判别的 ent_quota_policy、历史窗口、成员、供应商、模型集与模型资源投影及按当前模型匹配 PostgreSQL adapter。
+JdbcQuotaPolicyStore.java: 带 TOKEN/RATE 判别的 ent_quota_policy/ent_quota_policy_subject、主体集合 jsonb_agg 投影、整组替换写主体、历史窗口与按当前模型匹配 PostgreSQL adapter。
 QuotaSubjectStore.java: runtime 当前 ACTIVE Host 用户与部门最小事实查询端口。
 JdbcQuotaSubjectStore.java: 固定部署 sys_user 状态/删除标记约束的配额用户 adapter。
-QuotaWindowStore.java: 当前窗口创建/锁定、计数调整和读查询端口。
-JdbcQuotaWindowStore.java: ent_quota_window ON CONFLICT + FOR UPDATE 防超卖 adapter。
+QuotaWindowStore.java: 按用户隔离的窗口创建/锁定、计数调整、单用户读与跨主体合计（WindowTotals 聚合值对象，不伪造持久化行）端口。
+JdbcQuotaWindowStore.java: ent_quota_window 按 (策略, 用户) 隔离的 ON CONFLICT + FOR UPDATE 防超卖 adapter，并提供策略跨主体合计读。
 QuotaRuntimeConfigStore.java: tenant 部署时区首次写入与后续一致性验证端口。
 JdbcQuotaRuntimeConfigStore.java: V6 不可变时区事实的 PostgreSQL adapter，不暴露修改能力。
 UsageReservationStore.java: 幂等 reservation、状态 CAS、最终 usage 快照与过期 SKIP LOCKED 领取端口。

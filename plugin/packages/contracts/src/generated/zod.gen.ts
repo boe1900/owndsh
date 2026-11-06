@@ -160,6 +160,7 @@ export const zModelSetInUseDetails = z.object({
 export const zAccessGroupInUseDetails = z.object({
     modelGrantCount: z.int().gte(0),
     mcpGrantCount: z.int().gte(0),
+    quotaPolicyCount: z.int().gte(0),
     externalGroupMappingCount: z.int().gte(0)
 }).strict();
 
@@ -2322,7 +2323,18 @@ export const zQuotaQuotaStatus = z.enum(['ACTIVE', 'DISABLED']);
 
 export const zQuotaStatus = zQuotaQuotaStatus;
 
-export const zQuotaQuotaSubjectType = z.enum(['ORGANIZATION', 'MEMBER']);
+export const zQuotaQuotaSubject = z.object({
+    subjectId: z.string().regex(/^[1-9][0-9]{0,18}$/),
+    subjectName: z.string().min(1).max(120)
+}).strict();
+
+export const zQuotaSubject = zQuotaQuotaSubject;
+
+export const zQuotaQuotaSubjectType = z.enum([
+    'ALL_MEMBERS',
+    'ACCESS_GROUP',
+    'MEMBER'
+]);
 
 export const zQuotaSubjectType = zQuotaQuotaSubjectType;
 
@@ -2346,8 +2358,7 @@ export const zQuotaQuotaPolicy = z.object({
     name: z.string().min(1).max(120),
     policyType: zQuotaQuotaPolicyType,
     subjectType: zQuotaQuotaSubjectType,
-    subjectId: zNullableResourceId,
-    subjectName: z.string().min(1).max(120).nullable(),
+    subjects: z.array(zQuotaQuotaSubject).min(0),
     resourceType: zQuotaQuotaResourceType,
     resourceId: zNullableResourceId,
     resourceName: z.string().min(1).max(120).nullable(),
@@ -2391,7 +2402,7 @@ export const zQuotaQuotaPolicyWriteRequest = z.object({
     name: z.string().min(1).max(120),
     policyType: zQuotaQuotaPolicyType,
     subjectType: zQuotaQuotaSubjectType,
-    subjectId: zNullableResourceId,
+    subjectIds: z.array(z.string().regex(/^[1-9][0-9]{0,18}$/)).min(0).max(1000),
     resourceType: zQuotaQuotaResourceType,
     resourceId: zNullableResourceId,
     fiveHourTokenLimit: zNullablePositiveLong,

@@ -43,8 +43,8 @@ class RedisQuotaRateLimiterTest {
         RedisQuotaRateLimiter limiter = new RedisQuotaRateLimiter(REDIS);
         Instant now = Instant.parse("2026-08-18T10:00:00Z");
         List<QuotaRateLimiter.RatePolicy> policies = List.of(
-            new QuotaRateLimiter.RatePolicy(101, 2, 1),
-            new QuotaRateLimiter.RatePolicy(102, 10, 2)
+            new QuotaRateLimiter.RatePolicy(101, 1L, 2, 1),
+            new QuotaRateLimiter.RatePolicy(102, 1L, 10, 2)
         );
         QuotaRateLimiter.RateLease first = limiter.acquire(UUID.randomUUID(), policies, now);
 
@@ -52,7 +52,7 @@ class RedisQuotaRateLimiterTest {
             .isInstanceOf(QuotaExceededException.class)
             .extracting("kind", "policyId")
             .containsExactly(QuotaExceededException.Kind.CONCURRENCY, 101L);
-        assertThat(limiter.snapshot(List.of(101L, 102L), now.plusMillis(2))).satisfies(snapshot -> {
+        assertThat(limiter.snapshot(policies, now.plusMillis(2))).satisfies(snapshot -> {
             assertThat(snapshot.get(101L).rpmCurrent()).isEqualTo(1);
             assertThat(snapshot.get(102L).rpmCurrent()).isEqualTo(1);
             assertThat(snapshot.get(102L).concurrencyCurrent()).isEqualTo(1);
@@ -73,7 +73,7 @@ class RedisQuotaRateLimiterTest {
             REDIS, Duration.ofSeconds(5), Duration.ofMillis(500)
         );
         List<QuotaRateLimiter.RatePolicy> policies = List.of(
-            new QuotaRateLimiter.RatePolicy(201, null, 1)
+            new QuotaRateLimiter.RatePolicy(201, 1L, null, 1)
         );
         Instant now = Instant.now();
         QuotaRateLimiter.RateLease lease = limiter.acquire(UUID.randomUUID(), policies, now);
@@ -84,7 +84,7 @@ class RedisQuotaRateLimiterTest {
             .isInstanceOf(QuotaExceededException.class);
         Thread.sleep(250);
         QuotaRateLimiter.RateLease recovered = limiter.acquire(UUID.randomUUID(), policies, Instant.now());
-        assertThat(recovered.policyIds()).containsExactly(201L);
+        assertThat(recovered.concurrencyPolicies()).extracting(QuotaRateLimiter.RatePolicy::policyId).containsExactly(201L);
         limiter.release(recovered);
     }
 }

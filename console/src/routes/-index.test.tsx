@@ -514,20 +514,20 @@ function mockApi(role: AuthBuiltInRole, logoutStatus = 200, permissions: string[
       return json({
         data: {
           items: [{
-            id: 'quota-1', name: '组织默认策略', subjectType: 'ORGANIZATION', subjectId: null,
+            id: 'quota-1', name: '组织默认策略', subjectType: 'ALL_MEMBERS', subjects: [],
             policyType: 'TOKEN',
             subjectName: null, resourceType: 'ALL_MODELS', resourceId: null, resourceName: '全部模型',
             fiveHourTokenLimit: 100_000, dailyTokenLimit: null, weeklyTokenLimit: null, monthlyTokenLimit: null,
             rpm: null, concurrency: null, status: 'ACTIVE', revision: 0
           }, {
             id: 'quota-rate-1', name: '组织速率限制', policyType: 'RATE',
-            subjectType: 'ORGANIZATION', subjectId: null, subjectName: null,
+            subjectType: 'ALL_MEMBERS', subjects: [],
             resourceType: 'ALL_MODELS', resourceId: null, resourceName: '全部模型',
             fiveHourTokenLimit: null, dailyTokenLimit: null, weeklyTokenLimit: null, monthlyTokenLimit: null,
             rpm: 60, concurrency: 4, status: 'ACTIVE', revision: 0
           }, {
             id: 'quota-provider-1', name: 'OpenAI 供应商容量', policyType: 'RATE',
-            subjectType: 'ORGANIZATION', subjectId: null, subjectName: null,
+            subjectType: 'ALL_MEMBERS', subjects: [],
             resourceType: 'MODEL', resourceId: 'model-1', resourceName: 'GPT-4',
             fiveHourTokenLimit: null, dailyTokenLimit: null, weeklyTokenLimit: null, monthlyTokenLimit: null,
             rpm: 120, concurrency: 8, status: 'ACTIVE', revision: 3
@@ -1001,8 +1001,8 @@ describe('product console access', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: 'Token 配额' }));
     expect(await screen.findByText('组织默认策略')).toBeTruthy();
-    expect(screen.getByText('5 小时 100,000')).toBeTruthy();
-    expect(screen.getByText('每日 无限制')).toBeTruthy();
+    expect(screen.getByTitle('5小时上限: 100,000 Tokens')).toBeTruthy();
+    expect(screen.queryByText(/每日/)).toBeNull();
 
     fireEvent.click(screen.getByRole('tab', { name: '速率限制' }));
     expect(await screen.findByText('60')).toBeTruthy();
@@ -1054,7 +1054,7 @@ describe('product console access', () => {
     });
   });
 
-  it('creates all four token windows for one model set and reads current usage', async () => {
+  it('creates all four token windows for one model set', async () => {
     const writes = renderRoute('/access', 'model_admin', 200, ['ent:grant:write']);
     expect(await screen.findByText('gpt-5.6-sol')).toBeTruthy();
     fireEvent.click(screen.getByRole('tab', { name: 'Token 配额' }));
@@ -1064,7 +1064,7 @@ describe('product console access', () => {
     let dialog = screen.getByRole('dialog', { name: '新建 Token 配额' });
     expect(within(dialog).queryByText('每分钟请求（RPM）')).toBeNull();
     fireEvent.change(within(dialog).getByLabelText('策略名称'), { target: { value: '编码额度' } });
-    fireEvent.change(within(dialog).getByLabelText('适用对象'), { target: { value: 'ORGANIZATION' } });
+    fireEvent.change(within(dialog).getByLabelText('适用对象'), { target: { value: 'ALL_MEMBERS' } });
     fireEvent.change(within(dialog).getByLabelText('资源范围'), { target: { value: 'MODEL_SET' } });
     fireEvent.change(within(dialog).getByLabelText('模型集'), { target: { value: 'set-1' } });
     for (const [label, value] of [['5 小时', '100000'], ['每日', '300000'], ['每周', '1000000'], ['每月', '3000000']] as const) {
@@ -1076,7 +1076,7 @@ describe('product console access', () => {
     await waitFor(() => expect(writes).toHaveLength(1));
     expect(writes[0]).toMatchObject({
       body: {
-        name: '编码额度', policyType: 'TOKEN', subjectType: 'ORGANIZATION', subjectId: null,
+        name: '编码额度', policyType: 'TOKEN', subjectType: 'ALL_MEMBERS', subjectIds: [],
         resourceType: 'MODEL_SET', resourceId: 'set-1',
         fiveHourTokenLimit: 100_000, dailyTokenLimit: 300_000,
         weeklyTokenLimit: 1_000_000, monthlyTokenLimit: 3_000_000,
@@ -1089,7 +1089,9 @@ describe('product console access', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: '编辑配额策略' }));
     dialog = screen.getByRole('dialog', { name: '编辑 Token 配额' });
-    expect(await within(dialog).findByText('25,000 / 100,000')).toBeTruthy();
+    expect((within(dialog).getByRole('checkbox', { name: '5 小时' }) as HTMLInputElement).checked).toBe(true);
+    expect(within(dialog).getByText('500K')).toBeTruthy();
+    expect(within(dialog).getByText('200M')).toBeTruthy();
   });
 
   it('creates a member rate limit without token windows', async () => {
@@ -1101,6 +1103,7 @@ describe('product console access', () => {
     fireEvent.click(screen.getByRole('button', { name: '新建速率限制' }));
     const dialog = screen.getByRole('dialog', { name: '新建速率限制' });
     fireEvent.change(within(dialog).getByLabelText('策略名称'), { target: { value: '架构师限流' } });
+    fireEvent.change(within(dialog).getByLabelText('适用对象'), { target: { value: 'MEMBER' } });
     const member = within(dialog).getByLabelText('成员');
     await within(dialog).findByRole('option', { name: 'Developer Two (developer.two)' });
     fireEvent.change(member, { target: { value: '303' } });
@@ -1115,7 +1118,7 @@ describe('product console access', () => {
     expect(writes[0]).toMatchObject({
       body: {
         name: '架构师限流', policyType: 'RATE', subjectType: 'MEMBER',
-        subjectId: '303',
+        subjectIds: ['303'],
         resourceType: 'ALL_MODELS', fiveHourTokenLimit: null, dailyTokenLimit: null,
         weeklyTokenLimit: null, monthlyTokenLimit: null, rpm: 60, concurrency: 3
       },

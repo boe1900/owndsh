@@ -48,9 +48,10 @@ import java.util.function.LongSupplier;
 @EnableScheduling
 @EnableConfigurationProperties(EnterpriseQuotaProperties.class)
 public class EnterpriseQuotaConfiguration {
+
     @Bean
-    QuotaPolicyStore enterpriseQuotaPolicyStore(JdbcTemplate jdbcTemplate) {
-        return new JdbcQuotaPolicyStore(jdbcTemplate);
+    QuotaPolicyStore enterpriseQuotaPolicyStore(JdbcTemplate jdbcTemplate, JsonMapper jsonMapper) {
+        return new JdbcQuotaPolicyStore(jdbcTemplate, jsonMapper);
     }
 
     @Bean

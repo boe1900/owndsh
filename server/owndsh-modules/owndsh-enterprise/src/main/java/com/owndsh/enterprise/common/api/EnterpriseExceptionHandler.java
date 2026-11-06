@@ -265,7 +265,8 @@ public final class EnterpriseExceptionHandler {
             "该用户组仍被授权或外部组映射引用，请先解除相关关联。",
             false,
             new AccessGroupInUseDetails(
-                blockers.modelGrantCount(), blockers.mcpGrantCount(), blockers.externalGroupMappingCount()
+                blockers.modelGrantCount(), blockers.mcpGrantCount(), blockers.quotaPolicyCount(),
+                blockers.externalGroupMappingCount()
             ),
             request
         );

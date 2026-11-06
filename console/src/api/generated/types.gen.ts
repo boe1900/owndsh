@@ -477,6 +477,8 @@ export type UsageResult = QuotaUsageResult;
 
 export type QuotaPolicyWriteRequest = QuotaQuotaPolicyWriteRequest;
 
+export type QuotaSubject = QuotaQuotaSubject;
+
 export type QuotaPolicy = QuotaQuotaPolicy;
 
 export type QuotaPolicyResponse = QuotaQuotaPolicyResponse;
@@ -607,6 +609,7 @@ export type ModelSetInUseDetails = {
 export type AccessGroupInUseDetails = {
     modelGrantCount: number;
     mcpGrantCount: number;
+    quotaPolicyCount: number;
     externalGroupMappingCount: number;
 };
 
@@ -2232,8 +2235,7 @@ export type QuotaQuotaPolicy = {
     name: string;
     policyType: QuotaQuotaPolicyType;
     subjectType: QuotaQuotaSubjectType;
-    subjectId: NullableResourceId;
-    subjectName: string | null;
+    subjects: Array<QuotaQuotaSubject>;
     resourceType: QuotaQuotaResourceType;
     resourceId: NullableResourceId;
     resourceName: string | null;
@@ -2273,7 +2275,7 @@ export type QuotaQuotaPolicyWriteRequest = {
     name: string;
     policyType: QuotaQuotaPolicyType;
     subjectType: QuotaQuotaSubjectType;
-    subjectId: NullableResourceId;
+    subjectIds: Array<string>;
     resourceType: QuotaQuotaResourceType;
     resourceId: NullableResourceId;
     fiveHourTokenLimit: NullablePositiveLong;
@@ -2292,7 +2294,12 @@ export type QuotaQuotaResourceType = 'ALL_MODELS' | 'MODEL_SET' | 'MODEL';
 
 export type QuotaQuotaStatus = 'ACTIVE' | 'DISABLED';
 
-export type QuotaQuotaSubjectType = 'ORGANIZATION' | 'MEMBER';
+export type QuotaQuotaSubject = {
+    subjectId: string;
+    subjectName: string;
+};
+
+export type QuotaQuotaSubjectType = 'ALL_MEMBERS' | 'ACCESS_GROUP' | 'MEMBER';
 
 export type QuotaQuotaUsagePolicy = {
     policyId: QuotaQuotaPolicyId;

@@ -121,7 +121,7 @@ class ModelGatewayTransactionIntegrationTest {
         independent.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         jdbcAudit = new JdbcAuditSink(database.jdbc(), JSON);
         quotas = new QuotaReservationService(
-            transactions, independent, new EffectiveQuotaResolver(new JdbcQuotaPolicyStore(database.jdbc())),
+            transactions, independent, new EffectiveQuotaResolver(new JdbcQuotaPolicyStore(database.jdbc(), tools.jackson.databind.json.JsonMapper.builder().build())),
             new QuotaWindowCalculator(ZoneId.of("Asia/Shanghai")), new JdbcQuotaWindowStore(database.jdbc()),
             new JdbcUsageReservationStore(database.jdbc(), JSON), new JdbcUsageLedgerStore(database.jdbc()),
             new NoopRateLimiter(), jdbcAudit, IDS::incrementAndGet
@@ -476,20 +476,26 @@ class ModelGatewayTransactionIntegrationTest {
 
     private static void insertFacts() {
         database.jdbc().update("""
-            insert into ent_model_provider (
-                id, tenant_id, provider_key, name, api_protocol, base_url, status,
-                connect_timeout_ms, read_timeout_ms, revision
-            ) values (?, ?, 't10-provider', 'T10 Provider', 'openai-completions',
-                'https://provider.invalid/v1',
-                'ACTIVE', 1000, 1000, 0)
+            insert into ent_model_provider (id, tenant_id, provider_key, name, status, revision)
+            values (?, ?, 't10-provider', 'T10 Provider', 'ACTIVE', 0)
             """, PROVIDER_ID, TENANT);
+        // V46 拆分后协议/端点/超时/密文归连接表；DB 行只需满足外键与形状约束
+        database.jdbc().update("""
+            insert into ent_model_provider_connection (
+                id, tenant_id, provider_id, name, api_protocol, base_url,
+                credential_ciphertext, credential_nonce, key_version, status,
+                connect_timeout_ms, read_timeout_ms, revision
+            ) values (?, ?, ?, 'production', 'openai-completions', 'https://provider.invalid/v1',
+                ?::bytea, ?::bytea, 1, 'ACTIVE', 1000, 1000, 0)
+            """, PROVIDER_ID + 1, TENANT, PROVIDER_ID,
+            new byte[]{1}, new byte[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
         database.jdbc().update("""
             insert into ent_managed_model (
-                id, tenant_id, provider_id, alias, display_name, upstream_model,
-                context_window, max_output_tokens, sort_order, status, revision
+                id, tenant_id, connection_id, alias, display_name, upstream_model,
+                context_window, max_output_tokens, input_modalities, sort_order, status, revision
             ) values (?, ?, ?, 't10-model', 'T10 Model', 'deepseek-chat', 65536, 8192,
-                0, 'ACTIVE', 0)
-            """, MODEL_ID, TENANT, PROVIDER_ID);
+                '["text"]'::jsonb, 0, 'ACTIVE', 0)
+            """, MODEL_ID, TENANT, PROVIDER_ID + 1);
         database.jdbc().update("""
             insert into ent_device (
                 id, tenant_id, user_id, installation_id, name, platform, status, revision
@@ -532,6 +538,6 @@ class ModelGatewayTransactionIntegrationTest {
             if (failLeaseRelease) throw new IllegalStateException("Redis unavailable");
             rateLeases.remove(lease.reservationId());
         }
-        public Map<Long, RateSnapshot> snapshot(List<Long> policyIds, Instant now) { return Map.of(); }
+        public Map<Long, RateSnapshot> snapshot(List<RatePolicy> policies, Instant now) { return Map.of(); }
     }
 }

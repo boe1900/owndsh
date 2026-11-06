@@ -256,7 +256,7 @@ public final class QuotaReservationService {
         reservations.insert(reservation);
         List<QuotaRateLimiter.RatePolicy> ratePolicies = policies.stream()
             .filter(policy -> policy.policyType() == QuotaPolicyType.RATE)
-            .map(policy -> new QuotaRateLimiter.RatePolicy(policy.id(), policy.rpm(), policy.concurrency()))
+            .map(policy -> new QuotaRateLimiter.RatePolicy(policy.id(), command.userId(), policy.rpm(), policy.concurrency()))
             .toList();
         return new ReservationPlan(reservation, ratePolicies);
     }
@@ -272,7 +272,7 @@ public final class QuotaReservationService {
         if (limit == null) return;
         QuotaWindowCalculator.WindowBounds bounds = windowCalculator.bounds(now, type, policy.windowAnchor());
         QuotaWindow window = windows.lockOrCreate(
-            ids.getAsLong(), command.tenantId(), policy.id(), type, bounds.start()
+            ids.getAsLong(), command.tenantId(), policy.id(), command.userId(), type, bounds.start()
         );
         long occupied = Math.addExact(window.usedTokens(), window.reservedTokens());
         if (occupied > limit - command.estimatedTokens()) {

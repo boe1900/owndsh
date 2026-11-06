@@ -25,7 +25,7 @@
     "quotas": [
       {
         "policyId": "1900100000000000002",
-        "scope": "ORGANIZATION",
+        "scope": "ALL_MEMBERS",
         "resourceType": "ALL_MODELS",
         "resourceId": null,
         "fiveHourTokenLimit": null,

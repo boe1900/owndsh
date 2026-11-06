@@ -16,7 +16,7 @@ public record QuotaPolicyWriteRequest(
     String name,
     QuotaPolicyType policyType,
     QuotaSubjectType subjectType,
-    Long subjectId,
+    java.util.List<Long> subjectIds,
     QuotaResourceType resourceType,
     Long resourceId,
     Long fiveHourTokenLimit,
@@ -29,7 +29,7 @@ public record QuotaPolicyWriteRequest(
 ) {
     public QuotaPolicySpec spec() {
         return new QuotaPolicySpec(
-            name, policyType, subjectType, subjectId, resourceType, resourceId, fiveHourTokenLimit, dailyTokenLimit,
+            name, policyType, subjectType, subjectIds, resourceType, resourceId, fiveHourTokenLimit, dailyTokenLimit,
             weeklyTokenLimit, monthlyTokenLimit, rpm, concurrency, status
         );
     }

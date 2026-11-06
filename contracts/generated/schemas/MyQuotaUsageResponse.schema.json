@@ -41,7 +41,8 @@
           "scope": {
             "type": "string",
             "enum": [
-              "ORGANIZATION",
+              "ALL_MEMBERS",
+              "ACCESS_GROUP",
               "MEMBER"
             ]
           },

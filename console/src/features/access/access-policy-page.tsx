@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖生成的授权/配额/用户组/模型集 operation、console 权限、TanStack Query、产品表格与策略编辑器，共享 lib/crypto 生成 HTTP/HTTPS 通用幂等键。
- * [OUTPUT]: 提供模型访问、互斥 TOKEN/RATE 三视图，以及幂等/CAS 管理动作与当前 Token 窗口读取；删除失败只在当前确认弹窗呈现，关闭后清理状态。
+ * [OUTPUT]: 提供模型访问、互斥 TOKEN/RATE 三视图与幂等/CAS 管理动作；额度列以启用窗口胶囊呈现，编辑器获成员/用户组目录，删除失败只在当前确认弹窗呈现。
  * [POS]: features/access 的产品策略工作台；按 Server 策略类型分表分表单，不在浏览器计算有效规则。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -14,7 +14,6 @@ import {
   createQuotaPolicy,
   deleteModelGrant,
   deleteQuotaPolicy,
-  getQuotaPolicyWindows,
   listAccessGroups,
   listManagedModels,
   listModelProviders,
@@ -40,8 +39,7 @@ import type {
   ProviderPageData,
   QuotaPolicy,
   QuotaPolicyPageData,
-  QuotaPolicyWriteRequest,
-  QuotaWindow
+  QuotaPolicyWriteRequest
 } from '@/api/generated/types.gen';
 import { randomUuid } from '@/lib/crypto';
 import { Button } from '@/components/atoms/Button';
@@ -49,7 +47,7 @@ import { SegmentedControl } from '@/components/atoms/SegmentedControl';
 import { StatusPill } from '@/components/atoms/StatusPill';
 import { Monogram, monogramColor } from '@/components/atoms/EntityChip';
 import { ProductDataTable, type ProductTableColumn } from '@/components/product/DataTable';
-import { DeletePolicyDialog, GrantEditorDialog, QuotaEditorDialog, type GrantEditorValue } from './policy-editors';
+import { compactTokens, DeletePolicyDialog, GrantEditorDialog, QuotaEditorDialog, type GrantEditorValue } from './policy-editors';
 import { useMembers } from '@/features/member-select';
 import { formatTokenCapacity } from '@/features/models/token-capacity';
 
@@ -156,9 +154,8 @@ function limitLabel(value: number | null) {
 
 function subjectLabel(value: ModelGrant | QuotaPolicy) {
   if (value.subjectType === 'ALL_MEMBERS') return '所有成员';
-  if (value.subjectType === 'ORGANIZATION') return '整个组织';
   if ('subjects' in value) return value.subjects.map((subject) => subject.subjectName).join('、') || '未知主体';
-  return value.subjectName ?? '未知成员';
+  return '未知成员';
 }
 
 function subjectTypeLabel(value: ModelGrant | QuotaPolicy) {
@@ -166,7 +163,7 @@ function subjectTypeLabel(value: ModelGrant | QuotaPolicy) {
     ALL_MEMBERS: '全员',
     ACCESS_GROUP: '用户组',
     MEMBER: '成员',
-    ORGANIZATION: '组织'
+
   }[value.subjectType];
 }
 
@@ -272,7 +269,7 @@ const quotaColumns: ReadonlyArray<ProductTableColumn<QuotaPolicy>> = [
       `每月 ${limitLabel(row.monthlyTokenLimit)}`
     ].join(' '),
     header: 'Token 额度',
-    cell: ({ row }) => <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[11.5px] tabular-nums text-ink-2"><span>5 小时 {limitLabel(row.original.fiveHourTokenLimit)}</span><span>每日 {limitLabel(row.original.dailyTokenLimit)}</span><span>每周 {limitLabel(row.original.weeklyTokenLimit)}</span><span>每月 {limitLabel(row.original.monthlyTokenLimit)}</span></div>,
+    cell: ({ row }) => <div className="flex flex-wrap items-center gap-1.5">{([['5小时', row.original.fiveHourTokenLimit], ['每日', row.original.dailyTokenLimit], ['每周', row.original.weeklyTokenLimit], ['每月', row.original.monthlyTokenLimit]] as const).filter(([, limit]) => limit != null).map(([label, limit]) => <span key={label} className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-field px-2.5 py-1 text-xs" title={`${label}上限: ${limitLabel(limit)} Tokens`}><span className="text-ink-3">{label}</span><strong className="font-mono font-semibold text-ink">{compactTokens(limit)}</strong></span>)}</div>,
     meta: { label: 'Token 额度', className: 'w-[320px]', cellClassName: 'w-[320px]' }
   },
   {
@@ -354,14 +351,6 @@ export function AccessPolicyPage() {
   const editingQuotaType = quotaEditor && quotaEditor !== 'create'
     ? quotaEditor.policyType
     : section === 'Token 配额' ? 'TOKEN' : 'RATE';
-  const quotaWindows = useQuery({
-    queryKey: ['access', 'quota-windows', editingQuotaId],
-    queryFn: async () => unwrap<QuotaWindow[]>(
-      await getQuotaPolicyWindows({ path: { quotaId: editingQuotaId! } }),
-      '当前配额用量加载失败'
-    ),
-    enabled: editingQuotaId !== undefined && editingQuotaType === 'TOKEN'
-  });
   const saveGrant = useMutation({
     mutationFn: async ({ current, value }: { current?: ModelGrant; value: GrantEditorValue }) => {
       const body: ModelGrantWriteRequest = {
@@ -491,7 +480,7 @@ export function AccessPolicyPage() {
         {table}
       </div>
       {grantEditor ? <GrantEditorDialog key={grantEditor === 'create' ? 'create' : grantEditor.id} current={grantEditor === 'create' ? undefined : grantEditor} error={saveGrant.error ? errorMessage(saveGrant.error, '模型授权保存失败') : undefined} accessGroups={accessGroups.data ?? []} connections={connectionNames} members={members.data ?? []} modelSets={modelSets.data ?? []} models={models.data ?? []} saving={saveGrant.isPending} onClose={() => setGrantEditor(null)} onSave={(value) => saveGrant.mutate({ current: grantEditor === 'create' ? undefined : grantEditor, value })} /> : null}
-      {quotaEditor ? <QuotaEditorDialog key={quotaEditor === 'create' ? `create-${editingQuotaType}` : quotaEditor.id} current={quotaEditor === 'create' ? undefined : quotaEditor} error={saveQuota.error ? errorMessage(saveQuota.error, '配额策略保存失败') : quotaWindows.error ? errorMessage(quotaWindows.error, '当前配额用量加载失败') : undefined} modelSets={modelSets.data ?? []} models={models.data ?? []} policyType={editingQuotaType} windows={quotaWindows.data ?? []} windowsLoading={quotaWindows.isLoading} saving={saveQuota.isPending} onClose={() => setQuotaEditor(null)} onSave={(value) => saveQuota.mutate({ current: quotaEditor === 'create' ? undefined : quotaEditor, value })} /> : null}
+      {quotaEditor ? <QuotaEditorDialog key={quotaEditor === 'create' ? `create-${editingQuotaType}` : quotaEditor.id} accessGroups={accessGroups.data ?? []} current={quotaEditor === 'create' ? undefined : quotaEditor} members={members.data ?? []} error={saveQuota.error ? errorMessage(saveQuota.error, '配额策略保存失败') : undefined} modelSets={modelSets.data ?? []} models={models.data ?? []} policyType={editingQuotaType} saving={saveQuota.isPending} onClose={() => setQuotaEditor(null)} onSave={(value) => saveQuota.mutate({ current: quotaEditor === 'create' ? undefined : quotaEditor, value })} /> : null}
       {deleteTarget ? <DeletePolicyDialog kind={deleteTarget.kind} error={remove.error ? errorMessage(remove.error, '策略删除失败') : undefined} label={deleteTarget.kind === 'grant' ? deleteTarget.value.resourceName : deleteTarget.value.name} saving={remove.isPending} onClose={closeDelete} onConfirm={() => remove.mutate(deleteTarget)} /> : null}
       {bulkDeleteTarget ? <DeletePolicyDialog kind="grant" error={bulkRemove.error ? errorMessage(bulkRemove.error, '批量删除策略失败') : undefined} label={`${bulkDeleteTarget.length} 条模型授权`} saving={bulkRemove.isPending} onClose={() => { if (!bulkRemove.isPending) { bulkRemove.reset(); setBulkDeleteTarget(null); } }} onConfirm={() => bulkRemove.mutate(bulkDeleteTarget)} /> : null}
     </div>
