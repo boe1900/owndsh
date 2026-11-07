@@ -5,6 +5,8 @@
 成员清单
 
 dsh-compatibility.md: DSH 升级检查入口，记录当前 npm/Web 基线、上游依赖契约与本地代码/测试映射、历史夹具边界、逐项验收流程及 OAuth 接缝删除条件。
+remote-vs-paseo-research-20261107.md: 远程选型结论入口，依据固定源码与组件测试选择 Remote 核心接入，比较 Paseo 运行时/传输/权限边界，明确 Java/TS 职责、完整传输能力、安全补齐与实施验收要求。
+remote-access-research-20261106.md: 远程能力详细证据，比较 Remote/AA 授权、加密与撤销，核对 Android、网页产物、DSH Go Carrier 与作者 C# 服务端公开性；最终选型与 Paseo 对照见 remote-vs-paseo-research-20261107.md。
 model-onboarding-design.md: 模型接入流程详细设计与实现真源；记录 Provider/ProviderConnection/ManagedModel 三层、API Key 归属、模型级 RATE、全新切换边界、发现失败后的手工模型兜底、候选多选、折叠模型配置、自动命名、DSH 对齐的 input 模态与 reasoningEfforts wire 映射、改动量、影响分析与验收标准。
 model-onboarding-design-review.md: 模型接入设计历史终审与后续范围裁决，记录代码事实、Provider RATE 方案被移除、模型级 RATE、全新切换边界及 R1–R16 的取代关系；约束 model-onboarding-design.md 的当前冻结决策。
 model-onboarding-prototype.html: 模型接入完整闭环可交互单文件原型：以模型与供应商/模型集两 section 为壳，展示 Provider→Connection→ManagedModel 拓扑、全局模型表视图、连接展开后的模型管理和四步接入向导；内联 Beautiful UI tokens 与模拟数据，非实现码。
