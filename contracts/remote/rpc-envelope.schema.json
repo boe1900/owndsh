@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://owndsh.dev/contracts/remote/rpc-envelope.schema.json",
+  "title": "OwnDsh Remote encrypted RPC envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["v", "kind", "requestId", "counter", "ciphertext"],
+  "properties": {
+    "v": { "type": "integer", "const": 1 },
+    "kind": { "enum": ["request", "response", "error", "cancel"] },
+    "requestId": { "type": "string", "pattern": "^rpc_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "counter": { "type": "integer", "minimum": 0 },
+    "method": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,127}$" },
+    "ciphertext": { "type": "string", "contentEncoding": "base64", "maxLength": 87384 }
+  },
+  "allOf": [
+    { "if": { "properties": { "kind": { "const": "request" } } }, "then": { "required": ["method"] } },
+    { "if": { "properties": { "kind": { "enum": ["response", "error", "cancel"] } } }, "then": { "not": { "required": ["method"] } } }
+  ]
+}

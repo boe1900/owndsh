@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-11-08T09:46:56.099Z",
+  "status": "PASS",
+  "origin": "http://home-nas:18080",
+  "http": {
+    "consoleShell": 200,
+    "unauthenticatedAdminBootstrap": 401
+  },
+  "websocket": {
+    "direct": {
+      "opened": false,
+      "error": "socket hang up"
+    },
+    "consoleProxy": {
+      "opened": false,
+      "status": 502
+    }
+  },
+  "assertion": "NAS console shell is reachable while unauthenticated HTTP and both Remote WebSocket upgrade paths remain closed.",
+  "interpretation": "The direct socket hang up and Console proxy 502 prove that no anonymous socket opened. They do not claim a specific HTTP authentication status for either WebSocket path."
+}

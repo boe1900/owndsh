@@ -1,0 +1,37 @@
+{
+  "timestamp": "2026-11-08T06:42:00Z",
+  "status": "PASS",
+  "image": {
+    "tag": "owndsh-server:remote-validation",
+    "dockerfile": "deploy/compose/Dockerfile.server",
+    "runtime": "eclipse-temurin:21.0.8_9-jre-jammy",
+    "user": "10001:10001"
+  },
+  "container": {
+    "name": "owndsh-server-validation",
+    "http": "http://127.0.0.1:18080",
+    "remote": "ws://127.0.0.1:18090/remote/ws/v1",
+    "health": "UP",
+    "database": "host.docker.internal:5432/owndsh",
+    "redis": "host.docker.internal:6379",
+    "readOnlyRoot": true
+  },
+  "assertions": {
+    "pkceLogin": true,
+    "deviceEnrollment": true,
+    "presence": true,
+    "ticket": true,
+    "relayRoundTrip": true,
+    "leaseAcquireRenew": true,
+    "leaseRevokeClosesPeers": true,
+    "deviceRevocationLogout": true,
+    "ticketIceServers": 1
+  },
+  "linkId": "rln_1BPDFZMGT8QM31TKM6NY32FTMC",
+  "cleanup": {
+    "accountDisabled": true,
+    "deviceRevoked": true,
+    "sessionsLoggedOut": true
+  },
+  "secrets": "none"
+}

@@ -27,6 +27,7 @@ import com.owndsh.enterprise.auth.application.PlatformSession;
 import com.owndsh.enterprise.auth.EnterpriseIdentityProperties;
 import com.owndsh.enterprise.auth.persistence.RefreshSessionStore;
 import com.owndsh.enterprise.auth.web.AdminSessionCookie;
+import com.owndsh.enterprise.remote.RemotePeerIdentity;
 import com.owndsh.system.domain.vo.SysUserVo;
 import com.owndsh.system.service.ISysUserService;
 import com.owndsh.web.service.SysLoginService;
@@ -185,6 +186,19 @@ class OwnDshPlatformSessionGatewayTest {
             secondToken,
             kicked(secondToken)
         )).isFalse();
+    }
+
+    @Test
+    void authenticatesRemoteBearerByTokenLookup() {
+        String token = logic.createLoginSession(LOGIN_ID, device(FIRST));
+        OwnDshRemotePeerAuthenticator authenticator = new OwnDshRemotePeerAuthenticator(properties);
+
+        RemotePeerIdentity identity = authenticator.authenticate(token).orElseThrow();
+
+        assertThat(identity.tenantId()).isEqualTo(properties.getTenantId());
+        assertThat(identity.actorId()).isEqualTo(USER_ID);
+        assertThat(identity.deviceType()).isEqualTo("harness");
+        assertThat(identity.deviceId()).isEqualTo(FIRST);
     }
 
     @Test

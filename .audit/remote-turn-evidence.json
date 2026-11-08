@@ -1,0 +1,24 @@
+{
+  "timestamp": "2026-11-08T06:35:53Z",
+  "status": "PASS",
+  "server": {
+    "httpOrigin": "http://127.0.0.1:8080",
+    "remoteOrigin": "ws://127.0.0.1:8090/remote/ws/v1",
+    "health": "UP",
+    "iceServerUrls": 1,
+    "turnCredentialMode": "coturn REST shared secret"
+  },
+  "coturn": {
+    "image": "coturn/coturn:4.6.3",
+    "digest": "sha256:71c3c990283385567f11794ee692e3a47b66fd9b0bb39e42afbe776e331dd888",
+    "container": "owndsh-coturn",
+    "udpPort": 3478,
+    "relayPortRange": "49160-49200"
+  },
+  "assertions": {
+    "ticketReturnedIceServer": true,
+    "ticketReturnedShortLivedCredential": true,
+    "turnAllocateAcceptedCredential": true
+  },
+  "secrets": "none"
+}

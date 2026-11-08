@@ -1,0 +1,33 @@
+{
+  "timestamp": "2026-11-07T23:37:18Z",
+  "server": {
+    "httpOrigin": "http://127.0.0.1:8080",
+    "remoteOrigin": "http://127.0.0.1:8090",
+    "health": "UP",
+    "remoteListener": "LISTENING"
+  },
+  "vite": {
+    "origin": "http://127.0.0.1:62209",
+    "path": "/remote/ws/v1",
+    "target": "http://127.0.0.1:8090",
+    "ws": true,
+    "changeOrigin": true
+  },
+  "probes": [
+    {
+      "name": "direct-java",
+      "url": "ws://127.0.0.1:8090/remote/ws/v1",
+      "result": "error",
+      "reason": "unauthenticated upgrade rejected"
+    },
+    {
+      "name": "vite-proxy",
+      "url": "ws://127.0.0.1:62209/remote/ws/v1",
+      "result": "error",
+      "reason": "unauthenticated upgrade rejected"
+    }
+  ],
+  "viteLog": "ws proxy error: socket hang up",
+  "conclusion": "The Vite development server accepted the WebSocket route and attempted to forward it to the configured Java Remote listener. The direct and proxied unauthenticated probes both failed, and Vite logged the upstream socket close. This does not prove an authenticated browser, RemoteRuntime, WebRTC, TURN, or cross-network session.",
+  "secrets": "none"
+}

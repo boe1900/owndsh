@@ -1,0 +1,199 @@
+# [INPUT]: 依赖根协议的 RequestId、Revision、CursorPage 与现有 EnterpriseDeviceId
+# [OUTPUT]: 提供 Remote 设备视图、ticket、capability 与 lease 的管理 API schema
+# [POS]: components 的 Remote 控制面分片，HTTP 只管理授权事实，不承载业务密文
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+RemoteDeviceStatus:
+  type: string
+  enum: [ACTIVE, REVOKED, OFFLINE]
+
+RemoteTransportCapability:
+  type: string
+  enum: [lan, p2p, turn, relay]
+
+RemoteDevice:
+  type: object
+  additionalProperties: false
+  required: [deviceId, installationId, name, platform, status, online, remoteEnabled, capabilities, capabilityRevision, lastPresenceAt, revision]
+  properties:
+    deviceId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/EnterpriseDeviceId'
+    installationId:
+      type: string
+      format: uuid
+    name:
+      type: string
+      minLength: 1
+      maxLength: 120
+    platform:
+      type: string
+      minLength: 1
+      maxLength: 64
+    status:
+      $ref: '#/RemoteDeviceStatus'
+    online:
+      type: boolean
+    remoteEnabled:
+      type: boolean
+    capabilities:
+      type: array
+      items:
+        type: string
+        enum: [remote.connect, host.describe]
+      maxItems: 8
+      uniqueItems: true
+    transports:
+      type: array
+      items:
+        $ref: '#/RemoteTransportCapability'
+      maxItems: 4
+      uniqueItems: true
+    capabilityRevision:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/Revision'
+    lastPresenceAt:
+      oneOf:
+        - type: string
+          format: date-time
+        - type: 'null'
+    revision:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/Revision'
+
+RemoteDevicePageData:
+  type: object
+  additionalProperties: false
+  required: [items, page]
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/RemoteDevice'
+    page:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/CursorPage'
+
+RemoteDeviceListResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data:
+      $ref: '#/RemoteDevicePageData'
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+
+RemoteTicket:
+  type: object
+  additionalProperties: false
+  required: [ticket, linkId, deviceId, expiresAt, iceServers]
+  properties:
+    ticket:
+      type: string
+      minLength: 32
+      maxLength: 512
+    linkId:
+      type: string
+      pattern: '^rln_[0-9A-HJKMNP-TV-Z]{26}$'
+    deviceId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/EnterpriseDeviceId'
+    expiresAt:
+      type: string
+      format: date-time
+    iceServers:
+      type: array
+      maxItems: 8
+      items:
+        type: object
+        additionalProperties: false
+        required: [urls]
+        properties:
+          urls:
+            oneOf:
+              - type: string
+                format: uri
+              - type: array
+                minItems: 1
+                maxItems: 8
+                items:
+                  type: string
+                  format: uri
+          username:
+            type: string
+            maxLength: 256
+          credential:
+            type: string
+            maxLength: 512
+
+RemoteTicketRequest:
+  type: object
+  additionalProperties: false
+  required: [controllerDeviceId, controllerPublicKey, requestedCapabilities, clientVersion]
+  properties:
+    controllerDeviceId:
+      type: string
+      pattern: '^ctl_[0-9A-HJKMNP-TV-Z]{26}$'
+    controllerPublicKey:
+      type: string
+      minLength: 43
+      maxLength: 64
+      description: Base64url encoded 32-byte X25519 public key.
+    requestedCapabilities:
+      type: array
+      minItems: 1
+      maxItems: 8
+      uniqueItems: true
+      items:
+        type: string
+        enum: [remote.connect, host.describe]
+    clientVersion:
+      type: string
+      minLength: 1
+      maxLength: 64
+
+
+RemoteTicketResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data:
+      $ref: '#/RemoteTicket'
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+
+RemoteLease:
+  type: object
+  additionalProperties: false
+  required: [linkId, leaseId, expiresAt, status]
+  properties:
+    linkId:
+      type: string
+      pattern: '^rln_[0-9A-HJKMNP-TV-Z]{26}$'
+    leaseId:
+      type: string
+      minLength: 16
+      maxLength: 128
+    expiresAt:
+      type: string
+      format: date-time
+    status:
+      type: string
+      enum: [ACTIVE, REVOKED, EXPIRED]
+
+RemoteLeaseResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data:
+      $ref: '#/RemoteLease'
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+
+RemoteCapabilityResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data:
+      $ref: '#/RemoteDevice'
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'

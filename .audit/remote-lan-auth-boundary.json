@@ -1,0 +1,14 @@
+{
+  "timestamp": "2026-11-08T07:22:11Z",
+  "status": "PASS",
+  "origin": "http://192.168.5.83:62209",
+  "http": {
+    "viteShell": 200,
+    "unauthenticatedAdminBootstrap": 403
+  },
+  "websocket": {
+    "direct": { "opened": false, "closeCode": 1006 },
+    "viteProxy": { "opened": false, "closeCode": 1006 }
+  },
+  "assertion": "LAN shell is reachable while unauthenticated HTTP and WebSocket control paths remain closed."
+}

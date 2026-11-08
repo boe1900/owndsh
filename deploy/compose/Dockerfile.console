@@ -17,7 +17,9 @@ RUN pnpm build
 
 FROM ${OWNDSH_NGINX_IMAGE}
 COPY deploy/nginx/nginx.conf /etc/nginx/nginx.conf
-RUN sed 's/server owndsh-server:8080;/server 127.0.0.1:8080;/' /etc/nginx/nginx.conf > /tmp/nginx.conf \
+RUN sed -e 's/server owndsh-server:8080;/server 127.0.0.1:8080;/' \
+        -e 's/server owndsh-server:8090;/server 127.0.0.1:8090;/' \
+        /etc/nginx/nginx.conf > /tmp/nginx.conf \
     && nginx -t -c /tmp/nginx.conf
 COPY --from=build /workspace/console/dist/ /usr/share/nginx/html/
 USER 101:101

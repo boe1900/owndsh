@@ -89,6 +89,7 @@ test('workspace uses only the formal product package boundaries', async () => {
     'contracts',
     'llm-gateway',
     'platform-client',
+    'remote-core',
     'ui',
   ])
 })

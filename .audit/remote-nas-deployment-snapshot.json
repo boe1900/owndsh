@@ -1,0 +1,272 @@
+{
+  "timestamp": "2026-11-08T09:53:52.925Z",
+  "host": "home-nas",
+  "topology": "same LAN, no TLS, Mac client to NAS server",
+  "containers": [
+    {
+      "container": "/owndsh-server-1",
+      "image": "owndsh-server:codex-remote-20261108",
+      "imageId": "sha256:9493a4a248cbd1bd555643f1d87169e4384ab246549a9494ab6b736592c06198",
+      "architecture": "arm64",
+      "os": "linux",
+      "repoDigests": [],
+      "status": "running",
+      "health": "healthy",
+      "ports": {
+        "8080/tcp": null,
+        "8090/tcp": [
+          {
+            "HostIp": "0.0.0.0",
+            "HostPort": "18090"
+          },
+          {
+            "HostIp": "::",
+            "HostPort": "18090"
+          }
+        ]
+      }
+    },
+    {
+      "container": "/owndsh-console-1",
+      "image": "owndsh-console:codex-remote-20261108",
+      "imageId": "sha256:f02e792edf7821249b31644b54782dc4b7cf41b4a998761eeafb9cf199ef6928",
+      "architecture": "arm64",
+      "os": "linux",
+      "repoDigests": [],
+      "status": "running",
+      "health": "healthy",
+      "ports": {
+        "80/tcp": null,
+        "8080/tcp": [
+          {
+            "HostIp": "0.0.0.0",
+            "HostPort": "18080"
+          }
+        ]
+      }
+    },
+    {
+      "container": "/owndsh-coturn-1",
+      "image": "coturn/coturn:4.6.3",
+      "imageId": "sha256:6f60790b4fdf16628d0e1f722b316773234ae243a34766f7f3b3fb7e79431d8f",
+      "architecture": "arm64",
+      "os": "linux",
+      "repoDigests": [],
+      "status": "running",
+      "health": "none",
+      "ports": {}
+    },
+    {
+      "container": "/owndsh-postgres-1",
+      "image": "postgres:17.6-alpine3.22",
+      "imageId": "sha256:29e645e20571728f22df398b9954bb6c1cefec390d99ed4e26308fc2f52d6a37",
+      "architecture": "arm64",
+      "os": "linux",
+      "repoDigests": [],
+      "status": "running",
+      "health": "healthy",
+      "ports": {
+        "5432/tcp": null
+      }
+    },
+    {
+      "container": "/owndsh-redis-1",
+      "image": "redis:7.4.5-alpine3.21",
+      "imageId": "sha256:ff193672aa2e4dcab961338459336d0ddb6b5efdcc5cfc0ae828eebd3927930b",
+      "architecture": "arm64",
+      "os": "linux",
+      "repoDigests": [],
+      "status": "running",
+      "health": "healthy",
+      "ports": {
+        "6379/tcp": null
+      }
+    }
+  ],
+  "composePs": [
+    {
+      "Command": "\"nginx -g 'daemon of…\"",
+      "CreatedAt": "2026-11-08 16:46:12 +0800 CST",
+      "Engine": "",
+      "ExitCode": 0,
+      "Health": "healthy",
+      "ID": "86e22c701dc4",
+      "Image": "owndsh-console:codex-remote-20261108",
+      "Labels": "com.docker.compose.project=owndsh,com.docker.compose.project.working_dir=/vol1/1000/docker/stacks/owndsh,com.docker.compose.service=console,com.docker.compose.image=sha256:f02e792edf7821249b31644b54782dc4b7cf41b4a998761eeafb9cf199ef6928,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/vol1/1000/docker/stacks/owndsh/compose.yml,/vol1/1000/docker/stacks/owndsh/compose.override.yml,/vol1/1000/docker/stacks/owndsh/owndsh-codex-20261028-skill-restore.yml,/vol1/1000/docker/stacks/owndsh/compose.codex-remote.yml,com.docker.compose.replace=console-1,com.docker.compose.version=5.5.0,maintainer=NGINX Docker Maintainers <docker-maint@nginx.com>,com.docker.compose.config-hash=20e279f730f213194f1f3e75794fc2fca6a37c4e7c27c15797a80e85db470a83,com.docker.compose.container-number=1,com.docker.compose.depends_on=server:service_healthy:false",
+      "LocalVolumes": "0",
+      "Mounts": "",
+      "Name": "owndsh-console-1",
+      "Names": "owndsh-console-1",
+      "Networks": "owndsh_backend",
+      "Ports": "80/tcp, 0.0.0.0:18080->8080/tcp",
+      "Project": "owndsh",
+      "Publishers": [
+        {
+          "URL": "",
+          "TargetPort": 80,
+          "PublishedPort": 0,
+          "Protocol": "tcp"
+        },
+        {
+          "URL": "0.0.0.0",
+          "TargetPort": 8080,
+          "PublishedPort": 18080,
+          "Protocol": "tcp"
+        }
+      ],
+      "RunningFor": "About an hour ago",
+      "Service": "console",
+      "Size": "0B",
+      "State": "running",
+      "Status": "Up About an hour (healthy)"
+    },
+    {
+      "Command": "\"docker-entrypoint.s…\"",
+      "CreatedAt": "2026-11-08 16:46:10 +0800 CST",
+      "Engine": "",
+      "ExitCode": 0,
+      "Health": "",
+      "ID": "f04b8f0f28c5",
+      "Image": "coturn/coturn:4.6.3",
+      "Labels": "org.opencontainers.image.revision=1284a3f12471eed86bb698974b419d8af52c3bfd,org.opencontainers.image.source=https://github.com/coturn/coturn,com.docker.compose.container-number=1,com.docker.compose.oneoff=False,com.docker.compose.project.config_files=/vol1/1000/docker/stacks/owndsh/compose.yml,/vol1/1000/docker/stacks/owndsh/compose.override.yml,/vol1/1000/docker/stacks/owndsh/owndsh-codex-20261028-skill-restore.yml,/vol1/1000/docker/stacks/owndsh/compose.codex-remote.yml,com.docker.compose.version=5.5.0,org.opencontainers.image.version=4.6.3-r3,com.docker.compose.config-hash=22706372415cac1ee630549191692114b3a91f89b1b9534275ec5d3f4c6815d3,com.docker.compose.depends_on=,com.docker.compose.image=sha256:6f60790b4fdf16628d0e1f722b316773234ae243a34766f7f3b3fb7e79431d8f,com.docker.compose.project=owndsh,com.docker.compose.project.working_dir=/vol1/1000/docker/stacks/owndsh,com.docker.compose.service=coturn",
+      "LocalVolumes": "1",
+      "Mounts": "b5f4f0982aa9e7…",
+      "Name": "owndsh-coturn-1",
+      "Names": "owndsh-coturn-1",
+      "Networks": "host",
+      "Ports": "",
+      "Project": "owndsh",
+      "Publishers": [],
+      "RunningFor": "About an hour ago",
+      "Service": "coturn",
+      "Size": "0B",
+      "State": "running",
+      "Status": "Up About an hour"
+    },
+    {
+      "Command": "\"docker-entrypoint.s…\"",
+      "CreatedAt": "2026-10-01 17:26:25 +0800 CST",
+      "Engine": "",
+      "ExitCode": 0,
+      "Health": "healthy",
+      "ID": "a966b40dd99a",
+      "Image": "postgres:17.6-alpine3.22",
+      "Labels": "com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.oneoff=False,com.docker.compose.project.environment_file=/vol1/1000/docker/stacks/owndsh/.env,com.docker.compose.project.working_dir=/vol1/1000/docker/stacks/owndsh,com.docker.compose.version=5.5.0,com.docker.compose.config-hash=51f6f2e4b4fe88c2f99ac4f3726edf5c78af5f710de3ef5b8cf5d3bbf8646cbf,com.docker.compose.image=sha256:29e645e20571728f22df398b9954bb6c1cefec390d99ed4e26308fc2f52d6a37,com.docker.compose.project=owndsh,com.docker.compose.project.config_files=/vol1/1000/docker/stacks/owndsh/compose.yml,/vol1/1000/docker/stacks/owndsh/compose.nas-images.yml,com.docker.compose.service=postgres",
+      "LocalVolumes": "1",
+      "Mounts": "owndsh_postgre…",
+      "Name": "owndsh-postgres-1",
+      "Names": "owndsh-postgres-1",
+      "Networks": "owndsh_backend",
+      "Ports": "5432/tcp",
+      "Project": "owndsh",
+      "Publishers": [
+        {
+          "URL": "",
+          "TargetPort": 5432,
+          "PublishedPort": 0,
+          "Protocol": "tcp"
+        }
+      ],
+      "RunningFor": "5 weeks ago",
+      "Service": "postgres",
+      "Size": "0B",
+      "State": "running",
+      "Status": "Up 5 weeks (healthy)"
+    },
+    {
+      "Command": "\"docker-entrypoint.s…\"",
+      "CreatedAt": "2026-10-01 17:26:25 +0800 CST",
+      "Engine": "",
+      "ExitCode": 0,
+      "Health": "healthy",
+      "ID": "924ad0d63e92",
+      "Image": "redis:7.4.5-alpine3.21",
+      "Labels": "com.docker.compose.oneoff=False,com.docker.compose.project=owndsh,com.docker.compose.project.config_files=/vol1/1000/docker/stacks/owndsh/compose.yml,/vol1/1000/docker/stacks/owndsh/compose.nas-images.yml,com.docker.compose.project.environment_file=/vol1/1000/docker/stacks/owndsh/.env,com.docker.compose.service=redis,com.docker.compose.version=5.5.0,com.docker.compose.config-hash=61b781fc3e7e62c708ae670ff34bfae9e2f12c9b07e384e47e50a3147a72b456,com.docker.compose.container-number=1,com.docker.compose.depends_on=,com.docker.compose.project.working_dir=/vol1/1000/docker/stacks/owndsh,com.docker.compose.image=sha256:ff193672aa2e4dcab961338459336d0ddb6b5efdcc5cfc0ae828eebd3927930b",
+      "LocalVolumes": "1",
+      "Mounts": "owndsh_redis_d…",
+      "Name": "owndsh-redis-1",
+      "Names": "owndsh-redis-1",
+      "Networks": "owndsh_backend",
+      "Ports": "6379/tcp",
+      "Project": "owndsh",
+      "Publishers": [
+        {
+          "URL": "",
+          "TargetPort": 6379,
+          "PublishedPort": 0,
+          "Protocol": "tcp"
+        }
+      ],
+      "RunningFor": "5 weeks ago",
+      "Service": "redis",
+      "Size": "0B",
+      "State": "running",
+      "Status": "Up 5 weeks (healthy)"
+    },
+    {
+      "Command": "\"/__cacert_entrypoin…\"",
+      "CreatedAt": "2026-11-08 17:01:52 +0800 CST",
+      "Engine": "",
+      "ExitCode": 0,
+      "Health": "healthy",
+      "ID": "3d1ca6150701",
+      "Image": "owndsh-server:codex-remote-20261108",
+      "Labels": "com.docker.compose.config-hash=99009fe1a25a3955235d87ae1e0f0c52cfc80e051b84d76e45f6ce592bc1b635,com.docker.compose.depends_on=postgres:service_healthy:false,redis:service_healthy:false,com.docker.compose.oneoff=False,com.docker.compose.project=owndsh,com.docker.compose.project.config_files=/vol1/1000/docker/stacks/owndsh/compose.yml,/vol1/1000/docker/stacks/owndsh/compose.override.yml,/vol1/1000/docker/stacks/owndsh/owndsh-codex-20261028-skill-restore.yml,/vol1/1000/docker/stacks/owndsh/compose.codex-remote.yml,com.docker.compose.replace=server-1,org.opencontainers.image.ref.name=ubuntu,org.opencontainers.image.version=22.04,com.docker.compose.container-number=1,com.docker.compose.image=sha256:9493a4a248cbd1bd555643f1d87169e4384ab246549a9494ab6b736592c06198,com.docker.compose.project.working_dir=/vol1/1000/docker/stacks/owndsh,com.docker.compose.service=server,com.docker.compose.version=5.5.0",
+      "LocalVolumes": "0",
+      "Mounts": "",
+      "Name": "owndsh-server-1",
+      "Names": "owndsh-server-1",
+      "Networks": "owndsh_backend",
+      "Ports": "8080/tcp, 0.0.0.0:18090->8090/tcp, [::]:18090->8090/tcp",
+      "Project": "owndsh",
+      "Publishers": [
+        {
+          "URL": "",
+          "TargetPort": 8080,
+          "PublishedPort": 0,
+          "Protocol": "tcp"
+        },
+        {
+          "URL": "0.0.0.0",
+          "TargetPort": 8090,
+          "PublishedPort": 18090,
+          "Protocol": "tcp"
+        },
+        {
+          "URL": "::",
+          "TargetPort": 8090,
+          "PublishedPort": 18090,
+          "Protocol": "tcp"
+        }
+      ],
+      "RunningFor": "52 minutes ago",
+      "Service": "server",
+      "Size": "0B",
+      "State": "running",
+      "Status": "Up 52 minutes (healthy)"
+    }
+  ],
+  "applicationHealth": {
+    "serverActuator": "{\"groups\":[\"liveness\",\"readiness\"],\"status\":\"UP\"}",
+    "consoleHealthz": "{\"groups\":[\"liveness\",\"readiness\"],\"status\":\"UP\"}",
+    "postgres": "/var/run/postgresql:5432 - accepting connections",
+    "redis": "PONG"
+  },
+  "persistence": {
+    "postgresMounts": [
+      "owndsh_postgres_data /var/lib/postgresql/data"
+    ],
+    "redisMounts": [
+      "owndsh_redis_data /data"
+    ],
+    "authenticatedE2e": ".audit/remote-nas-evidence.json"
+  },
+  "coturnLogTail": [
+    "3898: (18): DEBUG: Global turn allocation count incremented, now 3",
+    "3899: (18): DEBUG: Global turn allocation count decremented, now 2",
+    "3912: (21): DEBUG: Global turn allocation count incremented, now 3",
+    "3913: (21): DEBUG: Global turn allocation count decremented, now 2",
+    "4004: (21): DEBUG: Global turn allocation count decremented, now 1",
+    "4053: (19): DEBUG: Global turn allocation count decremented, now 0"
+  ]
+}

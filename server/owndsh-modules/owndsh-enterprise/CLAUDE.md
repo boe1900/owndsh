@@ -17,9 +17,10 @@ src/main/java/com/owndsh/enterprise/session/: 精确 JSONL/hash、AES-GCM 远端
 src/main/java/com/owndsh/enterprise/common/: 企业 HTTP envelope、40 个稳定错误映射、requestId/metadata、认证 cursor、有界 JSON 请求与故障日志隔离公共边界；局部地图见 common/CLAUDE.md。
 src/main/java/com/owndsh/enterprise/audit/: 37-action 显式 metadata DTO、只追加 JDBC sink、tenant/keyset 管理查询、365 天有界 retention 与用户治理事务监听纵向模块；局部地图见 audit/CLAUDE.md。
 src/main/java/com/owndsh/enterprise/deployment/: deploy profile 一次性管理员、PostgreSQL 锁和初始化完成标记边界；局部地图见 deployment/CLAUDE.md。
+src/main/java/com/owndsh/enterprise/remote/: Remote P0 Netty listener、WSS upgrade/frame boundary、Redis ticket/lease/epoch/presence scripts；不实现 WebRTC、TURN、Noise 解密或 Typert 业务；局部地图见 remote/CLAUDE.md。
 src/main/java/com/owndsh/enterprise/crypto/: HKDF-SHA-256 用途派生与 AES-256-GCM 秘密/cursor 保护，不暴露 master key 或派生 key。
 src/main/java/com/owndsh/enterprise/revision/: 固定 BOOTSTRAP scope 的 optimistic CAS、稳定冲突错误码与审计同事务编排。
-src/main/resources/db/migration/: PostgreSQL `V0` 至 `V52` 真源，V0 承接原 Host 基线，空库与旧 baseline 0 共用后续迁移，建立企业事实、Refresh Session、实测 usage 快照、skill catalog 来源、模型级配额扣额与 Provider/Connection/ManagedModel 三层模型接入，并将插件分类收敛为 DSH 单值；局部地图见 db/migration/CLAUDE.md。
+src/main/resources/db/migration/: PostgreSQL `V0` 至 `V57` 真源，V0 承接原 Host 基线，空库与旧 baseline 0 共用后续迁移，建立企业事实、Refresh Session、实测 usage 快照、skill catalog 来源、模型级配额扣额、Provider/Connection/ManagedModel 三层模型接入和 Remote capability/presence/lease audit 事实，并将插件分类收敛为 DSH 单值；局部地图见 db/migration/CLAUDE.md。
 src/main/resources/static/enterprise/auth/: 无 Token 的公开身份源选择、LOCAL 首次改密/验证码、LDAP 密码与 OIDC 跳转页；局部地图见 auth/CLAUDE.md。
 src/test/java/com/owndsh/enterprise/: 单元和 Testcontainers 集成验收，覆盖数据库、身份、PKCE/Redis、Refresh Token 轮换/重放、设备、模型、配额、插件、协议和事务边界；局部地图见 src/test/CLAUDE.md。
 

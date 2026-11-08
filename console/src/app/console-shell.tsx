@@ -40,7 +40,7 @@ export function ConsoleShell() {
   const navGroups: SidebarNavGroup[] = [
     { label: '模型', items: ['/','/access'].flatMap((to) => navItemFor(to) ?? []) },
     { label: '扩展', items: ['/plugins','/skills','/mcp'].flatMap((to) => navItemFor(to) ?? []) },
-    { label: '团队', items: ['/members','/activity'].flatMap((to) => navItemFor(to) ?? []) }
+    { label: '团队', items: ['/members','/activity','/remote'].flatMap((to) => navItemFor(to) ?? []) }
   ].filter((group) => group.items.length > 0);
   const workspaceActions: SidebarWorkspaceAction[] = [];
   if (availableRoutes.some((route) => route.to === '/members')) {

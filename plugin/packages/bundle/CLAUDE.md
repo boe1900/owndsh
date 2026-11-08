@@ -16,6 +16,7 @@ src/mcp-runtime.ts: 本地 MCP 路由与官方 client 子 fiber 组合器，按�
 src/mcp-tools.ts: 官方注册表的有界目录与连接代次；复用 Pi vendored 的英文 schema 文档与 BM25，按四档 exposure 计算 direct/deferred/codemode/hidden 的 native/PTC 投影；统一 tool_search 管理每个 Agent 的下一轮选择，本步 presented 快照负责执行门禁，传输掉线可暂时撤下并恢复呈现，实时撤权优先，控制工具名称冲突拒绝。
 src/mcp-pi-search.ts: Pi MIT 纯逻辑 vendoring（基线 `3dd803d`）；提供英文 tokenizer、schema 文档构造、BM25 排名与 OwnDsh 四档运行时 exposure 解析，接受 Pi 五档输入并隔离 Pi Agent 的 active set/loadout 与运行时。
 src/mcp-oauth.ts: 官方 MCP SDK v2 `OAuthClientProvider` 的宿主接缝；以确定性摘要隔离 grant，持久化官方 client information/tokens，短生命周期保存 SDK discovery/verifier 以绑定授权回调，并交接系统浏览器与 loopback callback，不实现 OAuth 协议。
+src/remote/: Remote v1 connection state、Host capability/presence、audit 和 runtime skeleton；只接入平台登录生命周期，不接 Typert session/file/terminal provider。
 tests/mcp-oauth.spec.ts: 身份/目标绑定、官方 StoredOAuth* 记录、discovery/issuer/iss 绑定、官方 SDK OAuth 委托与取消生命周期；不复制 OAuth 协议测试。
 tests/mcp-runtime.spec.ts: 真实 Cordis/tools/system-prompt 与受控 PTC binding 验证 direct/codemode/deferred/hidden、tool_search、下一轮 assembly、Agent 隔离和执行守卫；OAuth/transport 由独立官方 client 测试覆盖。
 tests/mcp-pi-search.spec.ts: Pi vendored 英文 tokenizer、schema 字段检索、BM25 排名与 exposure 覆写解析的最小纯逻辑回归。

@@ -1,0 +1,45 @@
+{
+  "auditedAt": "2026-11-07T16:59:04Z",
+  "threadId": "01a1b381-80a4-7322-afba-1a713b0af00a",
+  "transcript": "/Users/cola/.codex/sessions/2026/11/07/rollout-2026-11-07T08-56-11-01a1b381-80a4-7322-afba-1a713b0af00a.jsonl",
+  "transcriptMarkers": {
+    "relayPass": true,
+    "passwordRotationPass": true,
+    "sessionRevokePass": true
+  },
+  "liveEvidence": {
+    "linkId": "rln_SA05JXD0MX0DZETBBD25SRM1M0",
+    "transport": "relay",
+    "hostCloseCode": 4008,
+    "controllerCloseCode": 4008,
+    "adminLogoutStatus": 200
+  },
+  "cleanupEvidence": {
+    "sessionArtifactAbsent": true,
+    "repositoryArtifactsSecretFree": true,
+    "transcriptContainsHistoricalCredentialMaterial": true,
+    "activeTestPasswordRotatedAfterRun": true
+  },
+  "localGates": {
+    "javaRemoteTests": {
+      "tests": 18,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "mavenTestSkip": false
+    },
+    "contractsTests": 13,
+    "remoteCoreTests": 6,
+    "bundleTests": 36,
+    "consoleTests": 110,
+    "typechecks": true,
+    "nodeSyntax": true,
+    "diffCheck": true
+  },
+  "attention": [
+    "The historical Codex rollout contains credential material from earlier commands and must be treated as sensitive.",
+    "The older YAQ link remains historical; SA05 is the final live evidence.",
+    "Real RemoteRuntime, browser same-origin proxy, WebRTC LAN/P2P, coturn/TURN, cross-NAT, UDP-blocked, and multi-node paths remain unverified."
+  ],
+  "result": "VERIFIED"
+}

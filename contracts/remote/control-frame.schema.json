@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://owndsh.dev/contracts/remote/control-frame.schema.json",
+  "title": "OwnDsh Remote control frame",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["v", "type", "id", "ts", "payload"],
+  "properties": {
+    "v": { "type": "integer", "const": 1 },
+    "type": { "type": "string" },
+    "id": { "type": "string", "pattern": "^rf_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "ts": { "type": "integer", "minimum": 0 },
+    "payload": { "type": "object" }
+  },
+  "oneOf": [
+    { "$ref": "#/$defs/hello" },
+    { "$ref": "#/$defs/helloAck" },
+    { "$ref": "#/$defs/presence" },
+    { "$ref": "#/$defs/connectRequest" },
+    { "$ref": "#/$defs/connectAccept" },
+    { "$ref": "#/$defs/connectReject" },
+    { "$ref": "#/$defs/signal" },
+    { "$ref": "#/$defs/transport" },
+    { "$ref": "#/$defs/handshake" },
+    { "$ref": "#/$defs/lease" },
+    { "$ref": "#/$defs/error" }
+  ],
+  "$defs": {
+    "base": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["v", "type", "id", "ts", "payload"],
+      "properties": {
+        "v": { "type": "integer", "const": 1 },
+        "type": { "type": "string" },
+        "id": { "type": "string", "pattern": "^rf_[0-9A-HJKMNP-TV-Z]{26}$" },
+        "ts": { "type": "integer", "minimum": 0 },
+        "payload": { "type": "object" }
+      }
+    },
+    "hello": {
+      "allOf": [{ "$ref": "#/$defs/base" }, { "properties": { "type": { "const": "hello" }, "payload": { "type": "object", "additionalProperties": false, "required": ["role", "deviceId", "capabilities", "protocolSha256"], "properties": { "role": { "enum": ["host", "controller"] }, "deviceId": { "oneOf": [{ "type": "string", "pattern": "^[1-9][0-9]{0,18}$" }, { "type": "string", "pattern": "^ctl_[0-9A-HJKMNP-TV-Z]{26}$" }] }, "capabilities": { "type": "array", "items": { "enum": ["remote.connect", "host.describe"] }, "maxItems": 8, "uniqueItems": true }, "protocolSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }, "publicKey": { "type": "string", "contentEncoding": "base64", "maxLength": 256 } } } }, "required": ["payload"] }]
+    },
+    "helloAck": {
+      "allOf": [{ "$ref": "#/$defs/base" }, { "properties": { "type": { "const": "hello.ack" }, "payload": { "type": "object", "additionalProperties": false, "required": ["peerRole", "protocolSha256"], "properties": { "peerRole": { "enum": ["host", "controller"] }, "protocolSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }, "serverTime": { "type": "integer", "minimum": 0 } } } }, "required": ["payload"] }]
+    },
+    "presence": {
+      "allOf": [{ "$ref": "#/$defs/base" }, { "properties": { "type": { "const": "presence.update" }, "payload": { "type": "object", "additionalProperties": false, "required": ["state", "remoteEnabled", "capabilities", "lastSeenAt"], "properties": { "state": { "enum": ["READY", "REFRESHING", "SIGNED_OUT", "REVOKED"] }, "remoteEnabled": { "type": "boolean" }, "capabilities": { "type": "array", "items": { "enum": ["remote.connect", "host.describe"] }, "maxItems": 8, "uniqueItems": true }, "lastSeenAt": { "type": "integer", "minimum": 0 } } } }, "required": ["payload"] }]
+    },
+    "connectRequest": {
+      "allOf": [{ "$ref": "#/$defs/base" }, { "properties": { "type": { "const": "connect.request" }, "payload": { "type": "object", "additionalProperties": false, "required": ["linkId", "deviceId", "controllerId", "ticket", "iceServers"], "properties": { "linkId": { "type": "string", "pattern": "^rln_[0-9A-HJKMNP-TV-Z]{26}$" }, "deviceId": { "type": "string", "pattern": "^[1-9][0-9]{0,18}$" }, "controllerId": { "type": "string", "pattern": "^ctl_[0-9A-HJKMNP-TV-Z]{26}$" }, "ticket": { "type": "string", "minLength": 32, "maxLength": 512 }, "iceServers": { "type": "array", "items": { "$ref": "#/$defs/iceServer" }, "maxItems": 8 } } } }, "required": ["payload"] }]
+    },
+    "connectAccept": {
+      "allOf": [{ "$ref": "#/$defs/base" }, { "properties": { "type": { "const": "connect.accept" }, "payload": { "type": "object", "additionalProperties": false, "required": ["linkId", "expiresAt"], "properties": { "linkId": { "type": "string", "pattern": "^rln_[0-9A-HJKMNP-TV-Z]{26}$" }, "expiresAt": { "type": "integer", "minimum": 0 } } } }, "required": ["payload"] }]
+    },
+    "connectReject": {
+      "allOf": [{ "$ref": "#/$defs/base" }, { "properties": { "type": { "const": "connect.reject" }, "payload": { "type": "object", "additionalProperties": false, "required": ["linkId", "code"], "properties": { "linkId": { "type": "string", "pattern": "^rln_[0-9A-HJKMNP-TV-Z]{26}$" }, "code": { "enum": ["ENT_AUTH_REQUIRED", "ENT_DEVICE_REVOKED", "ENT_PERMISSION_DENIED", "ENT_REMOTE_BUSY", "ENT_REMOTE_UNAVAILABLE"] } } } }, "required": ["payload"] }]
+    },
+    "signal": {
+      "allOf": [{ "$ref": "#/$defs/base" }, { "properties": { "type": { "enum": ["signal.offer", "signal.answer", "signal.candidate"] }, "payload": { "type": "object", "additionalProperties": false, "required": ["linkId", "body"], "properties": { "linkId": { "type": "string", "pattern": "^rln_[0-9A-HJKMNP-TV-Z]{26}$" }, "body": { "type": "object", "maxProperties": 32 } } } }, "required": ["payload"] }]
+    },
+    "transport": {
+      "allOf": [{ "$ref": "#/$defs/base" }, { "properties": { "type": { "const": "transport.selected" }, "payload": { "type": "object", "additionalProperties": false, "required": ["linkId", "kind"], "properties": { "linkId": { "type": "string", "pattern": "^rln_[0-9A-HJKMNP-TV-Z]{26}$" }, "kind": { "enum": ["lan", "p2p", "turn", "relay"] } } } }, "required": ["payload"] }]
+    },
+    "handshake": {
+      "allOf": [{ "$ref": "#/$defs/base" }, { "properties": { "type": { "const": "secure.handshake" }, "payload": { "type": "object", "additionalProperties": false, "required": ["linkId", "message", "counter"], "properties": { "linkId": { "type": "string", "pattern": "^rln_[0-9A-HJKMNP-TV-Z]{26}$" }, "message": { "type": "string", "contentEncoding": "base64", "maxLength": 4096 }, "counter": { "type": "integer", "minimum": 0 } } } }, "required": ["payload"] }]
+    },
+    "lease": {
+      "allOf": [{ "$ref": "#/$defs/base" }, { "properties": { "type": { "enum": ["connection.lease.acquire", "connection.lease.renew", "connection.lease.release"] }, "payload": { "type": "object", "additionalProperties": false, "required": ["linkId", "leaseId"], "properties": { "linkId": { "type": "string", "pattern": "^rln_[0-9A-HJKMNP-TV-Z]{26}$" }, "leaseId": { "type": "string", "minLength": 16, "maxLength": 128 }, "expiresAt": { "type": "integer", "minimum": 0 } } } }, "required": ["payload"] }]
+    },
+    "error": {
+      "allOf": [{ "$ref": "#/$defs/base" }, { "properties": { "type": { "const": "error" }, "payload": { "type": "object", "additionalProperties": false, "required": ["code", "message"], "properties": { "code": { "type": "string", "pattern": "^ENT_[A-Z0-9_]+$" }, "message": { "type": "string", "minLength": 1, "maxLength": 500 }, "retryable": { "type": "boolean" } } } }, "required": ["payload"] }]
+    },
+    "iceServer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["urls"],
+      "properties": { "urls": { "oneOf": [{ "type": "string", "format": "uri" }, { "type": "array", "items": { "type": "string", "format": "uri" }, "minItems": 1, "maxItems": 8 }] }, "username": { "type": "string", "maxLength": 256 }, "credential": { "type": "string", "maxLength": 512 } }
+    }
+  }
+}

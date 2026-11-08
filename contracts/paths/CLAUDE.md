@@ -4,7 +4,7 @@
 
 成员清单
 
-auth.yaml: authorize/HTTP(S) 身份验证、Desktop code/refresh Token、管理端 HttpOnly Cookie/logout、当前用户改密与 bootstrap Path Item；两类客户端不共享 Token 响应，改密撤销全部会话。
+auth.yaml: authorize/HTTP(S) 身份验证、Desktop code/refresh Token、管理端 HttpOnly Cookie/logout、当前用户改密与 bootstrap Path Item；两类客户端不共享 Token 响应，改密撤销全部会话，设备撤销后的 logout 固定返回 403 ENT_DEVICE_REVOKED。
 device.yaml: T05 Runtime enroll/heartbeat 与管理员 list/get/revoke 五个设备 Path Item，保持 Token terminal 与 revision 权限边界。
 identity.yaml: 身份源、LDAP 用户/组发现与单人导入、扁平产品用户组和外部组映射 Path Item，保留 revision、来源隔离、权限码和脱敏边界。
 member.yaml: LOCAL 成员幂等创建及产品成员 cursor/list/detail、状态、固定角色、身份解绑与绑定事务 operation，保持 read/write 权限、revision CAS 和新鲜认证边界。
@@ -16,5 +16,6 @@ skill.yaml: 两个 runtime 与五个管理 operation，提供脱敏 release cata
 mcp.yaml: MCP 配置/授权 CRUD 与 assignment/catalog operation；授权启停/删除统一 If-Match、400/404/409 和 Cookie 权限边界。
 session.yaml: T16 三个管理与五个 runtime operation，冻结设备源绑定、正文独立权限、导出 hash 与 tombstone 边界。
 audit.yaml: T19 单一管理只读 operation，冻结九维筛选、最新优先时间/ID cursor 和 ent:audit:read 权限边界。
+remote.yaml: Remote 设备列表、ticket、capability 查询和 lease 撤销 operation；控制面使用管理员 Cookie 与 revision/幂等边界。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

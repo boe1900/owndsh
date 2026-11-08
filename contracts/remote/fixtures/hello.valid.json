@@ -1,0 +1,13 @@
+{
+  "v": 1,
+  "type": "hello",
+  "id": "rf_01J8K8M4QJ9K4Y5W8R1T2P3N4M",
+  "ts": 1794045600000,
+  "payload": {
+    "role": "host",
+    "deviceId": "1919100000000000202",
+    "capabilities": ["remote.connect", "host.describe"],
+    "protocolSha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "publicKey": "AQIDBAUGBwgJCg=="
+  }
+}

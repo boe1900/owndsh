@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://owndsh.dev/contracts/remote/relay-frame.schema.json",
+  "title": "OwnDsh Remote relay frame",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["v", "kind", "linkId", "seq"],
+  "properties": {
+    "v": { "type": "integer", "const": 1 },
+    "kind": { "enum": ["data", "ping", "close"] },
+    "linkId": { "type": "string", "pattern": "^rln_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "seq": { "type": "integer", "minimum": 0 },
+    "payload": { "type": "string", "contentEncoding": "base64", "maxLength": 87384 },
+    "code": { "type": "string", "maxLength": 64 }
+  },
+  "allOf": [
+    { "if": { "properties": { "kind": { "const": "data" } } }, "then": { "required": ["payload"] } },
+    { "if": { "properties": { "kind": { "const": "close" } } }, "then": { "required": ["code"] } }
+  ]
+}

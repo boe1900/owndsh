@@ -88,6 +88,7 @@ export const zEnterpriseErrorCode = z.enum([
     'ENT_RESOURCE_NOT_OWNED',
     'ENT_RESOURCE_NOT_FOUND',
     'ENT_SESSION_CONTENT_EXPIRED',
+    'ENT_REMOTE_LINK_NOT_FOUND',
     'ENT_REVISION_CONFLICT',
     'ENT_RESOURCE_IN_USE',
     'ENT_LAST_ENTERPRISE_ADMIN',
@@ -101,6 +102,13 @@ export const zEnterpriseErrorCode = z.enum([
     'ENT_DEVICE_ALREADY_BOUND',
     'ENT_MCP_CONFLICT',
     'ENT_MCP_CATALOG_STALE',
+    'ENT_IDEMPOTENCY_CONFLICT',
+    'ENT_REMOTE_DISABLED',
+    'ENT_REMOTE_BUSY',
+    'ENT_REMOTE_FEATURE_NOT_SUPPORTED',
+    'ENT_REMOTE_LEASE_EXPIRED',
+    'ENT_REMOTE_TICKET_EXPIRED',
+    'ENT_REMOTE_INVALID_MESSAGE',
     'ENT_MCP_POLICY_INVALID',
     'ENT_MCP_UNSUPPORTED',
     'ENT_REQUEST_TOO_LARGE',
@@ -117,6 +125,8 @@ export const zEnterpriseErrorCode = z.enum([
     'ENT_UPSTREAM_INVALID_RESPONSE',
     'ENT_PLATFORM_UNAVAILABLE',
     'ENT_UPSTREAM_UNAVAILABLE',
+    'ENT_REMOTE_UNAVAILABLE',
+    'ENT_REMOTE_TURN_NOT_CONFIGURED',
     'ENT_UPSTREAM_TIMEOUT'
 ]);
 
@@ -2553,6 +2563,114 @@ export const zQuotaUsageLedgerListResponse = z.object({
 
 export const zUsageLedgerListResponse = zQuotaUsageLedgerListResponse;
 
+export const zRemoteRemoteDeviceStatus = z.enum([
+    'ACTIVE',
+    'REVOKED',
+    'OFFLINE'
+]);
+
+export const zRemoteDeviceStatus = zRemoteRemoteDeviceStatus;
+
+export const zRemoteRemoteLease = z.object({
+    linkId: z.string().regex(/^rln_[0-9A-HJKMNP-TV-Z]{26}$/),
+    leaseId: z.string().min(16).max(128),
+    expiresAt: z.iso.datetime({ offset: true }),
+    status: z.enum([
+        'ACTIVE',
+        'REVOKED',
+        'EXPIRED'
+    ])
+}).strict();
+
+export const zRemoteLease = zRemoteRemoteLease;
+
+export const zRemoteRemoteLeaseResponse = z.object({
+    data: zRemoteRemoteLease,
+    requestId: zRequestId
+}).strict();
+
+export const zRemoteLeaseResponse = zRemoteRemoteLeaseResponse;
+
+export const zRemoteRemoteTicket = z.object({
+    ticket: z.string().min(32).max(512),
+    linkId: z.string().regex(/^rln_[0-9A-HJKMNP-TV-Z]{26}$/),
+    deviceId: zEnterpriseDeviceId,
+    expiresAt: z.iso.datetime({ offset: true }),
+    iceServers: z.array(z.object({
+        urls: z.union([
+            z.url(),
+            z.array(z.url()).min(1).max(8)
+        ]),
+        username: z.string().max(256).optional(),
+        credential: z.string().max(512).optional()
+    }).strict()).max(8)
+}).strict();
+
+export const zRemoteTicket = zRemoteRemoteTicket;
+
+export const zRemoteRemoteTicketRequest = z.object({
+    controllerDeviceId: z.string().regex(/^ctl_[0-9A-HJKMNP-TV-Z]{26}$/),
+    controllerPublicKey: z.string().min(43).max(64),
+    requestedCapabilities: z.array(z.enum(['remote.connect', 'host.describe'])).min(1).max(8),
+    clientVersion: z.string().min(1).max(64)
+}).strict();
+
+export const zRemoteTicketRequest = zRemoteRemoteTicketRequest;
+
+export const zRemoteRemoteTicketResponse = z.object({
+    data: zRemoteRemoteTicket,
+    requestId: zRequestId
+}).strict();
+
+export const zRemoteTicketResponse = zRemoteRemoteTicketResponse;
+
+export const zRemoteRemoteTransportCapability = z.enum([
+    'lan',
+    'p2p',
+    'turn',
+    'relay'
+]);
+
+export const zRemoteTransportCapability = zRemoteRemoteTransportCapability;
+
+export const zRemoteRemoteDevice = z.object({
+    deviceId: zEnterpriseDeviceId,
+    installationId: z.uuid(),
+    name: z.string().min(1).max(120),
+    platform: z.string().min(1).max(64),
+    status: zRemoteRemoteDeviceStatus,
+    online: z.boolean(),
+    remoteEnabled: z.boolean(),
+    capabilities: z.array(z.enum(['remote.connect', 'host.describe'])).max(8),
+    transports: z.array(zRemoteRemoteTransportCapability).max(4).optional(),
+    capabilityRevision: zRevision,
+    lastPresenceAt: z.iso.datetime({ offset: true }).nullable(),
+    revision: zRevision
+}).strict();
+
+export const zRemoteDevice = zRemoteRemoteDevice;
+
+export const zRemoteRemoteCapabilityResponse = z.object({
+    data: zRemoteRemoteDevice,
+    requestId: zRequestId
+}).strict();
+
+export const zRemoteCapabilityResponse = zRemoteRemoteCapabilityResponse;
+
+export const zRemoteRemoteDevicePageData = z.object({
+    items: z.array(zRemoteRemoteDevice),
+    page: zCursorPage
+}).strict();
+
+export const zRemoteDevicePageData = zRemoteRemoteDevicePageData;
+
+export const zRemoteRemoteDeviceListResponse = z.object({
+    data: zRemoteRemoteDevicePageData,
+    requestId: zRequestId
+}).strict();
+
+export const zRemoteDeviceListResponse = zRemoteRemoteDeviceListResponse;
+
 export const zSessionSessionHashBase64 = z.string().length(44).regex(/^[A-Za-z0-9+\/]{43}=$/);
 
 export const zSessionHashBase64 = zSessionSessionHashBase64;
@@ -3088,6 +3206,14 @@ export const zQuotaItem = z.unknown();
 
 export const zQuotaWindows = z.unknown();
 
+export const zRemoteCapability = z.unknown();
+
+export const zRemoteDevices = z.unknown();
+
+export const zRemoteLeaseRevoke = z.unknown();
+
+export const zRemoteRemoteTicket2 = z.unknown();
+
 export const zAdminSessionCollection = z.unknown();
 
 export const zAdminSessionContent = z.unknown();
@@ -3237,6 +3363,10 @@ export const zSkillNameWritable = zSkillSkillName;
 export const zSkillVersionWritable = zSkillSkillVersion;
 
 export const zSkillReleaseStatusWritable = zSkillSkillReleaseStatus;
+
+export const zRemoteDeviceStatusWritable = zRemoteRemoteDeviceStatus;
+
+export const zRemoteTransportCapabilityWritable = zRemoteRemoteTransportCapability;
 
 export const zEmptyAuditMetadataWritable = z.record(z.string(), z.never());
 
@@ -4905,3 +5035,50 @@ export const zRevokeSkillSourceCredentialResponse = z.object({
     data: zSkillSkillSourceCredential,
     requestId: zRequestId
 });
+
+export const zListRemoteDevicesQuery = z.object({
+    cursor: zCursor.optional(),
+    limit: zPageLimit.optional()
+});
+
+/**
+ * Remote device page.
+ */
+export const zListRemoteDevicesResponse = zRemoteRemoteDeviceListResponse;
+
+export const zCreateRemoteTicketBody = zRemoteRemoteTicketRequest;
+
+export const zCreateRemoteTicketHeaders = z.object({
+    'Idempotency-Key': z.uuid().length(36).regex(/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/)
+});
+
+export const zCreateRemoteTicketPath = z.object({
+    deviceId: zEnterpriseDeviceId
+});
+
+/**
+ * Short-lived ticket.
+ */
+export const zCreateRemoteTicketResponse = zRemoteRemoteTicketResponse;
+
+export const zGetRemoteDeviceCapabilitiesPath = z.object({
+    deviceId: zEnterpriseDeviceId
+});
+
+/**
+ * Capability snapshot.
+ */
+export const zGetRemoteDeviceCapabilitiesResponse = zRemoteRemoteCapabilityResponse;
+
+export const zRevokeRemoteLeaseHeaders = z.object({
+    'If-Match': zRevision
+});
+
+export const zRevokeRemoteLeasePath = z.object({
+    linkId: z.string().regex(/^rln_[0-9A-HJKMNP-TV-Z]{26}$/)
+});
+
+/**
+ * Revoked lease.
+ */
+export const zRevokeRemoteLeaseResponse = zRemoteRemoteLeaseResponse;

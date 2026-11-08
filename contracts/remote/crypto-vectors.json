@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": 1,
+  "noiseProtocol": "Noise_IK_25519_ChaChaPoly_SHA256",
+  "prologue": "owndsh.remote.v1",
+  "vectors": [
+    {
+      "name": "noise-ik-fixed-counter-zero",
+      "initiatorSecretKey": "ISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0A=",
+      "initiatorPublicKey": "WGmv9FBUlzLLqu1eXfmzCm2jHLDldCutWtShp2jxpns=",
+      "responderSecretKey": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=",
+      "responderPublicKey": "B6N8vBQgk8i3VdwbEOhstCY3StFqqFPtC9/AsrhtHHw=",
+      "ephemeralSecretKey": "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVpbXF1eX2A=",
+      "ephemeralPublicKey": "ZLEBsdC+WocEvQePmJUAH8A+jp+VIvGI3RKNmEbUhGY=",
+      "handshakeMessage": "ZLEBsdC+WocEvQePmJUAH8A+jp+VIvGI3RKNmEbUhGa36oh7YNqcO5g2uMonSfSRdzpQNbqnv72OxzKHNHtGe+uJKGCrTfy+1+6IfPHZ9oN6n/KIUbNfgrdutXgMlhUuk7D4",
+      "handshakePayload": "AQID",
+      "counter": 0,
+      "aad": "b3duZHNoLnJlbW90ZS52MQ==",
+      "plaintext": "AQID",
+      "ciphertext": "wFiHPK+QtD/flhj8ar2MoGgHHg=="
+    }
+  ]
+}

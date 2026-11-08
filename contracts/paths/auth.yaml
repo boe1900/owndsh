@@ -207,6 +207,8 @@ Logout:
               $ref: '../enterprise-openapi.yaml#/components/schemas/LogoutResponse'
       '401':
         $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+      '403':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error403'
 
 ConsoleBootstrap:
   get:

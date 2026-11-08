@@ -1,0 +1,31 @@
+{
+  "auditedAt": "2026-11-07T16:48:46Z",
+  "threadId": "01a1b381-80a4-7322-afba-1a713b0af00a",
+  "sessionArtifact": {
+    "path": ".audit/live-session.json",
+    "exists": false,
+    "accessTokenRecordedInRepository": false
+  },
+  "administratorPassword": {
+    "rotation": "API",
+    "status": "verified",
+    "secretRecordedInRepository": false,
+    "historicalCredentialMaterialInTranscript": true,
+    "activeTestPasswordRotatedAfterRun": true,
+    "transcript": "~/.codex/sessions/2026/11/07/rollout-2026-11-07T08-56-11-01a1b381-80a4-7322-afba-1a713b0af00a.jsonl",
+    "transcriptRecordTimestamp": "2026-11-07T16:39:11.248Z"
+  },
+  "testSessions": {
+    "status": "revoked",
+    "evidence": ".audit/live-remote-evidence.json",
+    "adminLogoutStatus": 200,
+    "leaseCloseCodes": {
+      "host": 4008,
+      "controller": 4008
+    }
+  },
+  "liveLink": "rln_SA05JXD0MX0DZETBBD25SRM1M0",
+  "deviceId": "2119106060747808770",
+  "repositoryArtifactsContainSensitiveValues": false,
+  "transcriptContainsHistoricalCredentialMaterial": true
+}

@@ -33,6 +33,7 @@ java/com/owndsh/enterprise/plugin/PluginMarketControllerTest.java: 验证 DSH De
 java/com/owndsh/enterprise/skill/EffectiveSkillResolverTest.java: 纯单元验证已发布 skill 目录与 BOOTSTRAP revision 的脱敏 runtime 投影。
 java/com/owndsh/enterprise/session/: T16 精确 JSONL/hash、并发远端副本、正文权限、tombstone 与 V9 协议纵向门禁；局部地图见 session/CLAUDE.md。
 java/com/owndsh/enterprise/audit/: 37-action metadata 白名单、requestId 关联、用户治理接缝与 365 天 retention 门禁；局部地图见 audit/CLAUDE.md。
+java/com/owndsh/enterprise/remote/: Remote 设备资格、ticket 输入和 Netty carrier 边界回归；局部地图见 remote/CLAUDE.md。
 java/com/owndsh/enterprise/common/api/: 认证游标格式/租户/筛选隔离、T20 有界 JSON 请求、稳定 413/503、删除阻塞 409 与故障日志秘密隔离门禁；局部地图见 common/api/CLAUDE.md。
 java/com/owndsh/enterprise/test/OpenLdapTestServer.java: 共享 OpenLDAP Testcontainer 与测试专用 TLS trust，集中管理 LDAP 集成环境。
 java/com/owndsh/enterprise/test/RedisTestServer.java: 共享 Redis 8 Testcontainer，并为每项认证测试清理隔离 keyspace。

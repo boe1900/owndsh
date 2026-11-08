@@ -78,6 +78,20 @@ enterprise:
   audit:
     retention-days: ${ENT_AUDIT_RETENTION_DAYS:365}
     retention-batch-size: ${ENT_AUDIT_RETENTION_BATCH_SIZE:500}
+  remote:
+    # Remote listener 默认关闭；启用时必须由部署方提供 TLS 证书/私钥或在可信网关后监听内网。
+    enabled: ${ENT_REMOTE_ENABLED:false}
+    bind-address: ${ENT_REMOTE_BIND_ADDRESS:0.0.0.0}
+    port: ${ENT_REMOTE_PORT:8090}
+    max-frame-bytes: ${ENT_REMOTE_MAX_FRAME_BYTES:262144}
+    tls-enabled: ${ENT_REMOTE_TLS_ENABLED:false}
+    certificate: ${ENT_REMOTE_TLS_CERTIFICATE:}
+    private-key: ${ENT_REMOTE_TLS_PRIVATE_KEY:}
+    allowed-origin: ${ENT_REMOTE_ALLOWED_ORIGIN:}
+    # 逗号分隔的 STUN/TURN URL；TURN 使用下面的 coturn REST shared secret 生成短期凭据。
+    ice-server-urls: ${ENT_REMOTE_ICE_SERVER_URLS:}
+    turn-shared-secret: ${ENT_REMOTE_TURN_SHARED_SECRET:}
+    turn-credential-ttl-seconds: ${ENT_REMOTE_TURN_CREDENTIAL_TTL_SECONDS:60}
 
 # Spring配置
 spring:

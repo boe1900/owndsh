@@ -1,0 +1,55 @@
+{
+  "status": "PASS",
+  "testAccount": "remote_nas_mw7nk8aq",
+  "network": {
+    "origin": "http://home-nas:18080",
+    "hostWs": "ws://home-nas:18090/remote/ws/v1",
+    "controllerWs": "ws://home-nas:18080/remote/ws/v1",
+    "tlsEnabled": false
+  },
+  "cleanup": {
+    "deviceRevoked": true,
+    "adminLoggedOut": true,
+    "hostLoggedOut": true,
+    "accountDisabled": true
+  },
+  "ticket": {
+    "linkId": "rln_8T2VHW9MAVA8QVVPB63GZKNQ1M",
+    "iceServers": 1,
+    "iceServerEndpoints": [
+      "turn:home-nas:3478",
+      "turn:192.168.5.111:3478"
+    ]
+  },
+  "turn": {
+    "status": "PASS",
+    "server": "192.168.5.111:3478",
+    "transport": "udp",
+    "challengeReceived": true,
+    "allocationSucceeded": true,
+    "allocationCleanupSucceeded": true,
+    "lifetimeSeconds": 600,
+    "responseBytes": 108,
+    "elapsedMs": 11.9
+  },
+  "device": {
+    "deviceId": "2119367181591576577",
+    "online": true,
+    "remoteEnabled": true,
+    "revision": 0
+  },
+  "relay": {
+    "bidirectional": true,
+    "leaseAcquired": true,
+    "leaseRenewed": true,
+    "leaseRevoked": true
+  },
+  "closeCodes": {
+    "host": 4008,
+    "controller": 4008
+  },
+  "logout": {
+    "admin": 200,
+    "host": 403
+  }
+}

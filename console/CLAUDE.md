@@ -8,7 +8,7 @@ package.json: 独立产品控制台依赖与命令真源，固定 Node 24、pnpm
 pnpm-lock.yaml: pnpm 11 解析出的精确依赖锁，保证私有部署与 CI 使用同一供应链图。
 pnpm-workspace.yaml: 单项目 pnpm 安全边界，只允许构建 Vite 依赖的 esbuild。
 tsconfig.json: 浏览器 TypeScript 6 严格配置，启用 Bundler resolution 与 `@/` 源码路径；数组索引检查遵循锁定上游组件语义。
-vite.config.ts: Vite、TanStack 文件路由、React、Tailwind、Vitest（src/test/setup.ts 统一异步查询预算与 15s 单测超时）、62209 本地端口与默认指向 62207 OwnDsh TLS 入口的 `/enterprise`、`/healthz` 开发代理；`/enterprise/auth/callback` 精确 bypass 由本机 SPA 承接，与部署 nginx 同构。
+vite.config.ts: Vite、TanStack 文件路由、React、Tailwind、Vitest（src/test/setup.ts 统一异步查询预算与 15s 单测超时）、62209 本地端口与默认指向 62207 OwnDsh TLS 入口的 `/enterprise`、`/healthz` 开发代理，以及指向 8090 的 `/remote` WebSocket Upgrade 代理；`/enterprise/auth/callback` 精确 bypass 由本机 SPA 承接，与部署 nginx 同构。
 index.html: 控制台唯一 HTML 入口，在挂载 React 前恢复 Beautiful UI 主题以避免首帧闪烁。
 README.md: 本地安装、检查、启动、Beautiful UI 来源与 OpenAPI 生成物边界。
 BEAUTIFUL_UI_LICENSE: 直接派生的 Beautiful UI Harness/foundation/primitive 源码所附 MIT 许可证。

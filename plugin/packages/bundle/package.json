@@ -61,6 +61,9 @@
     "test": "vitest run tests",
     "pack": "pnpm pack"
   },
+  "dependencies": {
+    "ws": "8.21.3"
+  },
   "peerDependencies": {
     "@deepseek-ai/dsh-attachment": "^0.2.1-rc.5",
     "@deepseek-ai/dsh-authorization": "^0.2.1-rc.5",
@@ -124,6 +127,7 @@
     "@modelcontextprotocol/client": "2.2.0",
     "@owndsh/llm-gateway": "workspace:*",
     "@owndsh/platform-client": "workspace:*",
+    "@owndsh/remote-core": "workspace:*",
     "@owndsh/ui": "workspace:*",
     "@deepseek-ai/dsh-client-ui-plugin-market": "0.2.1-rc.5",
     "@deepseek-ai/dsh-plugin-market": "0.2.1-rc.5",

@@ -1,0 +1,13 @@
+{
+  "v": 1,
+  "type": "hello",
+  "id": "rf_bad",
+  "ts": 1794045600000,
+  "payload": {
+    "role": "host",
+    "deviceId": "not-a-device",
+    "capabilities": ["terminal.execute"],
+    "protocolSha256": "short"
+  },
+  "debug": "must be rejected"
+}

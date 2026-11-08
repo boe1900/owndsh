@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OwnDsh Remote close codes",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "NORMAL": { "const": 1000 },
+    "AUTH_REQUIRED": { "const": 4001 },
+    "DEVICE_REVOKED": { "const": 4003 },
+    "LEASE_EXPIRED": { "const": 4008 },
+    "PROTOCOL_ERROR": { "const": 4400 },
+    "FRAME_TOO_LARGE": { "const": 4409 },
+    "SERVER_DRAINING": { "const": 4503 }
+  },
+  "required": ["NORMAL", "AUTH_REQUIRED", "DEVICE_REVOKED", "LEASE_EXPIRED", "PROTOCOL_ERROR", "FRAME_TOO_LARGE", "SERVER_DRAINING"]
+}

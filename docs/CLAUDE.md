@@ -6,6 +6,11 @@
 
 dsh-compatibility.md: DSH 升级检查入口，记录当前 npm/Web 基线、上游依赖契约与本地代码/测试映射、历史夹具边界、逐项验收流程及 OAuth 接缝删除条件。
 remote-access-design.md: 远程访问唯一方案，确定 Remote 核心复用、OwnDsh 账号与设备授权、Java/TS 职责、WebRTC/TURN/加密 Relay、统一撤权、浏览器接入与实施验收边界。
+remote-access-implementation-design.md: 远程访问首期三端实施真源，定义 Java/Host/Web 连接基础、Remote ticket/lease、Control/Noise/Relay、能力探测、数据模型、开发阶段、验收矩阵和直接开发门槛。
+
+remote-access-java-design.md: Remote Java Server 实施附录，定义 Spring 内嵌 Netty pipeline、模块边界、连接状态处理、分布式部署和 Java 不实现的端点能力。
+remote-access-business-extension-design.md: Remote 后续业务扩展附录，记录 R6/R7 会话、工作区、文件与终端的候选 RPC、scope、传输和生命周期约束。
+remote-access-product-decisions.md: Remote 产品决策附录，冻结首期连接基础范围并列出进入业务阶段前需要确认的文件、终端、Android、恢复、管理员和数据保留取舍。
 model-onboarding-design.md: 模型接入流程详细设计与实现真源；记录 Provider/ProviderConnection/ManagedModel 三层、API Key 归属、模型级 RATE、全新切换边界、发现失败后的手工模型兜底、候选多选、折叠模型配置、自动命名、DSH 对齐的 input 模态与 reasoningEfforts wire 映射、改动量、影响分析与验收标准。
 model-onboarding-design-review.md: 模型接入设计历史终审与后续范围裁决，记录代码事实、Provider RATE 方案被移除、模型级 RATE、全新切换边界及 R1–R16 的取代关系；约束 model-onboarding-design.md 的当前冻结决策。
 model-onboarding-prototype.html: 模型接入完整闭环可交互单文件原型：以模型与供应商/模型集两 section 为壳，展示 Provider→Connection→ManagedModel 拓扑、全局模型表视图、连接展开后的模型管理和四步接入向导；内联 Beautiful UI tokens 与模拟数据，非实现码。

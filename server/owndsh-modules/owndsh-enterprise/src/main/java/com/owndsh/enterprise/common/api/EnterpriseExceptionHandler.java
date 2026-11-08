@@ -20,9 +20,11 @@ import com.owndsh.enterprise.auth.application.AccessGroupInUseException;
 import com.owndsh.enterprise.auth.application.IdentityResourceNotFoundException;
 import com.owndsh.enterprise.auth.application.MemberManagementException;
 import com.owndsh.enterprise.auth.application.AuthFlowException;
+import com.owndsh.enterprise.auth.application.PlatformSessionRevokedException;
 import com.owndsh.enterprise.device.application.DeviceAccessException;
 import com.owndsh.enterprise.device.application.DeviceBindingConflictException;
 import com.owndsh.enterprise.device.application.DeviceNotFoundException;
+import com.owndsh.enterprise.remote.domain.RemoteControlException;
 import com.owndsh.enterprise.model.application.ModelResourceNotFoundException;
 import com.owndsh.enterprise.model.application.ManagedModelInUseException;
 import com.owndsh.enterprise.model.application.ModelSetInUseException;
@@ -95,6 +97,11 @@ public final class EnterpriseExceptionHandler {
         return error(HttpStatus.FORBIDDEN, exception.code(), message, false, null, request);
     }
 
+    @ExceptionHandler(PlatformSessionRevokedException.class)
+    public ResponseEntity<EnterpriseErrorResponse> platformSessionRevoked(HttpServletRequest request) {
+        return error(HttpStatus.FORBIDDEN, "ENT_DEVICE_REVOKED", "设备已撤销", false, null, request);
+    }
+
     @ExceptionHandler(DeviceNotFoundException.class)
     public ResponseEntity<EnterpriseErrorResponse> deviceNotFound(HttpServletRequest request) {
         return error(HttpStatus.NOT_FOUND, "ENT_RESOURCE_NOT_FOUND", "设备不存在", false, null, request);
@@ -113,6 +120,29 @@ public final class EnterpriseExceptionHandler {
             null,
             request
         );
+    }
+
+    @ExceptionHandler(RemoteControlException.class)
+    public ResponseEntity<EnterpriseErrorResponse> remote(
+        RemoteControlException exception,
+        HttpServletRequest request
+    ) {
+        HttpStatus status = switch (exception.code()) {
+            case "ENT_REMOTE_LINK_NOT_FOUND", "ENT_RESOURCE_NOT_FOUND" -> HttpStatus.NOT_FOUND;
+            case "ENT_DEVICE_REVOKED", "ENT_PERMISSION_DENIED" -> HttpStatus.FORBIDDEN;
+            case "ENT_REMOTE_UNAVAILABLE", "ENT_REMOTE_TURN_NOT_CONFIGURED" -> HttpStatus.SERVICE_UNAVAILABLE;
+            default -> HttpStatus.CONFLICT;
+        };
+        String message = switch (exception.code()) {
+            case "ENT_REMOTE_DISABLED" -> "设备未开启远控";
+            case "ENT_REMOTE_UNAVAILABLE" -> "设备当前不在线";
+            case "ENT_REMOTE_FEATURE_NOT_SUPPORTED" -> "设备不支持请求的远控能力";
+            case "ENT_REMOTE_TURN_NOT_CONFIGURED" -> "远程中继服务尚未配置";
+            case "ENT_REMOTE_LINK_NOT_FOUND" -> "远控连接不存在或已过期";
+            case "ENT_IDEMPOTENCY_CONFLICT" -> "幂等键已经用于其他请求";
+            default -> "远控请求被拒绝";
+        };
+        return error(status, exception.code(), message, status == HttpStatus.SERVICE_UNAVAILABLE, null, request);
     }
 
     @ExceptionHandler(RevisionConflictException.class)

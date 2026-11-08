@@ -1,0 +1,12 @@
+{
+  "timestamp": "2026-11-08T09:46:17.227Z",
+  "status": "SUPERSEDED",
+  "observed": {
+    "consoleShell": 200,
+    "unauthenticatedAdminBootstrap": 401,
+    "directWebSocket": "socket hang up",
+    "consoleProxyWebSocket": 502
+  },
+  "failure": "The first assertion accepted only 403 for the anonymous bootstrap request, while this NAS deployment correctly returned 401.",
+  "supersededBy": ".audit/remote-nas-auth-boundary.json"
+}

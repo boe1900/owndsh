@@ -1,0 +1,40 @@
+{
+  "hostHello": true,
+  "controllerHello": true,
+  "deviceOnline": true,
+  "ticket": {
+    "linkId": "rln_SA05JXD0MX0DZETBBD25SRM1M0",
+    "iceServers": 0
+  },
+  "connectAccepted": true,
+  "transport": "relay",
+  "leaseAcquire": 1794069608821,
+  "leaseRenew": 1794069608822,
+  "relayRoundTrip": true,
+  "revoke": {
+    "status": 200,
+    "body": {
+      "linkId": "rln_SA05JXD0MX0DZETBBD25SRM1M0",
+      "leaseId": "lease_SA05JXD0MX0DZETBBD25SRM1M0",
+      "expiresAt": "2026-11-07T16:39:08.829022Z",
+      "status": "REVOKED"
+    }
+  },
+  "close": {
+    "host": {
+      "code": 4008,
+      "reason": "lease expired"
+    },
+    "controller": {
+      "code": 4008,
+      "reason": "lease expired"
+    }
+  },
+  "afterRevoke": {
+    "host": 4,
+    "controller": 5
+  },
+  "logout": {
+    "admin": 200
+  }
+}

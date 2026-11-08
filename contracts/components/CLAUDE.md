@@ -16,5 +16,6 @@ skill.yaml: OwnDsh skill release 草稿/发布状态、runtime catalog 与制品
 mcp.yaml: MCP 公共配置、认证声明（单个 API Key 仅指定 headerName，认证值由用户端原样提供）、工具目录、ALL/USER/GROUP 授权（ALL 的 subjectId=null）与 assignment/catalog schema；不承载用户秘密或 tools/call 代理。
 session.yaml: 官方 rc.7 format v0 header、精确 JSONL/hash、本人/admin metadata、正文页、tombstone 与恢复审计 schema 分片。
 audit.yaml: 37-action 枚举（含 PLUGIN_DELETED 与四类 SKILL 管理 action）、封闭 metadata 与 cursor；模型传输失败可携带已实测结算，明确拒绝可 RELEASED，恢复可由 usage 快照 SETTLED。
+remote.yaml: Remote 设备列表、一次性 ticket、ICE servers、capability snapshot 与 lease 响应 schema；只承载控制面授权事实，不承载业务密文。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

@@ -25,6 +25,8 @@ import { mountMcpRuntime } from './mcp-runtime.js'
 import { mountEnterpriseSkillProvider } from './skill-provider.js'
 import type { ToolRuntime } from '@deepseek-ai/dsh-tools'
 import type { McpExposureInput } from './mcp-pi-search.js'
+import { RemoteRuntime } from './remote/remote-runtime.js'
+import { createNodeRemoteSocketFactory } from './remote/node-socket-factory.js'
 
 export const name = 'owndsh'
 export const inject = ['webServer', 'credentials', 'settings', 'llm', 'pluginInventory', 'pluginManager', 'pluginMarket', 'tools']
@@ -240,6 +242,10 @@ export function apply(ctx: EnterpriseHostContext, config: Config): void {
     invalidateSkills,
   })
   mountMcpRuntime(ctx, platform, ctx.credentials, config)
+  const remoteRuntime = new RemoteRuntime(platform, ctx.logger, undefined, {
+    socketFactory: createNodeRemoteSocketFactory(),
+  })
+  remoteRuntime.start()
   ctx.effect(() => registerEnterpriseGateway(ctx, {
     platform,
     harnessVersion: HARNESS_VERSION,
@@ -277,6 +283,7 @@ export function apply(ctx: EnterpriseHostContext, config: Config): void {
     disposeMarketChange()
     disposePlatformStatus()
     disposeMarketProxy()
+    remoteRuntime.dispose()
   }, 'owndsh.pluginInventory')
   scheduleInventory()
   scheduleMarket()

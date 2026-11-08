@@ -765,6 +765,21 @@ describe('EnterprisePlatformService', () => {
     await expect(env.service.request('/enterprise/api/v1/probe')).rejects.toMatchObject({ code: 'ENT_AUTH_REQUIRED' })
   })
 
+  it('clears credentials on Remote revocation and keeps DEVICE_REVOKED through logout', async () => {
+    const env = await environment()
+    await login(env)
+
+    env.service.markDeviceRevoked()
+
+    await vi.waitFor(() => expect(env.credentials.record).toBeUndefined())
+    expect(env.service.status()).toMatchObject({ state: 'DEVICE_REVOKED', errorCode: 'ENT_DEVICE_REVOKED' })
+    await expect(env.service.request('/enterprise/api/v1/probe')).rejects.toMatchObject({ code: 'ENT_AUTH_REQUIRED' })
+
+    await env.service.logout()
+    expect(env.credentials.record).toBeUndefined()
+    expect(env.service.status().state).toBe('DEVICE_REVOKED')
+  })
+
   it('renews a server-rejected Access Token once and bounds unauthorized retries', async () => {
     const env = await environment()
     await login(env)

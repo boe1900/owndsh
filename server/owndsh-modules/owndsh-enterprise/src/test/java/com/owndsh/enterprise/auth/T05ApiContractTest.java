@@ -58,6 +58,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -477,6 +478,16 @@ class T05ApiContractTest {
             "get", "ent:device:read",
             "revoke", "ent:device:revoke"
         ));
+    }
+
+    @Test
+    void mapsRevokedPlatformLogoutToDeviceRevokedHttpError() throws Exception {
+        doThrow(new PlatformSessionRevokedException()).when(authorization).logout(anyString(), any());
+
+        mvc.perform(post("/enterprise/auth/v1/logout"))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.error.code").value("ENT_DEVICE_REVOKED"))
+            .andExpect(jsonPath("$.error.retryable").value(false));
     }
 
     @Test

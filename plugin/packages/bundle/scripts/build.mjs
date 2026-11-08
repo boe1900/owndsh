@@ -38,6 +38,7 @@ await build({
     '@deepseek-ai/dsh-tools',
     '@deepseek-ai/dsh-settings',
     '@deepseek-ai/schemastery',
+    'ws',
     'yaml',
   ],
   format: 'esm',

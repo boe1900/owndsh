@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OwnDsh Remote limits",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["maxFrameBytes", "maxRelayPayloadBytes", "maxSignalBytes", "leaseTtlSeconds", "leaseRenewSeconds"],
+  "properties": {
+    "maxFrameBytes": { "type": "integer", "const": 262144 },
+    "maxRelayPayloadBytes": { "type": "integer", "const": 65536 },
+    "maxSignalBytes": { "type": "integer", "const": 262144 },
+    "leaseTtlSeconds": { "type": "integer", "const": 60 },
+    "leaseRenewSeconds": { "type": "integer", "const": 20 },
+    "maxLinksPerController": { "type": "integer", "const": 4 },
+    "maxLinksPerHost": { "type": "integer", "const": 1 }
+  }
+}

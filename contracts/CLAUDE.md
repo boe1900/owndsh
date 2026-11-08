@@ -58,5 +58,7 @@ fixtures/member-detail-success.json: P2-06 成员详情、稳定身份、设备�
 fixtures/unexpected-error-property.json: 包含未声明调试字段的失败响应负例，验证 additionalProperties=false 在双端严格生效。
 fixtures/unknown-error-code.json: 未知稳定错误码负例，必须被 Java JSON Schema 与 TypeScript Zod 同时拒绝。
 generated/: 从完整 OpenAPI 逻辑文档派生的自包含 OpenAPI JSON、fixture manifest、JSON Schema 与协议 SHA-256，供管理端、Java 和 CI 消费，禁止手工编辑。
+remote/: OwnDsh Remote v1 的 WebSocket control/relay/RPC schema、关闭码、限额和 Java/TypeScript 正反 fixture；不依赖 DSH Typert 业务消息。
+remote/crypto-vectors.json: Noise protocol/prologue 与 counter 的确定性测试向量，使用固定假密钥供跨运行回归，不承载生产密钥。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

@@ -567,7 +567,7 @@ export type ProtocolPageResponse = {
     requestId: RequestId;
 };
 
-export type EnterpriseErrorCode = 'ENT_INVALID_REQUEST' | 'ENT_SOURCE_CREDENTIAL_INVALID' | 'ENT_INVALID_REDIRECT_URI' | 'ENT_PKCE_REQUIRED' | 'ENT_SESSION_FORMAT_UNSUPPORTED' | 'ENT_AUTH_REQUIRED' | 'ENT_AUTH_CODE_INVALID' | 'ENT_PKCE_INVALID' | 'ENT_AUTH_SESSION_EXPIRED' | 'ENT_PERMISSION_DENIED' | 'ENT_DEVICE_REVOKED' | 'ENT_MODEL_NOT_ASSIGNED' | 'ENT_PLUGIN_NOT_ASSIGNED' | 'ENT_RESOURCE_NOT_OWNED' | 'ENT_RESOURCE_NOT_FOUND' | 'ENT_SESSION_CONTENT_EXPIRED' | 'ENT_REVISION_CONFLICT' | 'ENT_RESOURCE_IN_USE' | 'ENT_LAST_ENTERPRISE_ADMIN' | 'ENT_LAST_MEMBER_IDENTITY' | 'ENT_REQUEST_IN_PROGRESS' | 'ENT_REQUEST_ALREADY_COMPLETED' | 'ENT_SESSION_SEQ_GAP' | 'ENT_SESSION_DIVERGED' | 'ENT_SESSION_SOURCE_DEVICE_CONFLICT' | 'ENT_IDENTITY_ALREADY_LINKED' | 'ENT_DEVICE_ALREADY_BOUND' | 'ENT_MCP_CONFLICT' | 'ENT_MCP_CATALOG_STALE' | 'ENT_MCP_POLICY_INVALID' | 'ENT_MCP_UNSUPPORTED' | 'ENT_REQUEST_TOO_LARGE' | 'ENT_SESSION_BATCH_TOO_LARGE' | 'ENT_QUOTA_FIVE_HOURS_EXCEEDED' | 'ENT_QUOTA_DAILY_EXCEEDED' | 'ENT_QUOTA_WEEKLY_EXCEEDED' | 'ENT_QUOTA_MONTHLY_EXCEEDED' | 'ENT_QUOTA_RPM_EXCEEDED' | 'ENT_QUOTA_CONCURRENCY_EXCEEDED' | 'ENT_UPSTREAM_RATE_LIMITED' | 'ENT_UPSTREAM_QUOTA_EXCEEDED' | 'ENT_UPSTREAM_AUTH_FAILED' | 'ENT_UPSTREAM_INVALID_RESPONSE' | 'ENT_PLATFORM_UNAVAILABLE' | 'ENT_UPSTREAM_UNAVAILABLE' | 'ENT_UPSTREAM_TIMEOUT';
+export type EnterpriseErrorCode = 'ENT_INVALID_REQUEST' | 'ENT_SOURCE_CREDENTIAL_INVALID' | 'ENT_INVALID_REDIRECT_URI' | 'ENT_PKCE_REQUIRED' | 'ENT_SESSION_FORMAT_UNSUPPORTED' | 'ENT_AUTH_REQUIRED' | 'ENT_AUTH_CODE_INVALID' | 'ENT_PKCE_INVALID' | 'ENT_AUTH_SESSION_EXPIRED' | 'ENT_PERMISSION_DENIED' | 'ENT_DEVICE_REVOKED' | 'ENT_MODEL_NOT_ASSIGNED' | 'ENT_PLUGIN_NOT_ASSIGNED' | 'ENT_RESOURCE_NOT_OWNED' | 'ENT_RESOURCE_NOT_FOUND' | 'ENT_SESSION_CONTENT_EXPIRED' | 'ENT_REMOTE_LINK_NOT_FOUND' | 'ENT_REVISION_CONFLICT' | 'ENT_RESOURCE_IN_USE' | 'ENT_LAST_ENTERPRISE_ADMIN' | 'ENT_LAST_MEMBER_IDENTITY' | 'ENT_REQUEST_IN_PROGRESS' | 'ENT_REQUEST_ALREADY_COMPLETED' | 'ENT_SESSION_SEQ_GAP' | 'ENT_SESSION_DIVERGED' | 'ENT_SESSION_SOURCE_DEVICE_CONFLICT' | 'ENT_IDENTITY_ALREADY_LINKED' | 'ENT_DEVICE_ALREADY_BOUND' | 'ENT_MCP_CONFLICT' | 'ENT_MCP_CATALOG_STALE' | 'ENT_IDEMPOTENCY_CONFLICT' | 'ENT_REMOTE_DISABLED' | 'ENT_REMOTE_BUSY' | 'ENT_REMOTE_FEATURE_NOT_SUPPORTED' | 'ENT_REMOTE_LEASE_EXPIRED' | 'ENT_REMOTE_TICKET_EXPIRED' | 'ENT_REMOTE_INVALID_MESSAGE' | 'ENT_MCP_POLICY_INVALID' | 'ENT_MCP_UNSUPPORTED' | 'ENT_REQUEST_TOO_LARGE' | 'ENT_SESSION_BATCH_TOO_LARGE' | 'ENT_QUOTA_FIVE_HOURS_EXCEEDED' | 'ENT_QUOTA_DAILY_EXCEEDED' | 'ENT_QUOTA_WEEKLY_EXCEEDED' | 'ENT_QUOTA_MONTHLY_EXCEEDED' | 'ENT_QUOTA_RPM_EXCEEDED' | 'ENT_QUOTA_CONCURRENCY_EXCEEDED' | 'ENT_UPSTREAM_RATE_LIMITED' | 'ENT_UPSTREAM_QUOTA_EXCEEDED' | 'ENT_UPSTREAM_AUTH_FAILED' | 'ENT_UPSTREAM_INVALID_RESPONSE' | 'ENT_PLATFORM_UNAVAILABLE' | 'ENT_UPSTREAM_UNAVAILABLE' | 'ENT_REMOTE_UNAVAILABLE' | 'ENT_REMOTE_TURN_NOT_CONFIGURED' | 'ENT_UPSTREAM_TIMEOUT';
 
 export type ValidationViolation = {
     field: string;
@@ -664,6 +664,28 @@ export type SkillImportedReleaseResponse = SkillSkillImportedReleaseResponse;
 export type SkillSourceCredential = SkillSkillSourceCredential;
 
 export type SkillSourceCredentialWriteRequest = SkillSkillSourceCredentialWriteRequest;
+
+export type RemoteDeviceStatus = RemoteRemoteDeviceStatus;
+
+export type RemoteTransportCapability = RemoteRemoteTransportCapability;
+
+export type RemoteDevice = RemoteRemoteDevice;
+
+export type RemoteDevicePageData = RemoteRemoteDevicePageData;
+
+export type RemoteDeviceListResponse = RemoteRemoteDeviceListResponse;
+
+export type RemoteTicket = RemoteRemoteTicket;
+
+export type RemoteTicketRequest = RemoteRemoteTicketRequest;
+
+export type RemoteTicketResponse = RemoteRemoteTicketResponse;
+
+export type RemoteLease = RemoteRemoteLease;
+
+export type RemoteLeaseResponse = RemoteRemoteLeaseResponse;
+
+export type RemoteCapabilityResponse = RemoteRemoteCapabilityResponse;
 
 export type AuditAuditAction = 'LOGIN_SUCCEEDED' | 'LOGIN_FAILED' | 'LOGOUT' | 'IDENTITY_SOURCE_CHANGED' | 'USER_LINKED' | 'USER_UNLINKED' | 'DEVICE_ENROLLED' | 'DEVICE_HEARTBEAT' | 'DEVICE_REVOKED' | 'PROVIDER_CHANGED' | 'MODEL_CONNECTION_CHANGED' | 'MODEL_CHANGED' | 'MODEL_GRANT_CHANGED' | 'MODEL_REQUEST_ACCEPTED' | 'MODEL_REQUEST_FINISHED' | 'QUOTA_CHANGED' | 'QUOTA_REJECTED' | 'RESERVATION_RECOVERED' | 'PLUGIN_REGISTERED' | 'PLUGIN_UPLOADED' | 'PLUGIN_PUBLISHED' | 'PLUGIN_DELETED' | 'PLUGIN_ASSIGNED' | 'PLUGIN_DOWNLOADED' | 'PLUGIN_INVENTORY_REPORTED' | 'SESSION_BATCH_APPENDED' | 'SESSION_EXPORTED' | 'SESSION_RESTORED' | 'SESSION_CONTENT_READ' | 'SESSION_DELETED' | 'SESSION_EXPIRED' | 'ROLE_ASSIGNED' | 'USER_STATUS_CHANGED' | 'CONFIG_CHANGED';
 
@@ -2405,6 +2427,79 @@ export type QuotaUsageSummary = {
     unmeasuredRequests: number;
 };
 
+export type RemoteRemoteCapabilityResponse = {
+    data: RemoteRemoteDevice;
+    requestId: RequestId;
+};
+
+export type RemoteRemoteDevice = {
+    deviceId: EnterpriseDeviceId;
+    installationId: string;
+    name: string;
+    platform: string;
+    status: RemoteRemoteDeviceStatus;
+    online: boolean;
+    remoteEnabled: boolean;
+    capabilities: Array<'remote.connect' | 'host.describe'>;
+    transports?: Array<RemoteRemoteTransportCapability>;
+    capabilityRevision: Revision;
+    lastPresenceAt: string | null;
+    revision: Revision;
+};
+
+export type RemoteRemoteDeviceListResponse = {
+    data: RemoteRemoteDevicePageData;
+    requestId: RequestId;
+};
+
+export type RemoteRemoteDevicePageData = {
+    items: Array<RemoteRemoteDevice>;
+    page: CursorPage;
+};
+
+export type RemoteRemoteDeviceStatus = 'ACTIVE' | 'REVOKED' | 'OFFLINE';
+
+export type RemoteRemoteLease = {
+    linkId: string;
+    leaseId: string;
+    expiresAt: string;
+    status: 'ACTIVE' | 'REVOKED' | 'EXPIRED';
+};
+
+export type RemoteRemoteLeaseResponse = {
+    data: RemoteRemoteLease;
+    requestId: RequestId;
+};
+
+export type RemoteRemoteTicket = {
+    ticket: string;
+    linkId: string;
+    deviceId: EnterpriseDeviceId;
+    expiresAt: string;
+    iceServers: Array<{
+        urls: string | Array<string>;
+        username?: string;
+        credential?: string;
+    }>;
+};
+
+export type RemoteRemoteTicketRequest = {
+    controllerDeviceId: string;
+    /**
+     * Base64url encoded 32-byte X25519 public key.
+     */
+    controllerPublicKey: string;
+    requestedCapabilities: Array<'remote.connect' | 'host.describe'>;
+    clientVersion: string;
+};
+
+export type RemoteRemoteTicketResponse = {
+    data: RemoteRemoteTicket;
+    requestId: RequestId;
+};
+
+export type RemoteRemoteTransportCapability = 'lan' | 'p2p' | 'turn' | 'relay';
+
 export type SessionAdminSession = {
     replicaId: SessionSessionReplicaId;
     sessionId: SessionSessionId;
@@ -2828,6 +2923,14 @@ export type QuotaItem = unknown;
 
 export type QuotaWindows = unknown;
 
+export type RemoteCapability = unknown;
+
+export type RemoteDevices = unknown;
+
+export type RemoteLeaseRevoke = unknown;
+
+export type RemoteRemoteTicket2 = unknown;
+
 export type AdminSessionCollection = unknown;
 
 export type AdminSessionContent = unknown;
@@ -3001,6 +3104,10 @@ export type SkillVersionWritable = SkillSkillVersion;
 export type SkillReleaseStatusWritable = SkillSkillReleaseStatus;
 
 export type SkillSourceCredentialWriteRequestWritable = SkillSkillSourceCredentialWriteRequestWritable;
+
+export type RemoteDeviceStatusWritable = RemoteRemoteDeviceStatus;
+
+export type RemoteTransportCapabilityWritable = RemoteRemoteTransportCapability;
 
 export type EmptyAuditMetadataWritable = {
     [key: string]: never;
@@ -3416,6 +3523,10 @@ export type LogoutPlatformSessionErrors = {
      * Authentication failed.
      */
     401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
 };
 
 export type LogoutPlatformSessionError = LogoutPlatformSessionErrors[keyof LogoutPlatformSessionErrors];
@@ -8454,3 +8565,166 @@ export type RevokeSkillSourceCredentialResponses = {
 };
 
 export type RevokeSkillSourceCredentialResponse = RevokeSkillSourceCredentialResponses[keyof RevokeSkillSourceCredentialResponses];
+
+export type ListRemoteDevicesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Server-signed opaque cursor; clients must not parse it.
+         */
+        cursor?: Cursor;
+        /**
+         * Cursor page size.
+         */
+        limit?: PageLimit;
+    };
+    url: '/enterprise/admin/v1/remote/devices';
+};
+
+export type ListRemoteDevicesErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type ListRemoteDevicesError = ListRemoteDevicesErrors[keyof ListRemoteDevicesErrors];
+
+export type ListRemoteDevicesResponses = {
+    /**
+     * Remote device page.
+     */
+    200: RemoteRemoteDeviceListResponse;
+};
+
+export type ListRemoteDevicesResponse = ListRemoteDevicesResponses[keyof ListRemoteDevicesResponses];
+
+export type CreateRemoteTicketData = {
+    body: RemoteRemoteTicketRequest;
+    headers: {
+        /**
+         * Caller-generated UUID v4 reused only for one logical write.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        deviceId: EnterpriseDeviceId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/remote/devices/{deviceId}/ticket';
+};
+
+export type CreateRemoteTicketErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type CreateRemoteTicketError = CreateRemoteTicketErrors[keyof CreateRemoteTicketErrors];
+
+export type CreateRemoteTicketResponses = {
+    /**
+     * Short-lived ticket.
+     */
+    200: RemoteRemoteTicketResponse;
+};
+
+export type CreateRemoteTicketResponse = CreateRemoteTicketResponses[keyof CreateRemoteTicketResponses];
+
+export type GetRemoteDeviceCapabilitiesData = {
+    body?: never;
+    path: {
+        deviceId: EnterpriseDeviceId;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/remote/devices/{deviceId}/capabilities';
+};
+
+export type GetRemoteDeviceCapabilitiesErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+};
+
+export type GetRemoteDeviceCapabilitiesError = GetRemoteDeviceCapabilitiesErrors[keyof GetRemoteDeviceCapabilitiesErrors];
+
+export type GetRemoteDeviceCapabilitiesResponses = {
+    /**
+     * Capability snapshot.
+     */
+    200: RemoteRemoteCapabilityResponse;
+};
+
+export type GetRemoteDeviceCapabilitiesResponse = GetRemoteDeviceCapabilitiesResponses[keyof GetRemoteDeviceCapabilitiesResponses];
+
+export type RevokeRemoteLeaseData = {
+    body?: never;
+    headers: {
+        /**
+         * Current resource revision used for compare-and-swap updates.
+         */
+        'If-Match': Revision;
+    };
+    path: {
+        linkId: string;
+    };
+    query?: never;
+    url: '/enterprise/admin/v1/remote/links/{linkId}/lease/revoke';
+};
+
+export type RevokeRemoteLeaseErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type RevokeRemoteLeaseError = RevokeRemoteLeaseErrors[keyof RevokeRemoteLeaseErrors];
+
+export type RevokeRemoteLeaseResponses = {
+    /**
+     * Revoked lease.
+     */
+    200: RemoteRemoteLeaseResponse;
+};
+
+export type RevokeRemoteLeaseResponse = RevokeRemoteLeaseResponses[keyof RevokeRemoteLeaseResponses];

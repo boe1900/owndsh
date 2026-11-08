@@ -343,3 +343,25 @@ export {
   zUsageResult,
   zUsageSummary,
 } from './generated/zod.gen.js'
+export {
+  isRemoteCapability,
+  isRemoteTransport,
+  parseRemoteControlFrame,
+  parseRemoteRelayFrame,
+  remoteWebSocketUrl,
+  REMOTE_CAPABILITIES,
+  REMOTE_PROTOCOL_VERSION,
+  REMOTE_TRANSPORTS,
+  zRemoteControlFrame,
+  zRemoteRelayFrame,
+  zRemoteRpcEnvelope,
+} from './remote.js'
+export type {
+  RemoteCapability,
+  RemoteConnectionState,
+  RemoteControlFrame,
+  RemoteRole,
+  RemoteRelayFrame,
+  RemoteRpcEnvelope,
+  RemoteTransport,
+} from './remote.js'

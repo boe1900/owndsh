@@ -1,0 +1,42 @@
+{
+  "timestamp": "2026-11-08T09:56:21.707Z",
+  "host": "home-nas",
+  "backupPath": "/vol1/1000/docker/stacks/owndsh/backups/codex-20261108T083236Z",
+  "files": [
+    {
+      "name": ".env",
+      "bytes": 604,
+      "secret": true
+    },
+    {
+      "name": "compose.override.yml",
+      "bytes": 101,
+      "secret": false
+    },
+    {
+      "name": "compose.yml",
+      "bytes": 4479,
+      "secret": false
+    },
+    {
+      "name": "owndsh-codex-20261028-skill-restore.yml",
+      "bytes": 178,
+      "secret": false
+    }
+  ],
+  "nonSecretSha256": [
+    {
+      "file": "compose.yml",
+      "sha256": "c99e50d9fd06f80bcae5f2eac91d062745b2c30cade1ff0e940cfa53e35d2c7c"
+    },
+    {
+      "file": "compose.override.yml",
+      "sha256": "0842144fc91cfc9dcffb421d1856a4ddb631c41cb01dab98f7e3e783b90cd6ee"
+    },
+    {
+      "file": "owndsh-codex-20261028-skill-restore.yml",
+      "sha256": "8d487bf8daedecd7af9470776a68f3a21fe716247b15bf457ab81360fab6e810"
+    }
+  ],
+  "secretHandling": ".env is present on NAS for rollback but its contents are excluded from repository evidence."
+}

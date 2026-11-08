@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-11-08T06:45:00Z",
+  "status": "PARTIAL",
+  "url": "http://127.0.0.1:62209/",
+  "title": "OwnDsh",
+  "assertions": {
+    "viteServedConsole": true,
+    "unauthenticatedRequestRedirectedToLogin": true,
+    "loginFormRendered": true,
+    "authenticatedBrowserSession": false,
+    "browserWebSocketAndWebRTC": false
+  },
+  "reason": "The local console rendered its login form; authenticated browser proof remains a separate gate because the form requires the local math CAPTCHA and no browser session was injected.",
+  "secrets": "none"
+}

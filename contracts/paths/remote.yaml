@@ -1,0 +1,102 @@
+# [INPUT]: 依赖 Remote 管理 schema、cursor/revision/error 公共组件与管理员 Cookie 权限
+# [OUTPUT]: 提供 Remote 设备列表、ticket、能力查询和 lease 撤销 Path Item
+# [POS]: paths 的 Remote 控制面分片；只负责控制面，不代理业务 RPC
+# [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+RemoteDevices:
+  get:
+    operationId: listRemoteDevices
+    summary: List devices that can accept a remote connection.
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Cursor'
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Limit'
+    responses:
+      '200':
+        description: Remote device page.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/RemoteDeviceListResponse'
+      '401':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+      '403':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error403'
+
+RemoteTicket:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/DeviceIdPath'
+  post:
+    operationId: createRemoteTicket
+    summary: Create a one-use ticket and ICE server list for a controller.
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../enterprise-openapi.yaml#/components/schemas/RemoteTicketRequest'
+    responses:
+      '200':
+        description: Short-lived ticket.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/RemoteTicketResponse'
+      '401':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+      '403':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error403'
+      '404':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error404'
+      '409':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error409'
+
+RemoteCapability:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/DeviceIdPath'
+  get:
+    operationId: getRemoteDeviceCapabilities
+    summary: Read the last accepted Host capability snapshot.
+    responses:
+      '200':
+        description: Capability snapshot.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/RemoteCapabilityResponse'
+      '401':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+      '403':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error403'
+      '404':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error404'
+
+RemoteLeaseRevoke:
+  parameters:
+    - name: linkId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^rln_[0-9A-HJKMNP-TV-Z]{26}$'
+  post:
+    operationId: revokeRemoteLease
+    summary: Revoke a remote link lease and increment its fencing epoch.
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IfMatchRevision'
+    responses:
+      '200':
+        description: Revoked lease.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/RemoteLeaseResponse'
+      '401':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+      '403':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error403'
+      '404':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error404'
+      '409':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error409'

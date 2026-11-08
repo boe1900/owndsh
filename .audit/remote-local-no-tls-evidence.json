@@ -1,0 +1,48 @@
+{
+  "status": "PASS",
+  "username": "remote_e2e_mw7i6g49",
+  "userId": "1761100000000733241",
+  "installationId": "2bbb5fde-6b03-4b11-8cf0-b2765c25a7d5",
+  "controllerId": "ctl_T1R0RNEVV1CMJE03HZJYH7JJWV",
+  "transport": "relay",
+  "via": "vite-proxy",
+  "network": {
+    "httpOrigin": "http://127.0.0.1:8080",
+    "directRemoteWs": "ws://127.0.0.1:8090/remote/ws/v1",
+    "viteOrigin": "http://127.0.0.1:62209",
+    "viteRemoteWs": "ws://127.0.0.1:62209/remote/ws/v1",
+    "tlsEnabled": false
+  },
+  "cleanup": {
+    "accountDisabled": true,
+    "deviceRevoked": true,
+    "sessionsLoggedOut": true
+  },
+  "ticket": {
+    "iceServers": 1,
+    "iceServerEndpoints": [
+      "turn://127.0.0.1:3478"
+    ]
+  },
+  "deviceId": "2119329252947034114",
+  "linkId": "rln_FSS7VTGCW2STGQ2C5XN8N87KMG",
+  "device": {
+    "online": true,
+    "remoteEnabled": true,
+    "revision": 0
+  },
+  "lease": {
+    "acquired": true,
+    "renewed": true,
+    "revoked": true
+  },
+  "relayRoundTrip": true,
+  "closeCodes": {
+    "host": 4008,
+    "controller": 4008
+  },
+  "logout": {
+    "admin": 200,
+    "host": 403
+  }
+}

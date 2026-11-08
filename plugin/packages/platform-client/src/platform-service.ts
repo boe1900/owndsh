@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Cordis Service/WebServer/settings forms/credentials、T02 contracts、PKCE/installation/browser 原语与 Node fetch
- * [OUTPUT]: 提供 ctx.enterprisePlatform、OwnDsh Settings 命名空间、本地 skill 目录/安装/更新/动作、启动恢复退避与按需刷新/Token 轮换；仅无活动会话时允许清理凭据并修改 Server
+ * [OUTPUT]: 提供 ctx.enterprisePlatform、Remote 撤权清理、OwnDsh Settings 命名空间、本地 skill 目录/安装/更新/动作、启动恢复退避与按需刷新/Token 轮换；仅无活动会话时允许清理凭据并修改 Server
  * [POS]: platform-client 的 Host 业务核心，跨 Web/Desktop 复用官方凭据平面且不向 Client UI 暴露任何 Token
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -174,6 +174,7 @@ export class EnterprisePlatformService extends Service {
   private configuring: string | undefined
   private disposed = false
   private disposeTask: Promise<void> | undefined
+  private deviceRevoked = false
 
   constructor(
     ctx: Context & { readonly webServer: WebServerRoutePort, readonly credentials: CredentialProvider },
@@ -309,6 +310,7 @@ export class EnterprisePlatformService extends Service {
     if (['READY', 'REFRESHING', 'BOOTSTRAPPING'].includes(this.currentStatus.state)) {
       throw new EnterprisePlatformError('ENT_INVALID_REQUEST', 'logout before starting another login')
     }
+    this.deviceRevoked = false
     this.clearSession()
     const transaction: LoginTransaction = {
       flowId: this.createFlowId(),
@@ -332,11 +334,15 @@ export class EnterprisePlatformService extends Service {
     this.cancelLogin()
     await this.loginTask
     let failure: unknown
-    if (this.currentStatus.state !== 'SIGNED_OUT' && this.currentStatus.state !== 'UNCONFIGURED') {
+    let revoked = this.deviceRevoked
+    if (!revoked && this.currentStatus.state !== 'SIGNED_OUT' && this.currentStatus.state !== 'UNCONFIGURED') {
       try {
         await (await this.request(`${AUTH_PATH}/logout`, { method: 'POST' })).body?.cancel()
       } catch (error) {
-        if (!(error instanceof EnterprisePlatformError)
+        if (error instanceof EnterprisePlatformError && error.code === 'ENT_DEVICE_REVOKED') {
+          revoked = true
+          this.deviceRevoked = true
+        } else if (!(error instanceof EnterprisePlatformError)
           || (error.code !== 'ENT_AUTH_REQUIRED' && error.code !== 'ENT_AUTH_SESSION_EXPIRED')) failure = error
       }
     }
@@ -346,7 +352,7 @@ export class EnterprisePlatformService extends Service {
       failure ??= error
     }
     this.clearSession()
-    this.transition(this.baseUrl === undefined ? 'UNCONFIGURED' : 'SIGNED_OUT')
+    this.transition(revoked ? 'DEVICE_REVOKED' : this.baseUrl === undefined ? 'UNCONFIGURED' : 'SIGNED_OUT')
     this.loggingOut = false
     if (failure !== undefined) throw failure
   }
@@ -354,6 +360,39 @@ export class EnterprisePlatformService extends Service {
   /** 返回浏览器安全连接事实的副本。 */
   status(): EnterprisePlatformStatus {
     return cloneStatus(this.currentStatus)
+  }
+
+  /** Remote Host carrier 专用会话视图，不向 Client UI 暴露长期凭据。 */
+  async remoteSession(signal?: AbortSignal): Promise<{
+    readonly platformUrl: string
+    readonly accessToken: string
+    readonly deviceId: string
+    readonly installationId: string
+  }> {
+    this.assertOpen()
+    if (!['READY', 'REFRESHING'].includes(this.currentStatus.state)) {
+      throw new EnterprisePlatformError('ENT_AUTH_REQUIRED', 'platform login is required')
+    }
+    await this.ensureAccessToken()
+    const token = this.platformCredentials.accessToken()
+    const snapshot = this.bootstrapSnapshot
+    const installation = await this.installation
+    if (token === undefined || snapshot === undefined) {
+      throw new EnterprisePlatformError('ENT_AUTH_REQUIRED', 'platform login is required')
+    }
+    signal?.throwIfAborted()
+    return {
+      platformUrl: this.requireBaseUrl().origin,
+      accessToken: token,
+      deviceId: snapshot.device.id,
+      installationId: installation.installationId,
+    }
+  }
+
+  /** Remote carrier 收到设备撤销错误时调用；清理凭据并保留设备撤销终态。 */
+  markDeviceRevoked(): void {
+    if (this.disposed) return
+    this.expireDevice()
   }
 
   /** 返回最新已校验 bootstrap 副本，永不返回平台凭据。 */
@@ -892,7 +931,11 @@ export class EnterprisePlatformService extends Service {
   }
 
   private expireDevice(): void {
+    const alreadyRevoked = this.deviceRevoked && this.currentStatus.state === 'DEVICE_REVOKED'
+    this.deviceRevoked = true
+    this.cancelLogin(true)
     this.platformCredentials.discard()
+    if (alreadyRevoked) return
     this.clearSession()
     this.transition('DEVICE_REVOKED', { errorCode: 'ENT_DEVICE_REVOKED' })
   }
@@ -920,6 +963,7 @@ export class EnterprisePlatformService extends Service {
       controller.abort(new DOMException('enterprise server changed', 'AbortError'))
     }
     this.baseUrl = next
+    this.deviceRevoked = false
     this.restoreOrigin = undefined
     this.transition(next === undefined ? 'UNCONFIGURED' : 'SIGNED_OUT')
     this.startSessionRestore()
@@ -937,6 +981,8 @@ export class EnterprisePlatformService extends Service {
     detail: { readonly flowId?: string; readonly errorCode?: string } = {},
   ): void {
     if (this.disposed) return
+    if (state === 'SIGNED_OUT' && this.deviceRevoked) return
+    if (state === 'DEVICE_REVOKED') this.deviceRevoked = true
     const snapshot = this.bootstrapSnapshot
     this.currentStatus = {
       state,

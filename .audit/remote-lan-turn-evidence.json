@@ -1,0 +1,11 @@
+{
+  "timestamp": "2026-11-08T07:22:11Z",
+  "status": "NOT_VERIFIED",
+  "topology": "same macOS host running the Java Server, Vite and Docker coturn",
+  "server": "192.168.5.83:3478/udp",
+  "method": "coturn turnutils_uclient with a short-lived REST shared-secret credential",
+  "observed": "Allocate probe timed out when the host addressed its own LAN IP",
+  "interpretation": "The result is consistent with Docker hairpin traffic being unavailable and does not prove a coturn or Java credential failure.",
+  "requiredForPass": "Run the same probe from a second LAN device and retain the returned Allocate result.",
+  "secrets": "none"
+}

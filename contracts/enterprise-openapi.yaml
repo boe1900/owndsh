@@ -215,6 +215,14 @@ paths:
     $ref: './paths/skill.yaml#/AdminSkillCredentialRotate'
   /enterprise/admin/v1/skill-credentials/{credentialId}/actions/revoke:
     $ref: './paths/skill.yaml#/AdminSkillCredentialRevoke'
+  /enterprise/admin/v1/remote/devices:
+    $ref: './paths/remote.yaml#/RemoteDevices'
+  /enterprise/admin/v1/remote/devices/{deviceId}/ticket:
+    $ref: './paths/remote.yaml#/RemoteTicket'
+  /enterprise/admin/v1/remote/devices/{deviceId}/capabilities:
+    $ref: './paths/remote.yaml#/RemoteCapability'
+  /enterprise/admin/v1/remote/links/{linkId}/lease/revoke:
+    $ref: './paths/remote.yaml#/RemoteLeaseRevoke'
 
 x-enterprise-error-statuses:
   '400':
@@ -237,6 +245,7 @@ x-enterprise-error-statuses:
   '404':
     - ENT_RESOURCE_NOT_FOUND
     - ENT_SESSION_CONTENT_EXPIRED
+    - ENT_REMOTE_LINK_NOT_FOUND
   '409':
     - ENT_REVISION_CONFLICT
     - ENT_RESOURCE_IN_USE
@@ -251,6 +260,13 @@ x-enterprise-error-statuses:
     - ENT_DEVICE_ALREADY_BOUND
     - ENT_MCP_CONFLICT
     - ENT_MCP_CATALOG_STALE
+    - ENT_IDEMPOTENCY_CONFLICT
+    - ENT_REMOTE_DISABLED
+    - ENT_REMOTE_BUSY
+    - ENT_REMOTE_FEATURE_NOT_SUPPORTED
+    - ENT_REMOTE_LEASE_EXPIRED
+    - ENT_REMOTE_TICKET_EXPIRED
+    - ENT_REMOTE_INVALID_MESSAGE
   '413':
     - ENT_REQUEST_TOO_LARGE
     - ENT_SESSION_BATCH_TOO_LARGE
@@ -272,6 +288,8 @@ x-enterprise-error-statuses:
   '503':
     - ENT_PLATFORM_UNAVAILABLE
     - ENT_UPSTREAM_UNAVAILABLE
+    - ENT_REMOTE_UNAVAILABLE
+    - ENT_REMOTE_TURN_NOT_CONFIGURED
   '504':
     - ENT_UPSTREAM_TIMEOUT
 
@@ -1077,6 +1095,7 @@ components:
         - ENT_RESOURCE_NOT_OWNED
         - ENT_RESOURCE_NOT_FOUND
         - ENT_SESSION_CONTENT_EXPIRED
+        - ENT_REMOTE_LINK_NOT_FOUND
         - ENT_REVISION_CONFLICT
         - ENT_RESOURCE_IN_USE
         - ENT_LAST_ENTERPRISE_ADMIN
@@ -1090,6 +1109,13 @@ components:
         - ENT_DEVICE_ALREADY_BOUND
         - ENT_MCP_CONFLICT
         - ENT_MCP_CATALOG_STALE
+        - ENT_IDEMPOTENCY_CONFLICT
+        - ENT_REMOTE_DISABLED
+        - ENT_REMOTE_BUSY
+        - ENT_REMOTE_FEATURE_NOT_SUPPORTED
+        - ENT_REMOTE_LEASE_EXPIRED
+        - ENT_REMOTE_TICKET_EXPIRED
+        - ENT_REMOTE_INVALID_MESSAGE
         - ENT_MCP_POLICY_INVALID
         - ENT_MCP_UNSUPPORTED
         - ENT_REQUEST_TOO_LARGE
@@ -1106,6 +1132,8 @@ components:
         - ENT_UPSTREAM_INVALID_RESPONSE
         - ENT_PLATFORM_UNAVAILABLE
         - ENT_UPSTREAM_UNAVAILABLE
+        - ENT_REMOTE_UNAVAILABLE
+        - ENT_REMOTE_TURN_NOT_CONFIGURED
         - ENT_UPSTREAM_TIMEOUT
     ValidationViolation:
       type: object
@@ -1267,3 +1295,14 @@ components:
     SkillImportedReleaseResponse: {$ref: './components/skill.yaml#/SkillImportedReleaseResponse'}
     SkillSourceCredential: {$ref: './components/skill.yaml#/SkillSourceCredential'}
     SkillSourceCredentialWriteRequest: {$ref: './components/skill.yaml#/SkillSourceCredentialWriteRequest'}
+    RemoteDeviceStatus: {$ref: './components/remote.yaml#/RemoteDeviceStatus'}
+    RemoteTransportCapability: {$ref: './components/remote.yaml#/RemoteTransportCapability'}
+    RemoteDevice: {$ref: './components/remote.yaml#/RemoteDevice'}
+    RemoteDevicePageData: {$ref: './components/remote.yaml#/RemoteDevicePageData'}
+    RemoteDeviceListResponse: {$ref: './components/remote.yaml#/RemoteDeviceListResponse'}
+    RemoteTicket: {$ref: './components/remote.yaml#/RemoteTicket'}
+    RemoteTicketRequest: {$ref: './components/remote.yaml#/RemoteTicketRequest'}
+    RemoteTicketResponse: {$ref: './components/remote.yaml#/RemoteTicketResponse'}
+    RemoteLease: {$ref: './components/remote.yaml#/RemoteLease'}
+    RemoteLeaseResponse: {$ref: './components/remote.yaml#/RemoteLeaseResponse'}
+    RemoteCapabilityResponse: {$ref: './components/remote.yaml#/RemoteCapabilityResponse'}

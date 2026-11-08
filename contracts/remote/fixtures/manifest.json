@@ -1,0 +1,5 @@
+{
+  "schemaSet": "remote-v1",
+  "valid": ["hello.valid.json", "relay.valid.json"],
+  "invalid": ["error.invalid.json"]
+}
