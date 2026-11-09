@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Spring JdbcOperations、skill release/catalog 表和 Jackson 3。
- * [OUTPUT]: 实现租户隔离的 release 目录查询、状态变更与登记。
+ * [OUTPUT]: 实现租户隔离的 release 目录查询、状态变更与登记；发布换 current 指针时先降级旧 current 再 CAS 晋升，两步同事务，绕开立即检查的部分唯一索引 uq_ent_skill_current_release。
  * [POS]: skill/persistence 的 PostgreSQL adapter；员工端查询只返回已发布的脱敏元数据。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -33,16 +33,25 @@ public final class JdbcSkillStore implements SkillStore {
         " from ent_skill_release where tenant_id=? and id=?";
     private static final String FIND_RELEASE_BY_VERSION = "select " + COLUMNS +
         " from ent_skill_release where tenant_id=? and skill_name=? and version=?";
-    private static final String TRANSITION_RELEASE = """
-        with target as (select skill_name from ent_skill_release where tenant_id=? and id=? and status=? and revision=?)
+    // ─────────────────────────────────────────────────────────────────────────────
+    // uq_ent_skill_current_release 是 PostgreSQL 立即检查（非 deferrable）的部分唯一索引：
+    // 单条 UPDATE 同时"晋升目标 + 降级旧 current"时，唯一性按行处理顺序即时校验，
+    // 目标行先被扫描就会先插入 current 索引项、撞上旧 current 仍存在的索引项
+    // （DuplicateKeyException，且是否触发取决于堆顺序，表现为间歇性发布失败）。
+    // 因此发布换指针必须固定顺序：第一步降级同 skill 的旧 current，第二步 CAS 晋升目标；
+    // 两步由 SkillCatalogService 的同一事务包裹，失败整体回滚。
+    // ─────────────────────────────────────────────────────────────────────────────
+    private static final String DEMOTE_CURRENT_RELEASE = """
         update ent_skill_release release
-        set status=case when release.id=? then ? else release.status end,
-            current_release=case when release.id=? then (?='PUBLISHED') else false end,
-            revision=revision+1
-        where release.tenant_id=? and (release.id=? or
-            (?='PUBLISHED' and release.skill_name=(select skill_name from target)
-                and release.current_release=true))
-            and exists (select 1 from target)
+        set current_release=false, revision=revision+1
+        where release.tenant_id=? and release.current_release=true and release.id<>?
+            and release.skill_name=(select target.skill_name from ent_skill_release target
+                where target.tenant_id=? and target.id=?)
+        """;
+    private static final String TRANSITION_RELEASE = """
+        update ent_skill_release release
+        set status=?, current_release=(?='PUBLISHED'), revision=revision+1
+        where release.tenant_id=? and release.id=? and status=? and revision=?
         """;
     private static final String INSERT_RELEASE = """
         insert into ent_skill_release(
@@ -86,8 +95,12 @@ public final class JdbcSkillStore implements SkillStore {
     @Override
     public boolean transitionRelease(String tenantId, long releaseId, SkillRelease.Status from,
         SkillRelease.Status to, long expectedRevision) {
-        return jdbc.update(TRANSITION_RELEASE, tenantId, releaseId, from.name(), expectedRevision,
-            releaseId, to.name(), releaseId, to.name(), tenantId, releaseId, to.name()) >= 1;
+        // 顺序即正确性：先降级旧 current（腾出部分唯一索引项），再晋升目标
+        if (to == SkillRelease.Status.PUBLISHED) {
+            jdbc.update(DEMOTE_CURRENT_RELEASE, tenantId, releaseId, tenantId, releaseId);
+        }
+        return jdbc.update(TRANSITION_RELEASE, to.name(), to.name(), tenantId, releaseId,
+            from.name(), expectedRevision) == 1;
     }
 
     @Override
