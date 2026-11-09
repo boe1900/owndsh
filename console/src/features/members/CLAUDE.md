@@ -4,7 +4,7 @@
 
 成员清单
 
-member-management-page.tsx: 通过生成 operation 和 TanStack Query 聚合成员、用户组与身份接入分段，成员目录默认筛选启用项，交付 LOCAL 建号、LDAP 单人导入、角色、状态与多身份治理，成员状态和登录身份解除统一经确认弹窗，不读取部门、原始 claims 或 V1 已隐藏的 Session 摘要。
+member-management-page.tsx: 通过生成 operation 和 TanStack Query 聚合成员、用户组与身份接入分段，成员目录默认筛选启用项并以首字母头像/角色徽章/登录方式胶囊/页头统计呈现，详情弹窗按基本信息属性卡、角色勾选网格（变更时保存高亮）、钥匙身份卡与设备卡四区块组织，交付 LOCAL 建号、LDAP 单人导入、角色、状态与多身份治理，成员状态和登录身份解除统一经确认弹窗，不读取部门、原始 claims 或 V1 已隐藏的 Session 摘要。
 access-group-management.tsx: 通过生成的用户组 operation、TanStack Query/Form 和产品表格/对话框管理扁平用户组及完整手工成员集合，写入遵循 UUID 幂等键与 revision CAS，删除失败只在确认弹窗展示模型/MCP 授权和外部组映射阻塞计数。
 identity-source-management.tsx: 通过生成 operation 管理默认筛选启用项的 OIDC/LDAP/LOCAL 身份源、连接测试和 CAS 启停；启用/停用统一经确认弹窗，并仅在 LDAP 行暴露绑定该来源的组映射操作。
 identity-source-editor.tsx: 收集 OIDC、LDAP 用户/组发现配置与 LOCAL 名称；LDAP 仅以 URL 区分明文/TLS，请求固定 startTls=false，创建强制一次性 secret、更新留空不序列化 secret。

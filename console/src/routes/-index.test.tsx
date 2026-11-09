@@ -735,7 +735,7 @@ describe('product console access', () => {
   it('opens member detail and replaces fixed roles with CAS', async () => {
     const writes = renderRoute('/members', 'enterprise_admin', 200, ['ent:member:write']);
     expect(await screen.findByText('Developer One')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '查看 Developer One' }));
+    fireEvent.click(screen.getAllByRole('button', { name: '详情' })[0]);
 
     const dialog = await screen.findByRole('dialog', { name: 'Developer One' });
     expect(within(dialog).getByText('Developer Mac')).toBeTruthy();
@@ -754,7 +754,7 @@ describe('product console access', () => {
   it('unlinks an external member identity with member revision CAS', async () => {
     const writes = renderRoute('/members', 'enterprise_admin', 200, ['ent:member:write']);
     expect(await screen.findByText('Developer One')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '查看 Developer One' }));
+    fireEvent.click(screen.getAllByRole('button', { name: '详情' })[0]);
 
     const dialog = await screen.findByRole('dialog', { name: 'Developer One' });
     expect(await within(dialog).findByRole('option', { name: 'Microsoft Entra (OIDC)' })).toBeTruthy();

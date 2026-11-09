@@ -5,6 +5,8 @@
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
+import { cn } from '@/lib/utils';
+
 /** Monogram mark — a colored disc with an initial or short glyph.
  *  The shared building block for entity chips and monogram headings. */
 export function Monogram({
@@ -18,8 +20,11 @@ export function Monogram({
 }) {
   return (
     <span
-      className={`flex size-4 shrink-0 items-center justify-center rounded-full
-        text-[9px] font-semibold leading-none text-white ${className}`}
+      className={cn(
+        'flex size-4 shrink-0 items-center justify-center rounded-full',
+        'text-[9px] font-semibold leading-none text-white',
+        className
+      )}
       style={{ background: color }}
     >
       {children}
