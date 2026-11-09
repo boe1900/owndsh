@@ -455,7 +455,7 @@ function mockApi(role: AuthBuiltInRole, logoutStatus = 200, permissions: string[
       return json({
         data: {
           items: [{
-            id: 'grant-1', resourceType: 'MODEL', resourceId: 'model-1', resourceName: 'gpt-5.6-sol',
+            id: 'grant-1', resourceType: 'MODEL', resourceId: 'model-1', resourceName: 'GPT 5.6 Sol',
             subjectType: 'ALL_MEMBERS', subjects: [],
             status: 'ACTIVE', revision: 0
           }],
@@ -996,8 +996,8 @@ describe('product console access', () => {
 
   it('renders model access, token limits and rate limits from Server facts', async () => {
     renderRoute('/access', 'model_admin');
-    expect(await screen.findByText('gpt-5.6-sol')).toBeTruthy();
-    expect(screen.getByText('所有成员 (全员开放)')).toBeTruthy();
+    expect(await screen.findByText('GPT 5.6 Sol')).toBeTruthy();
+    expect(screen.getByText('所有成员')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('tab', { name: 'Token 配额' }));
     expect(await screen.findByText('组织默认策略')).toBeTruthy();
@@ -1011,7 +1011,7 @@ describe('product console access', () => {
 
   it('creates an all-members grant with an empty subject set and idempotency key', async () => {
     const writes = renderRoute('/access', 'model_admin', 200, ['ent:grant:write']);
-    expect(await screen.findByText('gpt-5.6-sol')).toBeTruthy();
+    expect(await screen.findByText('GPT 5.6 Sol')).toBeTruthy();
 
     fireEvent.click(await screen.findByRole('button', { name: '新建授权' }));
     const dialog = screen.getByRole('dialog', { name: '新建模型授权' });
@@ -1035,7 +1035,7 @@ describe('product console access', () => {
 
   it('grants one access group a complete model set', async () => {
     const writes = renderRoute('/access', 'model_admin', 200, ['ent:grant:write']);
-    expect(await screen.findByText('gpt-5.6-sol')).toBeTruthy();
+    expect(await screen.findByText('GPT 5.6 Sol')).toBeTruthy();
 
     fireEvent.click(await screen.findByRole('button', { name: '新建授权' }));
     const dialog = screen.getByRole('dialog', { name: '新建模型授权' });
@@ -1056,7 +1056,7 @@ describe('product console access', () => {
 
   it('creates all four token windows for one model set', async () => {
     const writes = renderRoute('/access', 'model_admin', 200, ['ent:grant:write']);
-    expect(await screen.findByText('gpt-5.6-sol')).toBeTruthy();
+    expect(await screen.findByText('GPT 5.6 Sol')).toBeTruthy();
     fireEvent.click(screen.getByRole('tab', { name: 'Token 配额' }));
     expect(await screen.findByText('组织默认策略')).toBeTruthy();
 
@@ -1096,7 +1096,7 @@ describe('product console access', () => {
 
   it('creates a member rate limit without token windows', async () => {
     const writes = renderRoute('/access', 'model_admin', 200, ['ent:grant:write']);
-    expect(await screen.findByText('gpt-5.6-sol')).toBeTruthy();
+    expect(await screen.findByText('GPT 5.6 Sol')).toBeTruthy();
     fireEvent.click(screen.getByRole('tab', { name: '速率限制' }));
     expect(await screen.findByText('组织速率限制')).toBeTruthy();
 
@@ -1129,7 +1129,7 @@ describe('product console access', () => {
 
   it('keeps provider capacity out of the consumer rate form', async () => {
     const writes = renderRoute('/access', 'model_admin', 200, ['ent:grant:write']);
-    expect(await screen.findByText('gpt-5.6-sol')).toBeTruthy();
+    expect(await screen.findByText('GPT 5.6 Sol')).toBeTruthy();
     fireEvent.click(screen.getByRole('tab', { name: '速率限制' }));
     expect(await screen.findByText('组织速率限制')).toBeTruthy();
 
@@ -1142,7 +1142,7 @@ describe('product console access', () => {
 
   it('selects a member from the complete cursor directory for model access', async () => {
     const writes = renderRoute('/access', 'model_admin', 200, ['ent:grant:write']);
-    expect(await screen.findByText('gpt-5.6-sol')).toBeTruthy();
+    expect(await screen.findByText('GPT 5.6 Sol')).toBeTruthy();
 
     fireEvent.click(await screen.findByRole('button', { name: '新建授权' }));
     const dialog = screen.getByRole('dialog', { name: '新建模型授权' });

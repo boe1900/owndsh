@@ -202,7 +202,7 @@ function ModelSetCard({
  <span className="truncate" title={modelLabel(model)}>{modelLabel(model)}</span>
  <span className="inline-flex shrink-0 items-center gap-1 rounded border border-line/60 bg-surface/90 px-1.5 py-0.5 text-[10px] font-normal text-ink-3 ">
  <span className="font-mono">{formatTokenCapacity(model.contextWindow) || '—'}</span>
- {model.input?.includes('image') ? <><span className="text-ink-3 ">·</span><span className="inline-flex items-center gap-0.5 font-medium text-accent-ink " title="支持图片输入"><ImageIcon aria-hidden className="size-2.5" />图</span></> : null}
+ {model.input?.includes('image') ? <><span className="text-ink-3 ">·</span><span className="inline-flex items-center gap-0.5 font-medium text-ink-3 " title="支持图片输入"><ImageIcon aria-hidden className="size-2.5" />图</span></> : null}
  </span>
  {canWrite ? <button type="button" className="ml-0.5 text-ink-3 transition hover:text-red " title="移出模型" aria-label={'从 ' + set.name + ' 移出 ' + modelLabel(model)} disabled={busy} onClick={() => setRemovingModel(model)}><X aria-hidden className="size-3" /></button> : null}
  </span>)}
@@ -295,7 +295,7 @@ function ModelSetEditor({
  <span className="text-[11px] text-ink-3 ">已选 <strong className="font-semibold text-ink ">{modelIds.length}</strong> / {models.length}</span>
  </div>
  <div className="flex shrink-0 items-center gap-3">
- <button type="button" className="text-[11px] font-medium text-accent hover:text-accent " disabled={visibleModels.length === 0} onClick={toggleAllVisible}>{allVisibleSelected ? '取消全选' : '全选全部'}</button>
+ <button type="button" className="text-[11px] font-medium text-ink hover:text-ink-3" disabled={visibleModels.length === 0} onClick={toggleAllVisible}>{allVisibleSelected ? '取消全选' : '全选'}</button>
  {modelIds.length > 0 ? <button type="button" className="text-[11px] text-ink-3 hover:text-ink-2 " onClick={() => setModelIds([])}>清空</button> : null}
  </div>
  </div>
@@ -327,7 +327,7 @@ function ModelSetEditor({
  const connectionSelected = connection.models.length > 0 && connection.models.every((model) => modelIds.includes(model.id));
  return <div key={connection.connectionId} className="space-y-2.5 bg-surface p-3 pl-5">
  <button type="button" className="group inline-flex max-w-full items-center gap-2 text-left" onClick={() => toggleModels(connection.models)}>
- <span className={'grid size-3.5 shrink-0 place-items-center rounded border transition ' + (connectionSelected ? 'border-accent bg-accent text-white' : 'border-line-strong bg-surface group-hover:border-ink-3 ')}>{connectionSelected ? <Check aria-hidden className="size-2.5 stroke-[3]" /> : null}</span>
+ <span className={'grid size-3.5 shrink-0 place-items-center rounded border transition ' + (connectionSelected ? 'border-ink bg-ink text-canvas' : 'border-line-strong bg-surface group-hover:border-ink-3 ')}>{connectionSelected ? <Check aria-hidden className="size-2.5 stroke-[3]" /> : null}</span>
  <Server aria-hidden className="size-3.5 shrink-0 text-ink-3 " />
  <span className="truncate font-medium text-ink-2 group-hover:text-ink " title={connection.connectionName}>{connection.connectionName}</span>
  {connection.endpoint ? <span className="hidden truncate font-mono text-[10px] text-ink-3 sm:inline" title={connection.endpoint}>{connection.endpoint}</span> : null}
@@ -336,12 +336,12 @@ function ModelSetEditor({
  {connection.models.map((model) => {
  const selected = modelIds.includes(model.id);
  const disabled = model.status === 'DISABLED' && !selected;
- return <button type="button" key={model.id} disabled={disabled} aria-pressed={selected} onClick={() => toggleModel(model)} className={'inline-flex max-w-full items-center gap-2 rounded-full border px-2.5 py-1.5 text-xs transition ' + (selected ? 'border-accent bg-accent-tint/70 font-semibold text-accent-ink shadow-[0_1px_2px_rgba(0,0,0,.04)]' : disabled ? 'cursor-not-allowed border-line/70 bg-field/70 text-ink-3 opacity-60' : 'border-line/90 bg-canvas/70 text-ink-2 hover:bg-field/80 ')}>
- <span className={'grid size-3.5 shrink-0 place-items-center rounded border transition ' + (selected ? 'border-accent bg-accent text-white' : 'border-line-strong bg-surface ')}>{selected ? <Check aria-hidden className="size-2.5 stroke-[3]" /> : null}</span>
+ return <button type="button" key={model.id} disabled={disabled} aria-pressed={selected} onClick={() => toggleModel(model)} className={'inline-flex max-w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs transition ' + (selected ? 'font-semibold border-line/90 bg-canvas/70 text-ink' : disabled ? 'cursor-not-allowed border-line/70 bg-field/70 text-ink-3 opacity-60' : 'border-line/90 bg-canvas/70 text-ink-2 hover:bg-field/80 ')}>
+ <span className={'grid size-3.5 shrink-0 place-items-center rounded border transition ' + (selected ? 'border-ink bg-ink text-canvas' : 'border-line-strong bg-surface ')}>{selected ? <Check aria-hidden className="size-2.5 stroke-[3]" /> : null}</span>
  <span className="truncate" title={modelLabel(model)}>{modelLabel(model)}</span>
- <span className={'inline-flex shrink-0 items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-normal ' + (selected ? 'border-accent/80 bg-surface/90 text-accent-ink ' : 'border-line/70 bg-surface text-ink-3 ')}>
+ <span className={'inline-flex shrink-0 items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-normal ' + 'border-line/70 bg-surface text-ink-3 '}>
  <span className="font-mono">{formatTokenCapacity(model.contextWindow) || '—'}</span>
- {model.input?.includes('image') ? <><span className="text-ink-3 ">·</span><span className="inline-flex items-center gap-0.5 font-medium text-accent-ink " title="支持图片输入"><ImageIcon aria-hidden className="size-2.5" />图</span></> : null}
+ {model.input?.includes('image') ? <><span className="text-ink-3 ">·</span><span className="inline-flex items-center gap-0.5 font-medium text-ink-3 " title="支持图片输入"><ImageIcon aria-hidden className="size-2.5" />图</span></> : null}
  </span>
  </button>;
  })}

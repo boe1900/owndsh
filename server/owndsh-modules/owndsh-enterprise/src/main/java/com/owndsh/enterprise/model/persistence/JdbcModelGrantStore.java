@@ -201,9 +201,10 @@ public final class JdbcModelGrantStore implements ModelGrantStore {
 
     @Override
     public String resourceName(String tenantId, GrantResourceType resourceType, long resourceId) {
+        // 原型语义：授权快照存显示名（name 优先，alias 兜底），管理端只读用户无需模型目录权限也能看到可读名称
         String sql = resourceType == GrantResourceType.MODEL_SET
             ? "select name from ent_model_set where tenant_id = ? and id = ?"
-            : "select alias from ent_managed_model where tenant_id = ? and id = ?";
+            : "select coalesce(nullif(display_name, ''), alias) from ent_managed_model where tenant_id = ? and id = ?";
         return jdbc.query(sql, (resultSet, rowNumber) -> resultSet.getString(1), tenantId, resourceId)
             .stream().findFirst().orElseThrow();
     }
