@@ -1,12 +1,13 @@
 /**
  * [INPUT]: 依赖官方 slots/remote/configForms/connection 生命周期事件与 EnterpriseAccountStore，不创建传输连接
- * [OUTPUT]: 注册 OwnDsh 设置与访问门禁，协调账号边界下的技能事实刷新；插件发现和安装由官方 Plugins → Discover 页面提供，MCP exposure 通过官方 configForms 写入
+ * [OUTPUT]: 注册 OwnDsh 设置、侧栏账号入口与访问门禁，协调账号边界下的技能事实刷新；插件发现和安装由官方 Plugins → Discover 页面提供，MCP exposure 通过官方 configForms 写入
  * [POS]: dsh-ui 的浏览器组合根，只向 React 注入共享脱敏 store 和配置表单，不传递 Host Context
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import type { ReactNode } from 'react'
 import { EnterpriseAccountStore } from './account-store.js'
+import { EnterpriseAccountLauncher } from './account-launcher.js'
 import { EnterpriseSkillStore } from './skill-store.js'
 import {
   EnterpriseAccessGate,
@@ -31,6 +32,7 @@ interface ClientRuntime {
 }
 
 export * from './account-store.js'
+export * from './account-launcher.js'
 export * from './account-view.js'
 export * from './local-api.js'
 export * from './skill-store.js'
@@ -40,7 +42,7 @@ export const inject = [
   'slots', 'remote', 'configForms',
 ]
 
-/** 企业设置与门禁共享账号状态；插件市场由官方 Discover 页面负责。 */
+/** 企业设置、侧栏账号入口与门禁共享账号状态；插件市场由官方 Discover 页面负责。 */
 export function apply(ctx: ClientContext): void {
   const runtime = ctx as unknown as ClientRuntime
   const localApi = createEnterpriseLocalApi(fetch)
@@ -76,4 +78,9 @@ export function apply(ctx: ClientContext): void {
     order: -100,
     inject: () => ({ store }),
   }, EnterpriseAccessGate as (props: never) => ReactNode))
+  runtime.slots.inject('settings.launcher', () => runtime.slots.register({
+    name: 'settings.launcher',
+    priority: -100,
+    inject: () => ({ store }),
+  }, EnterpriseAccountLauncher as (props: never) => ReactNode))
 }

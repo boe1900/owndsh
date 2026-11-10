@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖真实本地 Server/Console、隔离 rc.5 Harness profile、新打包插件和 Chromium；测试密码仅从环境读取。
- * [OUTPUT]: 验证新鲜登录无需二次确认、已有会话需确认、验证码/首次改密、employee、拒绝与退出隔离，输出无密证据及截图。
+ * [OUTPUT]: 验证新鲜登录无需二次确认、已有会话需确认、验证码/首次改密、employee、拒绝与退出隔离，以及底部企业账号菜单/折叠/设置/退出确认，输出无密证据及截图。
  * [POS]: .audit 的统一登录跨端联调器；不模拟认证 API，不触碰日常 profile，系统 URL opener 只交接给测试浏览器。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -30,6 +30,8 @@ const manifest = JSON.parse(await readFile(join(installed, 'package.json'), 'utf
 const hash = bytes => createHash('sha256').update(bytes).digest('hex')
 assert.equal(hash(await readFile(join(installed, 'lib/index.js'))),
   hash(await readFile('plugin/packages/bundle/lib/index.js')), 'Installed tarball must match the new built plugin')
+assert.equal(hash(await readFile(join(installed, 'lib/client.js'))),
+  hash(await readFile('plugin/packages/bundle/lib/client.js')), 'Installed Client must match the new build')
 await mkdir(output, { recursive: true })
 await mkdir(join(home, 'workspace'), { recursive: true })
 await mkdir(join(work, 'opener'), { recursive: true })
@@ -46,7 +48,8 @@ const record = (name, data = {}) => { checks.push({ name, ...data }); console.lo
 const redact = text => text.replace(/([?&](?:token|code|state|transaction_id)=)[^\s&"<>]+/g, '$1[redacted]')
 async function save(extra = {}) {
   const evidence = { date: '2026-11-10', origin, pluginVersion: manifest.version, harnessVersion: '0.2.1-rc.5',
-    pluginSha256: hash(await readFile(join(installed, 'lib/index.js'))), checks, requests,
+    pluginSha256: hash(await readFile(join(installed, 'lib/index.js'))),
+    clientSha256: hash(await readFile(join(installed, 'lib/client.js'))), checks, requests,
     captchaCount, passwordChanges, ...extra }
   await writeFile(join(output, 'result.json'), JSON.stringify(evidence, null, 2) + '\n')
 }
@@ -141,12 +144,14 @@ try {
     throw new Error('Host did not open the system-browser authorization URL')
   }
   async function logout() {
-    const result = await host.evaluate(async () => {
-      const response = await fetch('/enterprise/api/v1/local/logout', {
-        method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}'
-      }); return { status: response.status, data: await response.json() }
-    })
-    assert.equal(result.status, 200); await gate.waitFor({ state: 'visible' })
+    await host.getByRole('button', { name: '账号菜单：联调员工', exact: true }).click()
+    await host.getByRole('menuitem', { name: '退出登录', exact: true }).click()
+    const confirmation = host.getByRole('dialog', { name: '退出 OwnDsh 账号', exact: true })
+    await confirmation.getByRole('button', { name: '退出登录', exact: true }).click()
+    await gate.waitFor({ state: 'visible' })
+    await waitState('SIGNED_OUT')
+    await host.getByRole('button', { name: '账号菜单：OwnDsh 账号', exact: true }).waitFor({ state: 'attached' })
+    assert.equal(await host.getByRole('button', { name: '账号菜单：联调员工', exact: true }).count(), 0)
   }
   async function completed(page) {
     await page.getByRole('heading', { name: '网页授权已完成' }).waitFor()
@@ -170,6 +175,42 @@ try {
   record('employee-first-login-captcha-password-change-pkce-enroll-bootstrap-ready')
   assert.equal((await context.request.get(`${origin}/enterprise/admin/v1/members`)).status(), 403)
   record('employee-cannot-access-admin-api')
+
+  stage = 'account-launcher'
+  const launcher = host.getByRole('button', { name: '账号菜单：联调员工', exact: true })
+  await launcher.waitFor()
+  assert.equal(await launcher.innerText(), '联\n联调员工')
+  assert.equal(await launcher.count(), 1)
+  await launcher.focus(); await host.keyboard.press('Enter')
+  await host.getByRole('menuitem', { name: /^设置/ }).waitFor()
+  await host.screenshot({ path: join(output, 'account-menu.png'), fullPage: true })
+  await host.keyboard.press('Escape')
+  await launcher.focus(); await host.keyboard.press('Enter')
+  await host.getByRole('menuitem', { name: /^设置/ }).click()
+  await host.getByText('OwnDsh 设置', { exact: true }).waitFor()
+  await host.keyboard.press('Escape')
+  await launcher.click()
+  await host.getByRole('menuitem', { name: '退出登录', exact: true }).click()
+  const confirmation = host.getByRole('dialog', { name: '退出 OwnDsh 账号', exact: true })
+  await confirmation.getByRole('button', { name: '取消', exact: true }).click()
+  assert.equal((await status()).state, 'READY')
+  await confirmation.waitFor({ state: 'hidden' })
+  await launcher.click()
+  await host.getByRole('menuitem', { name: '退出登录', exact: true }).click()
+  await host.keyboard.press('Escape')
+  await confirmation.waitFor({ state: 'hidden' })
+  assert.equal((await status()).state, 'READY')
+  await host.getByRole('button', { name: '收起侧边栏', exact: true }).click()
+  await host.waitForFunction(() => document.querySelector('button[aria-label="账号菜单：联调员工"]')?.getAttribute('data-collapsed') === 'true')
+  assert.equal(await launcher.innerText(), '联')
+  await launcher.focus(); await host.keyboard.press('Enter')
+  await host.getByRole('menuitem', { name: '退出登录', exact: true }).waitFor()
+  await host.screenshot({ path: join(output, 'account-menu-collapsed.png'), fullPage: true })
+  await host.keyboard.press('Escape')
+  await host.getByRole('button', { name: '打开侧边栏', exact: true }).first().click()
+  await host.waitForFunction(() => document.querySelector('button[aria-label="账号菜单：联调员工"]')?.getAttribute('data-collapsed') === 'false')
+  record('native-account-launcher-settings-keyboard-collapse-and-logout-cancel')
+
 
   stage = 'client-logout-browser-reuse'
   await logout()

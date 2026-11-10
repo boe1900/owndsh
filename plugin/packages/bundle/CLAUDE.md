@@ -20,7 +20,7 @@ src/remote/: Remote v1 connection state、Host capability/presence、audit 和 r
 tests/mcp-oauth.spec.ts: 身份/目标绑定、官方 StoredOAuth* 记录、discovery/issuer/iss 绑定、官方 SDK OAuth 委托与取消生命周期；不复制 OAuth 协议测试。
 tests/mcp-runtime.spec.ts: 真实 Cordis/tools/system-prompt 与受控 PTC binding 验证 direct/codemode/deferred/hidden、tool_search、下一轮 assembly、Agent 隔离和执行守卫；OAuth/transport 由独立官方 client 测试覆盖。
 tests/mcp-pi-search.spec.ts: Pi vendored 英文 tokenizer、schema 字段检索、BM25 排名与 exposure 覆写解析的最小纯逻辑回归。
-tests/bundle.spec.ts: 安装配置、credentials/模型/分发组合、V1 Session 停用、兼容 peers、Client graph 与构建产物验收。
+tests/bundle.spec.ts: 安装配置、credentials/模型/分发组合、V1 Session 停用、兼容 peers、Client 三个 slot 的共享入口、graph 与构建产物验收。
 tests/skill-provider.spec.ts: OwnDsh skill provider 的根目录隔离、与官方 preset filesystem provider 共存、官方 provider 投影和本地变更读取回归。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

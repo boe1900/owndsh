@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 dsh-ui Client apply 与结构化 slots/remote test double
- * [OUTPUT]: 验证 OwnDsh 设置/访问门禁注册与共享账号 store
+ * [OUTPUT]: 验证 OwnDsh 设置/账号入口/访问门禁注册与共享账号 store
  * [POS]: dsh-ui Client 组合回归测试，锁定官方扩展路线且不把 Host Context 传入 React
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -9,13 +9,14 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   apply,
   EnterpriseAccessGate,
+  EnterpriseAccountLauncher,
   EnterpriseSettingsSection,
 } from '../src/client.js'
 
-vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({ Button: vi.fn(), Modal: vi.fn() }))
+vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({ Button: vi.fn(), Modal: vi.fn(), Menu: vi.fn() }))
 
 describe('enterprise Client plugin', () => {
-  it('registers only OwnDsh settings and access slots, sharing the store', () => {
+  it('registers OwnDsh settings, access and account launcher slots, sharing the store', () => {
     const registrations: { options: Record<string, unknown>; component: unknown }[] = []
     const register = vi.fn((options, component) => {
       registrations.push({ options, component })
@@ -34,18 +35,20 @@ describe('enterprise Client plugin', () => {
     })
     expect(remoteEvents).toContain('llm/adapters-updated')
 
-    expect(inject.mock.calls.map(call => call[0])).toEqual(['settings.section', 'shell.overlay'])
+    expect(inject.mock.calls.map(call => call[0])).toEqual(['settings.section', 'shell.overlay', 'settings.launcher'])
     expect(registrations.map(item => item.options)).toMatchObject([
       { name: 'settings.section', id: 'enterprise', order: 25, label: 'OwnDsh 设置' },
       { name: 'shell.overlay', id: 'enterprise-access', order: -100 },
+      { name: 'settings.launcher', priority: -100 },
     ])
     expect(registrations.map(item => item.component)).toEqual([
       EnterpriseSettingsSection,
       EnterpriseAccessGate,
+      EnterpriseAccountLauncher,
     ])
-    const stores = registrations.filter(item => item.options['id'] === 'enterprise' || item.options['id'] === 'enterprise-access')
-      .map(item => (item.options['inject'] as () => { store: unknown })().store)
+    const stores = registrations.map(item => (item.options['inject'] as () => { store: unknown })().store)
     expect(stores[0]).toBe(stores[1])
+    expect(stores[0]).toBe(stores[2])
     const settings = registrations.find(item => item.options['id'] === 'enterprise')!
     expect((settings.options['inject'] as () => { configForm: unknown })().configForm).toBe(configForm)
   })

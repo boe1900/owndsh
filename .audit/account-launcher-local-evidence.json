@@ -1,0 +1,220 @@
+{
+  "date": "2026-11-10",
+  "origin": "http://127.0.0.1:62227",
+  "pluginVersion": "0.1.0-beta.20-account-launcher.20261110",
+  "harnessVersion": "0.2.1-rc.5",
+  "pluginSha256": "718b40f3f607bef2fc7c94d9b94ba053d63f4ec8e3b849d6c537da453f504c7d",
+  "clientSha256": "96b63e2d95a69376167c5c19d1acae553f6bfae1c1b2f4ea51e2c54d1187d2d1",
+  "checks": [
+    {
+      "name": "real-admin-login",
+      "initialPasswordChanged": false
+    },
+    {
+      "name": "create-employee-through-real-admin-api"
+    },
+    {
+      "name": "employee-first-login-captcha-password-change-pkce-enroll-bootstrap-ready"
+    },
+    {
+      "name": "employee-cannot-access-admin-api"
+    },
+    {
+      "name": "native-account-launcher-settings-keyboard-collapse-and-logout-cancel"
+    },
+    {
+      "name": "client-logout-preserves-browser-session-and-next-login-skips-credentials"
+    },
+    {
+      "name": "browser-logout-revokes-cookie-and-client-remains-ready-after-server-refresh"
+    },
+    {
+      "name": "fresh-login-after-browser-logout-needs-no-second-confirmation"
+    },
+    {
+      "name": "browser-denial-maps-to-client-cancelled"
+    },
+    {
+      "name": "login-after-cancellation-reuses-browser-session"
+    }
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/enterprise/auth/v1/authorize",
+      "status": 303
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/auth/v1/session",
+      "status": 401
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/auth/v1/sources",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/auth/v1/session",
+      "status": 401
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/auth/v1/authorize",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/auth/v1/password",
+      "status": 409
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/auth/v1/password",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/auth/v1/browser-session",
+      "status": 204
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/auth/v1/sources",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/auth/v1/session",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/auth/v1/authorization",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/auth/v1/authorize",
+      "status": 303
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/auth/v1/sources",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/auth/v1/session",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/auth/v1/authorization",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/auth/v1/authorize",
+      "status": 303
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/auth/v1/session",
+      "status": 401
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/auth/v1/sources",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/auth/v1/session",
+      "status": 401
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/auth/v1/authorize",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/auth/v1/password",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/auth/v1/browser-session",
+      "status": 204
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/auth/v1/sources",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/auth/v1/session",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/auth/v1/authorization",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/auth/v1/authorize",
+      "status": 303
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/auth/v1/sources",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/auth/v1/session",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/auth/v1/authorization",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/auth/v1/authorize",
+      "status": 303
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/auth/v1/sources",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/auth/v1/session",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/auth/v1/authorization",
+      "status": 200
+    }
+  ],
+  "captchaCount": 3,
+  "passwordChanges": 1,
+  "result": "passed",
+  "nativeScheme": "fixed link verified; OS activation not exercised",
+  "firstPartyLocalProvider": "real",
+  "oidcLdap": "not exercised",
+  "uiTests": 41,
+  "bundleTests": 9,
+  "limitations": [
+    "Native Electron window was not exercised",
+    "Avatar uses account initial; no avatar upload"
+  ]
+}

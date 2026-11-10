@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 bundle manifest/Config/patch、构建产物和 Node vm 中的官方 React lazy-CJS seed 模型
- * [OUTPUT]: 验证安装配置、dsh.bundle/dsh.client、credentials/pi-ai/分发注入、兼容 peers 与仅设置/门禁的 Client apply
+ * [OUTPUT]: 验证安装配置、dsh.bundle/dsh.client、credentials/pi-ai/分发注入、兼容 peers 与设置/账号入口/门禁的 Client apply
  * [POS]: bundle 发布不变量测试，拒绝 Typert ambient shim、Harness 源码路径和未声明运行依赖
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -176,7 +176,7 @@ describe('enterprise bundle', () => {
     expect(BuiltModule.apply).toBeTypeOf('function')
   })
 
-  it('materializes the built lazy-CJS Client factory and registers only OwnDsh settings and access slots', async () => {
+  it('materializes the built lazy-CJS Client factory and registers OwnDsh settings, access and account launcher slots', async () => {
     const source = await readFile(resolve(ROOT, 'lib/client.js'), 'utf8')
     expect(source).toContain("id: 'owndsh-plugin'")
     expect(source).not.toContain('@deepseek-ai/dsh-typert-protocol')
@@ -195,7 +195,7 @@ describe('enterprise bundle', () => {
     const client = factory?.((id) => {
       if (id === 'react') return React
       if (id === 'react/jsx-runtime') return ReactJsxRuntime
-      if (id === '@deepseek-ai/dsh-client-ui-primitives') return { Modal: vi.fn(), Button: vi.fn() }
+      if (id === '@deepseek-ai/dsh-client-ui-primitives') return { Modal: vi.fn(), Button: vi.fn(), Menu: vi.fn() }
       return nodeRequire(id)
     }) as { apply?: (ctx: unknown) => void } | undefined
     expect(client?.apply).toBeTypeOf('function')
@@ -204,7 +204,7 @@ describe('enterprise bundle', () => {
     client?.apply?.({ effect: (effect: () => unknown) => effect(), slots,
       configForms: { get: () => ({}) },
       remote: { $on: () => () => undefined }, on: () => () => undefined })
-    expect(register.mock.calls.map(call => call[0].name)).toEqual(['settings.section', 'shell.overlay'])
+    expect(register.mock.calls.map(call => call[0].name)).toEqual(['settings.section', 'shell.overlay', 'settings.launcher'])
     expect(source).toContain("data-plugin-css=\"' + id + '\"")
   })
 

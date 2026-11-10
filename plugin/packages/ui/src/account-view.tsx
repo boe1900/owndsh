@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 React、Lucide、Harness Button/Settings close、ConfirmAction、EnterpriseSkillMarket、官方 ConfigForm，以及 EnterpriseAccountStore 的脱敏 snapshot 和动作
- * [OUTPUT]: 提供账号/技能/MCP 设置与全局门禁、手动刷新进度/结果；技能页委托本地 skill store，独立 MCP 卡片支持连接、工具预览、服务器/工具 exposure 覆写、启用/禁用和断开连接；Server 仅在无活动会话时编辑
- * [POS]: dsh-ui 的账号设置与门禁呈现层，账号信息与退出操作的唯一常驻入口；配置写入经 ConfigForm，仍不接触 Host Context、Token 或执行细节
+ * [OUTPUT]: 提供账号/技能/MCP 设置与全局门禁、共享 LogoutConfirmation、手动刷新进度/结果；技能页委托本地 skill store，独立 MCP 卡片支持连接、工具预览、服务器/工具 exposure 覆写、启用/禁用和断开连接；Server 仅在无活动会话时编辑
+ * [POS]: dsh-ui 的账号设置与门禁呈现层，与侧栏账号入口共享退出确认；配置写入经 ConfigForm，仍不接触 Host Context、Token 或执行细节
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -374,8 +374,8 @@ export function enterpriseServerEditable(state?: EnterpriseConnectionState): boo
   return state !== undefined && ['UNCONFIGURED', 'SIGNED_OUT', 'CANCELLED', 'FAILED', 'AUTH_EXPIRED', 'DEVICE_REVOKED'].includes(state)
 }
 
-/** 账号设置退出前使用页面确认，取消时不触发认证状态变更。 */
-function LogoutConfirmation({ store, disabled, children }: {
+/** 设置与侧栏退出共用页面确认，取消时不触发认证状态变更。 */
+export function LogoutConfirmation({ store, disabled, children }: {
   store: Pick<EnterpriseAccountStore, 'logout'>
   disabled: boolean
   children: (open: () => void) => ReactNode

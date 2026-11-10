@@ -3,7 +3,8 @@
 
 成员清单
 
-unified-login-local-e2e.mjs: 驱动真实本地 Server/Console 与 rc.5 Harness 新插件包，验证新鲜登录无需二次确认、已有浏览器会话仍需确认，以及验证码/首次改密、employee、拒绝和退出范围；密码从环境读取，证据输出到隔离 .tmp。
+unified-login-local-e2e.mjs: 驱动真实本地 Server/Console 与 rc.5 Harness 新插件包，验证新鲜登录无需二次确认、已有浏览器会话仍需确认，以及验证码/首次改密、employee、拒绝和退出范围，以及原生账号菜单/设置导航/键盘/退出确认；密码从环境读取，证据输出到隔离 .tmp。
+account-launcher-local-evidence.json: 底部企业账号入口与统一登录 10 项真实 rc.5 跨端验收，记录 Client/Host 构建哈希、无密 HTTP 状态及原生窗口未验证边界。
 unified-login-local-evidence.json: 本地统一登录 9 项真实跨端验收结果，保留构建哈希与无密 HTTP 状态，不保存账号或凭据。
 
 live-device.json: 早期真实 Host 设备夹具，记录不含密钥的设备标识。

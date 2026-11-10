@@ -9,7 +9,7 @@
 
 Browser-side employee account and managed-plugin surface for the locked Harness Client runtime.
 It registers the `OwnDsh 设置` page through the official `settings.section`
-slot and the required access gate through `shell.overlay`. OwnDsh does not own or fork the
+slot, the bottom account menu through `settings.launcher`, and the required access gate through `shell.overlay`. OwnDsh does not own or fork the
 surrounding Web/Desktop UI.
 
 The access gate is shown during startup and whenever the connection is not
@@ -25,8 +25,11 @@ chrome and theme controls remain owned by the surrounding official shell.
 
 The OwnDsh Settings section contains Account, Skills and MCP tabs aligned with the
 native DSH settings rhythm and keyboard navigation. Account information and
-sign-out are available only in the Account tab; OwnDsh registers no sidebar footer
-entry, leaving that space to Harness. Sign-out requires an in-page Harness
+sign-out are available in the Account tab and the native bottom account launcher.
+The launcher replaces the official DeepSeek account occupant at priority -100,
+shows the enterprise display name and initial avatar, and supports collapsed sidebar geometry.
+Its shared Harness `Menu` opens the shell-owned settings (preserving the effective shortcut)
+or the existing logout confirmation. Expired/signed-out states hide the previous identity. Sign-out requires an in-page Harness
 `Modal` and `Button` confirmation before clearing the session. Uninstall uses the same component;
 Cancel and Escape leave the account unchanged. The dialog uses Host
 theme and traps focus while open, without relying on a desktop
@@ -55,7 +58,7 @@ The server exposes a DSH plugin market format 1 index behind the DSH Desktop
 Bearer session; the local loopback proxy carries that in-memory credential. The local API has no
 plugin install, remove or restart mutation routes.
 
-Both official slot registrations share one `EnterpriseAccountStore`. Its browser API uses
+All three official slot registrations share one `EnterpriseAccountStore`. Its browser API uses
 only fixed same-origin `/enterprise/api/v1/local/*` paths, sends strict JSON for
 Server, login, cancel, logout, uninstall, and explicit refresh actions. It reuses official
 Host adapter/credential/settings events and connection reset notifications to read local
