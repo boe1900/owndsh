@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Sa-Token 1.45 JWT/权限拦截器/mock HTTP context、Refresh Session store 与平台会话 adapter。
- * [OUTPUT]: 验证管理端 Cookie 前置生效，以及单 installation/成员的 Access 与 Refresh 会话同步撤销。
+ * [OUTPUT]: 验证 Cookie 前置生效、浏览器/客户端独立退出，以及单 installation/成员的 Access 与 Refresh 会话同步撤销。
  * [POS]: owndsh-server 会话回归门禁，覆盖浏览器 Cookie 与 Desktop 长短期凭据共用的服务端生命周期。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -42,10 +42,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.net.URI;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.ArgumentMatchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -159,6 +163,34 @@ class OwnDshPlatformSessionGatewayTest {
                 .cookie(new Cookie(AdminSessionCookie.name(properties.getPublicBaseUrl()), token)))
             .andExpect(status().isOk())
             .andExpect(content().string("ok"));
+    }
+
+    @Test
+    void logsOutClientAndBrowserIndependently() {
+        String browser = logic.createLoginSession(LOGIN_ID, admin("browser-session"));
+        String client = logic.createLoginSession(LOGIN_ID, device(FIRST)
+            .setExtra(LoginHelper.USER_KEY, USER_ID).setExtra(LoginHelper.CLIENT_KEY, "dsh-desktop"));
+        String otherClient = logic.createLoginSession(LOGIN_ID, device(SECOND));
+        SaTokenContextMockUtil.setMockContext();
+        ((SaRequestForMock) SaHolder.getRequest()).cookieMap.put(AdminSessionCookie.name(properties.getPublicBaseUrl()), browser);
+        StpUtil.setTokenValueToStorage(client);
+
+        gateway.logoutCurrent();
+
+        assertThat(logic.getLoginIdByToken(browser)).isEqualTo(LOGIN_ID);
+        assertThat(logic.getLoginIdByToken(otherClient)).isEqualTo(LOGIN_ID);
+        assertThat(logic.getTokenValueListByLoginId(LOGIN_ID)).doesNotContain(client);
+        verify(refreshSessions).revokeInstallation(eq(properties.getTenantId()), eq(USER_ID),
+            eq(com.owndsh.enterprise.auth.domain.PlatformClient.DSH_DESKTOP), eq(UUID.fromString(FIRST)),
+            eq(com.owndsh.enterprise.auth.domain.RefreshSession.RevocationReason.LOGOUT), any());
+
+        SaTokenContextMockUtil.setMockContext();
+        ((SaRequestForMock) SaHolder.getRequest()).cookieMap.put(AdminSessionCookie.name(properties.getPublicBaseUrl()), browser);
+        assertThat(gateway.current().client().clientId()).isEqualTo("enterprise-admin");
+        gateway.logoutCurrent();
+
+        assertThat(logic.getTokenValueListByLoginId(LOGIN_ID)).containsExactly(otherClient);
+        verifyNoMoreInteractions(refreshSessions);
     }
 
     @Test

@@ -141,6 +141,14 @@ export type PasswordStepResponse = AuthPasswordStepResponse;
 
 export type TokenRequest = AuthTokenRequest;
 
+export type BrowserMember = AuthBrowserMember;
+
+export type BrowserMemberResponse = AuthBrowserMemberResponse;
+
+export type BrowserAuthorizationRequest = AuthBrowserAuthorizationRequest;
+
+export type BrowserAuthorizationResponse = AuthBrowserAuthorizationResponse;
+
 export type BrowserSessionRequest = AuthBrowserSessionRequest;
 
 export type TokenData = AuthTokenData;
@@ -895,6 +903,31 @@ export type AuthorizationCodeTokenRequest = {
     redirectUri: string;
     codeVerifier: AuthPkceCodeVerifier;
     installationId: AuthInstallationId;
+};
+
+export type AuthBrowserAuthorizationRequest = {
+    transactionId: AuthAuthTransactionId;
+    csrfToken: string;
+    userId: EnterpriseUserId;
+    approved: boolean;
+};
+
+export type AuthBrowserAuthorizationResponse = {
+    data: {
+        redirectUri: string;
+    };
+    requestId: RequestId;
+};
+
+export type AuthBrowserMember = {
+    id: EnterpriseUserId;
+    username: string;
+    displayName: string;
+};
+
+export type AuthBrowserMemberResponse = {
+    data: AuthBrowserMember;
+    requestId: RequestId;
 };
 
 export type AuthBrowserSessionRequest = {
@@ -2758,6 +2791,10 @@ export type AdminAuditCollection = unknown;
 
 export type Authorize = unknown;
 
+export type BrowserAuthorization = unknown;
+
+export type BrowserIdentity = unknown;
+
 export type BrowserSession = unknown;
 
 export type ConsoleBootstrap = unknown;
@@ -3510,6 +3547,60 @@ export type ExchangeBrowserAuthorizationCodeResponses = {
 };
 
 export type ExchangeBrowserAuthorizationCodeResponse = ExchangeBrowserAuthorizationCodeResponses[keyof ExchangeBrowserAuthorizationCodeResponses];
+
+export type GetBrowserIdentityData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/enterprise/auth/v1/session';
+};
+
+export type GetBrowserIdentityErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+};
+
+export type GetBrowserIdentityError = GetBrowserIdentityErrors[keyof GetBrowserIdentityErrors];
+
+export type GetBrowserIdentityResponses = {
+    /**
+     * Active browser account; no token is exposed.
+     */
+    200: AuthBrowserMemberResponse;
+};
+
+export type GetBrowserIdentityResponse = GetBrowserIdentityResponses[keyof GetBrowserIdentityResponses];
+
+export type DecideBrowserAuthorizationData = {
+    body: AuthBrowserAuthorizationRequest;
+    path?: never;
+    query?: never;
+    url: '/enterprise/auth/v1/authorization';
+};
+
+export type DecideBrowserAuthorizationErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+};
+
+export type DecideBrowserAuthorizationError = DecideBrowserAuthorizationErrors[keyof DecideBrowserAuthorizationErrors];
+
+export type DecideBrowserAuthorizationResponses = {
+    /**
+     * One-use transaction consumed; navigate to the validated loopback callback.
+     */
+    200: AuthBrowserAuthorizationResponse;
+};
+
+export type DecideBrowserAuthorizationResponse = DecideBrowserAuthorizationResponses[keyof DecideBrowserAuthorizationResponses];
 
 export type LogoutPlatformSessionData = {
     body?: never;

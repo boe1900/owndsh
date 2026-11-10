@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as R403RouteImport } from './routes/403'
 import { Route as ConsoleRouteImport } from './routes/_console'
+import { Route as AuthorizeRouteImport } from './routes/authorize'
+import { Route as AuthorizedRouteImport } from './routes/authorized'
 import { Route as ExamplesRouteImport } from './routes/examples'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ConsoleIndexRouteImport } from './routes/_console.index'
@@ -35,6 +37,16 @@ const R403Route = R403RouteImport.update({
 } as any)
 const ConsoleRoute = ConsoleRouteImport.update({
   id: '/_console',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthorizeRoute = AuthorizeRouteImport.update({
+  id: '/authorize',
+  path: '/authorize',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthorizedRoute = AuthorizedRouteImport.update({
+  id: '/authorized',
+  path: '/authorized',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExamplesRoute = ExamplesRouteImport.update({
@@ -121,6 +133,8 @@ const EnterpriseAuthCallbackRoute = EnterpriseAuthCallbackRouteImport.update({
 export interface FileRoutesByFullPath {
   '/403': typeof R403Route
   '/': typeof ConsoleIndexRoute
+  '/authorize': typeof AuthorizeRoute
+  '/authorized': typeof AuthorizedRoute
   '/examples': typeof ExamplesRouteWithChildren
   '/login': typeof LoginRoute
   '/access': typeof ConsoleAccessRoute
@@ -139,6 +153,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/403': typeof R403Route
+  '/authorize': typeof AuthorizeRoute
+  '/authorized': typeof AuthorizedRoute
   '/login': typeof LoginRoute
   '/access': typeof ConsoleAccessRoute
   '/activity': typeof ConsoleActivityRoute
@@ -158,6 +174,8 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/403': typeof R403Route
   '/_console': typeof ConsoleRouteWithChildren
+  '/authorize': typeof AuthorizeRoute
+  '/authorized': typeof AuthorizedRoute
   '/examples': typeof ExamplesRouteWithChildren
   '/login': typeof LoginRoute
   '/_console/access': typeof ConsoleAccessRoute
@@ -180,6 +198,8 @@ export interface FileRouteTypes {
   fullPaths:
     | '/403'
     | '/'
+    | '/authorize'
+    | '/authorized'
     | '/examples'
     | '/login'
     | '/access'
@@ -198,6 +218,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/403'
+    | '/authorize'
+    | '/authorized'
     | '/login'
     | '/access'
     | '/activity'
@@ -216,6 +238,8 @@ export interface FileRouteTypes {
     | '__root__'
     | '/403'
     | '/_console'
+    | '/authorize'
+    | '/authorized'
     | '/examples'
     | '/login'
     | '/_console/access'
@@ -237,6 +261,8 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   R403Route: typeof R403Route
   ConsoleRoute: typeof ConsoleRouteWithChildren
+  AuthorizeRoute: typeof AuthorizeRoute
+  AuthorizedRoute: typeof AuthorizedRoute
   ExamplesRoute: typeof ExamplesRouteWithChildren
   LoginRoute: typeof LoginRoute
   EnterpriseAuthCallbackRoute: typeof EnterpriseAuthCallbackRoute
@@ -256,6 +282,20 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof ConsoleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/authorize': {
+      id: '/authorize'
+      path: '/authorize'
+      fullPath: '/authorize'
+      preLoaderRoute: typeof AuthorizeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/authorized': {
+      id: '/authorized'
+      path: '/authorized'
+      fullPath: '/authorized'
+      preLoaderRoute: typeof AuthorizedRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/examples': {
@@ -431,6 +471,8 @@ const ExamplesRouteWithChildren = ExamplesRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   R403Route: R403Route,
   ConsoleRoute: ConsoleRouteWithChildren,
+  AuthorizeRoute: AuthorizeRoute,
+  AuthorizedRoute: AuthorizedRoute,
   ExamplesRoute: ExamplesRouteWithChildren,
   LoginRoute: LoginRoute,
   EnterpriseAuthCallbackRoute: EnterpriseAuthCallbackRoute,

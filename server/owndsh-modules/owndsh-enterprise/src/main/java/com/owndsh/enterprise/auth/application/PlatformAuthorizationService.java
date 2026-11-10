@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Redis 登录/challenge/OIDC/code 短期状态、身份源/adapter/验证码/绑定服务、Access/Refresh 会话、审计与 CSPRNG。
- * [OUTPUT]: 提供 authorize/sources/password 两阶段改密/OIDC/code exchange/refresh/logout/cancel，以及复用新鲜认证的一次性成员身份绑定。
+ * [OUTPUT]: 提供 authorize/sources/password 两阶段改密/OIDC/code exchange/refresh/logout/cancel、浏览器会话确认授权与新鲜成员身份绑定。
  * [POS]: auth application 的状态机，管理回调由唯一 public base 派生，部署 loopback 调试 origin 白名单可额外派生管理回调，登录/绑定/code/refresh 均绑定 client 与 installation。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -341,6 +341,38 @@ public final class PlatformAuthorizationService {
             auditFailure(transaction, source.type(), context);
             throw new AuthFlowException("ENT_AUTH_REQUIRED");
         }
+    }
+
+    public URI authorizeFromBrowser(
+        String transactionId,
+        String csrfToken,
+        boolean approved,
+        IdentityLoginContext context
+    ) {
+        PlatformSession session = sessions.current();
+        if (session.client() != PlatformClient.ENTERPRISE_ADMIN) {
+            throw new AuthFlowException("ENT_AUTH_REQUIRED");
+        }
+        LoginTransaction transaction = requireTransaction(transactionId);
+        requireCsrf(transaction, csrfToken);
+        if (transaction.client() != PlatformClient.DSH_DESKTOP || transaction.identityLink() != null) {
+            throw new AuthFlowException("ENT_INVALID_REQUEST");
+        }
+        LoginTransaction consumed = transactions.consumeTransaction(transaction.id())
+            .orElseThrow(() -> new AuthFlowException("ENT_AUTH_SESSION_EXPIRED"));
+        if (!consumed.equals(transaction)) throw new AuthFlowException("ENT_AUTH_SESSION_EXPIRED");
+        if (!approved) {
+            return URI.create(transaction.redirectUri() + "?error=access_denied&state="
+                + encode(transaction.clientState()));
+        }
+        PlatformAuthorizationCode code = createAuthorizationCode(consumed, session.userId());
+        databaseTransactions.executeWithoutResult(status -> auditSink.append(new AuditEvent(
+            positiveId(), context.tenantId(), Instant.now(clock), AuditActorType.USER, session.userId(), null,
+            AuditAction.LOGIN_SUCCEEDED, "PLATFORM_SESSION", consumed.sessionDeviceId(),
+            AuditResult.SUCCESS, null, context.requestId(), context.sourceIp(), context.userAgentHash(),
+            new AuthAuditMetadata.SessionAuthorized(consumed.client().clientId())
+        )));
+        return clientCallback(consumed, code.code());
     }
 
     public TokenExchangeResult exchange(

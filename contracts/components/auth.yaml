@@ -1,5 +1,5 @@
 # [INPUT]: 依赖根协议的 RequestId 与统一 envelope 约定，以及详细设计第 6 节固定 public client/PKCE 边界
-# [OUTPUT]: 提供登录事务、LOCAL 改密、公开身份源、Desktop code/refresh Token、浏览器 Cookie exchange、注销与 console bootstrap schema
+# [OUTPUT]: 提供登录事务、LOCAL 改密、公开身份源、Desktop code/refresh Token、浏览器 Cookie exchange/账号摘要/绑定展示账号的授权决定、注销与 console bootstrap schema
 # [POS]: contracts/components 的认证协议分片，隔离两类客户端会话输出且不增加密码重置旁路
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -417,5 +417,65 @@ ConsoleBootstrapResponse:
   properties:
     data:
       $ref: '#/ConsoleBootstrapData'
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+
+BrowserMember:
+  type: object
+  additionalProperties: false
+  required: [id, username, displayName]
+  properties:
+    id:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/EnterpriseUserId'
+    username:
+      type: string
+      minLength: 1
+      maxLength: 30
+    displayName:
+      type: string
+      minLength: 1
+      maxLength: 120
+
+BrowserMemberResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data:
+      $ref: '#/BrowserMember'
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+
+BrowserAuthorizationRequest:
+  type: object
+  additionalProperties: false
+  required: [transactionId, csrfToken, userId, approved]
+  properties:
+    transactionId:
+      $ref: '#/AuthTransactionId'
+    csrfToken:
+      type: string
+      minLength: 32
+      maxLength: 64
+      pattern: '^[A-Za-z0-9_-]+$'
+    userId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/EnterpriseUserId'
+    approved:
+      type: boolean
+
+BrowserAuthorizationResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data:
+      type: object
+      additionalProperties: false
+      required: [redirectUri]
+      properties:
+        redirectUri:
+          type: string
+          format: uri
+          maxLength: 2048
     requestId:
       $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'

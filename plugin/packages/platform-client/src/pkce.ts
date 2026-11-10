@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Node crypto 生成 PKCE entropy，依赖 node:http 监听 127.0.0.1 回环 callback
- * [OUTPUT]: 对外提供 createPkceS256、可在监听启动期间取消的 startLoopbackCallback 与稳定 PkceLoopbackError；callback 保留官方 OAuth 的 iss
+ * [OUTPUT]: 提供 S256、可取消 loopback 与稳定失败码；保留 OAuth iss，调用方可选择无凭据的授权交接页
  * [POS]: platform-client 的浏览器登录事务原语，只管理 verifier/state/callback 生命周期，不接触平台 Token
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -51,6 +51,7 @@ export interface LoopbackCallbackOptions {
   readonly expectedState: string
   readonly timeoutMs: number
   readonly signal?: AbortSignal
+  readonly successRedirectUri?: string
 }
 
 /** 使用 256 bit entropy 创建 verifier 及其 base64url SHA-256 challenge。 */
@@ -76,6 +77,11 @@ export async function startLoopbackCallback(
   if (options.expectedState.length === 0) throw new TypeError('expectedState is required')
   if (!Number.isSafeInteger(options.timeoutMs) || options.timeoutMs <= 0) {
     throw new TypeError('timeoutMs must be a positive safe integer')
+  }
+  if (options.successRedirectUri !== undefined) {
+    const target = new URL(options.successRedirectUri)
+    if (!['http:', 'https:'].includes(target.protocol) || target.username || target.password
+      || target.search || target.hash) throw new TypeError('invalid authorization completion URL')
   }
 
   let server: Server
@@ -122,14 +128,26 @@ export async function startLoopbackCallback(
       settleFailure(new PkceLoopbackError('ENT_AUTH_STATE_INVALID', 'PKCE callback state mismatch'))
       return
     }
+    if (url.searchParams.get('error') === 'access_denied') {
+      response.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' })
+      response.end('登录已取消，你可以关闭此页面。')
+      settleFailure(new PkceLoopbackError('ENT_AUTH_CANCELLED', 'PKCE login was declined'))
+      return
+    }
     if (code === null || code.length === 0) {
       response.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' })
       response.end('Missing authorization code')
       settleFailure(new PkceLoopbackError('ENT_AUTH_CALLBACK_INVALID', 'PKCE callback code is missing'))
       return
     }
-    response.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' })
-    response.end('Login completed. You can close this window.')
+    if (options.successRedirectUri !== undefined) {
+      response.writeHead(303, { location: options.successRedirectUri,
+        'cache-control': 'no-store', 'referrer-policy': 'no-referrer' })
+      response.end()
+    } else {
+      response.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' })
+      response.end('Authorization received. Return to the application to check the result.')
+    }
     if (settled) return
     settled = true
     const iss = url.searchParams.get('iss') ?? undefined

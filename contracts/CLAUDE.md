@@ -5,7 +5,7 @@
 成员清单
 
 README.md: 协议真源使用规则，定义手写与生成边界、双端消费方式和漂移门禁。
-enterprise-openapi.yaml: OpenAPI 3.1 逻辑协议导航根，定义 Bearer 与 HTTP/HTTPS 管理端 Cookie、38 个稳定错误码和 129 个 operation，并引用受控 Path Item/schema 分片。
+enterprise-openapi.yaml: OpenAPI 3.1 逻辑协议导航根，定义 Bearer 与 HTTP/HTTPS 管理端 Cookie、38 个稳定错误码和 135 个 operation，并引用受控 Path Item/schema 分片。
 paths/: identity/auth/member/device/model/quota/gateway/plugin/skill/mcp/session/audit operation 分片目录；局部地图见 paths/CLAUDE.md。
 components/: 身份治理、认证、成员、设备、模型、配额、网关、插件、skill、MCP、Session 与审计协议 schema 分片；局部地图见 components/CLAUDE.md。
 fixtures/auth-sources-success.json: T05 登录事务、CSRF 与公开身份源成功响应样例。
@@ -60,5 +60,9 @@ fixtures/unknown-error-code.json: 未知稳定错误码负例，必须被 Java J
 generated/: 从完整 OpenAPI 逻辑文档派生的自包含 OpenAPI JSON、fixture manifest、JSON Schema 与协议 SHA-256，供管理端、Java 和 CI 消费，禁止手工编辑。
 remote/: OwnDsh Remote v1 的 WebSocket control/relay/RPC schema、关闭码、限额和 Java/TypeScript 正反 fixture；不依赖 DSH Typert 业务消息。
 remote/crypto-vectors.json: Noise protocol/prologue 与 counter 的确定性测试向量，使用固定假密钥供跨运行回归，不承载生产密钥。
+
+fixtures/browser-member-success.json: 无管理角色限制的当前浏览器账号摘要，不含 Token。
+fixtures/browser-authorization-request.json: 绑定原桌面事务、CSRF 与展示账号的批准请求假值。
+fixtures/browser-authorization-success.json: 仅返回原事务 loopback redirectUri 的授权结果假值。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

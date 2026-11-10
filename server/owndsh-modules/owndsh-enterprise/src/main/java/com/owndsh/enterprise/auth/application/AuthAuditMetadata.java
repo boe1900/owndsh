@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 接收固定平台 client 与公开身份源类型。
+ * [INPUT]: 接收固定平台 client、公开身份源类型或已有浏览器会话授权事实。
  * [OUTPUT]: 对外提供 LOGIN_SUCCEEDED/LOGIN_FAILED/LOGOUT 的白名单审计 metadata。
  * [POS]: auth application 的审计脱敏 DTO，不记录 state、code、verifier、用户名或 redirect URI。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -14,6 +14,7 @@ import java.util.Objects;
 
 public sealed interface AuthAuditMetadata extends AuditMetadata permits
     AuthAuditMetadata.LoginSucceeded,
+    AuthAuditMetadata.SessionAuthorized,
     AuthAuditMetadata.LoginFailed,
     AuthAuditMetadata.Logout {
 
@@ -21,6 +22,17 @@ public sealed interface AuthAuditMetadata extends AuditMetadata permits
         public LoginSucceeded {
             requireClient(clientId);
             Objects.requireNonNull(sourceType, "sourceType");
+        }
+
+        @Override
+        public AuditAction action() {
+            return AuditAction.LOGIN_SUCCEEDED;
+        }
+    }
+
+    record SessionAuthorized(String clientId) implements AuthAuditMetadata {
+        public SessionAuthorized {
+            requireClient(clientId);
         }
 
         @Override

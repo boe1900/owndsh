@@ -1,6 +1,24 @@
 {
   "fixtures": [
     {
+      "file": "fixtures/browser-authorization-success.json",
+      "schema": "BrowserAuthorizationResponse",
+      "valid": true,
+      "zodExport": "zBrowserAuthorizationResponse"
+    },
+    {
+      "file": "fixtures/browser-authorization-request.json",
+      "schema": "BrowserAuthorizationRequest",
+      "valid": true,
+      "zodExport": "zBrowserAuthorizationRequest"
+    },
+    {
+      "file": "fixtures/browser-member-success.json",
+      "schema": "BrowserMemberResponse",
+      "valid": true,
+      "zodExport": "zBrowserMemberResponse"
+    },
+    {
       "file": "fixtures/protocol-success.json",
       "schema": "ProtocolSuccessResponse",
       "valid": true,
@@ -301,5 +319,5 @@
       "zodExport": "zAuditEventListResponse"
     }
   ],
-  "protocolSha256": "36cc9efe120cdd3fc82376b631a3d7ef333fd9b0d2a7fc11423262b68c9934a2"
+  "protocolSha256": "1232dd0de125ee4ad82a688e29e417e738c08f188074d07472e3877837e1f66a"
 }

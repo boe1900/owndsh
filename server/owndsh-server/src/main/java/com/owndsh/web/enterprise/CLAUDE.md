@@ -6,7 +6,7 @@
 
 AdminSessionCookieFilter.java: 管理端认证前置 Filter，只在 `/enterprise/admin/**` 将外部 HTTP(S) 地址对应的 HttpOnly Cookie 写入 Sa-Token 请求存储，保证权限注解先于 Controller 执行时也能读取会话。
 OwnDshCaptchaVerifier.java: 复用既有验证码开关、生成端默认 Redis codec、全局 key 和失败登录记录，为 LOCAL 登录原子消费一次性验证码。
-OwnDshPlatformSessionGateway.java: 平台会话 composition adapter，签发 12 小时非共享 Sa-Token，并在 logout、设备撤销、成员停用/改密时同步吊销 PostgreSQL Refresh Session。
+OwnDshPlatformSessionGateway.java: 平台会话 composition adapter，签发 12 小时非共享 Sa-Token，并在 logout、设备撤销、成员停用/改密时同步吊销 PostgreSQL Refresh Session；浏览器与客户端各自退出只撤销对应会话。
 OwnDshRemotePeerAuthenticator.java: Remote WebSocket Upgrade 的 Sa-Token adapter，把已登录成员与 installation 事实传给 enterprise remote，不泄露 Token。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

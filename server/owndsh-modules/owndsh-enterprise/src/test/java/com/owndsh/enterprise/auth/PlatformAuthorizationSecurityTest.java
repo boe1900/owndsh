@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 PlatformAuthorizationService、真实 Redis store、PKCE/client policy 与 mock 身份/Access/Refresh 会话边界。
- * [OUTPUT]: 验证 PKCE 绕过、public base 派生管理回调、参数混用、一次性 code/事务，以及身份绑定只能使用指定源且不签发会话。
+ * [OUTPUT]: 验证 PKCE 绕过、public base 派生管理回调、参数混用、一次性 code/事务、已有浏览器身份批准/拒绝，以及身份绑定只能使用指定源且不签发会话。
  * [POS]: Authorization Code 与身份绑定共用状态机的安全门禁，所有一次性状态消费后都不能重放。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -533,6 +533,55 @@ class PlatformAuthorizationSecurityTest {
             ),
             "ENT_AUTH_SESSION_EXPIRED"
         );
+    }
+
+    @Test
+    void authorizesBrowserIdentityWithoutAuthenticatingAgainAndConsumesTheTransaction() {
+        LoginTransaction transaction = loginTransaction("tx_browser_authorization");
+        when(sessions.current()).thenReturn(new com.owndsh.enterprise.auth.application.PlatformSession(
+            1761100000000000003L, PlatformClient.ENTERPRISE_ADMIN, "console", "browser-session"
+        ));
+        when(loginTransactions.find(transaction.id())).thenReturn(Optional.of(transaction));
+        when(loginTransactions.consumeTransaction(transaction.id()))
+            .thenReturn(Optional.of(transaction), Optional.empty());
+        IdentityLoginContext context = new IdentityLoginContext("000000", "req_browser", "127.0.0.1", new byte[32]);
+        assertCode(() -> service.authorizeFromBrowser(transaction.id(), "wrong", true, context), "ENT_AUTH_REQUIRED");
+        URI callback = service.authorizeFromBrowser(transaction.id(), transaction.csrfToken(), true, context);
+        String code = callback.getQuery().split("&")[0].substring("code=".length());
+        assertThat(callback.toString()).startsWith(REDIRECT + "?code=").endsWith("&state=client-state-0001");
+        assertThat(service.exchange(code, PlatformClient.DSH_DESKTOP, REDIRECT, VERIFIER, INSTALLATION).accessToken())
+            .isEqualTo("issued-platform-token");
+        assertCode(() -> service.authorizeFromBrowser(transaction.id(), transaction.csrfToken(), true, context),
+            "ENT_AUTH_SESSION_EXPIRED");
+        verifyNoInteractions(adapters, identities);
+    }
+
+    @Test
+    void deniesOnceAndRejectsDesktopSessionsAndIdentityLinkTransactions() {
+        LoginTransaction transaction = loginTransaction("tx_browser_denial");
+        IdentityLoginContext context = new IdentityLoginContext("000000", "req_browser", "127.0.0.1", new byte[32]);
+        when(sessions.current()).thenReturn(new com.owndsh.enterprise.auth.application.PlatformSession(
+            1761100000000000003L, PlatformClient.DSH_DESKTOP, "harness", INSTALLATION.toString()
+        ));
+        assertCode(() -> service.authorizeFromBrowser(transaction.id(), transaction.csrfToken(), true, context),
+            "ENT_AUTH_REQUIRED");
+        when(sessions.current()).thenReturn(new com.owndsh.enterprise.auth.application.PlatformSession(
+            1761100000000000003L, PlatformClient.ENTERPRISE_ADMIN, "console", "browser-session"
+        ));
+        LoginTransaction link = new LoginTransaction("tx_identity_binding", PlatformClient.ENTERPRISE_ADMIN,
+            ADMIN_REDIRECT, "state", CHALLENGE, null, "browser-session", "csrf", Instant.now(),
+            new LoginTransaction.IdentityLinkTarget(74_001L, 7L, 70_001L));
+        when(loginTransactions.find(link.id())).thenReturn(Optional.of(link));
+        assertCode(() -> service.authorizeFromBrowser(link.id(), link.csrfToken(), true, context), "ENT_INVALID_REQUEST");
+        verify(loginTransactions, never()).consumeTransaction(link.id());
+        when(loginTransactions.find(transaction.id())).thenReturn(Optional.of(transaction));
+        when(loginTransactions.consumeTransaction(transaction.id()))
+            .thenReturn(Optional.of(transaction), Optional.empty());
+        assertThat(service.authorizeFromBrowser(transaction.id(), transaction.csrfToken(), false, context).toString())
+            .isEqualTo(REDIRECT + "?error=access_denied&state=client-state-0001");
+        assertCode(() -> service.authorizeFromBrowser(transaction.id(), transaction.csrfToken(), false, context),
+            "ENT_AUTH_SESSION_EXPIRED");
+        verifyNoInteractions(adapters, identities, refreshSessions);
     }
 
     private void assertBurned(

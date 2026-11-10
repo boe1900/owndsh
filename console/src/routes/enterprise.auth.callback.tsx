@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖一次性 PKCE 到 HttpOnly Cookie 的回调交换与安全 returnTo。
+ * [INPUT]: 依赖共享 PKCE 完成器的 Cookie 交换、安全内部返回路径及原客户端事务续授。
  * [OUTPUT]: 提供登录完成中的等待态和失败重试入口。
  * [POS]: routes 的公开认证回调，成功后以 replace 清除浏览器历史中的 code/state。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

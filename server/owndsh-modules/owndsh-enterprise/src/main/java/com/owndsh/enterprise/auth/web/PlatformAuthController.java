@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 PlatformAuthorizationService、固定 HTTP(S) enterprise 配置（含 console 调试 origin 白名单）、可信 metadata、密码表单与管理端 Cookie。
  * [OUTPUT]: 提供 authorize 的 HTML/同源 JSON 启动、sources/password challenge/OIDC、Desktop Access/Refresh Token、浏览器 HttpOnly 会话和 logout。
- * [POS]: auth/web 的平台登录门面，管理端在自身登录页完成 Cookie 会话，Desktop 使用 code/refresh 两类 grant。
+ * [POS]: auth/web 的平台登录门面，浏览器统一登录后独立确认 Desktop 授权，保留 code/refresh 两类 grant。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.auth.web;
@@ -23,6 +23,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -50,6 +51,12 @@ public final class PlatformAuthController {
         this.tenantId = properties.getTenantId();
         this.publicBaseUrl = properties.getPublicBaseUrl();
         this.consoleDevOrigins = ConsoleDevOrigins.of(properties.getConsoleDevOrigins());
+    }
+
+    @ModelAttribute
+    public void protectResponse(HttpServletResponse response) {
+        response.setHeader("Cache-Control", "no-store");
+        response.setHeader("Referrer-Policy", "no-referrer");
     }
 
     @GetMapping("/authorize")
@@ -81,7 +88,8 @@ public final class PlatformAuthController {
             ));
         }
         return ResponseEntity.status(HttpStatus.SEE_OTHER)
-            .location(URI.create("/enterprise/auth/login.html?transaction_id=" + transactionId))
+            .location(URI.create((requestedClient == PlatformClient.DSH_DESKTOP
+                ? "/authorize" : "/login") + "?transaction_id=" + transactionId))
             .build();
     }
 

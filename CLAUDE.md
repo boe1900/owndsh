@@ -40,7 +40,7 @@ T18 在 T16/T17 Session 纵向边界上交付管理 metadata/正文/删除页和
 
 P2-08C 将产品控制台会话收敛为服务端 Sa-Token 与 HttpOnly/SameSite=Strict host-only Cookie；HTTPS 使用 `__Host-enterprise-admin` 与 Secure，HTTP 使用 `enterprise-admin`。管理端以 shadcn authentication 双栏骨架和产品 tokens 原生承载 LOCAL/LDAP 登录，多个 OIDC 仍按身份源独立跳转。浏览器 JavaScript 不读取或保存 Token，管理 API Filter 在 MVC 权限注解前桥接协议对应 Cookie，新标签直接复用会话；注销和本人改密由服务端撤销会话并清 Cookie，其他标签在下次请求或刷新时返回登录。Desktop/Harness Host 使用内存 Bearer Access Token 与官方 credentials Refresh Grant。
 
-员工客户端发行规则：标准 `owndsh-plugin` 继续独立发布；可选 Pake 客户端已迁至 `boe1900/owndsh-desktop`，从 npm 消费官方 Harness 与插件，独立构建 macOS Intel/ARM 与 Windows x64，版本锁和窗口/服务生命周期由桌面仓库管理，不依赖社区 Desktop。桌面 profile 独立存放于应用数据目录，不预填 Server，不随包携带用户配置。插件零业务配置可安装，首次启动以官方 `shell.overlay` 全屏要求填写 HTTP(S) Server 地址并登录，地址写入 Harness 官方 settings；协议安全由部署方决定，插件只校验 origin 结构。Access Token 只在 Host 内存，30 天单次轮换 Refresh Token 只进入官方 credentials provider；Desktop/CLI/Web profile 重启后进行静默恢复，瞬时失败按指数退避自动重试；闲置时无企业 SSE、状态轮询或提前续期。请求时按需轮换 Access Token，服务端 401 最多续期重放一次；网络错误保留 Grant，用户仍可手动重试恢复。UI 复用宿主模型/凭据/设置事件读取本地状态，登录期间只作有截止时间的临时查询。登录过期/设备撤销重新阻断。安装、更新、卸载均通过 DSH 0.2.0 官方 `pluginManager`；Desktop 有 `desktopActions.requestRestart()` 时复用官方立即/稍后重启交互。
+员工客户端发行规则：标准 `owndsh-plugin` 继续独立发布；可选桌面客户端位于 `boe1900/owndsh-desktop`，基于官方 Electron 源码和锁定 npm 插件构建，独立发行 macOS Intel/ARM 与 Windows x64，版本锁和窗口/服务生命周期由桌面仓库管理，不依赖社区 Desktop。桌面 profile 独立存放于应用数据目录，不预填 Server，不随包携带用户配置。插件零业务配置可安装，首次启动以官方 `shell.overlay` 全屏要求填写 HTTP(S) Server 地址并登录，地址写入 Harness 官方 settings；协议安全由部署方决定，插件只校验 origin 结构。Access Token 只在 Host 内存，30 天单次轮换 Refresh Token 只进入官方 credentials provider；Desktop/CLI/Web profile 重启后进行静默恢复，瞬时失败按指数退避自动重试；闲置时无企业 SSE、状态轮询或提前续期。请求时按需轮换 Access Token，服务端 401 最多续期重放一次；网络错误保留 Grant，用户仍可手动重试恢复。UI 复用宿主模型/凭据/设置事件读取本地状态，登录期间只作有截止时间的临时查询。登录过期/设备撤销重新阻断。安装、更新、卸载均通过 DSH 0.2.0 官方 `pluginManager`；Desktop 有 `desktopActions.requestRestart()` 时复用官方立即/稍后重启交互。
 
 服务地址边界：账号设置只读显示 Server；退出登录后在门禁修改。Host 将运行时修改收敛到无活动会话时的凭据清理与官方 settings 写入，保存与登录互斥；浏览器在服务/账号切换时丢弃旧请求结果。
 
@@ -50,5 +50,7 @@ P2-08C 将产品控制台会话收敛为服务端 Sa-Token 与 HttpOnly/SameSite
 
 
 MCP 员工能力仍在唯一 `owndsh-plugin` 的 OwnDsh 设置中；公共配置和服务授权归 Console/Server，用户秘密归 Host credentials。MCP/OAuth 各地址统一接受管理员指定的 HTTP(S)，协议、发现、PKCE、token exchange、refresh、协商与分页均由官方 SDK/client 执行。端侧复用 Harness `0.2.1-rc.5` 官方 MCP client 的独立 fiber，并挂载官方 `dsh-mcp-resources`，按 Agent 搜索累加、显式释放和本步调用快照呈现工具；无自动 LRU/16工具/64KiB会话硬限。OwnDsh 只绑定凭据 owner/target、保存官方 SDK 的 client information/tokens 与短生命周期 discovery state/verifier，并提供系统浏览器和本机 loopback callback，不复制第二套 OAuth 协议。实现进度与官方 SDK v2 兼容性见 docs/mcp-implementation-plan.md。
+
+统一登录的现行实施契约见 [统一登录与客户端授权](docs/unified-login-design.md)：唯一 React 凭据页、独立浏览器会话与客户端 PKCE 授权，保留现有客户端协议及 RBAC；已按冻结方案实现，验证状态以该文档为准；原生实包与插件发布单独核对。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

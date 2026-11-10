@@ -21,7 +21,6 @@ src/main/java/com/owndsh/enterprise/remote/: Remote P0 Netty listener、WSS upgr
 src/main/java/com/owndsh/enterprise/crypto/: HKDF-SHA-256 用途派生与 AES-256-GCM 秘密/cursor 保护，不暴露 master key 或派生 key。
 src/main/java/com/owndsh/enterprise/revision/: 固定 BOOTSTRAP scope 的 optimistic CAS、稳定冲突错误码与审计同事务编排。
 src/main/resources/db/migration/: PostgreSQL `V0` 至 `V57` 真源，V0 承接原 Host 基线，空库与旧 baseline 0 共用后续迁移，建立企业事实、Refresh Session、实测 usage 快照、skill catalog 来源、模型级配额扣额、Provider/Connection/ManagedModel 三层模型接入和 Remote capability/presence/lease audit 事实，并将插件分类收敛为 DSH 单值；局部地图见 db/migration/CLAUDE.md。
-src/main/resources/static/enterprise/auth/: 无 Token 的公开身份源选择、LOCAL 首次改密/验证码、LDAP 密码与 OIDC 跳转页；局部地图见 auth/CLAUDE.md。
 src/test/java/com/owndsh/enterprise/: 单元和 Testcontainers 集成验收，覆盖数据库、身份、PKCE/Redis、Refresh Token 轮换/重放、设备、模型、配额、插件、协议和事务边界；局部地图见 src/test/CLAUDE.md。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

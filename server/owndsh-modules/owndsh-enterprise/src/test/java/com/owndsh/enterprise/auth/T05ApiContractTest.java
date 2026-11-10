@@ -325,7 +325,7 @@ class T05ApiContractTest {
                 .queryParam("code_challenge_method", "S256")
                 .queryParam("installation_id", INSTALLATION))
             .andExpect(status().isSeeOther())
-            .andExpect(redirectedUrl("/enterprise/auth/login.html?transaction_id=" + TRANSACTION));
+            .andExpect(redirectedUrl("/authorize?transaction_id=" + TRANSACTION));
 
         assertSchema(
             mvc.perform(get("/enterprise/auth/v1/authorize")

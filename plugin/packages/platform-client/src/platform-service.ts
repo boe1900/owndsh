@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 Cordis Service/WebServer/settings forms/credentials、T02 contracts、PKCE/installation/browser 原语与 Node fetch
+ * [INPUT]: 依赖 Cordis Service/WebServer/settings forms/credentials、T02 contracts、PKCE/installation/browser 原语（OwnDsh 授权交接页）与 Node fetch
  * [OUTPUT]: 提供 ctx.enterprisePlatform、Remote 撤权清理、OwnDsh Settings 命名空间、本地 skill 目录/安装/更新/动作、启动恢复退避与按需刷新/Token 轮换；仅无活动会话时允许清理凭据并修改 Server
  * [POS]: platform-client 的 Host 业务核心，跨 Web/Desktop 复用官方凭据平面且不向 Client UI 暴露任何 Token
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -633,6 +633,7 @@ export class EnterprisePlatformService extends Service {
       expectedState: state,
       timeoutMs: this.config.callbackTimeoutMs,
       signal: transaction.abort.signal,
+      successRedirectUri: new URL('/authorized', baseUrl).toString(),
     })
     transaction.callback = callback
     const authorizeUrl = new URL(`${AUTH_PATH}/authorize`, baseUrl)

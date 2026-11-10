@@ -1,0 +1,6 @@
+{
+  "data": {
+    "redirectUri": "http://127.0.0.1:18080/callback?code=example_grant&state=example_state"
+  },
+  "requestId": "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+}

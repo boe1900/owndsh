@@ -3,6 +3,9 @@
 
 成员清单
 
+unified-login-local-e2e.mjs: 驱动真实本地 Server/Console 与 rc.5 Harness 新插件包，验证新鲜登录无需二次确认、已有浏览器会话仍需确认，以及验证码/首次改密、employee、拒绝和退出范围；密码从环境读取，证据输出到隔离 .tmp。
+unified-login-local-evidence.json: 本地统一登录 9 项真实跨端验收结果，保留构建哈希与无密 HTTP 状态，不保存账号或凭据。
+
 live-device.json: 早期真实 Host 设备夹具，记录不含密钥的设备标识。
 live-remote-e2e.mjs: 早期 Remote 实时验收器，驱动真实 WebSocket 生命周期。
 live-remote-evidence.json: 早期实时 Remote 验收结果，不保存凭据。

@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:owndsh:contracts:BrowserAuthorizationRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "transactionId",
+    "csrfToken",
+    "userId",
+    "approved"
+  ],
+  "properties": {
+    "transactionId": {
+      "type": "string",
+      "minLength": 32,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9_-]+$"
+    },
+    "csrfToken": {
+      "type": "string",
+      "minLength": 32,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9_-]+$"
+    },
+    "userId": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,18}$",
+      "description": "Enterprise user snowflake ID serialized as a string."
+    },
+    "approved": {
+      "type": "boolean"
+    }
+  }
+}

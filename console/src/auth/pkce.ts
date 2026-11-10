@@ -1,14 +1,15 @@
 /**
  * [INPUT]: 依赖 getRandomValues、@noble/hashes SHA-256、sessionStorage 与 enterprise-admin 同源授权/HttpOnly 会话交换。
- * [OUTPUT]: 提供第一方登录页所需身份源、经 URL 同源校验的返回路径和不向 JavaScript 暴露 Token 的一次性 PKCE 回调交换。
- * [POS]: auth 的 HTTP/HTTPS 共用登录状态机，S256 不依赖安全上下文；OIDC 才发生外部跳转，会话所有权留在服务端 Cookie。
+ * [OUTPUT]: 提供身份源、安全返回路径及一次性 PKCE 交换；本次新鲜登录成功后续接原客户端授权。
+ * [POS]: auth 的 HTTP/HTTPS 共用登录状态机；自动续授只发生在 state/verifier 校验及 Cookie 交换成功后，复用已有会话不进入此路径。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { sha256 } from '@noble/hashes/sha2.js';
-import { authorizePlatformClient, exchangeBrowserAuthorizationCode } from '@/api/generated/sdk.gen';
+import { authorizePlatformClient, exchangeBrowserAuthorizationCode, listPublicIdentitySources } from '@/api/generated/sdk.gen';
 import type { AuthSourcesData } from '@/api/generated/types.gen';
 import { ENTERPRISE_ADMIN_CLIENT_ID } from './session';
+import { decideClientAuthorization, loadBrowserIdentity } from './browser';
 
 const TRANSACTION_KEY = 'enterprise-admin-pkce';
 
@@ -97,5 +98,20 @@ export async function completeEnterpriseAdminLogin(search: string) {
   if (result.error !== undefined || result.response?.status !== 204) {
     throw result.error ?? new Error('ENT_AUTH_CODE_INVALID');
   }
-  return { returnTo: normalizeReturnTo(pending.returnTo) };
+  const returnTo = normalizeReturnTo(pending.returnTo);
+  const target = new URL(returnTo, window.location.origin);
+  if (target.pathname === '/authorize') {
+    // 只续接已被本次 PKCE state 绑定的原事务，不接受 URL 中的自动授权开关。
+    const transactionId = target.searchParams.get('transaction_id');
+    if (!transactionId || !/^[A-Za-z0-9_-]{32,64}$/.test(transactionId)
+      || target.searchParams.getAll('transaction_id').length !== 1) throw new Error('ENT_INVALID_REQUEST');
+    const [member, sources] = await Promise.all([
+      loadBrowserIdentity(), listPublicIdentitySources({ query: { transaction_id: transactionId } })
+    ]);
+    if (sources.error || !sources.data || sources.data.data.transactionId !== transactionId) {
+      throw new Error('ENT_AUTH_SESSION_EXPIRED');
+    }
+    return { returnTo: await decideClientAuthorization(sources.data.data, member, true) };
+  }
+  return { returnTo };
 }

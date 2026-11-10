@@ -17,14 +17,15 @@ CurrentAccountController.java: 当前控制台成员凭旧 LOCAL 密码自助改
 AdminSessionCookie.java: 根据外部地址在 HTTPS `__Host-enterprise-admin` 与 HTTP `enterprise-admin` 间选择，固定 HttpOnly/SameSite=Strict/host-only 与 4 KiB 值边界，拒绝显式跨源写请求并豁免部署声明的 loopback 调试 origin。
 DeletedResourceView.java: CAS 删除成功的 id/deleted 白名单 DTO。
 EnterpriseRequestContext.java: 服务端固定 tenant、Sa-Token actor 与脱敏请求关联信息。
-EnterpriseAuthResourceConfiguration.java: 显式映射依赖 jar 内 login.html/css/js 与品牌 PNG，授权跳转只公开认证资源类型而不暴露目录。
+BrowserAuthorizationController.java: 不依赖管理角色的浏览器账号摘要与桌面事务批准/拒绝入口，校验启用成员、同源、事务 CSRF 和展示账号一致性。
+LegacyLoginController.java: 历史 login.html 只作 303 跳转，保留事务/来源/失败提示到唯一 React 凭据页。
 ExternalIdentitySummaryView.java: source/name/type、稳定 subject 和最后登录的管理协议白名单 DTO。
 GroupMappingCreateRequest.java: 字符串 snowflake ID 输入解析和外部组写 DTO。
 GroupMappingView.java: 外部组映射公开管理字段投影。
 IdentityAdminRequestContextResolver.java: Controller 到可信管理请求上下文的 DIP 端口。
 IdentitySourceView.java: 隔离 encryptedSecret/异常正文，只公开 JIT/LINK_ONLY、secretConfigured 与最近脱敏测试结果的身份源响应投影。
 IdentitySourceWriteRequest.java: 接收 JIT/LINK_ONLY 与一次性 char[] secret、显式清零并提供脱敏字符串输出的写 DTO。
-PlatformAuthController.java: HTTP(S) authorize/sources/password/OIDC/Desktop code/refresh token/浏览器 Cookie/logout 门面；管理端专用交换不返回 Token，logout 同源写保护应用 ConsoleDevOrigins 调试豁免。
+PlatformAuthController.java: HTTP(S) authorize 按客户端进入统一登录或授权页，复用 sources/password/OIDC/Desktop code/refresh token/浏览器 Cookie/logout 门面；管理端专用交换不返回 Token，logout 同源写保护应用 ConsoleDevOrigins 调试豁免。
 OwnDshIdentityAdminRequestContextResolver.java: 从固定部署 tenant、Host 会话与 Servlet 元数据构造管理请求上下文，同源写保护应用 ConsoleDevOrigins 调试豁免。
 TokenExchangeRequest.java: authorization_code/refresh_token grants 的 client/installation 与对应秘密 JSON 输入边界。
 

@@ -549,6 +549,39 @@ export const zAuthAuthorizationCode = z.string().min(43).max(64).regex(/^[A-Za-z
 
 export const zAuthorizationCode = zAuthAuthorizationCode;
 
+export const zAuthBrowserAuthorizationRequest = z.object({
+    transactionId: zAuthAuthTransactionId,
+    csrfToken: z.string().min(32).max(64).regex(/^[A-Za-z0-9_-]+$/),
+    userId: zEnterpriseUserId,
+    approved: z.boolean()
+}).strict();
+
+export const zBrowserAuthorizationRequest = zAuthBrowserAuthorizationRequest;
+
+export const zAuthBrowserAuthorizationResponse = z.object({
+    data: z.object({
+        redirectUri: z.url().max(2048)
+    }).strict(),
+    requestId: zRequestId
+}).strict();
+
+export const zBrowserAuthorizationResponse = zAuthBrowserAuthorizationResponse;
+
+export const zAuthBrowserMember = z.object({
+    id: zEnterpriseUserId,
+    username: z.string().min(1).max(30),
+    displayName: z.string().min(1).max(120)
+}).strict();
+
+export const zBrowserMember = zAuthBrowserMember;
+
+export const zAuthBrowserMemberResponse = z.object({
+    data: zAuthBrowserMember,
+    requestId: zRequestId
+}).strict();
+
+export const zBrowserMemberResponse = zAuthBrowserMemberResponse;
+
 export const zAuthBuiltInRole = z.enum([
     'enterprise_admin',
     'model_admin',
@@ -3041,6 +3074,10 @@ export const zAdminAuditCollection = z.unknown();
 
 export const zAuthorize = z.unknown();
 
+export const zBrowserAuthorization = z.unknown();
+
+export const zBrowserIdentity = z.unknown();
+
 export const zBrowserSession = z.unknown();
 
 export const zConsoleBootstrap = z.unknown();
@@ -3649,6 +3686,18 @@ export const zExchangeBrowserAuthorizationCodeBody = zAuthBrowserSessionRequest;
  * Browser session established without exposing the opaque token to JavaScript.
  */
 export const zExchangeBrowserAuthorizationCodeResponse = z.void();
+
+/**
+ * Active browser account; no token is exposed.
+ */
+export const zGetBrowserIdentityResponse = zAuthBrowserMemberResponse;
+
+export const zDecideBrowserAuthorizationBody = zAuthBrowserAuthorizationRequest;
+
+/**
+ * One-use transaction consumed; navigate to the validated loopback callback.
+ */
+export const zDecideBrowserAuthorizationResponse = zAuthBrowserAuthorizationResponse;
 
 /**
  * Current token revoked.

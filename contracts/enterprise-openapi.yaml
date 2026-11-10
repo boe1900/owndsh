@@ -29,6 +29,10 @@ paths:
     $ref: './paths/auth.yaml#/Token'
   /enterprise/auth/v1/browser-session:
     $ref: './paths/auth.yaml#/BrowserSession'
+  /enterprise/auth/v1/session:
+    $ref: './paths/auth.yaml#/BrowserIdentity'
+  /enterprise/auth/v1/authorization:
+    $ref: './paths/auth.yaml#/BrowserAuthorization'
   /enterprise/auth/v1/logout:
     $ref: './paths/auth.yaml#/Logout'
   /enterprise/admin/v1/bootstrap:
@@ -294,6 +298,15 @@ x-enterprise-error-statuses:
     - ENT_UPSTREAM_TIMEOUT
 
 x-enterprise-fixtures:
+  - file: fixtures/browser-authorization-success.json
+    schema: BrowserAuthorizationResponse
+    valid: true
+  - file: fixtures/browser-authorization-request.json
+    schema: BrowserAuthorizationRequest
+    valid: true
+  - file: fixtures/browser-member-success.json
+    schema: BrowserMemberResponse
+    valid: true
   - file: fixtures/protocol-success.json
     schema: ProtocolSuccessResponse
     valid: true
@@ -807,6 +820,10 @@ components:
     PasswordStepData: {$ref: './components/auth.yaml#/PasswordStepData'}
     PasswordStepResponse: {$ref: './components/auth.yaml#/PasswordStepResponse'}
     TokenRequest: {$ref: './components/auth.yaml#/TokenRequest'}
+    BrowserMember: {$ref: './components/auth.yaml#/BrowserMember'}
+    BrowserMemberResponse: {$ref: './components/auth.yaml#/BrowserMemberResponse'}
+    BrowserAuthorizationRequest: {$ref: './components/auth.yaml#/BrowserAuthorizationRequest'}
+    BrowserAuthorizationResponse: {$ref: './components/auth.yaml#/BrowserAuthorizationResponse'}
     BrowserSessionRequest: {$ref: './components/auth.yaml#/BrowserSessionRequest'}
     TokenData: {$ref: './components/auth.yaml#/TokenData'}
     TokenResponse: {$ref: './components/auth.yaml#/TokenResponse'}

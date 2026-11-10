@@ -4,6 +4,8 @@
 
 成员清单
 
+unified-login-design.md: 统一登录实施真源，冻结新鲜登录直达授权完成、已有浏览器身份确认、独立客户端 PKCE、退出范围与桌面唤回，记录真实本地验收。
+
 dsh-compatibility.md: DSH 升级检查入口，记录当前 npm/Web 基线、上游依赖契约与本地代码/测试映射、历史夹具边界、逐项验收流程及 OAuth 接缝删除条件。
 remote-access-design.md: 远程访问唯一方案，确定 Remote 核心复用、OwnDsh 账号与设备授权、Java/TS 职责、WebRTC/TURN/加密 Relay、统一撤权、浏览器接入与实施验收边界。
 remote-access-implementation-design.md: 远程访问首期三端实施真源，定义 Java/Host/Web 连接基础、Remote ticket/lease、Control/Noise/Relay、能力探测、数据模型、开发阶段、验收矩阵和直接开发门槛。

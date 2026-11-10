@@ -4,7 +4,7 @@
 
 成员清单
 
-auth.yaml: authorize/HTTP(S) 身份验证、Desktop code/refresh Token、管理端 HttpOnly Cookie/logout、当前用户改密与 bootstrap Path Item；两类客户端不共享 Token 响应，改密撤销全部会话，设备撤销后的 logout 固定返回 403 ENT_DEVICE_REVOKED。
+auth.yaml: authorize/HTTP(S) 身份验证、浏览器账号与原桌面事务授权决定、Desktop code/refresh Token、浏览器 HttpOnly Cookie/logout、当前用户改密与 bootstrap Path Item；两类客户端不共享 Token 响应，改密撤销全部会话，设备撤销后的 logout 固定返回 403 ENT_DEVICE_REVOKED。
 device.yaml: T05 Runtime enroll/heartbeat 与管理员 list/get/revoke 五个设备 Path Item，保持 Token terminal 与 revision 权限边界。
 identity.yaml: 身份源、LDAP 用户/组发现与单人导入、扁平产品用户组和外部组映射 Path Item，保留 revision、来源隔离、权限码和脱敏边界。
 member.yaml: LOCAL 成员幂等创建及产品成员 cursor/list/detail、状态、固定角色、身份解绑与绑定事务 operation，保持 read/write 权限、revision CAS 和新鲜认证边界。

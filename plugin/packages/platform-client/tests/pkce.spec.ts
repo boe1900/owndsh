@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 platform-client PKCE 公开入口与 Node fetch/crypto 测试运行时
- * [OUTPUT]: 验证 S256、127.0.0.1 callback、state、启动前/期间取消和超时的自动化证据
+ * [OUTPUT]: 验证 S256、loopback/state、拒绝/取消/超时与无凭据完成页重定向，MCP 默认回调不变
  * [POS]: platform-client 登录事务回归测试，锁定系统浏览器回环协议的安全边界
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -38,6 +38,32 @@ describe('PKCE S256', () => {
     const error = await result
     expect(error).toBeInstanceOf(PkceLoopbackError)
     expect((error as PkceLoopbackError).code).toBe('ENT_AUTH_STATE_INVALID')
+  })
+
+  it('redirects only an accepted OwnDsh callback without leaking code or state', async () => {
+    const callback = await startLoopbackCallback({ expectedState: 'state', timeoutMs: 1_000,
+      successRedirectUri: 'https://platform.example/authorized' })
+    const response = await fetch(`${callback.redirectUri}?code=secret-code&state=state`, { redirect: 'manual' })
+    expect(response.status).toBe(303)
+    expect(response.headers.get('location')).toBe('https://platform.example/authorized')
+    expect(response.headers.get('referrer-policy')).toBe('no-referrer')
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    await expect(callback.result).resolves.toEqual({ code: 'secret-code', state: 'state' })
+  })
+
+  it('maps a state-bound denial to cancellation and keeps the generic OAuth callback independent', async () => {
+    const callback = await startLoopbackCallback({ expectedState: 'state', timeoutMs: 1_000 })
+    const result = callback.result.catch((error: unknown) => error)
+    const response = await fetch(`${callback.redirectUri}?error=access_denied&state=state`)
+    expect(response.status).toBe(200)
+    expect(response.headers.get('location')).toBeNull()
+    expect(await result).toMatchObject({ code: 'ENT_AUTH_CANCELLED' })
+
+    const generic = await startLoopbackCallback({ expectedState: 'mcp-state', timeoutMs: 1_000 })
+    const genericResponse = await fetch(`${generic.redirectUri}?code=mcp-code&state=mcp-state&iss=https%3A%2F%2Fissuer.example`)
+    expect(genericResponse.headers.get('location')).toBeNull()
+    await expect(generic.result).resolves.toMatchObject({ code: 'mcp-code', iss: 'https://issuer.example' })
+    expect(await genericResponse.text()).not.toContain('Login completed')
   })
 
   it('settles cancellation and timeout with stable codes', async () => {

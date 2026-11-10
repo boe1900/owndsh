@@ -361,8 +361,8 @@ describe('EnterprisePlatformService', () => {
           const callback = new URL(redirect)
           callback.searchParams.set('code', 'c'.repeat(43))
           callback.searchParams.set('state', options.forgedCallbackState === true ? 'forged-state' : state)
-          const response = await fetch(callback)
-          if (!response.ok && options.forgedCallbackState !== true) {
+          const response = await fetch(callback, { redirect: 'manual' })
+          if (response.status !== 303 && !response.ok && options.forgedCallbackState !== true) {
             throw new Error(`callback failed: ${response.status}`)
           }
         },

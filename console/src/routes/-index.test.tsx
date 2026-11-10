@@ -76,6 +76,10 @@ function mockApi(role: AuthBuiltInRole, logoutStatus = 200, permissions: string[
   vi.stubGlobal('fetch', vi.fn(async (request: Request) => {
     const url = new URL(request.url);
     const pathname = url.pathname;
+    if (pathname.endsWith('/enterprise/auth/v1/session')) {
+      if (sessionRevoked) return json({ error: { code: 'ENT_AUTH_REQUIRED' } }, 401);
+      return json({ data: { id: '101', username: 'candidate.admin', displayName: 'Candidate Admin' }, requestId: 'req_browser' });
+    }
     if (pathname.endsWith('/enterprise/admin/v1/bootstrap')) {
       if (sessionRevoked) return json({ error: { code: 'ENT_AUTH_REQUIRED', message: '需要登录' } }, 401);
       return json({
@@ -679,7 +683,7 @@ describe('product console access', () => {
 
   it('sends an unauthenticated product URL to login', async () => {
     renderRoute('/members');
-    expect(await screen.findByRole('heading', { name: '登录管理控制台' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: '登录 OwnDsh 账号' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'OwnDsh · Truly Own Your DeepSeek-Harness.' })).toBeTruthy();
     expect(document.querySelectorAll('img[src="/owndsh-whale-mono-m2-animated.png"]')).toHaveLength(3);
   });
@@ -1240,7 +1244,7 @@ describe('product console session', () => {
         ? input
         : new Request(new URL(String(input), window.location.origin), init);
       const pathname = new URL(request.url).pathname;
-      if (pathname.endsWith('/enterprise/admin/v1/bootstrap')) {
+      if (pathname.endsWith('/enterprise/admin/v1/bootstrap') || pathname.endsWith('/enterprise/auth/v1/session')) {
         return json({ error: { code: 'ENT_AUTH_REQUIRED', message: '需要登录' } }, 401);
       }
       if (pathname.endsWith('/enterprise/auth/v1/authorize')) {
@@ -1344,7 +1348,7 @@ describe('product console session', () => {
       method: 'PUT',
       pathname: '/enterprise/admin/v1/account/password'
     });
-    expect(await screen.findByRole('heading', { name: '登录管理控制台' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: '登录 OwnDsh 账号' })).toBeTruthy();
   });
 
   it('keeps Sign out last and leaves the console only after Server logout succeeds', async () => {
@@ -1357,7 +1361,7 @@ describe('product console session', () => {
     expect(buttons.item(buttons.length - 1).textContent).toContain('Sign out');
 
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
-    expect(await screen.findByRole('heading', { name: '登录管理控制台' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: '登录 OwnDsh 账号' })).toBeTruthy();
   });
 
   it('keeps the current page when the current password is rejected', async () => {
@@ -1375,7 +1379,7 @@ describe('product console session', () => {
     fireEvent.click(screen.getByRole('button', { name: '修改密码' }));
 
     expect((await screen.findByRole('alert')).textContent).toContain('当前密码不正确');
-    expect(screen.queryByRole('heading', { name: '登录管理控制台' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: '登录 OwnDsh 账号' })).toBeNull();
   });
 
   it('keeps the console when Server logout fails', async () => {

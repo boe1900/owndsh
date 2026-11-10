@@ -4,7 +4,7 @@
 
 成员清单
 
-AuthAuditMetadata.java: 登录/注销审计只允许固定 client 与身份源类型进入 metadata。
+AuthAuditMetadata.java: 登录/注销审计只允许固定 client 与身份源类型进入 metadata，已有浏览器授权使用独立 SessionAuthorized 事实，不伪造新鲜认证。
 AuthFlowException.java: 平台认证状态机到第 17 节稳定错误码的失败边界。
 AuthSources.java: 登录事务绑定的 CSRF 与 ACTIVE 公开身份源结果，不携带秘密配置。
 CaptchaVerifier.java: LOCAL 登录到宿主验证码设施的原子消费端口，只返回统一成功/失败事实。
@@ -29,7 +29,7 @@ IdentitySourceService.java: 身份源 keyset、JIT/LINK_ONLY、秘密加密、�
 IdentitySourceSpec.java: 不含 client secret/manager password 且明确 provisioning mode 的身份源写规格。
 IssuedPlatformSession.java: Sa-Token adapter 返回的 opaque Token 与绝对有效秒数。
 PasswordChangeRequiredException.java: 携带轮换的一次性 challenge，要求页面进入无初始凭据的 LOCAL 改密步骤。
-PlatformAuthorizationService.java: authorize/password/OIDC/code exchange/refresh/logout 与成员身份绑定的共用状态机，从 public base 派生唯一管理回调，部署 loopback 调试白名单可额外派生精确匹配的管理回调，Desktop code 成功后签发 Refresh Session。
+PlatformAuthorizationService.java: authorize/password/OIDC/code exchange/refresh/logout 与成员身份绑定的共用状态机，已有浏览器身份只消费原桌面事务批准/拒绝，从 public base 派生唯一管理回调，部署 loopback 调试白名单可额外派生精确匹配的管理回调，Desktop code 成功后签发 Refresh Session。
 PlatformSession.java: 从服务端 Token/terminal 读取的可信 user/client/device 请求事实。
 PlatformSessionGateway.java: 12 小时非共享 Sa-Token Access Session 签发、当前会话与单 installation/user 撤销端口。
 PlatformSessionRevokedException.java: adapter 已确认 Token 因设备撤销失效的无敏感字段信号，由设备 Web 边界决定协议映射。

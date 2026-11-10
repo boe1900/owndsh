@@ -1,5 +1,5 @@
 # [INPUT]: 依赖根协议的参数、响应与 auth schema，依赖 T05 公开认证 Controller 的实际 redirect/status 行为
-# [OUTPUT]: 提供 authorize 的 HTML/同源 JSON 启动、sources/password/OIDC、Desktop code/refresh token、管理端 Cookie、logout、当前用户改密与 bootstrap Path Item。
+# [OUTPUT]: 提供 authorize 的 HTML/同源 JSON 启动、sources/password/OIDC、Desktop code/refresh token、浏览器 Cookie/账号摘要/客户端授权决定、logout、当前用户改密与 bootstrap Path Item。
 # [POS]: contracts/paths 的固定 public client 登录协议分片，隔离 Desktop 轮换 Bearer 与管理端第一方页面/Cookie 会话
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -23,7 +23,7 @@ Authorize:
             schema:
               $ref: '../enterprise-openapi.yaml#/components/schemas/AuthSourcesResponse'
       '303':
-        description: Continue Desktop authentication in the public identity-source selection page.
+        description: Continue in the unified login or Desktop account confirmation page.
         headers:
           Location:
             required: true
@@ -243,3 +243,43 @@ CurrentAccountPassword:
               $ref: '../enterprise-openapi.yaml#/components/schemas/PasswordChangedResponse'
       '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
       '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+
+BrowserIdentity:
+  get:
+    operationId: getBrowserIdentity
+    summary: Read the active browser account without requiring a console role.
+    security:
+      - EnterpriseAdminCookie: []
+    responses:
+      '200':
+        description: Active browser account; no token is exposed.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/BrowserMemberResponse'
+      '401':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+
+BrowserAuthorization:
+  post:
+    operationId: decideBrowserAuthorization
+    summary: Approve or deny one Desktop PKCE transaction using the current browser identity.
+    security:
+      - EnterpriseAdminCookie: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../enterprise-openapi.yaml#/components/schemas/BrowserAuthorizationRequest'
+    responses:
+      '200':
+        description: One-use transaction consumed; navigate to the validated loopback callback.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/BrowserAuthorizationResponse'
+      '400':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error400'
+      '401':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error401'

@@ -1,6 +1,6 @@
 <!--
 [INPUT]: 依赖 Vite 注入 src/main.tsx 模块、浏览器 localStorage 与根元素主题 class。
-[OUTPUT]: 提供新产品控制台唯一 HTML 挂载点，并在首帧前恢复 Beautiful UI 深浅主题。
+[OUTPUT]: 提供产品控制台与认证页唯一 HTML 挂载点，禁止 Referrer 传递授权参数，并在首帧前恢复深浅主题。
 [POS]: console 的静态文档入口，只处理避免主题闪烁的最小启动状态，不承载业务配置。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
@@ -19,6 +19,7 @@
     </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="referrer" content="no-referrer" />
     <meta name="color-scheme" content="dark light" />
     <title>OwnDsh</title>
   </head>
