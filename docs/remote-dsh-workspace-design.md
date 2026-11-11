@@ -90,6 +90,8 @@ HTTP `401` 和 `403` 继续显示重新登录提示。未知 `409`、损坏或�
 
 Host 静态密钥保存在官方 credentials，绑定平台、用户、installation 和 device；Controller 每 link 使用新密钥。方法、端点、关联 ID、HTTP 头和正文都在密文内。单 Relay 帧含 AEAD 不超过 65536 字节；大内容分片，信用窗口有界，nonce 串行分配，支持取消和背压。
 
+原生 mux 的 WebSocket 持续读取控制帧，不能用暂停底层 socket 的方式等待加密 carrier 消费。否则下游等待信用或发送时，官方 Gateway 的 Ping 也会被阻断，健康 Peer 会因缺少 Pong 被关闭。业务文本按 FIFO 排队，队列与正在交付的消息合计最多 4 MiB，超限关闭该 Peer；信用背压仍由加密 carrier 执行。
+
 本功能使用加密 Relay。WebRTC adapter、coturn Allocate 不等于真实 LAN/P2P/跨 NAT/TURN 回落已验证，界面不得宣称当前使用这些路径。
 
 ## 6. 原生 UI 与浏览器状态
@@ -123,6 +125,7 @@ Agent、工具和终端仍拥有远端 OS 用户权限，文件包含检查不�
 5. Relay 掉线、关闭共享、登出和源/目标撤销均阻断；迟到响应不跨 view/账号/link 执行。
 6. 多页/刷新/手动重连与原有登录、模型、MCP/技能、插件市场和最新账号 launcher 回归。
 7. 独立代码审阅完成，验收报告明确区分通过、失败与未验证。
+8. 原生 mux 慢消费期间仍响应 Ping，恢复消费后消息有序且可打开后续流；未消费消息累计超过 4 MiB 时关闭 Peer。
 
 ### 8.1 实际验收范围
 

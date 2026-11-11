@@ -7,7 +7,7 @@
 workspace-runtime.ts: 产品生命周期入口，默认关闭 Host；显式开关只影响入站访问，Controller 仍可连接本人设备。本人目录按游标读取最多 500 台，拒绝循环或截断；官方 credentials 按平台、用户、installation、device 保存 Host 密钥，presence 退避重连，账号失效销毁全部 link；每个 Host 遵循 Server 单 link 独占约束，Controller 保留建链拒绝错误码供本机边界投影。
 secure-link.ts: Server 绑定公钥的两消息 Noise IK 与租约状态机；Host 和 Controller 各自执行单调截止时间，只有 Relay，失联先撤销准入再清理 carrier。每条 link 只服务一个官方 API Peer。
 carrier-tunnel.ts: HTTP 请求/响应字节流与原生 WS 文本流的双端复用器，最多 32 通道，逐流字节信用、取消与有界文本重组；取消后丢弃在途尾帧，避免中断其他通道；路径和关联 ID 都进入密文。
-dsh-carrier.ts: 官方 /connect interactions=answer 的独立 owner Peer 接缝；原生 cookie 只留远端内存，HTTP 与 mux 共用该 Peer；文件准入解析完整 RPC envelope，普通端点拒绝只结束对应流，取消立即回收并丢弃在途尾帧，关闭 socket 释放 Peer；精确校验三个官方包的 rc.5 版本。
+dsh-carrier.ts: 官方 /connect interactions=answer 的独立 owner Peer 接缝；原生 cookie 只留远端内存，HTTP 与 mux 共用该 Peer；慢消费仍持续读取 WS 心跳，文本队列累计超过 4 MiB 关闭；文件准入解析完整 RPC envelope，普通端点拒绝只结束对应流，取消立即回收并丢弃在途尾帧，关闭 socket 释放 Peer；精确校验三个官方包的 rc.5 版本。
 dsh-policy.ts: 精确原生 workspace/session/job/terminal endpoint allowlist 和 WorkspaceRegistry 可信目录的 realpath 约束；内置插件目录经 pluginInventory/list 只读访问目标 Host，文件只读，不开放 credentials、settings、插件管理、桌面 opener、上传或删除 API。Agent 与终端保留原生 OS 用户权限。
 server-connection.ts: 双角色 WSS 状态机；等待异步 hello.ack 后才 READY，代次隔离旧 socket 回调和失败 send，撤销状态不被 close/error 覆盖。
 node-socket-factory.ts: Node Host/Controller 的 Bearer Upgrade factory，声明平台 HTTP(S) Origin，限制帧大小并等待发送回调，Token 只进入请求 header。

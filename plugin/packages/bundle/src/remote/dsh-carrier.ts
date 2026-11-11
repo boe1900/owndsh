@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖官方 connection /connect、WebServer 固定回环 origin、WorkspaceRegistry 与原生 WS mux parser。
- * [OUTPUT]: 为每条授权 link 创建独立 owner API Peer，保留内存 cookie，提供受限 HTTP/WS carrier 并回收取消流。
+ * [OUTPUT]: 为每条授权 link 创建独立 owner API Peer，保留内存 cookie，提供受限 HTTP/WS carrier、取消回收与持续心跳读取的有界消息队列。
  * [POS]: remote Host 唯一原生执行接缝；不复制 Gateway 编解码，不向 Controller 暴露原生凭据。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -128,7 +128,6 @@ async function nativeMux(url: URL, cookie: string, catalog: WorkspaceCatalog, si
     bytes += Buffer.byteLength(text)
     if (bytes > MAX_MUX_MESSAGE_BYTES) throw new Error('ENT_REMOTE_LIMIT')
     queue.push(text)
-    socket.pause()
     wake?.()
   }
   const denied = (streamId: string) => enqueue(JSON.stringify({ type: 'error', streamId,
@@ -178,7 +177,7 @@ async function nativeMux(url: URL, cookie: string, catalog: WorkspaceCatalog, si
     messages: (async function* () {
       while (!ended) {
         const value = queue.shift()
-        if (value !== undefined) { yield value; bytes -= Buffer.byteLength(value); if (queue.length === 0) socket.resume() }
+        if (value !== undefined) { yield value; bytes -= Buffer.byteLength(value) }
         else await new Promise<void>(resolve => { wake = resolve })
       }
       if (failed || !signal.aborted) throw new Error('ENT_REMOTE_MUX_CLOSED')
