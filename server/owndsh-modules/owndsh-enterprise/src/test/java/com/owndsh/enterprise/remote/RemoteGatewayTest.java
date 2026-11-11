@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 RemoteGateway、EmbeddedChannel、可推进时钟与明确的认证/租约测试端口。
- * [OUTPUT]: 验证双端密钥绑定、握手顺序、租约 ACK、撤权和仅关闭 Link 的隔离语义。
+ * [OUTPUT]: 验证双端密钥绑定、握手顺序、租约 ACK、撤权、暂时不可写仍有序转发和仅关闭 Link 的隔离语义。
  * [POS]: remote carrier 的行为回归，独立于数据库测试验证 Netty 可观察帧和实际 channel 存活。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -37,6 +37,29 @@ class RemoteGatewayTest {
     private static final String LEASE_ID = "lease_01ARZ3NDEKTSV4RR";
     private static final String KEY = Base64.getUrlEncoder().withoutPadding().encodeToString(new byte[32]);
     private static final JsonMapper JSON = JsonMapper.builder().build();
+
+    @Test
+    void temporaryUnwritabilityPreservesOrderedRelayAndBothCarriers() {
+        try (var pair = new Pair()) {
+            pair.connect(); pair.handshake(); pair.acquire();
+            pair.host.unsafe().outboundBuffer().setUserDefinedWritability(1, false);
+            assertThat(pair.host.isWritable()).isFalse();
+            for (int sequence = 0; sequence < 8; sequence++) {
+                pair.controller.writeInbound(new TextWebSocketFrame(relay(sequence)));
+            }
+            assertThat(pair.host.isActive()).as("temporary high watermark must keep the host carrier active").isTrue();
+            pair.host.unsafe().outboundBuffer().setUserDefinedWritability(1, true);
+            for (int sequence = 0; sequence < 8; sequence++) {
+                JsonNode frame = read(pair.host);
+                assertThat(frame.path("kind").asText()).isEqualTo("data");
+                assertThat(frame.path("seq").asInt()).isEqualTo(sequence);
+            }
+            assertThat((Object) pair.host.readOutbound()).isNull();
+            assertThat((Object) pair.controller.readOutbound()).isNull();
+            assertThat(pair.host.isActive()).isTrue();
+            assertThat(pair.controller.isActive()).isTrue();
+        }
+    }
 
     @Test
     void bindsVerifiedKeysAndAcknowledgesLeaseToBothEndpointsBeforeRelay() {
