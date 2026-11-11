@@ -1,29 +1,34 @@
 /**
- * [INPUT]: 依赖官方 settings.launcher 的布局/导航参数、共享 Menu、账号 store 与既有退出确认
- * [OUTPUT]: 提供 EnterpriseAccountLauncher，在原生侧栏底部呈现企业身份、设置与退出入口
+ * [INPUT]: 依赖官方 settings.launcher 的布局/导航参数、共享 Menu、账号 store、固定远控 API 与既有退出确认
+ * [OUTPUT]: 提供 EnterpriseAccountLauncher，在原生侧栏底部呈现企业身份、设置、远程工作区与退出入口
  * [POS]: dsh-ui 的账号快捷入口；复用设置/门禁的事实和动作，不读取 DeepSeek 账号或维护独立会话
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { Menu } from '@deepseek-ai/dsh-client-ui-primitives'
-import { LogOut, Settings, UserRound } from 'lucide-react'
-import { useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { LogOut, Monitor, Settings, UserRound } from 'lucide-react'
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import type { EnterpriseAccountStore } from './account-store.js'
 import { enterpriseAccessBlocked, LogoutConfirmation } from './account-view.js'
 import styles from './account-launcher.module.css'
+import type { RemoteLocalApi } from './remote-api.js'
+import { RemoteDeviceDialog } from './remote-workspace.js'
 
 interface AccountLauncherProps {
   readonly store: EnterpriseAccountStore
+  readonly remoteApi: RemoteLocalApi
   readonly wide: boolean
   readonly openSettings: () => void
   readonly settingsShortcut?: { readonly keys: readonly string[]; readonly aria?: string }
 }
 
-export function EnterpriseAccountLauncher({ store, wide, openSettings, settingsShortcut }: AccountLauncherProps): ReactNode {
+export function EnterpriseAccountLauncher({ store, remoteApi, wide, openSettings, settingsShortcut }: AccountLauncherProps): ReactNode {
   const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot)
   const user = enterpriseAccessBlocked(snapshot.status?.state) ? undefined : snapshot.status?.user
   const label = user?.displayName || user?.username || 'OwnDsh 账号'
   const [open, setOpen] = useState(false)
+  const [remoteOpen, setRemoteOpen] = useState(false)
+  useEffect(() => { setRemoteOpen(false) }, [snapshot.status?.platformUrl, user?.id])
   const trigger = useRef<HTMLButtonElement>(null)
 
   return <div className={styles.root}>
@@ -37,6 +42,7 @@ export function EnterpriseAccountLauncher({ store, wide, openSettings, settingsS
       </button>}
       items={[
         { id: 'settings', label: '设置', icon: <Settings aria-hidden size={16} />, ...(settingsShortcut ? { shortcut: settingsShortcut } : {}) },
+        ...(user ? [{ id: 'remote', label: '远程工作区', icon: <Monitor aria-hidden size={16} />, disabled: snapshot.busy !== undefined }] : []),
         ...(user ? [{ id: 'logout', label: '退出登录', icon: <LogOut aria-hidden size={16} />, disabled: snapshot.busy !== undefined }] : []),
       ]}
       onClose={() => setOpen(false)}
@@ -44,8 +50,10 @@ export function EnterpriseAccountLauncher({ store, wide, openSettings, settingsS
         setOpen(false)
         trigger.current?.focus()
         if (id === 'settings') openSettings()
+        if (id === 'remote' && user) setRemoteOpen(true)
         if (id === 'logout') confirmLogout()
       }}
     />}</LogoutConfirmation>
+    {remoteOpen && user && <RemoteDeviceDialog key={`${snapshot.status?.platformUrl}:${user.id}`} api={remoteApi} onClose={() => setRemoteOpen(false)} />}
   </div>
 }

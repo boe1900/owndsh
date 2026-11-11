@@ -1,6 +1,6 @@
 <!--
 [INPUT]: 依赖官方 Client slots、平台本地 API 与 EnterpriseAccountStore 的实现边界。
-[OUTPUT]: 提供只读账号设置、退出后 Server 编辑、访问门禁与跨会话响应隔离说明。
+[OUTPUT]: 提供账号设置、访问门禁与整页远程工作区的注册/控制协议和请求生命周期说明。
 [POS]: @owndsh/ui 的公开语义入口，明确插件 UI 与官方 Web/Desktop 外壳的所有权边界。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
@@ -70,3 +70,30 @@ a bootstrap revision change. Server/account changes and connected/disconnected t
 old account requests and discard their late results and errors. Runtime decoders project only account/device facts and reject unknown
 status fields, including Token-shaped additions. Host Context and platform
 credentials never enter React.
+
+The signed-in account menu opens **远程工作区**, which lists the employee's other devices.
+Offline, revoked, disabled, and unsupported devices cannot be opened. Discovery runs when
+the dialog opens or the employee presses Refresh. The local **允许远程访问本机** option controls
+inbound access only and requires confirmation when enabled. It does not gate outbound access.
+Closing the dialog or changing account cancels its requests.
+
+Opening a device navigates the whole document to a validated
+`/enterprise/remote/views/<viewId>/` URL. The Host injects non-secret
+`window.__OWNDSH_REMOTE_VIEW__` metadata before Client startup. The UI validates its shape,
+the current mount, the fixed state/reconnect routes, and `/` as the local return destination.
+Missing or invalid metadata on a remote mount blocks the page. It never selects the local
+registration branch. A valid remote document registers only a persistent `shell.bottom`
+machine/status bar and a `shell.overlay` connection barrier. It does not instantiate OwnDsh
+account or skill stores, register the OwnDsh settings or account launcher, subscribe to remote
+settings events, or obtain an OwnDsh ConfigForm. The official DSH UI owns the workspace and
+session content. The Host owns transport, storage isolation, authorization, and business admission.
+
+Remote control requests use fixed same-origin `/enterprise/api/v1/local/remote/*` paths with
+`credentials: 'same-origin'`, no caching, and rejected redirects. Responses use strict schemas,
+including the generated device schema. Only the remote document checks its connection, on
+mount, every 15 seconds while connected, and when it becomes visible. Requests have deadlines
+and abort on final unmount. The initial check blocks interaction. A disconnection or failed
+status check retains the target and locks the page. A later status result cannot unlock it.
+The employee must press **重新连接**, which creates a new authorized connection on the Host
+and reloads the same view. No workspace operation is automatically replayed. **返回本机**
+immediately navigates to `/` and sends a bounded best-effort keepalive close request.

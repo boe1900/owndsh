@@ -1,0 +1,39 @@
+/*
+ * [INPUT]: 原生 Modal/Button 的尺寸与宿主主题 tokens
+ * [OUTPUT]: 设备列表、独立远程状态条与断线阻断卡片样式
+ * [POS]: dsh-ui 的远程工作区局部样式，状态条占据 shell.bottom 自身空间
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+.dialog { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.actions { display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 8px; }
+.hostSetting { display: flex; align-items: center; gap: 20px; padding: 14px; border: 1px solid var(--dsw-alias-border-l2); border-radius: var(--dsw-radius-md); background: var(--dsw-alias-bg-layer-2); }
+.hostSetting > div { flex: 1; }
+.hostSetting strong { font-size: 13px; font-weight: 500; }
+.hostSetting p, .secondary { margin: 6px 0 0; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 1.6; }
+.listTitle { display: flex; align-items: center; gap: 8px; color: var(--dsw-alias-label-secondary); font-size: 12px; }
+.listTitle span { color: var(--dsw-alias-label-tertiary); }
+.devices { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; max-height: min(420px, 45vh); overflow-y: auto; }
+.device { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--dsw-alias-border-l2); border-radius: var(--dsw-radius-md); background: var(--dsw-alias-bg-base); }
+.deviceIcon { display: flex; flex: none; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: var(--dsw-radius-md); background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-secondary); }
+.deviceInfo { display: flex; flex: 1; flex-direction: column; gap: 4px; min-width: 0; }
+.deviceInfo strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 500; }
+.deviceInfo span { color: var(--dsw-alias-label-secondary); font-size: 12px; }
+.empty { display: flex; justify-content: center; align-items: center; gap: 8px; padding: 28px 14px; color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 1.7; text-align: center; }
+.notice { display: flex; align-items: flex-start; gap: 8px; color: var(--dsw-alias-state-error-primary); font-size: 13px; line-height: 1.6; }
+.notice svg { flex: none; margin-top: 2px; }
+.banner { box-sizing: border-box; display: flex; align-items: center; gap: 10px; min-height: 38px; padding: 4px 12px; border-top: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); font-size: 12px; }
+.banner > svg { flex: none; color: var(--dsw-alias-state-business-primary); }
+.bannerLabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.connection { display: flex; align-items: center; flex: none; gap: 6px; margin-left: auto; color: var(--dsw-alias-label-secondary); font-size: 11px; }
+.connection::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--dsw-alias-state-warn-primary); }
+.connection[data-connected=true]::before { background: var(--dsw-alias-state-success-primary); }
+.barrier { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 28px; text-align: center; color: var(--dsw-alias-label-primary); }
+.barrier h2 { max-width: 100%; margin: 0; overflow-wrap: anywhere; font-size: 20px; font-weight: 600; }
+.barrier p { margin: 0; font-size: 13px; line-height: 1.7; }
+.barrier .eyebrow { color: var(--dsw-alias-label-secondary); font-size: 11px; }
+.barrier .secondary { max-width: 340px; margin-bottom: 8px; font-size: 12px; }
+.barrierIcon { display: flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: var(--dsw-radius-lg); background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-secondary); }
+.spin { animation: remote-spin 1s linear infinite; }
+@keyframes remote-spin { to { transform: rotate(360deg); } }
+@media (max-width: 480px) { .barrier { padding: 20px 12px; } .banner { gap: 6px; padding-inline: 8px; } .hostSetting { gap: 10px; } }
+@media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
