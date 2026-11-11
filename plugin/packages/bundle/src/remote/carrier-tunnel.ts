@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖已经完成 Noise/lease 的密文发送边界、字节信用流和 Host 原生 carrier。
- * [OUTPUT]: 提供 HTTP 请求/响应流与原生 WS 文本 mux 的双端隧道。
+ * [OUTPUT]: 提供 HTTP 请求/响应流与原生 WS 文本 mux 的双端隧道，取消后丢弃在途尾帧。
  * [POS]: remote 链路的业务 carrier；每通道有界，不重试 mutation，不解释原生 RPC 结果。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -39,10 +39,8 @@ export class CarrierTunnel {
       return
     }
     const channel = this.channels.get(frame.id)
-    if (!channel) {
-      if (frame.kind === 'credit' || frame.kind === 'end' || frame.kind === 'cancel') return
-      throw new Error('ENT_REMOTE_UNKNOWN_CHANNEL')
-    }
+    // 通道 ID 不复用；取消与对端已发送的响应/数据交错时，尾帧不再拥有消费者。
+    if (!channel) return
     switch (frame.kind) {
       case 'data': channel.pipe.receive(frame); break
       case 'credit': channel.pipe.replenish(frame.bytes); break
