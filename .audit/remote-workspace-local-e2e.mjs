@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖隔离 Server/Redis、标准 npm rc.5 Harness、本轮插件 tgz 与独立 Chromium；临时环境配置仅从未跟踪的 env.json 读取。
- * [OUTPUT]: 验证员工登录、显式 Host 开关、本人设备目录、加密链路与原生远端页面，输出无凭据验收记录。
- * [POS]: .audit 的真实双 Harness 业务联调入口，不触碰日常 profile 或正式服务。
+ * [INPUT]: 依赖测试 Server/Redis、标准 npm rc.5 Harness、本轮插件与独立 Chromium；可选择 NAS Host，临时配置只从未跟踪文件读取。
+ * [OUTPUT]: 验证真实双 Harness 的员工登录、加密原生业务与断线恢复，输出按本机或 NAS 区分的无凭据证据。
+ * [POS]: .audit 的共用业务验收编排器；NAS 环境适配由兄弟 support 模块负责，保留模式供用户查看。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import assert from 'node:assert/strict'
@@ -12,8 +12,11 @@ import { mkdir, readFile, writeFile, rm, symlink } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { pathToFileURL } from 'node:url'
-const work = resolve('.tmp/remote-workspace')
+import { lookup } from 'node:dns/promises'
+const work = resolve(process.env.OWNDSH_E2E_WORK ?? '.tmp/remote-workspace')
 const config = JSON.parse(await readFile(join(work,'env.json'),'utf8'))
+const nas = process.env.OWNDSH_E2E_TARGET === 'nas' ? await import('./remote-workspace-nas-support.mjs') : undefined
+const keepRunning = process.env.OWNDSH_E2E_KEEP_RUNNING === 'true'
 const origin = config.origin
 const runtime = process.env.OWNDSH_E2E_RUNTIME ?? '/tmp/owndsh-remote-native-proof'
 const { chromium } = await import(pathToFileURL(join(runtime,'node_modules/playwright/index.mjs')))
@@ -31,7 +34,7 @@ async function signIn(page, username, currentPassword) {
  await page.getByLabel('密码',{exact:true}).fill(currentPassword)
  const captcha=(await(await captchaPromise).json()).data
  if(captcha.captchaEnabled){
-  const raw=execFileSync('docker',['exec',config.redis,'sh','-ec','export REDISCLI_AUTH="$REDIS_PASSWORD"; exec redis-cli --raw GET "$1"','redis-cli',`global:captcha_codes:${captcha.uuid}`],{encoding:'utf8'}).trim()
+  const raw=nas ? nas.readCaptcha(captcha.uuid) : execFileSync('docker',['exec',config.redis,'sh','-ec','export REDISCLI_AUTH="$REDIS_PASSWORD"; exec redis-cli --raw GET "$1"','redis-cli',`global:captcha_codes:${captcha.uuid}`],{encoding:'utf8'}).trim()
   await page.getByLabel('验证码',{exact:true}).fill(String(JSON.parse(raw)))
  }
  const response=page.waitForResponse(r=>r.url()===`${origin}/enterprise/auth/v1/password`)
@@ -53,6 +56,11 @@ async function until(fn,label,timeout=30000){
  throw new Error(`Timeout ${label}`)
 }
 async function startProfile(name){
+ if(nas && name==='host'){
+  const profile=await nas.startProfile({origin})
+  profiles.push(profile)
+  return attachProfilePage(profile,profile.launch)
+ }
  const home=join(run,name),cwd=join(home,'workspace'),authFile=join(home,'authorize-url')
  await mkdir(cwd,{recursive:true});await mkdir(join(home,'opener'),{recursive:true})
  await writeFile(join(cwd,`${name}-only.txt`),`${name} workspace marker\n`)
@@ -79,6 +87,11 @@ async function startProfile(name){
   const inspect=chunk=>{profile.output+=chunk;const url=profile.output.match(/dsh web:\s+(http:\/\/127\.0\.0\.1:\d+\/\?token=[A-Za-z0-9_-]+)/)?.[1];if(url){clearTimeout(timer);resolvePromise(url)}}
   child.stdout.on('data',inspect);child.stderr.on('data',inspect)
  })
+ return attachProfilePage(profile,launch)
+}
+async function attachProfilePage(profile,launch){
+ profile.launch=launch
+ const {name}=profile
  const context=await browser.newContext({locale:'zh-CN',viewport:{width:1440,height:960}})
  const page=await context.newPage()
  await page.addInitScript(() => {
@@ -100,15 +113,19 @@ async function loginProfile(profile,username,initial){
  const {page,authFile,context}=profile
  const gate=page.getByRole('dialog',{name:'OwnDsh',exact:true})
  await gate.getByRole('button',{name:'登录企业账号',exact:true}).click()
- const url=await until(async()=>readFile(authFile,'utf8').catch(()=>''),'authorization opener')
- await rm(authFile,{force:true})
+ const url=await until(async()=>profile.remote?nas.readAuthorizationUrl():readFile(authFile,'utf8').catch(()=>''),'authorization opener')
+ const callback=profile.remote?await nas.forwardCallback(url):undefined
+ try{
+ if(!profile.remote)await rm(authFile,{force:true})
  const auth=await context.newPage()
  const login=signIn(auth,username,initial)
  await auth.goto(url);await login
  await auth.getByRole('heading',{name:'网页授权已完成'}).waitFor()
  await until(async()=>(await local(page,'/enterprise/api/v1/local/status')).json.data.state==='READY','profile READY')
  await gate.waitFor({state:'hidden'});await auth.close()
+ }finally{callback?.kill('SIGTERM')}
 }
+const profileFile=(profile,path,encoding)=>profile.remote?nas.readWorkspaceFile(path,encoding):readFile(path,encoding)
 async function native(page,prefix,endpoint,args){
  const result=await local(page,`${prefix}api/${endpoint}`,{type:'client-request',rpcId:randomUUID(),method:endpoint,payload:{args}})
  assert.equal(result.status,200,`${endpoint} HTTP ${result.status}`)
@@ -116,9 +133,10 @@ async function native(page,prefix,endpoint,args){
  return result.json.result.value
 }
 try{
- browser=await chromium.launch({headless:true,executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'})
+ const resolved=nas?await lookup(new URL(origin).hostname,{family:4}):undefined
+ browser=await chromium.launch({headless:!keepRunning,executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',args:resolved?[`--host-resolver-rules=MAP ${new URL(origin).hostname} ${resolved.address}`]:[]})
  const adminContext=await browser.newContext({locale:'zh-CN'})
- const admin=await adminContext.newPage();const adminLogin=signIn(admin,'admin',config.adminPassword)
+ const admin=await adminContext.newPage();const adminLogin=signIn(admin,config.adminUsername??'admin',config.adminPassword)
  await admin.goto(`${origin}/login`);const adminChanged=await adminLogin
  await admin.waitForURL(u=>u.pathname==='/')
  const savedSession=await adminContext.request.get(`${origin}/enterprise/auth/v1/session`)
@@ -132,8 +150,15 @@ try{
  stage='local-model-protocol-fixture'
  fixture=createServer(async(request,response)=>{
   if(request.method==='GET'){response.writeHead(200,{'content-type':'application/json'}).end(JSON.stringify({data:[{id:'remote-e2e-model',object:'model',owned_by:'local-test-fixture'}]}));return}
-  const chunks=[];for await(const chunk of request)chunks.push(chunk)
-  const input=JSON.parse(Buffer.concat(chunks).toString())
+  let input
+  try{
+   const chunks=[];for await(const chunk of request)chunks.push(chunk)
+   input=JSON.parse(Buffer.concat(chunks).toString())
+   if(input===null||typeof input!=='object'||Array.isArray(input))throw new Error('Expected JSON object')
+  }catch{
+   response.writeHead(400,{'content-type':'application/json'}).end(JSON.stringify({error:'Invalid JSON request'}))
+   return
+  }
   fixtureCalls++
   const content='REMOTE_MODEL_STREAM_VERIFIED'
   if(!input.stream){response.writeHead(200,{'content-type':'application/json'}).end(JSON.stringify({id:'local-test',object:'chat.completion',model:input.model,choices:[{index:0,message:{role:'assistant',content},finish_reason:'stop'}],usage:{prompt_tokens:10,completion_tokens:5,total_tokens:15}}));return}
@@ -145,15 +170,16 @@ try{
   ])response.write(`data: ${JSON.stringify({id:'local-test',object:'chat.completion.chunk',model:input.model,created:Math.floor(Date.now()/1000),...value})}\n\n`)
   response.end('data: [DONE]\n\n')
  })
- await new Promise(resolve=>fixture.listen(0,'127.0.0.1',resolve))
+ await new Promise(resolve=>fixture.listen(0,config.fixtureBind??'127.0.0.1',resolve))
  const fixturePort=fixture.address().port
  const fixtureName=`remote-e2e-${Date.now()}`
- const onboard=await adminContext.request.post(`${origin}/enterprise/admin/v1/model-onboardings`,{headers:{'Idempotency-Key':randomUUID(),Origin:origin},data:{provider:{name:fixtureName},connection:{name:fixtureName,apiProtocol:'openai-completions',baseUrl:`http://127.0.0.1:${fixturePort}/v1`,credential:randomBytes(24).toString('base64url'),connectTimeoutMs:5000,readTimeoutMs:30000},models:[{modelId:fixtureName,name:fixtureName,contextWindow:32000,maxTokens:2048,input:['text'],sortOrder:0}]}})
+ const onboard=await adminContext.request.post(`${origin}/enterprise/admin/v1/model-onboardings`,{headers:{'Idempotency-Key':randomUUID(),Origin:origin},data:{provider:{name:fixtureName},connection:{name:fixtureName,apiProtocol:'openai-completions',baseUrl:`http://${config.fixtureHost??'127.0.0.1'}:${fixturePort}/v1`,credential:randomBytes(24).toString('base64url'),connectTimeoutMs:5000,readTimeoutMs:30000},models:[{modelId:fixtureName,name:fixtureName,contextWindow:32000,maxTokens:2048,input:['text'],sortOrder:0}]}})
  const onboardBody=await onboard.json()
  assert.equal(onboard.status(),201,`Model onboarding ${onboard.status()}: ${JSON.stringify(onboardBody.error)}`)
  const model=onboardBody.data.models[0]
  const grant=await adminContext.request.post(`${origin}/enterprise/admin/v1/model-grants`,{headers:{'Idempotency-Key':randomUUID(),Origin:origin},data:{resourceType:'MODEL',resourceId:model.id,subjectType:'MEMBER',subjectIds:[member.id],status:'ACTIVE'}})
  assert.equal(grant.status(),201)
+ await adminContext.close()
  record('explicit-local-model-protocol-fixture-through-real-server')
  stage='start-profiles'
  const controller=await startProfile('controller');const host=await startProfile('host')
@@ -223,7 +249,7 @@ try{
   return {status:r.status,size:bytes.byteLength,sha256:Array.from(new Uint8Array(digest),value=>value.toString(16).padStart(2,'0')).join('')}
  },`${viewPath}api/file?path=${encodeURIComponent(join(host.cwd,'large.txt'))}`)
  assert.equal(mediaHash.status,200);assert.ok(mediaHash.size>65536)
- assert.equal(mediaHash.sha256,createHash('sha256').update(await readFile(join(host.cwd,'large.txt'))).digest('hex'))
+ assert.equal(mediaHash.sha256,createHash('sha256').update(await profileFile(host,join(host.cwd,'large.txt'))).digest('hex'))
  for(const path of ['../outside.txt','escape.txt','up/../outside.txt']){
   const denied=await local(controller.page,`${viewPath}api/workspaceFiles/read`,{type:'client-request',rpcId:randomUUID(),method:'workspaceFiles/read',payload:{args:{workspaceFileScopeId:created.sessionId,path,range:{}}}})
   assert.equal(denied.status,503)
@@ -259,7 +285,7 @@ try{
   socket.send(JSON.stringify({type:'open',streamId,endpoint:'terminal/attach',payload:{args:{agentId:sessionId,id:'e2e-terminal'}}}))
  }),{sessionId:created.sessionId,cwd:host.cwd})
  assert.deepEqual(terminal,{ack:true,remoteCwd:true})
- await until(async()=>await readFile(join(host.cwd,'terminal-proof.txt'),'utf8').catch(()=>'')==='remote-terminal-write','terminal remote side effect')
+ await until(async()=>await profileFile(host,join(host.cwd,'terminal-proof.txt'),'utf8').catch(()=>'')==='remote-terminal-write','terminal remote side effect')
  assert.equal(await readFile(join(controller.cwd,'terminal-proof.txt'),'utf8').catch(()=>null),null)
  await native(controller.page,viewPath,'terminal/close',{agentId:created.sessionId,id:'e2e-terminal'})
  record('remote-terminal-input-output-only-on-host')
@@ -314,9 +340,18 @@ try{
  assert.equal(await controller.page.evaluate(()=>localStorage.getItem('remote-e2e-draft')),'local-draft')
  assert.deepEqual(failures,[])
  record('return-to-local-page')
+ if(keepRunning){
+  await writeFile(join(work,'employee-credentials.json'),JSON.stringify({username,password,server:origin,controllerUrl:new URL(controller.page.url()).origin,hostUrl:new URL(host.page.url()).origin,controllerLaunch:controller.launch,hostLaunch:host.launch},null,2)+'\n',{mode:0o600})
+  const opened=await until(async()=>{const result=await local(controller.page,'/enterprise/api/v1/local/remote/views',{deviceId:device.deviceId});return result.status===200&&result.json.data?.url},'inspection view')
+  await controller.page.goto(new URL(opened,controller.page.url()).toString())
+  await until(async()=>await controller.page.locator('[data-remote-workspace] [data-connected="true"]').count()>0,'inspection view connected')
+  await controller.page.bringToFront()
+  await controller.page.screenshot({path:join(run,'inspection-ready.png'),fullPage:true})
+ }
  await writeFile(join(run,'result.json'),JSON.stringify({result:'passed',checks,failures,http},null,2)+'\n')
  const hash=async path=>createHash('sha256').update(await readFile(path)).digest('hex')
- await writeFile('.audit/remote-workspace-local-evidence.json',JSON.stringify({date:new Date().toISOString(),result:'passed',checks,runtime:'npm @deepseek-ai/dsh 0.2.1-rc.5',server:'real Java 21 / PostgreSQL / Redis; isolated local HTTP/WS',transport:'leased Noise IK encrypted Relay',modelProvider:'explicit local OpenAI protocol fixture through real Java gateway, not an external model',bundleHostSha256:await hash('plugin/packages/bundle/lib/index.js'),bundleClientSha256:await hash('plugin/packages/bundle/lib/client.js'),protocolSha256:(await readFile('contracts/generated/protocol-sha256.txt','utf8')).trim(),unverified:['standalone Web/Android controller','production TLS','P2P/TURN fallback','multi-node fencing','external live model provider','native tool approval UI']},null,2)+'\n')
+ const topology=nas?await nas.topology():{}
+ await writeFile(nas?'.audit/remote-workspace-nas-evidence.json':'.audit/remote-workspace-local-evidence.json',JSON.stringify({date:new Date().toISOString(),result:'passed',checks,runtime:'npm @deepseek-ai/dsh 0.2.1-rc.5',server:nas?'home-nas ARM64 Java 21 / PostgreSQL / Redis; direct HTTP/WS':'real Java 21 / PostgreSQL / Redis; isolated local HTTP/WS',...topology,retained:keepRunning,transport:'leased Noise IK encrypted Relay',modelProvider:'explicit local OpenAI protocol fixture through real Java gateway, not an external model',bundleHostSha256:await hash('plugin/packages/bundle/lib/index.js'),bundleClientSha256:await hash('plugin/packages/bundle/lib/client.js'),protocolSha256:(await readFile('contracts/generated/protocol-sha256.txt','utf8')).trim(),unverified:['standalone Web/Android controller','production TLS','P2P/TURN fallback','multi-node fencing','external live model provider','native tool approval UI']},null,2)+'\n')
  console.log(`Evidence ${join(run,'result.json')}`)
 } catch(error){
  for(const profile of profiles)await profile.page?.screenshot({path:join(run,`${profile.name}-failure.png`),fullPage:true}).catch(()=>{})
@@ -324,7 +359,9 @@ try{
  console.log(`FAIL ${stage}: ${redact(error.message)}. Evidence ${join(run,'result.json')}`)
  process.exitCode=1
 }finally{
- await browser?.close()
- for(const profile of profiles){profile.child.kill('SIGTERM')}
- fixture?.closeAllConnections();await new Promise(resolve=>fixture?fixture.close(resolve):resolve())
+ if(!keepRunning || process.exitCode===1){
+  await browser?.close()
+  for(const profile of profiles){(profile.remote?profile.tunnel:profile.child).kill('SIGTERM')}
+  fixture?.closeAllConnections();await new Promise(resolve=>fixture?fixture.close(resolve):resolve())
+ }else console.log('READY inspection environment remains running')
 }

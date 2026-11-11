@@ -7,7 +7,7 @@
 
 # DSH 远程工作区实施设计
 
-2026-11-11。插件端首个 DSH 远程工作区已实现，按下文范围验收。只支持 DSH 原生工作区，不建立 Codex、ACP 或多后端 adapter。OwnDsh 已同步 main `82e7ac311`，DSH 仍使用已锁定的 npm `0.2.1-rc.5`；依赖升级另按兼容性检查表验证。
+2026-11-11。插件端首个 DSH 远程工作区已实现，按下文范围验收。只支持 DSH 原生工作区，不建立 Codex、ACP 或多后端 adapter。首次实施基线为 main `82e7ac311`，NAS 双机验收使用 `663c43e`。DSH 使用已锁定的 npm `0.2.1-rc.5`；依赖升级另按兼容性检查表验证。
 
 ## 1. 页面和权限
 
@@ -133,6 +133,27 @@ Agent、工具和终端仍拥有远端 OS 用户权限，文件包含检查不�
 | 最终复验 | 最终打包后双 Harness 14 项全部通过；路径修复后 bundle 56 项与 typecheck 通过。独立增量审阅另运行 11 项定向测试，确认旧路径问题已关闭，无遗留中高优先问题。 |
 
 当前没有宣称独立 Android/Web 管控台产品、生产 TLS、实际 P2P/TURN 回落、多节点 fencing 或外部真实模型供应商已验证。工具审批沿用原生独立 answer Peer 与事件/响应通道，审批弹窗尚未单独做真实端到端验收。原生 Electron 外壳行为也不由本轮 Web 验收推导。
+
+### 8.2 NAS 双物理机验收
+
+2026-11-11 将 `home-nas` 的 Server 与 Console 更新到 CI ARM64 镜像 `sha-663c43e`，两容器健康，保留既有 PostgreSQL、Redis、coturn 和数据卷。更新前备份 Compose、原镜像信息和完整数据库。实际镜像 ID、revision、备份清单与 Node 官方包校验值见 [部署快照](../.audit/remote-workspace-nas-deployment.json)。
+
+Mac 使用隔离 npm rc.5 Controller，NAS 使用官方同版本 Harness 和本轮插件。NAS 的 `owndsh-dsh-web` 容器持久保存独立 profile 与 `/data/workspace` 测试工作区，以具有真实 Linux 账号记录的非 root 用户运行，重启策略为 `unless-stopped`。调试镜像复用 NAS 已有 glibc 镜像，不启动 Java 服务；Node 与 Harness 挂载独立运行目录，宿主不安装 Node。裸数字 UID 缺少 passwd 记录会使官方终端的 `os.userInfo()` 失败，[运行镜像](../.audit/remote-workspace-nas-runtime.Dockerfile) 编码该环境要求。
+
+服务入口为 `http://home-nas:18080`。实际 HTTP/WS 产品链路直接连接 NAS，承载完整 Noise IK、lease 与加密 Relay。SSH 仅转发 NAS 回环 Web `18121` 和首次 PKCE callback，不承载产品远控数据。Mac 的测试浏览器显式将 `home-nas` 解析到系统返回的 IPv4，避免本机代理提供的 fake IPv6；不修改系统 DNS 或产品 origin。
+
+[跨机证据](../.audit/remote-workspace-nas-evidence.json) 记录 14 项全部通过。覆盖员工双端 PKCE、Host 默认关闭及显式确认开启、本人设备发现、独立原生工作区、远端 Session 创建/重命名、模型流、文件和超过 64 KiB 的响应、媒体哈希、路径逃逸拒绝，以及终端输入/输出。终端生成文件经 SSH 从 NAS 实际文件系统复核，Mac 不存在同名文件。刷新淘汰旧 view，关闭 Host 后阻断业务且不回落本机，断线刷新、失败重试、手动恢复和返回本机也通过。关闭 Host 是受控断连测试，不代表物理断网或 UDP 阻断验证。
+
+共用验收器的 NAS 模式如下。临时配置、测试账号和带访问凭据的启动 URL 只保存在未跟踪的 `.tmp/remote-workspace-nas/`，私密文件权限为 `0600`。
+
+```sh
+OWNDSH_E2E_TARGET=nas \
+OWNDSH_E2E_WORK="$PWD/.tmp/remote-workspace-nas" \
+OWNDSH_E2E_KEEP_RUNNING=true \
+node .audit/remote-workspace-local-e2e.mjs
+```
+
+本轮按用户要求保留 NAS Host、Mac Controller、浏览器、Web 管理转发与本地模型协议夹具。保留进程退出后需要重新启动对应 Mac 组件；NAS 容器独立运行。模型流经过真实 Java 网关，但供应商是明确标记的本地 OpenAI 协议夹具。HTTP/WS、加密 Relay 通过不推导生产 TLS、实际 P2P/TURN、独立 Android/Web 管控台或外部真实模型供应商通过。
 
 ## 9. 代码责任
 

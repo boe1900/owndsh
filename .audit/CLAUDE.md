@@ -39,10 +39,16 @@ remote-workspace-investigation.todo.md: 上游插件跨机器工作区发现、�
 remote-dsh-workspace.todo.md: 插件 DSH 远程工作区首个业务闭环的设计、实施与验收清单。
 remote-dsh-workspace.tsv: DSH 远程工作区实施的决策与证据记录，不包含凭据或业务正文。
 remote-workspace-mount-evidence.json: 官方 npm rc.5 原生页面在独立 mount 启动和基础 Storage 隔离的同机架构验证，不代表跨机业务验收。
-remote-workspace-local-e2e.mjs: 隔离 Server/Redis 与两个真实 npm rc.5 Harness 的员工登录、入站开关、设备选择、原生整页及 Session/File/Terminal 业务联调，秘密只读取临时环境，不触碰日常 profile。
+remote-workspace-local-e2e.mjs: 两个真实 npm rc.5 Harness 的员工登录、入站开关、原生整页及 Session/File/Terminal 业务联调，可选择隔离本机服务或 NAS 部署；凭据只读取临时文件，不触碰日常 profile。
 remote-workspace-local-evidence.json: 双真实 Harness 的业务、断线/刷新/重连与页面隔离验收结果，包含实际包哈希、协议哈希和本地模型夹具/未验收范围声明。
 remote-workspace-storage-e2e.mjs: 真实 Chrome 的远端 Storage façade 方法、属性、事件、枚举、clear、刷新与多目标隔离验收。
 remote-workspace-storage-evidence.json: Chrome Storage 六项无密验收结果，不代表业务或传输验收。
+remote-workspace-nas.todo.md: Mac 与 NAS 双物理机业务验收和保留环境清单。
+remote-workspace-nas.tsv: NAS 更新、运行环境、双机业务验收与保留环境的决策和证据，不含凭据。
+remote-workspace-nas-deployment.json: NAS 同提交 ARM64 镜像、健康检查、备份文件清单和已校验 Node 运行时证据。
+remote-workspace-nas-evidence.json: Mac 与真实 ARM64 NAS 的 14 项业务验收、最终 bundle/协议哈希、保留状态与未验证边界。
+remote-workspace-nas-support.mjs: 共用业务验收器的 NAS Host、SSH 回环管理访问、测试文件和无密拓扑适配；按用户要求保留 NAS 容器，失败仅清理本轮转发。
+remote-workspace-nas-runtime.Dockerfile: NAS 调试镜像补充真实非 root Linux 账号和 bash，Node/Harness 由验收器挂载，Java 服务不在该容器启动。
 ship-main.todo.md: 直接推送 main 的发布检查清单与跳过项。
 remote-server-after-auth-fix.log: 认证修复后的本地 Server 日志。
 remote-server-lan.log: 本地 LAN Server 日志。

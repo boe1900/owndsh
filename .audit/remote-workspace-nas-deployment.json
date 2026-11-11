@@ -1,0 +1,74 @@
+{
+  "date": "2026-11-11T06:05:44.835815Z",
+  "origin": "http://home-nas:18080",
+  "containers": [
+    {
+      "container": "/owndsh-server-1",
+      "image": "registry.cn-hangzhou.aliyuncs.com/cola1900/owndsh-server:sha-663c43e",
+      "id": "sha256:f01a995d9d1c1ff600a2f8e55de2c57e9c69255424e532f5c8e1254d75e6f171",
+      "revision": "663c43e60194dad151b46d10e07546d3bae57a41",
+      "architecture": "arm64",
+      "health": "healthy"
+    },
+    {
+      "container": "/owndsh-console-1",
+      "image": "registry.cn-hangzhou.aliyuncs.com/cola1900/owndsh-console:sha-663c43e",
+      "id": "sha256:25c0494084d97cec2396e809f64258d3301f0ce857059f717442b2ae7f268278",
+      "revision": "663c43e60194dad151b46d10e07546d3bae57a41",
+      "architecture": "arm64",
+      "health": "healthy"
+    }
+  ],
+  "backup": {
+    "path": "/vol1/1000/docker/stacks/owndsh/backups/workspace-20261111T054956Z",
+    "files": [
+      {
+        "name": ".env",
+        "bytes": 993
+      },
+      {
+        "name": "compose.yml",
+        "bytes": 4479
+      },
+      {
+        "name": "compose.override.yml",
+        "bytes": 101
+      },
+      {
+        "name": "owndsh-codex-20261028-skill-restore.yml",
+        "bytes": 178
+      },
+      {
+        "name": "compose.codex-remote.yml",
+        "bytes": 1188
+      },
+      {
+        "name": "metadata.json",
+        "bytes": 981
+      },
+      {
+        "name": "database.dump",
+        "bytes": 321638
+      }
+    ]
+  },
+  "override": "/vol1/1000/docker/stacks/owndsh/compose.codex-workspace.yml",
+  "nodeRuntime": {
+    "version": "24.6.0",
+    "architecture": "linux-arm64",
+    "officialArchiveSha256": "e514b8b0fa389c10fe3f4278c68fae03df4b7ba61bbde6cae936de3f6ca3b17c",
+    "checksumSource": "https://nodejs.org/dist/v24.6.0/SHASUMS256.txt",
+    "hostRuntimeUnchanged": true,
+    "harnessVersion": "0.2.1-rc.5",
+    "installExitCode": 0
+  },
+  "dshContainer": {
+    "container": "/owndsh-dsh-web",
+    "image": "owndsh-dsh-web:local-rc5",
+    "imageId": "sha256:e8792196e8f8b7728123b689d13701b91622a037fb485b692f627dad344bf0b1",
+    "user": "1000:1001",
+    "restartPolicy": "unless-stopped",
+    "network": "host",
+    "running": true
+  }
+}

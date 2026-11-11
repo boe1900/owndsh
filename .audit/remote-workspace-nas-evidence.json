@@ -1,0 +1,64 @@
+{
+  "date": "2026-11-11T06:19:28.702Z",
+  "result": "passed",
+  "checks": [
+    "create-real-employee",
+    "explicit-local-model-protocol-fixture-through-real-server",
+    "two-isolated-harness-employee-login",
+    "host-default-disabled",
+    "explicit-host-enable-confirmation",
+    "encrypted-link-native-remote-page",
+    "remote-session-mutation-isolated-from-local",
+    "native-remote-prompt-and-stream-via-local-provider-fixture",
+    "remote-files-and-over-64k-response",
+    "remote-terminal-input-output-only-on-host",
+    "refresh-new-view-rejects-old-url-and-preserves-remote-draft",
+    "disconnect-blocks-and-never-falls-back-local",
+    "disconnected-refresh-failed-retry-and-manual-recovery",
+    "return-to-local-page"
+  ],
+  "runtime": "npm @deepseek-ai/dsh 0.2.1-rc.5",
+  "server": "home-nas ARM64 Java 21 / PostgreSQL / Redis; direct HTTP/WS",
+  "topology": "Mac Controller and physical home-nas Linux Host; platform HTTP/WS connects directly to home-nas:18080",
+  "controller": {
+    "os": "darwin",
+    "arch": "arm64"
+  },
+  "host": {
+    "os": "linux",
+    "arch": "arm64",
+    "node": "v24.6.0",
+    "hostname": "home-nas-dsh"
+  },
+  "images": [
+    {
+      "container": "/owndsh-server-1",
+      "image": "registry.cn-hangzhou.aliyuncs.com/cola1900/owndsh-server:sha-663c43e",
+      "id": "sha256:f01a995d9d1c1ff600a2f8e55de2c57e9c69255424e532f5c8e1254d75e6f171",
+      "revision": "663c43e60194dad151b46d10e07546d3bae57a41",
+      "health": "healthy"
+    },
+    {
+      "container": "/owndsh-console-1",
+      "image": "registry.cn-hangzhou.aliyuncs.com/cola1900/owndsh-console:sha-663c43e",
+      "id": "sha256:25c0494084d97cec2396e809f64258d3301f0ce857059f717442b2ae7f268278",
+      "revision": "663c43e60194dad151b46d10e07546d3bae57a41",
+      "health": "healthy"
+    }
+  ],
+  "sshForwarding": "NAS loopback management UI and initial PKCE callback only",
+  "retained": true,
+  "transport": "leased Noise IK encrypted Relay",
+  "modelProvider": "explicit local OpenAI protocol fixture through real Java gateway, not an external model",
+  "bundleHostSha256": "c968cbdaec256ecda2b9da403b84c5dec68a35dfebe72a727a06f495b5f0733c",
+  "bundleClientSha256": "57afe4027eef0539ad7a610f764f11760ebb6cf758c08f0b0f741a8173cf36f4",
+  "protocolSha256": "629fbf0d745ada4c98d34393335e2da26a788be5638810a21041f0431b3a9cf3",
+  "unverified": [
+    "standalone Web/Android controller",
+    "production TLS",
+    "P2P/TURN fallback",
+    "multi-node fencing",
+    "external live model provider",
+    "native tool approval UI"
+  ]
+}
