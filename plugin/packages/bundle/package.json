@@ -89,7 +89,10 @@
     "yaml": "^2.9.1",
     "@modelcontextprotocol/client": "^2.2.0",
     "@deepseek-ai/dsh-client-ui-plugin-market": "^0.2.1-rc.5",
-    "@deepseek-ai/dsh-plugin-market": "^0.2.1-rc.5"
+    "@deepseek-ai/dsh-plugin-market": "^0.2.1-rc.5",
+    "@deepseek-ai/dsh-api-gateway": "^0.2.1-rc.5",
+    "@deepseek-ai/dsh-client-connection": "^0.2.1-rc.5",
+    "@deepseek-ai/dsh-host-webserver": "^0.2.1-rc.5"
   },
   "devDependencies": {
     "@owndsh/contracts": "workspace:*",
@@ -131,6 +134,11 @@
     "@owndsh/ui": "workspace:*",
     "@deepseek-ai/dsh-client-ui-plugin-market": "0.2.1-rc.5",
     "@deepseek-ai/dsh-plugin-market": "0.2.1-rc.5",
-    "@deepseek-ai/dsh-plugin-market-index": "0.2.1-rc.5"
+    "@deepseek-ai/dsh-plugin-market-index": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-api-gateway": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-client-connection": "0.2.1-rc.5",
+    "@deepseek-ai/dsh-host-webserver": "0.2.1-rc.5",
+    "@types/ws": "8.18.1",
+    "zod": "4.4.3"
   }
 }

@@ -16,7 +16,13 @@ src/mcp-runtime.ts: 本地 MCP 路由与官方 client 子 fiber 组合器，按�
 src/mcp-tools.ts: 官方注册表的有界目录与连接代次；复用 Pi vendored 的英文 schema 文档与 BM25，按四档 exposure 计算 direct/deferred/codemode/hidden 的 native/PTC 投影；统一 tool_search 管理每个 Agent 的下一轮选择，本步 presented 快照负责执行门禁，传输掉线可暂时撤下并恢复呈现，实时撤权优先，控制工具名称冲突拒绝。
 src/mcp-pi-search.ts: Pi MIT 纯逻辑 vendoring（基线 `3dd803d`）；提供英文 tokenizer、schema 文档构造、BM25 排名与 OwnDsh 四档运行时 exposure 解析，接受 Pi 五档输入并隔离 Pi Agent 的 active set/loadout 与运行时。
 src/mcp-oauth.ts: 官方 MCP SDK v2 `OAuthClientProvider` 的宿主接缝；以确定性摘要隔离 grant，持久化官方 client information/tokens，短生命周期保存 SDK discovery/verifier 以绑定授权回调，并交接系统浏览器与 loopback callback，不实现 OAuth 协议。
-src/remote/: Remote v1 connection state、Host capability/presence、audit 和 runtime skeleton；只接入平台登录生命周期，不接 Typert session/file/terminal provider。
+src/remote/: 本人设备的安全 DSH workspace 链路，显式 Host 开关、持久身份、完整 Noise IK、租约、字节信用和原生 HTTP/WS carrier；API Peer cookie 留在远端 Host，不复制 Gateway codec。
+tests/remote-carrier.spec.ts: 真实 HTTP 大体积二进制流、mux Unicode 跨片重组、信用背压、取消和 realpath 路径约束。
+tests/remote-native-carrier.spec.ts: 真实 HTTP/WS 的原生 API cookie 隔离、独立 Peer 共用、端点准入与关闭释放。
+tests/remote-secure-link.spec.ts: 双端真实 Noise 与进程内控制面路由，验证握手/租约门禁、密文传输、撤权、过期和旧 socket 隔离。
+tests/remote-key.spec.ts: 官方 credentials 契约下的 Host 静态密钥重启复用、owner 维度隔离与损坏记录拒绝。
+tests/remote-workspace-runtime.spec.ts: 产品 Host 默认关闭、显式开启、再开启复用身份及平台撤销清理。
+tests/remote-runtime.spec.ts: 旧 presence 兼容类的登录与撤权生命周期回归。
 tests/mcp-oauth.spec.ts: 身份/目标绑定、官方 StoredOAuth* 记录、discovery/issuer/iss 绑定、官方 SDK OAuth 委托与取消生命周期；不复制 OAuth 协议测试。
 tests/mcp-runtime.spec.ts: 真实 Cordis/tools/system-prompt 与受控 PTC binding 验证 direct/codemode/deferred/hidden、tool_search、下一轮 assembly、Agent 隔离和执行守卫；OAuth/transport 由独立官方 client 测试覆盖。
 tests/mcp-pi-search.spec.ts: Pi vendored 英文 tokenizer、schema 字段检索、BM25 排名与 exposure 覆写解析的最小纯逻辑回归。

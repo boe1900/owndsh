@@ -30,6 +30,9 @@ await build({
   external: [
     '@deepseek-ai/cordis',
     '@deepseek-ai/dsh-credentials',
+    '@deepseek-ai/dsh-api-gateway',
+    '@deepseek-ai/dsh-client-connection',
+    '@deepseek-ai/dsh-host-webserver',
     '@deepseek-ai/dsh-llm',
     '@deepseek-ai/dsh-llm-pi-ai',
     '@deepseek-ai/dsh-mcp-client',
