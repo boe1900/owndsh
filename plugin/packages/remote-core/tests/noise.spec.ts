@@ -5,7 +5,7 @@
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { describe, it, expect } from 'vitest'
-import vector from './noise-c-vector.json'
+import vector from '../../../../contracts/remote/crypto-vectors.json'
 import { NoiseSession, generateNoiseKeyPair, createNoisePrologue, encodeKey } from '../src/noise.js'
 const decode = (hex: string) => Uint8Array.from(Buffer.from(hex, 'hex'))
 function sessions(prologue = decode(vector.init_prologue)) {

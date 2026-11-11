@@ -1,13 +1,13 @@
 <!--
 [INPUT]: ds-harness-remote 固定提交的 Server、协议、加密、WebRTC、client-core、Host 桥接和 Android 源码及组件验证；DSH Go 的独立客户端接线；OwnDsh 当前身份、设备、插件与控制台边界。
 [OUTPUT]: 提供 OwnDsh 远程访问的最终技术路线、复用边界、安全要求和实施验收标准，区分已验证的上游组件与待实现的产品集成。
-[POS]: docs 中远程访问的唯一方案入口，指导 Server/手机与 Web 控制客户端/Plugin 接入；实际 Harness 版本与升级约束由 dsh-compatibility.md 拥有。
+[POS]: docs 中远程访问的唯一方案入口，指导 Server、本机插件、手机和 Web 控制客户端接入；实际 Harness 版本与升级约束由 dsh-compatibility.md 拥有。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
 
 # OwnDsh 远程访问方案
 
-更新日期：2026-11-07。状态：**技术路线已确定，P0 协议与三端连接骨架已落地，业务能力尚未实施。**
+更新日期：2026-11-11。状态：P0 与 R1–R5 连接基础已落地，插件控制插件的 DSH 远程工作区已实现，当前通过加密 Relay 联调。业务实施与验收真源见 [DSH 远程工作区设计](remote-dsh-workspace-design.md)。独立 Web/Android 页面、真实 P2P/TURN 回落和生产 TLS 仍分别验收。
 
 可直接拆任务开发的接口、状态机、Host capability、数据模型和验收真源见：[remote-access-implementation-design.md](remote-access-implementation-design.md)。本文保留产品路线、复用边界和技术取舍；两者冲突时，以后者的已确认实施决策为准。
 
@@ -17,21 +17,26 @@
 
 远程访问沿用原 Host 的会话、工作目录、工具、模型配置和 OwnDsh 模型网关。目标体验覆盖会话管理、流式消息、打断、工具审批、问题回答、工作区文件、终端及适用设置。工作设备需要在线并保持 Host 运行。
 
+2026-11-11 补充确认：本机插件也作为控制客户端，用户可以在本机 Harness 中打开本人另一台机器的 DSH 工作区，复用原有业务界面进行远程操作。工作区执行后端仅支持 DSH 原生 Harness，不接入上游的 Codex、ACP 或其它独立工作区；这不限制 DSH 自身的模型、工具和 MCP 能力。具体业务范围以 [产品决策](remote-access-product-decisions.md) 和实施文档为准。
+
 当前首期先交付 Java Server、Host 插件与 Web 管控台的**产品级连接基础 P0 产物**：完成设备发现、ticket/lease、共享 wire 契约、控制面和连接生命周期骨架；LAN/P2P/TURN/Relay、Noise 和真实跨机联调按 R1 至 R5 完成。会话、文件、终端等具体业务和正式页面后置设计。范围可以收敛，安全、可靠性、跨机验证和生产部署标准不收敛。
 
 **抽取 ds-harness-remote 的连接、端到端加密和原生 DSH 桥接能力，接入 OwnDsh。** 账号、设备归属、远程开关、服务端和控制台均由 OwnDsh 拥有。保留完整 WebRTC（LAN/P2P/TURN）与端到端加密 WebSocket Relay。
 
-远程访问只有三类端：**Java Server、Host 插件、控制客户端**。手机端与 Web 管控台都属于控制客户端，共享授权、连接状态、Noise 和业务 RPC 语义；手机使用移动端 WebRTC 适配器，Web 使用浏览器原生 `RTCPeerConnection`。它们不是两套服务端，也不是 DSH Go 手机 App 的原生插件系统。
+远程访问只有三类端：**Java Server、Host 插件、控制客户端**。同一插件可以同时承载 Host 和控制端角色；本机插件、手机端与 Web 管控台共享授权、连接状态、Noise 和业务 RPC 语义。手机使用移动端 WebRTC 适配器，Web 使用浏览器原生 `RTCPeerConnection`。它们不是两套服务端，也不是 DSH Go 手机 App 的原生插件系统。
 
 ## 2. 架构与职责
 
 ```mermaid
 flowchart LR
-    Mobile[手机端控制客户端] --> Own[OwnDsh Java Server：账号、设备、连接授权]
+    Local[本机插件控制客户端] --> Own[OwnDsh Java Server：账号、设备、连接授权]
+    Mobile[手机端控制客户端] --> Own
     Console[Web 管控台控制客户端] --> Own
-    Mobile <-- 端到端加密 --> Relay[Java 信令与密文 Relay]
+    Local <-- 端到端加密 --> Relay[Java 信令与密文 Relay]
+    Mobile <-- 端到端加密 --> Relay
     Console <-- 端到端加密 --> Relay
     Relay <-- 主动出站 --> Host[OwnDsh 插件：远程模块]
+    Local <-- WebRTC 直连或 TURN --> Host
     Mobile <-- WebRTC 直连或 TURN --> Host
     Console <-- WebRTC 直连或 TURN --> Host
     Host --> Gateway[当前 Harness Gateway]
@@ -40,14 +45,14 @@ flowchart LR
     Own -. 授权与撤权 .-> Relay
 ```
 
-图中的信令与 Relay 由 Java 服务承载；WebRTC 和 Noise 在手机/Web 控制客户端与工作设备端运行。TURN 数据中转交给独立 coturn。Server 不需要解密业务 RPC。
+图中的信令与 Relay 由 Java 服务承载；WebRTC 和 Noise 在控制客户端与工作设备端运行。TURN 数据中转交给独立 coturn。Server 不需要解密业务 RPC。
 
 这里有两个不同的 Remote 概念：OwnDsh Remote 是控制客户端与 Host 插件之间的公网连接、加密和授权协议；DSH Typert Remote/Gateway 是 Host 插件调用 Harness 原生会话、文件和终端能力的本机业务适配层。前者不依赖后者，首期连接基础可以先独立验收；后续开放 DSH 业务时，再按当前 Harness 版本验证 `ctx.typertGateway` 和相关 provider 的注入与调用契约。
 
 | 层 | 职责与复用方式 |
 | --- | --- |
 | OwnDsh 身份与设备 | 复用账号、Host credentials 和 installation，维护租户、用户、目标设备、公钥与远程状态的绑定 |
-| OwnDsh 插件 | 在账号 tab 提供开关，挂载远程模块，主动连接 Server，复用端点身份、Noise、传输、RPC/流与 Gateway 桥接 |
+| OwnDsh 插件 | 被控端在账号 tab 提供开关，主动连接 Server 并桥接本机 DSH；控制端选择本人远端 DSH 工作区，复用原生业务界面与共享加密传输 |
 | Java Server | 实现受控设备目录、短期连接授权、兼容信令、密文 Relay、ICE 配置和 TURN 临时凭据 |
 | 手机端 / Web 管控台 | 作为同一控制客户端的两个适配器，提供本人设备入口与 DSH 操作区；共享协议、授权和业务 RPC，分别适配移动端与浏览器 WebRTC |
 | coturn | 提供直连失败时的 WebRTC 中继服务，使用受控的短期凭据 |

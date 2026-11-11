@@ -63,7 +63,6 @@ export class RemoteServerConnection {
       if (generation !== this.generation || signal.aborted) { socket.close(); throw new Error('ENT_REMOTE_CLOSED') }
       this.socket = socket
       const ready = new Promise<void>((resolve, reject) => { this.pendingReady = { resolve, reject } })
-      // 同步 hello 测试与异步网络均在注册完等待者后才能接收 ack。
       socket.addEventListener('message', event => {
         if (generation !== this.generation || this.socket !== socket) return
         try { this.receive(typeof event.data === 'string' ? JSON.parse(event.data) : event.data) }

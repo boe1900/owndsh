@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 Cordis/Schemastery、Harness credentials/LLM/pluginManager/inventory/skills、官方运行时身份、企业业务模块与 mcp-runtime/skill-provider 组合入口
- * [OUTPUT]: 对外提供 Web/Desktop 共用 bundle apply、受内存 Bearer 保护的本机 DSH 市场代理与索引同步、显式插件重启、Host 凭据持久化、企业插件卸载和 OwnDsh 全局 skill provider
+ * [INPUT]: 依赖 Cordis/Schemastery、Harness credentials/LLM/pluginManager/inventory/skills/connection/workspaceRegistry、官方运行时身份与企业业务模块
+ * [OUTPUT]: 提供 Web/Desktop bundle apply、本机市场与认证、模型/MCP/技能组合，以及默认关闭的远端 Host 和逐页 DSH 工作区控制入口
  * [POS]: bundle 的唯一 Host Loader 入口，组合平台认证、官方企业模型、隔离 skill provider 与环境原生插件调和；官方 market 只访问 loopback 代理，MCP 连接由独立 Cordis fiber 隔离并可撤销
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -9,6 +9,7 @@ import { createRequire } from 'node:module'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 import type { CredentialProvider } from '@deepseek-ai/dsh-credentials'
+import type { SettingsForms } from '@deepseek-ai/dsh-settings'
 import type { PluginInventoryGateway } from '@deepseek-ai/dsh-host-plugin-inventory'
 import type { BundleInfo, PluginManager } from '@deepseek-ai/dsh-plugin-manager'
 import type PluginMarket from '@deepseek-ai/dsh-plugin-market'
@@ -18,6 +19,7 @@ import { registerEnterpriseGateway } from '@owndsh/llm-gateway'
 import {
   EnterprisePlatformError,
   EnterprisePlatformService,
+  OWNDSH_SETTINGS_ENTRY,
   type EnterprisePluginInventoryItem,
   type WebServerRoutePort,
 } from '@owndsh/platform-client'
@@ -25,11 +27,13 @@ import { mountMcpRuntime } from './mcp-runtime.js'
 import { mountEnterpriseSkillProvider } from './skill-provider.js'
 import type { ToolRuntime } from '@deepseek-ai/dsh-tools'
 import type { McpExposureInput } from './mcp-pi-search.js'
-import { RemoteRuntime } from './remote/remote-runtime.js'
-import { createNodeRemoteSocketFactory } from './remote/node-socket-factory.js'
+import { createRemoteWorkspaceRuntime, type RemoteWorkspaceContext } from './remote/workspace-runtime.js'
+import { RemoteViewRegistry } from './remote/view-registry.js'
+import { mountRemoteLocalApi } from './remote/local-remote-api.js'
+import { mountRemoteViewHttp, mountRemoteViewMux, type RemoteViewContext } from './remote/view-mount.js'
 
 export const name = 'owndsh'
-export const inject = ['webServer', 'credentials', 'settings', 'llm', 'pluginInventory', 'pluginManager', 'pluginMarket', 'tools']
+export const inject = ['webServer', 'connection', 'workspaceRegistry', 'credentials', 'settings', 'llm', 'pluginInventory', 'pluginManager', 'pluginMarket', 'tools']
 
 const HARNESS_VERSION = APP_IDENTITY.version
 const { version: BUNDLE_VERSION } = createRequire(import.meta.url)('../package.json') as { version: string }
@@ -41,6 +45,7 @@ function volatile<T>(schema: z<T>): z<T> {
 export interface Config {
   /** 可选安装默认值；用户可在欢迎页写入 Harness 官方 settings。 */
   readonly baseUrl?: string
+  readonly remote: { readonly enabled: boolean }
   /** MCP 用户连接偏好；通过 Harness 官方 settings forms 持久化。 */
   readonly mcp: {
     readonly desiredConnected: Record<string, boolean>
@@ -59,6 +64,7 @@ const mcpExposureOptional = z.union([mcpExposure, z.const(undefined)])
 
 export const Config: z<Config> = z.object({
   baseUrl: volatile(z.string().default('')),
+  remote: volatile(z.object({ enabled: z.boolean().default(false) }).default({ enabled: false })),
   mcp: volatile(z.object({
     desiredConnected: z.dict(z.boolean()).default({}),
     exposure: mcpExposureOptional,
@@ -69,9 +75,10 @@ export const Config: z<Config> = z.object({
   disposeTimeoutMs: z.number().step(1).min(1).default(3_000),
 })
 
-type EnterpriseHostContext = Context & {
+type EnterpriseHostContext = Context & RemoteWorkspaceContext & RemoteViewContext & {
   readonly webServer: WebServerRoutePort
   readonly credentials: CredentialProvider
+  readonly settings: SettingsForms
   readonly llm: LlmRuntime
   readonly tools: ToolRuntime
   readonly pluginInventory: PluginInventoryGateway
@@ -218,7 +225,11 @@ export async function syncPluginMarketIndex(
 }
 
 /** 在 Harness 官方 Service 上挂载平台控制面并配置官方 dsh-llm-pi-ai。 */
-export function apply(ctx: EnterpriseHostContext, config: Config): void {
+type RuntimeConfig = Omit<Config, 'remote'> & {
+  readonly remote: Config['remote'] | { get(): Config['remote'] }
+}
+
+export function apply(ctx: EnterpriseHostContext, config: RuntimeConfig): void {
   const invalidateSkills = mountEnterpriseSkillProvider(ctx)
   const desktopActions = ctx.get('desktopActions') as DesktopActionsPort | undefined
   const platform = new EnterprisePlatformService(ctx, {
@@ -242,10 +253,25 @@ export function apply(ctx: EnterpriseHostContext, config: Config): void {
     invalidateSkills,
   })
   mountMcpRuntime(ctx, platform, ctx.credentials, config)
-  const remoteRuntime = new RemoteRuntime(platform, ctx.logger, undefined, {
-    socketFactory: createNodeRemoteSocketFactory(),
-  })
+  const remoteRuntime = createRemoteWorkspaceRuntime(ctx, platform)
+  const readRemoteEnabled = () => ('get' in config.remote ? config.remote.get() : config.remote).enabled
+  let remoteEnabled = readRemoteEnabled()
+  remoteRuntime.setHostEnabled(remoteEnabled)
   remoteRuntime.start()
+  const disposeRemoteSettings = ctx.on('loader/volatile-update', () => {
+    remoteEnabled = readRemoteEnabled()
+    remoteRuntime.setHostEnabled(remoteEnabled)
+  })
+  const remoteViews = new RemoteViewRegistry(remoteRuntime, platform, view => mountRemoteViewMux(ctx, view))
+  const disposeRemoteViews = mountRemoteViewHttp(ctx, remoteViews)
+  const disposeRemoteApi = mountRemoteLocalApi(ctx, platform, remoteRuntime, remoteViews, {
+    enabled: () => remoteEnabled,
+    setEnabled: async enabled => {
+      await ctx.settings.update(OWNDSH_SETTINGS_ENTRY, { remote: { enabled } })
+      remoteEnabled = enabled
+      remoteRuntime.setHostEnabled(enabled)
+    },
+  })
   ctx.effect(() => registerEnterpriseGateway(ctx, {
     platform,
     harnessVersion: HARNESS_VERSION,
@@ -284,6 +310,10 @@ export function apply(ctx: EnterpriseHostContext, config: Config): void {
     disposePlatformStatus()
     disposeMarketProxy()
     remoteRuntime.dispose()
+    disposeRemoteApi()
+    disposeRemoteViews()
+    remoteViews.dispose()
+    disposeRemoteSettings()
   }, 'owndsh.pluginInventory')
   scheduleInventory()
   scheduleMarket()

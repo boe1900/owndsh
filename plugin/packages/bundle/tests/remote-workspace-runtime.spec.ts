@@ -1,11 +1,11 @@
 /**
  * [INPUT]: 依赖产品WorkspaceRuntime、真实密钥持久化和异步hello控制面。
- * [OUTPUT]: 验证默认关闭、显式开启、稳定公钥、关闭只影响Host与销毁清理。
+ * [OUTPUT]: 验证默认关闭、显式开启、稳定公钥、关闭只影响Host、分页完整性与销毁清理。
  * [POS]: remote opt-in与presence生命周期回归。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { it, expect, vi } from 'vitest'
-import { enterpriseProtocolSha256 } from '@owndsh/contracts'
+import { enterpriseProtocolSha256, type RemoteDevice } from '@owndsh/contracts'
 import type { CredentialKey, CredentialProvider, CredentialRecord } from '@deepseek-ai/dsh-credentials'
 import type { EnterprisePlatformStatus } from '@owndsh/platform-client'
 import { WorkspaceRuntime } from '../src/remote/workspace-runtime.js'
@@ -59,5 +59,34 @@ it('keeps Host off by default, preserves identity across explicit re-enable and 
     expect(records.size).toBe(1)
     platform.markDeviceRevoked()
     expect(closed).toHaveBeenCalledTimes(2)
+  } finally { runtime.dispose() }
+})
+
+it('loads later device pages and rejects truncated or cyclic directories', async () => {
+  const device = (id: string): RemoteDevice => ({ deviceId: id, installationId: '11111111-1111-4111-8111-111111111111',
+    name: `Device ${id}`, platform: 'web', status: 'ACTIVE', online: true, remoteEnabled: true,
+    capabilities: ['remote.connect'], capabilityRevision: 1, revision: 1, lastPresenceAt: null })
+  let cycle = false
+  const paths: string[] = []
+  const runtime = new WorkspaceRuntime({
+    credentials: { async modifyRecord() { throw new Error('unused') } },
+    connection: { authenticatedUrl: value => value }, webServer: { getOrigin: () => 'http://127.0.0.1' }, workspaceRegistry: { list: () => [] },
+  }, {
+    status: () => ({ state: 'READY', bundleVersion: 'test', transport: 'webServer.register' }),
+    bootstrap: () => ({ user: { id: '1' } }), subscribe: () => () => {}, markDeviceRevoked() {},
+    async remoteSession() { throw new Error('unused') },
+    async request(path) {
+      paths.push(path)
+      const second = new URL(path, 'http://localhost').searchParams.has('cursor')
+      return Response.json({ data: { items: [device(second ? '3' : '2')],
+        page: { hasMore: !second || cycle, limit: 100, nextCursor: !second || cycle ? 'next-cursor-for-test' : null } },
+      requestId: 'req_01ARZ3NDEKTSV4RRFFQ69G5FAV' })
+    },
+  }, { async open() { throw new Error('unused') } })
+  try {
+    expect((await runtime.devices()).map(item => item.deviceId)).toEqual(['2', '3'])
+    expect(paths).toEqual(['/enterprise/api/v1/remote/devices?limit=100', '/enterprise/api/v1/remote/devices?limit=100&cursor=next-cursor-for-test'])
+    cycle = true
+    await expect(runtime.devices()).rejects.toThrow('ENT_REMOTE_PROTOCOL')
   } finally { runtime.dispose() }
 })

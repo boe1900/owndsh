@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Node Host 的内存 Access Token、`ws` WebSocket client 和 RemoteSocketLike seam。
- * [OUTPUT]: 提供带 Bearer Upgrade header 的 Node WSS factory，不把 Token 写入 URL 或日志。
+ * [OUTPUT]: 提供带 Bearer 和平台 Origin 的 Node WSS factory，不把 Token 写入 URL 或日志。
  * [POS]: bundle/remote 的 Host 与本机 Controller 的网络边界；两者都使用平台内存 Bearer，浏览器不接触 Token。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -17,9 +17,11 @@ export function createNodeRemoteSocketFactory(): RemoteSocketFactory {
       if (parsed.protocol !== 'ws:' && parsed.protocol !== 'wss:') {
         return Promise.reject(new Error('remote websocket URL is invalid'))
       }
+      const origin = new URL(parsed)
+      origin.protocol = parsed.protocol === 'wss:' ? 'https:' : 'http:'
       return new Promise<RemoteSocketLike>((resolve, reject) => {
         let settled = false
-        const socket = new WebSocket(url, { maxPayload: 100_000, perMessageDeflate: false, headers: { authorization: `Bearer ${accessToken}` } })
+        const socket = new WebSocket(url, { origin: origin.origin, maxPayload: 100_000, perMessageDeflate: false, headers: { authorization: `Bearer ${accessToken}` } })
         const abort = () => {
           socket.close(1000, 'remote connection aborted')
           if (!settled) {

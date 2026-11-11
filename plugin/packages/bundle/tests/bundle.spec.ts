@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 bundle manifest/Config/patch、构建产物和 Node vm 中的官方 React lazy-CJS seed 模型
- * [OUTPUT]: 验证安装配置、dsh.bundle/dsh.client、credentials/pi-ai/分发注入、兼容 peers 与设置/账号入口/门禁的 Client apply
+ * [OUTPUT]: 验证安装配置、dsh.bundle/dsh.client、credentials/pi-ai/远控注入、兼容 peers 与设置/账号入口/门禁的 Client apply
  * [POS]: bundle 发布不变量测试，拒绝 Typert ambient shim、Harness 源码路径和未声明运行依赖
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -141,7 +141,7 @@ describe('enterprise bundle', () => {
     expect(manifest.peerDependencies['@deepseek-ai/schemastery']).toBe('^3.18.5')
     expect(manifest.peerDependencies.yaml).toBe('^2.9.1')
     expect(inject).toEqual([
-      'webServer', 'credentials', 'settings', 'llm', 'pluginInventory', 'pluginManager', 'pluginMarket', 'tools',
+      'webServer', 'connection', 'workspaceRegistry', 'credentials', 'settings', 'llm', 'pluginInventory', 'pluginManager', 'pluginMarket', 'tools',
     ])
     expect(Config({
       baseUrl: 'https://enterprise.example.com',
@@ -151,6 +151,7 @@ describe('enterprise bundle', () => {
     })
     const defaultConfig = Config({})
     expect((defaultConfig.baseUrl as unknown as { get(): string }).get()).toBe('')
+    expect('get' in defaultConfig.remote && defaultConfig.remote.get()).toEqual({ enabled: false })
     const patch = await readFile(resolve(ROOT, 'cordis.patch.yml'), 'utf8')
     expect(patch).toContain("name: 'owndsh-plugin'")
     expect(patch).toMatch(/^- id: agent-default-model\n  config:\n    provider: enterprise\n    model: enterprise\/default/m)
@@ -186,6 +187,7 @@ describe('enterprise bundle', () => {
       DOMException,
       fetch,
       window: {
+        location: { pathname: '/', origin: 'http://127.0.0.1:52366' },
         __ModuleLoader__: {
           load(record: { factory: typeof factory }) { factory = record.factory },
         },

@@ -46,6 +46,8 @@ P2-08C 将产品控制台会话收敛为服务端 Sa-Token 与 HttpOnly/SameSite
 
 员工 UI 入口：OwnDsh 设置只包含账号、技能、MCP tabs，底部原生账号入口显示企业身份，并提供设置与确认退出；账号 tab 保留完整信息和退出操作；插件发现、安装、配置和启停均由官方 Plugins → Discover 承载。OwnDsh 注册 settings.section、settings.launcher 和 shell.overlay，登录门禁、失效恢复与设置内确认退出保留。
 
+DSH 远程工作区：账号菜单选择本人另一设备，整页进入固定目标的官方原生工作区，通过独立 Noise IK/lease/加密 Relay 操作远端会话、文件和终端。本机只供应 UI assembly，业务进入远端独立 owner Peer；Java 只协调和转发密文。入站访问默认关闭，显式开关写入官方 settings，volatile 更新同步运行时。远端页按设备隔离 Storage，仅挂 shell.bottom 设备条和 shell.overlay 断线阻断，失败保留目标、不回落本机、不重放操作。当前每个 Host 单 link，刷新和手动重连产生新 view URL；LAN/P2P/TURN 不属于本功能已验收路径。实施和验收见 docs/remote-dsh-workspace-design.md。
+
 企业插件市场：管理端登记 npm 精确包名、版本和公开展示元数据，服务端输出 DSH plugin market index；官方 Plugins → Discover 读取该索引并负责发现、安装、更新、卸载、配置和启停，插件 manifest 的 peerDependencies 与官方 Host 执行 DSH 兼容门禁，本机安装事实由官方 Host 管理并同步设备库存。OwnDsh 不维护第二套插件目录 UI。
 
 

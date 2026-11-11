@@ -1,6 +1,6 @@
 <!--
-[INPUT]: docs/remote-access-implementation-design.md 的已确认首期范围与待产品决策。
-[OUTPUT]: 提供首期 Remote 连接基础的范围冻结和后续业务决策清单。
+[INPUT]: docs/remote-access-implementation-design.md 的首期范围，以及用户确认的 DSH 工作区远程操作目标。
+[OUTPUT]: 提供首期连接基础、仅 DSH 工作区的业务范围冻结和未决业务清单。
 [POS]: OwnDsh Remote 的产品决策附录，被主实施文档引用；不定义 wire 或实现接口。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
@@ -8,6 +8,12 @@
 # OwnDsh Remote 产品决策
 
 本文记录 Remote 首期连接基础的范围以及进入业务阶段前必须确认的产品取舍。
+
+2026-11-11 已确认后续业务目标：用户在本机 Harness 中选择另一台已接入机器的 DSH 工作区，复用 Harness 原有会话、文件和终端界面进行远程操作。业务请求由远端 Host 执行，文件和进程保留在远端；断线时保持远端目标并显示不可用，不能静默切回本机执行。
+
+工作区执行后端只支持 DSH 原生 Harness。不接入 Codex、ACP、Claude、Hermes、OpenCode、Cursor、Antigravity 或 Pi 的独立工作区，不建设多后端选择器、虚拟 Harness 或通用 backend adapter。此限制不改变 DSH 自身已支持的模型供应商、工具或 MCP 能力。
+
+插件在后续业务阶段同时承担本机 Host 和远端控制客户端角色；Web 管控台和 Android 仍属于控制客户端。工作区范围已确认，具体文件写入、终端权限与页面交互仍以各项业务决策为准。此处记录目标范围，不表示当前连接基础已交付远程业务操作。
 
 ## 1. 已确认范围与后续决策
 
@@ -22,7 +28,7 @@
 | 页面 | 只做设备列表、连接状态和调试连接面板，正式页面另行设计 |
 | Host Bridge | 只做能力探测、`host.describe` 和未实现 endpoint 的统一错误 |
 
-以下问题不会阻塞产品首期连接基础，但在进入业务功能前必须确认：
+以下条目记录业务阶段的决策。标为已确认的条目按确定范围实施，其余条目在进入对应业务功能前确认；它们不阻塞产品首期连接基础：
 
 1. **业务阶段的文件写入权限**
    - A（推荐）：首版只读 + 下载；
@@ -34,10 +40,9 @@
    - B（推荐）：输入/resize/close；
    - C：B + retain/follow 和多个终端。
 
-3. **Backend 范围**
-   - A（推荐）：只支持当前 OwnDsh Harness 主链；
-   - B：保留统一 capability 扩展点，后续按需增加 ACP/Codex；
-   - C：首版同时覆盖上游列出的全部 backend。
+3. **工作区执行后端范围，已确认**
+   - 只支持 DSH 原生 Harness；插件内可选择并操作本人另一台机器的 DSH 工作区。
+   - Codex、ACP 及其它独立工作区后端不进入产品范围，也不为其预建扩展层。
 
 4. **Android 技术栈**
    - A（推荐）：Kotlin 原生 + Android WebRTC；

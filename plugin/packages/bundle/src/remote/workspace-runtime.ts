@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖平台登录/认证请求、官方 credentials、固定原生 Host carrier 与 secure link。
- * [OUTPUT]: 提供本人设备发现、逐视图 controller link 与常驻 Host presence 的统一生命周期。
+ * [OUTPUT]: 提供有界分页的本人设备发现、逐视图 controller link 与常驻 Host presence 的统一生命周期。
  * [POS]: bundle/remote 的产品组合入口；账号切换先撤销全部远端能力，掉线只重连 presence。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -96,10 +96,24 @@ export class WorkspaceRuntime implements RemoteWorkspaceRuntime {
   }
   async devices(signal?: AbortSignal): Promise<readonly RemoteDevice[]> {
     const generation = this.generation
-    const response = await this.platform.request('/enterprise/api/v1/remote/devices?limit=100', { signal: signal ?? null })
-    const page = zRemoteDeviceListResponse.parse(await response.json())
-    if (generation !== this.generation || this.disposed) throw new Error('ENT_REMOTE_CLOSED')
-    return page.data.items.map(({ transports, ...device }) => ({ ...device, ...(transports === undefined ? {} : { transports }) }))
+    const combined = AbortSignal.any([this.lifetime.signal, ...(signal ? [signal] : [])])
+    const devices: RemoteDevice[] = []
+    const cursors = new Set<string>()
+    let cursor: string | null = null
+    for (let index = 0; index < 5; index++) {
+      const query = new URLSearchParams({ limit: '100', ...(cursor === null ? {} : { cursor }) })
+      const response = await this.platform.request(`/enterprise/api/v1/remote/devices?${query}`, { signal: combined })
+      const { data } = zRemoteDeviceListResponse.parse(await response.json())
+      combined.throwIfAborted()
+      if (generation !== this.generation || this.disposed) throw new Error('ENT_REMOTE_CLOSED')
+      devices.push(...data.items.map(({ transports, ...device }) => ({ ...device, ...(transports === undefined ? {} : { transports }) })))
+      if (devices.length > 500) throw new Error('ENT_REMOTE_LIMIT')
+      if (!data.page.hasMore) return devices
+      cursor = data.page.nextCursor
+      if (cursor === null || cursors.has(cursor)) throw new Error('ENT_REMOTE_PROTOCOL')
+      cursors.add(cursor)
+    }
+    throw new Error('ENT_REMOTE_LIMIT')
   }
   async connect(deviceId: string, signal?: AbortSignal): Promise<RemoteDshLink> {
     if (!/^[1-9][0-9]{0,18}$/.test(deviceId) || this.disposed) throw new Error('ENT_REMOTE_DENIED')

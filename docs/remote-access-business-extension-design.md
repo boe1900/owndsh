@@ -1,13 +1,17 @@
 <!--
-[INPUT]: docs/remote-access-implementation-design.md 的 Host Bridge 业务预留、上游 workspace/file/terminal 研究。
-[OUTPUT]: 提供 R6/R7 业务 RPC 的候选 endpoint、scope、文件传输和终端生命周期约束。
+[INPUT]: docs/remote-access-implementation-design.md 的 Host Bridge 业务预留、仅 DSH 工作区的产品决策和上游 workspace/file/terminal 研究。
+[OUTPUT]: 提供 DSH 原生工作区远程操作的目标边界，以及 R6/R7 业务 RPC 的候选 endpoint、scope、文件传输和终端生命周期约束。
 [POS]: OwnDsh Remote 的后续业务扩展附录；不属于首期连接基础，也不授权任何未冻结 endpoint。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
 
 # OwnDsh Remote 业务扩展设计
 
-本文只描述 R6 会话与工作区、R7 文件与终端的候选边界。首期连接基础只实现 `host.describe` 和统一的 `REMOTE_FEATURE_NOT_SUPPORTED`，具体 schema 需在产品页面冻结后另行确认。
+本文保留 R6 会话与工作区、R7 文件与终端的候选边界。首期连接基础只实现 `host.describe` 和统一的 `REMOTE_FEATURE_NOT_SUPPORTED`。2026-11-11 起，插件控制插件的实际业务采用官方原生 HTTP/mux carrier；实施和验收以 [DSH 远程工作区设计](remote-dsh-workspace-design.md) 为准，以下候选自定义 RPC 不属于当前 wire。
+
+业务范围已于 2026-11-11 确认：仅支持 DSH 原生 Harness 工作区。本机插件作为控制客户端，选择本人远端机器的工作区后复用 Harness 原有会话、文件和终端界面；实际操作由远端 Host 执行。断线时保留远端目标并拒绝新操作，不回落到本机。Web 和 Android 消费相同的 DSH 业务能力，界面按各自平台设计。
+
+本附录不包含 Codex、ACP 或其它独立工作区后端，不建设多后端 adapter。工作区来源、资源归属和能力探测均以目标 DSH Host 为准。DSH 自身的模型、工具和 MCP 不受此后端范围限制。工作区选择与界面切换的实施契约见 [DSH 远程工作区设计](remote-dsh-workspace-design.md)；以下候选 RPC 不是已经交付的实现。
 
 ## 1. Host Bridge RPC 分类
 

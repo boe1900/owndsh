@@ -1,5 +1,5 @@
-# [INPUT]: 依赖 Remote 管理 schema、cursor/revision/error 公共组件与管理员 Cookie 权限
-# [OUTPUT]: 提供 Remote 设备列表、ticket、能力查询和 lease 撤销 Path Item
+# [INPUT]: 依赖 Remote schema、cursor/revision/error 公共组件、管理员 Cookie 与员工 installation Bearer
+# [OUTPUT]: 提供管理员 Remote 诊断及员工本人设备发现、一次性 ticket Path Item
 # [POS]: paths 的 Remote 控制面分片；只负责控制面，不代理业务 RPC
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -21,6 +21,63 @@ RemoteDevices:
         $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
       '403':
         $ref: '../enterprise-openapi.yaml#/components/responses/Error403'
+
+OwnRemoteDevices:
+  get:
+    operationId: listOwnRemoteDevices
+    summary: List this employee's devices, excluding the requesting installation.
+    security:
+      - EnterpriseBearer: []
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Cursor'
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Limit'
+    responses:
+      '200':
+        description: Owner-filtered remote device page.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/RemoteDeviceListResponse'
+      '400':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error400'
+      '401':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+      '403':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error403'
+
+OwnRemoteTicket:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/DeviceIdPath'
+  post:
+    operationId: createOwnRemoteTicket
+    summary: Authorize one connection to another active device owned by this employee.
+    security:
+      - EnterpriseBearer: []
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../enterprise-openapi.yaml#/components/schemas/RemoteTicketRequest'
+    responses:
+      '200':
+        description: One-use ticket and authenticated pinned Host public key.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/OwnRemoteTicketResponse'
+      '400':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error400'
+      '401':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+      '403':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error403'
+      '404':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error404'
+      '409':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error409'
 
 RemoteTicket:
   parameters:

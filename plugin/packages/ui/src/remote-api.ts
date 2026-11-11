@@ -93,7 +93,6 @@ export function createRemoteLocalApi(request: typeof fetch): RemoteLocalApi {
     state: async (view, signal) => decode(stateSchema, await json(view.stateUrl, signal)).data.state,
     reconnect: async (view, signal) => {
       const { url } = decode(urlSchema, await json(view.reconnectUrl, signal, {})).data
-      if (url !== `${VIEW_PREFIX}${view.viewId}/`) throw new RemoteLocalApiError('invalid')
       return url
     },
     close: async (view, signal) => { await json(`${PREFIX}/views/${view.viewId}/close`, signal, {}, true) },

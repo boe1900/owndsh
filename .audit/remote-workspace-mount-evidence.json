@@ -1,0 +1,345 @@
+{
+  "at": "2026-11-11T03:33:07.635Z",
+  "harnessVersion": "0.2.1-rc.5",
+  "nativeBody": "新会话\n⌥\n⌘\nN\n插件\n自动化任务\n更多\n工作区\n默认工作区\n新会话\n更多\n探索未至之境\n预览版\n默认工作区\n标准模式\n描述你想要构建的内容, / 调用指令, @ 文件或对话\n工作区内修改\n请选择模型\n预览版说明\n\nDeepSeek Harness 目前的 0.2 版本仍处于预览阶段，还有许多地方需要持续改进和打磨，希望听取广大开发者和用户的反馈建议。现在，新的桌面端面向广泛用户，开发者相关的进阶功能可在配置中开启使用。预计 DeepSeek Harness 的产品功能以及插件 API 都会继续快速迭代、持续演化，并逐渐趋于稳定。\n\n我们期待与全球用户和开发者一起，在开源、可复用、可组合的基础设施之上，共同探索智能上限。欢迎大家用 DeepSeek Harness 将想法变成现实，与社区一起丰富插件生态。\n\n继续",
+  "failures": [],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/enterprise/remote/views/proof/",
+      "kind": "document"
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/remote/views/proof/plugins/",
+      "kind": "script"
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/remote/views/proof/plugins/",
+      "kind": "script"
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/remote/views/proof/plugins/",
+      "kind": "script"
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/remote/views/proof/assets/index-BXV-oxvX.js",
+      "kind": "script"
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/remote/views/proof/assets/vendor-DcuzkuQH.js",
+      "kind": "script"
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/remote/views/proof/assets/vendor-DV2921Zo.css",
+      "kind": "stylesheet"
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/remote/views/proof/assets/index-BNyAYEM7.css",
+      "kind": "stylesheet"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/settings/describe",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/dynamicCordisRunner/syncInspectManifest",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/credentials/describe",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/dynamicCordisRunner/inventory",
+      "kind": "fetch"
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/remote/views/proof/open-in-app/apps",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/session/modelCatalog",
+      "kind": "fetch"
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/remote/views/proof/plugins/events",
+      "kind": "eventsource"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/agentPresets/list",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/credentials/describe",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/credentials/describe",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/credentials/describe",
+      "kind": "fetch"
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/remote/views/proof/favicon.svg",
+      "kind": "other"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/session/list",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/permissionPresets/catalog",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/dynamicCordisRunner/inventory",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/agentPresets/list",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/agentPresets/list",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/session/modelCatalog",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/settings/describe",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/dynamicCordisRunner/syncInspectManifest",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/session/create",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/credentials/describe",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/credentials/describe",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/credentials/describe",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/agentPresets/list",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/commands/list",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/skills/list",
+      "kind": "fetch"
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/remote/views/proof/",
+      "kind": "document"
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/remote/views/proof/plugins/",
+      "kind": "script"
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/remote/views/proof/plugins/",
+      "kind": "script"
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/remote/views/proof/plugins/",
+      "kind": "script"
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/remote/views/proof/assets/index-BXV-oxvX.js",
+      "kind": "script"
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/remote/views/proof/assets/vendor-DcuzkuQH.js",
+      "kind": "script"
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/remote/views/proof/assets/vendor-DV2921Zo.css",
+      "kind": "stylesheet"
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/remote/views/proof/assets/index-BNyAYEM7.css",
+      "kind": "stylesheet"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/settings/describe",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/dynamicCordisRunner/syncInspectManifest",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/credentials/describe",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/dynamicCordisRunner/inventory",
+      "kind": "fetch"
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/remote/views/proof/open-in-app/apps",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/session/modelCatalog",
+      "kind": "fetch"
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/remote/views/proof/plugins/events",
+      "kind": "eventsource"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/agentPresets/list",
+      "kind": "fetch"
+    },
+    {
+      "method": "GET",
+      "path": "/enterprise/remote/views/proof/favicon.svg",
+      "kind": "other"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/credentials/describe",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/credentials/describe",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/credentials/describe",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/session/list",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/permissionPresets/catalog",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/dynamicCordisRunner/inventory",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/agentPresets/list",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/agentPresets/list",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/session/modelCatalog",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/settings/describe",
+      "kind": "fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/enterprise/remote/views/proof/api/dynamicCordisRunner/syncInspectManifest",
+      "kind": "fetch"
+    }
+  ],
+  "storage": {
+    "before": null,
+    "value": "REMOTE",
+    "attribute": "attribute-value",
+    "keys": [
+      "dsh.sidebar-right.v1.session-bcbc7424-d862-4314-94ed-98a11daae7f1",
+      "dsh.workspace.view.v5",
+      "attribute-key",
+      "dsh.sessions.current",
+      "dsh.conversation.session-bcbc7424-d862-4314-94ed-98a11daae7f1",
+      "dsh.conversation.shared-id"
+    ],
+    "length": 6
+  },
+  "checks": [
+    "native-mount-boot",
+    "local-storage-separate",
+    "attribute-enumeration",
+    "reload",
+    "session-storage",
+    "clear-keeps-local"
+  ]
+}

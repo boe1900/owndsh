@@ -35,6 +35,14 @@ remote-nas-evidence.json: NAS 跨机器验收无密结果。
 remote-p0.todo.md: P0 交付验收清单。
 remote-r1-r5.todo.md: R1 至 R5 交付验收清单。
 remote-r1-r5.tsv: R1 至 R5 决策与证据日志。
+remote-workspace-investigation.todo.md: 上游插件跨机器工作区发现、操作与 OwnDsh 缺口的只读调查清单。
+remote-dsh-workspace.todo.md: 插件 DSH 远程工作区首个业务闭环的设计、实施与验收清单。
+remote-dsh-workspace.tsv: DSH 远程工作区实施的决策与证据记录，不包含凭据或业务正文。
+remote-workspace-mount-evidence.json: 官方 npm rc.5 原生页面在独立 mount 启动和基础 Storage 隔离的同机架构验证，不代表跨机业务验收。
+remote-workspace-local-e2e.mjs: 隔离 Server/Redis 与两个真实 npm rc.5 Harness 的员工登录、入站开关、设备选择、原生整页及 Session/File/Terminal 业务联调，秘密只读取临时环境，不触碰日常 profile。
+remote-workspace-local-evidence.json: 双真实 Harness 的业务、断线/刷新/重连与页面隔离验收结果，包含实际包哈希、协议哈希和本地模型夹具/未验收范围声明。
+remote-workspace-storage-e2e.mjs: 真实 Chrome 的远端 Storage façade 方法、属性、事件、枚举、clear、刷新与多目标隔离验收。
+remote-workspace-storage-evidence.json: Chrome Storage 六项无密验收结果，不代表业务或传输验收。
 ship-main.todo.md: 直接推送 main 的发布检查清单与跳过项。
 remote-server-after-auth-fix.log: 认证修复后的本地 Server 日志。
 remote-server-lan.log: 本地 LAN Server 日志。
@@ -48,5 +56,5 @@ remote-vite-lan.pid: Vite LAN 进程标识。
 remote-vite-proxy-evidence.json: Vite Remote WebSocket 代理证据。
 turn-allocate.py: 原生 UDP TURN Allocate 与释放探针，只从环境读取短时凭据。
 
-法则: 审计脚本生成无密证据；临时账号、Token、Cookie、TURN secret 不写入文件。
+法则: 审计脚本生成无密证据；临时凭据只读取未跟踪的隔离环境，不写入受版本管理的证据。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

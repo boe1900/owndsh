@@ -1,0 +1,12 @@
+{
+  "date": "2026-11-11T04:32:44.604Z",
+  "result": "passed",
+  "checks": [
+    "same-key-local-and-two-remotes-isolated",
+    "metadata-name-cannot-inject-script",
+    "property-enumeration-length-and-deletion",
+    "cross-tab-logical-storage-events-filtered",
+    "remote-reload-retains-local-and-session-storage",
+    "clear-only-current-authority-and-delivers-logical-removals"
+  ]
+}

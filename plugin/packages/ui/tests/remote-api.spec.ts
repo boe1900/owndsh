@@ -59,9 +59,9 @@ describe('remote local API', () => {
     const api = createRemoteLocalApi(vi.fn<typeof fetch>().mockResolvedValue(response({ url })))
     await expect(api.open(device.deviceId, signal)).rejects.toBeInstanceOf(RemoteLocalApiError)
   })
-  it('rejects reconnect navigation to a different view', async () => {
+  it('accepts a new isolated view after reconnect', async () => {
     const api = createRemoteLocalApi(vi.fn<typeof fetch>().mockResolvedValue(response({ url: '/enterprise/remote/views/qrstuvwxyzABCDEF/' })))
-    await expect(api.reconnect(view, signal)).rejects.toMatchObject({ kind: 'invalid' })
+    await expect(api.reconnect(view, signal)).resolves.toBe('/enterprise/remote/views/qrstuvwxyzABCDEF/')
   })
   it('rejects unknown device fields and never exposes server error content', async () => {
     const request = vi.fn<typeof fetch>().mockResolvedValueOnce(response({ items: [{ ...device, token: 'secret' }] }))

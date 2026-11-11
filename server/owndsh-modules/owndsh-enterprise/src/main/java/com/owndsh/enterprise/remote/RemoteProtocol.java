@@ -12,7 +12,7 @@ import java.util.Set;
 
 public final class RemoteProtocol {
     public static final int VERSION = 1;
-    public static final String PROTOCOL_SHA256 = "c6ec6febc41a5c971a8a320ced9d4765eafd0da38f6a0c725828cf2c44bf99aa";
+    public static final String PROTOCOL_SHA256 = "629fbf0d745ada4c98d34393335e2da26a788be5638810a21041f0431b3a9cf3";
     public static final String WEBSOCKET_PATH = "/remote/ws/v1";
     public static final int MAX_FRAME_BYTES = 262_144;
     public static final int MAX_RELAY_PAYLOAD_BYTES = 65_536;

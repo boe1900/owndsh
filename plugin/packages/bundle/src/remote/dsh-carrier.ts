@@ -1,11 +1,12 @@
 /**
  * [INPUT]: 依赖官方 connection /connect、WebServer 固定回环 origin、WorkspaceRegistry 与原生 WS mux parser。
- * [OUTPUT]: 为每条授权 link 创建独立 owner API Peer，保留其内存 cookie 并提供受限 HTTP/WS carrier。
+ * [OUTPUT]: 为每条授权 link 创建独立 owner API Peer，保留内存 cookie，提供受限 HTTP/WS carrier 并回收取消流。
  * [POS]: remote Host 唯一原生执行接缝；不复制 Gateway 编解码，不向 Controller 暴露原生凭据。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { createRequire } from 'node:module'
 import WebSocket from 'ws'
+import { clientRequestSchema } from '@deepseek-ai/dsh-client-connection'
 import { parseRemoteStreamClientMessage, parseRemoteStreamServerMessage } from '@deepseek-ai/dsh-api-gateway/stream-protocol'
 import { MAX_MUX_MESSAGE_BYTES, type CarrierHeaders } from '@owndsh/remote-core'
 import { z } from 'zod'
@@ -70,7 +71,9 @@ export async function openDshCarrier(ctx: DshCarrierContext, signal: AbortSignal
       let body = init.body
       if (target.pathname.startsWith('/api/workspaceFiles/')) {
         const bytes = await boundedBody(body, 65_536)
-        await authorizeFilePayload(ctx.workspaceRegistry, JSON.parse(new TextDecoder().decode(bytes)))
+        const envelope = clientRequestSchema.parse(JSON.parse(new TextDecoder().decode(bytes)))
+        if (envelope.method !== target.pathname.slice(5)) throw new Error('ENT_REMOTE_DENIED')
+        await authorizeFilePayload(ctx.workspaceRegistry, envelope.payload)
         body = new ReadableStream({ start(controller) { controller.enqueue(bytes); controller.close() } })
       }
       const request = new Request(new URL(target.pathname + target.search, origin), {
@@ -121,6 +124,16 @@ async function nativeMux(url: URL, cookie: string, catalog: WorkspaceCatalog, si
   let failed = false
   let wake: (() => void) | undefined
   const close = () => { if (ended) return; ended = true; socket.terminate(); wake?.() }
+  const enqueue = (text: string) => {
+    bytes += Buffer.byteLength(text)
+    if (bytes > MAX_MUX_MESSAGE_BYTES) throw new Error('ENT_REMOTE_LIMIT')
+    queue.push(text)
+    socket.pause()
+    wake?.()
+  }
+  const denied = (streamId: string) => enqueue(JSON.stringify({ type: 'error', streamId,
+    error: { code: 'gateway/access-denied', message: 'Remote endpoint is unavailable', details: {} },
+  }))
   signal.addEventListener('abort', close, { once: true })
   socket.on('close', () => { ended = true; signal.removeEventListener('abort', close); wake?.(); lost() })
   socket.on('error', () => { failed = true; close() })
@@ -129,13 +142,9 @@ async function nativeMux(url: URL, cookie: string, catalog: WorkspaceCatalog, si
       if (binary) throw new Error('ENT_REMOTE_MUX_BINARY')
       const text = data.toString()
       const frame = parseRemoteStreamServerMessage(text)
-      if (!streams.has(frame.streamId)) throw new Error('ENT_REMOTE_UNKNOWN_STREAM')
+      if (!streams.has(frame.streamId)) return
       if (frame.type !== 'item') streams.delete(frame.streamId)
-      bytes += Buffer.byteLength(text)
-      if (bytes > MAX_MUX_MESSAGE_BYTES) throw new Error('ENT_REMOTE_LIMIT')
-      queue.push(text)
-      socket.pause()
-      wake?.()
+      enqueue(text)
     } catch { failed = true; close() }
   })
   await new Promise<void>((resolve, reject) => {
@@ -151,13 +160,18 @@ async function nativeMux(url: URL, cookie: string, catalog: WorkspaceCatalog, si
       if (ended || Buffer.byteLength(text) > MAX_MUX_MESSAGE_BYTES) throw new Error('ENT_REMOTE_LIMIT')
       const frame = parseRemoteStreamClientMessage(text)
       if (frame.type === 'open') {
-        if (streams.size >= 128 || streams.has(frame.streamId) || !DSH_STREAM_ENDPOINTS.has(frame.endpoint)) throw new Error('ENT_REMOTE_DENIED')
-        if (frame.endpoint === 'workspaceFiles/changes') await authorizeFilePayload(catalog, frame.payload)
+        if (streams.has(frame.streamId)) throw new Error('ENT_REMOTE_DENIED')
+        if (streams.size >= 128 || !DSH_STREAM_ENDPOINTS.has(frame.endpoint)) { denied(frame.streamId); return }
+        if (frame.endpoint === 'workspaceFiles/changes') {
+          try { await authorizeFilePayload(catalog, frame.payload) }
+          catch { denied(frame.streamId); return }
+        }
         streams.set(frame.streamId, frame.endpoint)
       } else {
         const endpoint = streams.get(frame.streamId)
         if (endpoint === undefined && (frame.type === 'cancel' || frame.type === 'end')) return
         if (endpoint === undefined || (frame.type === 'item' && endpoint !== 'terminal/attach')) throw new Error('ENT_REMOTE_DENIED')
+        if (frame.type === 'cancel') streams.delete(frame.streamId)
       }
       await new Promise<void>((resolve, reject) => socket.send(text, error => error ? reject(error) : resolve()))
     },

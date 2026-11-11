@@ -99,31 +99,35 @@ export class RemoteWorkspaceStore {
     }
   }
   async check(): Promise<void> {
-    if (!this.#lifetime || this.#checking || (this.#snapshot.kind !== 'checking' && this.#snapshot.kind !== 'connected')) return
+    if (!this.#lifetime || this.#checking || this.#snapshot.kind === 'reconnecting') return
     clearTimeout(this.#timer)
     this.#checking = true
+    const locked = this.#snapshot.kind === 'disconnected'
     const lifetime = this.#lifetime.signal
     try {
       const state = await this.api.state(this.view, AbortSignal.any([lifetime, AbortSignal.timeout(10_000)]))
-      if (!lifetime.aborted) this.#set(state === 'connected' ? { kind: 'connected' } : { kind: 'disconnected', message: '远程连接已断开，当前工作区已暂停。' })
+      if (!lifetime.aborted && !locked) this.#set(state === 'connected' ? { kind: 'connected' } : { kind: 'disconnected', message: '远程连接已断开，当前工作区已暂停。' })
     } catch (error) {
-      if (!lifetime.aborted) this.#set({ kind: 'disconnected', message: remoteFailureMessage(error) })
+      if (!lifetime.aborted && !locked) this.#set({ kind: 'disconnected', message: remoteFailureMessage(error) })
     } finally {
       if (!lifetime.aborted) {
         this.#checking = false
-        if (this.#snapshot.kind === 'connected') this.#timer = setTimeout(() => { void this.check() }, 15_000)
+        if (this.getSnapshot().kind !== 'reconnecting') this.#timer = setTimeout(() => { void this.check() }, 15_000)
       }
     }
   }
   async reconnect(): Promise<void> {
     if (!this.#lifetime || this.#snapshot.kind !== 'disconnected') return
     const lifetime = this.#lifetime.signal
+    clearTimeout(this.#timer)
     this.#set({ kind: 'reconnecting' })
     try {
       const url = await this.api.reconnect(this.view, AbortSignal.any([lifetime, AbortSignal.timeout(30_000)]))
       if (!lifetime.aborted) this.navigate(url)
     } catch (error) {
       if (!lifetime.aborted) this.#set({ kind: 'disconnected', message: remoteFailureMessage(error) })
+    } finally {
+      if (!lifetime.aborted && this.#snapshot.kind === 'disconnected') this.#timer = setTimeout(() => { void this.check() }, 15_000)
     }
   }
   returnLocal(): void {

@@ -85,7 +85,7 @@ describe('device selection lifecycle', () => {
 })
 
 describe('fixed remote workspace lifecycle', () => {
-  it('keeps a disconnected page locked until explicit reconnect reloads the same view', async () => {
+  it('keeps a disconnected page alive and locked until explicit reconnect navigates', async () => {
     vi.useFakeTimers()
     const remote = api(), navigate = vi.fn()
     remote.state.mockResolvedValueOnce('connected').mockResolvedValueOnce('disconnected').mockResolvedValue('connected')
@@ -97,8 +97,9 @@ describe('fixed remote workspace lifecycle', () => {
     await vi.advanceTimersByTimeAsync(15_000)
     expect(store.getSnapshot().kind).toBe('disconnected')
     await store.check()
-    await vi.advanceTimersByTimeAsync(60_000)
-    expect(remote.state).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(180_000)
+    expect(remote.state.mock.calls.length).toBeGreaterThan(10)
+    expect(store.getSnapshot().kind).toBe('disconnected')
     expect(navigate).not.toHaveBeenCalled()
     await store.reconnect()
     expect(navigate).toHaveBeenCalledWith('/enterprise/remote/views/abcdefghijklmnop/')
@@ -152,7 +153,7 @@ describe('fixed remote workspace lifecycle', () => {
     const stopAgain = store.subscribe(vi.fn())
     await flush()
     expect(store.getSnapshot().kind).toBe('disconnected')
-    expect(remote.state).toHaveBeenCalledTimes(1)
+    expect(remote.state).toHaveBeenCalledTimes(2)
     stopAgain()
   })
 })

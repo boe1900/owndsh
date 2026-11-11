@@ -1,10 +1,11 @@
 /**
  * [INPUT]: 依赖品牌 ID、统一错误边界与 OpenAPI 生成的 DTO/Zod/meta 模块
- * [OUTPUT]: 对外提供（含 zAccessGroupInUseDetails 四字段删除阻塞投影）品牌 ID、错误边界及身份/设备/模型/配额/插件/Session/bootstrap/gateway 的稳定 DTO 与 strict Zod API
+ * [OUTPUT]: 对外提供品牌 ID、错误边界、企业 API 与员工 Remote 设备/ticket DTO 及 strict Zod API，并统一导出 schema 库
  * [POS]: contracts 的 package facade，约束后续 Harness 业务包只消费验证后的跨 HTTP 语义
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
+export { z } from 'zod'
 export {
   parseEnterpriseDeviceId,
   parseEnterpriseUserId,
@@ -32,6 +33,18 @@ export {
   enterpriseErrorStatuses,
   enterpriseProtocolSha256,
 } from './generated/enterprise-meta.gen.js'
+export type {
+  OwnRemoteTicket,
+  OwnRemoteTicketResponse,
+  RemoteDevice,
+  RemoteDeviceListResponse,
+  RemoteTicketRequest,
+} from './generated/types.gen.js'
+export {
+  zOwnRemoteTicketResponse,
+  zRemoteDeviceListResponse,
+  zRemoteDevice,
+} from './generated/zod.gen.js'
 export type {
   AccessGroup,
   AccessGroupId,

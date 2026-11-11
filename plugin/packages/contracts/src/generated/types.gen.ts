@@ -689,6 +689,10 @@ export type RemoteTicketRequest = RemoteRemoteTicketRequest;
 
 export type RemoteTicketResponse = RemoteRemoteTicketResponse;
 
+export type OwnRemoteTicket = RemoteOwnRemoteTicket;
+
+export type OwnRemoteTicketResponse = RemoteOwnRemoteTicketResponse;
+
 export type RemoteLease = RemoteRemoteLease;
 
 export type RemoteLeaseResponse = RemoteRemoteLeaseResponse;
@@ -2460,6 +2464,23 @@ export type QuotaUsageSummary = {
     unmeasuredRequests: number;
 };
 
+export type RemoteOwnRemoteTicket = {
+    ticket: Ticket;
+    linkId: LinkId;
+    deviceId: EnterpriseDeviceId;
+    expiresAt: ExpiresAt;
+    iceServers: IceServers;
+    /**
+     * Canonical unpadded base64url X25519 public key pinned to the authenticated Host installation.
+     */
+    hostPublicKey: string;
+};
+
+export type RemoteOwnRemoteTicketResponse = {
+    data: RemoteOwnRemoteTicket;
+    requestId: RequestId;
+};
+
 export type RemoteRemoteCapabilityResponse = {
     data: RemoteRemoteDevice;
     requestId: RequestId;
@@ -2515,6 +2536,18 @@ export type RemoteRemoteTicket = {
         credential?: string;
     }>;
 };
+
+export type ExpiresAt = string;
+
+export type IceServers = Array<{
+    urls: string | Array<string>;
+    username?: string;
+    credential?: string;
+}>;
+
+export type LinkId = string;
+
+export type Ticket = string;
 
 export type RemoteRemoteTicketRequest = {
     controllerDeviceId: string;
@@ -2959,6 +2992,10 @@ export type QuotaEnable = unknown;
 export type QuotaItem = unknown;
 
 export type QuotaWindows = unknown;
+
+export type OwnRemoteDevices = unknown;
+
+export type RemoteOwnRemoteTicket2 = unknown;
 
 export type RemoteCapability = unknown;
 
@@ -8694,6 +8731,97 @@ export type ListRemoteDevicesResponses = {
 };
 
 export type ListRemoteDevicesResponse = ListRemoteDevicesResponses[keyof ListRemoteDevicesResponses];
+
+export type ListOwnRemoteDevicesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Server-signed opaque cursor; clients must not parse it.
+         */
+        cursor?: Cursor;
+        /**
+         * Cursor page size.
+         */
+        limit?: PageLimit;
+    };
+    url: '/enterprise/api/v1/remote/devices';
+};
+
+export type ListOwnRemoteDevicesErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type ListOwnRemoteDevicesError = ListOwnRemoteDevicesErrors[keyof ListOwnRemoteDevicesErrors];
+
+export type ListOwnRemoteDevicesResponses = {
+    /**
+     * Owner-filtered remote device page.
+     */
+    200: RemoteRemoteDeviceListResponse;
+};
+
+export type ListOwnRemoteDevicesResponse = ListOwnRemoteDevicesResponses[keyof ListOwnRemoteDevicesResponses];
+
+export type CreateOwnRemoteTicketData = {
+    body: RemoteRemoteTicketRequest;
+    headers: {
+        /**
+         * Caller-generated UUID v4 reused only for one logical write.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        deviceId: EnterpriseDeviceId;
+    };
+    query?: never;
+    url: '/enterprise/api/v1/remote/devices/{deviceId}/ticket';
+};
+
+export type CreateOwnRemoteTicketErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type CreateOwnRemoteTicketError = CreateOwnRemoteTicketErrors[keyof CreateOwnRemoteTicketErrors];
+
+export type CreateOwnRemoteTicketResponses = {
+    /**
+     * One-use ticket and authenticated pinned Host public key.
+     */
+    200: RemoteOwnRemoteTicketResponse;
+};
+
+export type CreateOwnRemoteTicketResponse = CreateOwnRemoteTicketResponses[keyof CreateOwnRemoteTicketResponses];
 
 export type CreateRemoteTicketData = {
     body: RemoteRemoteTicketRequest;

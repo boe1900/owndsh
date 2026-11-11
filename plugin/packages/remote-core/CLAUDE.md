@@ -10,6 +10,6 @@ src/noise.ts: 固定 Noise_IK_25519_ChaChaPoly_SHA256 双消息握手，验证�
 src/carrier.ts: 密文内的 HTTP/mux 帧语法与字节信用，每片 24576 字节、每流窗口 98304 字节、最多 32 通道、mux 单消息最多 4 MiB；消费后才返回信用。
 tests/remote-core.spec.ts: fragment/reassembly、counter、lease 与稳定协议常量的行为回归。
 tests/noise.spec.ts: noise-c 独立公开向量的两条握手和四条 transport 密文逐字节验证，以及错误序列、prologue、篡改、重放和 canonical key 拒绝。
-tests/noise-c-vector.json: MIT noise-c 项目的公开 Noise IK SHA256 互操作向量，保存来源 URL；不是由被测实现生成。
+../../contracts/remote/crypto-vectors.json: 测试直接消费协议真源中的 MIT noise-c 公开互操作向量，不保存第二份副本。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

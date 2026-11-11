@@ -39,7 +39,6 @@ export class CarrierTunnel {
       return
     }
     const channel = this.channels.get(frame.id)
-    // 通道 ID 不复用；取消与对端已发送的响应/数据交错时，尾帧不再拥有消费者。
     if (!channel) return
     switch (frame.kind) {
       case 'data': channel.pipe.receive(frame); break

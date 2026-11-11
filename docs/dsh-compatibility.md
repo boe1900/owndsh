@@ -31,6 +31,20 @@ rc.3→rc.5 的有效变化集中在官方推理展示和 MCP 连接边界：`co
 | 已覆盖范围 | Web 登录/重启恢复、插件页面入口、MCP 三种认证、工具分页、协议协商、无工具服务器、资源与 URI 模板、按需加载/释放/Agent 隔离、OAuth 刷新与重新授权。 |
 | 本基线未覆盖 | Java 21 环境下的 Server Maven 编译、真实供应商 OAuth、手工 endpoint/动态注册、远端回调、真实 PTC 解释器、`0.2.1-rc.5` Desktop 原生外壳、智能体团队，以及真实 npm registry 的安装/更新/卸载链路。本轮已验证 OwnDsh tgz 的官方 CLI 安装；PTC × TS/Python 的模块回归使用受控 bindings，不能代替解释器 E2E。 |
 
+### Host Bridge spike（2026-11-08）
+
+这次只验证官方 Harness Host 的业务接缝，不改变 OwnDsh Remote 协议，也不改当前业务数据。验证运行在官方 `0.2.1-rc.5` 安装 runtime 的隔离 `DSH_HOME` 中，用一个临时树外插件通过标准 `inject` 取得 Host 服务；Terminal 额外创建了一个临时 Agent 做只读查询并通过 `AgentHandle.dispose()` 释放，未创建 PTY 或执行命令；探针结束后进程已停止，仓库工作区保持干净。
+
+| 探针 | 结果 | 证据 |
+|---|---|---|
+| `ctx.sessionController`、`ctx.workspaceFiles`、`ctx.terminalController`、`ctx.typertGateway` 注入 | 通过 | 实例分别为 `SessionController`、`WorkspaceFiles`、`TerminalController`、`TypertGatewayService`。 |
+| Typert Host 注册表 | 通过 | `ctx.typert.local.list()` 列出 `session`、`workspaceFiles`、`terminal` 三个 namespace；包含 `session.list/create/follow/prompt`、`workspaceFiles.stat/read/readBytes/list/changes`、`terminal.shells/environment/create/attach/retain/close` 等方法。 |
+| Session 无副作用查询 | 通过 | `sessionController.list({})` 返回 `{ items: [] }`；没有创建 Session 或 Agent。 |
+| File 无副作用查询 | 通过 | `workspaceFiles.stat` 和 `read` 实际读取 `/etc/hosts`，返回绝对路径、版本、字节数和文本页；这证明 provider 可调用，不代表 OwnDsh 已开放该路径。 |
+| Terminal 无副作用查询 | 通过 | `terminalController.list('probe-session')` 返回空列表；在隔离临时 Agent 下，`shells` 返回 `/bin/zsh`、`/bin/bash`，`environment` 返回 cwd 与输入/缓冲/尺寸/scrollback 限制；未创建 PTY。 |
+
+当时的结论是 Harness 提供可调用的 Session/File/Terminal 服务，接缝风险已解除，而 OwnDsh 尚未接入。2026-11-11 的 [DSH 远程工作区实现](remote-dsh-workspace-design.md) 已改用官方 `/connect` owner Peer 与 HTTP/mux carrier，在真实双 Harness 中验证会话 prompt/流、文件和终端输入输出，不再建设第二套自定义业务 RPC。
+
 `upstream/` 中的 [Desktop 锁](../upstream/dsh-desktop.lock.json)与 [Harness 锁](../upstream/deepseek-harness.lock.json)仍描述早期 Desktop `2.0.3` / Harness `0.1.1-rc.2` 源码夹具，参见[历史迁移记录](desktop-2.0.3-harness-rc2-migration.md)。它们不是当前 npm/Web 验证基线，也不证明当前插件兼容该旧版本。独立 OwnDsh Desktop 的发行运行时由桌面仓库管理，升级时必须记录其实际内置 Harness 版本。
 
 ## 2. 依赖矩阵

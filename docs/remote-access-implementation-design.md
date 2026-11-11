@@ -1,5 +1,5 @@
 <!--
-[INPUT]: docs/remote-access-design.md、ds-harness-remote 固定研究提交 90cd1889f85196ae71b1a3fa1ff789a106f4fdcd 的协议/Server/Noise/WebRTC/Host Bridge/Android 实现，以及 OwnDsh 当前 Java 身份、设备、Redis、PostgreSQL、插件和控制台边界。
+[INPUT]: docs/remote-access-design.md、产品决策中的仅 DSH 工作区范围、ds-harness-remote 固定研究提交 90cd1889f85196ae71b1a3fa1ff789a106f4fdcd 的协议/Server/Noise/WebRTC/Host Bridge/Android 实现，以及 OwnDsh 当前 Java 身份、设备、Redis、PostgreSQL、插件和控制台边界。
 [OUTPUT]: 提供 OwnDsh 三端远程访问的可直接开发实施真源：模块、接口、状态机、能力探测、授权租约、传输回落、Host Bridge、客户端、数据模型、测试矩阵和待决策项。
 [POS]: docs/remote-access-design.md 的实施展开；Server、Host 插件、手机端和 Web 控制台按本文开发，产品总路线仍由上层方案文档维护。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -7,7 +7,7 @@
 
 # OwnDsh 远程访问实施设计
 
-更新日期：2026-11-08。状态：**P0、R1、R2 已完成真实存储与网络级验证；Java Remote listener 已通过同 JVM 和独立 JVM 的真实 `ws://` 与自签名 `wss://` TCP/HTTP Upgrade loopback 门禁；R3 Host carrier、R4 Web controller carrier、R5 Noise/WebRTC/Relay adapter 已落地，Console Vite 开发代理已验证能够把 `/remote/ws/v1` 转发到 Java listener，生产证书链、Host/浏览器部署联调、跨节点、跨 NAT 和 coturn 验收仍未完成，业务功能与页面设计后置**。
+更新日期：2026-11-11。P0 与 R1–R5 的连接基础保留其原有验收边界。首个实际业务已经按 [DSH 远程工作区设计](remote-dsh-workspace-design.md) 实现，复用官方原生页面与 HTTP/mux，通过完整 Noise IK、lease 和加密 Relay 连接两个真实 npm rc.5 Harness。下文的业务 RPC 预留描述属于连接基础的历史范围，不替代新的业务实施契约。独立 Web/Android 页面、跨节点、跨 NAT 的 P2P/TURN 回落与生产证书仍未验收。
 
 本文是 OwnDsh 远程访问的开发真源。它回答四个问题：三端各自负责什么、Host 到底支持哪些能力、连接如何安全可靠地建立与撤销、后续按什么顺序写代码和验收。
 
@@ -33,11 +33,12 @@ Host 插件（OwnDsh Plugin）
   └─ 在端点执行 Noise、连接基础 RPC，以及后续阶段的业务 RPC
 
 控制客户端
+  ├─ 本机插件：后续接入远端 DSH 工作区，复用 Harness 原有业务界面
   ├─ Web 管控台：浏览器 Cookie 登录、浏览器 WebRTC、连接诊断
   └─ Android：移动登录、移动 WebRTC、Foreground Service、SAF 文件访问
 ```
 
-手机端和 Web 管控台是同一种控制客户端的两个适配器。它们共享授权语义、Remote wire schema、Noise 参数、Lease 规则和业务 RPC；WebRTC、凭据存储、文件系统和生命周期按平台实现。
+本机插件、手机端和 Web 管控台是同一种控制客户端的不同适配器。它们共享授权语义、Remote wire schema、Noise 参数、Lease 规则和业务 RPC；WebRTC、凭据存储、文件系统和生命周期按平台实现。本机插件的控制端角色属于后续业务目标，不改变 R0 至 R5 的交付边界。
 
 ### 1.2 传输
 
@@ -76,6 +77,12 @@ UI 显示/隐藏；Host 每个 endpoint 仍做最终校验
 以下内容不因上游存在就自动进入产品首期连接基础：会话/消息/审批、workspace 文件、terminal、模型和插件操作、所有 ACP/Codex/Claude/Hermes/OpenCode backend、正式远程操作页面、管理员越权远控、Server 解密正文、Java 原生 WebRTC、服务器保存会话正文、任意文件删除和无限制插件设置。
 
 开发时可以先用 **Web 管控台 ↔ Java Relay ↔ Host 插件** 打通端到端协议，但产品首期连接基础的最终验收必须包含 LAN/P2P、真实 coturn TURN 和加密 Relay 三条可用路径。WebRTC/TURN 不是临时占位，而是同一版连接基础的正式传输适配器。
+
+### 1.5 后续业务只支持 DSH 工作区
+
+2026-11-11 已确认：用户可以在本机 Harness 中选择本人另一台机器的 DSH 工作区，继续使用 Harness 原有会话、文件和终端界面。后续控制端适配将本地界面的业务请求送往远端 Host，由远端 DSH 执行；远程断线不能自动改成本机执行。员工插件的设备发现、ticket 申请与控制端认证需复用员工登录，并校验目标设备归属，不能要求员工取得管理员会话。
+
+Host Bridge 只适配 DSH 原生服务。不引入 Codex、ACP 或其它工作区执行后端，不为它们设计通用 backend 路由、虚拟 Harness 或选择器。DSH 自身已有的模型、工具和 MCP 仍按原有机制使用。具体文件写入和终端权限在业务实施前单独冻结；完整的 UI Gateway 切换、加密业务通道和跨机操作仍需实现及验收。
 
 ## 2. 研究基线与现状
 
@@ -554,7 +561,7 @@ R3 至 R5 只探测连接基础，不触碰后续业务 provider：
 3. 端点可用的 transport、Noise、Lease 和消息限制；
 4. 每项连接限制和版本兼容性。
 
-R6 会话、R7 文件/终端和后续业务阶段再探测 `ctx.typertGateway`、`connection`、workspace/session、文件、PTY、plugin route、model catalog、attachment 及 backend 类型。未进入对应阶段的 provider 不得阻塞连接基础。
+R6 会话、R7 文件/终端和后续业务阶段再探测 DSH 的 `ctx.typertGateway`、`connection`、workspace/session、文件、PTY、plugin route、model catalog 和 attachment。不探测或宣告其它工作区执行后端。未进入对应阶段的 provider 不得阻塞连接基础。
 
 推荐 `HostCapabilityDescriptor`：
 

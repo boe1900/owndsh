@@ -2641,6 +2641,39 @@ export const zRemoteRemoteTicket = z.object({
 
 export const zRemoteTicket = zRemoteRemoteTicket;
 
+export const zExpiresAt = z.iso.datetime({ offset: true });
+
+export const zIceServers = z.array(z.object({
+    urls: z.union([
+        z.url(),
+        z.array(z.url()).min(1).max(8)
+    ]),
+    username: z.string().max(256).optional(),
+    credential: z.string().max(512).optional()
+}).strict()).max(8);
+
+export const zLinkId = z.string().regex(/^rln_[0-9A-HJKMNP-TV-Z]{26}$/);
+
+export const zTicket = z.string().min(32).max(512);
+
+export const zRemoteOwnRemoteTicket = z.object({
+    ticket: zTicket,
+    linkId: zLinkId,
+    deviceId: zEnterpriseDeviceId,
+    expiresAt: zExpiresAt,
+    iceServers: zIceServers,
+    hostPublicKey: z.string().regex(/^[A-Za-z0-9_-]{43}$/)
+}).strict();
+
+export const zOwnRemoteTicket = zRemoteOwnRemoteTicket;
+
+export const zRemoteOwnRemoteTicketResponse = z.object({
+    data: zRemoteOwnRemoteTicket,
+    requestId: zRequestId
+}).strict();
+
+export const zOwnRemoteTicketResponse = zRemoteOwnRemoteTicketResponse;
+
 export const zRemoteRemoteTicketRequest = z.object({
     controllerDeviceId: z.string().regex(/^ctl_[0-9A-HJKMNP-TV-Z]{26}$/),
     controllerPublicKey: z.string().min(43).max(64),
@@ -3242,6 +3275,10 @@ export const zQuotaEnable = z.unknown();
 export const zQuotaItem = z.unknown();
 
 export const zQuotaWindows = z.unknown();
+
+export const zOwnRemoteDevices = z.unknown();
+
+export const zRemoteOwnRemoteTicket2 = z.unknown();
 
 export const zRemoteCapability = z.unknown();
 
@@ -5094,6 +5131,31 @@ export const zListRemoteDevicesQuery = z.object({
  * Remote device page.
  */
 export const zListRemoteDevicesResponse = zRemoteRemoteDeviceListResponse;
+
+export const zListOwnRemoteDevicesQuery = z.object({
+    cursor: zCursor.optional(),
+    limit: zPageLimit.optional()
+});
+
+/**
+ * Owner-filtered remote device page.
+ */
+export const zListOwnRemoteDevicesResponse = zRemoteRemoteDeviceListResponse;
+
+export const zCreateOwnRemoteTicketBody = zRemoteRemoteTicketRequest;
+
+export const zCreateOwnRemoteTicketHeaders = z.object({
+    'Idempotency-Key': z.uuid().length(36).regex(/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/)
+});
+
+export const zCreateOwnRemoteTicketPath = z.object({
+    deviceId: zEnterpriseDeviceId
+});
+
+/**
+ * One-use ticket and authenticated pinned Host public key.
+ */
+export const zCreateOwnRemoteTicketResponse = zRemoteOwnRemoteTicketResponse;
 
 export const zCreateRemoteTicketBody = zRemoteRemoteTicketRequest;
 

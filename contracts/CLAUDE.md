@@ -5,9 +5,9 @@
 成员清单
 
 README.md: 协议真源使用规则，定义手写与生成边界、双端消费方式和漂移门禁。
-enterprise-openapi.yaml: OpenAPI 3.1 逻辑协议导航根，定义 Bearer 与 HTTP/HTTPS 管理端 Cookie、38 个稳定错误码和 135 个 operation，并引用受控 Path Item/schema 分片。
-paths/: identity/auth/member/device/model/quota/gateway/plugin/skill/mcp/session/audit operation 分片目录；局部地图见 paths/CLAUDE.md。
-components/: 身份治理、认证、成员、设备、模型、配额、网关、插件、skill、MCP、Session 与审计协议 schema 分片；局部地图见 components/CLAUDE.md。
+enterprise-openapi.yaml: OpenAPI 3.1 逻辑协议导航根，定义 Bearer 与 HTTP/HTTPS 管理端 Cookie、38 个稳定错误码和 137 个 operation，并引用受控 Path Item/schema 分片。
+paths/: 身份、模型治理、插件、Session、审计与 Remote 控制面的 operation 分片；员工 Remote 复用 Bearer，管理 Remote 复用 Cookie；局部地图见 paths/CLAUDE.md。
+components/: 身份治理、模型、插件、Session、审计与 Remote 授权事实的 schema 分片；局部地图见 components/CLAUDE.md。
 fixtures/auth-sources-success.json: T05 登录事务、CSRF 与公开身份源成功响应样例。
 fixtures/device-list-success.json: T05 管理设备 cursor 列表成功响应样例。
 fixtures/device-success.json: T05 单设备 enroll/heartbeat/get/revoke 统一成功响应样例。
@@ -59,7 +59,7 @@ fixtures/unexpected-error-property.json: 包含未声明调试字段的失败响
 fixtures/unknown-error-code.json: 未知稳定错误码负例，必须被 Java JSON Schema 与 TypeScript Zod 同时拒绝。
 generated/: 从完整 OpenAPI 逻辑文档派生的自包含 OpenAPI JSON、fixture manifest、JSON Schema 与协议 SHA-256，供管理端、Java 和 CI 消费，禁止手工编辑。
 remote/: OwnDsh Remote v1 的 WebSocket control/relay/RPC schema、关闭码、限额和 Java/TypeScript 正反 fixture；不依赖 DSH Typert 业务消息。
-remote/crypto-vectors.json: Noise protocol/prologue 与 counter 的确定性测试向量，使用固定假密钥供跨运行回归，不承载生产密钥。
+remote/crypto-vectors.json: 独立 noise-c 的完整 Noise IK 双消息和双向 transport 向量，使用公开固定假密钥校验标准实现，不承载生产密钥。
 
 fixtures/browser-member-success.json: 无管理角色限制的当前浏览器账号摘要，不含 Token。
 fixtures/browser-authorization-request.json: 绑定原桌面事务、CSRF 与展示账号的批准请求假值。

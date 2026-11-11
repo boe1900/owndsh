@@ -221,6 +221,10 @@ paths:
     $ref: './paths/skill.yaml#/AdminSkillCredentialRevoke'
   /enterprise/admin/v1/remote/devices:
     $ref: './paths/remote.yaml#/RemoteDevices'
+  /enterprise/api/v1/remote/devices:
+    $ref: './paths/remote.yaml#/OwnRemoteDevices'
+  /enterprise/api/v1/remote/devices/{deviceId}/ticket:
+    $ref: './paths/remote.yaml#/OwnRemoteTicket'
   /enterprise/admin/v1/remote/devices/{deviceId}/ticket:
     $ref: './paths/remote.yaml#/RemoteTicket'
   /enterprise/admin/v1/remote/devices/{deviceId}/capabilities:
@@ -1320,6 +1324,8 @@ components:
     RemoteTicket: {$ref: './components/remote.yaml#/RemoteTicket'}
     RemoteTicketRequest: {$ref: './components/remote.yaml#/RemoteTicketRequest'}
     RemoteTicketResponse: {$ref: './components/remote.yaml#/RemoteTicketResponse'}
+    OwnRemoteTicket: {$ref: './components/remote.yaml#/OwnRemoteTicket'}
+    OwnRemoteTicketResponse: {$ref: './components/remote.yaml#/OwnRemoteTicketResponse'}
     RemoteLease: {$ref: './components/remote.yaml#/RemoteLease'}
     RemoteLeaseResponse: {$ref: './components/remote.yaml#/RemoteLeaseResponse'}
     RemoteCapabilityResponse: {$ref: './components/remote.yaml#/RemoteCapabilityResponse'}

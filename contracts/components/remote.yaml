@@ -1,5 +1,5 @@
 # [INPUT]: 依赖根协议的 RequestId、Revision、CursorPage 与现有 EnterpriseDeviceId
-# [OUTPUT]: 提供 Remote 设备视图、ticket、capability 与 lease 的管理 API schema
+# [OUTPUT]: 提供 Remote 管理视图、员工本人设备 ticket 与可信 Host 公钥、capability 和 lease schema
 # [POS]: components 的 Remote 控制面分片，HTTP 只管理授权事实，不承载业务密文
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -147,6 +147,36 @@ RemoteTicketRequest:
       type: string
       minLength: 1
       maxLength: 64
+
+OwnRemoteTicket:
+  type: object
+  additionalProperties: false
+  required: [ticket, linkId, deviceId, expiresAt, iceServers, hostPublicKey]
+  properties:
+    ticket:
+      $ref: '#/RemoteTicket/properties/ticket'
+    linkId:
+      $ref: '#/RemoteTicket/properties/linkId'
+    deviceId:
+      $ref: '#/RemoteTicket/properties/deviceId'
+    expiresAt:
+      $ref: '#/RemoteTicket/properties/expiresAt'
+    iceServers:
+      $ref: '#/RemoteTicket/properties/iceServers'
+    hostPublicKey:
+      type: string
+      pattern: '^[A-Za-z0-9_-]{43}$'
+      description: Canonical unpadded base64url X25519 public key pinned to the authenticated Host installation.
+
+OwnRemoteTicketResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data:
+      $ref: '#/OwnRemoteTicket'
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
 
 
 RemoteTicketResponse:
