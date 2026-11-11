@@ -16,7 +16,7 @@ RemoteUpgradeAuthHandler.java: Upgrade 的 Bearer/Cookie 与 Origin 校验，保
 RemoteProtocol.java: Java Remote v1 常量、ID/close code 与规范无填充 32 字节公钥校验，与 contracts/remote 同构。
 RemoteRedisStateStore.java: ticket/link 原子匹配消费与源安装绑定，lease 续租同步延长 link/consumed TTL，撤权删除三者并保留短期 epoch。
 RemoteGatewayAuthorizer.java: carrier 到 OwnDsh ticket、lease 和 presence 事实的授权端口；默认实现拒绝未接入身份的连接。
-RemoteGateway.java: accept/relay/握手双消息/lease 状态机，当前会话与设备重验、双端租约 ACK、定时到期与 Link 级关闭；Peer 撤销才关闭 carrier。
+RemoteGateway.java: accept/relay/握手双消息/lease 状态机，当前授权重验、双端 ACK 与到期清理；每 Channel 提交前预留 4 MiB/256 帧预算，write future 回收，超限或发送失败只关闭故障 carrier，Close 至多一次并有 1 秒截止时间。
 RemotePeerIdentity.java: Upgrade 后的租户、成员与终端身份值对象，不携带 Token。
 RemotePeerAuthenticator.java: 平台 Token 到 RemotePeerIdentity 的认证端口。
 RemoteControlGatewayAuthorizer.java: RemoteControlService 到 Gateway 的真实授权 adapter。

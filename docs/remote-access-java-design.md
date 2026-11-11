@@ -1,6 +1,6 @@
 <!--
 [INPUT]: docs/remote-access-implementation-design.md 的 Java Server 章节、OwnDsh 现有 Spring/Netty/Redis/PostgreSQL 边界。
-[OUTPUT]: 提供 Remote Java Server 的模块、Netty pipeline、状态处理和部署边界。
+[OUTPUT]: 提供 Remote Java Server 的模块、实际 Netty pipeline、Channel 发送预算与在途语义、状态处理和部署边界。
 [POS]: OwnDsh Remote 的 Java Server 实施附录，被主实施文档引用；不拥有 Remote wire schema。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
@@ -36,23 +36,30 @@ Spring MVC 负责 REST、业务授权和数据库事务；Netty 负责 Remote We
 
 ### 1.2 Netty pipeline
 
+`RemoteNettyServerLifecycle` 当前装配如下。
+
 ```text
-HttpServerCodec
+可选 TLS SslHandler
+  → HttpServerCodec
   → HttpObjectAggregator（仅 Upgrade 请求，受限大小）
+  → RemoteUpgradeAuthHandler（Bearer/Cookie、Origin）
   → WebSocketServerProtocolHandler(/remote/ws/v1)
   → IdleStateHandler
-  → TextWebSocketFrame decoder（拒绝 binary）
-  → StrictJsonControlDecoder
-  → RemoteFrameValidator
-  → RemoteLinkHandler
-  → Outbound size/queue guard
+  → RemoteWebSocketHandler（文本大小、JSON envelope、协议字段）
+  → RemoteGateway（授权、Link 状态、发送预算）
 ```
 
-每个 Channel 使用事件循环维护本地状态和发送顺序。`WriteBufferWaterMark`、`channel.isWritable()` 和有界待发送队列控制慢消费者；超过上限发送 `REMOTE_BACKPRESSURE` 后关闭，不把无界消息积压到堆内存。
+Gateway 的 monitor 串行处理 Link 和发送准入。每个 Channel attribute 独立保存未完成写入的字节、帧数和 OPEN/STOPPED/CLOSE_SENT 状态。所有 Gateway JSON 共用一个发送入口，按实际序列化 UTF-8 字节加 10 字节 WebSocket header 预留预算，上限为 4 MiB 和 256 帧，恰好上限可接纳。预算在 `writeAndFlush` 前预留，因此包含目标 eventloop 尚未执行的任务。Netty 维护原有出站顺序，不新增 FIFO，不因临时 `isWritable=false` 关闭，也不提高水位。
+
+每次 write promise 完成后回收对应预算，包括成功、失败和取消；关闭不直接清零。完成监听器使用 `ImmediateEventExecutor`，目标 loop 拒绝提交时也能由当前线程结算。已提交 frame 归 Netty；尚未提交的超限 frame 由 Gateway 释放。计费约束逻辑积压，不代表整个 JVM、TLS 和 TCP 的总内存上限。
+
+超限或 write failure 先停止故障 Channel 的新准入，清理它当前所属的 Link/lease，并给健康对端原有 `ENT_REMOTE_UNAVAILABLE` 通知。故障 carrier 尝试一次 4503 WebSocket Close；该固定小终止帧是普通预算外唯一名额。Close 写入完成即关闭，并安排 1 秒强制关闭。调度被拒绝时直接尝试关闭。截止时间依赖 eventloop 正常推进，不能覆盖线程被阻塞的墙钟时间，对端不读取时也不保证收到 4503。撤权的 4003、协议错误的 4400 和替换的 1000 保留，旧 Channel 回调不操作替换后的 Peer。
+
+身份、公钥、lease 和序号仍在提交前裁决。已交给 Netty 的密文属于在途数据，撤权后不再接纳新帧，不承诺撤回已进入 TCP 的字节。普通 Link 关闭通知仍受预算限制，健康 Host carrier 可继续复用。租约广播在任何可能同步失败的写入前捕获两端，Link 被移除后停止剩余 ACK，也不重建 deadline。
 
 `RemoteNettyServerLifecycleTest` 是 listener 的 loopback 网络级门禁。它用 JDK WebSocket 客户端完成真实 TCP、HTTP Upgrade、Bearer、Origin、`ws://`、自签名 `wss://` 和 `hello.ack` 验证。测试同时覆盖同一 JVM 内的客户端和通过 `ProcessBuilder` 启动的独立 JDK JVM 客户端，因此证明了本机进程边界上的连接行为。它仍不替代独立部署、生产证书链、浏览器、Host 插件或 WebRTC 验收。
 
-推荐初始配置：单连接控制队列 256 帧、Relay 队列 4 MiB、单连接 pending RPC 128、全局每 device Link 4、单用户新建 Link 速率 10/min。所有值纳入配置和压测，不在业务代码散落魔法数字。
+发送回归由 `RemoteGatewayOutboundTest` 验证实际 UTF-8/帧数边界、future 与 ByteBuf 生命周期、撤权和同步失败重入；`RemoteGatewayEventLoopTest` 用两个真实 eventloop/latch 验证目标未执行时的预算，以及 executor 拒绝后的回收。当前每 Peer 只允许一个活动 Link。单连接 pending RPC 和新建 Link 速率不由此发送预算实现，后续如需调整，须独立确定端点责任和压测依据。
 
 ### 1.3 Server 状态与分布式部署
 

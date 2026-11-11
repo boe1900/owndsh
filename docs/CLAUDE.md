@@ -12,7 +12,7 @@ dsh-compatibility.md: DSH 升级检查入口，记录当前 npm/Web 基线、上
 remote-access-design.md: 远程访问唯一方案，确定 Remote 核心复用、OwnDsh 账号与设备授权、Java/TS 职责、WebRTC/TURN/加密 Relay、统一撤权、浏览器接入与实施验收边界。
 remote-access-implementation-design.md: 远程访问首期三端实施真源，定义 Java/Host/Web 连接基础、Remote ticket/lease、Control/Noise/Relay、能力探测、数据模型、开发阶段、验收矩阵和直接开发门槛。
 
-remote-access-java-design.md: Remote Java Server 实施附录，定义 Spring 内嵌 Netty pipeline、模块边界、连接状态处理、分布式部署和 Java 不实现的端点能力。
+remote-access-java-design.md: Remote Java Server 实施附录，定义实际 Netty pipeline、每 Channel 提交前发送预算、在途与关闭语义、模块边界、连接状态处理和分布式部署边界。
 remote-access-business-extension-design.md: 仅 DSH 原生工作区的 Remote 业务扩展附录，记录插件控制端复用原生界面的目标，以及 R6/R7 会话、文件与终端的候选 RPC、scope、传输和生命周期约束。
 remote-access-product-decisions.md: Remote 产品决策附录，冻结首期连接基础和仅 DSH 工作区的后续业务范围，列出文件、终端、Android、恢复、管理员和数据保留取舍。
 model-onboarding-design.md: 模型接入流程详细设计与实现真源；记录 Provider/ProviderConnection/ManagedModel 三层、API Key 归属、模型级 RATE、全新切换边界、发现失败后的手工模型兜底、候选多选、折叠模型配置、自动命名、DSH 对齐的 input 模态与 reasoningEfforts wire 映射、改动量、影响分析与验收标准。

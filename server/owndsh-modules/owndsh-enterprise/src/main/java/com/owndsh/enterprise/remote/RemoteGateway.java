@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 Remote control/relay frame、已认证 Netty Peer、当前设备与租约授权端口。
- * [OUTPUT]: 串行执行 accept/relay/双向握手/lease 状态迁移，双端确认租约并仅转发有效租约下的密文。
- * [POS]: remote carrier 状态机；握手步骤只证明消息顺序，解密验证仍由端点承担。Link 关闭不关闭共享 Host carrier。
+ * [INPUT]: 依赖 Remote frame、已认证 Netty Channel、write promise 和当前设备与租约授权端口。
+ * [OUTPUT]: 串行执行握手/lease 与密文准入，每 Channel 在提交前限制 4 MiB/256 个未完成 JSON 写入。
+ * [POS]: remote carrier 状态机；Netty 持有在途帧，future 结算预算，暂时不可写不撤销 Link，发送故障只关闭准确 Channel。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.remote;
@@ -10,8 +10,11 @@ import com.owndsh.enterprise.remote.domain.RemoteTicketState;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.DefaultChannelPromise;
 import io.netty.handler.codec.http.websocketx.CloseWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
+import io.netty.util.AttributeKey;
+import io.netty.util.concurrent.ImmediateEventExecutor;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -26,8 +29,13 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.RejectedExecutionException;
 
 public final class RemoteGateway {
+    private static final AttributeKey<OutboundState> OUTBOUND = AttributeKey.valueOf(RemoteGateway.class, "outbound");
+    private static final int MAX_PENDING_BYTES = 4 * 1024 * 1024;
+    private static final int MAX_PENDING_FRAMES = 256;
+    private static final int WEBSOCKET_HEADER_BYTES = 10;
     private final JsonMapper json;
     private final RemoteGatewayAuthorizer authorizer;
     private final Clock clock;
@@ -107,7 +115,7 @@ public final class RemoteGateway {
             return;
         }
         Peer target = peers.get(link.otherId(peer.peerId()));
-        if (target == null || !target.channel().isWritable()) {
+        if (target == null || !target.channel().isActive()) {
             closeLink(link, "ENT_REMOTE_UNAVAILABLE");
             return;
         }
@@ -116,6 +124,8 @@ public final class RemoteGateway {
     }
 
     public synchronized void channelClosed(Channel channel) {
+        OutboundState outbound = outbound(channel);
+        if (outbound.phase == OutboundPhase.OPEN) outbound.phase = OutboundPhase.STOPPED;
         String peerId = channel.attr(RemoteWebSocketHandler.PEER_ID).get();
         Peer current = peers.get(peerId);
         if (current != null && current.channel() == channel) {
@@ -254,8 +264,12 @@ public final class RemoteGateway {
     private void broadcastLease(Link link, JsonNode root) {
         ObjectNode frame = (ObjectNode) root.deepCopy();
         ((ObjectNode) frame.path("payload")).put("expiresAt", link.leaseExpiresAt.toEpochMilli());
-        send(peers.get(link.hostId).channel(), frame);
-        send(peers.get(link.controllerId).channel(), frame);
+        Peer host = peers.get(link.hostId);
+        Peer controller = peers.get(link.controllerId);
+        for (Peer peer : new Peer[]{host, controller}) {
+            if (links.get(link.linkId) != link) return;
+            if (peer != null && peers.get(peer.peerId()) == peer) send(peer.channel(), frame);
+        }
     }
 
     private void presence(Peer source, JsonNode payload) {
@@ -277,7 +291,7 @@ public final class RemoteGateway {
     }
 
     private boolean activePeer(Peer peer) {
-        if (!peer.channel().isActive() || !sessionActive(peer.channel())
+        if (!peer.channel().isActive() || outbound(peer.channel()).phase != OutboundPhase.OPEN || !sessionActive(peer.channel())
             || !authorizer.isPeerActive(peer.identity(), peer.role(), peer.peerId(), peer.publicKey())) {
             closePeer(peer, RemoteProtocol.CLOSE_DEVICE_REVOKED, "peer authorization expired");
             return false;
@@ -317,6 +331,7 @@ public final class RemoteGateway {
     }
 
     private void scheduleCheck(Peer peer) {
+        if (peers.get(peer.peerId()) != peer) return;
         peer.channel().eventLoop().schedule(() -> checkPeer(peer), 1, TimeUnit.SECONDS);
     }
 
@@ -332,6 +347,7 @@ public final class RemoteGateway {
     }
 
     private void scheduleDeadline(Link link, Instant deadline) {
+        if (links.get(link.linkId) != link) return;
         Peer controller = peers.get(link.controllerId);
         if (controller == null) return;
         if (link.deadlineTask != null) link.deadlineTask.cancel(false);
@@ -362,12 +378,48 @@ public final class RemoteGateway {
     }
 
     private void send(Channel channel, JsonNode value) {
-        if (!channel.isActive()) return;
-        if (!channel.isWritable()) {
-            reject(channel, RemoteProtocol.CLOSE_SERVER_DRAINING, "channel is not writable");
+        OutboundState outbound = outbound(channel);
+        if (!channel.isActive() || outbound.phase != OutboundPhase.OPEN) return;
+        var promise = new DefaultChannelPromise(channel, ImmediateEventExecutor.INSTANCE);
+        TextWebSocketFrame frame = new TextWebSocketFrame(json.writeValueAsString(value));
+        int bytes = frame.content().readableBytes() + WEBSOCKET_HEADER_BYTES;
+        if (outbound.pendingFrames == MAX_PENDING_FRAMES || bytes > MAX_PENDING_BYTES - outbound.pendingBytes) {
+            frame.release();
+            failOutbound(channel, outbound, "outbound backlog exceeded");
             return;
         }
-        channel.writeAndFlush(new TextWebSocketFrame(json.writeValueAsString(value)));
+        outbound.pendingBytes += bytes;
+        outbound.pendingFrames++;
+        promise.addListener(future -> completeWrite(channel, outbound, bytes, future.isSuccess()));
+        // Netty 负责提交后的 frame；包括 eventloop 拒绝和 promise 校验抛错，均不能在此再次释放。
+        try {
+            channel.writeAndFlush(frame, promise);
+        } catch (RuntimeException exception) {
+            promise.tryFailure(exception);
+        }
+    }
+
+    private synchronized void completeWrite(Channel channel, OutboundState outbound, int bytes, boolean success) {
+        outbound.pendingBytes -= bytes;
+        outbound.pendingFrames--;
+        if (!success) failOutbound(channel, outbound, "outbound write failed");
+    }
+
+    private void failOutbound(Channel channel, OutboundState outbound, String reason) {
+        if (outbound.phase != OutboundPhase.OPEN) return;
+        outbound.phase = OutboundPhase.STOPPED;
+        Peer peer = peers.get(channel.attr(RemoteWebSocketHandler.PEER_ID).get());
+        if (peer != null && peer.channel() == channel) closePeer(peer, RemoteProtocol.CLOSE_SERVER_DRAINING, reason);
+        else reject(channel, RemoteProtocol.CLOSE_SERVER_DRAINING, reason);
+    }
+
+    private OutboundState outbound(Channel channel) {
+        OutboundState outbound = channel.attr(OUTBOUND).get();
+        if (outbound == null) {
+            outbound = new OutboundState();
+            channel.attr(OUTBOUND).set(outbound);
+        }
+        return outbound;
     }
 
     private void sendError(Channel channel, String code, String message, boolean retryable) {
@@ -375,11 +427,34 @@ public final class RemoteGateway {
     }
 
     private void reject(Channel channel, int code, String reason) {
-        channel.writeAndFlush(new CloseWebSocketFrame(code, reason)).addListener(ChannelFutureListener.CLOSE);
+        OutboundState outbound = outbound(channel);
+        if (outbound.phase == OutboundPhase.CLOSE_SENT) return;
+        outbound.phase = OutboundPhase.CLOSE_SENT;
+        if (!channel.isActive()) {
+            channel.close();
+            return;
+        }
+        final ScheduledFuture<?> deadline;
+        try {
+            deadline = channel.eventLoop().schedule(() -> channel.close(), 1, TimeUnit.SECONDS);
+        } catch (RejectedExecutionException exception) {
+            channel.close();
+            return;
+        }
+        var promise = new DefaultChannelPromise(channel, ImmediateEventExecutor.INSTANCE);
+        promise.addListener(future -> deadline.cancel(false));
+        promise.addListener(ChannelFutureListener.CLOSE);
+        try {
+            channel.writeAndFlush(new CloseWebSocketFrame(code, reason), promise);
+        } catch (RuntimeException exception) {
+            promise.tryFailure(exception);
+        }
     }
 
     private void closePeer(Peer peer, int code, String reason) {
         if (!peers.remove(peer.peerId(), peer)) return;
+        OutboundState outbound = outbound(peer.channel());
+        if (outbound.phase == OutboundPhase.OPEN) outbound.phase = OutboundPhase.STOPPED;
         try {
             closeLinks(peer.peerId(), "ENT_REMOTE_UNAVAILABLE");
         } finally {
@@ -410,6 +485,14 @@ public final class RemoteGateway {
     }
 
     private enum LinkState { CONNECTING, ACCEPTED, RELAY, CONTROLLER_HANDSHAKE, HANDSHAKE_EXCHANGED, LEASED }
+
+    private enum OutboundPhase { OPEN, STOPPED, CLOSE_SENT }
+
+    private static final class OutboundState {
+        private int pendingBytes;
+        private int pendingFrames;
+        private OutboundPhase phase = OutboundPhase.OPEN;
+    }
 
     private record Peer(String peerId, String role, Channel channel, String publicKey, RemotePeerIdentity identity) {}
 
