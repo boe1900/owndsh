@@ -1,13 +1,89 @@
 /**
  * [INPUT]: 依赖真实 Node HTTP/WS listener、官方 stream parser 与 Host carrier。
- * [OUTPUT]: 验证独立API cookie只留Host、HTTP/WS共用Peer、远端插件库存只读准入、取消流回收及关闭释放Peer。
+ * [OUTPUT]: 验证独立API cookie只留Host、HTTP/WS共用Peer、远端插件库存只读准入、取消流回收、慢消费心跳与有界队列关闭。
  * [POS]: remote Host 原生carrier接缝回归，真实收发字节而非仅检查调用参数。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { createServer } from 'node:http'
-import { WebSocketServer } from 'ws'
+import { WebSocketServer, type WebSocket } from 'ws'
+import { parseRemoteStreamClientMessage } from '@deepseek-ai/dsh-api-gateway/stream-protocol'
 import { it, expect } from 'vitest'
 import { openDshCarrier } from '../src/remote/dsh-carrier.js'
+
+it('answers native heartbeats while the carrier consumer is stalled and preserves stream order', async () => {
+  const server = createServer((_request, response) => response.writeHead(302, { 'set-cookie': 'native-owner=test-only; HttpOnly' }).end())
+  const ws = new WebSocketServer({ server })
+  const connected = new Promise<WebSocket>(resolve => ws.once('connection', resolve))
+  const baseline = [1, 2, 3].map(sequence => JSON.stringify({ type: 'item', streamId: 'session', value: { sequence } }))
+  ws.on('connection', peer => peer.on('message', data => {
+    const frame = parseRemoteStreamClientMessage(String(data))
+    if (frame.type !== 'open') return
+    if (frame.streamId === 'session') for (const text of baseline) peer.send(text)
+    else peer.send(JSON.stringify({ type: 'item', streamId: frame.streamId, value: 'still-usable' }))
+  }))
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  const address = server.address()
+  if (!address || typeof address === 'string') throw new Error('listener unavailable')
+  const carrier = await openDshCarrier({
+    connection: { authenticatedUrl: url => url }, webServer: { getOrigin: () => `http://127.0.0.1:${address.port}` }, workspaceRegistry: { list: () => [] },
+  }, new AbortController().signal)
+  try {
+    const peer = await connected
+    const mux = await carrier.openMux()
+    const reader = mux.messages[Symbol.asyncIterator]()
+    await mux.send(JSON.stringify({ type: 'open', streamId: 'session', endpoint: 'session/follow', payload: { args: {} } }))
+    await expect(reader.next()).resolves.toEqual({ done: false, value: baseline[0] })
+    const pong = new Promise<string>(resolve => {
+      const deadline = setTimeout(() => resolve('heartbeat-missed'), 2_000)
+      peer.once('pong', data => { clearTimeout(deadline); resolve(String(data)) })
+    })
+    peer.ping('slow-consumer')
+    expect(await pong).toBe('slow-consumer')
+    expect(carrier.signal?.aborted).toBe(false)
+    for (const text of baseline.slice(1)) await expect(reader.next()).resolves.toEqual({ done: false, value: text })
+    await mux.send(JSON.stringify({ type: 'open', streamId: 'after-heartbeat', endpoint: 'workspace/follow', payload: { args: {} } }))
+    await expect(reader.next()).resolves.toEqual({ done: false, value: JSON.stringify({ type: 'item', streamId: 'after-heartbeat', value: 'still-usable' }) })
+  } finally {
+    carrier.close()
+    for (const peer of ws.clients) peer.terminate()
+    ws.close(); server.closeAllConnections()
+    await new Promise<void>(resolve => server.close(() => resolve()))
+  }
+})
+
+it('closes the native peer when unconsumed messages exceed the 4 MiB queue limit', async () => {
+  const server = createServer((_request, response) => response.writeHead(302, { 'set-cookie': 'native-owner=test-only; HttpOnly' }).end())
+  const ws = new WebSocketServer({ server })
+  const connected = new Promise<WebSocket>(resolve => ws.once('connection', resolve))
+  ws.on('connection', peer => peer.on('message', data => {
+    const frame = parseRemoteStreamClientMessage(String(data))
+    if (frame.type !== 'open') return
+    const value = 'x'.repeat(1024 * 1024)
+    for (let sequence = 0; sequence < 5; sequence++) peer.send(JSON.stringify({ type: 'item', streamId: frame.streamId, value: { sequence, text: value } }))
+  }))
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  const address = server.address()
+  if (!address || typeof address === 'string') throw new Error('listener unavailable')
+  const carrier = await openDshCarrier({
+    connection: { authenticatedUrl: url => url }, webServer: { getOrigin: () => `http://127.0.0.1:${address.port}` }, workspaceRegistry: { list: () => [] },
+  }, new AbortController().signal)
+  try {
+    const peer = await connected
+    const closed = new Promise<string>(resolve => {
+      const deadline = setTimeout(() => resolve('still-open'), 2_000)
+      peer.once('close', () => { clearTimeout(deadline); resolve('closed') })
+    })
+    const mux = await carrier.openMux()
+    await mux.send(JSON.stringify({ type: 'open', streamId: 'overflow', endpoint: 'session/follow', payload: { args: {} } }))
+    expect(await closed).toBe('closed')
+    await expect(mux.messages[Symbol.asyncIterator]().next()).rejects.toThrow('ENT_REMOTE_MUX_CLOSED')
+  } finally {
+    carrier.close()
+    for (const peer of ws.clients) peer.terminate()
+    ws.close(); server.closeAllConnections()
+    await new Promise<void>(resolve => server.close(() => resolve()))
+  }
+})
 
 it('reads plugin inventory from the remote owner while keeping plugin management denied', async () => {
   const inventory = { entries: [{ entryId: 'remote-only', moduleName: '@example/nas-only-plugin', enabled: true, fiberPhase: 'active' }] }
