@@ -1,0 +1,115 @@
+{
+  "capturedAt": "2026-11-11T10:15:41.535179+00:00",
+  "purpose": "修复NAS入口进入Mac工作区时反复重新连接，验证原Edge访问路径",
+  "commits": {
+    "nativeTest": "15fbf8733",
+    "nativeFix": "22d875541",
+    "serverTest": "e03991d14",
+    "serverFix": "5cde76dba"
+  },
+  "rootCauses": [
+    "native mux暂停底层读取阻断官方Ping/Pong",
+    "Netty临时isWritable=false被当成carrier不可用"
+  ],
+  "deployment": {
+    "commit": "5cde76dba",
+    "image": "owndsh-server:remote-stability-5cde76dba",
+    "imageConfigId": "sha256:9291f70378e4a5c6bef1aebed6e71c9b55084c0f666480f2a09ca37202a3f800",
+    "localManifestId": "sha256:24adda7e073eeda588a592a7aa08f64290933d0af1887ed6c2083711abf1a8c6",
+    "jarSha256": "e83d0aa0b3132cbb73277799a7f349b2a452587914cdc083fdfedbf7b558aca0",
+    "architecture": "arm64",
+    "onlyService": "server"
+  },
+  "boundary": {
+    "at": "2026-11-11T10:15:06.329Z",
+    "shell": 200,
+    "admin": 401,
+    "health": {
+      "status": 200,
+      "value": "UP"
+    },
+    "direct": {
+      "opened": false
+    },
+    "proxy": {
+      "opened": false,
+      "status": 502
+    }
+  },
+  "runtime": {
+    "harness": "0.2.1-rc.5",
+    "browser": "Microsoft Edge",
+    "controller": "NAS",
+    "host": "Mac",
+    "controllerEntry": "http://127.0.0.1:18121",
+    "hostEntry": "http://127.0.0.1:49759",
+    "transport": "Noise IK + lease + encrypted Relay",
+    "freshViews": 3,
+    "sessionHistoryReadable": true,
+    "pluginInventoryReadableOnTwoViews": true,
+    "continuousView": {
+      "samples": 36,
+      "connected": 36,
+      "first": "2026-11-11T10:10:33.827Z",
+      "last": "2026-11-11T10:13:30.274Z"
+    },
+    "traceWindowStart": 1794391817605,
+    "traces": {
+      "9229": {
+        "role": "host",
+        "leaseAcks": 6,
+        "renewalAcks": 5,
+        "firstAck": 1794391817617,
+        "lastAck": 1794391917683,
+        "lastRemainingMs": 39996.42062500026,
+        "unexpectedCloses": 0
+      },
+      "19229": {
+        "role": "controller",
+        "leaseAcks": 6,
+        "renewalAcks": 5,
+        "firstAck": 1794391817605,
+        "lastAck": 1794391917676,
+        "lastRemainingMs": 39974.874853000045,
+        "unexpectedCloses": 0
+      }
+    },
+    "finalUi": {
+      "sameView": true,
+      "connected": true,
+      "sessionHistory": true,
+      "reconnecting": false
+    }
+  },
+  "automated": {
+    "nativeBundle": {
+      "passed": 62,
+      "failed": 0
+    },
+    "javaRemote": {
+      "passed": 56,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "explicitTestSkipFalse": true,
+      "realEventLoops": true,
+      "redisPostgres": true,
+      "tcpWsWss": true
+    },
+    "independentCorrectnessReview": "passed",
+    "geb": "passed"
+  },
+  "cleanup": {
+    "macInspectorClosed": true,
+    "nasInspectorClosed": true,
+    "diagnosticTunnel19229Closed": true,
+    "webTunnel18121Preserved": true,
+    "dshInstancesPreserved": true,
+    "edgePagePreserved": true
+  },
+  "limits": [
+    "短时定向验收不代表长期或所有网络条件稳定性",
+    "未验证生产TLS、LAN/P2P/TURN回落、多节点fencing",
+    "模型文字为已有测试会话历史，本轮未调用真实供应商"
+  ]
+}

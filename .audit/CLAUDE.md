@@ -47,6 +47,7 @@ remote-workspace-nas.todo.md: Mac 与 NAS 双物理机业务验收和保留环�
 remote-workspace-nas.tsv: NAS 更新、运行环境、双机业务验收与保留环境的决策和证据，不含凭据。
 remote-workspace-nas-deployment.json: NAS 同提交 ARM64 镜像、健康检查、备份文件清单和已校验 Node 运行时证据。
 remote-workspace-nas-evidence.json: Mac 与真实 ARM64 NAS 的 14 项业务验收、最终 bundle/协议哈希、保留状态与未验证边界。
+remote-stability-evidence.json: 原 Edge NAS→Mac 反复重连修复的无密记录，包含真实制品校验、三次 view 初始化、同 view 连续采样、双端续租、自动回归与诊断清理边界。
 remote-workspace-nas-support.mjs: 共用业务验收器的 NAS Host、SSH 回环管理访问、测试文件和无密拓扑适配；按用户要求保留 NAS 容器，失败仅清理本轮转发。
 remote-workspace-nas-runtime.Dockerfile: NAS 调试镜像补充真实非 root Linux 账号和 bash，Node/Harness 由验收器挂载，Java 服务不在该容器启动。
 ship-main.todo.md: 直接推送 main 的发布检查清单与跳过项。

@@ -1,6 +1,6 @@
 <!--
 [INPUT]: OwnDsh 员工登录/设备归属与 Remote v1、官方 Harness 0.2.1-rc.5 的原生 UI 和 owner API Peer、ds-harness-remote 4ec80b1。
-[OUTPUT]: 提供 R1–R5 后首个 DSH 实际业务的页面、授权、加密 carrier、原生 Host 与验收契约。
+[OUTPUT]: 提供 R1–R5 后首个 DSH 实际业务的页面、授权、加密 carrier、原生 Host 与双机业务和稳定性验收契约。
 [POS]: 插件控制插件的实施规格；基础连接与后续独立 Web/Android 方案分别留在原有文档。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
@@ -92,6 +92,8 @@ Host 静态密钥保存在官方 credentials，绑定平台、用户、installat
 
 原生 mux 的 WebSocket 持续读取控制帧，不能用暂停底层 socket 的方式等待加密 carrier 消费。否则下游等待信用或发送时，官方 Gateway 的 Ping 也会被阻断，健康 Peer 会因缺少 Pong 被关闭。业务文本按 FIFO 排队，队列与正在交付的消息合计最多 4 MiB，超限关闭该 Peer；信用背压仍由加密 carrier 执行。
 
+Java 不把 Netty 临时 `isWritable=false` 当成断线。每 Channel 在提交写入前预留实际 UTF-8 JSON 加 10 字节 header 的预算，最多 4 MiB/256 个未完成写入，future 完成后回收。该限制包含跨 eventloop 尚未执行的任务；真正超限或写入失败才终止准确故障 carrier，健康对端可继续复用。关闭与在途语义见 [Java 实施附录](remote-access-java-design.md#12-netty-pipeline)。
+
 本功能使用加密 Relay。WebRTC adapter、coturn Allocate 不等于真实 LAN/P2P/跨 NAT/TURN 回落已验证，界面不得宣称当前使用这些路径。
 
 ## 6. 原生 UI 与浏览器状态
@@ -168,11 +170,23 @@ node .audit/remote-workspace-local-e2e.mjs
 
 本轮按用户要求保留 NAS Host、Mac Controller、浏览器、Web 管理转发与本地模型协议夹具。保留进程退出后需要重新启动对应 Mac 组件；NAS 容器独立运行。模型流经过真实 Java 网关，但供应商是明确标记的本地 OpenAI 协议夹具。HTTP/WS、加密 Relay 通过不推导生产 TLS、实际 P2P/TURN、独立 Android/Web 管控台或外部真实模型供应商通过。
 
+### 8.3 反复重连修复验收
+
+2026-11-11 在用户原 Microsoft Edge 路径 `18121 → 49759` 复现并修复两处独立问题。原生 mux 暂停底层读取会阻断官方 Ping/Pong；Java 在初始化突发期间将临时不可写误判为 carrier 故障，实际关闭码为 `4503 / channel is not writable`，对端收到 `ENT_REMOTE_UNAVAILABLE`。左下角“重新连接中”是原生实时通道失联后的恢复提示，不能仅凭加密 Link 仍存在判定工作区正常。
+
+插件修复为 `22d875541`，保留 FIFO 与累计上限，仅移除暂停读取；Java 修复为 `5cde76dba`，保留唯一发送入口与 Netty 队列，以 Channel 预算限制未完成写入。两个修复前均先提交可明确失败的回归。没有增加重放或延长超时。插件 bundle 62 项、Java `Remote*Test` 56 项通过，后者明确启用 `-Dmaven.test.skip=false`，覆盖真实双 eventloop、Redis/PostgreSQL、TCP/ws/wss、撤权、旧 Channel 隔离和 ByteBuf 回收。独立正确性与 GEB 审阅通过。
+
+本轮只替换 NAS Server，Console 保持 `sha-663c43e`。Server 由标准生产 Dockerfile 构建 Linux arm64 镜像 `owndsh-server:remote-stability-5cde76dba`；运行 JAR 与本机构建的 SHA-256 一致。更新前保留旧镜像及完整 Compose 链备份，数据库仍为 V57，无新增迁移。Shell 返回 200、匿名管理 API 返回 401、公开健康检查为 UP；匿名 WebSocket 未完成 Upgrade。
+
+[稳定性证据](../.audit/remote-stability-evidence.json) 记录原 Edge 的三次新 view 初始化、真实历史会话和两次独立打开的内置插件列表。最终同一 view 在约三分钟内 36 次采样全部 connected；较短的 Inspector 观测窗口内，Host 与 Controller 各完成首次租约确认和五次续租，没有捕获到该连接的原生、平台或 Relay 异常关闭。浏览器刷新期间旧 view 的主动关闭单独排除，重复调用已关闭对象的清理函数不计作新断线。最终页面仍为原 view，历史已加载，未出现“连接中断”提示。
+
+临时 Inspector listener 与 `19229` 诊断隧道已关闭，保留 `18121` Web 隧道、两端 DSH 和 Edge 页面。此结果验证本次根因及短时双机使用，不承诺所有网络下长期不断线，也不扩展此前 TLS、P2P/TURN、真实供应商与原生 Electron 的验收范围。
+
 ## 9. 代码责任
 
 | 文件/模块 | 责任 |
 |---|---|
-| Java remote | 本人设备、pin、ticket、阶段状态、lease、认证重验、Relay。 |
+| Java remote | 本人设备、pin、ticket、阶段状态、lease、认证重验与有界 Relay 发送。 |
 | remote-core | Noise、加密 carrier、分片/信用窗口、协议边界。 |
 | workspace-runtime | 登录生命周期、Host 开关、密钥、presence、逐页 link。 |
 | dsh-carrier / dsh-policy | 原生独立 Peer/mux、端点与文件准入。 |
