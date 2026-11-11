@@ -72,6 +72,10 @@ Java 不解密或实现 Harness 业务。远端 API Cookie 只留远端插件内
 | `POST /views/{id}/reconnect` | 无 | 新 view `{url}` |
 | `POST /views/{id}/close` | 无 | `{}` |
 
+创建或重连被单连接约束拒绝时，本机 API 返回 HTTP `409` 和固定响应 `{"error":{"code":"ENT_REMOTE_BUSY"}}`。Controller 保留 Server `error` 与 Host `connect.reject` 中的建链错误码，关闭清理不覆盖该原因。浏览器只对严格匹配该状态码和响应结构的错误显示“该设备正在被其他页面使用，请先关闭原连接后重试。”，打开失败保留设备选择，重连失败保留已断开的目标，均允许明确重试。
+
+HTTP `401` 和 `403` 继续显示重新登录提示。未知 `409`、损坏或额外字段的错误响应、网络错误和其它未知故障继续使用通用提示，不展示 Server 诊断正文。本机未知故障仍只返回 HTTP `503` 及 `ENT_REMOTE_UNAVAILABLE`。
+
 浏览器仅接受固定同源 `/enterprise/remote/views/<uuid>/` URL。返回本机不依赖 close 请求成功，安全回收仍受 lease、link 关闭和 view 回收约束。
 
 ## 5. 握手与加密
@@ -143,6 +147,8 @@ Mac 使用隔离 npm rc.5 Controller，NAS 使用官方同版本 Harness 和本�
 服务入口为 `http://home-nas:18080`。实际 HTTP/WS 产品链路直接连接 NAS，承载完整 Noise IK、lease 与加密 Relay。SSH 仅转发 NAS 回环 Web `18121` 和首次 PKCE callback，不承载产品远控数据。Mac 的测试浏览器显式将 `home-nas` 解析到系统返回的 IPv4，避免本机代理提供的 fake IPv6；不修改系统 DNS 或产品 origin。
 
 [跨机证据](../.audit/remote-workspace-nas-evidence.json) 记录 14 项全部通过。覆盖员工双端 PKCE、Host 默认关闭及显式确认开启、本人设备发现、独立原生工作区、远端 Session 创建/重命名、模型流、文件和超过 64 KiB 的响应、媒体哈希、路径逃逸拒绝，以及终端输入/输出。终端生成文件经 SSH 从 NAS 实际文件系统复核，Mac 不存在同名文件。刷新淘汰旧 view，关闭 Host 后阻断业务且不回落本机，断线刷新、失败重试、手动恢复和返回本机也通过。关闭 Host 是受控断连测试，不代表物理断网或 UDP 阻断验证。
+
+连接占用提示另经真实 Mac/NAS 复验。受控连接占用 NAS 后，第二次打开返回 `409 / ENT_REMOTE_BUSY`，浏览器显示明确占用原因。释放原连接后，在同一弹窗重试成功进入 NAS 工作区，真实会话可见；验证结束返回本机并释放测试连接。本机隔离 Controller 已加载该修复，NAS Host 沿用原运行包。相应 bundle 59 项、UI 78 项测试及类型检查通过；这些检查覆盖占用错误传递与既有插件回归。
 
 共用验收器的 NAS 模式如下。临时配置、测试账号和带访问凭据的启动 URL 只保存在未跟踪的 `.tmp/remote-workspace-nas/`，私密文件权限为 `0600`。
 

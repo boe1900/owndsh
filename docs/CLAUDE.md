@@ -4,7 +4,7 @@
 
 成员清单
 
-remote-dsh-workspace-design.md: R1–R5 后 DSH 实际业务的实施契约，固定目标整页、完整 Noise/lease、逐页 owner Peer、Storage 隔离，以及本机与 Mac/NAS 双物理机验收和保留环境。
+remote-dsh-workspace-design.md: R1–R5 后 DSH 实际业务的实施契约，固定目标整页、完整 Noise/lease、逐页 owner Peer、Storage 隔离、单连接占用的严格错误提示，以及本机与 Mac/NAS 双物理机验收和保留环境。
 
 unified-login-design.md: 统一登录实施真源，冻结新鲜登录直达授权完成、已有浏览器身份确认、独立客户端 PKCE、退出范围与桌面唤回，记录真实本地验收。
 

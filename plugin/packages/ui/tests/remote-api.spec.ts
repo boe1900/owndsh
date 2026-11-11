@@ -1,12 +1,12 @@
 /**
  * [INPUT]: 依赖远控 API 边界、生成设备 schema 与结构化 fetch 响应
- * [OUTPUT]: 验证同源控制请求、严格设备/元数据与安全导航拒绝规则
+ * [OUTPUT]: 验证同源控制请求、严格设备/元数据、安全导航及占用和认证错误的安全分类
  * [POS]: dsh-ui 远控协议回归，确保任何异常都不能把远端页面降级为本机页面
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { describe, expect, it, vi } from 'vitest'
-import { createRemoteLocalApi, readRemoteView, remoteDeviceUnavailable, RemoteLocalApiError } from '../src/remote-api.js'
+import { createRemoteLocalApi, readRemoteView, remoteDeviceUnavailable, remoteFailureMessage, RemoteLocalApiError } from '../src/remote-api.js'
 
 const view = {
   viewId: 'abcdefghijklmnop', deviceId: '11', name: '办公室 Mac', authority: 'tenant/user/device-b/v1', localUrl: '/',
@@ -62,6 +62,33 @@ describe('remote local API', () => {
   it('accepts a new isolated view after reconnect', async () => {
     const api = createRemoteLocalApi(vi.fn<typeof fetch>().mockResolvedValue(response({ url: '/enterprise/remote/views/qrstuvwxyzABCDEF/' })))
     await expect(api.reconnect(view, signal)).resolves.toBe('/enterprise/remote/views/qrstuvwxyzABCDEF/')
+  })
+  it.each(['open', 'reconnect'])('shows a validated busy response when %s fails', async action => {
+    const api = createRemoteLocalApi(vi.fn<typeof fetch>().mockResolvedValue(Response.json({ error: { code: 'ENT_REMOTE_BUSY' } }, { status: 409 })))
+    const result = action === 'open' ? api.open(device.deviceId, signal) : api.reconnect(view, signal)
+    const error = await result.catch((error: unknown) => error)
+    expect(error).toMatchObject({ kind: 'busy', message: 'busy' })
+    expect(remoteFailureMessage(error)).toBe('该设备正在被其他页面使用，请先关闭原连接后重试。')
+  })
+  it.each([
+    { status: 409, body: '{"error":{"code":"ENT_REMOTE_UNAVAILABLE"}}' },
+    { status: 409, body: '{"error":{"code":"ENT_REMOTE_BUSY","message":"private diagnostic"}}' },
+    { status: 409, body: '{"error":{"code":"ENT_REMOTE_BUSY"},"secret":"private diagnostic"}' },
+    { status: 409, body: 'invalid json' },
+    { status: 503, body: '{"error":{"code":"ENT_REMOTE_BUSY"}}' },
+    { status: 401, body: '{"error":{"code":"ENT_REMOTE_BUSY"}}' },
+    { status: 403, body: 'private diagnostic' },
+  ])('keeps HTTP $status failures generic or unauthorized unless busy is strictly verified', async ({ status, body }) => {
+    const api = createRemoteLocalApi(vi.fn<typeof fetch>().mockResolvedValue(new Response(body, { status })))
+    const error: unknown = await api.open(device.deviceId, signal).catch((error: unknown) => error)
+    const unauthorized = status === 401 || status === 403
+    expect(error).toMatchObject({ kind: unauthorized ? 'unauthorized' : 'unavailable' })
+    expect(remoteFailureMessage(error)).toBe(unauthorized ? '登录状态已失效，请返回本机重新登录。' : '暂时无法连接远程服务，请稍后重试。')
+  })
+  it('keeps network failures generic and does not expose their content', async () => {
+    const api = createRemoteLocalApi(vi.fn<typeof fetch>().mockRejectedValue(new Error('private diagnostic')))
+    const error: unknown = await api.open(device.deviceId, signal).catch((error: unknown) => error)
+    expect(remoteFailureMessage(error)).toBe('暂时无法连接远程服务，请稍后重试。')
   })
   it('rejects unknown device fields and never exposes server error content', async () => {
     const request = vi.fn<typeof fetch>().mockResolvedValueOnce(response({ items: [{ ...device, token: 'secret' }] }))

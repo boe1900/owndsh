@@ -18,7 +18,7 @@ src/css-modules.d.ts: 声明本地 CSS Modules 与 CSS 副作用导入类型，�
 src/client.tsx: Client 组合根，本机注册 OwnDsh 设置/账号/门禁并共享脱敏 store；严格读取前置 view 元数据后，远端页仅注册 shell.bottom 目标条与 shell.overlay 阻断，不创建本机账号/技能或接入远端设置；无效远端引导拒绝降级成本机。
 src/index.ts: 无运行行为的 Host 占位入口，使官方 scanner 从 Loader row 发现 Client half。
 src/local-api.ts: 固定同源路径的严格 Server/账号/卸载/可安装与已安装技能/MCP DTO 与显式刷新解码，承载 OAuth/API Key 本地动作、技能安装和严格 OAuth flow 进度与连接意愿/名称简介目录/发现数量/有效呈现事实；插件市场由 DSH 官方索引服务承载，本地 API 不投影插件目录。
-src/remote-api.ts: 远控浏览器网络边界，复用 contracts 设备 schema 严格解析非秘密 view 与本机控制响应，只接受固定同源路径与 canonical view URL，重连接受新的隔离 view，不持有票据或转发业务。
+src/remote-api.ts: 远控浏览器网络边界，复用 contracts 设备 schema 严格解析非秘密 view 与本机控制响应，只接受固定同源路径与 canonical view URL；严格匹配 ENT_REMOTE_BUSY/409 后提供占用提示，重连接受新的隔离 view，不持有票据或转发业务。
 src/remote-store.ts: 独立设备选择与固定远端页控制器，按订阅生命周期取消请求；本机只显式刷新，远端 15 秒检查/可见性检查，断线继续保活但保持锁定直到用户重连并整页加载，返回本机不等待 close。
 src/remote-workspace.tsx: 原生 Menu 入口的设备弹窗、确认本机入站开关、持续机器名和不可关闭断线卡片；仅呈现控制事实，远端业务仍由官方工作区/会话页面负责。
 src/remote-workspace.module.css: 复用官方主题 tokens 的设备列表、shell.bottom 状态条与阻断卡片，在窄屏保留明确机器名和返回入口。
@@ -29,8 +29,8 @@ src/skill-store.ts: 本地可安装/已安装技能列表、串行安装/启用/
 tests/account-store.spec.ts: MCP 授权成功/失败/取消/截止时间及账号切换迟到隔离； 手动刷新进度/失败/重试、保存成败与动作串行、退出错误后的本地状态收敛、服务/账号切换的迟到数据与错误隔离，以及有界登录查询和 Session 零请求测试。
 tests/account-view.spec.ts: 锁定门禁放行、Server 编辑状态白名单和 MCP exposure 覆写解码。
 tests/client.spec.ts: 本机设置/账号/门禁的注册身份与共享 store，以及远端分支只注册目标条/阻断、无效 metadata 不降级成本机的回归。
-tests/remote-api.spec.ts: 固定控制路径、同源凭据、strict 设备/metadata、秘密字段拒绝、安全 view URL 与新 view 重连校验。
-tests/remote-store.spec.ts: 设备选择不轮询/不自动连接、失败重试、卸载迟到隔离、远端断线锁定/显式重连和不等待 close 返回本机的行为回归。
+tests/remote-api.spec.ts: 固定控制路径、同源凭据、strict 设备/metadata、秘密字段拒绝、安全 view URL、新 view 重连及占用/认证/未知错误的严格分类。
+tests/remote-store.spec.ts: 设备选择不轮询/不自动连接、失败重试、卸载迟到隔离、远端断线锁定/显式重连、创建/重连占用提示，以及不等待 close 返回本机的行为回归。
 tests/skill-store.spec.ts: 本地可安装/已安装技能清单刷新、安装后迁移、设备启用/卸载以及 Host 文件动作的最小状态回归。
 tests/skill-market.spec.ts: 技能市场全部视图合并、本地副本覆盖和分类投影回归。
 tests/local-api.spec.ts: Server/账号/卸载/技能/MCP 工具简介白名单/计数一致/呈现与发现/Session DTO、固定路径、OAuth flow 绑定、脱敏投影、显式刷新与秘密字段拒绝测试。

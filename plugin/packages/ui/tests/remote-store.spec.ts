@@ -1,12 +1,12 @@
 /**
  * [INPUT]: 依赖远控状态控制器、可控异步 API 与 Vitest 时钟
- * [OUTPUT]: 验证整页切换、卸载取消、断线锁定、手动重连和返回本机不等待网络
+ * [OUTPUT]: 验证整页切换、卸载取消、断线锁定、打开和重连占用提示，以及返回本机不等待网络
  * [POS]: dsh-ui 远控生命周期行为回归，不依赖 Host 或真实用户账号
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { RemoteDevice, RemoteLocalApi } from '../src/remote-api.js'
+import { RemoteLocalApiError, type RemoteDevice, type RemoteLocalApi } from '../src/remote-api.js'
 import { RemoteDeviceStore, RemoteWorkspaceStore } from '../src/remote-store.js'
 const view = {
   viewId: 'abcdefghijklmnop', deviceId: '11', name: '办公室 Mac', authority: 'tenant/user/device-b/v1', localUrl: '/',
@@ -34,6 +34,20 @@ async function flush() { await Promise.resolve(); await Promise.resolve(); await
 afterEach(() => { vi.useRealTimers() })
 
 describe('device selection lifecycle', () => {
+  it('keeps selection open with the busy reason and permits explicit retry', async () => {
+    const remote = api(), navigate = vi.fn()
+    remote.open.mockRejectedValueOnce(new RemoteLocalApiError('busy'))
+    const store = new RemoteDeviceStore(remote, navigate)
+    const stop = store.subscribe(vi.fn())
+    try {
+      await flush()
+      await store.open(device)
+      expect(store.getSnapshot()).toMatchObject({ kind: 'ready', action: { kind: 'idle' }, message: '该设备正在被其他页面使用，请先关闭原连接后重试。' })
+      expect(navigate).not.toHaveBeenCalled()
+      await store.open(device)
+      expect(navigate).toHaveBeenCalledOnce()
+    } finally { stop() }
+  })
   it('never polls or connects without an explicit action and accepts outbound use while inbound is off', async () => {
     vi.useFakeTimers()
     const remote = api(), navigate = vi.fn()
@@ -85,6 +99,22 @@ describe('device selection lifecycle', () => {
 })
 
 describe('fixed remote workspace lifecycle', () => {
+  it('keeps the target locked with the busy reason after reconnect rejection', async () => {
+    const remote = api(), navigate = vi.fn()
+    remote.state.mockResolvedValue('disconnected')
+    remote.reconnect.mockRejectedValueOnce(new RemoteLocalApiError('busy'))
+    const store = new RemoteWorkspaceStore(remote, view, navigate)
+    const stop = store.subscribe(vi.fn())
+    try {
+      await flush()
+      await store.reconnect()
+      expect(store.getSnapshot()).toMatchObject({ kind: 'disconnected', message: '该设备正在被其他页面使用，请先关闭原连接后重试。' })
+      expect(navigate).not.toHaveBeenCalled()
+      expect(remote.open).not.toHaveBeenCalled()
+      await store.reconnect()
+      expect(navigate).toHaveBeenCalledOnce()
+    } finally { stop() }
+  })
   it('keeps a disconnected page alive and locked until explicit reconnect navigates', async () => {
     vi.useFakeTimers()
     const remote = api(), navigate = vi.fn()

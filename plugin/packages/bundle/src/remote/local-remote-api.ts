@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖官方 Connection 的 owner admission、回环同源门禁、平台状态、远端 runtime 与 view registry。
- * [OUTPUT]: 提供员工本机的远控开关、本人设备选择、独立页面创建与显式重连路由。
+ * [OUTPUT]: 提供员工本机远控开关、设备选择、页面创建与重连；连接占用只返回固定 409 错误码。
  * [POS]: remote 的浏览器控制边界；凭据只留 Host，页面只能选择设备，不能提供代理地址或协议正文。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -105,6 +105,9 @@ export function mountRemoteLocalApi(
         writeRemoteJson(response, 404, { error: { code: 'ENT_REMOTE_NOT_FOUND' } })
       } catch (error) {
         if (lifetime.signal.aborted || response.destroyed) return
+        if (error instanceof Error && error.message === 'ENT_REMOTE_BUSY') {
+          writeRemoteJson(response, 409, { error: { code: 'ENT_REMOTE_BUSY' } }); return
+        }
         const invalid = error instanceof z.ZodError || error instanceof SyntaxError || error instanceof Error && error.message === 'ENT_BAD_REQUEST'
         writeRemoteJson(response, invalid ? 400 : 503, { error: { code: invalid ? 'ENT_BAD_REQUEST' : 'ENT_REMOTE_UNAVAILABLE' } })
       } finally {

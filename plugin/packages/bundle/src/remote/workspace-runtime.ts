@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖平台登录/认证请求、官方 credentials、固定原生 Host carrier 与 secure link。
- * [OUTPUT]: 提供有界分页的本人设备发现、逐视图 controller link 与常驻 Host presence 的统一生命周期。
+ * [OUTPUT]: 提供有界本人设备发现、保留建链拒绝原因的逐视图 Controller link 与常驻 Host presence 生命周期。
  * [POS]: bundle/remote 的产品组合入口；账号切换先撤销全部远端能力，掉线只重连 presence。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -131,7 +131,7 @@ export class WorkspaceRuntime implements RemoteWorkspaceRuntime {
     const connection = new RemoteServerConnection({
       onFrame: frame => {
         if (frame.type === 'hello.ack') serverOffset = (frame.payload.serverTime ?? Date.now()) - Date.now()
-        else if (frame.type === 'error') link?.close()
+        else if (frame.type === 'error') { link?.ready.reject(new Error(frame.payload.code)); link?.close() }
         else link?.control(frame)
       },
       onRelay: frame => link?.relay(frame),

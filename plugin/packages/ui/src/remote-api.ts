@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 contracts 的 Zod/RemoteDevice 真源与浏览器同源 fetch
- * [OUTPUT]: 提供固定本机远控 API、严格远端页面元数据解析与可连接设备判定
+ * [OUTPUT]: 提供固定本机远控 API、严格远端元数据与占用错误解析、可连接设备判定及统一失败提示
  * [POS]: dsh-ui 的远控网络边界；页面只持有非秘密目标标识，不接触票据、密钥或业务转发
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -13,6 +13,7 @@ const PREFIX = '/enterprise/api/v1/local/remote'
 const VIEW_PREFIX = '/enterprise/remote/views/'
 const viewIdSchema = z.string().regex(/^[A-Za-z0-9_-]{16,128}$/)
 const viewUrlSchema = z.string().regex(/^\/enterprise\/remote\/views\/[A-Za-z0-9_-]{16,128}\/$/)
+const busyErrorSchema = z.strictObject({ error: z.strictObject({ code: z.literal('ENT_REMOTE_BUSY') }) })
 const metadataSchema = z.strictObject({
   viewId: viewIdSchema,
   deviceId: zRemoteDevice.shape.deviceId,
@@ -58,7 +59,7 @@ export interface RemoteLocalApi {
 }
 
 export class RemoteLocalApiError extends Error {
-  constructor(readonly kind: 'unauthorized' | 'unavailable' | 'invalid') {
+  constructor(readonly kind: 'unauthorized' | 'busy' | 'unavailable' | 'invalid') {
     super(kind)
     this.name = 'RemoteLocalApiError'
   }
@@ -76,7 +77,14 @@ export function createRemoteLocalApi(request: typeof fetch): RemoteLocalApi {
       ...(keepalive ? { keepalive: true } : {}),
       ...(body === undefined ? {} : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
     })
-    if (!response.ok) throw new RemoteLocalApiError(response.status === 401 || response.status === 403 ? 'unauthorized' : 'unavailable')
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) throw new RemoteLocalApiError('unauthorized')
+      if (response.status === 409) {
+        const body: unknown = await response.json().catch(() => undefined)
+        if (busyErrorSchema.safeParse(body).success) throw new RemoteLocalApiError('busy')
+      }
+      throw new RemoteLocalApiError('unavailable')
+    }
     try { return await response.json() }
     catch { throw new RemoteLocalApiError('invalid') }
   }
@@ -100,7 +108,9 @@ export function createRemoteLocalApi(request: typeof fetch): RemoteLocalApi {
 }
 
 export function remoteFailureMessage(error: unknown): string {
-  return error instanceof RemoteLocalApiError && error.kind === 'unauthorized'
-    ? '登录状态已失效，请返回本机重新登录。'
-    : '暂时无法连接远程服务，请稍后重试。'
+  if (error instanceof RemoteLocalApiError) {
+    if (error.kind === 'unauthorized') return '登录状态已失效，请返回本机重新登录。'
+    if (error.kind === 'busy') return '该设备正在被其他页面使用，请先关闭原连接后重试。'
+  }
+  return '暂时无法连接远程服务，请稍后重试。'
 }

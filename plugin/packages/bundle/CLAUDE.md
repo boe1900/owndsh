@@ -22,8 +22,8 @@ tests/remote-native-carrier.spec.ts: 真实 HTTP/WS 的原生 API cookie 隔离�
 tests/remote-network-boundary.spec.ts: 真实 Upgrade 的平台 Origin/Bearer 隔离，以及文件 RPC envelope、方法/路径一致性与准入前拒绝。
 tests/remote-secure-link.spec.ts: 双端真实 Noise 与进程内控制面路由，验证握手/租约门禁、密文传输、撤权、过期和旧 socket 隔离。
 tests/remote-key.spec.ts: 官方 credentials 契约下的 Host 静态密钥重启复用、owner 维度隔离与损坏记录拒绝。
-tests/remote-workspace-runtime.spec.ts: 产品 Host 默认关闭、显式开启、再开启复用身份、平台撤销清理与设备目录分页/循环拒绝。
-tests/remote-view-registry.spec.ts: 重连先释放旧链路、失败保留目标可重试，成功后新 view URL 隔离且设备存储 authority 稳定。
+tests/remote-workspace-runtime.spec.ts: 产品 Host 默认关闭、显式开启、再开启复用身份、平台撤销清理、设备目录分页/循环拒绝，以及 error/connect.reject 占用原因保留与 socket 释放。
+tests/remote-view-registry.spec.ts: 重连先释放旧链路、失败保留目标可重试，成功后新 view URL 隔离且设备存储 authority 稳定；真实 HTTP 验证创建/重连占用只返回固定 409，未知故障仍脱敏为 503。
 tests/remote-runtime.spec.ts: 旧 presence 兼容类的登录与撤权生命周期回归。
 tests/mcp-oauth.spec.ts: 身份/目标绑定、官方 StoredOAuth* 记录、discovery/issuer/iss 绑定、官方 SDK OAuth 委托与取消生命周期；不复制 OAuth 协议测试。
 tests/mcp-runtime.spec.ts: 真实 Cordis/tools/system-prompt 与受控 PTC binding 验证 direct/codemode/deferred/hidden、tool_search、下一轮 assembly、Agent 隔离和执行守卫；OAuth/transport 由独立官方 client 测试覆盖。
