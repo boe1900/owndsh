@@ -106,6 +106,8 @@ Host 静态密钥保存在官方 credentials，绑定平台、用户、installat
 
 远端官方 workspace/follow baseline 提供已有 DSH 工作区。会话、模型、工具审批、流和终端复用官方 Gateway。端点白名单必须核对锁定 npm rc.5 的真实声明，不能猜方法名。工作区创建、任意目录选择、上传、文件覆盖和删除暂不开放。
 
+原生设置的内置插件页通过精确准入的 `pluginInventory/list` 读取目标 Host 的插件目录、运行状态与 Agent preset 组成。返回官方库存 metadata，包含条件表达式和普通诊断，不读取完整插件配置或凭据。该请求属于远端业务，不加入本机 UI assembly；它与本机 `dynamicCordisRunner/inventory` 的模块组合信息不同。插件安装、卸载、启停和配置写入仍不开放；现有页面入口保持原样，列表可读不代表管理权限已开放。
+
 文件读取和预览基于可信 workspace catalog 做 realpath 包含检查，拒绝越界绝对路径、穿越和 symlink 逃逸。直接路径保留 symlink 与 `..` 的物理解析顺序；`readBytes` 的 baseFile 先取得真实路径，再按官方语义解析相对目标，避免检查文件与实际读取文件不同。插件安装、凭据秘密、桌面 opener、本机 OwnDsh API、dynamic runner 执行管理均拒绝。
 
 Agent、工具和终端仍拥有远端 OS 用户权限，文件包含检查不是 OS sandbox。工具审批绑定独立 answer Peer，关闭 link 中止在途流并释放 Peer，不能留下脱离 lease 的控制通道。
@@ -149,6 +151,8 @@ Mac 使用隔离 npm rc.5 Controller，NAS 使用官方同版本 Harness 和本�
 [跨机证据](../.audit/remote-workspace-nas-evidence.json) 记录 14 项全部通过。覆盖员工双端 PKCE、Host 默认关闭及显式确认开启、本人设备发现、独立原生工作区、远端 Session 创建/重命名、模型流、文件和超过 64 KiB 的响应、媒体哈希、路径逃逸拒绝，以及终端输入/输出。终端生成文件经 SSH 从 NAS 实际文件系统复核，Mac 不存在同名文件。刷新淘汰旧 view，关闭 Host 后阻断业务且不回落本机，断线刷新、失败重试、手动恢复和返回本机也通过。关闭 Host 是受控断连测试，不代表物理断网或 UDP 阻断验证。
 
 连接占用提示另经真实 Mac/NAS 复验。受控连接占用 NAS 后，第二次打开返回 `409 / ENT_REMOTE_BUSY`，浏览器显示明确占用原因。释放原连接后，在同一弹窗重试成功进入 NAS 工作区，真实会话可见；验证结束返回本机并释放测试连接。本机隔离 Controller 已加载该修复，NAS Host 沿用原运行包。相应 bundle 59 项、UI 78 项测试及类型检查通过；这些检查覆盖占用错误传递与既有插件回归。
+
+内置插件列表另经真实 Mac/NAS 复验。修复前 `pluginInventory/list` 返回 `503 / ENT_REMOTE_UNAVAILABLE`，原生设置显示“暂时无法读取插件。”；NAS 调试插件加载精确准入修复后，列表、搜索、详情与运行状态正常。远端返回 197 条全局插件和 4 个 Agent preset，目录与 NAS 直接读取一致，与本机目录不同。允许路径携带安装方法时由官方 handler 返回 `gateway/bad-request`；安装、卸载、启停、配置和凭据请求仍拒绝，拒绝后列表仍可读取。bundle 60 项、类型检查、构建与独立授权审阅通过。验证结束返回本机，测试 view 返回 404，服务继续保留；现有页面入口保持原样。
 
 共用验收器的 NAS 模式如下。临时配置、测试账号和带访问凭据的启动 URL 只保存在未跟踪的 `.tmp/remote-workspace-nas/`，私密文件权限为 `0600`。
 

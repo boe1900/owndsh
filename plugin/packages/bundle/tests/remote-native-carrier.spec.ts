@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖真实 Node HTTP/WS listener、官方 stream parser 与 Host carrier。
- * [OUTPUT]: 验证独立API cookie只留Host、HTTP/WS共用Peer、端点准入、取消流回收及关闭释放Peer。
+ * [OUTPUT]: 验证独立API cookie只留Host、HTTP/WS共用Peer、远端插件库存只读准入、取消流回收及关闭释放Peer。
  * [POS]: remote Host 原生carrier接缝回归，真实收发字节而非仅检查调用参数。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -8,6 +8,67 @@ import { createServer } from 'node:http'
 import { WebSocketServer } from 'ws'
 import { it, expect } from 'vitest'
 import { openDshCarrier } from '../src/remote/dsh-carrier.js'
+
+it('reads plugin inventory from the remote owner while keeping plugin management denied', async () => {
+  const inventory = { entries: [{ entryId: 'remote-only', moduleName: '@example/nas-only-plugin', enabled: true, fiberPhase: 'active' }] }
+  const requests: { path: string | undefined; cookie: string | undefined }[] = []
+  const server = createServer((request, response) => {
+    if (request.url?.startsWith('/connect?')) {
+      response.writeHead(302, { 'set-cookie': 'native-owner=remote-inventory-owner; HttpOnly' }).end(); return
+    }
+    requests.push({ path: request.url, cookie: request.headers.cookie })
+    response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(inventory))
+  })
+  const ws = new WebSocketServer({ server })
+  ws.on('connection', peer => peer.on('message', data => {
+    const frame = JSON.parse(String(data))
+    if (frame.type === 'open') peer.send(JSON.stringify({ type: 'item', streamId: frame.streamId, value: 'remote-owner-baseline' }))
+  }))
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  const address = server.address()
+  if (!address || typeof address === 'string') throw new Error('listener unavailable')
+  const carrier = await openDshCarrier({
+    connection: { authenticatedUrl: url => `${url}?token=launch` },
+    webServer: { getOrigin: () => `http://127.0.0.1:${address.port}` }, workspaceRegistry: { list: () => [] },
+  }, new AbortController().signal)
+  try {
+    const denied = [
+      { method: 'GET', path: '/api/pluginInventory/list' },
+      { method: 'POST', path: '/api/pluginInventory/list?readOnly=1' },
+      { method: 'POST', path: '/api/pluginInventory/list/' },
+      { method: 'POST', path: '/api/pluginInventory/listAll' },
+      { method: 'POST', path: '/api/pluginInventory/list%2F' },
+      ...['installBundle', 'removeBundle', 'setPluginEnabled', 'setBundleEnabled', 'setVersionExemption']
+        .map(method => ({ method: 'POST', path: `/api/pluginManager/${method}` })),
+      { method: 'POST', path: '/api/settings/update' },
+      { method: 'POST', path: '/api/credentials/get' },
+    ]
+    for (const { method, path } of denied) {
+      await expect(carrier.fetch(path, { method, headers: {} })).rejects.toThrow('ENT_REMOTE_DENIED')
+      expect(carrier.signal?.aborted).toBe(false)
+    }
+    expect(requests).toEqual([])
+    const envelope = { type: 'client-request', rpcId: crypto.randomUUID(), method: 'pluginInventory/list', payload: { args: {} } }
+    const response = await carrier.fetch('/api/pluginInventory/list', {
+      method: 'POST', headers: { 'content-type': 'application/json', cookie: 'controller-owner=wrong' },
+      body: new ReadableStream<Uint8Array>({ start(controller) {
+        controller.enqueue(new TextEncoder().encode(JSON.stringify(envelope))); controller.close()
+      } }),
+    })
+    expect(await response.json()).toEqual(inventory)
+    expect(requests).toEqual([{ path: '/api/pluginInventory/list', cookie: 'native-owner=remote-inventory-owner' }])
+    const mux = await carrier.openMux()
+    await mux.send(JSON.stringify({ type: 'open', streamId: 'after-denial', endpoint: 'workspace/follow', payload: { args: {} } }))
+    expect(JSON.parse((await mux.messages[Symbol.asyncIterator]().next()).value!))
+      .toMatchObject({ streamId: 'after-denial', value: 'remote-owner-baseline' })
+    expect(carrier.signal?.aborted).toBe(false)
+  } finally {
+    carrier.close()
+    for (const peer of ws.clients) peer.terminate()
+    ws.close(); server.closeAllConnections()
+    await new Promise<void>(resolve => server.close(() => resolve()))
+  }
+})
 
 it('keeps native owner credentials on Host and closes the native operator with its link', async () => {
   const requests: { path: string; cookie: string | undefined; authorization: string | undefined }[] = []

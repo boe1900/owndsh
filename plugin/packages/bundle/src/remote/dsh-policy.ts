@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖原生 WorkspaceRegistry 的可信目录和公开 mux 协议。
- * [OUTPUT]: 提供逐端点准入与按原生物理路径语义的 realpath 约束，拒绝安装/凭据/本机设置及写文件旁路。
+ * [OUTPUT]: 提供逐端点准入、插件库存只读访问与原生物理路径的 realpath 约束，拒绝插件管理/凭据/本机设置及写文件旁路。
  * [POS]: remote Host 的业务权限边界；agent/terminal 仍以原生 DSH 的 OS 用户执行。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -22,6 +22,7 @@ export const DSH_UNARY_ENDPOINTS = new Set([
   'terminal/environment', 'terminal/shells', 'terminal/list', 'terminal/create', 'terminal/rename', 'terminal/close',
   'commands/list', 'commands/execute', 'subagents/prompt', 'subagents/interruptByParent', 'job/kill',
   'agentPresets/list', 'agentPresets/read', 'agentPresets/select', 'permissionPresets/catalog', 'skills/list',
+  'pluginInventory/list',
 ])
 export const DSH_STREAM_ENDPOINTS = new Set([
   '$events', 'remoteAccess/follow', 'workspace/follow', 'session/follow', 'session/control',
