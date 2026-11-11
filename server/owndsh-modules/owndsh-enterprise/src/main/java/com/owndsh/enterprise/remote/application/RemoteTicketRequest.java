@@ -6,7 +6,7 @@
  */
 package com.owndsh.enterprise.remote.application;
 
-import java.util.Base64;
+import com.owndsh.enterprise.remote.RemoteProtocol;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -22,11 +22,8 @@ public record RemoteTicketRequest(
     public RemoteTicketRequest {
         controllerDeviceId = text(controllerDeviceId, "controllerDeviceId", 64);
         if (!controllerDeviceId.matches("^ctl_[0-9A-HJKMNP-TV-Z]{26}$")) throw new IllegalArgumentException("controllerDeviceId 格式非法");
-        controllerPublicKey = text(controllerPublicKey, "controllerPublicKey", 64);
-        try {
-            if (Base64.getUrlDecoder().decode(controllerPublicKey).length != 32) throw new IllegalArgumentException("wrong length");
-        } catch (IllegalArgumentException exception) {
-            throw new IllegalArgumentException("controllerPublicKey 必须是 32 字节 base64url", exception);
+        if (!RemoteProtocol.isPublicKey(controllerPublicKey)) {
+            throw new IllegalArgumentException("controllerPublicKey 必须是规范无填充的 32 字节 base64url");
         }
         requestedCapabilities = List.copyOf(Objects.requireNonNull(requestedCapabilities, "requestedCapabilities"));
         if (requestedCapabilities.isEmpty() || requestedCapabilities.size() > 8

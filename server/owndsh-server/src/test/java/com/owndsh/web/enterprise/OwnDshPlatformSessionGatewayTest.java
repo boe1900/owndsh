@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Sa-Token 1.45 JWT/权限拦截器/mock HTTP context、Refresh Session store 与平台会话 adapter。
- * [OUTPUT]: 验证 Cookie 前置生效、浏览器/客户端独立退出，以及单 installation/成员的 Access 与 Refresh 会话同步撤销。
+ * [OUTPUT]: 验证 Cookie 前置生效、浏览器/客户端独立退出、单 installation/成员的会话撤销与 Remote 已建 carrier 的凭据重验。
  * [POS]: owndsh-server 会话回归门禁，覆盖浏览器 Cookie 与 Desktop 长短期凭据共用的服务端生命周期。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -231,6 +231,19 @@ class OwnDshPlatformSessionGatewayTest {
         assertThat(identity.actorId()).isEqualTo(USER_ID);
         assertThat(identity.deviceType()).isEqualTo("harness");
         assertThat(identity.deviceId()).isEqualTo(FIRST);
+    }
+
+    @Test
+    void remoteAuthenticatorRejectsRevokedTokenButKeepsOtherInstallation() {
+        String firstToken = logic.createLoginSession(LOGIN_ID, device(FIRST));
+        String secondToken = logic.createLoginSession(LOGIN_ID, device(SECOND));
+        OwnDshRemotePeerAuthenticator authenticator = new OwnDshRemotePeerAuthenticator(properties);
+        assertThat(authenticator.authenticate(firstToken)).isPresent();
+        gateway.revokeHarnessDevice(USER_ID, FIRST);
+        assertThat(authenticator.authenticate(firstToken)).isEmpty();
+        assertThat(authenticator.authenticate(secondToken)).isPresent();
+        logic.logoutByTokenValue(secondToken);
+        assertThat(authenticator.authenticate(secondToken)).isEmpty();
     }
 
     @Test

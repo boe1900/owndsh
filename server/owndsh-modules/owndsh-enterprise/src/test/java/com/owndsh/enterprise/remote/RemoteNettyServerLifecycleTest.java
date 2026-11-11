@@ -33,6 +33,11 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.nullable;
 
 @Tag("dev")
 class RemoteNettyServerLifecycleTest {
@@ -53,7 +58,7 @@ class RemoteNettyServerLifecycleTest {
             properties,
             JsonMapper.builder().build(),
             authenticator,
-            new RemoteGateway(JsonMapper.builder().build(), RemoteGatewayAuthorizer.rejecting())
+            new RemoteGateway(JsonMapper.builder().build(), authenticatedPeers())
         );
         HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
         CompletableFuture<String> response = new CompletableFuture<>();
@@ -99,7 +104,7 @@ class RemoteNettyServerLifecycleTest {
             properties,
             JsonMapper.builder().build(),
             authenticator,
-            new RemoteGateway(JsonMapper.builder().build(), RemoteGatewayAuthorizer.rejecting())
+            new RemoteGateway(JsonMapper.builder().build(), authenticatedPeers())
         );
         HttpClient client = insecureTestClient();
         CompletableFuture<String> response = new CompletableFuture<>();
@@ -148,7 +153,7 @@ class RemoteNettyServerLifecycleTest {
             properties,
             JsonMapper.builder().build(),
             authenticator,
-            new RemoteGateway(JsonMapper.builder().build(), RemoteGatewayAuthorizer.rejecting())
+            new RemoteGateway(JsonMapper.builder().build(), authenticatedPeers())
         );
         Process probe = null;
         try {
@@ -180,6 +185,13 @@ class RemoteNettyServerLifecycleTest {
             lifecycle.stop();
             if (certificate != null) certificate.delete();
         }
+    }
+
+    private static RemoteGatewayAuthorizer authenticatedPeers() {
+        RemoteGatewayAuthorizer authorizer = mock(RemoteGatewayAuthorizer.class);
+        when(authorizer.authorizePeer(any(), anyString(), anyString(), nullable(String.class))).thenReturn(true);
+        when(authorizer.isPeerActive(any(), anyString(), anyString(), nullable(String.class))).thenReturn(true);
+        return authorizer;
     }
 
     private static int freePort() throws IOException {

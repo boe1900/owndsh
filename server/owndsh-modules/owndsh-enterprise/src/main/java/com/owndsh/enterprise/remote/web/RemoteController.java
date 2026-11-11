@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖管理员 Cookie 会话、Remote 控制面请求 DTO、cursor 和 If-Match。
  * [OUTPUT]: 提供设备列表、ticket、capability 和 lease revoke 四个 P0 管理 API。
- * [POS]: remote/web 的唯一 HTTP 入口；授权与状态编排委托 RemoteControlService。
+ * [POS]: remote/web 的管理 HTTP 入口；授权与状态编排委托 RemoteControlService。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.remote.web;

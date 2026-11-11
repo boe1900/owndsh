@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 接收租户、keyset cursor 和当前时间，读取 ent_device 与 Remote 配置快照。
- * [OUTPUT]: 对外提供 Remote 设备列表/详情端口，隐藏 SQL、JSONB 和 presence TTL 细节。
+ * [OUTPUT]: 对外提供 Remote 本人设备列表、详情及不可静默轮换的身份公钥端口，隐藏 SQL、JSONB 和 presence TTL 细节。
  * [POS]: remote/persistence 的 DIP 边界，授权编排不依赖 JDBC 行结构。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -11,9 +11,18 @@ import com.owndsh.enterprise.remote.domain.RemoteDeviceSnapshot;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 public interface RemoteDeviceStore {
     List<RemoteDeviceSnapshot> list(String tenantId, long afterId, int limit, Instant now);
+
+    List<RemoteDeviceSnapshot> listOwned(String tenantId, long userId, UUID excludedInstallation, long afterId, int limit, Instant now);
+
+    Optional<RemoteDeviceSnapshot> findByInstallation(String tenantId, UUID installationId, Instant now);
+
+    Optional<String> identityPublicKey(String tenantId, long deviceId);
+
+    boolean pinIdentityPublicKey(String tenantId, long userId, UUID installationId, long deviceId, String publicKey);
 
     Optional<RemoteDeviceSnapshot> find(String tenantId, long deviceId, Instant now);
 

@@ -1,12 +1,11 @@
 /**
  * [INPUT]: 依赖 JsonMapper、Remote listener 配置与 Spring lifecycle。
  * [OUTPUT]: 对外装配 RemoteNettyProperties 和可关闭的 Netty server bean。
- * [POS]: remote 模块的 composition root，默认关闭以保证现有 HTTP 服务不受影响。
+ * [POS]: remote 模块的 composition root，默认关闭且缺少生产认证器时拒绝所有连接。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.remote;
 
-import cn.dev33.satoken.stp.StpUtil;
 import com.owndsh.enterprise.remote.application.RemoteControlService;
 import com.owndsh.enterprise.remote.persistence.JdbcRemoteDeviceStore;
 import com.owndsh.enterprise.remote.persistence.RemoteDeviceStore;
@@ -49,11 +48,7 @@ public class EnterpriseRemoteConfiguration {
         ObjectProvider<RemotePeerAuthenticator> peerAuthenticators
     ) {
         RemoteGateway gateway = new RemoteGateway(json, new RemoteControlGatewayAuthorizer(service));
-        RemotePeerAuthenticator authenticator = peerAuthenticators.getIfAvailable(
-            () -> token -> StpUtil.getStpLogic().isLogin(token)
-                ? java.util.Optional.of(new RemotePeerIdentity("unknown", 1, "unknown", "unknown"))
-                : java.util.Optional.empty()
-        );
+        RemotePeerAuthenticator authenticator = peerAuthenticators.getIfAvailable(() -> token -> java.util.Optional.empty());
         return new RemoteNettyServerLifecycle(properties, json, authenticator, gateway);
     }
 }

@@ -1,12 +1,17 @@
 /**
- * [INPUT]: 依赖管理员上下文、RemoteDeviceStore、Redis ticket/link 状态、JsonMapper 和 coturn 配置。
- * [OUTPUT]: 提供设备列表、能力读取、一次性 ticket 签发与 lease fencing，Redis ticket 将 64 位 actorId 按十进制字符串编码避免 Lua 精度损失。
+ * [INPUT]: 依赖可信员工/管理员上下文、RemoteDeviceStore、Redis ticket/link 状态、JsonMapper 和 coturn 配置。
+ * [OUTPUT]: 提供设备列表、能力读取、一次性 ticket 签发与当前所有权/安装状态绑定的 lease，Host 公钥仅从已认证数据库 pin 读取。
  * [POS]: remote/application 的唯一控制面编排；Controller 不直接拼 SQL、Redis key 或加密凭据。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.remote.application;
 
 import com.owndsh.enterprise.auth.web.EnterpriseRequestContext;
+import com.owndsh.enterprise.auth.domain.PlatformClient;
+import com.owndsh.enterprise.device.application.DeviceAccessException;
+import com.owndsh.enterprise.device.application.DeviceCallContext;
+import com.owndsh.enterprise.device.domain.DeviceStatus;
+import com.owndsh.enterprise.remote.domain.EmployeeRemoteTicket;
 import com.owndsh.enterprise.remote.RemoteNettyProperties;
 import com.owndsh.enterprise.remote.RemoteProtocol;
 import com.owndsh.enterprise.remote.RemotePeerIdentity;
@@ -79,30 +84,62 @@ public final class RemoteControlService {
             .orElseThrow(() -> new RemoteControlException("ENT_RESOURCE_NOT_FOUND"));
     }
 
-    public RemoteTicket createTicket(
+    public RemoteDeviceSnapshot requireEmployee(DeviceCallContext context) {
+        var session = context.session();
+        if (session.client() != PlatformClient.DSH_DESKTOP || !"harness".equals(session.deviceType())) {
+            throw new DeviceAccessException("ENT_PERMISSION_DENIED");
+        }
+        RemoteDeviceSnapshot device = installation(context.tenantId(), session.userId(), session.deviceId());
+        if (device == null) throw new DeviceAccessException("ENT_DEVICE_REVOKED");
+        return device;
+    }
+
+    public List<RemoteDeviceSnapshot> listOwned(DeviceCallContext context, long afterId, int limit) {
+        RemoteDeviceSnapshot source = requireEmployee(context);
+        return devices.listOwned(context.tenantId(), source.userId(), source.installationId(), afterId, limit, clock.instant());
+    }
+
+    public EmployeeRemoteTicket createEmployeeTicket(DeviceCallContext context, long deviceId, UUID idempotencyKey, RemoteTicketRequest request) {
+        RemoteDeviceSnapshot source = requireEmployee(context);
+        if (source.deviceId() == deviceId) throw new RemoteControlException("ENT_PERMISSION_DENIED");
+        EnterpriseRequestContext actor = new EnterpriseRequestContext(context.tenantId(), source.userId(), context.requestId(), context.sourceIp(), context.userAgentHash());
+        RemoteTicket ticket = createTicket(actor, deviceId, idempotencyKey, request, source.installationId().toString());
+        return EmployeeRemoteTicket.from(ticket, devices.identityPublicKey(context.tenantId(), deviceId).orElseThrow());
+    }
+
+    public RemoteTicket createTicket(EnterpriseRequestContext context, long deviceId, UUID idempotencyKey, RemoteTicketRequest request) {
+        return createTicket(context, deviceId, idempotencyKey, request, null);
+    }
+
+    private RemoteTicket createTicket(
         EnterpriseRequestContext context,
         long deviceId,
         UUID idempotencyKey,
-        RemoteTicketRequest request
+        RemoteTicketRequest request,
+        String controllerInstallationId
     ) {
         RemoteDeviceSnapshot device = get(context, deviceId);
+        if (device.userId() != context.actorId()) throw new RemoteControlException("ENT_PERMISSION_DENIED");
         Instant now = clock.instant();
-        if (device.status().name().equals("REVOKED")) throw new RemoteControlException("ENT_DEVICE_REVOKED");
+        if (device.status() == DeviceStatus.REVOKED) throw new RemoteControlException("ENT_DEVICE_REVOKED");
         if (!device.remoteEnabled()) throw new RemoteControlException("ENT_REMOTE_DISABLED");
         if (!device.connectable(now)) throw new RemoteControlException("ENT_REMOTE_UNAVAILABLE");
         if (request.requestedCapabilities().stream().anyMatch(capability -> !device.capabilities().contains(capability))) {
             throw new RemoteControlException("ENT_REMOTE_FEATURE_NOT_SUPPORTED");
         }
 
+        String hostPublicKey = devices.identityPublicKey(context.tenantId(), deviceId)
+            .filter(RemoteProtocol::isPublicKey).filter(key -> activeHostKey(Long.toString(deviceId), key))
+            .orElseThrow(() -> new RemoteControlException("ENT_REMOTE_UNAVAILABLE"));
         String linkId = RemoteIds.ulid("rln_");
         String ticket = randomToken();
         Instant expiresAt = now.plus(TICKET_TTL);
         RemoteTicket response = new RemoteTicket(ticket, linkId, Long.toString(device.deviceId()), expiresAt, iceServers(linkId, expiresAt));
         RemoteTicketState state = new RemoteTicketState(
             context.tenantId(), context.actorId(), Long.toString(device.deviceId()), linkId,
-            request.controllerDeviceId(), request.controllerPublicKey(), request.requestedCapabilities(), expiresAt
+            request.controllerDeviceId(), request.controllerPublicKey(), controllerInstallationId, hostPublicKey, request.requestedCapabilities(), expiresAt
         );
-        String fingerprint = fingerprint(deviceId, request);
+        String fingerprint = fingerprint(deviceId, request) + ":" + controllerInstallationId;
         String idempotencyState = write(new RemoteIdempotencyState(fingerprint, response));
         String result = redis.issueTicket(
             "remote:ticket:" + digest(ticket),
@@ -125,87 +162,105 @@ public final class RemoteControlService {
         if (!context.tenantId().equals(state.tenantId()) || context.actorId() != state.actorId()) {
             throw new RemoteControlException("ENT_PERMISSION_DENIED");
         }
-        long epoch = redis.revokeLink(
-            "remote:link:" + linkId,
-            "remote:lease:" + linkId,
-            "remote:revoke:" + linkId
-        );
+        long epoch = redis.revokeLink(linkId);
         return new RemoteLeaseResult(linkId, "lease_" + linkId.substring(4), clock.instant(), epoch);
     }
 
-    public Optional<RemoteTicketState> consumeTicket(
-        String ticket,
-        String linkId,
-        String deviceId,
-        String controllerId,
-        String controllerPublicKey
-    ) {
-        if (!validConsumeInput(ticket, linkId, deviceId, controllerId, controllerPublicKey)) return Optional.empty();
-        Optional<String> candidate = redis.read("remote:ticket:" + digest(ticket));
-        if (candidate.isEmpty()) return Optional.empty();
-        RemoteTicketState state = read(candidate.get(), RemoteTicketState.class);
-        if (!matches(state, linkId, deviceId, controllerId, controllerPublicKey)
-            || !state.expiresAt().isAfter(clock.instant())) return Optional.empty();
-        return redis.consumeTicketStateBound(
-            "remote:ticket:" + digest(ticket), state.tenantId(), state.actorId(),
-            linkId, deviceId, controllerId, controllerPublicKey
-        ).map(value -> read(value, RemoteTicketState.class));
-    }
-
     public boolean authorizePeer(RemotePeerIdentity identity, String role, String peerId, String publicKey) {
-        if (identity == null) return false;
-        if ("controller".equals(role)) return RemoteProtocol.CONTROLLER_ID.matcher(peerId).matches();
-        if (!"host".equals(role) || !RemoteProtocol.DEVICE_ID.matcher(peerId).matches()) return false;
-        try {
-            RemoteDeviceSnapshot device = devices.findByDeviceId(Long.parseLong(peerId), clock.instant()).orElse(null);
-            return device != null
-                && identity.tenantId().equals(device.tenantId())
-                && identity.actorId() == device.userId()
-                && identity.deviceId().equals(String.valueOf(device.installationId()))
-                && device.status().name().equals("ACTIVE");
-        } catch (NumberFormatException exception) {
-            return false;
+        if (identity == null || !"harness".equals(identity.deviceType())) return false;
+        RemoteDeviceSnapshot source = installation(identity.tenantId(), identity.actorId(), identity.deviceId());
+        if (source == null) return false;
+        if ("controller".equals(role)) {
+            return RemoteProtocol.CONTROLLER_ID.matcher(peerId).matches() && RemoteProtocol.isPublicKey(publicKey);
         }
+        if (!"host".equals(role) || !Long.toString(source.deviceId()).equals(peerId)) return false;
+        return publicKey == null || RemoteProtocol.isPublicKey(publicKey)
+            && devices.pinIdentityPublicKey(source.tenantId(), source.userId(), source.installationId(), source.deviceId(), publicKey);
+    }
+
+    public boolean isPeerActive(RemotePeerIdentity identity, String role, String peerId, String publicKey) {
+        if (identity == null || !"harness".equals(identity.deviceType())) return false;
+        RemoteDeviceSnapshot source = installation(identity.tenantId(), identity.actorId(), identity.deviceId());
+        if (source == null) return false;
+        if ("controller".equals(role)) return RemoteProtocol.CONTROLLER_ID.matcher(peerId).matches() && RemoteProtocol.isPublicKey(publicKey);
+        return "host".equals(role) && Long.toString(source.deviceId()).equals(peerId)
+            && (publicKey == null || devices.identityPublicKey(source.tenantId(), source.deviceId()).filter(publicKey::equals).isPresent());
     }
 
     public Optional<RemoteTicketState> consumeTicket(
-        String ticket,
-        String linkId,
-        String deviceId,
-        String controllerId,
-        String controllerPublicKey,
-        RemotePeerIdentity identity
+        String ticket, String linkId, String deviceId, String controllerId,
+        String controllerPublicKey, RemotePeerIdentity identity
     ) {
-        if (identity == null || !validConsumeInput(ticket, linkId, deviceId, controllerId, controllerPublicKey)) return Optional.empty();
-        Optional<String> raw = redis.consumeTicketStateBound(
-            "remote:ticket:" + digest(ticket), identity.tenantId(), identity.actorId(), linkId, deviceId,
-            controllerId, controllerPublicKey
-        );
+        if (!validConsumeInput(ticket, linkId, deviceId, controllerId, controllerPublicKey)
+            || !authorizePeer(identity, "controller", controllerId, controllerPublicKey)) return Optional.empty();
+        Optional<String> raw = redis.read("remote:ticket:" + digest(ticket));
         if (raw.isEmpty()) return Optional.empty();
         RemoteTicketState state = read(raw.get(), RemoteTicketState.class);
-        if (!state.expiresAt().isAfter(clock.instant())) return Optional.empty();
-        return Optional.of(state);
+        if (!matches(state, linkId, deviceId, controllerId, controllerPublicKey)
+            || !state.tenantId().equals(identity.tenantId()) || state.actorId() != identity.actorId()
+            || !state.expiresAt().isAfter(clock.instant())
+            || state.controllerInstallationId() != null && !state.controllerInstallationId().equals(identity.deviceId())) return Optional.empty();
+        RemoteTicketState bound = new RemoteTicketState(state.tenantId(), state.actorId(), state.deviceId(), state.linkId(),
+            state.controllerDeviceId(), state.controllerPublicKey(), identity.deviceId(), state.hostPublicKey(), state.requestedCapabilities(), state.expiresAt());
+        if (!authorizedDevices(bound)) return Optional.empty();
+        return redis.consumeTicket("remote:ticket:" + digest(ticket), linkId, raw.get(), writeTicketState(bound))
+            ? Optional.of(bound) : Optional.empty();
     }
 
     public Optional<Instant> acquireLease(String linkId, String leaseId, int ttlSeconds) {
         if (!validLeaseInput(linkId, leaseId, ttlSeconds)) return Optional.empty();
-        Optional<String> link = redis.read("remote:link:" + linkId);
-        if (link.isEmpty()) return Optional.empty();
+        Optional<String> raw = activeLink(linkId);
+        if (raw.isEmpty() || !read(raw.get(), RemoteTicketState.class).expiresAt().isAfter(clock.instant())) return Optional.empty();
         Instant expiresAt = clock.instant().plusSeconds(ttlSeconds);
-        return redis.acquireLease("remote:lease:" + linkId, leaseId, ttlSeconds * 1000L) ? Optional.of(expiresAt) : Optional.empty();
+        return redis.acquireLease(linkId, leaseId, raw.get(), ttlSeconds * 1000L) ? Optional.of(expiresAt) : Optional.empty();
     }
 
     public boolean renewLease(String linkId, String leaseId, int ttlSeconds) {
         if (!validLeaseInput(linkId, leaseId, ttlSeconds)) return false;
-        return redis.renewLease("remote:lease:" + linkId, leaseId, ttlSeconds * 1000L);
+        return activeLink(linkId).filter(raw -> redis.renewLease(linkId, leaseId, raw, ttlSeconds * 1000L)).isPresent();
+    }
+
+    public boolean isLinkActive(String linkId) {
+        return activeLink(linkId).isPresent();
+    }
+
+    public boolean isLeaseActive(String linkId, String leaseId) {
+        return isLinkActive(linkId) && redis.read("remote:lease:" + linkId).filter(leaseId::equals).isPresent();
     }
 
     public void releaseLease(String linkId, String leaseId) {
-        if (!validLeaseInput(linkId, leaseId, 1)) return;
-        redis.releaseLease("remote:lease:" + linkId, leaseId);
+        if (validLeaseInput(linkId, leaseId, 1)) redis.releaseLease(linkId, leaseId);
     }
 
-    public void updatePresence(String deviceId, String state, boolean remoteEnabled, String capabilities, long lastSeenAt) {
+    private Optional<String> activeLink(String linkId) {
+        if (!RemoteProtocol.LINK_ID.matcher(linkId).matches() || redis.read("remote:consumed:" + linkId).isEmpty()) return Optional.empty();
+        return redis.read("remote:link:" + linkId).filter(raw -> authorizedDevices(read(raw, RemoteTicketState.class)));
+    }
+
+    private boolean authorizedDevices(RemoteTicketState state) {
+        RemoteDeviceSnapshot source = installation(state.tenantId(), state.actorId(), state.controllerInstallationId());
+        if (source == null) return false;
+        RemoteDeviceSnapshot target = devices.find(state.tenantId(), Long.parseLong(state.deviceId()), clock.instant()).orElse(null);
+        return target != null && target.userId() == state.actorId() && target.deviceId() != source.deviceId()
+            && target.connectable(clock.instant()) && target.capabilities().containsAll(state.requestedCapabilities())
+            && RemoteProtocol.isPublicKey(state.hostPublicKey())
+            && devices.identityPublicKey(state.tenantId(), target.deviceId()).filter(state.hostPublicKey()::equals).isPresent()
+            && activeHostKey(state.deviceId(), state.hostPublicKey());
+    }
+
+    private RemoteDeviceSnapshot installation(String tenantId, long userId, String installationId) {
+        if (installationId == null) return null;
+        try {
+            UUID installation = UUID.fromString(installationId);
+            if (installation.version() != 4) return null;
+            return devices.findByInstallation(tenantId, installation, clock.instant())
+                .filter(device -> device.userId() == userId && device.status() == DeviceStatus.ACTIVE).orElse(null);
+        } catch (IllegalArgumentException exception) {
+            return null;
+        }
+    }
+
+    public void updatePresence(String deviceId, String publicKey, String state, boolean remoteEnabled, String capabilities, long lastSeenAt) {
         long id;
         try {
             id = Long.parseLong(deviceId);
@@ -221,8 +276,20 @@ public final class RemoteControlService {
         } catch (RuntimeException ignored) {
             return;
         }
-        devices.updatePresence(device.tenantId(), id, state, remoteEnabled, values, List.of("relay", "lan", "p2p", "turn"), Instant.ofEpochMilli(lastSeenAt));
-        redis.updatePresence("remote:presence:" + deviceId, state, RemoteProtocol.PRESENCE_TTL_SECONDS * 1000L);
+        devices.updatePresence(device.tenantId(), id, state, remoteEnabled, values, List.of("relay"), clock.instant());
+        ObjectNode presence = json.createObjectNode().put("state", state).put("remoteEnabled", remoteEnabled);
+        if (publicKey != null) presence.put("hostPublicKey", publicKey);
+        redis.updatePresence("remote:presence:" + deviceId, presence.toString(), RemoteProtocol.PRESENCE_TTL_SECONDS * 1000L);
+    }
+
+    public void removePresence(String deviceId) {
+        redis.removePresence(deviceId);
+    }
+
+    private boolean activeHostKey(String deviceId, String key) {
+        return redis.read("remote:presence:" + deviceId).map(json::readTree)
+            .filter(presence -> "READY".equals(presence.path("state").asText()) && presence.path("remoteEnabled").asBoolean()
+                && key.equals(presence.path("hostPublicKey").asText())).isPresent();
     }
 
     private List<RemoteTicket.IceServer> iceServers(String linkId, Instant expiresAt) {
@@ -292,16 +359,11 @@ public final class RemoteControlService {
         String controllerId,
         String controllerPublicKey
     ) {
-        if (ticket == null || ticket.length() < 32 || ticket.length() > 512
-            || !RemoteProtocol.LINK_ID.matcher(linkId == null ? "" : linkId).matches()
-            || !RemoteProtocol.DEVICE_ID.matcher(deviceId == null ? "" : deviceId).matches()
-            || !RemoteProtocol.CONTROLLER_ID.matcher(controllerId == null ? "" : controllerId).matches()
-            || controllerPublicKey == null || controllerPublicKey.length() > 64) return false;
-        try {
-            return Base64.getUrlDecoder().decode(controllerPublicKey).length == 32;
-        } catch (IllegalArgumentException exception) {
-            return false;
-        }
+        return ticket != null && ticket.length() >= 32 && ticket.length() <= 512
+            && RemoteProtocol.LINK_ID.matcher(linkId == null ? "" : linkId).matches()
+            && RemoteProtocol.DEVICE_ID.matcher(deviceId == null ? "" : deviceId).matches()
+            && RemoteProtocol.CONTROLLER_ID.matcher(controllerId == null ? "" : controllerId).matches()
+            && RemoteProtocol.isPublicKey(controllerPublicKey);
     }
 
     private static boolean matches(

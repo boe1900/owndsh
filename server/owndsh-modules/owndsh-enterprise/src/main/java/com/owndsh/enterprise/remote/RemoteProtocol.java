@@ -1,12 +1,13 @@
 /**
  * [INPUT]: 依赖 contracts/remote 的 Remote v1 wire 约定。
- * [OUTPUT]: 对外提供 Java listener 使用的稳定版本、路径、大小、TTL 和 close code 常量。
+ * [OUTPUT]: 对外提供 Java listener 使用的稳定版本、路径、大小、TTL、close code 常量与规范 X25519 公钥编码校验。
  * [POS]: remote 的纯协议核心，不依赖 Spring、Netty、Redis 或 Typert 业务。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.remote;
 
 import java.util.regex.Pattern;
+import java.util.Base64;
 import java.util.Set;
 
 public final class RemoteProtocol {
@@ -35,6 +36,16 @@ public final class RemoteProtocol {
     public static final int CLOSE_PROTOCOL_ERROR = 4400;
     public static final int CLOSE_FRAME_TOO_LARGE = 4409;
     public static final int CLOSE_SERVER_DRAINING = 4503;
+
+    public static boolean isPublicKey(String value) {
+        if (value == null || value.length() != 43) return false;
+        try {
+            byte[] decoded = Base64.getUrlDecoder().decode(value);
+            return decoded.length == 32 && Base64.getUrlEncoder().withoutPadding().encodeToString(decoded).equals(value);
+        } catch (IllegalArgumentException exception) {
+            return false;
+        }
+    }
 
     private RemoteProtocol() {}
 }

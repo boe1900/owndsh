@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Netty HTTP upgrade request、Bearer/Cookie 会话凭据和配置的 origin。
- * [OUTPUT]: 在 WebSocket upgrade 前拒绝缺失凭据或不被允许的 Origin，并保存脱 Token 的 Peer identity。
+ * [OUTPUT]: 在 WebSocket upgrade 前拒绝缺失凭据或不被允许的 Origin，保存 Peer identity 与仅内存的会话重验回调，后续帧与定时检查重验旧 carrier 会话。
  * [POS]: remote 的网络信任边界；平台 Sa-Token 由 RemotePeerAuthenticator adapter 提供。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -15,10 +15,12 @@ import io.netty.handler.codec.http.HttpRequest;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
 
 public final class RemoteUpgradeAuthHandler extends ChannelInboundHandlerAdapter {
     public static final AttributeKey<RemotePeerIdentity> PEER_IDENTITY = AttributeKey.valueOf("owndsh.remote.peerIdentity");
+    public static final AttributeKey<BooleanSupplier> SESSION_ACTIVE = AttributeKey.valueOf("owndsh.remote.sessionActive");
     private final RemoteNettyProperties properties;
     private final Function<String, Optional<RemotePeerIdentity>> authenticator;
 
@@ -56,6 +58,8 @@ public final class RemoteUpgradeAuthHandler extends ChannelInboundHandlerAdapter
                 return;
             }
             context.channel().attr(PEER_IDENTITY).set(identity.get());
+            String sessionToken = token;
+            context.channel().attr(SESSION_ACTIVE).set(() -> authenticator.apply(sessionToken).filter(identity.get()::equals).isPresent());
             String configuredOrigin = properties.getAllowedOrigin();
             String origin = request.headers().get(HttpHeaderNames.ORIGIN);
             if (!configuredOrigin.isBlank() && !configuredOrigin.equals(origin)) {
@@ -64,6 +68,12 @@ public final class RemoteUpgradeAuthHandler extends ChannelInboundHandlerAdapter
             }
         }
         context.fireChannelRead(message);
+    }
+
+    @Override
+    public void channelInactive(ChannelHandlerContext context) {
+        context.channel().attr(SESSION_ACTIVE).set(null);
+        context.fireChannelInactive();
     }
 
     private static String bearerToken(String authorization) {

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 JdbcOperations、ent_device、ent_remote_device_config 和 JSONB capability 快照。
- * [OUTPUT]: 提供租户限定的 Remote 设备摘要与 90 秒 presence 在线判断。
+ * [OUTPUT]: 提供租户/本人限定的设备摘要、90 秒在线判断与首次认证公钥原子 pin。
  * [POS]: remote/persistence 的 PostgreSQL adapter；不把业务正文或私钥投影到控制面。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -20,6 +20,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -37,6 +38,23 @@ public final class JdbcRemoteDeviceStore implements RemoteDeviceStore {
         + " on c.device_id = d.id and c.tenant_id = d.tenant_id ";
     private static final String LIST = "select " + COLUMNS + FROM
         + "where d.tenant_id = ? and d.id > ? order by d.id limit ?";
+    private static final String LIST_OWNED = "select " + COLUMNS + FROM
+        + "where d.tenant_id = ? and d.user_id = ? and d.installation_id <> ? and d.id > ? order by d.id limit ?";
+    private static final String FIND_INSTALLATION = "select " + COLUMNS + FROM
+        + "where d.tenant_id = ? and d.installation_id = ?";
+    private static final String PIN_KEY = """
+        insert into ent_remote_device_config(device_id, tenant_id, identity_public_key, identity_key_revision)
+        select id, tenant_id, ?, 1 from ent_device
+        where tenant_id = ? and user_id = ? and installation_id = ? and id = ? and status = 'ACTIVE'
+        on conflict (device_id) do update set
+            identity_public_key = excluded.identity_public_key,
+            identity_key_revision = case when ent_remote_device_config.identity_public_key is null
+                then ent_remote_device_config.identity_key_revision + 1 else ent_remote_device_config.identity_key_revision end,
+            updated_at = now()
+        where ent_remote_device_config.tenant_id = excluded.tenant_id
+            and (ent_remote_device_config.identity_public_key is null
+                or ent_remote_device_config.identity_public_key = excluded.identity_public_key)
+        """;
     private static final String FIND = "select " + COLUMNS + FROM
         + "where d.tenant_id = ? and d.id = ?";
     private static final String FIND_BY_ID = "select " + COLUMNS + FROM
@@ -67,6 +85,29 @@ public final class JdbcRemoteDeviceStore implements RemoteDeviceStore {
     public List<RemoteDeviceSnapshot> list(String tenantId, long afterId, int limit, Instant now) {
         if (afterId < 0 || limit < 1 || limit > 201) throw new IllegalArgumentException("Remote 分页参数非法");
         return jdbc.query(LIST, mapper(now), tenantId, afterId, limit);
+    }
+
+    @Override
+    public List<RemoteDeviceSnapshot> listOwned(String tenantId, long userId, UUID excludedInstallation, long afterId, int limit, Instant now) {
+        if (afterId < 0 || limit < 1 || limit > 201) throw new IllegalArgumentException("Remote 分页参数非法");
+        return jdbc.query(LIST_OWNED, mapper(now), tenantId, userId, excludedInstallation, afterId, limit);
+    }
+
+    @Override
+    public Optional<RemoteDeviceSnapshot> findByInstallation(String tenantId, UUID installationId, Instant now) {
+        return jdbc.query(FIND_INSTALLATION, mapper(now), tenantId, installationId).stream().findFirst();
+    }
+
+    @Override
+    public Optional<String> identityPublicKey(String tenantId, long deviceId) {
+        return jdbc.query("select identity_public_key from ent_remote_device_config where tenant_id = ? and device_id = ?",
+            (row, number) -> row.getBytes(1), tenantId, deviceId).stream().filter(Objects::nonNull)
+            .map(bytes -> Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)).findFirst();
+    }
+
+    @Override
+    public boolean pinIdentityPublicKey(String tenantId, long userId, UUID installationId, long deviceId, String publicKey) {
+        return jdbc.update(PIN_KEY, Base64.getUrlDecoder().decode(publicKey), tenantId, userId, installationId, deviceId) == 1;
     }
 
     @Override

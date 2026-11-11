@@ -34,6 +34,15 @@ class RemoteTicketRequestTest {
     }
 
     @Test
+    void rejectsNonCanonicalControllerKeys() {
+        for (String invalid : List.of(KEY + "=", " " + KEY, KEY.substring(0, 42) + "B")) {
+            assertThrows(IllegalArgumentException.class, () -> new RemoteTicketRequest(
+                DEVICE, invalid, List.of("remote.connect"), "plugin/0.1.0"
+            ));
+        }
+    }
+
+    @Test
     void rejectsNon32ByteControllerKeys() {
         String shortKey = Base64.getUrlEncoder().withoutPadding().encodeToString(new byte[31]);
         assertThrows(IllegalArgumentException.class, () -> new RemoteTicketRequest(

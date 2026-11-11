@@ -1,12 +1,16 @@
 /**
- * [INPUT]: 依赖真实 Redis/PostgreSQL、RemoteControlService、JdbcRemoteDeviceStore 与 V57 schema。
- * [OUTPUT]: 验证 ticket 绑定消费、两租户隔离、lease/revoke fencing 和 presence TTL 的可观察行为。
- * [POS]: remote/application 的跨存储验收；不替换 Redis Lua 或 PostgreSQL 设备事实为 fake。
+ * [INPUT]: 依赖真实 PostgreSQL、Redis、员工安装上下文与 V57 身份公钥字段。
+ * [OUTPUT]: 验证本人设备授权、并发首次 pin、ticket 单次消费及续租/撤销的原子状态。
+ * [POS]: remote/application 跨存储验收，不用 fake 替代数据库所有权或 Redis TTL。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.remote;
 
+import com.owndsh.enterprise.auth.application.PlatformSession;
+import com.owndsh.enterprise.auth.domain.PlatformClient;
 import com.owndsh.enterprise.auth.web.EnterpriseRequestContext;
+import com.owndsh.enterprise.device.application.DeviceAccessException;
+import com.owndsh.enterprise.device.application.DeviceCallContext;
 import com.owndsh.enterprise.remote.application.RemoteControlService;
 import com.owndsh.enterprise.remote.application.RemoteTicketRequest;
 import com.owndsh.enterprise.remote.persistence.JdbcRemoteDeviceStore;
@@ -17,129 +21,196 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.redisson.api.RedissonClient;
+import org.redisson.client.codec.StringCodec;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.CountDownLatch;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @Tag("dev")
 class RemoteControlServiceIntegrationTest {
-    private static final String TENANT_A = "tenant-a";
-    private static final String TENANT_B = "tenant-b";
-    private static final long USER_A = 2_001_100_000_000_000_003L;
-    private static final long USER_B = 2_001_100_000_000_000_004L;
-    private static final long DEVICE_A = 9_001_001L;
-    private static final long DEVICE_B = 9_001_002L;
-    private static final UUID INSTALLATION_A = UUID.fromString("123e4567-e89b-42d3-a456-426614174010");
-    private static final UUID INSTALLATION_B = UUID.fromString("123e4567-e89b-42d3-a456-426614174011");
-    private static final Instant NOW = Instant.now();
-    private static final String CONTROLLER_A = "ctl_01ARZ3NDEKTSV4RRFFQ69G5FAV";
-    private static final String CONTROLLER_B = "ctl_01ARZ3NDEKTSV4RRFFQ69G5FAW";
-    private static final String KEY_A = key((byte) 1);
-    private static final String KEY_B = key((byte) 2);
+    private static final String TENANT = "tenant-a";
+    private static final long OWNER = 2_001_100_000_000_000_003L;
+    private static final long OTHER = 2_001_100_000_000_000_004L;
+    private static final long HOST = 9_001_001L;
+    private static final long SOURCE = 9_001_002L;
+    private static final long FOREIGN = 9_001_003L;
+    private static final long OTHER_TENANT = 9_001_004L;
+    private static final long UNPINNED = 9_001_005L;
+    private static final UUID HOST_INSTALL = UUID.fromString("123e4567-e89b-42d3-a456-426614174010");
+    private static final UUID SOURCE_INSTALL = UUID.fromString("123e4567-e89b-42d3-a456-426614174011");
+    private static final String CONTROLLER = "ctl_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+    private static final String HOST_KEY = key((byte) 1);
+    private static final String CONTROLLER_KEY = key((byte) 2);
+    private static final String LEASE = "lease_01ARZ3NDEKTSV4RR";
     private static final RedissonClient REDIS = RedisTestServer.client();
+    private static final JsonMapper JSON = JsonMapper.builder().findAndAddModules().build();
 
-    @AfterAll
-    static void closeRedis() {
-        REDIS.shutdown();
+    @AfterAll static void closeRedis() { REDIS.shutdown(); }
+
+    @Test
+    void scopesEmployeeDevicesTicketsAndPinsToCurrentOwnerAndInstallation() {
+        Fixture f = fixture("remote_owned");
+        assertThat(f.service.listOwned(employee(), 0, 100)).extracting(value -> value.deviceId()).containsExactly(HOST, UNPINNED);
+        assertThatThrownBy(() -> f.service.createTicket(admin(OTHER), HOST, UUID.randomUUID(), request()))
+            .isInstanceOfSatisfying(RemoteControlException.class, e -> assertThat(e.code()).isEqualTo("ENT_PERMISSION_DENIED"));
+        assertThatThrownBy(() -> f.service.createEmployeeTicket(employee(), SOURCE, UUID.randomUUID(), request()))
+            .isInstanceOf(RemoteControlException.class);
+        assertThatThrownBy(() -> f.service.createEmployeeTicket(employee(), FOREIGN, UUID.randomUUID(), request()))
+            .isInstanceOf(RemoteControlException.class);
+        assertThatThrownBy(() -> f.service.createEmployeeTicket(employee(), OTHER_TENANT, UUID.randomUUID(), request()))
+            .isInstanceOf(RemoteControlException.class);
+        assertThatThrownBy(() -> f.service.createEmployeeTicket(employee(), UNPINNED, UUID.randomUUID(), request()))
+            .isInstanceOfSatisfying(RemoteControlException.class, e -> assertThat(e.code()).isEqualTo("ENT_REMOTE_UNAVAILABLE"));
+        assertThat(f.service.authorizePeer(peer(OWNER, HOST_INSTALL), "host", Long.toString(HOST), HOST_KEY)).isTrue();
+        assertThat(f.service.authorizePeer(peer(OWNER, HOST_INSTALL), "host", Long.toString(HOST), CONTROLLER_KEY)).isFalse();
+        assertThat(f.service.authorizePeer(peer(OTHER, HOST_INSTALL), "host", Long.toString(HOST), HOST_KEY)).isFalse();
+        assertThat(f.service.authorizePeer(peer(OWNER, SOURCE_INSTALL), "host", Long.toString(HOST), HOST_KEY)).isFalse();
+        assertThat(f.service.authorizePeer(new RemotePeerIdentity(TENANT, OWNER, "console", SOURCE_INSTALL.toString()), "controller", CONTROLLER, CONTROLLER_KEY)).isFalse();
+        assertThat(f.store.identityPublicKey(TENANT, HOST)).contains(HOST_KEY);
+        assertThat(f.database.jdbc().queryForObject("select identity_key_revision from ent_remote_device_config where device_id = ?", Long.class, HOST)).isEqualTo(1);
+        UUID idempotency = UUID.randomUUID();
+        var ticket = f.service.createEmployeeTicket(employee(), HOST, idempotency, request());
+        assertThat(ticket.hostPublicKey()).isEqualTo(HOST_KEY);
+        assertThat(f.service.createEmployeeTicket(employee(), HOST, idempotency, request())).isEqualTo(ticket);
+        assertThat(f.service.acquireLease(ticket.linkId(), LEASE, 60)).isEmpty();
+        assertThat(f.service.consumeTicket(ticket.ticket(), ticket.linkId(), ticket.deviceId(), CONTROLLER, CONTROLLER_KEY, peer(OTHER, SOURCE_INSTALL))).isEmpty();
+        assertThat(f.service.consumeTicket(ticket.ticket(), ticket.linkId(), ticket.deviceId(), CONTROLLER, HOST_KEY, peer(OWNER, SOURCE_INSTALL))).isEmpty();
+        assertThat(f.service.consumeTicket(ticket.ticket(), ticket.linkId(), ticket.deviceId(), CONTROLLER, CONTROLLER_KEY, peer(OWNER, HOST_INSTALL))).isEmpty();
+        assertThat(f.service.consumeTicket(ticket.ticket(), ticket.linkId(), ticket.deviceId(), CONTROLLER, CONTROLLER_KEY, peer(OWNER, SOURCE_INSTALL))).isPresent();
+        assertThat(f.service.consumeTicket(ticket.ticket(), ticket.linkId(), ticket.deviceId(), CONTROLLER, CONTROLLER_KEY, peer(OWNER, SOURCE_INSTALL))).isEmpty();
+        assertThat(f.service.acquireLease(ticket.linkId(), LEASE, 60)).isPresent();
+        assertThat(f.service.isLeaseActive(ticket.linkId(), LEASE)).isTrue();
+        REDIS.getBucket("remote:link:" + ticket.linkId()).expire(Duration.ofSeconds(1));
+        REDIS.getBucket("remote:consumed:" + ticket.linkId()).expire(Duration.ofSeconds(1));
+        assertThat(f.service.renewLease(ticket.linkId(), LEASE, 60)).isTrue();
+        assertThat(REDIS.getBucket("remote:link:" + ticket.linkId()).remainTimeToLive()).isGreaterThan(60_000L);
+        assertThat(REDIS.getBucket("remote:consumed:" + ticket.linkId()).remainTimeToLive()).isGreaterThan(60_000L);
+        assertThatThrownBy(() -> f.service.revokeLease(admin(OTHER), ticket.linkId())).isInstanceOf(RemoteControlException.class);
+        assertThat(f.service.revokeLease(admin(OWNER), ticket.linkId()).epoch()).isEqualTo(1);
+        assertThat(f.service.renewLease(ticket.linkId(), LEASE, 60)).isFalse();
+        assertThat(f.service.isLeaseActive(ticket.linkId(), LEASE)).isFalse();
+        assertThat(f.service.acquireLease(ticket.linkId(), LEASE, 60)).isEmpty();
+        f.database.jdbc().update("update ent_device set status = 'REVOKED', revoked_at = now() where id = ?", SOURCE);
+        assertThatThrownBy(() -> f.service.listOwned(employee(), 0, 100)).isInstanceOf(DeviceAccessException.class);
     }
 
     @Test
-    void keepsTicketLeaseAndPresenceFactsBoundToTheOwningAccount() {
-        var database = PostgresTestDatabase.create("remote_core");
-        PostgresTestDatabase.migrate(database, null);
-        PostgresTestDatabase.insertActiveUser(database, USER_A, 1_761_000_000_000_000_103L, "remote-a", "Remote A");
-        PostgresTestDatabase.insertActiveUser(database, USER_B, 1_761_000_000_000_000_103L, "remote-b", "Remote B");
-        insertDevice(database, TENANT_A, USER_A, DEVICE_A, INSTALLATION_A, "Host A");
-        insertDevice(database, TENANT_B, USER_B, DEVICE_B, INSTALLATION_B, "Host B");
-
-        RemoteNettyProperties properties = new RemoteNettyProperties();
-        JsonMapper json = JsonMapper.builder().findAndAddModules().build();
-        RemoteControlService service = new RemoteControlService(
-            new JdbcRemoteDeviceStore(database.jdbc(), json),
-            new RemoteRedisStateStore(REDIS),
-            json,
-            properties
-        );
-        EnterpriseRequestContext accountA = context(TENANT_A, USER_A);
-        EnterpriseRequestContext accountB = context(TENANT_B, USER_B);
-        RemoteTicketRequest requestA = request(CONTROLLER_A, KEY_A);
-
-        service.updatePresence(Long.toString(DEVICE_A), "READY", true, "[\"remote.connect\"]", NOW.toEpochMilli());
-        assertThat(service.get(accountA, DEVICE_A).online()).isTrue();
-        service.updatePresence(Long.toString(DEVICE_A), "READY", false, "[\"remote.connect\"]", NOW.toEpochMilli());
-        assertThat(service.get(accountA, DEVICE_A).remoteEnabled()).isFalse();
-        assertThat(service.get(accountA, DEVICE_A).online()).isFalse();
-        assertThatThrownBy(() -> service.createTicket(accountA, DEVICE_A, UUID.randomUUID(), requestA))
-            .isInstanceOfSatisfying(RemoteControlException.class, exception -> assertThat(exception.code()).isEqualTo("ENT_REMOTE_DISABLED"));
-        assertThat(service.authorizePeer(
-            new RemotePeerIdentity(TENANT_A, USER_A, "dsh-desktop", INSTALLATION_A.toString()),
-            "host", Long.toString(DEVICE_A), null
-        )).isTrue();
-        service.updatePresence(Long.toString(DEVICE_A), "READY", true, "[\"remote.connect\"]", NOW.toEpochMilli());
-        var ticket = service.createTicket(accountA, DEVICE_A, UUID.randomUUID(), requestA);
-
-        assertThat(service.consumeTicket(
-            ticket.ticket(), ticket.linkId(), ticket.deviceId(), CONTROLLER_A, KEY_A,
-            new RemotePeerIdentity(TENANT_B, USER_B, "browser", "console")
-        )).isEmpty();
-        assertThat(service.consumeTicket(
-            ticket.ticket(), ticket.linkId(), ticket.deviceId(), CONTROLLER_A, KEY_A,
-            new RemotePeerIdentity(TENANT_A, USER_A, "browser", "console")
-        )).isPresent();
-        assertThat(service.consumeTicket(
-            ticket.ticket(), ticket.linkId(), ticket.deviceId(), CONTROLLER_A, KEY_A,
-            new RemotePeerIdentity(TENANT_A, USER_A, "browser", "console")
-        )).isEmpty();
-
-        var second = service.createTicket(accountA, DEVICE_A, UUID.randomUUID(), requestA);
-        assertThat(service.acquireLease(second.linkId(), "lease_01ARZ3NDEKTSV4RR", 60)).isPresent();
-        assertThat(service.renewLease(second.linkId(), "lease_01ARZ3NDEKTSV4RR", 60)).isTrue();
-        assertThatThrownBy(() -> service.revokeLease(accountB, second.linkId()))
-            .isInstanceOfSatisfying(RemoteControlException.class, exception -> assertThat(exception.code()).isEqualTo("ENT_PERMISSION_DENIED"));
-        assertThat(service.revokeLease(accountA, second.linkId()).epoch()).isEqualTo(1);
-        assertThat(service.renewLease(second.linkId(), "lease_01ARZ3NDEKTSV4RR", 60)).isFalse();
-
-        assertThatThrownBy(() -> service.createTicket(accountB, DEVICE_A, UUID.randomUUID(), request(CONTROLLER_B, KEY_B)))
-            .isInstanceOfSatisfying(RemoteControlException.class, exception -> assertThat(exception.code()).isEqualTo("ENT_RESOURCE_NOT_FOUND"));
+    void persistsExactlyOneKeyDuringConcurrentFirstUseAndAcrossNewService() throws Exception {
+        Fixture f = fixture("remote_pin");
+        UUID installation = f.store.find(TENANT, UNPINNED, Instant.now()).orElseThrow().installationId();
+        assertThat(f.service.authorizePeer(peer(OWNER, installation), "host", Long.toString(UNPINNED), null)).isTrue();
+        CountDownLatch start = new CountDownLatch(1);
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var first = executor.submit(() -> { start.await(); return f.service.authorizePeer(peer(OWNER, installation), "host", Long.toString(UNPINNED), HOST_KEY); });
+            var second = executor.submit(() -> { start.await(); return f.service.authorizePeer(peer(OWNER, installation), "host", Long.toString(UNPINNED), CONTROLLER_KEY); });
+            start.countDown();
+            assertThat(List.of(first.get(), second.get())).containsExactlyInAnyOrder(true, false);
+        }
+        String pinned = f.store.identityPublicKey(TENANT, UNPINNED).orElseThrow();
+        RemoteControlService restarted = service(f.store);
+        assertThat(restarted.authorizePeer(peer(OWNER, installation), "host", Long.toString(UNPINNED), pinned)).isTrue();
+        assertThat(restarted.authorizePeer(peer(OWNER, installation), "host", Long.toString(UNPINNED), pinned.equals(HOST_KEY) ? CONTROLLER_KEY : HOST_KEY)).isFalse();
+        assertThat(f.database.jdbc().queryForObject("select identity_key_revision from ent_remote_device_config where device_id = ?", Long.class, UNPINNED)).isEqualTo(1);
     }
 
-    private static void insertDevice(
-        PostgresTestDatabase.Database database,
-        String tenant,
-        long userId,
-        long deviceId,
-        UUID installation,
-        String name
-    ) {
-        database.jdbc().update("""
-            insert into ent_device(
-                id, tenant_id, user_id, installation_id, name, platform, harness_version, bundle_version,
-                status, last_seen_at, revoked_at, revision
-            ) values (?, ?, ?, ?, ?, 'linux-amd64', '0.2.1-rc.5', '0.1.0', 'ACTIVE', ?, null, 0)
-            """, deviceId, tenant, userId, installation, name, Timestamp.from(NOW));
-        database.jdbc().update("""
-            insert into ent_remote_device_config(
-                device_id, tenant_id, remote_enabled, presence_state, capability_snapshot, last_presence_at
-            ) values (?, ?, true, 'READY', '{"capabilities":["remote.connect"],"transports":["relay"]}'::jsonb, ?)
-            """, deviceId, tenant, Timestamp.from(NOW));
+    @Test
+    void deviceRevocationAndRemoteDisableFenceExistingLease() {
+        Fixture f = fixture("remote_fence");
+        var ticket = f.service.createEmployeeTicket(employee(), HOST, UUID.randomUUID(), request());
+        assertThat(f.service.consumeTicket(ticket.ticket(), ticket.linkId(), ticket.deviceId(), CONTROLLER, CONTROLLER_KEY, peer(OWNER, SOURCE_INSTALL))).isPresent();
+        assertThat(f.service.acquireLease(ticket.linkId(), LEASE, 60)).isPresent();
+        f.service.updatePresence(Long.toString(HOST), HOST_KEY, "READY", false, "[\"remote.connect\"]", Instant.MAX.getEpochSecond());
+        assertThat(f.service.renewLease(ticket.linkId(), LEASE, 60)).isFalse();
+        assertThat(f.service.isLeaseActive(ticket.linkId(), LEASE)).isFalse();
+        f.service.updatePresence(Long.toString(HOST), HOST_KEY, "READY", true, "[\"remote.connect\"]", 0);
+        assertThat(f.service.get(admin(OWNER), HOST).online()).isTrue();
+        f.database.jdbc().update("update ent_device set status = 'REVOKED', revoked_at = now() where id = ?", SOURCE);
+        assertThat(f.service.renewLease(ticket.linkId(), LEASE, 60)).isFalse();
+        assertThat(f.service.isLeaseActive(ticket.linkId(), LEASE)).isFalse();
+        assertThat(f.service.authorizePeer(peer(OWNER, SOURCE_INSTALL), "controller", CONTROLLER, CONTROLLER_KEY)).isFalse();
     }
 
-    private static EnterpriseRequestContext context(String tenant, long actorId) {
-        return new EnterpriseRequestContext(tenant, actorId, "req_remote_01", "127.0.0.1", new byte[32]);
+    @Test
+    void revokedUnconsumedTicketCannotBeConsumedAndExpiredLeaseCannotReturn() throws InterruptedException {
+        Fixture f = fixture("remote_expire");
+        var ticket = f.service.createEmployeeTicket(employee(), HOST, UUID.randomUUID(), request());
+        f.service.revokeLease(admin(OWNER), ticket.linkId());
+        assertThat(f.service.consumeTicket(ticket.ticket(), ticket.linkId(), ticket.deviceId(), CONTROLLER, CONTROLLER_KEY, peer(OWNER, SOURCE_INSTALL))).isEmpty();
+        var active = f.service.createEmployeeTicket(employee(), HOST, UUID.randomUUID(), request());
+        f.service.consumeTicket(active.ticket(), active.linkId(), active.deviceId(), CONTROLLER, CONTROLLER_KEY, peer(OWNER, SOURCE_INSTALL));
+        assertThat(f.service.acquireLease(active.linkId(), LEASE, 1)).isPresent();
+        REDIS.getBucket("remote:lease:" + active.linkId(), StringCodec.INSTANCE).expire(Duration.ofMillis(1));
+        Thread.sleep(10);
+        assertThat(f.service.isLeaseActive(active.linkId(), LEASE)).isFalse();
+        assertThat(f.service.renewLease(active.linkId(), LEASE, 60)).isFalse();
+        assertThat(f.service.acquireLease(active.linkId(), LEASE, 60)).isEmpty();
     }
 
-    private static RemoteTicketRequest request(String controllerId, String publicKey) {
-        return new RemoteTicketRequest(controllerId, publicKey, List.of("remote.connect"), "console/0.1.0");
+    @Test
+    void pinnedKeyMustMatchCurrentAuthenticatedReadyHost() {
+        Fixture f = fixture("remote_live_key");
+        f.service.updatePresence(Long.toString(HOST), null, "READY", true, "[\"remote.connect\"]", 0);
+        assertThatThrownBy(() -> f.service.createEmployeeTicket(employee(), HOST, UUID.randomUUID(), request()))
+            .isInstanceOfSatisfying(RemoteControlException.class, e -> assertThat(e.code()).isEqualTo("ENT_REMOTE_UNAVAILABLE"));
+        f.service.updatePresence(Long.toString(HOST), HOST_KEY, "READY", true, "[\"remote.connect\"]", 0);
+        assertThat(f.service.createEmployeeTicket(employee(), HOST, UUID.randomUUID(), request()).hostPublicKey()).isEqualTo(HOST_KEY);
+        f.service.removePresence(Long.toString(HOST));
+        assertThatThrownBy(() -> f.service.createEmployeeTicket(employee(), HOST, UUID.randomUUID(), request())).isInstanceOf(RemoteControlException.class);
     }
 
+    private static Fixture fixture(String label) {
+        var db = PostgresTestDatabase.create(label);
+        PostgresTestDatabase.migrate(db, null);
+        PostgresTestDatabase.insertActiveUser(db, OWNER, 1_761_000_000_000_000_103L, "remote-a", "Remote A");
+        PostgresTestDatabase.insertActiveUser(db, OTHER, 1_761_000_000_000_000_103L, "remote-b", "Remote B");
+        insert(db, TENANT, OWNER, HOST, HOST_INSTALL);
+        insert(db, TENANT, OWNER, SOURCE, SOURCE_INSTALL);
+        insert(db, TENANT, OTHER, FOREIGN, UUID.randomUUID());
+        insert(db, "tenant-b", OWNER, OTHER_TENANT, UUID.randomUUID());
+        insert(db, TENANT, OWNER, UNPINNED, UUID.randomUUID());
+        JdbcRemoteDeviceStore store = new JdbcRemoteDeviceStore(db.jdbc(), JSON);
+        RemoteControlService service = service(store);
+        assertThat(service.authorizePeer(peer(OWNER, HOST_INSTALL), "host", Long.toString(HOST), HOST_KEY)).isTrue();
+        service.updatePresence(Long.toString(HOST), HOST_KEY, "READY", true, "[\"remote.connect\"]", 0);
+        return new Fixture(db, store, service);
+    }
+
+    private static RemoteControlService service(JdbcRemoteDeviceStore store) {
+        return new RemoteControlService(store, new RemoteRedisStateStore(REDIS), JSON, new RemoteNettyProperties());
+    }
+
+    private static void insert(PostgresTestDatabase.Database db, String tenant, long owner, long device, UUID installation) {
+        db.jdbc().update("""
+            insert into ent_device(id, tenant_id, user_id, installation_id, name, platform, harness_version, bundle_version,
+                status, last_seen_at, revoked_at, revision)
+            values (?, ?, ?, ?, 'Test Host', 'linux-amd64', '0.2.1-rc.5', '0.1.0', 'ACTIVE', ?, null, 0)
+            """, device, tenant, owner, installation, Timestamp.from(Instant.now()));
+        db.jdbc().update("""
+            insert into ent_remote_device_config(device_id, tenant_id, remote_enabled, presence_state, capability_snapshot, last_presence_at)
+            values (?, ?, true, 'READY', '{"capabilities":["remote.connect"],"transports":["relay"]}'::jsonb, ?)
+            """, device, tenant, Timestamp.from(Instant.now()));
+    }
+
+    private static DeviceCallContext employee() {
+        return new DeviceCallContext(TENANT, new PlatformSession(OWNER, PlatformClient.DSH_DESKTOP, "harness", SOURCE_INSTALL.toString()), "req_remote_01", "127.0.0.1", new byte[32]);
+    }
+    private static EnterpriseRequestContext admin(long actor) { return new EnterpriseRequestContext(TENANT, actor, "req_remote_01", "127.0.0.1", new byte[32]); }
+    private static RemotePeerIdentity peer(long actor, UUID installation) { return new RemotePeerIdentity(TENANT, actor, "harness", installation.toString()); }
+    private static RemoteTicketRequest request() { return new RemoteTicketRequest(CONTROLLER, CONTROLLER_KEY, List.of("remote.connect"), "plugin/0.1.0"); }
     private static String key(byte value) {
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(new byte[32]).replace("A", value == 1 ? "B" : "C");
+        byte[] bytes = new byte[32]; Arrays.fill(bytes, value);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
+    private record Fixture(PostgresTestDatabase.Database database, JdbcRemoteDeviceStore store, RemoteControlService service) {}
 }
