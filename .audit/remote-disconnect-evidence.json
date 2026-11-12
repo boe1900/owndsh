@@ -1,0 +1,264 @@
+{
+  "verifiedAt": "2026-11-12T07:39:01.137Z",
+  "environment": "Isolated local Server/PostgreSQL/Redis + real npm Harness 0.2.1-rc.5 + Codex IAB",
+  "entry": "http://127.0.0.1:18104/",
+  "deviceId": "2120720341100691457",
+  "scope": "Encrypted Relay; no NAS deployment",
+  "model": {
+    "baseUrl": "https://discovery-api.intern-ai.org.cn/v1",
+    "model": "Atria-Dawn",
+    "protocol": "openai-completions",
+    "discoveryStatus": 200,
+    "testContextWindow": 32768,
+    "testMaxTokens": 4096
+  },
+  "automaticChecks": {
+    "javaFocused": 45,
+    "javaRepeatedWithRealPostgresRedis": 19,
+    "realIntegrationWithinRepeated": 8,
+    "console": 136,
+    "contracts": 14,
+    "independentCorrectnessReview": "No actionable findings",
+    "independentCommentReview": "No actionable findings"
+  },
+  "browserChecks": {
+    "occupiedPage": "Explicit busy message",
+    "cancelTakeover": "Original controller remained connected",
+    "confirmedTakeover": "Old page reports taken over; new page connected",
+    "staleDisconnect": "409 ENT_REMOTE_BUSY; replacement preserved",
+    "staleDialog": "Explicit connection-changed message; replacement preserved",
+    "manualDisconnect": "Stable terminal state until explicit reconnect; API linkId null",
+    "viewport390": {
+      "before": {
+        "cardWidth": 392,
+        "x": 0
+      },
+      "after": {
+        "cardWidth": 358,
+        "x": 16,
+        "viewport": 390
+      }
+    },
+    "conversation": "Seven user rounds; original history and selected Atria model retained after reconnect",
+    "streamingStop": "Observed partial response; stop produced persisted stopped state; later turn succeeded",
+    "tools": [
+      "write",
+      "read",
+      "edit",
+      "bash",
+      "terminal input/output"
+    ],
+    "pythonCases": "Original two cases and mixed bool/float case passed; independently rerun",
+    "preview": "Real remote preview.html rendered in native sandbox with Atria Remote Preview / 7319 / green pass marker",
+    "continuity": {
+      "start": {
+        "observedAt": "2026-11-12T07:28:09.740Z",
+        "startCount": 1,
+        "endCount": 0
+      },
+      "disconnected": {
+        "observedAt": "2026-11-12T07:28:31.175Z",
+        "startCount": 1,
+        "endCount": 0
+      },
+      "finalStartCount": 1,
+      "finalEndCount": 1,
+      "shellWaitSeconds": 35
+    },
+    "approvals": {
+      "denied": {
+        "observedAt": "2026-11-12T07:31:37.832Z",
+        "fileExists": false
+      },
+      "allowed": {
+        "observedAt": "2026-11-12T07:33:10.672Z",
+        "contentMatches": true
+      },
+      "accessModeAfterAllow": "read-only"
+    },
+    "terminal": "Native zsh PTY returned marker and isolated workspace path; reconnect retained history and accepted second marker; test shell exited 0",
+    "developmentReload": "Final build refreshed Vite dependencies and reloaded the retained workspace document; final connection release is checked after the build."
+  },
+  "usage": {
+    "requests": [
+      {
+        "requestId": "req_01M77AS4A5K8B6BQ6639G2HAGG",
+        "upstreamRequestId": "req_7545bdb9-68ab-4e19-8ca3-6cc319e6dc37",
+        "result": "SETTLED",
+        "totalTokens": 20636
+      },
+      {
+        "requestId": "req_01M77AQPGE0WA6BEC6DTGFRZFE",
+        "upstreamRequestId": "req_d87da092-7106-40bb-b979-79127bdcb741",
+        "result": "SETTLED",
+        "totalTokens": 20420
+      },
+      {
+        "requestId": "req_01M77AP9161FA8TXZ0XSCZDCB7",
+        "upstreamRequestId": "req_351a51b4-a904-47f6-8f94-f3d3d1dedee7",
+        "result": "SETTLED",
+        "totalTokens": 20169
+      },
+      {
+        "requestId": "req_01M77AMD2DCC03D6KAQYZRQNPD",
+        "upstreamRequestId": "req_25b35f02-2ff0-4a34-b1df-dae7e7d79683",
+        "result": "SETTLED",
+        "totalTokens": 19944
+      },
+      {
+        "requestId": "req_01M77AM7RN5B1ZV15Q1MPDA33E",
+        "upstreamRequestId": "req_852a3ca6-9cc3-43c0-9fb6-9d6ec08c94e5",
+        "result": "SETTLED",
+        "totalTokens": 19680
+      },
+      {
+        "requestId": "req_01M77AHFM5EQV82CEVXEYQM7TF",
+        "upstreamRequestId": "req_939d1c30-5100-4d21-99e3-8d96162a7434",
+        "result": "SETTLED",
+        "totalTokens": 19225
+      },
+      {
+        "requestId": "req_01M77AHCKW4DRE8MRCB1C43JTA",
+        "upstreamRequestId": "req_aac93222-737f-4201-8148-5e23dfd60397",
+        "result": "SETTLED",
+        "totalTokens": 18988
+      },
+      {
+        "requestId": "req_01M77AFV4KH91CSTXRJZM38JY9",
+        "upstreamRequestId": "req_a5006cd4-4950-421d-a8a7-cb2f59285ddf",
+        "result": "SETTLED",
+        "totalTokens": 18922
+      },
+      {
+        "requestId": "req_01M77ABHM2FNSTZGRN1FX91QJ1",
+        "upstreamRequestId": null,
+        "result": "CHARGED_MAX",
+        "totalTokens": 0
+      },
+      {
+        "requestId": "req_01M77A8W0T94TQRSGNWQ3YYJT3",
+        "upstreamRequestId": "req_b95d1a58-4f36-4f0f-9c19-be11cd6963be",
+        "result": "SETTLED",
+        "totalTokens": 18220
+      },
+      {
+        "requestId": "req_01M77A8GE9VRXYRHCW3F07ETW5",
+        "upstreamRequestId": "req_6cc1065f-ce83-42c5-a4e8-9b71e081f763",
+        "result": "SETTLED",
+        "totalTokens": 18044
+      },
+      {
+        "requestId": "req_01M77A8ARY1GEEMK16DQZBQBQX",
+        "upstreamRequestId": "req_9b2685e6-44b9-4992-881a-968f13431188",
+        "result": "SETTLED",
+        "totalTokens": 17734
+      },
+      {
+        "requestId": "req_01M77A7G58A9SGW0F3W7FQRYKR",
+        "upstreamRequestId": "req_0dcb150e-f3e2-4c2f-9555-a9c778ae644b",
+        "result": "SETTLED",
+        "totalTokens": 17507
+      },
+      {
+        "requestId": "req_01M77A78SPWY6Q13TET6DWS76G",
+        "upstreamRequestId": "req_39beafce-749a-43a7-9f5e-64e78f3bb7ea",
+        "result": "SETTLED",
+        "totalTokens": 16481
+      },
+      {
+        "requestId": "req_01M77A4G21DCW0BF91XXP9C1QF",
+        "upstreamRequestId": "req_2766aaa2-fe34-427e-8f2b-858bc460205c",
+        "result": "SETTLED",
+        "totalTokens": 16193
+      },
+      {
+        "requestId": "req_01M77A47QRGJ96DWBZP9VPZGFA",
+        "upstreamRequestId": "req_2523cec9-d3ae-40d2-92ec-1aa0f124b75b",
+        "result": "SETTLED",
+        "totalTokens": 15928
+      },
+      {
+        "requestId": "req_01M77A3H5N9TKTMMXZ5MNSHB7B",
+        "upstreamRequestId": "req_c5d62792-0039-4118-b13b-8d94e0ba65ac",
+        "result": "SETTLED",
+        "totalTokens": 15647
+      },
+      {
+        "requestId": "req_01M77A1X45EZENHNCB6QV3HBKK",
+        "upstreamRequestId": "req_a5409f66-df43-426c-b8ad-7172ac9dd490",
+        "result": "SETTLED",
+        "totalTokens": 14856
+      }
+    ],
+    "inputTokens": 28345,
+    "outputTokens": 3769,
+    "cacheTokens": 276480,
+    "totalTokens": 308594,
+    "chargedTokens": 338264,
+    "unmeasuredRequests": 1,
+    "settledRequests": 17,
+    "chargedMaxRequests": 1,
+    "explanation": "One manually cancelled request had no final usage; existing CHARGED_MAX policy charged 29670 tokens without adding unknown usage to measured total."
+  },
+  "files": [
+    {
+      "name": "calculator.py",
+      "bytes": 185,
+      "sha256": "ae6133449c24b84233d24fd0c794e3b18008d36718dc3eccb734b2dda8207f82"
+    },
+    {
+      "name": "verify.py",
+      "bytes": 353,
+      "sha256": "4ffc344c5b973230908b774d4f5f94990465a6dfebe20244dff3296b12183387"
+    },
+    {
+      "name": "result.md",
+      "bytes": 498,
+      "sha256": "a9334a66c44bde994c6fc8c09339e3425490ec3e9f9f40c1eea83593cb3e8e9f"
+    },
+    {
+      "name": "preview.html",
+      "bytes": 1119,
+      "sha256": "86746743e95746166b4029c1c935fbe9c6315585fcf00737c54f91f2956d23c4"
+    },
+    {
+      "name": "continuity.log",
+      "bytes": 20,
+      "sha256": "0727c23a7147b40129132efb6cdc62fa420bee5e6dbc5945b7527b8719cf7ce8"
+    },
+    {
+      "name": "approval-check.txt",
+      "bytes": 14,
+      "sha256": "b9a399df0c76b37e84b4bcbebf6bbe6658fb96e28869b17821feba07ae3c7ac0"
+    }
+  ],
+  "artifacts": [
+    ".tmp/remote-disconnect/real-model-preview.png",
+    ".tmp/remote-disconnect/approval-pending.png",
+    ".tmp/remote-disconnect/terminal-reconnected.png",
+    ".tmp/remote-disconnect/busy-390.png",
+    ".tmp/remote-disconnect/takeover-confirm-390.png",
+    ".tmp/remote-disconnect/final-disconnected.png"
+  ],
+  "limitations": [
+    "No fresh cross-machine/NAS deployment",
+    "No LAN/P2P/TURN or TLS/WSS exercise",
+    "No Edge background freezing, system sleep or sustained weak-network injection",
+    "No steal/queue, attachment intake, interactive website tunneling, PDF or Office matrix"
+  ],
+  "finalBuild": {
+    "result": "passed",
+    "command": "pnpm run check",
+    "consoleTests": 136,
+    "testFiles": 19,
+    "log": "/tmp/remote-disconnect-final-console-check.log"
+  },
+  "finalControlConnection": {
+    "linkId": null,
+    "checkedAt": "2026-11-12T07:43:07.898Z",
+    "result": "released after final build"
+  },
+  "git": "Not committed or pushed",
+  "secrets": "Temporary local configuration only; key absent from changed files",
+  "priorDirtyFilesOutsideChangePreserved": 76
+}

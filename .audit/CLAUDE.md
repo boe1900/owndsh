@@ -3,6 +3,17 @@
 
 成员清单
 
+remote-disconnect.todo.md: 原生工作区主动断开和本人设备条件接管的设计、实施、竞态验证与环境保留清单。
+remote-disconnect.tsv: 精确 link 断开、旧帧处理与浏览器验收的无密决策记录。
+remote-disconnect-evidence.json: 断开、接管、真实 Atria-Dawn、审批、预览与交互终端的本机验收结果，记录用量未知边界与测试文件哈希，不保存凭据。
+console-nas-cross-machine-evidence.json: NAS 应用制品与迁移核对、NAS Host 真实模型和右栏格式、Mac Host 文件与终端、Mac 远程 Office 及文件授权回归、Excel/CSV 只读、Edge 原生隔离 HTML 交互验收及 IAB 历史差异、审批拒绝和最终连接释放、localhost 双机标识及 DSH OOM 恢复证据，不包含 Cookie 或密钥。
+console-native-workspace.todo.md: Console 原生工作区初版的实施、真实浏览器验收、构建和保留环境清单，用户要求不提交。
+console-native-workspace.tsv: 静态原生 UI、协议兼容、能力裁剪和远端媒体的无密决策证据。
+console-native-workspace-evidence.json: 未提交初版的真实浏览器、测试、构建和 Nginx 入口结果，明确本地模型夹具与未验收业务，不保存凭据。
+console-remote-entry.todo.md: 侧栏本人设备与独立标签工作区的实施、浏览器验收、审阅和环境保留清单。
+console-remote-entry.tsv: 侧栏插槽、原生品牌恢复、资源清理和管理员体验账号的无密决策记录。
+console-remote-entry-evidence.json: 员工及管理员完整导航、新标签、独占与释放、窄屏布局和生产资源核对结果，明确后台挂起与业务验收边界，不保存凭据。
+
 unified-login-local-e2e.mjs: 驱动真实本地 Server/Console 与 rc.5 Harness 新插件包，验证新鲜登录无需二次确认、已有浏览器会话仍需确认，以及验证码/首次改密、employee、拒绝和退出范围，以及原生账号菜单/设置导航/键盘/退出确认；密码从环境读取，证据输出到隔离 .tmp。
 account-launcher-local-evidence.json: 底部企业账号入口与统一登录 10 项真实 rc.5 跨端验收，记录 Client/Host 构建哈希、无密 HTTP 状态及原生窗口未验证边界。
 unified-login-local-evidence.json: 本地统一登录 9 项真实跨端验收结果，保留构建哈希与无密 HTTP 状态，不保存账号或凭据。

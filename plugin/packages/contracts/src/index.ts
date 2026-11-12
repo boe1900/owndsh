@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖品牌 ID、统一错误边界与 OpenAPI 生成的 DTO/Zod/meta 模块
- * [OUTPUT]: 对外提供品牌 ID、错误边界、企业 API 与员工 Remote 设备/ticket DTO 及 strict Zod API，并统一导出 schema 库
+ * [OUTPUT]: 对外提供品牌 ID、错误边界、企业 API 与本人 Remote 设备/ticket/连接操作 DTO 及 strict Zod API，并统一导出 schema 库
  * [POS]: contracts 的 package facade，约束后续 Harness 业务包只消费验证后的跨 HTTP 语义
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -36,12 +36,16 @@ export {
 export type {
   OwnRemoteTicket,
   OwnRemoteTicketResponse,
+  RemoteConnectionResponse,
+  RemoteDisconnectRequest,
   RemoteDevice,
   RemoteDeviceListResponse,
   RemoteTicketRequest,
 } from './generated/types.gen.js'
 export {
   zOwnRemoteTicketResponse,
+  zRemoteConnectionResponse,
+  zRemoteDisconnectRequest,
   zRemoteDeviceListResponse,
   zRemoteDevice,
 } from './generated/zod.gen.js'
@@ -362,6 +366,7 @@ export {
   parseRemoteControlFrame,
   parseRemoteRelayFrame,
   remoteWebSocketUrl,
+  remoteProtocolSha256,
   REMOTE_CAPABILITIES,
   REMOTE_PROTOCOL_VERSION,
   REMOTE_TRANSPORTS,

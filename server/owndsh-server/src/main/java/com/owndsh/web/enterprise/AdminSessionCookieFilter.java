@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖外部 HTTP(S) 地址对应的管理端 Cookie 约定、Sa-Token 请求存储与 Servlet 过滤链。
  * [OUTPUT]: 在 MVC 权限注解执行前把可信管理端 Cookie 桥接到当前 Sa-Token 请求上下文。
- * [POS]: owndsh-server 的管理端认证前置适配器，仅覆盖 /enterprise/admin/**，不改变 Desktop Bearer 读取。
+ * [POS]: owndsh-server 的浏览器认证前置适配器，覆盖 /enterprise/admin/** 与 /enterprise/console/**，不改变 Desktop Bearer 读取。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.web.enterprise;
@@ -51,6 +51,6 @@ public final class AdminSessionCookieFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
         if (path == null || path.isEmpty()) path = request.getRequestURI();
-        return !path.startsWith("/enterprise/admin/");
+        return !path.startsWith("/enterprise/admin/") && !path.startsWith("/enterprise/console/");
     }
 }

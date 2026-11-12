@@ -1,12 +1,14 @@
 /**
- * [INPUT]: 依赖可信员工/管理员上下文、RemoteDeviceStore、Redis ticket/link 状态、JsonMapper 和 coturn 配置。
- * [OUTPUT]: 提供设备列表、能力读取、一次性 ticket 签发与当前所有权/安装状态绑定的 lease，Host 公钥仅从已认证数据库 pin 读取。
+ * [INPUT]: 依赖可信员工/Console 会话及管理员上下文、RemoteDeviceStore、Redis ticket/link 状态、JsonMapper 和 coturn 配置。
+ * [OUTPUT]: 提供本人设备授权、一次性来源绑定 ticket、准确 link 撤销和 lease；Harness 重验源安装，Console 会话由 Gateway 重验，Host 公钥只读数据库 pin。
  * [POS]: remote/application 的唯一控制面编排；Controller 不直接拼 SQL、Redis key 或加密凭据。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.remote.application;
 
 import com.owndsh.enterprise.auth.web.EnterpriseRequestContext;
+import com.owndsh.enterprise.auth.application.AuthFlowException;
+import com.owndsh.enterprise.auth.application.PlatformSession;
 import com.owndsh.enterprise.auth.domain.PlatformClient;
 import com.owndsh.enterprise.device.application.DeviceAccessException;
 import com.owndsh.enterprise.device.application.DeviceCallContext;
@@ -20,6 +22,7 @@ import com.owndsh.enterprise.remote.domain.RemoteControlException;
 import com.owndsh.enterprise.remote.domain.RemoteDeviceSnapshot;
 import com.owndsh.enterprise.remote.domain.RemoteTicket;
 import com.owndsh.enterprise.remote.domain.RemoteTicketState;
+import com.owndsh.enterprise.remote.domain.RemoteTicketState.ControllerKind;
 import com.owndsh.enterprise.remote.persistence.RemoteDeviceStore;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
@@ -103,12 +106,38 @@ public final class RemoteControlService {
         RemoteDeviceSnapshot source = requireEmployee(context);
         if (source.deviceId() == deviceId) throw new RemoteControlException("ENT_PERMISSION_DENIED");
         EnterpriseRequestContext actor = new EnterpriseRequestContext(context.tenantId(), source.userId(), context.requestId(), context.sourceIp(), context.userAgentHash());
-        RemoteTicket ticket = createTicket(actor, deviceId, idempotencyKey, request, source.installationId().toString());
+        RemoteTicket ticket = createTicket(actor, deviceId, idempotencyKey, request, source.installationId().toString(), ControllerKind.HARNESS, null);
         return EmployeeRemoteTicket.from(ticket, devices.identityPublicKey(context.tenantId(), deviceId).orElseThrow());
     }
 
+    public List<RemoteDeviceSnapshot> listConsoleOwned(EnterpriseRequestContext context, PlatformSession session, long afterId, int limit) {
+        requireConsole(context, session);
+        return devices.listOwned(context.tenantId(), context.actorId(), null, afterId, limit, clock.instant());
+    }
+
+    public EmployeeRemoteTicket createConsoleTicket(EnterpriseRequestContext context, PlatformSession session,
+        long deviceId, UUID idempotencyKey, RemoteTicketRequest request) {
+        requireConsole(context, session);
+        RemoteTicket ticket = createTicket(context, deviceId, idempotencyKey, request, null, ControllerKind.CONSOLE, session.deviceId());
+        return EmployeeRemoteTicket.from(ticket, devices.identityPublicKey(context.tenantId(), deviceId).orElseThrow());
+    }
+
+    public void requireConsoleOwner(EnterpriseRequestContext context, PlatformSession session, long deviceId) {
+        requireConsole(context, session);
+        if (get(context, deviceId).userId() != context.actorId()) throw new RemoteControlException("ENT_PERMISSION_DENIED");
+    }
+
+    public void revokeLink(String linkId) {
+        redis.revokeLink(linkId);
+    }
+
+    private static void requireConsole(EnterpriseRequestContext context, PlatformSession session) {
+        if (session.client() != PlatformClient.ENTERPRISE_ADMIN || session.userId() != context.actorId()
+            || !consoleSession(session.deviceType(), session.deviceId())) throw new AuthFlowException("ENT_AUTH_REQUIRED");
+    }
+
     public RemoteTicket createTicket(EnterpriseRequestContext context, long deviceId, UUID idempotencyKey, RemoteTicketRequest request) {
-        return createTicket(context, deviceId, idempotencyKey, request, null);
+        return createTicket(context, deviceId, idempotencyKey, request, null, ControllerKind.HARNESS, null);
     }
 
     private RemoteTicket createTicket(
@@ -116,7 +145,9 @@ public final class RemoteControlService {
         long deviceId,
         UUID idempotencyKey,
         RemoteTicketRequest request,
-        String controllerInstallationId
+        String controllerInstallationId,
+        ControllerKind controllerKind,
+        String controllerSessionId
     ) {
         RemoteDeviceSnapshot device = get(context, deviceId);
         if (device.userId() != context.actorId()) throw new RemoteControlException("ENT_PERMISSION_DENIED");
@@ -137,9 +168,11 @@ public final class RemoteControlService {
         RemoteTicket response = new RemoteTicket(ticket, linkId, Long.toString(device.deviceId()), expiresAt, iceServers(linkId, expiresAt));
         RemoteTicketState state = new RemoteTicketState(
             context.tenantId(), context.actorId(), Long.toString(device.deviceId()), linkId,
-            request.controllerDeviceId(), request.controllerPublicKey(), controllerInstallationId, hostPublicKey, request.requestedCapabilities(), expiresAt
+            request.controllerDeviceId(), request.controllerPublicKey(), controllerInstallationId, hostPublicKey, request.requestedCapabilities(), expiresAt,
+            controllerKind, controllerSessionId
         );
-        String fingerprint = fingerprint(deviceId, request) + ":" + controllerInstallationId;
+        String fingerprint = fingerprint(deviceId, request) + (controllerKind == ControllerKind.HARNESS
+            ? ":" + controllerInstallationId : ":CONSOLE:" + controllerSessionId);
         String idempotencyState = write(new RemoteIdempotencyState(fingerprint, response));
         String result = redis.issueTicket(
             "remote:ticket:" + digest(ticket),
@@ -167,11 +200,13 @@ public final class RemoteControlService {
     }
 
     public boolean authorizePeer(RemotePeerIdentity identity, String role, String peerId, String publicKey) {
-        if (identity == null || !"harness".equals(identity.deviceType())) return false;
+        if (identity == null) return false;
+        if (consoleSession(identity.deviceType(), identity.deviceId())) return controllerPeer(role, peerId, publicKey);
+        if (!"harness".equals(identity.deviceType())) return false;
         RemoteDeviceSnapshot source = installation(identity.tenantId(), identity.actorId(), identity.deviceId());
         if (source == null) return false;
         if ("controller".equals(role)) {
-            return RemoteProtocol.CONTROLLER_ID.matcher(peerId).matches() && RemoteProtocol.isPublicKey(publicKey);
+            return controllerPeer(role, peerId, publicKey);
         }
         if (!"host".equals(role) || !Long.toString(source.deviceId()).equals(peerId)) return false;
         return publicKey == null || RemoteProtocol.isPublicKey(publicKey)
@@ -179,10 +214,12 @@ public final class RemoteControlService {
     }
 
     public boolean isPeerActive(RemotePeerIdentity identity, String role, String peerId, String publicKey) {
-        if (identity == null || !"harness".equals(identity.deviceType())) return false;
+        if (identity == null) return false;
+        if (consoleSession(identity.deviceType(), identity.deviceId())) return controllerPeer(role, peerId, publicKey);
+        if (!"harness".equals(identity.deviceType())) return false;
         RemoteDeviceSnapshot source = installation(identity.tenantId(), identity.actorId(), identity.deviceId());
         if (source == null) return false;
-        if ("controller".equals(role)) return RemoteProtocol.CONTROLLER_ID.matcher(peerId).matches() && RemoteProtocol.isPublicKey(publicKey);
+        if ("controller".equals(role)) return controllerPeer(role, peerId, publicKey);
         return "host".equals(role) && Long.toString(source.deviceId()).equals(peerId)
             && (publicKey == null || devices.identityPublicKey(source.tenantId(), source.deviceId()).filter(publicKey::equals).isPresent());
     }
@@ -198,10 +235,10 @@ public final class RemoteControlService {
         RemoteTicketState state = read(raw.get(), RemoteTicketState.class);
         if (!matches(state, linkId, deviceId, controllerId, controllerPublicKey)
             || !state.tenantId().equals(identity.tenantId()) || state.actorId() != identity.actorId()
-            || !state.expiresAt().isAfter(clock.instant())
-            || state.controllerInstallationId() != null && !state.controllerInstallationId().equals(identity.deviceId())) return Optional.empty();
-        RemoteTicketState bound = new RemoteTicketState(state.tenantId(), state.actorId(), state.deviceId(), state.linkId(),
-            state.controllerDeviceId(), state.controllerPublicKey(), identity.deviceId(), state.hostPublicKey(), state.requestedCapabilities(), state.expiresAt());
+            || !state.expiresAt().isAfter(clock.instant()) || !matchesControllerSource(state, identity)) return Optional.empty();
+        RemoteTicketState bound = state.controllerKind() == ControllerKind.CONSOLE ? state
+            : new RemoteTicketState(state.tenantId(), state.actorId(), state.deviceId(), state.linkId(),
+                state.controllerDeviceId(), state.controllerPublicKey(), identity.deviceId(), state.hostPublicKey(), state.requestedCapabilities(), state.expiresAt());
         if (!authorizedDevices(bound)) return Optional.empty();
         return redis.consumeTicket("remote:ticket:" + digest(ticket), linkId, raw.get(), writeTicketState(bound))
             ? Optional.of(bound) : Optional.empty();
@@ -238,14 +275,36 @@ public final class RemoteControlService {
     }
 
     private boolean authorizedDevices(RemoteTicketState state) {
-        RemoteDeviceSnapshot source = installation(state.tenantId(), state.actorId(), state.controllerInstallationId());
-        if (source == null) return false;
+        RemoteDeviceSnapshot source = null;
+        if (state.controllerKind() == ControllerKind.HARNESS) {
+            source = installation(state.tenantId(), state.actorId(), state.controllerInstallationId());
+            if (source == null) return false;
+        } else if (!consoleSession("console", state.controllerSessionId())) return false;
         RemoteDeviceSnapshot target = devices.find(state.tenantId(), Long.parseLong(state.deviceId()), clock.instant()).orElse(null);
-        return target != null && target.userId() == state.actorId() && target.deviceId() != source.deviceId()
+        return target != null && target.userId() == state.actorId() && (source == null || target.deviceId() != source.deviceId())
             && target.connectable(clock.instant()) && target.capabilities().containsAll(state.requestedCapabilities())
             && RemoteProtocol.isPublicKey(state.hostPublicKey())
             && devices.identityPublicKey(state.tenantId(), target.deviceId()).filter(state.hostPublicKey()::equals).isPresent()
             && activeHostKey(state.deviceId(), state.hostPublicKey());
+    }
+
+    private static boolean matchesControllerSource(RemoteTicketState state, RemotePeerIdentity identity) {
+        if (state.controllerKind() == ControllerKind.CONSOLE) {
+            return consoleSession(identity.deviceType(), identity.deviceId()) && state.controllerSessionId().equals(identity.deviceId());
+        }
+        return "harness".equals(identity.deviceType())
+            && (state.controllerInstallationId() == null || state.controllerInstallationId().equals(identity.deviceId()));
+    }
+
+    private static boolean controllerPeer(String role, String peerId, String publicKey) {
+        return "controller".equals(role) && RemoteProtocol.CONTROLLER_ID.matcher(peerId == null ? "" : peerId).matches()
+            && RemoteProtocol.isPublicKey(publicKey);
+    }
+
+    private static boolean consoleSession(String deviceType, String sessionId) {
+        if (!"console".equals(deviceType) || sessionId == null || !sessionId.startsWith("admin-")) return false;
+        try { return UUID.fromString(sessionId.substring(6)).version() == 4; }
+        catch (IllegalArgumentException exception) { return false; }
     }
 
     private RemoteDeviceSnapshot installation(String tenantId, long userId, String installationId) {

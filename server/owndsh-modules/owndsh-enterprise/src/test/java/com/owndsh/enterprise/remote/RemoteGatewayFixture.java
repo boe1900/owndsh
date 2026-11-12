@@ -145,6 +145,8 @@ abstract class RemoteGatewayFixture {
     static final class FakeAuthorizer implements RemoteGatewayAuthorizer {
         final Clock clock;
         boolean leaseActive = true;
+        boolean revokeFails;
+        final java.util.Set<String> revoked = new java.util.HashSet<>();
         int renewals;
         int releases;
         long presenceTime;
@@ -152,14 +154,18 @@ abstract class RemoteGatewayFixture {
         FakeAuthorizer(Clock clock) { this.clock = clock; }
         @Override public boolean authorizePeer(RemotePeerIdentity identity, String role, String peerId, String publicKey) { return true; }
         @Override public boolean isPeerActive(RemotePeerIdentity identity, String role, String peerId, String publicKey) { return true; }
-        @Override public boolean isLinkActive(String linkId) { return true; }
-        @Override public boolean isLeaseActive(String linkId, String leaseId) { return leaseActive; }
+        @Override public boolean isLinkActive(String linkId) { return !revoked.contains(linkId); }
+        @Override public boolean isLeaseActive(String linkId, String leaseId) { return leaseActive && !revoked.contains(linkId); }
         @Override public Optional<RemoteTicketState> consumeTicket(String ticket, String linkId, String deviceId, String controllerId, String key, RemotePeerIdentity identity) {
             return Optional.of(new RemoteTicketState("tenant", 1, deviceId, linkId, controllerId, key, "installation", ticketKey, List.of("remote.connect"), clock.instant().plusSeconds(10)));
         }
         @Override public Optional<Instant> acquireLease(String linkId, String leaseId, int ttlSeconds) { return Optional.of(clock.instant().plusSeconds(ttlSeconds)); }
         @Override public boolean renewLease(String linkId, String leaseId, int ttlSeconds) { renewals++; return true; }
         @Override public void releaseLease(String linkId, String leaseId) { releases++; }
+        @Override public void revokeLink(String linkId) {
+            if (revokeFails) throw new IllegalStateException("authorization unavailable");
+            revoked.add(linkId);
+        }
         @Override public void onPeerClosed(String role, String peerId) {}
         @Override public void onPresence(String deviceId, String key, String state, boolean enabled, String capabilities, long time) { presenceTime = time; }
     }

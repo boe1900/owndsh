@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 JsonMapper、Remote listener 配置与 Spring lifecycle。
- * [OUTPUT]: 对外装配 RemoteNettyProperties 和可关闭的 Netty server bean。
+ * [OUTPUT]: 装配 RemoteNettyProperties、HTTP/Netty 共用的 Gateway 与可关闭的 Netty server bean。
  * [POS]: remote 模块的 composition root，默认关闭且缺少生产认证器时拒绝所有连接。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -41,13 +41,17 @@ public class EnterpriseRemoteConfiguration {
     }
 
     @Bean
+    RemoteGateway remoteGateway(JsonMapper json, RemoteControlService service) {
+        return new RemoteGateway(json, new RemoteControlGatewayAuthorizer(service));
+    }
+
+    @Bean
     RemoteNettyServerLifecycle remoteNettyServerLifecycle(
         RemoteNettyProperties properties,
         JsonMapper json,
-        RemoteControlService service,
+        RemoteGateway gateway,
         ObjectProvider<RemotePeerAuthenticator> peerAuthenticators
     ) {
-        RemoteGateway gateway = new RemoteGateway(json, new RemoteControlGatewayAuthorizer(service));
         RemotePeerAuthenticator authenticator = peerAuthenticators.getIfAvailable(() -> token -> java.util.Optional.empty());
         return new RemoteNettyServerLifecycle(properties, json, authenticator, gateway);
     }

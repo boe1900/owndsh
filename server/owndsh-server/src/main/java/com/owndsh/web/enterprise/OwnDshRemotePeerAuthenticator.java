@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 接收 Remote Netty upgrade 的 Bearer/Cookie Token，读取 Sa-Token 当前终端事实。
- * [OUTPUT]: 提供租户、成员、设备类型和 installation identity，禁止向 Remote 模块泄露 Token。
+ * [OUTPUT]: 提供租户、成员及 Harness installation/Console 登录身份，Console 必须属于 enterprise-admin client，不泄露 Token。
  * [POS]: owndsh-server 的平台会话 adapter，把 Sa-Token 具体 API 隔离在 server 入口模块。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -42,6 +42,9 @@ public final class OwnDshRemotePeerAuthenticator implements RemotePeerAuthentica
         long actorId = actorId(loginId);
         String deviceType = logic.getLoginDeviceTypeByToken(token);
         String deviceId = logic.getLoginDeviceIdByToken(token);
+        if ("console".equals(deviceType) && !"enterprise-admin".equals(logic.getExtra(token, LoginHelper.CLIENT_KEY))) {
+            return Optional.empty();
+        }
         if (actorId <= 0 || deviceType == null || deviceId == null) {
             LOG.warn("Remote token identity incomplete: actorId={}, deviceType={}, deviceId={}", actorId, deviceType, deviceId);
             return Optional.empty();

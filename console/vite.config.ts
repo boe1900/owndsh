@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Node URL、Vite React/Tailwind、TanStack Router 文件路由生成器和 Vitest。
- * [OUTPUT]: 提供标准 Vite 构建、@ 别名、TanStack 分包、开发服务及 API/验证码/健康/Remote 代理；验证码精确匹配以免吞掉授权页，PKCE 回调由 SPA 承接。
+ * [OUTPUT]: 提供 Console/workspace 双 document 构建、@ 别名、TanStack 分包、开发服务及 API/验证码/健康/Remote 代理。
  * [POS]: console 的唯一构建入口，把 Beautiful UI 的 Next `@/` 引用无损映射到 Vite src。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -13,6 +13,14 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   plugins: [tanstackRouter({ target: 'react', autoCodeSplitting: true }), react(), tailwindcss()],
+  build: {
+    rollupOptions: {
+      input: {
+        console: fileURLToPath(new URL('./index.html', import.meta.url)),
+        workspace: fileURLToPath(new URL('./workspace.html', import.meta.url)),
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))

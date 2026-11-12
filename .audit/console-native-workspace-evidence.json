@@ -1,0 +1,83 @@
+{
+  "date": "2026-11-12",
+  "baseCommit": "332bf504e8d82c82eacf4e4a9ce0dcfa8a9c7e2a",
+  "delivery": {
+    "committed": false,
+    "pushed": false,
+    "nasDeployed": false,
+    "harnessVersion": "0.2.1-rc.5",
+    "entry": "http://127.0.0.1:18104/"
+  },
+  "verifiedBrowser": [
+    "employee Cookie sign-in and account-only navigation",
+    "own device discovery and native workspace entry",
+    "existing session send and receive",
+    "new session in existing workspace send and receive",
+    "refresh and leave/return release with session/preview restoration",
+    "second controller gets specific ENT_REMOTE_BUSY",
+    "remote file list and Markdown",
+    "remote image Blob with naturalWidth=600",
+    "static HTML srcdoc with empty sandbox"
+  ],
+  "modelFixture": {
+    "kind": "local deterministic test model through real gateway and Host",
+    "actualCalls": 2,
+    "realProviderVerified": false
+  },
+  "checks": {
+    "console": {
+      "files": 18,
+      "tests": 130,
+      "passed": true
+    },
+    "remoteCore": {
+      "tests": 7,
+      "passed": true
+    },
+    "serverRemoteAndCookieTests": "passed, see /tmp/owndsh-console-server-20261112-tests.log",
+    "consoleProductionBuild": true,
+    "dockerBuild": true,
+    "nginx": {
+      "image": "sha256:bd6cc7be1921dd291c58b303ed2069c2ef9d59553f7c2f23f59e67af00828eb1",
+      "checks": [
+        {
+          "path": "/workspace.html",
+          "status": 200,
+          "contentType": "text/html"
+        },
+        {
+          "path": "/native-workspace/assembly.json",
+          "status": 200,
+          "contentType": "application/json"
+        },
+        {
+          "path": "/enterprise/console/v1/remote/devices",
+          "status": 401,
+          "contentType": "application/json"
+        }
+      ]
+    }
+  },
+  "review": {
+    "independent": true,
+    "remainingP1P2": 0,
+    "scope": "authorization, shared core, assembly boundaries, media, intake, busy error, static HTML and non-root Nginx"
+  },
+  "notVerified": [
+    "browser tool execution, approval, steering, queue and terminal scenarios",
+    "image-link hover in actual browser",
+    "PDF/Office/Excel format scenarios"
+  ],
+  "notIncluded": [
+    "file upload",
+    "arbitrary directory creation",
+    "remote settings UI",
+    "interactive HTML scripts",
+    "remote localhost website proxy",
+    "LAN/P2P/TURN and Android"
+  ],
+  "screenshots": [
+    ".tmp/console-workspace-implementation/native-workspace-final.png",
+    ".tmp/console-workspace-implementation/native-html-preview.png"
+  ]
+}

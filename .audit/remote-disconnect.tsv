@@ -1,0 +1,9 @@
+decision	reason	evidence	result
+snapshot-CAS	avoid delayed request closing a replacement	.tmp/remote-disconnect/design.md + two independent readers	selected; no ticket reservation or wire change
+late-frame	unknown old link error may close new Host incoming	RemoteGateway.ownedLink + workspace-runtime.ts onFrame	ignore removed link frames; test foreign existing link rejection
+native-takeover	confirm may become stale while another page reconnects	IAB double-page acceptance + check-api.mjs stale	old ID returns 409; stale dialog explains changed connection; replacement preserved
+responsive-card	content width plus padding and border exceeds narrow viewport	IAB DOM 390px measured 392px card at x=0	border-box; card now 358px at x=16; desktop max outer width stays 486px
+real-model	fixed loopback fixture cannot prove provider tools and approvals	Atria models discovery + seven user rounds + file hashes + native tool results	write/read/edit/bash/preview/stop/reconnect/deny/allow and native terminal passed
+single-execution	disconnect must not replay a previously started mutation	continuity.log observed START=1 END=0 while linkId=null; final START=1 END=1	35-second task completed; original session restored without duplicate launch
+cancel-usage	stopped stream does not contain final provider usage	model-filtered usage ledger 18 requests; one CHARGED_MAX	17 settled; one unknown request charged existing max 29670; report distinguishes measured and charged tokens
+review	independent review separation	no-comments and correctness reviewers read exact 43-file before/after increment	no actionable findings; native browser caught and fixed narrow border overflow

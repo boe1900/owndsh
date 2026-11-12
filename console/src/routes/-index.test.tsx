@@ -688,9 +688,11 @@ describe('product console access', () => {
     expect(document.querySelectorAll('img[src="/owndsh-whale-mono-m2-animated.png"]')).toHaveLength(3);
   });
 
-  it('sends an employee to the fixed forbidden page', async () => {
+  it('gives an employee a personal entry without management navigation', async () => {
     renderRoute('/', 'employee');
-    expect(await screen.findByRole('heading', { name: '无控制台访问权限' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: '基本信息' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^模型$/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^成员$/ })).toBeNull();
   });
 
   it('redirects a direct unauthorized URL to the first accessible page', async () => {

@@ -5,7 +5,7 @@
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
-import { enterpriseProtocolSha256, parseRemoteControlFrame, parseRemoteRelayFrame, type RemoteConnectionState, type RemoteControlFrame, type RemoteRelayFrame } from '@owndsh/contracts'
+import { remoteProtocolSha256, parseRemoteControlFrame, parseRemoteRelayFrame, type RemoteConnectionState, type RemoteControlFrame, type RemoteRelayFrame } from '@owndsh/contracts'
 
 export interface RemoteSocketLike {
   send(data: string): void | Promise<void>
@@ -76,7 +76,7 @@ export class RemoteServerConnection {
       timeout = setTimeout(() => this.close(4408, 'hello timeout'), 10_000)
       this.send({ v: 1, type: 'hello', id: frameId(), ts: Date.now(), payload: {
         role: identity.role ?? 'host', deviceId: identity.deviceId, capabilities: [...identity.capabilities],
-        protocolSha256: enterpriseProtocolSha256,
+        protocolSha256: remoteProtocolSha256,
         ...(identity.publicKey === undefined ? {} : { publicKey: identity.publicKey }),
       } })
       await ready
@@ -139,7 +139,7 @@ export class RemoteServerConnection {
     }
     const frame = parseRemoteControlFrame(value)
     if (frame.type === 'hello.ack') {
-      if (this.state !== 'AUTHENTICATED' || frame.payload.protocolSha256 !== enterpriseProtocolSha256) throw new Error('ENT_REMOTE_PROTOCOL_MISMATCH')
+      if (this.state !== 'AUTHENTICATED' || frame.payload.protocolSha256 !== remoteProtocolSha256) throw new Error('ENT_REMOTE_PROTOCOL_MISMATCH')
       this.transition('READY'); this.pendingReady?.resolve(); this.pendingReady = undefined
     }
     if (frame.type === 'error' && frame.payload.code === 'ENT_DEVICE_REVOKED' && !this.revocationNotified) {

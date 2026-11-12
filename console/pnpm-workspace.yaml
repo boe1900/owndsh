@@ -1,4 +1,7 @@
-packages: []
+packages:
+  - .
+  - ../plugin/packages/contracts
+  - ../plugin/packages/remote-core
 
 allowBuilds:
   esbuild: true

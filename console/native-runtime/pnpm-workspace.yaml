@@ -1,0 +1,9 @@
+packages: []
+
+# 构建 Host 只采集浏览器资源，不启用终端、FFI 或供应商原生能力。
+allowBuilds:
+  '@deepseek-ai/dsh-subprocess-local': false
+  '@google/genai': false
+  koffi: false
+  node-pty: false
+  protobufjs: false

@@ -699,6 +699,10 @@ export type RemoteLeaseResponse = RemoteRemoteLeaseResponse;
 
 export type RemoteCapabilityResponse = RemoteRemoteCapabilityResponse;
 
+export type RemoteConnectionResponse = RemoteRemoteConnectionResponse;
+
+export type RemoteDisconnectRequest = RemoteRemoteDisconnectRequest;
+
 export type AuditAuditAction = 'LOGIN_SUCCEEDED' | 'LOGIN_FAILED' | 'LOGOUT' | 'IDENTITY_SOURCE_CHANGED' | 'USER_LINKED' | 'USER_UNLINKED' | 'DEVICE_ENROLLED' | 'DEVICE_HEARTBEAT' | 'DEVICE_REVOKED' | 'PROVIDER_CHANGED' | 'MODEL_CONNECTION_CHANGED' | 'MODEL_CHANGED' | 'MODEL_GRANT_CHANGED' | 'MODEL_REQUEST_ACCEPTED' | 'MODEL_REQUEST_FINISHED' | 'QUOTA_CHANGED' | 'QUOTA_REJECTED' | 'RESERVATION_RECOVERED' | 'PLUGIN_REGISTERED' | 'PLUGIN_UPLOADED' | 'PLUGIN_PUBLISHED' | 'PLUGIN_DELETED' | 'PLUGIN_ASSIGNED' | 'PLUGIN_DOWNLOADED' | 'PLUGIN_INVENTORY_REPORTED' | 'SESSION_BATCH_APPENDED' | 'SESSION_EXPORTED' | 'SESSION_RESTORED' | 'SESSION_CONTENT_READ' | 'SESSION_DELETED' | 'SESSION_EXPIRED' | 'ROLE_ASSIGNED' | 'USER_STATUS_CHANGED' | 'CONFIG_CHANGED';
 
 export type AuditAuditActorType = 'USER' | 'SYSTEM';
@@ -2486,6 +2490,16 @@ export type RemoteRemoteCapabilityResponse = {
     requestId: RequestId;
 };
 
+export type RemoteRemoteConnectionResponse = {
+    data: {
+        /**
+         * Current Host connection, or null when no connection is active.
+         */
+        linkId: string | null;
+    };
+    requestId: RequestId;
+};
+
 export type RemoteRemoteDevice = {
     deviceId: EnterpriseDeviceId;
     installationId: string;
@@ -2512,6 +2526,13 @@ export type RemoteRemoteDevicePageData = {
 };
 
 export type RemoteRemoteDeviceStatus = 'ACTIVE' | 'REVOKED' | 'OFFLINE';
+
+export type RemoteRemoteDisconnectRequest = {
+    /**
+     * Exact connection confirmed by the user. A replacement is never disconnected.
+     */
+    expectedLinkId: string;
+};
 
 export type RemoteRemoteLease = {
     linkId: string;
@@ -2992,6 +3013,14 @@ export type QuotaEnable = unknown;
 export type QuotaItem = unknown;
 
 export type QuotaWindows = unknown;
+
+export type ConsoleRemoteConnection = unknown;
+
+export type ConsoleRemoteDevices = unknown;
+
+export type ConsoleRemoteDisconnect = unknown;
+
+export type ConsoleRemoteTicket = unknown;
 
 export type OwnRemoteDevices = unknown;
 
@@ -8822,6 +8851,175 @@ export type CreateOwnRemoteTicketResponses = {
 };
 
 export type CreateOwnRemoteTicketResponse = CreateOwnRemoteTicketResponses[keyof CreateOwnRemoteTicketResponses];
+
+export type ListConsoleRemoteDevicesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Server-signed opaque cursor; clients must not parse it.
+         */
+        cursor?: Cursor;
+        /**
+         * Cursor page size.
+         */
+        limit?: PageLimit;
+    };
+    url: '/enterprise/console/v1/remote/devices';
+};
+
+export type ListConsoleRemoteDevicesErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+};
+
+export type ListConsoleRemoteDevicesError = ListConsoleRemoteDevicesErrors[keyof ListConsoleRemoteDevicesErrors];
+
+export type ListConsoleRemoteDevicesResponses = {
+    /**
+     * Owner-filtered remote device page.
+     */
+    200: RemoteRemoteDeviceListResponse;
+};
+
+export type ListConsoleRemoteDevicesResponse = ListConsoleRemoteDevicesResponses[keyof ListConsoleRemoteDevicesResponses];
+
+export type GetConsoleRemoteConnectionData = {
+    body?: never;
+    path: {
+        deviceId: EnterpriseDeviceId;
+    };
+    query?: never;
+    url: '/enterprise/console/v1/remote/devices/{deviceId}/connection';
+};
+
+export type GetConsoleRemoteConnectionErrors = {
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+};
+
+export type GetConsoleRemoteConnectionError = GetConsoleRemoteConnectionErrors[keyof GetConsoleRemoteConnectionErrors];
+
+export type GetConsoleRemoteConnectionResponses = {
+    /**
+     * Current connection snapshot. A disconnected device returns a null linkId.
+     */
+    200: RemoteRemoteConnectionResponse;
+};
+
+export type GetConsoleRemoteConnectionResponse = GetConsoleRemoteConnectionResponses[keyof GetConsoleRemoteConnectionResponses];
+
+export type DisconnectConsoleRemoteConnectionData = {
+    body: RemoteRemoteDisconnectRequest;
+    path: {
+        deviceId: EnterpriseDeviceId;
+    };
+    query?: never;
+    url: '/enterprise/console/v1/remote/devices/{deviceId}/connection/disconnect';
+};
+
+export type DisconnectConsoleRemoteConnectionErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type DisconnectConsoleRemoteConnectionError = DisconnectConsoleRemoteConnectionErrors[keyof DisconnectConsoleRemoteConnectionErrors];
+
+export type DisconnectConsoleRemoteConnectionResponses = {
+    /**
+     * Confirmed connection removed. linkId is null.
+     */
+    200: RemoteRemoteConnectionResponse;
+};
+
+export type DisconnectConsoleRemoteConnectionResponse = DisconnectConsoleRemoteConnectionResponses[keyof DisconnectConsoleRemoteConnectionResponses];
+
+export type CreateConsoleRemoteTicketData = {
+    body: RemoteRemoteTicketRequest;
+    headers: {
+        /**
+         * Caller-generated UUID v4 reused only for one logical write.
+         */
+        'Idempotency-Key': string;
+    };
+    path: {
+        deviceId: EnterpriseDeviceId;
+    };
+    query?: never;
+    url: '/enterprise/console/v1/remote/devices/{deviceId}/ticket';
+};
+
+export type CreateConsoleRemoteTicketErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+    /**
+     * Permission denied.
+     */
+    403: EnterpriseErrorResponse;
+    /**
+     * Resource not found.
+     */
+    404: EnterpriseErrorResponse;
+    /**
+     * Revision, idempotency, or state conflict.
+     */
+    409: EnterpriseErrorResponse;
+};
+
+export type CreateConsoleRemoteTicketError = CreateConsoleRemoteTicketErrors[keyof CreateConsoleRemoteTicketErrors];
+
+export type CreateConsoleRemoteTicketResponses = {
+    /**
+     * One-use ticket and authenticated pinned Host public key.
+     */
+    200: RemoteOwnRemoteTicketResponse;
+};
+
+export type CreateConsoleRemoteTicketResponse = CreateConsoleRemoteTicketResponses[keyof CreateConsoleRemoteTicketResponses];
 
 export type CreateRemoteTicketData = {
     body: RemoteRemoteTicketRequest;

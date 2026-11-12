@@ -249,6 +249,9 @@ importers:
       '@noble/curves':
         specifier: 2.4.0
         version: 2.4.0
+      '@owndsh/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       zod:
         specifier: 4.4.3
         version: 4.4.3

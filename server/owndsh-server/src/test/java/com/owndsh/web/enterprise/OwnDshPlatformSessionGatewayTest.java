@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Sa-Token 1.45 JWT/权限拦截器/mock HTTP context、Refresh Session store 与平台会话 adapter。
- * [OUTPUT]: 验证 Cookie 前置生效、浏览器/客户端独立退出、单 installation/成员的会话撤销与 Remote 已建 carrier 的凭据重验。
+ * [OUTPUT]: 验证管理/本人远控 Cookie 前置生效、浏览器/客户端独立退出、单 installation/成员撤销与 Remote carrier 的过期/退出重验。
  * [POS]: owndsh-server 会话回归门禁，覆盖浏览器 Cookie 与 Desktop 长短期凭据共用的服务端生命周期。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -28,6 +28,12 @@ import com.owndsh.enterprise.auth.EnterpriseIdentityProperties;
 import com.owndsh.enterprise.auth.persistence.RefreshSessionStore;
 import com.owndsh.enterprise.auth.web.AdminSessionCookie;
 import com.owndsh.enterprise.remote.RemotePeerIdentity;
+import com.owndsh.enterprise.remote.RemoteNettyProperties;
+import com.owndsh.enterprise.remote.RemoteUpgradeAuthHandler;
+import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.codec.http.DefaultFullHttpRequest;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpVersion;
 import com.owndsh.system.domain.vo.SysUserVo;
 import com.owndsh.system.service.ISysUserService;
 import com.owndsh.web.service.SysLoginService;
@@ -166,6 +172,17 @@ class OwnDshPlatformSessionGatewayTest {
     }
 
     @Test
+    void exposesConsoleCookieBeforeTheOwnedRemoteControllerRuns() throws Exception {
+        SaTokenContextMockUtil.setMockContext();
+        String token = logic.createLoginSession(LOGIN_ID, admin("admin-" + UUID.randomUUID()));
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(new SecuredAdminController())
+            .addFilters(new AdminSessionCookieFilter(properties)).build();
+        mvc.perform(get("/enterprise/console/v1/remote/devices")
+            .cookie(new Cookie(AdminSessionCookie.name(properties.getPublicBaseUrl()), token)))
+            .andExpect(status().isOk()).andExpect(content().string("ok"));
+    }
+
+    @Test
     void logsOutClientAndBrowserIndependently() {
         String browser = logic.createLoginSession(LOGIN_ID, admin("browser-session"));
         String client = logic.createLoginSession(LOGIN_ID, device(FIRST)
@@ -247,6 +264,39 @@ class OwnDshPlatformSessionGatewayTest {
     }
 
     @Test
+    void remoteConsoleSessionRevalidationRejectsLogoutAndExpiryButPreservesOtherLogin() throws InterruptedException {
+        String sessionId = "admin-" + UUID.randomUUID();
+        String browser = logic.createLoginSession(LOGIN_ID, admin(sessionId));
+        String otherBrowser = logic.createLoginSession(LOGIN_ID, admin("admin-" + UUID.randomUUID()));
+        OwnDshRemotePeerAuthenticator authenticator = new OwnDshRemotePeerAuthenticator(properties);
+        assertThat(authenticator.authenticate(browser)).contains(new RemotePeerIdentity(properties.getTenantId(), USER_ID, "console", sessionId));
+        EmbeddedChannel carrier = new EmbeddedChannel(new RemoteUpgradeAuthHandler(new RemoteNettyProperties(), authenticator));
+        var upgrade = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/remote/ws");
+        upgrade.headers().set("Cookie", "enterprise-admin=" + browser);
+        assertThat(carrier.writeInbound(upgrade)).isTrue();
+        ((DefaultFullHttpRequest) carrier.readInbound()).release();
+        var revalidate = carrier.attr(RemoteUpgradeAuthHandler.SESSION_ACTIVE).get();
+        assertThat(revalidate.getAsBoolean()).isTrue();
+        logic.logoutByTokenValue(browser);
+        assertThat(authenticator.authenticate(browser)).isEmpty();
+        assertThat(revalidate.getAsBoolean()).isFalse();
+        carrier.finishAndReleaseAll();
+        assertThat(authenticator.authenticate(otherBrowser)).isPresent();
+        String expiring = logic.createLoginSession(LOGIN_ID, admin("admin-" + UUID.randomUUID()).setTimeout(1));
+        assertThat(authenticator.authenticate(expiring)).isPresent();
+        Thread.sleep(1100);
+        assertThat(authenticator.authenticate(expiring)).isEmpty();
+        assertThat(authenticator.authenticate(otherBrowser)).isPresent();
+    }
+
+    @Test
+    void rejectsConsoleTerminalWithAnotherPublicClient() {
+        String token = logic.createLoginSession(LOGIN_ID,
+            admin("admin-" + UUID.randomUUID()).setExtra(LoginHelper.CLIENT_KEY, "dsh-desktop"));
+        assertThat(new OwnDshRemotePeerAuthenticator(properties).authenticate(token)).isEmpty();
+    }
+
+    @Test
     void revokesEverySessionForOneMember() {
         String firstToken = logic.createLoginSession(LOGIN_ID, device(FIRST));
         String secondToken = logic.createLoginSession(LOGIN_ID, device(SECOND));
@@ -285,6 +335,12 @@ class OwnDshPlatformSessionGatewayTest {
 
     @RestController
     private static final class SecuredAdminController {
+        @GetMapping("/enterprise/console/v1/remote/devices")
+        String ownedRemoteDevices() {
+            StpUtil.checkLogin();
+            return "ok";
+        }
+
         @GetMapping("/enterprise/admin/v1/providers")
         @SaCheckPermission("ent:model:read")
         String providers() {

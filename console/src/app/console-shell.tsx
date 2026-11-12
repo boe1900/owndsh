@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖上游 SidebarNav/ThemeToggle、OwnDsh 鲸鱼品牌资源、静态控制台路由、TanStack navigation 与 Beautiful UI Harness tab bar 结构。
- * [OUTPUT]: 提供 OwnDsh 品牌工作区入口、按模型/扩展/团队分组的角色过滤产品侧栏、用户中心导航/Sign out、深浅主题、可关闭页面 tab、移动抽屉和内容窗口。
- * [POS]: app 的产品外壳；DOM、尺寸和交互直接由 Beautiful UI Harness 3ea4c181 迁移，工作区菜单只提供产品动作。
+ * [OUTPUT]: 提供 OwnDsh 账号菜单、本人远程设备独立标签入口、按模型/扩展/团队分组的角色过滤产品侧栏、用户中心导航/Sign out、深浅主题、可关闭页面 tab、移动抽屉和内容窗口。
+ * [POS]: app 的产品外壳；DOM、尺寸和交互直接由 Beautiful UI Harness 3ea4c181 迁移，远程设备 section 独立拥有目录查询，账号菜单仅保留账号动作。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -9,6 +9,7 @@ import { Outlet, useNavigate, useRouteContext, useRouterState } from '@tanstack/
 import { CircleUserRound, LogOut, Menu, UserPlus, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { logoutCurrentSession } from '@/auth/session';
+import { WorkspaceDevicesSection } from '@/features/workspace/workspace-devices-section';
 import SidebarNav, {
   type SidebarNavGroup,
   type SidebarNavItem,
@@ -59,13 +60,13 @@ export function ConsoleShell() {
   );
 
   const openNextTab = () => {
-    const next = availableRoutes.find((item) => !openTabs.includes(item.to))?.to ?? availableRoutes[0]!.to;
+    const next = availableRoutes.find((item) => !openTabs.includes(item.to))?.to ?? availableRoutes[0]?.to ?? '/account';
     go(next);
   };
 
   const closeTab = (to: ProductRoute) => {
     const remaining = openTabs.filter((item) => item !== to);
-    const nextTabs: ProductRoute[] = remaining.length > 0 ? remaining : [availableRoutes[0]!.to];
+    const nextTabs: ProductRoute[] = remaining.length > 0 ? remaining : [availableRoutes[0]?.to ?? '/account'];
     setOpenTabs(nextTabs);
     if (to === activeRoute) go(nextTabs.at(-1) ?? '/');
   };
@@ -84,6 +85,9 @@ export function ConsoleShell() {
         if (mobile) closeMobileNav();
       }}
       primaryAction={null}
+      renderAfterNav={({ collapsed }) => (
+        <WorkspaceDevicesSection memberId={bootstrap.member.id} collapsed={collapsed} onOpen={mobile ? closeMobileNav : undefined} />
+      )}
       workspace={{
         key: 'enterprise',
         name: 'OwnDsh',

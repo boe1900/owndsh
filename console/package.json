@@ -9,11 +9,13 @@
   },
   "scripts": {
     "generate": "node scripts/generate-openapi.mjs",
-    "predev": "pnpm run generate",
+    "native:prepare": "pnpm --dir native-runtime install --frozen-lockfile && node scripts/build-native-workspace.mjs",
+    "shared:build": "pnpm --filter @owndsh/contracts build && pnpm --filter @owndsh/remote-core build",
+    "predev": "pnpm run generate && pnpm run shared:build && pnpm run native:prepare",
     "dev": "vite --host 127.0.0.1",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "build": "pnpm run generate && vite build && tsc --noEmit",
+    "build": "pnpm run generate && pnpm run shared:build && pnpm run native:prepare && vite build && tsc --noEmit",
     "check": "pnpm run build && pnpm run test"
   },
   "dependencies": {
@@ -21,6 +23,8 @@
     "@fontsource-variable/inter": "5.3.0",
     "@fontsource-variable/jetbrains-mono": "5.3.0",
     "@noble/hashes": "2.4.0",
+    "@owndsh/contracts": "workspace:*",
+    "@owndsh/remote-core": "workspace:*",
     "@tanstack/react-form": "1.33.5",
     "@tanstack/react-query": "5.102.8",
     "@tanstack/react-router": "1.170.32",

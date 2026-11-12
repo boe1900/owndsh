@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖官方 connection /connect、WebServer 固定回环 origin、WorkspaceRegistry 与原生 WS mux parser。
- * [OUTPUT]: 为每条授权 link 创建独立 owner API Peer，保留内存 cookie，提供受限 HTTP/WS carrier、取消回收与持续心跳读取的有界消息队列。
+ * [OUTPUT]: 为授权 link 创建独立 owner API Peer，提供文件及 Office RPC 的方法绑定与范围准入、受限 HTTP/WS carrier 和有界心跳队列，cookie 留在 Host。
  * [POS]: remote Host 唯一原生执行接缝；不复制 Gateway 编解码，不向 Controller 暴露原生凭据。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -8,32 +8,17 @@ import { createRequire } from 'node:module'
 import WebSocket from 'ws'
 import { clientRequestSchema } from '@deepseek-ai/dsh-client-connection'
 import { parseRemoteStreamClientMessage, parseRemoteStreamServerMessage } from '@deepseek-ai/dsh-api-gateway/stream-protocol'
-import { MAX_MUX_MESSAGE_BYTES, type CarrierHeaders } from '@owndsh/remote-core'
+import { MAX_MUX_MESSAGE_BYTES, safeHeaders, type DshCarrier, type RemoteDshMux } from '@owndsh/remote-core'
+export { safeHeaders } from '@owndsh/remote-core'
 import { z } from 'zod'
-import { authorizeFilePayload, authorizeMedia, dshPath, DSH_STREAM_ENDPOINTS, DSH_UNARY_ENDPOINTS, type WorkspaceCatalog } from './dsh-policy.js'
+import { authorizeFilePayload, authorizeOfficePayload, authorizeMedia, dshPath, DSH_STREAM_ENDPOINTS, DSH_UNARY_ENDPOINTS, type WorkspaceCatalog } from './dsh-policy.js'
 
 export interface DshCarrierContext {
   readonly connection: { authenticatedUrl(baseUrl: string): string }
   readonly webServer: { getOrigin(): string }
   readonly workspaceRegistry: WorkspaceCatalog
 }
-export interface DshFetchInit {
-  readonly method: string
-  readonly headers: Readonly<Record<string, string>>
-  readonly body?: ReadableStream<Uint8Array>
-  readonly signal?: AbortSignal
-}
-export interface RemoteDshMux {
-  send(data: string): Promise<void>
-  readonly messages: AsyncIterable<string>
-  close(code?: number): void | Promise<void>
-}
-export interface DshCarrier {
-  readonly signal?: AbortSignal
-  fetch(path: string, init: DshFetchInit): Promise<Response>
-  openMux(): Promise<RemoteDshMux>
-  close(): void
-}
+export type { DshCarrier, DshFetchInit, RemoteDshMux } from '@owndsh/remote-core'
 export const DSH_CARRIER_VERSION = '0.2.1-rc.5'
 
 export async function openDshCarrier(ctx: DshCarrierContext, signal: AbortSignal): Promise<DshCarrier> {
@@ -69,11 +54,12 @@ export async function openDshCarrier(ctx: DshCarrierContext, signal: AbortSignal
       } else if (init.method !== 'POST' || target.search || !DSH_UNARY_ENDPOINTS.has(target.pathname.slice(5))) throw new Error('ENT_REMOTE_DENIED')
       const headers = safeHeaders(new Headers(init.headers))
       let body = init.body
-      if (target.pathname.startsWith('/api/workspaceFiles/')) {
+      if (target.pathname.startsWith('/api/workspaceFiles/') || target.pathname.startsWith('/api/officeToPdf/')) {
         const bytes = await boundedBody(body, 65_536)
         const envelope = clientRequestSchema.parse(JSON.parse(new TextDecoder().decode(bytes)))
         if (envelope.method !== target.pathname.slice(5)) throw new Error('ENT_REMOTE_DENIED')
-        await authorizeFilePayload(ctx.workspaceRegistry, envelope.payload)
+        if (envelope.method === 'officeToPdf/render') await authorizeOfficePayload(ctx.workspaceRegistry, envelope.payload)
+        else if (envelope.method.startsWith('workspaceFiles/')) await authorizeFilePayload(ctx.workspaceRegistry, envelope.payload)
         body = new ReadableStream({ start(controller) { controller.enqueue(bytes); controller.close() } })
       }
       const request = new Request(new URL(target.pathname + target.search, origin), {
@@ -90,14 +76,6 @@ export async function openDshCarrier(ctx: DshCarrierContext, signal: AbortSignal
   }
 }
 
-export function safeHeaders(headers: Headers): CarrierHeaders {
-  const result: CarrierHeaders = {}
-  for (const name of ['content-type', 'accept', 'range', 'content-range', 'accept-ranges'] as const) {
-    const value = headers.get(name)
-    if (value !== null && value.length <= 1024) result[name] = value
-  }
-  return result
-}
 
 async function boundedBody(body: ReadableStream<Uint8Array> | undefined, limit: number): Promise<Uint8Array> {
   if (!body) throw new Error('ENT_REMOTE_DENIED')

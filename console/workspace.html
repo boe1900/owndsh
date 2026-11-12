@@ -1,0 +1,11 @@
+<!doctype html>
+<!--
+[INPUT]: workspace-entry 负责 Cookie 登录、固定目标建链和原生 UI 装配。
+[OUTPUT]: 与管控台隔离的原生工作区 document，禁止 Referrer 传播设备页参数。
+[POS]: Console 双入口构建的远程工作区壳，渲染生命周期由该页独立拥有。
+[PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+-->
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>远程工作区 · OwnDsh</title></head>
+<body><div id="root"></div><script type="module" src="/src/features/workspace/workspace-entry.ts"></script></body>
+</html>

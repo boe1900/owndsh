@@ -1,0 +1,1043 @@
+{
+  "at": "2026-11-12T09:17:57.793350+00:00",
+  "scope": "NAS Server and Console deployment; Mac browser to NAS and Mac Hosts; sidebar formats, real NAS model, approval rejection and link lifecycle; unresolved OOM and initial terminal disconnect",
+  "sourceHead": "332bf504e8d82c82eacf4e4a9ce0dcfa8a9c7e2a",
+  "workingTree": "uncommitted",
+  "origin": "http://home-nas:18080",
+  "deployment": {
+    "at": "2026-11-12T08:04:53.499041+00:00",
+    "origin": "http://home-nas:18080",
+    "images": {
+      "serverImage": "owndsh-server:console-preview-20261112-155655",
+      "consoleImage": "owndsh-console:console-preview-20261112-155655"
+    },
+    "jarSha256": "889ea63ac4fc2be46208520f79cb2b46072906443184e6f16fa311dd087d192d",
+    "staticFilesExact": 262,
+    "databaseMigrationsUnchanged": 58,
+    "otherContainersUnchanged": [
+      "/owndsh-postgres-1",
+      "/owndsh-redis-1",
+      "/owndsh-dsh-web"
+    ],
+    "backup": "/vol1/1000/docker/stacks/owndsh/releases/console-preview-20261112-155655/backup",
+    "result": "VERIFIED"
+  },
+  "tests": [
+    {
+      "name": "employee normal browser login and own device directory",
+      "result": "passed",
+      "detail": "CAPTCHA authorized by user; expired transaction reloaded; Mac and NAS shown"
+    },
+    {
+      "name": "Mac plugin to NAS Host encrypted remote workspace",
+      "result": "passed",
+      "detail": "NAS history and pending approval visible; one-shot identity command approved remotely"
+    },
+    {
+      "name": "busy cancel",
+      "result": "passed",
+      "linkBeforeAndAfter": "rln_W510TMGQD5E6DX9DY02QYXGX1G"
+    },
+    {
+      "name": "NAS Console takeover from Mac plugin",
+      "result": "passed",
+      "detail": "explicit confirmation; old plugin page disconnected and did not automatically reclaim link"
+    },
+    {
+      "name": "real model Atria-Dawn",
+      "result": "passed_with_failure_recorded",
+      "detail": "initial long prompt failed with ENT_UPSTREAM_INVALID_RESPONSE and upstream error event; subsequent 3 turns/14 steps completed without provider-specific changes"
+    },
+    {
+      "name": "real write/read/edit/bash",
+      "result": "passed",
+      "detail": "NAS_SERVER_7319 service created by model; identity.txt appended CONSOLE_EDIT_7319; Linux sandbox backend unavailable, shell calls used one-shot approvals"
+    },
+    {
+      "name": "history restore after takeover and explicit reconnect",
+      "result": "passed",
+      "detail": "same session and right sidebar tabs restored; no automatic replay observed"
+    },
+    {
+      "name": "terminal paste",
+      "result": "passed",
+      "detail": "two assertions against NAS /identity; terminal-proof.txt observed via SSH"
+    },
+    {
+      "name": "rapid per-character long terminal input",
+      "result": "unresolved",
+      "detail": "Initial connection closed while typing, command did not execute. Later DSH container OOMKilled at 08:58:24Z; causal relation and memory growth source unknown. Normal paste paths passed."
+    },
+    {
+      "name": "NAS Console to Mac Host",
+      "result": "passed_after_initial_navigation_failure",
+      "detail": "Remote terminal returns darwin, Mac hostname and isolated workspace; wrote console-mac-proof-7319.txt via terminal, read through file tree/UI and independently from Mac filesystem. No Mac real model invocation claimed."
+    },
+    {
+      "name": "final server-side link release",
+      "result": "passed",
+      "detail": "Both devices online and linkId=null at 2026-11-12T09:16:27.541Z after explicit NAS disconnect and Mac tab close"
+    },
+    {
+      "name": "Mac explicit disconnect and reconnect",
+      "result": "passed",
+      "detail": "disconnect returned null server snapshot; new link after reconnect; file tabs and content restored"
+    },
+    {
+      "name": "Mac tab close release",
+      "result": "passed",
+      "before": {
+        "at": "2026-11-12T09:07:05.515Z",
+        "linkId": "rln_MW48H0NVPD190YN87YXN5T0S7M"
+      },
+      "after": {
+        "at": "2026-11-12T09:07:41.836Z",
+        "linkId": null
+      }
+    },
+    {
+      "name": "NAS terminal operation running across disconnect",
+      "result": "passed_terminal_only",
+      "detail": "RUNNING observed before explicit disconnect; DONE after reconnect; independent file read contains exactly one RUN_ONCE_7319 line. Command had an existing-file guard, so this proves one file-write side effect only; it does not independently prove absence of command replay.",
+      "proof": {
+        "at": "2026-11-12T09:12:13.934301+00:00",
+        "content": "RUN_ONCE_7319\n",
+        "lines": 1
+      }
+    },
+    {
+      "name": "native model command approval rejection",
+      "result": "passed",
+      "detail": "First restricted call failed because sandbox backend unavailable. Second call requested one-shot escalation; browser clicked Reject, tool returned explicit user rejection and model stopped. Independent SSH check confirms file absent. Separate test session, 2 rounds/4 steps.",
+      "proof": {
+        "at": "2026-11-12T09:14:15.890997+00:00",
+        "deniedFileExists": false
+      }
+    }
+  ],
+  "sidebar": {
+    "workspaceFiles": "passed",
+    "textAndJson": "passed",
+    "markdownWithRelativePngAndSvg": "passed",
+    "png": "passed",
+    "pdf": "passed",
+    "xlsxAndCsv": "passed_viewing_only",
+    "staticHtml": "passed; inline style visible; SCRIPT_NOT_RUN; empty sandbox and script-src none",
+    "networkHtml": "restricted; iframe and anchor href removed, ordinary network image blocked by CSP; both recovered NAS persistent log and Mac log contain no three named network HTML probes",
+    "docxAndPptx": "unavailable; native owner DOCX shows same unavailable message; officeToPdf generation/render also absent from remote allowlist",
+    "websitesAndDevServer": "not_provided; ui-sidebar-browser excluded from Console assembly; no arbitrary port forwarding",
+    "officeEditingAndSave": "not_verified_or_promised"
+  },
+  "localhost": {
+    "nasShell": {
+      "marker": "NAS_SERVER_7319",
+      "hostname": "home-nas-dsh",
+      "platform": "linux"
+    },
+    "macBrowserFromRemoteMarkdown": {
+      "marker": "MAC_CONTROL_8426",
+      "hostname": "coladeMac-mini",
+      "platform": "darwin",
+      "url": "http://localhost:5173/identity?probe=markdown7319"
+    },
+    "macRequestLog": ".tmp/nas-console-preview/mac-requests.log",
+    "nasRequestLog": "/data/workspace/nas-preview-20261112/requests.log",
+    "finalLogCopyAfterOutage": ".tmp/nas-console-preview/nas-requests-recovered.log"
+  },
+  "networkIncident": {
+    "firstTerminalCloseAt": "2026-11-12T08:38:11.076Z",
+    "laterObservations": [
+      "DNS home-nas=100.69.173.43",
+      "Tailscale Running, Self and NAS Online, relay hkg; ping timed out",
+      "home-nas SSH connect timeout",
+      "LAN SSH accepted TCP but banner exchange timed out",
+      "LAN ICMP 3/3 replied",
+      "LAN nginx static HTTP 200",
+      "LAN Java API session read timeout; direct 18090 health connected in 0.006s but no response for 15s"
+    ],
+    "rootCause": "Confirmed DSH container OOMKilled at 2026-11-12T08:58:24.225464601Z; earlier terminal disconnect and memory growth source remain unknown. Cannot attribute all earlier network symptoms to one cause.",
+    "oomBeforeRestart": {
+      "status": "exited",
+      "oomKilled": true,
+      "exitCode": 137,
+      "finishedAt": "2026-11-12T08:58:24.225464601Z",
+      "hostMemoryMiB": 3901,
+      "hostSwapUsedMiB": 1528,
+      "loadAverage": [
+        5.28,
+        78.81,
+        92.01
+      ],
+      "containerMemoryLimitBytes": 0,
+      "kernelLogRead": "permission denied",
+      "source": ".tmp/nas-console-preview/nas-recovered-system.txt",
+      "sampleTiming": "Saved recovery-stage snapshot at NAS uptime timestamp 17:02:27; not the earlier 17:00 sample or crash-time measurement"
+    },
+    "recovery": {
+      "hostContainerStartedAt": "2026-11-12T09:03:30.228796168Z",
+      "action": "Captured stopped state and final logs, started same existing container; restarted same model-created preview server; did not change global permission mode or deploy source fixes",
+      "status": "environment_restored_root_cause_open"
+    }
+  },
+  "fixtureSha256": {
+    "static-preview.html": "5ac2fb62748728679bc8a4657234f299ae395969e0992c473e76f85d363cd711",
+    "report.md": "8dc5e62cca36d0bde47b7f524f5cb0f932e68a2e74e0fcf7e26cf04fa962fbd0",
+    "sample.xlsx": "207a0418507f26e09985f72ad5470d6a357a3c0c615c339d1a86c8dffa345137",
+    "sample.csv": "6a2c70d17a9641f9d9f2b7ec2f7f6be84acb8edf95b52ef5b27f933ca11c72ab",
+    "marker.svg": "c0c58a3b66002d0716ef3281f03952451ce6b20358343a0b73df10c1027a6f65",
+    "sample.pptx": "3125179cd43d4d7e1c8f364c99c84de73b8665f44a260ee2c89b3ffc9ac9aa22",
+    "sample.pdf": "b037cd11692af9095da6bb161a07a11786505433fba5379573ad154d088c47a2",
+    "sample.json": "5df16bcdfa0aee381ab9925f91981f7b1862cc6db6a707a05821f0b8973b55ec",
+    "network-preview.html": "c64d2827d3be92fe7cda2f050a6be35badc9dfd3548f69b150b2e887c567a204",
+    "sample.docx": "1ea77b3ce36412f491046698931b070d20fb2f0b4d6d893d24bd9909c0178abc",
+    "marker.png": "b9c526c252a9118d3b7d44d9d2f9a31666aedf3431680d0fca3885d265336e09",
+    "sample.txt": "7b0d0419ae3766d6c7b36c03737c6c19c7d37f8a14348f6e2c1ae0f670a9e5ed",
+    "console-mac-proof-7319.txt": "04ab9f09c4c7cd2d510cef079ed8bc52fe050f3ab7c892a0607aad608d4afbe7"
+  },
+  "screenshotSha256": {
+    "console-approval-denied.png": "0c1231a2764471cc1b3b16448233d16d22220952dcf95f6ef18625ccb9139347",
+    "console-approval-pending.png": "5545e6d40f92e2bf5f73f45ac8425cc5635fa4aa8d19686bf50200a0ff73d0e4",
+    "console-csv.png": "569a2e7751284984836dc7dd9c88fdd78a3febb3bd886fa935427ccbb6cd71cb",
+    "console-docx-unavailable.png": "7594a70ddff5209b75f90b57b6cca1a2d7e84bc1a313c0c64a8e90b158598001",
+    "console-json.png": "bf98b7c9909aaf76c19a23f4d3b1950d100abd57b96b86d98610b0850eea9044",
+    "console-mac-disconnected.png": "8001cc98463cc8ecf7ed9469f3785f0a595b6bae8ebc6efdca2ce5c09e2cfa50",
+    "console-mac-file.png": "76871d48a51126299ab627bb2e4bed92a9eb3867de6617958812970ee73ba592",
+    "console-markdown.png": "eaeb628b518f1621c24fb8b36ddcd1727b5b34430b2e83e8bb826faec4f6ff54",
+    "console-nas-reconnect-once.png": "89b8d0bd7e84156a6ce62c1508abd135e0738291b70b89aa89d26fb487586c52",
+    "console-nas-restored.png": "909f0e637e94af9ee953c2b11d15acc49bb3b18c49770955252f7abd1237f1fc",
+    "console-network-html.png": "37ce6c724110aa4ba0fbe909df769da701260c58f54400dc68ed83283fd618b6",
+    "console-pdf.png": "f3a00b728f972676bdb21b73163edc1613e8229b3e56cae1fd734cb16adc2fce",
+    "console-png.png": "15014a4f0cd6572f9afe5f7b5f21d0113a4052cee17b0f080b071732e16db157",
+    "console-pptx-unavailable.png": "2113ae6f88189897762f06f445b5dc2298ee581a119a0674cbfe950e8afb8ca4",
+    "console-static-html.png": "c111311bfc53cdd6b1d16ef19d9ba995805f509d12aa53bdff24f11dbc76cd49",
+    "console-terminal-success.png": "a32051f0dbd93179efa14a76bd38bc331be405e4fe2b299e486b736ab3b2c6f5",
+    "console-terminal.png": "60a102e275737f065ac4c80eebf7f58869d184e3ae12b9de36ecceee723816ed",
+    "console-text.png": "78afc1e1bc57fdadd36a949125fbf6dd38efd4fc94bd197808eeaf3a4172d2f7",
+    "console-xlsx.png": "7ee5bb379254ba427643a50a5114eed9b5bf6be939f2aac73bf88b17874bef04",
+    "localhost-hits-mac.png": "0d1013eb1dfec65b77aec291255be9d281c8db653c9076d483e168d334599cca",
+    "native-docx-unavailable.png": "0a072153869f319fd45e3dd1181947c4f59a2f9b4714b159272d7e106bde5c26",
+    "plugin-markdown.png": "c4aa7962a9c1ba97db4acc3b20df2e2504a2613e1f997a46bea683c48384b0f1"
+  },
+  "limitations": [
+    "No LAN ICE/P2P/TURN/TLS/multi-node claims",
+    "No long-run stability claim; DSH OOM memory growth source and original terminal close cause unresolved",
+    "No model-generation disconnect or real model invocation on Mac Host claimed",
+    "No NAS administrator full-menu browser acceptance claimed",
+    "Word/PowerPoint unavailable; running website tunnel not implemented",
+    "Guarded terminal command does not independently verify absence of input or command replay"
+  ],
+  "finalState": {
+    "at": "2026-11-12T09:16:27.541Z",
+    "connections": [
+      {
+        "deviceId": "2120400737015017474",
+        "linkId": null
+      },
+      {
+        "deviceId": "2120400757772627970",
+        "linkId": null
+      }
+    ],
+    "devices": [
+      {
+        "deviceId": "2120400737015017474",
+        "name": "coladeMac-mini",
+        "status": "ACTIVE",
+        "online": true
+      },
+      {
+        "deviceId": "2120400757772627970",
+        "name": "home-nas-dsh",
+        "status": "ACTIVE",
+        "online": true
+      }
+    ],
+    "macPreview": {
+      "marker": "MAC_CONTROL_8426",
+      "hostname": "coladeMac-mini",
+      "platform": "darwin"
+    },
+    "nasHealth": {
+      "at": "2026-11-12T09:16:06.426825+00:00",
+      "containers": [
+        {
+          "name": "/owndsh-server-1",
+          "id": "1ff9f63185800687d86bda23dc4df69f966d115c30d4d59367196fe40f3eea36",
+          "image": "owndsh-server:console-preview-20261112-155655",
+          "running": true,
+          "oomKilled": false,
+          "health": "healthy",
+          "startedAt": "2026-11-12T08:01:54.076328443Z"
+        },
+        {
+          "name": "/owndsh-console-1",
+          "id": "59d343357160b59e06c6d63a91602031a10a17747c7c74088f68688309f58fc9",
+          "image": "owndsh-console:console-preview-20261112-155655",
+          "running": true,
+          "oomKilled": false,
+          "health": "healthy",
+          "startedAt": "2026-11-12T08:04:06.142108837Z"
+        },
+        {
+          "name": "/owndsh-dsh-web",
+          "id": "e60faedef21ebb79e6128253bdc1dd132e2dc001a7562804f8b5639da19d18d2",
+          "image": "owndsh-dsh-web:local-rc5",
+          "running": true,
+          "oomKilled": false,
+          "health": null,
+          "startedAt": "2026-11-12T09:03:30.228796168Z"
+        },
+        {
+          "name": "/owndsh-postgres-1",
+          "id": "a966b40dd99a0609d5f0453697b4e532cf5cfc98ffbed534c399976e85704e47",
+          "image": "postgres:17.6-alpine3.22",
+          "running": true,
+          "oomKilled": false,
+          "health": "healthy",
+          "startedAt": "2026-10-01T09:26:26.696172654Z"
+        },
+        {
+          "name": "/owndsh-redis-1",
+          "id": "924ad0d63e9201d0cb399976ce6b2bba02a1468316eee34aedb47d9cec0d91ba",
+          "image": "redis:7.4.5-alpine3.21",
+          "running": true,
+          "oomKilled": false,
+          "health": "healthy",
+          "startedAt": "2026-10-01T09:26:26.683862308Z"
+        },
+        {
+          "name": "/owndsh-coturn-1",
+          "id": "f04b8f0f28c585ea73d36d5b97f2cf94ffd594f12ef3830bd4f591c1b4d69fcf",
+          "image": "coturn/coturn:4.6.3",
+          "running": true,
+          "oomKilled": false,
+          "health": null,
+          "startedAt": "2026-11-08T08:46:13.657021196Z"
+        }
+      ],
+      "nasPreview": {
+        "marker": "NAS_SERVER_7319",
+        "hostname": "home-nas-dsh",
+        "platform": "linux"
+      },
+      "stats": [
+        "owndsh-server-1 564.5MiB / 3.81GiB 21.20%",
+        "owndsh-dsh-web 308.3MiB / 3.81GiB 3.57%"
+      ]
+    }
+  },
+  "independentReview": {
+    "result": "accepted_with_precision_corrections_applied",
+    "reviewer": "nas_deploy_evidence_review",
+    "scope": "Deployment and final cross-machine evidence; 22 screenshots; corrected recovery sample values and limited guarded-command replay claim",
+    "at": "2026-11-12T09:20:47.997295+00:00"
+  },
+  "officePreviewFollowup": {
+    "at": "2026-11-12T09:53:47.490365+00:00",
+    "scope": "NAS Console to Mac Host Office previews; NAS native Office conversion remains unresolved",
+    "origin": "http://home-nas:18080",
+    "target": {
+      "deviceId": "2120400737015017474",
+      "name": "coladeMac-mini",
+      "workspace": "/Users/cola/Projects/owndsh/.tmp/remote-workspace-nas/run-1794377836171/controller/workspace",
+      "sessionId": "session-fbdbd55f-2789-4a99-95c1-a6455eb98433",
+      "nativeOrigin": "http://127.0.0.1:49759"
+    },
+    "implementation": {
+      "unaryEndpoints": [
+        "officeToPdf/generation",
+        "officeToPdf/render"
+      ],
+      "requestEnvelope": "Native clientRequestSchema; method equals URL endpoint; protected body limit 65536 bytes",
+      "fileAuthorization": "render projects workspaceFileScopeId and path into existing workspace realpath authorization. options.baseFile cannot alter the checked source because native Office ignores it.",
+      "transport": "Existing encrypted carrier preserves native request bytes and multipart PDF response.",
+      "javaConsoleWireDependenciesChanged": false,
+      "sourceSha256": {
+        "plugin/packages/bundle/src/remote/dsh-policy.ts": "132df400acfed5c5c99ec99cc6259109cb01cfd7f5374ee7bd6b75cbbd6c1873",
+        "plugin/packages/bundle/src/remote/dsh-carrier.ts": "008bb553cc8b2e97856d8af00dbb5f3aeb75441d1ff9c54b750ad9af7577672d",
+        "plugin/packages/bundle/tests/remote-network-boundary.spec.ts": "0a20556a82257e0ae532450f158fd01686214fef9e71bd61739de088f2d20f6b"
+      }
+    },
+    "verification": {
+      "beforeFix": "Focused new test failed with ENT_REMOTE_DENIED at officeToPdf/generation admission",
+      "focusedTests": {
+        "files": [
+          "tests/remote-network-boundary.spec.ts",
+          "tests/remote-native-carrier.spec.ts",
+          "tests/remote-carrier.spec.ts"
+        ],
+        "passed": 15
+      },
+      "typecheck": "passed",
+      "build": "passed",
+      "independentReview": {
+        "agent": "office_correctness_review",
+        "verdict": "passed; no correctness or security blocking findings"
+      },
+      "rejections": [
+        "unknown scope",
+        "relative traversal",
+        "outside absolute path",
+        "similar root prefix",
+        "external symlink",
+        "baseFile disguise",
+        "generation/render method mismatch in both directions",
+        "missing envelope",
+        "non-allowlisted Office endpoint",
+        "body larger than 64 KiB"
+      ],
+      "rejectionEvidence": "Real HTTP/WS carrier test asserts rejected requests do not reach upstream and carrier remains active; no additional attack requests sent to live Mac Host",
+      "ui": [
+        {
+          "format": "DOCX",
+          "result": "passed",
+          "observed": "Mac workspace path; PDF page 1; NAS_DOCX_7319 Word body"
+        },
+        {
+          "format": "PPTX",
+          "result": "passed",
+          "observed": "Mac workspace path; PDF page 1; NAS_PPTX_7319 slide"
+        },
+        {
+          "format": "PDF",
+          "result": "passed",
+          "observed": "Mac workspace path; PDF page 1; NAS_PDF_7319"
+        },
+        {
+          "format": "text",
+          "result": "passed",
+          "observed": "Mac workspace path; MAC_OFFICE_REGRESSION_7319 visible in screenshot"
+        }
+      ],
+      "fixtureOrigin": "Office and PDF samples copied from NAS into Mac isolated workspace; NAS text in their bodies is a fixture marker, not conversion source identity",
+      "remotePdfByteCountCaptured": false
+    },
+    "runtime": {
+      "pid": 72458,
+      "origin": "http://127.0.0.1:49759",
+      "hostBeforeSha256": "7c303ae9032938f5dfe8205670226e2ab678cfa7bd4165668560163319039baf",
+      "hostAfterSha256": "9a0dcaf88e093fc81faf2b8704a2a450344967e44624e858e05aa2a938ce975d",
+      "builtHostSha256": "9a0dcaf88e093fc81faf2b8704a2a450344967e44624e858e05aa2a938ce975d",
+      "at": "2026-11-12T09:41:41.063Z",
+      "runtimeClientSha256": "c41fab8a0cc0c2326d15524618bd8442de4b2d5f8b180f6e09c348c6ce88f8ea",
+      "clientNotReplaced": true,
+      "clientUnchangedAgainstBuiltVersion": false,
+      "hostBundleMatchesBuilt": true,
+      "nasServerUpdated": false,
+      "nasConsoleUpdated": false,
+      "nasHostUpdated": false
+    },
+    "artifactsSha256": {
+      ".tmp/remote-office/console-mac-docx.dom.txt": "2841aced00f825ea30f724e41893929b67ff63c93f86f78eb2e61c67b669a17c",
+      ".tmp/remote-office/screenshots/console-mac-docx.png": "15a609793b08d110f5283efcf55ba731a758e8558ce2971cd7af73afd080503a",
+      ".tmp/remote-office/console-mac-pptx.dom.txt": "ed343af0accbb06a2e366c706cfff2263d1a637cfb5b21db71777cc1d66707f2",
+      ".tmp/remote-office/screenshots/console-mac-pptx.png": "5c638b95e8a0384c607530207072e3c48fa2ea54fc3f94017e06af73eb95560c",
+      ".tmp/remote-office/console-mac-pdf.dom.txt": "621014751c38f4b8e85178c3f6d20330d6d31debb4151a518d0373329fabaad8",
+      ".tmp/remote-office/screenshots/console-mac-pdf.png": "8ac4558ff800c2792d259db495e13f052d4e9e42544725927cb5bb1e70baef61",
+      ".tmp/remote-office/console-mac-text.dom.txt": "994751913d5b7171fb7a5e5d15f2753ae25cd3335bdd93d2741eb6d31c4428ac",
+      ".tmp/remote-office/screenshots/console-mac-text.png": "0a58dcf54393b7235dfeb97fe53f5108e375010e6cd6265cbfb01c7356f0822d",
+      ".tmp/remote-office/console-mac-disconnected.dom.txt": "149773c3b6048154c029407bcb3908cfae8712063c111e502c274f34ea890764",
+      ".tmp/remote-office/screenshots/console-mac-disconnected.png": "8770f857d0c5ae29a67f16d47ab86b673e96bd4acccd52702e182ff39e981a51",
+      ".tmp/remote-office/scoped.patch": "e78e5bd5aef53112cd441ce98acfbd9baa773a8566727da5336f424ee4055fdb",
+      ".tmp/remote-office/runtime-update.json": "efda3b659849ecd854d96f227f770c388ab0123f102d4eac7ff8c64db8d85ac5",
+      ".tmp/remote-office/final-state.json": "dcde9bd47aab84394c4a5e4c679b6e02e98e85f6a500e738338ed25266ec8d63"
+    },
+    "finalState": {
+      "at": "2026-11-12T09:51:22.414Z",
+      "connections": [
+        {
+          "deviceId": "2120400737015017474",
+          "linkId": null
+        },
+        {
+          "deviceId": "2120400757772627970",
+          "linkId": null
+        }
+      ],
+      "devices": [
+        {
+          "name": "coladeMac-mini",
+          "status": "ACTIVE",
+          "online": true,
+          "remoteEnabled": true
+        },
+        {
+          "name": "home-nas-dsh",
+          "status": "ACTIVE",
+          "online": true,
+          "remoteEnabled": true
+        }
+      ]
+    },
+    "preserved": "Mac Host and browser workspace page retained; current link actively disconnected and server snapshots null for both devices",
+    "unresolved": "NAS Host native Office service failed in prior owner-page test; configuration cause not investigated and no conversion engine installed in this followup",
+    "workingTree": "uncommitted; no commit or push"
+  },
+  "spreadsheetAndHtmlFollowup": {
+    "at": "2026-11-12T10:04:48.493873+00:00",
+    "origin": "http://home-nas:18080",
+    "deviceId": "2120400737015017474",
+    "productCodeChanged": false,
+    "userScopeDecision": "如果 DSH 客户端本来不支持，我们也不增加对应功能。表格预览保持原生只读。",
+    "spreadsheet": {
+      "formats": [
+        "xlsx",
+        "csv"
+      ],
+      "result": "Read-only viewing verified; edit and save unsupported in native rc.5, not a successful save test",
+      "attempts": [
+        "XLSX formula bar input and Enter",
+        "XLSX cell double-click, input and Enter",
+        "CSV formula bar input and Enter",
+        "Reload both files through native file-preview refresh"
+      ],
+      "observedValues": {
+        "xlsxA1": "NAS_XLSX_7319",
+        "csvA1": "machine"
+      },
+      "temporaryWidgetInput": "XLSX hidden rich-text widget received attempted text; visible value and source file did not change. Temporary widget text is not treated as persisted editing.",
+      "sourceProof": "Official ExcelBody sets allowEdit=false, showToolbar=false, cellContextMenu=[copy], forceCalculation=false and no file-write callback. Official README describes read-only formula bar and no editing/recalculation/export.",
+      "localNativeDifference": "Same read-only component in local DSH. Agent and terminal may still write workspace files under native permissions.",
+      "fileProof": [
+        {
+          "path": "/Users/cola/Projects/owndsh/.tmp/remote-workspace-nas/run-1794377836171/controller/workspace/preview-edit-check.xlsx",
+          "sha256": "207a0418507f26e09985f72ad5470d6a357a3c0c615c339d1a86c8dffa345137",
+          "bytes": 4869,
+          "afterSha256": "207a0418507f26e09985f72ad5470d6a357a3c0c615c339d1a86c8dffa345137",
+          "unchanged": true
+        },
+        {
+          "path": "/Users/cola/Projects/owndsh/.tmp/remote-workspace-nas/run-1794377836171/controller/workspace/preview-edit-check.csv",
+          "sha256": "6a2c70d17a9641f9d9f2b7ec2f7f6be84acb8edf95b52ef5b27f933ca11c72ab",
+          "bytes": 24,
+          "afterSha256": "6a2c70d17a9641f9d9f2b7ec2f7f6be84acb8edf95b52ef5b27f933ca11c72ab",
+          "unchanged": true
+        }
+      ]
+    },
+    "html": {
+      "result": "Static preview verified; SCRIPT_NOT_RUN remains visible",
+      "sourceContainsScript": true,
+      "frame": {
+        "name": "dsh-sidebar-html-tab13",
+        "sandbox": "",
+        "srcdoc": "<!doctype html><html><head><meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:; media-src data:; connect-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'\"><style>body{background:#eefaf2;color:#14532d;font:20px sans-serif;padding:24px}</style></head><body><h1>NAS_STATIC_7319</h1><p id=\"probe\">SCRIPT_NOT_RUN</p></body></html>"
+      },
+      "cause": "OwnDsh Console build-native-workspace.mjs fixes interactivePreview to false; native static renderer strips scripts and adds CSP plus an empty sandbox.",
+      "nativeCapability": "Native DSH follows developerTools.enabled and has an isolated allow-scripts iframe mode. Console currently leaves that existing native capability disabled.",
+      "capabilityNotEnabledInThisCheck": true,
+      "remoteDevServerProxyProvided": false
+    },
+    "sourceSha256": {
+      "console/native-runtime/node_modules/.pnpm/@deepseek-ai+dsh-client-ui-sidebar-documentpreview@0.2.1-rc.5_@deepseek-ai+cordis@4.0.5/node_modules/@deepseek-ai/dsh-client-ui-sidebar-documentpreview/lib/client.excel.js": "15df9ff87028e1befe316fb2e63215ef76690d45ebb85598006affd4de32fc2f",
+      "console/native-runtime/node_modules/.pnpm/@deepseek-ai+dsh-client-ui-sidebar-documentpreview@0.2.1-rc.5_@deepseek-ai+cordis@4.0.5/node_modules/@deepseek-ai/dsh-client-ui-sidebar-documentpreview/lib/client.js": "3c8259fed8fb6d8cf1af6ecc2c7f478df4eacab4628b91e4c9ad8defdc5fb595",
+      "console/native-runtime/node_modules/.pnpm/@deepseek-ai+dsh-client-ui-sidebar-documentpreview@0.2.1-rc.5_@deepseek-ai+cordis@4.0.5/node_modules/@deepseek-ai/dsh-client-ui-sidebar-documentpreview/README.zh.md": "1f34136a2ad4afd1c7e916500b4e4f7320794ad6d8f40e17a243cca482e427c7",
+      "console/scripts/build-native-workspace.mjs": "533d3b27cbfaf2b35e9804ecc680496b43795dab7ef0eb97ff4a1ee57f96a02e",
+      "plugin/packages/bundle/src/remote/dsh-policy.ts": "132df400acfed5c5c99ec99cc6259109cb01cfd7f5374ee7bd6b75cbbd6c1873"
+    },
+    "independentSourceInvestigation": "spreadsheet_preview_readonly; read-only how explainer corroborated official bundle, README and local native source",
+    "artifactsSha256": {
+      ".tmp/remote-office/console-csv-after-reload.dom.txt": "9d5e2580e6fbfc79d6ffbf6fc87b6067637e57a20feed035a5f86b5cd92f3822",
+      ".tmp/remote-office/console-csv-edit-attempt.dom.txt": "6e7644b8cc81ed8654c02d2a88c2c07f4bae1a35b9bda453336c9942f7c52f17",
+      ".tmp/remote-office/console-html-script-check.dom.txt": "4267c4d435b3c1f1973ab364eb7a6059d1e18bf3798e22ffcd66fa5eb6bad52d",
+      ".tmp/remote-office/console-xlsx-after-reload.dom.txt": "c03a5b62f328b9fc95f8c27daf7f11b1680ea9c85caff2a257840d37e6a4738f",
+      ".tmp/remote-office/console-xlsx-edit-attempt.dom.txt": "3518a7f00c39fa5d77b5b1fd2a88a7d295eb771f25b908298609921baddaad6d",
+      ".tmp/remote-office/console-xlsx-grid-attempt.dom.txt": "de61e88bd296f2114ef064de4800e47f8081c0cef09098c391d165855bfb09e5",
+      ".tmp/remote-office/csv-input-readonly.json": "bda73d61535a1d214d574a6ec4fd39c197df2ae0c90b9c2c891852c12c19a86c",
+      ".tmp/remote-office/html-static-frame.json": "e7419699032f73c5618ec175f4dada14f384cb81f2ab439271cee6614d15c9bf",
+      ".tmp/remote-office/screenshots/console-csv-after-reload.png": "35dc29cec15db219be58fdcc3f548cdcee3b832d4f4d606580e54c8a3e0fdaf2",
+      ".tmp/remote-office/screenshots/console-csv-edit-attempt.png": "2341cc8d2d2feceb31c2683a89a9e3affa32527a1c5250fbadfb3c164edfac59",
+      ".tmp/remote-office/screenshots/console-html-script-check.png": "0be88119ae542ac40192db2e670e4b0dbc054149da823ab3f2a347172c35fd93",
+      ".tmp/remote-office/screenshots/console-xlsx-edit-attempt.png": "574ecaae7b1ef83908a9611fa7f8f4b22f7624ca4194d19fc46595cf4576903a",
+      ".tmp/remote-office/screenshots/console-xlsx-grid-attempt.png": "98e1f3245af73475165636318867581c89ab0bdb4493c0340fe978f07003382d",
+      ".tmp/remote-office/spreadsheet-after.json": "fa20e0dbdfa7c1704be3cb05aea9ada71bf20de39be344d9ffa57bb09e3a92c1",
+      ".tmp/remote-office/spreadsheet-before.json": "0e3406788ecbff33aacb82480b359b918c6326c383c9f2bb0f61a37e6a82b621",
+      ".tmp/remote-office/spreadsheet-check-disconnected.dom.txt": "149773c3b6048154c029407bcb3908cfae8712063c111e502c274f34ea890764",
+      ".tmp/remote-office/spreadsheet-final-state.json": "5f3a7a52463586f521451b617b4f90b106ad8020527c37d2fece1c4c758ac28c"
+    },
+    "finalState": {
+      "at": "2026-11-12T10:04:11.908Z",
+      "connections": [
+        {
+          "deviceId": "2120400737015017474",
+          "linkId": null
+        },
+        {
+          "deviceId": "2120400757772627970",
+          "linkId": null
+        }
+      ]
+    },
+    "preserved": "Host, disposable test copies and browser workspace remain; links released; no commit or push"
+  },
+  "htmlInteractiveFollowup": {
+    "at": "2026-11-12T10:26:04.513935+00:00",
+    "origin": "http://home-nas:18080",
+    "deviceId": "2120400737015017474",
+    "workingTree": "uncommitted, not pushed",
+    "change": "Remove the Console forced-static replacement; keep native interactivePreview configuration, renderer and sandbox.",
+    "deployment": {
+      "tag": "html-interactive-20261112-181336",
+      "consoleImage": "owndsh-console:html-interactive-20261112-181336",
+      "release": "/vol1/1000/docker/stacks/owndsh/releases/html-interactive-20261112-181336",
+      "origin": "http://home-nas:18080",
+      "rollbackImage": "owndsh-console:console-preview-20261112-155655"
+    },
+    "artifactProof": {
+      "consoleFiles": 262,
+      "allHashesMatch": true,
+      "servedAssemblySha256": "8551bd9028bce257e9347a1bb4e00031dc9605f208f2c68f0d6104a4eaf93c87"
+    },
+    "assemblyProof": {
+      "harnessVersion": "0.2.1-rc.5",
+      "resources": 148,
+      "hashFailures": [],
+      "previewResources": [
+        {
+          "file": "/native-workspace/assets/c44a259a2a1f0fada71c66b5184b99b33747dde48f12730c2e9067b9cf5ac289.js",
+          "sha256": "c44a259a2a1f0fada71c66b5184b99b33747dde48f12730c2e9067b9cf5ac289",
+          "contentType": "text/javascript; charset=utf-8"
+        },
+        {
+          "file": "/native-workspace/assets/969b096fb8380dcc64ef3f50d1d23d06962f52ff6fcec1ba9827b10a1be89fb3.js",
+          "sha256": "969b096fb8380dcc64ef3f50d1d23d06962f52ff6fcec1ba9827b10a1be89fb3",
+          "contentType": "text/javascript; charset=utf-8"
+        }
+      ],
+      "uiSettings": {
+        "enabled": true
+      },
+      "assemblySha256": "8551bd9028bce257e9347a1bb4e00031dc9605f208f2c68f0d6104a4eaf93c87"
+    },
+    "configurationSource": "Frozen assembly metadata ui-settings.value.enabled=true. Not a live mirror of remote Mac settings.",
+    "frameObservation": [
+      {
+        "hasSrcdoc": false,
+        "name": "dsh-sidebar-html-tab14",
+        "sandbox": "allow-scripts",
+        "src": "blob:http://home-nas:18080/adef6d93-94e6-4939-be95-905c36756d08",
+        "title": "HTML 文档预览"
+      }
+    ],
+    "observations": {
+      "interactiveHappyPath": "NOT VERIFIED: Console and native DSH in Codex IAB both render a blank Blob iframe. No script/button/CSS success claim.",
+      "browserControl": "Simple Blob and native document.write Blob are blank; srcdoc control visibly executes SRCDOC_SCRIPT_PASS. Browser internal cause is unknown.",
+      "outOfWorkspaceRelativeScript": "HTML preview fails before frame publication.",
+      "outOfWorkspaceSymlinkScript": "HTML preview fails before frame publication.",
+      "missingRelativeScript": "HTML preview fails before frame publication.",
+      "textRegression": "MAC_OFFICE_REGRESSION_7319 visible.",
+      "sourceFiles": "All 7 fixture source file hashes unchanged."
+    },
+    "checks": {
+      "consoleBuild": "passed",
+      "consoleFocusedTests": {
+        "files": 2,
+        "tests": 5,
+        "result": "passed"
+      },
+      "pluginBoundaryTests": {
+        "files": 2,
+        "tests": 10,
+        "result": "passed"
+      },
+      "diffCheck": "passed",
+      "geb": "L3/L2/L1 checked"
+    },
+    "independentReview": {
+      "at": "2026-11-12T10:25:29.715742+00:00",
+      "scope": "Single forced-static override removal and L3/L2 update",
+      "reviewer": "html_interactive_review",
+      "verdict": "no blocking correctness/security findings",
+      "findings": [],
+      "commentReview": {
+        "deletions": 0,
+        "mustKill": 0,
+        "hold": 0
+      },
+      "limits": [
+        "Frozen ui-settings metadata, not remote Mac live settings",
+        "Opaque sandbox allows scripts; interactive mode does not prohibit browser network",
+        "Only direct relative classic JS/CSS packaging; existing realpath file boundary"
+      ]
+    },
+    "pending": null,
+    "nativeLimits": [
+      "sandbox allow-scripts without allow-same-origin; frame receives no Host or transport callback",
+      "Interactive mode has no static network-blocking CSP. Absolute external URLs use the controller browser network/CORS.",
+      "Only direct relative classic .js and stylesheet .css are packed. No recursive module/CSS import/dynamic or image packing. base[href] skips relative packing.",
+      "64 assets, 4 MiB per asset, 32 MiB total; asset failure rejects the interactive preview.",
+      "No remote dev-server proxy or arbitrary port forwarding."
+    ],
+    "finalState": {
+      "at": "2026-11-12T10:25:29.881Z",
+      "devices": [
+        {
+          "deviceId": "2120400737015017474",
+          "linkId": null
+        },
+        {
+          "deviceId": "2120400757772627970",
+          "linkId": null
+        }
+      ]
+    },
+    "evidence": [
+      {
+        "path": ".tmp/html-interactive/assembly-validation.json",
+        "sha256": "42cd669f93febd0a102fb0eb1ed6a4367e6389666772261a50cf998163b139c7"
+      },
+      {
+        "path": ".tmp/html-interactive/deployment-validation.json",
+        "sha256": "65964d462a4c12d32430923a816d6867dd44afab75d081d80cd74d939ea2f0da"
+      },
+      {
+        "path": ".tmp/html-interactive/fixtures.json",
+        "sha256": "bc3da5bd11d195ad85a1e3faf54988423087e767ed723e979a1db60657ade729"
+      },
+      {
+        "path": ".tmp/html-interactive/fixtures-after.json",
+        "sha256": "80e29e0c2f216a47be3c76a16f0c5556ff3c728634a9035dac227f058d4d0222"
+      },
+      {
+        "path": ".tmp/html-interactive/frame-observation.json",
+        "sha256": "fe7f542251551e236299fb7425477ee2fd64174fcbce1d49f41ca31e8a221dd6"
+      },
+      {
+        "path": ".tmp/html-interactive/checks.json",
+        "sha256": "df1d2f262f599d458f51666dc4bf94dac409bfacb6a3eaf0c4f839bacde26342"
+      },
+      {
+        "path": ".tmp/html-interactive/independent-review.json",
+        "sha256": "c717c6b19b8984b9c9b44dfbac74ccc09e6cf128ea575525c9dbc3bb5d70cac3"
+      },
+      {
+        "path": ".tmp/html-interactive/final-state.json",
+        "sha256": "50c9688f5f4c3ad8c3acca5cfc2bdcb8ad1470d3d831750af40350fef2aedca6"
+      },
+      {
+        "path": ".tmp/html-interactive/console-interactive-initial.dom.txt",
+        "sha256": "87946a89503c7e2b2ae58bf28ab6310709491cb04b26782cf7cc8c35536f12bb"
+      },
+      {
+        "path": ".tmp/html-interactive/console-interactive-initial.png",
+        "sha256": "1fa399b0d04ed18fcd5fd37c2dbcd6c8121e36b7b7ba8100a32aa83c8e6848eb"
+      },
+      {
+        "path": ".tmp/html-interactive/native-interactive-blank.dom.txt",
+        "sha256": "63a47ee0db34a886cacab6d6849b91cadc963386318818be712353b4c5474833"
+      },
+      {
+        "path": ".tmp/html-interactive/browser-blob-probe.dom.txt",
+        "sha256": "bfcde17a31775f8ac6222acc90cd18289b2b323981b4af97ad0db77c25d483aa"
+      },
+      {
+        "path": ".tmp/html-interactive/browser-blob-probe.png",
+        "sha256": "507e8919096e7c98e540b71c917c5e0a2a602f2f6feba6ffcad8cf65f37022d2"
+      },
+      {
+        "path": ".tmp/html-interactive/console-outside-denied.dom.txt",
+        "sha256": "9dab12705e2f4132b24e79b6f835aeae1a354c903d4955bc050e22aa44992536"
+      },
+      {
+        "path": ".tmp/html-interactive/console-symlink-denied.dom.txt",
+        "sha256": "aa75037788b71cc2f572439eeb9e7170f65539e8b43278abb4afd1892d603cbc"
+      },
+      {
+        "path": ".tmp/html-interactive/console-missing-resource.dom.txt",
+        "sha256": "9d57c234e29ff2e1d51180ca7b08b8889dea706a072e1ca34e44746cdbf5937b"
+      },
+      {
+        "path": ".tmp/html-interactive/console-text-regression.dom.txt",
+        "sha256": "87cafc6d575683c53dcc5c85b5be0d39d4813d7895674d6af4032ffa8760c0ac"
+      },
+      {
+        "path": ".tmp/html-interactive/console-disconnected.dom.txt",
+        "sha256": "ae90d9fcc4b664db9600fc4d8a74ea20c5781be006e6428179c23bc51a862373"
+      }
+    ],
+    "initialPending": "User asked whether to switch from the selected IAB browser to Edge for interactive acceptance; no answer received at this snapshot.",
+    "observationsScope": "Historical Codex IAB snapshot before the authorized Edge acceptance; retained unchanged.",
+    "currentVerdict": "PASSED_IN_EDGE",
+    "edgeAcceptance": {
+      "at": "2026-11-12T11:55:52.273Z",
+      "authorization": "User explicitly authorized testing in Edge.",
+      "origin": "http://home-nas:18080",
+      "deviceId": "2120400737015017474",
+      "verdict": "PASSED_IN_EDGE",
+      "results": {
+        "verdict": "PASSED",
+        "browser": "Microsoft Edge",
+        "surface": "NAS Console to Mac Host over existing encrypted carrier; local native DSH control",
+        "stages": [
+          {
+            "stage": "edge-interactive-pass",
+            "markers": [
+              "INLINE_SCRIPT_PASS",
+              "MAC_RELATIVE_JS_PASS_8427",
+              "MAC_RELATIVE_CSS_PASS_8427",
+              "PARENT_DOM_BLOCKED_PASS",
+              "PARENT_STORAGE_BLOCKED_PASS",
+              "OPAQUE_ORIGIN_STORAGE_BLOCKED_PASS"
+            ],
+            "result": "passed",
+            "buttonInteracted": true
+          },
+          {
+            "stage": "edge-reread-pass",
+            "markers": [
+              "INLINE_SCRIPT_PASS",
+              "MAC_RELATIVE_JS_PASS_8427",
+              "MAC_RELATIVE_CSS_PASS_8427",
+              "PARENT_DOM_BLOCKED_PASS",
+              "PARENT_STORAGE_BLOCKED_PASS",
+              "OPAQUE_ORIGIN_STORAGE_BLOCKED_PASS"
+            ],
+            "result": "passed",
+            "buttonInteracted": false
+          },
+          {
+            "stage": "edge-reload-pass",
+            "markers": [
+              "INLINE_SCRIPT_PASS",
+              "MAC_RELATIVE_JS_PASS_8427",
+              "MAC_RELATIVE_CSS_PASS_8427",
+              "PARENT_DOM_BLOCKED_PASS",
+              "PARENT_STORAGE_BLOCKED_PASS",
+              "OPAQUE_ORIGIN_STORAGE_BLOCKED_PASS"
+            ],
+            "result": "passed",
+            "buttonInteracted": true
+          },
+          {
+            "stage": "edge-reconnect-pass",
+            "markers": [
+              "INLINE_SCRIPT_PASS",
+              "MAC_RELATIVE_JS_PASS_8427",
+              "MAC_RELATIVE_CSS_PASS_8427",
+              "PARENT_DOM_BLOCKED_PASS",
+              "PARENT_STORAGE_BLOCKED_PASS",
+              "OPAQUE_ORIGIN_STORAGE_BLOCKED_PASS"
+            ],
+            "result": "passed",
+            "buttonInteracted": true
+          },
+          {
+            "stage": "edge-native-dsh-pass",
+            "markers": [
+              "INLINE_SCRIPT_PASS",
+              "MAC_RELATIVE_JS_PASS_8427",
+              "MAC_RELATIVE_CSS_PASS_8427",
+              "PARENT_DOM_BLOCKED_PASS",
+              "PARENT_STORAGE_BLOCKED_PASS",
+              "OPAQUE_ORIGIN_STORAGE_BLOCKED_PASS"
+            ],
+            "result": "passed",
+            "buttonInteracted": true
+          },
+          {
+            "stage": "edge-final-pass",
+            "markers": [
+              "INLINE_SCRIPT_PASS",
+              "MAC_RELATIVE_JS_PASS_8427",
+              "MAC_RELATIVE_CSS_PASS_8427",
+              "PARENT_DOM_BLOCKED_PASS",
+              "PARENT_STORAGE_BLOCKED_PASS",
+              "OPAQUE_ORIGIN_STORAGE_BLOCKED_PASS"
+            ],
+            "result": "passed",
+            "buttonInteracted": true
+          },
+          {
+            "stage": "edge-outside-denied",
+            "result": "passed",
+            "connectionPreserved": true
+          },
+          {
+            "stage": "edge-symlink-denied",
+            "result": "passed",
+            "connectionPreserved": true
+          },
+          {
+            "stage": "edge-missing-resource",
+            "result": "passed",
+            "connectionPreserved": true
+          },
+          {
+            "stage": "edge-text-regression",
+            "result": "passed"
+          }
+        ],
+        "fixtureHashesUnchanged": 7
+      },
+      "nativeControl": {
+        "origin": "http://127.0.0.1:49759/",
+        "sameHostAndFile": true,
+        "stage": "edge-native-dsh-pass",
+        "result": "passed"
+      },
+      "browserDifference": "The historical blank Blob observation occurred in Codex IAB. Edge remote and native controls pass. IAB internal cause is undetermined; native renderer and sandbox were not changed.",
+      "fixtureSha256": [
+        {
+          "path": "/Users/cola/Projects/owndsh/.tmp/remote-workspace-nas/run-1794377836171/controller/workspace/preview-interactive.html",
+          "sha256": "8610857042e3dabea7fda29d096f5db6088c5a638c65c0c262820ec5b8b11de0"
+        },
+        {
+          "path": "/Users/cola/Projects/owndsh/.tmp/remote-workspace-nas/run-1794377836171/controller/workspace/preview-interactive.js",
+          "sha256": "3432025cb828db1b869ea97bd0305e5c334f99db438504eb552902f6fc03433e"
+        },
+        {
+          "path": "/Users/cola/Projects/owndsh/.tmp/remote-workspace-nas/run-1794377836171/controller/workspace/preview-interactive.css",
+          "sha256": "bbe2153c57623443c36f869ef4f61d18c2e78436d8d22dd66d348d2fad3c879f"
+        },
+        {
+          "path": "/Users/cola/Projects/owndsh/.tmp/remote-workspace-nas/run-1794377836171/controller/workspace/preview-outside.html",
+          "sha256": "64d2fd926029531bbcd556c2f9ebf2e2c98d88e811113b0f9f176e8647b24b29"
+        },
+        {
+          "path": "/Users/cola/Projects/owndsh/.tmp/remote-workspace-nas/run-1794377836171/controller/workspace/preview-symlink.html",
+          "sha256": "b66d8bac70f4b0372864ff7f14519c8a18e8fafb5a4ce64bca0ecc9085fb38a7"
+        },
+        {
+          "path": "/Users/cola/Projects/owndsh/.tmp/remote-workspace-nas/run-1794377836171/controller/workspace/preview-missing.html",
+          "sha256": "318dfe26cff2f982e38aae84153471a298342a7a519f6ec51007b81fc8c3b483"
+        },
+        {
+          "path": "/Users/cola/Projects/owndsh/.tmp/remote-workspace-nas/run-1794377836171/controller/html-preview-outside.js",
+          "sha256": "2a6d97c85abac3b59c02a62a76bcd08c2c4449fee66f5f9c5c7b860aaa9fb6ca"
+        }
+      ],
+      "finalState": {
+        "at": "2026-11-12T11:55:52.273Z",
+        "devices": [
+          {
+            "deviceId": "2120400737015017474",
+            "linkId": null
+          },
+          {
+            "deviceId": "2120400757772627970",
+            "linkId": null
+          }
+        ]
+      },
+      "environment": "NAS services and user experience pages retained; test links explicitly disconnected; code uncommitted and not pushed.",
+      "evidence": [
+        {
+          "path": ".tmp/html-interactive/edge-final-disconnected.ax.txt",
+          "sha256": "ce9a6acee6c8447432e473bf9998dcd1bfd45d5baf9596347b81988ea0936c62"
+        },
+        {
+          "path": ".tmp/html-interactive/edge-final-pass-display-real.png",
+          "sha256": "3dd1f0c6c99477eeabf1eba7d0b8ed539a58baf631e8fc1ce6e1335964b3008f"
+        },
+        {
+          "path": ".tmp/html-interactive/edge-final-pass-display.png",
+          "sha256": "66ee91af3d0bb8809c6155c44a81d61e1f5992d0076f6a664623834667fcf5a4"
+        },
+        {
+          "path": ".tmp/html-interactive/edge-final-pass.ax.txt",
+          "sha256": "9c72bad9f7858865e235bd6daf81e3474dcafccbac8abd98885c618dae5b838b"
+        },
+        {
+          "path": ".tmp/html-interactive/edge-final-pass.png",
+          "sha256": "5e3878f1424f76a588f2944cc2663df65d069e142ecf71fec7068d96d6943f33"
+        },
+        {
+          "path": ".tmp/html-interactive/edge-final-state.json",
+          "sha256": "c64c94b9a45b6421e6f1c7c23ab8636c0aa954468331df41e35acc031efd670d"
+        },
+        {
+          "path": ".tmp/html-interactive/edge-interactive-pass.ax.txt",
+          "sha256": "2fce98e2b8f16c8d3e4c91cf6f73bc61583fb87ea229ca4bd15d4ff617282c27"
+        },
+        {
+          "path": ".tmp/html-interactive/edge-interactive-pass.png",
+          "sha256": "c94a1f125d311ca62601f7e64e17786d730ccf36d096215774fa9bece1fc8636"
+        },
+        {
+          "path": ".tmp/html-interactive/edge-link-after-reconnect.json",
+          "sha256": "c4a528c466e67c0a281bdd7839f16c82628345de71398ec0935cd1569da61831"
+        },
+        {
+          "path": ".tmp/html-interactive/edge-link-after-reload.json",
+          "sha256": "35fec2784cf3c539ca349c9306ba29425f26cd566f7255b752f59159cf59a01a"
+        },
+        {
+          "path": ".tmp/html-interactive/edge-link-before-reload.json",
+          "sha256": "527e5e4a5c0fabb4b75dfb4ca3e36de7dc7cfd8c9b53b44e27601ef49b4e5a38"
+        },
+        {
+          "path": ".tmp/html-interactive/edge-manual-disconnect.ax.txt",
+          "sha256": "f7b98c002ba99a3c6826c2109a200750f9b7a7e0838bb769737a78c43fc08ea9"
+        },
+        {
+          "path": ".tmp/html-interactive/edge-missing-resource.ax.txt",
+          "sha256": "db6be490e5f85f47228de06a8dd9eff7f4334221254f7eb1ed786d0023551f80"
+        },
+        {
+          "path": ".tmp/html-interactive/edge-missing-resource.png",
+          "sha256": "6eb464ede133d7284b72e2dbcb61ca769af15b6032612558230b16b233ac23cb"
+        },
+        {
+          "path": ".tmp/html-interactive/edge-native-dsh-pass.ax.txt",
+          "sha256": "904d8c05287c75ae6950c4e5dae32c4fa2fd76e86ad437164c85a06086d0421c"
+        },
+        {
+          "path": ".tmp/html-interactive/edge-native-dsh-pass.png",
+          "sha256": "d34b6c9bd2be47148d79dcddf5e1edc95a10db819d35e6a7fdb5a7018b9f1566"
+        },
+        {
+          "path": ".tmp/html-interactive/edge-outside-denied.ax.txt",
+          "sha256": "856e1fb2306d40b7a7095df00ecbf9908f4a4511dd70a4d723185e5877a7f226"
+        },
+        {
+          "path": ".tmp/html-interactive/edge-outside-denied.png",
+          "sha256": "14d85e891cddf5396580c181c489b4299931ee0174d45c46634bc9fa5a1d370e"
+        },
+        {
+          "path": ".tmp/html-interactive/edge-reconnect-pass.ax.txt",
+          "sha256": "9c72bad9f7858865e235bd6daf81e3474dcafccbac8abd98885c618dae5b838b"
+        },
+        {
+          "path": ".tmp/html-interactive/edge-reconnect-pass.png",
+          "sha256": "7a0cba1b61b47374615d30a307d42481de6a0f459f82b55b76c70a4244c78a62"
+        },
+        {
+          "path": ".tmp/html-interactive/edge-reload-pass.ax.txt",
+          "sha256": "342c32208c71fb4a6418b74366f610be53180c3cb70e1c555ffc3df50ce8d42e"
+        },
+        {
+          "path": ".tmp/html-interactive/edge-reload-pass.png",
+          "sha256": "339f4b7270e1e2300a339ce2d4e34a17604033166afb4e0a8ea5348483fc7495"
+        },
+        {
+          "path": ".tmp/html-interactive/edge-reread-pass.ax.txt",
+          "sha256": "a10d2b0fb389d5ba0cece9d1219a9ea72e7ccbc6e60840a48bd4c403781cdc4e"
+        },
+        {
+          "path": ".tmp/html-interactive/edge-reread-pass.png",
+          "sha256": "02a780d5e1894b0739b12ba4aee457f3c6f1bfdf146a1ad9990ffe6989e45214"
+        },
+        {
+          "path": ".tmp/html-interactive/edge-results.json",
+          "sha256": "83340a0762401a3f538a86c8b509e4b90870061d98b5aea3ea5a5cd4340b35bc"
+        },
+        {
+          "path": ".tmp/html-interactive/edge-symlink-denied.ax.txt",
+          "sha256": "c862ef53aaf4aed88ee03e0ca75776a58e4c4e05b84453e1e13ee3d82dfd97e2"
+        },
+        {
+          "path": ".tmp/html-interactive/edge-symlink-denied.png",
+          "sha256": "c886469722f388632f4fc8d3e55fb96fc22d2f66566b8c07e1d64d0a885b2d45"
+        },
+        {
+          "path": ".tmp/html-interactive/edge-text-regression.ax.txt",
+          "sha256": "3d0a691437aac80f10a8cff5c07d77a10592ad7bb8a2d5b86718cc9224d02574"
+        },
+        {
+          "path": ".tmp/html-interactive/edge-text-regression.png",
+          "sha256": "7338b795696783d0834aa3ad7261ef54a603f7cbf54d37d86ceef013c94ba1af"
+        }
+      ]
+    }
+  }
+}

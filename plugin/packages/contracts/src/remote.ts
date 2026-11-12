@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Remote v1 JSON schema 冻结的 frame、ID、transport、lease 和 capability 约定。
- * [OUTPUT]: 对外提供 Host/Console 共用的 Remote 类型、边界校验、URL 派生和 control frame parser。
+ * [OUTPUT]: 对外提供独立于 HTTP OpenAPI 的冻结 Remote v1 身份、类型、边界校验与 URL 派生。
  * [POS]: contracts 的手写 Remote wire facade；业务 RPC 不进入此包，避免 Typert 接缝污染传输核心。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -8,6 +8,8 @@
 import { z } from 'zod'
 
 export const REMOTE_PROTOCOL_VERSION = 1 as const
+// 保留已发布 v1 握手身份；HTTP API 的增量变化不改变远控 wire 兼容性。
+export const remoteProtocolSha256 = '629fbf0d745ada4c98d34393335e2da26a788be5638810a21041f0431b3a9cf3'
 export const REMOTE_CAPABILITIES = ['remote.connect', 'host.describe'] as const
 export const REMOTE_TRANSPORTS = ['lan', 'p2p', 'turn', 'relay'] as const
 export type RemoteCapability = (typeof REMOTE_CAPABILITIES)[number]

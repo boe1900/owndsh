@@ -23,7 +23,7 @@ export const PRODUCT_ROUTES = [
   { to: '/mcp', label: 'MCP', icon: ServerCog, allowedRoles: ['enterprise_admin', 'plugin_admin'] },
   { to: '/members', label: '成员', icon: Users, allowedRoles: ['enterprise_admin'] },
   { to: '/activity', label: '活动记录', icon: Activity, allowedRoles: ['enterprise_admin', 'model_admin', 'plugin_admin', 'auditor'] },
-  { to: '/remote', label: '远程连接', icon: Router, allowedRoles: ['enterprise_admin', 'model_admin'] }
+  { to: '/remote', label: '远程诊断', icon: Router, allowedRoles: ['enterprise_admin', 'model_admin'] }
 ] as const satisfies readonly ProductRouteDefinition[];
 
 export const ACCOUNT_ROUTE = { to: '/account', label: '用户中心', icon: CircleUserRound } as const;

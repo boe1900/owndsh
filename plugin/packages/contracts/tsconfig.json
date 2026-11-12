@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "exactOptionalPropertyTypes": false,
-    "rootDir": "src",
+    "types": [], "rootDir": "src",
     "outDir": "lib"
   },
   "include": ["src/**/*.ts"]

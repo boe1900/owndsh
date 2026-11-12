@@ -18,6 +18,7 @@ coverage/
 plugin/packages/*/lib/
 /artifacts/
 /plugin/artifacts/
+/console/public/native-workspace/
 
 # Cloudflare deployment cache
 .wrangler/

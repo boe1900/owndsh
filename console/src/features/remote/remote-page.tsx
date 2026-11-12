@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 Remote API、连接状态机、TanStack Query、控制台 bootstrap 和产品原子组件。
  * [OUTPUT]: 提供 Remote 设备列表、一次性 ticket 申请、连接阶段和诊断面板。
- * [POS]: features/remote 的首期管控台入口；业务 Session/File/Terminal 在协议就绪前保持隐藏。
+ * [POS]: features/remote 的管理诊断入口，与本人设备侧栏分离；业务 Session/File/Terminal 在协议就绪前保持隐藏。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -51,7 +51,7 @@ export function RemotePage() {
   return <div className="min-h-0 flex-1 overflow-y-auto scrollbar-stable">
     <div className="mx-auto flex min-h-full w-full max-w-[1320px] flex-col gap-5 px-5 py-7 sm:px-8 sm:py-9">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-5">
-        <div><h1 className="m-0 text-[22px] font-semibold leading-tight text-ink">远程连接</h1><p className="mt-2 text-[13px] text-ink-3">查看在线 Host，申请短期连接票据并诊断 carrier。</p></div>
+        <div><h1 className="m-0 text-[22px] font-semibold leading-tight text-ink">远程诊断</h1><p className="mt-2 text-[13px] text-ink-3">查看在线 Host，申请短期连接票据并诊断 carrier。</p></div>
         <button type="button" onClick={() => void devices.refetch()} className="inline-flex items-center gap-2 rounded-[8px] border border-line px-3 py-2 text-[13px] text-ink-2 hover:bg-hover"><RefreshCw size={15} />刷新</button>
       </header>
       {devices.isLoading && <p className="text-[13px] text-ink-3">正在读取设备...</p>}

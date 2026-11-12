@@ -1,0 +1,47 @@
+/*
+ * [INPUT]: 依赖独立工作区 document 的连接遮罩、原生接管确认、设备身份条和原生 UI 根节点。
+ * [OUTPUT]: 提供等待、错误阻断和设备身份条样式，不注入 Console React 的主题规则。
+ * [POS]: workspace 的产品外壳样式，原生会话和预览仍使用官方样式。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
+html,body,#root{height:100%;margin:0}
+body{overflow:hidden}
+.owndsh-workspace-boundary{position:fixed;inset:0;z-index:2147483000;display:grid;place-items:center;background:rgb(248 248 247 / .96);color:#222;font:14px/1.55 system-ui,sans-serif}
+.owndsh-workspace-boundary[hidden]{display:none}
+.owndsh-workspace-boundary-card{box-sizing:border-box;width:min(486px,calc(100vw - 32px));padding:32px;border:1px solid #e4e4e1;border-radius:16px;background:#fff;box-shadow:0 12px 40px #0000000a}
+.owndsh-workspace-brand{font-size:12px;color:#888}
+.owndsh-workspace-boundary h1{font-size:21px;margin:10px 0}
+.owndsh-workspace-boundary p{color:#666;white-space:pre-wrap}
+.owndsh-workspace-boundary-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
+.owndsh-workspace-boundary button,.owndsh-workspace-confirm button{padding:8px 14px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#333;cursor:pointer}
+.owndsh-workspace-boundary button:last-child,.owndsh-workspace-confirm button:last-child{background:#202020;color:#fff}
+.owndsh-workspace-boundary button[hidden]{display:none}
+body.owndsh-has-workspace-identity{display:flex;flex-direction:column;height:100dvh}
+body.owndsh-has-workspace-identity>#root{flex:1;min-height:0;height:0}
+.owndsh-workspace-identity{box-sizing:border-box;display:flex;align-items:center;gap:12px;flex:0 0 40px;height:40px;padding:0 16px;border-bottom:1px solid #e4e4e1;background:var(--dsw-alias-bg-base,#f8f8f7);color:var(--dsw-alias-label-primary,#222);font:12px/1.4 system-ui,sans-serif}
+.owndsh-workspace-device{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.owndsh-workspace-status{flex-shrink:0;color:var(--dsw-alias-label-secondary,#666)}
+.owndsh-workspace-status[data-status=connected]{color:#24814a}
+.owndsh-workspace-status[data-status=disconnected]{color:#b84a3c}
+.owndsh-workspace-identity a{flex-shrink:0;margin-left:auto;color:inherit;text-decoration:none;white-space:nowrap}
+.owndsh-workspace-identity a:hover{text-decoration:underline}
+.owndsh-workspace-identity a:focus-visible{outline:2px solid currentColor;outline-offset:3px;border-radius:2px}
+.owndsh-has-workspace-identity .owndsh-workspace-boundary{top:40px}
+@media(max-width:480px){.owndsh-workspace-identity{gap:8px;padding:0 10px}}
+@media(prefers-color-scheme:dark){
+.owndsh-workspace-boundary{background:rgb(24 24 24 / .96);color:#eee}
+.owndsh-workspace-boundary-card{background:#242424;border-color:#404040;color:#eee}
+.owndsh-workspace-boundary p{color:#aaa}
+.owndsh-workspace-identity{border-color:#404040}
+.owndsh-workspace-status[data-status=connected]{color:#70c48b}
+.owndsh-workspace-status[data-status=disconnected]{color:#ef8e7f}
+}
+
+.owndsh-workspace-identity button{flex-shrink:0;white-space:nowrap;border:1px solid #ddd;border-radius:5px;padding:3px 7px;background:transparent;color:inherit;font:inherit;cursor:pointer}
+.owndsh-workspace-identity button:disabled{opacity:.5;cursor:default}
+.owndsh-workspace-confirm{box-sizing:border-box;width:min(440px,calc(100vw - 32px));padding:28px;border:1px solid #ddd;border-radius:16px;background:#fff;color:#222;font:14px/1.55 system-ui,sans-serif}
+.owndsh-workspace-confirm::backdrop{background:#0006}
+.owndsh-workspace-confirm h2{margin:0;font-size:19px}
+.owndsh-workspace-confirm p{color:#666}
+.owndsh-workspace-boundary button:disabled,.owndsh-workspace-confirm button:disabled{opacity:.5;cursor:wait}
+@media(prefers-color-scheme:dark){.owndsh-workspace-confirm{background:#242424;color:#eee;border-color:#404040}.owndsh-workspace-confirm p{color:#aaa}}

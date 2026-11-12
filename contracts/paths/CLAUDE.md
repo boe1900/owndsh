@@ -16,6 +16,6 @@ skill.yaml: 两个 runtime 与五个管理 operation，提供脱敏 release cata
 mcp.yaml: MCP 配置/授权 CRUD 与 assignment/catalog operation；授权启停/删除统一 If-Match、400/404/409 和 Cookie 权限边界。
 session.yaml: T16 三个管理与五个 runtime operation，冻结设备源绑定、正文独立权限、导出 hash 与 tombstone 边界。
 audit.yaml: T19 单一管理只读 operation，冻结九维筛选、最新优先时间/ID cursor 和 ent:audit:read 权限边界。
-remote.yaml: 管理 Cookie 的设备/ticket/capability/lease，以及员工 Bearer 的本人设备目录与含可信 Host 公钥 ticket；员工访问绑定 tenant、user 与源 installation，保留分页和幂等边界。
+remote.yaml: 管理诊断、Harness Bearer 和 Console Cookie 的本人设备/ticket/连接快照与准确断开；Harness 绑定源 installation，Console 绑定登录且仅作 controller，共用可信 Host 公钥、分页和幂等边界。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

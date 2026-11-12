@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖真实 PostgreSQL、Redis、员工安装上下文与 V57 身份公钥字段。
- * [OUTPUT]: 验证本人设备授权、并发首次 pin、ticket 单次消费及续租/撤销的原子状态。
+ * [INPUT]: 依赖真实 PostgreSQL、Redis、员工安装/Console 登录上下文与 V57 身份公钥字段。
+ * [OUTPUT]: 验证本人设备授权、跨来源/跨登录拒绝、并发首次 pin、ticket 单次消费及续租/撤销的原子状态。
  * [POS]: remote/application 跨存储验收，不用 fake 替代数据库所有权或 Redis TTL。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -169,6 +169,84 @@ class RemoteControlServiceIntegrationTest {
         assertThatThrownBy(() -> f.service.createEmployeeTicket(employee(), HOST, UUID.randomUUID(), request())).isInstanceOf(RemoteControlException.class);
     }
 
+    @Test
+    void consoleControlsOnlyOwnedHostsAndBindsTicketToOneBrowserLogin() {
+        Fixture f = fixture("remote_console");
+        String sessionId = "admin-" + UUID.randomUUID();
+        PlatformSession browser = console(OWNER, sessionId);
+        RemotePeerIdentity controller = new RemotePeerIdentity(TENANT, OWNER, "console", sessionId);
+        assertThat(f.service.listConsoleOwned(admin(OWNER), browser, 0, 100)).extracting(value -> value.deviceId())
+            .containsExactly(HOST, SOURCE, UNPINNED);
+        assertThat(f.service.authorizePeer(controller, "controller", CONTROLLER, CONTROLLER_KEY)).isTrue();
+        assertThat(f.service.authorizePeer(controller, "host", Long.toString(HOST), HOST_KEY)).isFalse();
+        assertThat(f.service.isPeerActive(controller, "host", Long.toString(HOST), HOST_KEY)).isFalse();
+        assertThatThrownBy(() -> f.service.createConsoleTicket(admin(OWNER), browser, FOREIGN, UUID.randomUUID(), request()))
+            .isInstanceOfSatisfying(RemoteControlException.class, e -> assertThat(e.code()).isEqualTo("ENT_PERMISSION_DENIED"));
+        assertThatThrownBy(() -> f.service.createConsoleTicket(admin(OWNER), browser, OTHER_TENANT, UUID.randomUUID(), request()))
+            .isInstanceOf(RemoteControlException.class);
+        UUID idempotency = UUID.randomUUID();
+        var ticket = f.service.createConsoleTicket(admin(OWNER), browser, HOST, idempotency, request());
+        assertThat(ticket.hostPublicKey()).isEqualTo(HOST_KEY);
+        assertThat(f.service.createConsoleTicket(admin(OWNER), browser, HOST, idempotency, request())).isEqualTo(ticket);
+        assertThatThrownBy(() -> f.service.createConsoleTicket(admin(OWNER), console(OWNER, "admin-" + UUID.randomUUID()), HOST, idempotency, request()))
+            .isInstanceOfSatisfying(RemoteControlException.class, e -> assertThat(e.code()).isEqualTo("ENT_IDEMPOTENCY_CONFLICT"));
+        assertThat(f.service.consumeTicket(ticket.ticket(), ticket.linkId(), ticket.deviceId(), CONTROLLER, CONTROLLER_KEY,
+            new RemotePeerIdentity(TENANT, OWNER, "console", "admin-" + UUID.randomUUID()))).isEmpty();
+        assertThat(f.service.consumeTicket(ticket.ticket(), ticket.linkId(), ticket.deviceId(), CONTROLLER, CONTROLLER_KEY,
+            new RemotePeerIdentity(TENANT, OTHER, "console", sessionId))).isEmpty();
+        assertThat(f.service.consumeTicket(ticket.ticket(), ticket.linkId(), ticket.deviceId(), CONTROLLER, CONTROLLER_KEY,
+            peer(OWNER, SOURCE_INSTALL))).isEmpty();
+        var bound = f.service.consumeTicket(ticket.ticket(), ticket.linkId(), ticket.deviceId(), CONTROLLER, CONTROLLER_KEY, controller).orElseThrow();
+        assertThat(bound.controllerKind()).isEqualTo(com.owndsh.enterprise.remote.domain.RemoteTicketState.ControllerKind.CONSOLE);
+        assertThat(bound.controllerSessionId()).isEqualTo(sessionId);
+        assertThat(bound.controllerInstallationId()).isNull();
+        assertThat(f.service.acquireLease(ticket.linkId(), LEASE, 60)).isPresent();
+        assertThat(f.service.renewLease(ticket.linkId(), LEASE, 60)).isTrue();
+        f.database.jdbc().update("update ent_device set user_id = ? where id = ?", OTHER, HOST);
+        assertThat(f.service.isLeaseActive(ticket.linkId(), LEASE)).isFalse();
+    }
+
+    @Test
+    void consoleCannotConsumeHarnessTicketOrRetainLeaseAfterHostCapabilityOrPinChanges() {
+        Fixture f = fixture("remote_console_fence");
+        String sessionId = "admin-" + UUID.randomUUID();
+        RemotePeerIdentity controller = new RemotePeerIdentity(TENANT, OWNER, "console", sessionId);
+        var harness = f.service.createTicket(admin(OWNER), HOST, UUID.randomUUID(), request());
+        assertThat(f.service.consumeTicket(harness.ticket(), harness.linkId(), harness.deviceId(), CONTROLLER, CONTROLLER_KEY, controller)).isEmpty();
+        assertThat(f.service.consumeTicket(harness.ticket(), harness.linkId(), harness.deviceId(), CONTROLLER, CONTROLLER_KEY, peer(OWNER, SOURCE_INSTALL))).isPresent();
+        var ticket = f.service.createConsoleTicket(admin(OWNER), console(OWNER, sessionId), HOST, UUID.randomUUID(), request());
+        assertThat(f.service.consumeTicket(ticket.ticket(), ticket.linkId(), ticket.deviceId(), CONTROLLER, CONTROLLER_KEY, controller)).isPresent();
+        assertThat(f.service.acquireLease(ticket.linkId(), LEASE, 60)).isPresent();
+        f.service.updatePresence(Long.toString(HOST), HOST_KEY, "READY", true, "[]", 0);
+        assertThat(f.service.isLeaseActive(ticket.linkId(), LEASE)).isFalse();
+        f.service.updatePresence(Long.toString(HOST), HOST_KEY, "READY", true, "[\"remote.connect\"]", 0);
+        assertThat(f.service.isLeaseActive(ticket.linkId(), LEASE)).isTrue();
+        f.database.jdbc().update("update ent_remote_device_config set identity_public_key = ? where device_id = ?",
+            Base64.getUrlDecoder().decode(CONTROLLER_KEY), HOST);
+        assertThat(f.service.isLeaseActive(ticket.linkId(), LEASE)).isFalse();
+    }
+
+    @Test
+    void consoleOwnerGuardAndGatewayRevocationUseDurableFacts() {
+        Fixture f = fixture("remote_console_disconnect");
+        String sessionId = "admin-" + UUID.randomUUID();
+        PlatformSession browser = console(OWNER, sessionId);
+        f.service.requireConsoleOwner(admin(OWNER), browser, HOST);
+        assertThatThrownBy(() -> f.service.requireConsoleOwner(admin(OWNER), browser, FOREIGN))
+            .isInstanceOfSatisfying(RemoteControlException.class, error -> assertThat(error.code()).isEqualTo("ENT_PERMISSION_DENIED"));
+        assertThatThrownBy(() -> f.service.requireConsoleOwner(admin(OWNER), browser, OTHER_TENANT))
+            .isInstanceOfSatisfying(RemoteControlException.class, error -> assertThat(error.code()).isEqualTo("ENT_RESOURCE_NOT_FOUND"));
+        var ticket = f.service.createConsoleTicket(admin(OWNER), browser, HOST, UUID.randomUUID(), request());
+        var controller = new RemotePeerIdentity(TENANT, OWNER, "console", sessionId);
+        assertThat(f.service.consumeTicket(ticket.ticket(), ticket.linkId(), ticket.deviceId(), CONTROLLER, CONTROLLER_KEY, controller)).isPresent();
+        assertThat(f.service.acquireLease(ticket.linkId(), LEASE, 60)).isPresent();
+        new RemoteControlGatewayAuthorizer(f.service).revokeLink(ticket.linkId());
+        assertThat(f.service.isLinkActive(ticket.linkId())).isFalse();
+        assertThat(f.service.isLeaseActive(ticket.linkId(), LEASE)).isFalse();
+        assertThat(f.service.renewLease(ticket.linkId(), LEASE, 60)).isFalse();
+        assertThat(f.service.isPeerActive(peer(OWNER, HOST_INSTALL), "host", Long.toString(HOST), HOST_KEY)).isTrue();
+    }
+
     private static Fixture fixture(String label) {
         var db = PostgresTestDatabase.create(label);
         PostgresTestDatabase.migrate(db, null);
@@ -206,6 +284,7 @@ class RemoteControlServiceIntegrationTest {
         return new DeviceCallContext(TENANT, new PlatformSession(OWNER, PlatformClient.DSH_DESKTOP, "harness", SOURCE_INSTALL.toString()), "req_remote_01", "127.0.0.1", new byte[32]);
     }
     private static EnterpriseRequestContext admin(long actor) { return new EnterpriseRequestContext(TENANT, actor, "req_remote_01", "127.0.0.1", new byte[32]); }
+    private static PlatformSession console(long actor, String sessionId) { return new PlatformSession(actor, PlatformClient.ENTERPRISE_ADMIN, "console", sessionId); }
     private static RemotePeerIdentity peer(long actor, UUID installation) { return new RemotePeerIdentity(TENANT, actor, "harness", installation.toString()); }
     private static RemoteTicketRequest request() { return new RemoteTicketRequest(CONTROLLER, CONTROLLER_KEY, List.of("remote.connect"), "plugin/0.1.0"); }
     private static String key(byte value) {

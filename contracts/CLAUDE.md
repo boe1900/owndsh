@@ -5,7 +5,7 @@
 成员清单
 
 README.md: 协议真源使用规则，定义手写与生成边界、双端消费方式和漂移门禁。
-enterprise-openapi.yaml: OpenAPI 3.1 逻辑协议导航根，定义 Bearer 与 HTTP/HTTPS 管理端 Cookie、38 个稳定错误码和 137 个 operation，并引用受控 Path Item/schema 分片。
+enterprise-openapi.yaml: OpenAPI 3.1 逻辑协议导航根，定义 Bearer 与 HTTP/HTTPS 管理端 Cookie、38 个稳定错误码和 141 个 operation，并引用受控 Path Item/schema 分片。
 paths/: 身份、模型治理、插件、Session、审计与 Remote 控制面的 operation 分片；员工 Remote 复用 Bearer，管理 Remote 复用 Cookie；局部地图见 paths/CLAUDE.md。
 components/: 身份治理、模型、插件、Session、审计与 Remote 授权事实的 schema 分片；局部地图见 components/CLAUDE.md。
 fixtures/auth-sources-success.json: T05 登录事务、CSRF 与公开身份源成功响应样例。

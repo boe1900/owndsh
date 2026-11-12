@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 JdbcOperations、ent_device、ent_remote_device_config 和 JSONB capability 快照。
- * [OUTPUT]: 提供租户/本人限定的设备摘要、90 秒在线判断与首次认证公钥原子 pin。
+ * [OUTPUT]: 提供租户/本人限定的设备摘要、可选源安装排除、90 秒在线判断与首次认证公钥原子 pin。
  * [POS]: remote/persistence 的 PostgreSQL adapter；不把业务正文或私钥投影到控制面。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -39,7 +39,7 @@ public final class JdbcRemoteDeviceStore implements RemoteDeviceStore {
     private static final String LIST = "select " + COLUMNS + FROM
         + "where d.tenant_id = ? and d.id > ? order by d.id limit ?";
     private static final String LIST_OWNED = "select " + COLUMNS + FROM
-        + "where d.tenant_id = ? and d.user_id = ? and d.installation_id <> ? and d.id > ? order by d.id limit ?";
+        + "where d.tenant_id = ? and d.user_id = ? and d.installation_id is distinct from ? and d.id > ? order by d.id limit ?";
     private static final String FIND_INSTALLATION = "select " + COLUMNS + FROM
         + "where d.tenant_id = ? and d.installation_id = ?";
     private static final String PIN_KEY = """

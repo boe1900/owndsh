@@ -1,0 +1,8 @@
+decision	reason	evidence	result
+原生 UI 静态冻结	复用 DSH 交互，避免执行目标插件代码	build-native-workspace.mjs	采用 rc.5 固定产物
+独立 Remote v1 身份	HTTP API 增量不能破坏旧 Host	RemoteProtocol.java 与 remote.spec.ts	保留已发布 629fbf 身份
+裁剪未支持入口	首版只使用已有工作区	官方 WorkspacePicker occupancy 及 Host policy	关闭上传、目录和 settings UI
+原生媒体接缝	Markdown img src 绕过 RPC transport	官方 LoadedMarkdownImage 与 fileMediaUrl	组件拥有加密读取 Blob URL
+静态 HTML 首版	原生默认交互模式在当前浏览器出现空白	HtmlBody BasicHtmlFrame 与真实 srcdoc 页面	固定静态隔离预览，不启用交互脚本
+占用错误优先结算	Gateway error 帧先关闭 link 导致原因丢失	busy 回归从期望 ENT_REMOTE_BUSY 实得 ENT_REMOTE_CLOSED 到通过	关闭前拒绝 link.ready 并保留原始错误
+非 root 镜像启动	nginx -t 留下 root pid 导致容器启动失败	真实 Docker 启动 EACCES 与修复后路由状态	构建校验后删除测试 pid

@@ -1,0 +1,151 @@
+{
+  "recordedAt": "2026-11-12T06:41:49.656202+00:00",
+  "scope": "Console侧栏本人设备、新标签原生工作区、独立设备身份条与管理员体验账号；未提交未部署",
+  "entry": "http://127.0.0.1:18104/",
+  "host": "http://127.0.0.1:63256/",
+  "harnessVersion": "0.2.1-rc.5",
+  "checks": {
+    "consoleExistingTests": {
+      "status": "passed",
+      "files": 18,
+      "tests": 130,
+      "runner": "implementation owner，整合前冻结源码"
+    },
+    "typescript": "passed",
+    "productionBuild": "passed",
+    "currentResourceMapCount": 148,
+    "resourceFileSetAndSha256": "passed，生成assets/dist的文件集合与当前resource映射完全相同",
+    "oldBrandHooksAbsentFromGeneratedOutput": true,
+    "independentReviews": [
+      "20项精确before差异：无阻塞；注释删除建议0、MUST KILL0、HOLD0",
+      "成功后清理过期构建资源：无阻塞"
+    ],
+    "diffWhitespace": "passed"
+  },
+  "browser": {
+    "provider": "Codex IAB",
+    "passed": [
+      "员工本人设备分组、账号菜单仅账号动作",
+      "设备链接真实target=_blank与noopener noreferrer，新标签打开后Console原路径保留",
+      "桌面展开及折叠侧栏设备入口可用，390px移动抽屉点击设备后关闭",
+      "管理员模型/访问策略/插件/技能/MCP/成员/活动记录/远程诊断与本人设备同时显示",
+      "官方品牌按钮新建会话，既有会话与文件预览保持原生",
+      "同一远程document在Console操作数分钟后仍可继续消息往返",
+      "第二控制页明确busy，关闭第一远程标签后第二页显式重连成功",
+      "离开旧工作区释放连接；身份条新标签打开Console时当前连接保留",
+      "权限变化导致旧登录失效，浏览器与Host重新登录后恢复远程连接",
+      "管理员恢复登录后继续对话成功；本轮三条本机模型夹具测试回复均完成"
+    ],
+    "mobileGeometry": {
+      "composer": {
+        "bottom": 760,
+        "height": 36,
+        "left": 72,
+        "right": 363,
+        "top": 724,
+        "width": 291,
+        "x": 72,
+        "y": 724
+      },
+      "consoleLink": {
+        "bottom": 27.8984375,
+        "height": 16.796875,
+        "left": 331.453125,
+        "right": 380,
+        "top": 11.1015625,
+        "width": 48.546875,
+        "x": 331.453125,
+        "y": 11.1015625
+      },
+      "header": {
+        "bottom": 40,
+        "height": 40,
+        "left": 0,
+        "right": 390,
+        "top": 0,
+        "width": 390,
+        "x": 0,
+        "y": 0
+      },
+      "height": 844,
+      "root": {
+        "bottom": 844,
+        "height": 804,
+        "left": 0,
+        "right": 390,
+        "top": 40,
+        "width": 390,
+        "x": 0,
+        "y": 40
+      },
+      "scrollHeight": 844,
+      "scrollWidth": 390,
+      "width": 390
+    },
+    "desktopGeometry": {
+      "width": 1280,
+      "height": 800,
+      "identityHeight": 40,
+      "rootTop": 40,
+      "rootHeight": 760,
+      "scrollWidth": 1280,
+      "scrollHeight": 800
+    },
+    "screenshots": [
+      ".tmp/console-remote-entry/console-admin.png",
+      ".tmp/console-remote-entry/console-desktop.png",
+      ".tmp/console-remote-entry/console-mobile.png",
+      ".tmp/console-remote-entry/workspace-desktop.png",
+      ".tmp/console-remote-entry/workspace-mobile.png"
+    ],
+    "backgroundBoundary": "IAB的document均报告visible；未模拟Edge后台冻结、节电或系统休眠"
+  },
+  "notVerified": [
+    "设备目录空/失败/大量设备滚动故障注入",
+    "真实模型供应商、工具、审批、steer、queue和终端专项",
+    "P2P、TURN、Android、生产TLS"
+  ],
+  "testModel": "明确标注的本机固定回复夹具，经真实网关和rc.5 Host",
+  "testAccount": {
+    "scope": "隔离本地环境",
+    "sameMemberAndOwnedDevice": true,
+    "roles": [
+      "employee",
+      "enterprise_admin"
+    ],
+    "grantAuthorization": "用户明确要求管理员账号查看全部菜单和远程连接"
+  },
+  "preserved": {
+    "server": 18084,
+    "remote": 18094,
+    "console": 18104,
+    "host": 63256,
+    "workspaceTab": "14",
+    "adminConsoleTab": "13",
+    "committed": false,
+    "pushed": false,
+    "nasDeployed": false
+  },
+  "assemblySha256": "a8f8245850852246c4b53432d2786a6240920545292d88d4de41f90e69ac026d",
+  "sourceSha256": {
+    "console/scripts/build-native-workspace.mjs": "533d3b27cbfaf2b35e9804ecc680496b43795dab7ef0eb97ff4a1ee57f96a02e",
+    "console/src/features/workspace/CLAUDE.md": "8807c44a16a2ddfa8dfb7ef6353aedd89c473fe30d75ef2a325e0c4b5151a686",
+    "console/src/features/workspace/workspace-entry.ts": "92cc1fd3c6adc2d069c37b410250c2e2ff10381734a6144fc19ed4c87c31a0d6",
+    "console/src/features/workspace/workspace.css": "43ac5a04b61f6b57e97dc0fb3f86194efe864413a891b484c0a2c8502af4efdc",
+    "docs/console-workspace-product-research.md": "5bb792270d48936fd7ffd12ad76398869bf5e9518aa51e0ded115e46a9b63f4d",
+    "CLAUDE.md": "d124cc8d6f46545751fbf021ca8c144a2cbc6e83768e8ea1cabea147dd91c43e",
+    "console/README.md": "01ff8e9bf21b1fd765947fd9594cdb7984b8b00308b808dbe22e2a08148fffa4",
+    "console/scripts/CLAUDE.md": "a8a0d1f05374965d3beb9c413e0807f045fec94d51b8d32a4b4782f76968c44e",
+    "console/src/app/CLAUDE.md": "2cc4a4599406b2d122585c1a0f38b29c976a2404cfc32fb240fb0bdb772eedb4",
+    "console/src/app/console-shell.tsx": "5c94ccadf09e1ee4799c40042040327f0e5da9d7f760a475844681889ef09e85",
+    "console/src/app/product-routes.ts": "c3170149f29f34e3511bbca5a86e0f5be2b29b3e0d08c310b3fc11147070b85c",
+    "console/src/components/primitives/CLAUDE.md": "61e03b5636389cd8af55737ebd7149f5e3ee39d192402e17de8492677ee30555",
+    "console/src/components/primitives/SidebarNav.tsx": "4b93ec88ac93af7d6be6f0e27523a9962b1c3f857ded12bffd62f738bd89c8bd",
+    "console/src/features/CLAUDE.md": "d0bac8c88725e899aad4101798da2323964c3acf00ffbfec5c85c0d23cf37f9e",
+    "console/src/features/remote/CLAUDE.md": "6c371dcaeb7baeed50045770982778d436c4dad1f2e32e3d229020909bbc0a2b",
+    "console/src/features/remote/remote-page.tsx": "a4f302bdfb9f4c4de280d5fe1b65bc173dde132e31811ab5e1e5d81b17681018",
+    "docs/CLAUDE.md": "94ac62cb8c60eebcf4e9e081ccf9e65b57a64c6fafa080c9923ef2e60f196ccd",
+    "console/src/features/workspace/workspace-devices-section.tsx": "1c95f2d40df2ff2c36959a3a073c11895933d36b8e02cf2b3324025d3b7e8440",
+    "console/src/features/workspace/workspace-identity.ts": "a5c89bbe2d384b02ea5f2ede806a4f3ba0814bc9802db22fa14798d52bbb9f2d"
+  }
+}

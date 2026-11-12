@@ -4,6 +4,10 @@
 
 成员清单
 
+console-workspace-product-research.md: 管控台侧栏本人设备、新标签远程 DSH 与身份条的现行契约，保留历史空间切换预研，记录固定装配、Cookie 授权、UI 接缝、Edge HTML 交互验收和未覆盖范围。
+console-remote-real-model-verification.md: 2026-11-12 断开与接管、真实 Atria-Dawn 对话及文件、审批、预览、终端的验收矩阵，明确取消请求的未知用量和未覆盖环境。
+console-nas-cross-machine-verification.md: NAS Server/Console 部署、NAS Host 真实模型与逐格式预览、Mac Host 文件和终端、Mac 原生及远程 Office、表格只读、Edge 原生隔离 HTML 交互验收及 IAB 差异、审批拒绝与连接释放、localhost 双机对照，记录 DSH OOM 恢复及未关闭根因。
+
 remote-dsh-workspace-design.md: R1–R5 后 DSH 实际业务的实施契约，固定目标整页、Noise/lease、逐页 owner Peer、Storage 隔离、插件目录只读边界、慢消费心跳与 Netty 提交前发送预算、占用提示，以及本机与 Mac/NAS 双机业务和稳定性验收。
 
 unified-login-design.md: 统一登录实施真源，冻结新鲜登录直达授权完成、已有浏览器身份确认、独立客户端 PKCE、退出范围与桌面唤回，记录真实本地验收。

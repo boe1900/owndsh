@@ -19,8 +19,8 @@ src/mcp-oauth.ts: 官方 MCP SDK v2 `OAuthClientProvider` 的宿主接缝；以�
 src/remote/: 本人设备的安全 DSH workspace 链路，显式 Host 开关、持久身份、完整 Noise IK、租约、字节信用和原生 HTTP/WS carrier；API Peer cookie 留在远端 Host，不复制 Gateway codec。
 tests/remote-carrier.spec.ts: 真实 HTTP 大体积二进制流、mux Unicode 跨片重组、信用背压、取消与在途响应/错误交错及 realpath 路径约束。
 tests/remote-native-carrier.spec.ts: 真实 HTTP/WS 的原生 API cookie 隔离、独立 Peer 共用、慢消费时 Ping/Pong 与有序续读、4 MiB 累计队列超限关闭、远端插件目录只读与管理拒绝、端点准入、连续取消超过流上限及迟到帧丢弃、关闭释放。
-tests/remote-network-boundary.spec.ts: 真实 Upgrade 的平台 Origin/Bearer 隔离，以及文件 RPC envelope、方法/路径一致性与准入前拒绝。
-tests/remote-secure-link.spec.ts: 双端真实 Noise 与进程内控制面路由，验证握手/租约门禁、密文传输、撤权、过期和旧 socket 隔离。
+tests/remote-network-boundary.spec.ts: 真实 Upgrade 的平台 Origin/Bearer 隔离，以及文件与 Office RPC 方法绑定、工作区范围、软链越界和 baseFile 路径伪装的准入前拒绝。
+tests/remote-secure-link.spec.ts: 双端真实 Noise 与冻结 Remote wire 身份的进程内控制面路由，验证握手/租约门禁、密文传输、撤权、过期和旧 socket 隔离。
 tests/remote-key.spec.ts: 官方 credentials 契约下的 Host 静态密钥重启复用、owner 维度隔离与损坏记录拒绝。
 tests/remote-workspace-runtime.spec.ts: 产品 Host 默认关闭、显式开启、再开启复用身份、平台撤销清理、设备目录分页/循环拒绝，以及 error/connect.reject 占用原因保留与 socket 释放。
 tests/remote-view-registry.spec.ts: 重连先释放旧链路、失败保留目标可重试，成功后新 view URL 隔离且设备存储 authority 稳定；真实 HTTP 验证创建/重连占用只返回固定 409，未知故障仍脱敏为 503。

@@ -1,12 +1,13 @@
 /**
  * [INPUT]: 依赖 Remote frame、已认证 Netty Channel、write promise 和当前设备与租约授权端口。
- * [OUTPUT]: 串行执行握手/lease 与密文准入，每 Channel 在提交前限制 4 MiB/256 个未完成 JSON 写入。
+ * [OUTPUT]: 串行执行握手/lease、准确连接撤销与密文准入，每 Channel 在提交前限制 4 MiB/256 个未完成 JSON 写入。
  * [POS]: remote carrier 状态机；Netty 持有在途帧，future 结算预算，暂时不可写不撤销 Link，发送故障只关闭准确 Channel。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.remote;
 
 import com.owndsh.enterprise.remote.domain.RemoteTicketState;
+import com.owndsh.enterprise.remote.domain.RemoteControlException;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
@@ -50,6 +51,25 @@ public final class RemoteGateway {
         this.json = Objects.requireNonNull(json, "json");
         this.authorizer = Objects.requireNonNull(authorizer, "authorizer");
         this.clock = Objects.requireNonNull(clock, "clock");
+    }
+
+    public synchronized Optional<String> currentConnection(String deviceId) {
+        return hostLink(deviceId).map(link -> link.linkId);
+    }
+
+    public synchronized void disconnect(String deviceId, String expectedLinkId) {
+        Link current = hostLink(deviceId).orElse(null);
+        if (current == null) return;
+        if (!current.linkId.equals(expectedLinkId)) throw new RemoteControlException("ENT_REMOTE_BUSY");
+        try {
+            authorizer.revokeLink(current.linkId);
+        } finally {
+            closeLink(current, "ENT_REMOTE_TAKEN_OVER");
+        }
+    }
+
+    private Optional<Link> hostLink(String deviceId) {
+        return links.values().stream().filter(link -> link.hostId.equals(deviceId)).findFirst();
     }
 
     public synchronized void hello(ChannelHandlerContext context, JsonNode root) {
@@ -306,7 +326,8 @@ public final class RemoteGateway {
 
     private Link ownedLink(Peer peer, String linkId) {
         Link link = links.get(linkId);
-        if (link == null || !link.has(peer.peerId())) {
+        if (link == null) return null;
+        if (!link.has(peer.peerId())) {
             sendError(peer.channel(), "ENT_REMOTE_LINK_NOT_FOUND", "link is not active", false);
             return null;
         }

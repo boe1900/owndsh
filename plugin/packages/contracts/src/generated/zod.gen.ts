@@ -2596,6 +2596,15 @@ export const zQuotaUsageLedgerListResponse = z.object({
 
 export const zUsageLedgerListResponse = zQuotaUsageLedgerListResponse;
 
+export const zRemoteRemoteConnectionResponse = z.object({
+    data: z.object({
+        linkId: z.string().regex(/^rln_[0-9A-HJKMNP-TV-Z]{26}$/).nullable()
+    }).strict(),
+    requestId: zRequestId
+}).strict();
+
+export const zRemoteConnectionResponse = zRemoteRemoteConnectionResponse;
+
 export const zRemoteRemoteDeviceStatus = z.enum([
     'ACTIVE',
     'REVOKED',
@@ -2603,6 +2612,12 @@ export const zRemoteRemoteDeviceStatus = z.enum([
 ]);
 
 export const zRemoteDeviceStatus = zRemoteRemoteDeviceStatus;
+
+export const zRemoteRemoteDisconnectRequest = z.object({
+    expectedLinkId: z.string().regex(/^rln_[0-9A-HJKMNP-TV-Z]{26}$/)
+}).strict();
+
+export const zRemoteDisconnectRequest = zRemoteRemoteDisconnectRequest;
 
 export const zRemoteRemoteLease = z.object({
     linkId: z.string().regex(/^rln_[0-9A-HJKMNP-TV-Z]{26}$/),
@@ -3275,6 +3290,14 @@ export const zQuotaEnable = z.unknown();
 export const zQuotaItem = z.unknown();
 
 export const zQuotaWindows = z.unknown();
+
+export const zConsoleRemoteConnection = z.unknown();
+
+export const zConsoleRemoteDevices = z.unknown();
+
+export const zConsoleRemoteDisconnect = z.unknown();
+
+export const zConsoleRemoteTicket = z.unknown();
 
 export const zOwnRemoteDevices = z.unknown();
 
@@ -5156,6 +5179,51 @@ export const zCreateOwnRemoteTicketPath = z.object({
  * One-use ticket and authenticated pinned Host public key.
  */
 export const zCreateOwnRemoteTicketResponse = zRemoteOwnRemoteTicketResponse;
+
+export const zListConsoleRemoteDevicesQuery = z.object({
+    cursor: zCursor.optional(),
+    limit: zPageLimit.optional()
+});
+
+/**
+ * Owner-filtered remote device page.
+ */
+export const zListConsoleRemoteDevicesResponse = zRemoteRemoteDeviceListResponse;
+
+export const zGetConsoleRemoteConnectionPath = z.object({
+    deviceId: zEnterpriseDeviceId
+});
+
+/**
+ * Current connection snapshot. A disconnected device returns a null linkId.
+ */
+export const zGetConsoleRemoteConnectionResponse = zRemoteRemoteConnectionResponse;
+
+export const zDisconnectConsoleRemoteConnectionBody = zRemoteRemoteDisconnectRequest;
+
+export const zDisconnectConsoleRemoteConnectionPath = z.object({
+    deviceId: zEnterpriseDeviceId
+});
+
+/**
+ * Confirmed connection removed. linkId is null.
+ */
+export const zDisconnectConsoleRemoteConnectionResponse = zRemoteRemoteConnectionResponse;
+
+export const zCreateConsoleRemoteTicketBody = zRemoteRemoteTicketRequest;
+
+export const zCreateConsoleRemoteTicketHeaders = z.object({
+    'Idempotency-Key': z.uuid().length(36).regex(/^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}$/)
+});
+
+export const zCreateConsoleRemoteTicketPath = z.object({
+    deviceId: zEnterpriseDeviceId
+});
+
+/**
+ * One-use ticket and authenticated pinned Host public key.
+ */
+export const zCreateConsoleRemoteTicketResponse = zRemoteOwnRemoteTicketResponse;
 
 export const zCreateRemoteTicketBody = zRemoteRemoteTicketRequest;
 

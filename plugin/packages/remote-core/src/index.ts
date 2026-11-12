@@ -8,6 +8,9 @@
 export const REMOTE_CORE_VERSION = 1 as const
 export * from './noise.js'
 export * from './carrier.js'
+export * from './carrier-types.js'
+export * from './carrier-tunnel.js'
+export * from './secure-link.js'
 export const MAX_FRAGMENT_BYTES = 16_384
 export const MAX_REASSEMBLED_BYTES = 65_536
 

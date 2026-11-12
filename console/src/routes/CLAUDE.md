@@ -5,7 +5,7 @@
 成员清单
 
 __root.tsx: 产品 pathless layout 与 examples 共享的无视觉根出口。
-_console.tsx: 不改变 URL 的产品认证布局边界，直接以 HttpOnly Cookie 请求 bootstrap，经固定角色守卫后挂载 ConsoleShell，拒绝动态菜单和前端 Token 判断。
+_console.tsx: Cookie 认证布局允许所有登录成员进入用户中心和本人工作区菜单，管理页面仍经固定角色守卫，普通员工默认返回用户中心。
 _console.account.tsx: 工作区菜单进入的独立用户中心父布局，不出现在主侧栏，以分区导航承载账号子页面。
 _console.account.index.tsx: `/account` 基本信息子页面，展示 bootstrap 当前账号、角色和多登录来源。
 _console.account.security.tsx: `/account/security` 安全设置子页面，承载本人 LOCAL 密码修改。

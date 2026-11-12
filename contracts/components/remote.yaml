@@ -1,5 +1,5 @@
 # [INPUT]: 依赖根协议的 RequestId、Revision、CursorPage 与现有 EnterpriseDeviceId
-# [OUTPUT]: 提供 Remote 管理视图、员工本人设备 ticket 与可信 Host 公钥、capability 和 lease schema
+# [OUTPUT]: 提供 Remote 管理视图、本人设备 ticket/连接快照/准确断开与可信 Host 公钥、capability 和 lease schema
 # [POS]: components 的 Remote 控制面分片，HTTP 只管理授权事实，不承载业务密文
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -227,3 +227,30 @@ RemoteCapabilityResponse:
       $ref: '#/RemoteDevice'
     requestId:
       $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+
+RemoteConnectionResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    data:
+      type: object
+      additionalProperties: false
+      required: [linkId]
+      properties:
+        linkId:
+          type: [string, 'null']
+          pattern: '^rln_[0-9A-HJKMNP-TV-Z]{26}$'
+          description: Current Host connection, or null when no connection is active.
+    requestId:
+      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+
+RemoteDisconnectRequest:
+  type: object
+  additionalProperties: false
+  required: [expectedLinkId]
+  properties:
+    expectedLinkId:
+      type: string
+      pattern: '^rln_[0-9A-HJKMNP-TV-Z]{26}$'
+      description: Exact connection confirmed by the user. A replacement is never disconnected.

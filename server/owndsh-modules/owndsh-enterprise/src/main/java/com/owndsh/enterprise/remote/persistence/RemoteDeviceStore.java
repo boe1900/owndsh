@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 接收租户、keyset cursor 和当前时间，读取 ent_device 与 Remote 配置快照。
- * [OUTPUT]: 对外提供 Remote 本人设备列表、详情及不可静默轮换的身份公钥端口，隐藏 SQL、JSONB 和 presence TTL 细节。
+ * [OUTPUT]: 提供本人设备列表、详情和不可静默轮换的公钥端口；excludedInstallation 为空时返回本人全部设备，隐藏 SQL 与 presence TTL。
  * [POS]: remote/persistence 的 DIP 边界，授权编排不依赖 JDBC 行结构。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */

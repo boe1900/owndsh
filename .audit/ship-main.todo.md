@@ -37,3 +37,17 @@ Resolve the driver skill through [poteto-mode's Non-negotiables](../SKILL.md#non
 - Full Java integration suite: blocked by the isolated Maven container lacking the host Docker socket. The host Java runtime is 17 while the project requires Java 21.
 - `git diff --check`: passed.
 - Sensitive-data scan: passed. Test-only bearer fixtures were the only matches.
+
+### Console 远程工作区基线，2026-11-12
+
+用户授权将前面完成的工作直接提交并 push 到 main，之后再开始 Ego 面板验证。
+
+- [x] 核对原生工作区、本人设备 API、独立标签、精确 link 接管和预览改动；既有独立审阅记录见对应 evidence。
+- [x] deslop 与 GEB 回环，修正两个握手夹具对 OpenAPI hash 的过时依赖，统一使用冻结 Remote wire 身份。
+- [x] Console 生产构建、TypeScript 和 136 项测试通过。
+- [x] 插件 TypeScript、全部包构建、213 项包测试和 4 项 workspace 测试通过。
+- [x] Java 21 Remote 与 Cookie 登录测试通过，集成测试使用 Colima 中真实 PostgreSQL 和 Redis。
+- [x] 敏感信息及 diff 空白扫描通过，临时凭据、运行日志和本机制品不进入提交。
+- [ ] 提交基线并核对 origin/main，Ego 代码不进入此提交。
+
+[PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

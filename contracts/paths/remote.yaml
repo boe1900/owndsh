@@ -1,5 +1,5 @@
-# [INPUT]: 依赖 Remote schema、cursor/revision/error 公共组件、管理员 Cookie 与员工 installation Bearer
-# [OUTPUT]: 提供管理员 Remote 诊断及员工本人设备发现、一次性 ticket Path Item
+# [INPUT]: 依赖 Remote schema、cursor/revision/error 公共组件、Console Cookie 与员工 installation Bearer
+# [OUTPUT]: 提供管理员诊断、Harness/Console 本人设备发现与来源绑定 ticket 与本人设备连接快照/准确断开 Path Item
 # [POS]: paths 的 Remote 控制面分片；只负责控制面，不代理业务 RPC
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -53,6 +53,65 @@ OwnRemoteTicket:
     summary: Authorize one connection to another active device owned by this employee.
     security:
       - EnterpriseBearer: []
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/IdempotencyKey'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../enterprise-openapi.yaml#/components/schemas/RemoteTicketRequest'
+    responses:
+      '200':
+        description: One-use ticket and authenticated pinned Host public key.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/OwnRemoteTicketResponse'
+      '400':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error400'
+      '401':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+      '403':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error403'
+      '404':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error404'
+      '409':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error409'
+
+ConsoleRemoteDevices:
+  get:
+    operationId: listConsoleRemoteDevices
+    summary: List the signed-in browser user's devices without requiring an admin role.
+    description: The cursor is bound to this user and this Console login session.
+    security:
+      - EnterpriseAdminCookie: []
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Cursor'
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Limit'
+    responses:
+      '200':
+        description: Owner-filtered remote device page.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/RemoteDeviceListResponse'
+      '400':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error400'
+      '401':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+      '403':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error403'
+
+ConsoleRemoteTicket:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/DeviceIdPath'
+  post:
+    operationId: createConsoleRemoteTicket
+    summary: Authorize this Console login to control one owned active device.
+    description: The same-origin request issues a one-use ticket bound to this login and controller key. A Console cannot become a Host.
+    security:
+      - EnterpriseAdminCookie: []
     parameters:
       - $ref: '../enterprise-openapi.yaml#/components/parameters/IdempotencyKey'
     requestBody:
@@ -149,6 +208,61 @@ RemoteLeaseRevoke:
           application/json:
             schema:
               $ref: '../enterprise-openapi.yaml#/components/schemas/RemoteLeaseResponse'
+      '401':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+      '403':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error403'
+      '404':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error404'
+      '409':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error409'
+
+ConsoleRemoteConnection:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/DeviceIdPath'
+  get:
+    operationId: getConsoleRemoteConnection
+    summary: Read the current connection of a device owned by this Console user.
+    security:
+      - EnterpriseAdminCookie: []
+    responses:
+      '200':
+        description: Current connection snapshot. A disconnected device returns a null linkId.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/RemoteConnectionResponse'
+      '401':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
+      '403':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error403'
+      '404':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error404'
+
+ConsoleRemoteDisconnect:
+  parameters:
+    - $ref: '../enterprise-openapi.yaml#/components/parameters/DeviceIdPath'
+  post:
+    operationId: disconnectConsoleRemoteConnection
+    summary: Disconnect the exact confirmed connection of this user's own device.
+    description: Requires the Console Cookie and same-origin request. An absent connection succeeds. A different current connection returns ENT_REMOTE_BUSY without changing it. Success revokes authorization and removes the current Gateway link before returning; Host presence stays online.
+    security:
+      - EnterpriseAdminCookie: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../enterprise-openapi.yaml#/components/schemas/RemoteDisconnectRequest'
+    responses:
+      '200':
+        description: Confirmed connection removed. linkId is null.
+        content:
+          application/json:
+            schema:
+              $ref: '../enterprise-openapi.yaml#/components/schemas/RemoteConnectionResponse'
+      '400':
+        $ref: '../enterprise-openapi.yaml#/components/responses/Error400'
       '401':
         $ref: '../enterprise-openapi.yaml#/components/responses/Error401'
       '403':

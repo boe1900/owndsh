@@ -225,6 +225,14 @@ paths:
     $ref: './paths/remote.yaml#/OwnRemoteDevices'
   /enterprise/api/v1/remote/devices/{deviceId}/ticket:
     $ref: './paths/remote.yaml#/OwnRemoteTicket'
+  /enterprise/console/v1/remote/devices:
+    $ref: './paths/remote.yaml#/ConsoleRemoteDevices'
+  /enterprise/console/v1/remote/devices/{deviceId}/connection:
+    $ref: './paths/remote.yaml#/ConsoleRemoteConnection'
+  /enterprise/console/v1/remote/devices/{deviceId}/connection/disconnect:
+    $ref: './paths/remote.yaml#/ConsoleRemoteDisconnect'
+  /enterprise/console/v1/remote/devices/{deviceId}/ticket:
+    $ref: './paths/remote.yaml#/ConsoleRemoteTicket'
   /enterprise/admin/v1/remote/devices/{deviceId}/ticket:
     $ref: './paths/remote.yaml#/RemoteTicket'
   /enterprise/admin/v1/remote/devices/{deviceId}/capabilities:
@@ -1329,3 +1337,5 @@ components:
     RemoteLease: {$ref: './components/remote.yaml#/RemoteLease'}
     RemoteLeaseResponse: {$ref: './components/remote.yaml#/RemoteLeaseResponse'}
     RemoteCapabilityResponse: {$ref: './components/remote.yaml#/RemoteCapabilityResponse'}
+    RemoteConnectionResponse: {$ref: './components/remote.yaml#/RemoteConnectionResponse'}
+    RemoteDisconnectRequest: {$ref: './components/remote.yaml#/RemoteDisconnectRequest'}

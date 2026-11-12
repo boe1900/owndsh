@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 React portal/state、Lucide 免费图标、GlideMenu 与可选工作区品牌/导航数据。
- * [OUTPUT]: 对外提供保留上游默认行为且可注入分组产品导航、工作区图标的 SidebarNav、SidebarNavGroup、SidebarNavItem、SidebarWorkspace 类型。
+ * [OUTPUT]: 对外提供保留上游默认行为且可注入分组产品导航、工作区图标和正文扩展插槽的 SidebarNav、SidebarNavGroup、SidebarNavItem、SidebarWorkspace 类型。
  * [POS]: components/primitives 的共享 Harness 侧栏；examples 使用上游默认值，产品壳只注入业务数据和动作。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -22,7 +22,7 @@ import GlideMenu from "@/components/primitives/GlideMenu";
 export type SidebarWorkspace = { key: string; name: string; monogram: string; icon?: ReactNode };
 export type SidebarNavItem = { key: string; label: string; icon: ReactNode; count?: string };
 export type SidebarNavGroup = { label: string; items: SidebarNavItem[] };
-export type SidebarWorkspaceAction = { label: string; icon: ReactNode; onClick?: () => void; separated?: boolean };
+export type SidebarWorkspaceAction = { label: string; icon: ReactNode; onClick?: () => void; separated?: boolean; disabled?: boolean };
 
 const DEFAULT_WORKSPACE: SidebarWorkspace = { key: "creamery", name: "Creamery Ops", monogram: "C" };
 
@@ -66,6 +66,7 @@ type SidebarNavProps = {
   historyLabel?: string | null;
   navItems?: SidebarNavItem[];
   navGroups?: SidebarNavGroup[];
+  renderAfterNav?: (state: { collapsed: boolean }) => ReactNode;
   onNewChat?: () => void;
   onPick?: (id: string, label: string, prompt?: string) => void;
   /** controlled primary-nav selection (e.g. "home" | "invite") */
@@ -168,7 +169,7 @@ function WorkspaceMenu({
   return createPortal(
     <div
       data-workspace-menu
-      className="fixed z-50 w-64 rounded-[14px] bg-surface p-1.5 shadow-overlay"
+      className="fixed z-50 max-h-[calc(100dvh-80px)] w-64 overflow-y-auto rounded-[14px] bg-surface p-1.5 shadow-overlay"
       style={{
         top: position.top,
         left: position.left,
@@ -196,11 +197,12 @@ function WorkspaceMenu({
             <button
               data-menu-row
               type="button"
+              disabled={item.disabled}
               onClick={() => {
                 item.onClick?.();
                 onClose();
               }}
-              className="relative z-10 flex h-9 w-full items-center gap-1.5 rounded-[8px] px-2 text-left"
+              className="relative z-10 flex h-9 w-full items-center gap-1.5 rounded-[8px] px-2 text-left disabled:cursor-default disabled:opacity-45"
             >
               <span className="flex size-5 shrink-0 items-center justify-center text-ink-2">{item.icon}</span>
               <span className="min-w-0 flex-1 truncate text-[13.5px] text-ink">{item.label}</span>
@@ -222,6 +224,7 @@ export default function SidebarNav({
   historyLabel = "Chats",
   navItems = DEFAULT_NAV_ITEMS,
   navGroups,
+  renderAfterNav,
   onNewChat,
   onPick,
   activeNav,
@@ -356,6 +359,7 @@ export default function SidebarNav({
           )}
         </div>
 
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
         <div className="flex flex-col">
           {primaryAction && (
             <GlideGroup>
@@ -407,7 +411,9 @@ export default function SidebarNav({
           )}
         </div>
 
-        {historyLabel ? <div className="mt-3 min-h-0 flex-1 overflow-y-auto">
+        {renderAfterNav?.({ collapsed: isCollapsed })}
+
+        {historyLabel ? <div className="mt-3">
           <div className="sidebar-copy relative mx-2 mb-1 h-8">
             <div
               aria-hidden={searchOpen}
@@ -496,7 +502,8 @@ export default function SidebarNav({
               <div className="sidebar-copy mx-2 px-2 py-2 text-[12.5px] text-ink-3">No chats found</div>
             )}
           </GlideGroup>
-        </div> : <div className="min-h-0 flex-1" />}
+        </div> : null}
+        </div>
 
         {footerLabel && <div className="sidebar-copy mx-2 mt-3 w-[208px] border-t border-line pt-3">
           <button

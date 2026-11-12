@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 接收已经通过 WebSocket Upgrade 的 Peer、一次性 ticket 和 lease 操作。
- * [OUTPUT]: 提供 Remote carrier 所需的 ticket 消费、当前 Peer/lease 重验与携带认证公钥的 presence/离线回调端口。
+ * [OUTPUT]: 提供 Remote carrier 的 ticket 消费、准确 link 撤销、当前 Peer/lease 重验与 presence/离线回调端口。
  * [POS]: remote transport 与 OwnDsh 身份/Redis 的 DIP 边界；生产 adapter 必须实现 Peer identity 校验。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -31,6 +31,8 @@ public interface RemoteGatewayAuthorizer {
 
     void releaseLease(String linkId, String leaseId);
 
+    void revokeLink(String linkId);
+
     void onPresence(String deviceId, String publicKey, String state, boolean remoteEnabled, String capabilities, long lastSeenAt);
 
     void onPeerClosed(String role, String peerId);
@@ -60,6 +62,8 @@ public interface RemoteGatewayAuthorizer {
             @Override
             public void releaseLease(String linkId, String leaseId) {
             }
+
+            @Override public void revokeLink(String linkId) {}
 
             @Override public void onPeerClosed(String role, String peerId) {}
 

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖原生 WorkspaceRegistry 的可信目录和公开 mux 协议。
- * [OUTPUT]: 提供逐端点准入、插件库存只读访问与原生物理路径的 realpath 约束，拒绝插件管理/凭据/本机设置及写文件旁路。
+ * [OUTPUT]: 提供逐端点准入、插件库存只读访问、Office 源文件与原生文件的 realpath 约束，隔离两种路径语义，拒绝管理及写文件旁路。
  * [POS]: remote Host 的业务权限边界；agent/terminal 仍以原生 DSH 的 OS 用户执行。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -19,6 +19,7 @@ export const DSH_UNARY_ENDPOINTS = new Set([
   'workspace/rename', 'workspace/insertBefore', 'workspace/insertSessionBefore',
   'workspace/archiveSession', 'workspace/unarchiveSession', 'workspace/pinSession', 'workspace/unpinSession',
   'workspaceFiles/read', 'workspaceFiles/readBytes', 'workspaceFiles/stat', 'workspaceFiles/list',
+  'officeToPdf/generation', 'officeToPdf/render',
   'terminal/environment', 'terminal/shells', 'terminal/list', 'terminal/create', 'terminal/rename', 'terminal/close',
   'commands/list', 'commands/execute', 'subagents/prompt', 'subagents/interruptByParent', 'job/kill',
   'agentPresets/list', 'agentPresets/read', 'agentPresets/select', 'permissionPresets/catalog', 'skills/list',
@@ -45,6 +46,10 @@ export async function authorizeFilePayload(catalog: WorkspaceCatalog, payload: u
   }
   await containPath(workspace.path, path)
 }
+export function authorizeOfficePayload(catalog: WorkspaceCatalog, payload: unknown): Promise<void> {
+  const { args } = filePayload.parse(payload)
+  return authorizeFilePayload(catalog, { args: { workspaceFileScopeId: args.workspaceFileScopeId, path: args.path } })
+}
 export async function authorizeMedia(catalog: WorkspaceCatalog, path: string): Promise<void> {
   if (!isAbsolute(path) || path.includes('\0')) throw new Error('ENT_REMOTE_DENIED')
   const target = await realpath(path)
@@ -63,10 +68,4 @@ function contained(root: string, target: string): boolean {
   const part = relative(root, target)
   return part === '' || !isAbsolute(part) && part !== '..' && !part.startsWith(`..${sep}`)
 }
-export function dshPath(path: string): URL {
-  const pathname = path.split('?')[0]!
-  if (!path.startsWith('/api/') || pathname.includes('\\') || path.includes('#') || /%2f|%5c|%00/i.test(pathname)) throw new Error('ENT_REMOTE_DENIED')
-  const url = new URL(path, 'http://remote.invalid')
-  if (url.origin !== 'http://remote.invalid' || url.pathname !== pathname) throw new Error('ENT_REMOTE_DENIED')
-  return url
-}
+export { dshPath } from '@owndsh/remote-core'

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 RemoteControlService 的数据库/Redis 编排和 Gateway 的 Peer 身份。
- * [OUTPUT]: 提供 RemoteGateway 所需的授权、ticket 消费、lease 与携带已认证公钥的 presence/离线实现。
+ * [OUTPUT]: 提供 RemoteGateway 所需的授权、ticket 消费、准确 link 撤销、lease 与 presence/离线实现。
  * [POS]: remote/application 与 Netty gateway 之间的唯一 adapter，保持 handler 无业务依赖。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -41,6 +41,7 @@ public final class RemoteControlGatewayAuthorizer implements RemoteGatewayAuthor
     @Override public Optional<Instant> acquireLease(String linkId, String leaseId, int ttlSeconds) { return service.acquireLease(linkId, leaseId, ttlSeconds); }
     @Override public boolean renewLease(String linkId, String leaseId, int ttlSeconds) { return service.renewLease(linkId, leaseId, ttlSeconds); }
     @Override public void releaseLease(String linkId, String leaseId) { service.releaseLease(linkId, leaseId); }
+    @Override public void revokeLink(String linkId) { service.revokeLink(linkId); }
     @Override public void onPresence(String deviceId, String publicKey, String state, boolean remoteEnabled, String capabilities, long lastSeenAt) { service.updatePresence(deviceId, publicKey, state, remoteEnabled, capabilities, lastSeenAt); }
     @Override public void onPeerClosed(String role, String peerId) { if ("host".equals(role)) service.removePresence(peerId); }
 }

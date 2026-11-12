@@ -1,11 +1,11 @@
 /**
- * [INPUT]: 依赖产品WorkspaceRuntime、真实密钥持久化和异步hello控制面。
+ * [INPUT]: 依赖产品WorkspaceRuntime、真实密钥持久化、冻结 Remote wire 身份和异步hello控制面。
  * [OUTPUT]: 验证默认关闭、显式开启、稳定公钥、关闭只影响Host、分页完整性及建链拒绝原因保留。
  * [POS]: remote opt-in与presence生命周期回归。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { it, expect, vi } from 'vitest'
-import { enterpriseProtocolSha256, type RemoteDevice } from '@owndsh/contracts'
+import { remoteProtocolSha256, type RemoteDevice } from '@owndsh/contracts'
 import { encodeKey, generateNoiseKeyPair } from '@owndsh/remote-core'
 import type { CredentialKey, CredentialProvider, CredentialRecord } from '@deepseek-ai/dsh-credentials'
 import type { EnterprisePlatformStatus } from '@owndsh/platform-client'
@@ -29,7 +29,7 @@ it('keeps Host off by default, preserves identity across explicit re-enable and 
       send(data) {
         const frame = JSON.parse(data)
         frames.push(frame)
-        if (frame.type === 'hello') queueMicrotask(() => receive?.({ data: JSON.stringify({ v: 1, type: 'hello.ack', id: remoteFrameId(), ts: Date.now(), payload: { peerRole: 'host', protocolSha256: enterpriseProtocolSha256 } }) }))
+        if (frame.type === 'hello') queueMicrotask(() => receive?.({ data: JSON.stringify({ v: 1, type: 'hello.ack', id: remoteFrameId(), ts: Date.now(), payload: { peerRole: 'host', protocolSha256: remoteProtocolSha256 } }) }))
       },
     }
     sockets.push(socket)
@@ -114,7 +114,7 @@ it.each(['error', 'connect.reject'])('preserves the busy reason from a %s contro
       send(data) {
         const frame = JSON.parse(data)
         const payload = frame.type === 'hello'
-          ? { peerRole: 'controller', protocolSha256: enterpriseProtocolSha256 }
+          ? { peerRole: 'controller', protocolSha256: remoteProtocolSha256 }
           : type === 'error' ? { code: 'ENT_REMOTE_BUSY', message: 'private server diagnostic' } : { linkId, code: 'ENT_REMOTE_BUSY' }
         if (frame.type === 'hello' || frame.type === 'connect.request') queueMicrotask(() => receive?.({ data: JSON.stringify({
           v: 1, type: frame.type === 'hello' ? 'hello.ack' : type, id: remoteFrameId(), ts: Date.now(), payload,

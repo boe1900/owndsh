@@ -1,12 +1,12 @@
 /**
- * [INPUT]: 依赖真实 Noise/link/connection 实现和进程内认证控制帧路由。
+ * [INPUT]: 依赖真实 Noise/link/connection 实现、冻结 Remote wire 身份和进程内认证控制帧路由。
  * [OUTPUT]: 验证握手+租约前拒绝业务、完整加密HTTP/mux、撤权及过期关门、旧socket隔离。
  * [POS]: bundle/remote 的双端状态机测试；控制面路由夹具不替代密码实现。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { describe, it, expect, vi } from 'vitest'
 import { encodeKey, generateNoiseKeyPair, deferred } from '@owndsh/remote-core'
-import { enterpriseProtocolSha256, parseRemoteControlFrame, parseRemoteRelayFrame, type RemoteControlFrame } from '@owndsh/contracts'
+import { remoteProtocolSha256, parseRemoteControlFrame, parseRemoteRelayFrame, type RemoteControlFrame } from '@owndsh/contracts'
 import { SecureDshLink, remoteFrameId } from '../src/remote/secure-link.js'
 import { RemoteServerConnection, type RemoteSocketLike } from '../src/remote/server-connection.js'
 import type { DshCarrier } from '../src/remote/dsh-carrier.js'
@@ -21,7 +21,7 @@ class Socket implements RemoteSocketLike {
   message(value: unknown): void { this.callbacks.get('message')?.({ data: JSON.stringify(value) }) }
 }
 const ack = () => ({ v: 1, type: 'hello.ack', id: remoteFrameId(), ts: Date.now(), payload: {
-  peerRole: 'host', protocolSha256: enterpriseProtocolSha256, serverTime: Date.now(),
+  peerRole: 'host', protocolSha256: remoteProtocolSha256, serverTime: Date.now(),
 } })
 
 async function linked(carrier: DshCarrier, ttl = 60_000) {
