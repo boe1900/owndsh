@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 deploy Compose/Nginx/脚本、单一 application.yml、Docker Compose v2 与测试环境变量。
- * [OUTPUT]: 验证内部数据服务加 HTTP Console/Server 拓扑、无外部 SQL 挂载与应用日志卷、GHCR/ACR 双仓库镜像和 GitHub 插件制品发布、默认免签名密钥与可选 key 归档、环境参数、幂等 bootstrap、API/SPA 路由与运维边界。
+ * [OUTPUT]: 验证内部数据服务加 HTTP Console/Server 拓扑、原生平台静态构建与目标平台运行镜像、无外部 SQL 挂载与应用日志卷、GHCR/ACR 双仓库镜像和 GitHub 插件制品发布、默认免签名密钥与可选 key 归档、环境参数、幂等 bootstrap、API/SPA 路由与运维边界。
  * [POS]: T21/P2-08 部署与本地人工验收静态门禁，先于昂贵镜像构建发现配置漂移。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -377,7 +377,7 @@ test('Docker build contexts lock every build and runtime base by digest', () => 
     const from = dockerfile.split('\n').filter(line => line.startsWith('FROM '))
     assert.ok(from.length >= 2)
     for (const line of from) {
-      assert.match(line, /^FROM \$\{OWNDSH_(?:MAVEN|JRE|NODE|NGINX)_IMAGE\}(?:\s+AS\s+\w+)?$/)
+      assert.match(line, /^FROM (?:--platform=\$BUILDPLATFORM )?\$\{OWNDSH_(?:MAVEN|JRE|NODE|NGINX)_IMAGE\}(?:\s+AS\s+\w+)?$/)
     }
   }
   assert.match(
@@ -385,6 +385,10 @@ test('Docker build contexts lock every build and runtime base by digest', () => 
     /eclipse-temurin:21\.0\.8_9-jre-jammy@sha256:[a-f0-9]{64}/
   )
   const console = read('deploy/compose/Dockerfile.console')
+  assert.deepEqual(console.split('\n').filter(line => line.startsWith('FROM ')), [
+    'FROM --platform=$BUILDPLATFORM ${OWNDSH_NODE_IMAGE} AS build',
+    'FROM ${OWNDSH_NGINX_IMAGE}',
+  ])
   assert.match(console, /WORKDIR \/workspace\/console/)
   assert.match(console, /pnpm@11\.24\.0/)
   assert.match(console, /COPY contracts\/ \/workspace\/contracts\//)

@@ -1,12 +1,12 @@
-# [INPUT]: 依赖 console pnpm 锁、完整 OpenAPI 真源，以及默认 registry 或受验本地 RepoDigest 提供的固定 Node/Nginx 镜像。
-# [OUTPUT]: 构建内含管控台和原生工作区静态资源的非 root Nginx 镜像，语法校验后清除 root 创建的 pid 文件。
+# [INPUT]: 依赖 console pnpm 锁、完整 OpenAPI 真源、BuildKit 构建平台，以及固定 Node/Nginx 多架构镜像。
+# [OUTPUT]: 在构建机原生平台生成静态资源，发布目标平台的非 root Nginx 镜像，语法校验后清除 root 创建的 pid 文件。
 # [POS]: P2-08 唯一对外制品定义，浏览器和 Server 同域且不携带任何生产 secret。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 ARG OWNDSH_BASE_IMAGE_REGISTRY=docker.io/library
 ARG OWNDSH_NODE_IMAGE=${OWNDSH_BASE_IMAGE_REGISTRY}/node:24.6.0-alpine3.22@sha256:51dbfc749ec3018c7d4bf8b9ee65299ff9a908e38918ce163b0acfcd5dd931d9
 ARG OWNDSH_NGINX_IMAGE=${OWNDSH_BASE_IMAGE_REGISTRY}/nginx:1.28.0-alpine3.21@sha256:30f1c0d78e0ad60901648be663a710bdadf19e4c10ac6782c235200619158284
-FROM ${OWNDSH_NODE_IMAGE} AS build
+FROM --platform=$BUILDPLATFORM ${OWNDSH_NODE_IMAGE} AS build
 WORKDIR /workspace/console
 RUN npm install --global pnpm@11.24.0
 COPY console/package.json console/pnpm-lock.yaml console/pnpm-workspace.yaml ./

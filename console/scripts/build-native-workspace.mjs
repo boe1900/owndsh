@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 native-runtime 锁定的官方 rc.5 CLI、Ego 0.9.14、独立临时 profile 和官方 Web assembly HTTP 接口。
- * [OUTPUT]: 生成不含凭据的原生工作区静态资源、精确 URL 映射及构建元数据，HTML 沿用原生配置与 iframe 隔离，成功后清除过期资源。
+ * [OUTPUT]: 生成不含凭据的原生工作区静态资源、精确 URL 映射及构建元数据；释放构建 Host 并保留退出码或信号错误。
  * [POS]: Console 的原生 UI 构建边界；插件代码由固定制品供应，工作区 HTML 文档由原生隔离预览承载。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -108,9 +108,9 @@ try {
     child.stdout.on('data', consume)
     child.stderr.on('data', consume)
     child.once('error', error => { clearTimeout(timer); reject(error) })
-    child.once('exit', code => {
+    child.once('exit', (code, signal) => {
       clearTimeout(timer)
-      reject(new Error(`原生 UI 构建 Host 退出 ${code}: ${text.replace(/([?&]token=)[^\s"<>]+/g, '$1[redacted]').slice(-6000)}`))
+      reject(new Error(`原生 UI 构建 Host 退出 ${code ?? signal}: ${text.replace(/([?&]token=)[^\s"<>]+/g, '$1[redacted]').slice(-6000)}`))
     })
   })
   origin = new URL(launch).origin
@@ -187,10 +187,11 @@ try {
   process.stdout.write(`原生 DSH ${version}: ${graph.entries.length} 个客户端模块，${Object.keys(resources).length} 个固定资源。\n`)
 } finally {
   cookie = ''
-  if (child && child.exitCode === null) {
+  if (child && child.exitCode === null && child.signalCode === null) {
+    const exited = new Promise(resolveExit => child.once('exit', resolveExit))
     child.kill('SIGTERM')
     const killTimer = setTimeout(() => child.kill('SIGKILL'), 5000)
-    await new Promise(resolveExit => child.once('exit', resolveExit))
+    await exited
     clearTimeout(killTimer)
   }
   await rm(temp, { recursive: true, force: true })
