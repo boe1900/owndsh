@@ -12,6 +12,7 @@ vite.config.ts: Console/workspace 双 document、TanStack 路由、React/Tailwin
 index.html: 控制台与认证页唯一 HTML 入口，禁止 Referrer 泄漏授权参数，在 React 挂载前恢复主题。
 README.md: 本地安装、检查、启动、Beautiful UI 来源与 OpenAPI 生成物边界。
 BEAUTIFUL_UI_LICENSE: 直接派生的 Beautiful UI Harness/foundation/primitive 源码所附 MIT 许可证。
+EGO_LICENSE: 固定 Ego 客户端的独立 MIT 许可，随原生工作区静态资源发布。
 DSH_LICENSE: 固定版本原生工作区资源的 DeepSeek MIT 许可证，随构建产物发布。
 workspace.html: 原生远程工作区独立 document，隔离 Console 与 DSH 的渲染树，先鉴权建链再装配冻结 UI。
 native-runtime/: 构建期官方 CLI 与独立锁，不进入生产运行时，局部地图见 native-runtime/CLAUDE.md。

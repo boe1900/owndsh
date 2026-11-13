@@ -1,0 +1,228 @@
+{
+  "at": "2026-11-13T06:00:22.306Z",
+  "origin": "http://home-nas:18080",
+  "deviceId": "2120400737015017474",
+  "harnessVersion": "0.2.1-rc.5",
+  "egoVersion": "0.9.14",
+  "checks": [
+    "formal-catalog-fixed-ego-cdp",
+    "eight-policy-denials-isolated-from-link",
+    "native-inventory-and-existing-session",
+    "native-workspace-file-read",
+    "native-terminal-on-mac-after-denials",
+    "encrypted-sse-live-cdp-frame",
+    "idempotent-watch-stop",
+    "link-close-releases-active-watcher"
+  ],
+  "scope": "Formal NAS-to-Mac API and Microsoft Edge UI acceptance; old NAS Host compatibility; services retained; changes not committed or pushed.",
+  "deployment": {
+    "at": "2026-11-13T06:04:10.931Z",
+    "console": {
+      "origin": "http://home-nas:18080",
+      "image": "owndsh-console:ego-integration-20261113-r3",
+      "health": "healthy",
+      "imageId": "sha256:be077347279e2e8fd623947a68ee3b59186838d01e269c07bcd3646c83868404",
+      "workspacePath": "/assets/workspace-BanQmO1e.js",
+      "workspaceSha256": "b8d9e3f3cd24e1f104d0244a3fabf17037c35a297a3859afac427282824fe219",
+      "assemblySha256": "2906855f18e7800761bb1ab5fcc352e41212678cd55747d3445fb6a249e2fbd7"
+    },
+    "hostBundleSha256": "ca46f927a44e9f593b4fd8f21ee5658e080d8d1e78b9581f4b9eae06bd1ac4f7"
+  },
+  "oldHost": {
+    "at": "2026-11-13T03:28:43.758Z",
+    "deviceId": "2120400757772627970",
+    "capability": {
+      "state": "unavailable",
+      "reason": "host-unsupported"
+    },
+    "checks": [
+      "old-host-capability-graceful-fallback",
+      "old-host-native-inventory-and-session-after-catalog-denial"
+    ],
+    "edge": {
+      "state": "passed",
+      "checks": [
+        "no-ego-entry-on-unsupported-host",
+        "existing-session-readable",
+        "host-only-file-readable",
+        "interactive-terminal-linux-marker-and-exit-zero"
+      ],
+      "terminalMarker": "EGO_OLD_HOST_UI_PASS"
+    }
+  },
+  "regression": {
+    "console": {
+      "files": 7,
+      "tests": 27,
+      "state": "passed",
+      "log": ".tmp/ego-remote-integration/console-tests.log"
+    },
+    "plugin": {
+      "tests": 26,
+      "state": "passed",
+      "record": "docs/ego-remote-integration.md"
+    },
+    "builds": {
+      "console": {
+        "state": "passed",
+        "log": ".tmp/ego-remote-integration/console-build.log"
+      },
+      "plugin": {
+        "state": "passed",
+        "log": ".tmp/ego-remote-integration/plugin-build.log"
+      }
+    },
+    "independentReview": {
+      "state": "completed",
+      "p0": 0,
+      "p1": 0,
+      "p2Fixed": 2,
+      "record": "docs/ego-remote-integration.md"
+    }
+  },
+  "edge": {
+    "state": "passed",
+    "browser": "Microsoft Edge",
+    "origin": "http://home-nas:18080",
+    "targetHost": "Mac",
+    "model": "Atria-Dawn",
+    "checks": [
+      {
+        "name": "model-opens-mac-loopback-page",
+        "result": "FORMAL_MAC_EGO_20261113"
+      },
+      {
+        "name": "manual-click",
+        "result": "FORMAL_CLICK_PASS_1"
+      },
+      {
+        "name": "paste-and-backspace",
+        "input": "Remote-English-中文",
+        "result": "FORMAL_INPUT=Remote-English-中",
+        "keyEvents": [
+          "keydown Backspace",
+          "keyup Backspace"
+        ]
+      },
+      {
+        "name": "web-link-navigation",
+        "result": "MAC_EGO_NAV_PASS_20261113"
+      },
+      {
+        "name": "panel-refresh",
+        "result": "target Mac HTTP request observed at 13:56:20 Asia/Shanghai"
+      },
+      {
+        "name": "panel-url-navigation",
+        "result": "returned to formal.html"
+      },
+      {
+        "name": "size-presets",
+        "result": "1:1 changed picture ratio; 16:9 restored wide picture"
+      },
+      {
+        "name": "maximize",
+        "result": "continued receiving CDP frames; physical screen size not asserted"
+      },
+      {
+        "name": "history",
+        "result": "test page listed; returned to live view"
+      },
+      {
+        "name": "close-and-reopen-target",
+        "result": "zero pages and empty state; model reopened page and same workspace resumed streaming without full-page refresh"
+      },
+      {
+        "name": "file-browser-switch",
+        "result": "file listing usable; watchers 0 then 1"
+      },
+      {
+        "name": "explicit-disconnect-reconnect",
+        "result": "terminal disconnect state and watchers 0; explicit reconnect resumed session and CDP"
+      },
+      {
+        "name": "close-workspace-tab",
+        "result": "only test tab closed; Console and other tabs preserved; watchers 0 and both links null"
+      }
+    ],
+    "boundaries": [
+      "System IME composition input not tested; Chinese paste and Backspace tested.",
+      "Mac CDP target tested; Linux and Windows Ego targets not tested.",
+      "No universal website tunnel or arbitrary browser-use plugin support inferred."
+    ],
+    "recoveredInitialState": {
+      "observation": "Host reported old browser disconnected and no active pages.",
+      "action": "Model reopened test page and workspace was explicitly refreshed.",
+      "result": "Subsequent interactions and reconnects passed.",
+      "attribution": "No newly proven root cause or additional code fix claimed."
+    },
+    "screenshots": [
+      {
+        "path": ".tmp/ego-remote-integration/edge-final.png",
+        "bytes": 599035,
+        "sha256": "ec8c16a6c48692ea5d51baec2cd2f6b70af00c93cabe07640b754451a6e422c2"
+      },
+      {
+        "path": ".tmp/ego-remote-integration/edge-formal-input.png",
+        "bytes": 611851,
+        "sha256": "4a5a8a020742abf0b94f8fbf2d0cb101bcaab67fc26a8fb9f2aba1bb5135b23e"
+      },
+      {
+        "path": ".tmp/ego-remote-integration/edge-navigation.png",
+        "bytes": 580135,
+        "sha256": "e9c1f9a2f4e07bc84d22f74e3a5409bec86f68d5cec23927bebc66b28598b677"
+      },
+      {
+        "path": ".tmp/ego-remote-integration/edge-reconnected.png",
+        "bytes": 594932,
+        "sha256": "fe137b3b04f95dc3db75d22865c166d99794c85364c4d251aacd9339ba4a652e"
+      },
+      {
+        "path": ".tmp/ego-remote-integration/edge-old-host.png",
+        "bytes": 424281,
+        "sha256": "9c68da955596df3192a110abf994cbb7b6256cf3a129b625c1af312bc8bbab52"
+      },
+      {
+        "path": ".tmp/ego-remote-integration/edge-old-host-terminal.png",
+        "bytes": 432241,
+        "sha256": "f167d14e47ef6a270c9ab4946dc859f6030ebffa711afea4b21dfe7a49acb341"
+      },
+      {
+        "path": ".tmp/ego-remote-integration/edge-empty.png",
+        "bytes": 505774,
+        "sha256": "58f28316e58419d6960c46a4559edf7c1ff84d66d9d3e41c35c6f18e5e1c1398"
+      }
+    ]
+  },
+  "runtimeFixes": [
+    {
+      "issue": "ReferenceError: chromeLogin is not defined",
+      "fix": "Removed render expression left after login-feature trimming.",
+      "verification": "Actual registered Ego component and real React renderer regression; formal Edge UI passed."
+    },
+    {
+      "issue": "Edge disk cache returned old assembly.json",
+      "fix": "Request assembly manifest with cache: no-store.",
+      "verification": "r3 artifacts matched local build and same Edge loaded repaired panel."
+    }
+  ],
+  "finalResources": {
+    "at": "2026-11-13T06:15:22.782Z",
+    "watchers": 0,
+    "state": "idle",
+    "backend": "cdp",
+    "connections": [
+      {
+        "deviceId": "2120400737015017474",
+        "status": 200,
+        "linkId": null
+      },
+      {
+        "deviceId": "2120400757772627970",
+        "status": 200,
+        "linkId": null
+      }
+    ]
+  },
+  "completedAt": "2026-11-13T06:16:26.028Z"
+}

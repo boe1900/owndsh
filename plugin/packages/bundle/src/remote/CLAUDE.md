@@ -7,7 +7,8 @@
 workspace-runtime.ts: 产品生命周期入口，默认关闭 Host；显式开关只影响入站访问，Controller 仍可连接本人设备。本人目录按游标读取最多 500 台，拒绝循环或截断；官方 credentials 按平台、用户、installation、device 保存 Host 密钥，presence 退避重连，账号失效销毁全部 link；每个 Host 遵循 Server 单 link 独占约束，Controller 保留建链拒绝错误码供本机边界投影。
 secure-link.ts: 兼容导出 remote-core 的共享实现；Server 绑定公钥的两消息 Noise IK 与租约状态机；Host 和 Controller 各自执行单调截止时间，只有 Relay，失联先撤销准入再清理 carrier。每条 link 只服务一个官方 API Peer。
 carrier-tunnel.ts: 兼容导出 remote-core 的共享实现；HTTP 请求/响应字节流与原生 WS 文本流的双端复用器，最多 32 通道，逐流字节信用、取消与有界文本重组；取消后丢弃在途尾帧，避免中断其他通道；路径和关联 ID 都进入密文。
-dsh-carrier.ts: 官方 /connect interactions=answer 的独立 owner Peer 接缝；原生 cookie 只留远端内存，HTTP 与 mux 共用该 Peer；慢消费仍持续读取 WS 心跳，文本队列累计超过 4 MiB 关闭；文件与 Office 准入解析完整 RPC envelope 并绑定 URL 方法，普通端点拒绝只结束对应流，取消立即回收并丢弃在途尾帧，关闭 socket 释放 Peer；精确校验三个官方包的 rc.5 版本。
+dsh-carrier.ts: 官方 /connect interactions=answer 的独立 owner Peer 接缝，额外承接可选 Ego catalog 与封闭路由；原生 cookie 只留远端内存，HTTP 与 mux 共用该 Peer；慢消费仍持续读取 WS 心跳，文本队列累计超过 4 MiB 关闭；文件与 Office 准入解析完整 RPC envelope 并绑定 URL 方法，普通端点拒绝只结束对应流，取消立即回收并丢弃在途尾帧，关闭 socket 释放 Peer；精确校验三个官方包的 rc.5 版本。
+ego-policy.ts: 可选 Ego 的三方版本/Loader 准入、每 link watcher 命名空间及8项上限，关闭等待已收 POST 后回收输入/watchers；活动流每2秒复核插件状态，禁用或卸载只中止 Ego 能力。
 dsh-policy.ts: 精确原生 workspace/session/job/terminal 与 officeToPdf generation/render allowlist；Office 转换只按会话和源路径执行 WorkspaceRegistry realpath 约束，不借用普通文件的 baseFile 解析语义；内置插件目录经 pluginInventory/list 只读访问目标 Host，不开放 credentials、settings、插件管理、桌面 opener、上传或删除 API。Agent 与终端保留原生 OS 用户权限。
 server-connection.ts: 双角色 WSS 状态机；等待异步 hello.ack 后才 READY，代次隔离旧 socket 回调和失败 send，撤销状态不被 close/error 覆盖。
 node-socket-factory.ts: Node Host/Controller 的 Bearer Upgrade factory，声明平台 HTTP(S) Origin，限制帧大小并等待发送回调，Token 只进入请求 header。

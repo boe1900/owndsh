@@ -3,6 +3,13 @@
 
 成员清单
 
+ego-remote-integration.todo.md: Ego 正式接入的可选能力、跨端契约、独占实现和双机验收清单。
+ego-remote-integration-e2e.mjs: 复用真实 BrowserConnection 的 NAS→Mac 能力、策略拒绝、原生业务、CDP SSE 及旧 NAS Host 降级验收，读取临时凭据并释放自己的连接。
+ego-remote-integration-evidence.json: 正式 NAS→Mac API 与 Edge 交互、旧 Host 兼容、部署 hash 和最终资源释放证据，不包含凭据。
+
+ego-remote-proof.todo.md: 基线 push 后 Ego 原生面板的隔离验证清单，比较承载结构并记录双机交互和生命周期边界。
+ego-remote-proof-evidence.json: 固定 Ego 0.9.14 经 NAS Relay 的 SSE、接口拒绝、Edge 点击输入与导航、顺序输入修正、最终制品哈希和 watcher 生命周期证据，不包含凭据。
+
 remote-disconnect.todo.md: 原生工作区主动断开和本人设备条件接管的设计、实施、竞态验证与环境保留清单。
 remote-disconnect.tsv: 精确 link 断开、旧帧处理与浏览器验收的无密决策记录。
 remote-disconnect-evidence.json: 断开、接管、真实 Atria-Dawn、审批、预览与交互终端的本机验收结果，记录用量未知边界与测试文件哈希，不保存凭据。

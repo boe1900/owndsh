@@ -9,12 +9,16 @@ workspace-identity.ts: 原生 #root 兄弟身份条，固定设备名称、明�
 workspace-api.ts: 复用生成的 Cookie operation 和 contracts schema，读取本人设备连接快照、以 expectedLinkId 准确断开并签发绑定当前登录和临时控制密钥的 ticket。
 browser-link.ts: 单 document 的 Cookie WebSocket 所有者，经共享 Noise IK、lease ack 和 carrier ready 才提供远端 link；页面退出关闭，准确 link 的接管原因保留，不自动重发 mutation。
 browser-link.test.ts: 使用真实双端 Noise/lease 和仅路由控制帧的浏览器服务器夹具，验证加密 HTTP、connect.reject/error 两条 busy 原因、准确 link 接管原因保留与页面退出释放。
-native-assembly.ts: 校验精确 rc.5 静态 assembly，仅映射构建时固定资源并顺序执行官方 HTML injections/shell，拒绝外部代码来源。
+native-assembly.ts: 每次从服务端读取并校验精确 rc.5 静态 assembly，防止升级沿用旧清单；仅映射构建时固定资源并顺序执行官方 HTML injections/shell，拒绝外部代码来源。
 native-transport.ts: 将官方 fetch/文本 WebSocket/loadBundle 接口接到唯一加密 link；少数装配 metadata 重绑当前 rpcId，业务路径永不回落本机。
 native-transport.test.ts: 验证 metadata 关联、mutation 只转发一次、跨 origin 和非 API 路径拒绝。
 native-image.ts: Markdown 内嵌图片与文件链接悬停图经加密 link 读取为组件拥有的 Blob URL，取消或卸载时释放，禁止直打 Console 本机。
 native-image.test.ts: 验证媒体通过唯一 link、Blob 释放、拒绝后不回落与取消时不发送。
-workspace-entry.ts: 独立 document 组合根，固定账号/设备、隔离 Storage、建链后启动官方 UI；集中发布 connecting/connected/disconnected 反馈，官方 boot 成功才标记已连接；主动断开保留终态，退出或原生启动失败释放 link，BFCache 恢复重新建链。
+ego-network.ts: 按 Host catalog 可选挂载固定 Ego UI；局部 fetch/EventSource 只走密文路由，旧 Host 不阻断普通工作区，捕获模式或操作失败给出可见提示。
+ego-network.test.ts: 验证旧 Host 降级、断线不降级、网络隔离、受限接口拒绝及非 CDP/关闭回传提示。
+ego-input.ts: 每 link 有界 FIFO，连续移动合并不跨按键/点击，捕获失效或输入失败时停止并释放已按输入，断线不重放。
+ego-input.test.ts: 验证点击顺序、移动合并边界、队列满、HTTP 故障释放与断线丢弃。
+workspace-entry.ts: 独立 document 组合根，固定账号/设备、隔离 Storage、建链后按可选 Ego 能力启动官方 UI；集中发布 connecting/connected/disconnected 反馈，官方 boot 成功才标记已连接；主动断开保留终态，退出或原生启动失败释放 link，BFCache 恢复重新建链。
 workspace-boundary.ts: 失联时遮罩与 root.inert 阻断原生操作；占用时先获取准确 link 快照，经原生 dialog 确认后断开，独立有界请求不复用已中止的连接 signal，陈旧确认要求重新操作。
 workspace-controls.test.ts: 验证手动断开按钮、原生 root.inert、确认取消、重复提交与陈旧快照重新确认。
 workspace-storage.ts: 仅在当前 document 隔离账号/设备 localStorage、sessionStorage 与 storage event，不修改 Storage.prototype。

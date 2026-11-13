@@ -4,6 +4,7 @@
   "type": "module",
   "packageManager": "pnpm@11.24.0",
   "dependencies": {
-    "@deepseek-ai/dsh": "0.2.1-rc.5"
+    "@deepseek-ai/dsh": "0.2.1-rc.5",
+    "dsh-ego-browser": "0.9.14"
   }
 }

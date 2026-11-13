@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖官方 connection /connect、WebServer 固定回环 origin、WorkspaceRegistry 与原生 WS mux parser。
- * [OUTPUT]: 为授权 link 创建独立 owner API Peer，提供文件及 Office RPC 的方法绑定与范围准入、受限 HTTP/WS carrier 和有界心跳队列，cookie 留在 Host。
+ * [OUTPUT]: 为授权 link 创建独立 owner API Peer，提供可选 Ego、文件及 Office RPC 准入、HTTP/WS carrier，cookie 留在 Host。
  * [POS]: remote Host 唯一原生执行接缝；不复制 Gateway 编解码，不向 Controller 暴露原生凭据。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -11,9 +11,11 @@ import { parseRemoteStreamClientMessage, parseRemoteStreamServerMessage } from '
 import { MAX_MUX_MESSAGE_BYTES, safeHeaders, type DshCarrier, type RemoteDshMux } from '@owndsh/remote-core'
 export { safeHeaders } from '@owndsh/remote-core'
 import { z } from 'zod'
+import { createEgoPolicy, type EgoContext } from './ego-policy.js'
+import { EGO_PREFIX, EGO_BODY_LIMIT } from '@owndsh/contracts'
 import { authorizeFilePayload, authorizeOfficePayload, authorizeMedia, dshPath, DSH_STREAM_ENDPOINTS, DSH_UNARY_ENDPOINTS, type WorkspaceCatalog } from './dsh-policy.js'
 
-export interface DshCarrierContext {
+export interface DshCarrierContext extends EgoContext {
   readonly connection: { authenticatedUrl(baseUrl: string): string }
   readonly webServer: { getOrigin(): string }
   readonly workspaceRegistry: WorkspaceCatalog
@@ -39,15 +41,30 @@ export async function openDshCarrier(ctx: DshCarrierContext, signal: AbortSignal
   const lifetime = new AbortController()
   const combined = AbortSignal.any([signal, lifetime.signal])
   const mux = await nativeMux(new URL('/api/remote.mux', origin), cookie, ctx.workspaceRegistry, combined, () => lifetime.abort())
+  let cleanupCookie = cookie
+  const ego = createEgoPolicy(ctx, async (path, method, body, requestSignal) => {
+    const response = await fetch(new URL(path, origin), { method, headers: { cookie: cleanupCookie, ...(body ? { 'content-type': 'application/json' } : {}) },
+      ...(body ? { body: Buffer.from(body) } : {}), signal: requestSignal, redirect: 'manual' })
+    if (response.status >= 300 && response.status < 400) { await response.body?.cancel(); throw new Error('ENT_REMOTE_DENIED') }
+    return new Response(response.body, { status: response.status, headers: safeHeaders(response.headers) })
+  })
+  const disposeEgo = () => { void ego.close().finally(() => { cleanupCookie = '' }) }
   let claimed = false
-  const close = () => { lifetime.abort(); cookie = ''; void mux.close() }
+  const close = () => { disposeEgo(); lifetime.abort(); cookie = ''; void mux.close() }
   signal.addEventListener('abort', close, { once: true })
-  lifetime.signal.addEventListener('abort', () => { cookie = ''; void mux.close() }, { once: true })
+  lifetime.signal.addEventListener('abort', () => { disposeEgo(); cookie = ''; void mux.close() }, { once: true })
   return {
     signal: lifetime.signal,
     async fetch(path, init) {
       combined.throwIfAborted()
       const target = dshPath(path)
+      if (target.pathname === '/api/remoteClient/catalog') {
+        if (init.method !== 'GET' || target.search || init.body) throw new Error('ENT_REMOTE_DENIED')
+        return Response.json({ ego: await ego.available() })
+      }
+      if (target.pathname.startsWith(EGO_PREFIX)) {
+        return ego.fetch(path, init.method, init.body ? await boundedBody(init.body, EGO_BODY_LIMIT) : undefined, init.signal)
+      }
       if (target.pathname === '/api/file') {
         if (!['GET', 'HEAD'].includes(init.method) || [...target.searchParams.keys()].some(key => key !== 'path')) throw new Error('ENT_REMOTE_DENIED')
         await authorizeMedia(ctx.workspaceRegistry, target.searchParams.get('path') ?? '')

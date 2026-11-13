@@ -48,6 +48,6 @@ Resolve the driver skill through [poteto-mode's Non-negotiables](../SKILL.md#non
 - [x] 插件 TypeScript、全部包构建、213 项包测试和 4 项 workspace 测试通过。
 - [x] Java 21 Remote 与 Cookie 登录测试通过，集成测试使用 Colima 中真实 PostgreSQL 和 Redis。
 - [x] 敏感信息及 diff 空白扫描通过，临时凭据、运行日志和本机制品不进入提交。
-- [ ] 提交基线并核对 origin/main，Ego 代码不进入此提交。
+- [x] 提交 a2b435474 并核对 origin/main 为 a2b435474ead948dbd812451681e71e5338a0387，Ego 代码未进入此提交。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖构建时冻结的官方 HTML、资源映射与精确 rc.5 metadata。
- * [OUTPUT]: 提供受版本校验的 assembly、逐项脚本装配与 bundle URL 映射。
+ * [OUTPUT]: 提供每次从服务端读取并校验版本的 assembly、逐项脚本装配与 bundle URL 映射。
  * [POS]: workspace 的静态 UI 边界；代码只来自随 Console 发布的固定制品。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -11,7 +11,7 @@ const manifest = z.object({ harnessVersion: z.literal('0.2.1-rc.5'), html: z.str
 export type NativeAssembly = z.infer<typeof manifest>;
 
 export async function loadNativeAssembly(signal: AbortSignal): Promise<NativeAssembly> {
-  const response = await fetch('/native-workspace/assembly.json', { signal, credentials: 'same-origin' });
+  const response = await fetch('/native-workspace/assembly.json', { signal, credentials: 'same-origin', cache: 'no-store' });
   if (!response.ok) throw new Error('ENT_REMOTE_UI_UNAVAILABLE');
   const assembly = manifest.parse(await response.json());
   const metadataPaths = new Set(['/api/settings/describe', '/api/dynamicCordisRunner/syncInspectManifest', '/api/dynamicCordisRunner/inventory']);

@@ -19,6 +19,7 @@ src/mcp-oauth.ts: 官方 MCP SDK v2 `OAuthClientProvider` 的宿主接缝；以�
 src/remote/: 本人设备的安全 DSH workspace 链路，显式 Host 开关、持久身份、完整 Noise IK、租约、字节信用和原生 HTTP/WS carrier；API Peer cookie 留在远端 Host，不复制 Gateway codec。
 tests/remote-carrier.spec.ts: 真实 HTTP 大体积二进制流、mux Unicode 跨片重组、信用背压、取消与在途响应/错误交错及 realpath 路径约束。
 tests/remote-native-carrier.spec.ts: 真实 HTTP/WS 的原生 API cookie 隔离、独立 Peer 共用、慢消费时 Ping/Pong 与有序续读、4 MiB 累计队列超限关闭、远端插件目录只读与管理拒绝、端点准入、连续取消超过流上限及迟到帧丢弃、关闭释放。
+tests/remote-ego.spec.ts: 可选 Ego 安装/版本/禁用门禁、watcher 隔离与限额、幂等 stop、start/close 竞态、按键释放及在途流撤权。
 tests/remote-network-boundary.spec.ts: 真实 Upgrade 的平台 Origin/Bearer 隔离，以及文件与 Office RPC 方法绑定、工作区范围、软链越界和 baseFile 路径伪装的准入前拒绝。
 tests/remote-secure-link.spec.ts: 双端真实 Noise 与冻结 Remote wire 身份的进程内控制面路由，验证握手/租约门禁、密文传输、撤权、过期和旧 socket 隔离。
 tests/remote-key.spec.ts: 官方 credentials 契约下的 Host 静态密钥重启复用、owner 维度隔离与损坏记录拒绝。

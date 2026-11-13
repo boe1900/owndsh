@@ -260,3 +260,15 @@ HTTP 新增 GET `/enterprise/console/v1/remote/devices/{deviceId}/connection` �
 这次结果补充 9.3/9.4 中尚未验收的对应业务项，不扩展远端网站、附件、steer/queue、格式矩阵、Edge 后台冻结或跨机器验证范围。一次取消请求缺少最终 usage，按既有 CHARGED_MAX 策略扣额，不能宣称取消请求零消耗。操作、文件校验、用量与未覆盖项见 [真实模型验收记录](console-remote-real-model-verification.md) 和 `.audit/remote-disconnect-evidence.json`。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+
+## 10. Console 可选 Ego 浏览器接入边界
+
+原生工作区构建加入固定 `dsh-ego-browser@0.9.14` 客户端；目标 Host 必须另行安装、启用同版本 Ego。Console 从密文 `/api/remoteClient/catalog` 读取可选能力，旧 Host、未安装、禁用或版本不符均不挂载浏览器面板，会话、文件与终端沿用原有链路。客户端代码只来自 Console 固定制品，Ego 独立 MIT 许可随 `/native-workspace/EGO_LICENSE` 发布。
+
+面板复用 Ego 原生鼠标映射、键盘与 IME，开放 CDP 画面、页面/标签切换、点击、输入、导航、刷新、关闭标签和尺寸调整。登录态导入、Chrome 登录桥（包括具有启动副作用的 health）、插件设置、打开控制端真实页及弹出 Host 系统窗口均不装配。导航只允许 HTTP(S) 与 `about:blank`，不允许文件、脚本、data 或携带用户名密码的 URL。目标浏览器仍以远端 OS 用户权限运行，可访问该机器本来的 loopback 网页；这不是通用网站隧道。
+
+共享契约以精确路由 ID、方法、无查询与严格 JSON schema 裁决，POST 上限64KiB；不接受任意代理路径或请求头。每 link 最多8个私有 watcher；stop 幂等删除，link 关闭等待已接受的本机 POST 截止后回收 watcher 和按键，常规 start/close 交错由此按序清理。本机写请求10秒截止不等于上游副作用已取消，stop 是尽力清理；极端迟到 watcher 由 Ego 原生120秒租约和至多5秒清扫兜底，空闲捕获另有1.5秒宽限。活动 watcher/画面每2秒复核插件状态，禁用或卸载终止 Ego 流而不关闭普通工作区。
+
+输入每 link 保序，连续鼠标移动只在相同 target/buttons 的相邻段内合并，不跨点击或键盘事件。积压上限64项；HTTP/逻辑失败或队列满时停止后续输入，丢弃未发送操作并尽力释放按键/鼠标，显示重新连接提示。重连创建新适配器，不重放旧操作。非 CDP 捕获或关闭画面回传会显示明确原因并停止拉流。
+
+这项接入只覆盖 Console `/workspace.html`。插件端 remote view 仍使用其本机 UI assembly，不能据此推导同样支持。FFmpeg/MSE、音频、下载、DevTools、触屏以及 Linux/Windows Host 不在本轮支持证据中。2026-11-13 已在 NAS 正式 18080 制品完成到 Mac 的 Edge 实测，覆盖真实模型打开网页、点击、中英文粘贴及退格、导航、刷新、尺寸预设、历史、关闭网页、切栏、断开重连和 watcher 回收；旧 NAS Host 的会话、文件和终端不受可选能力影响。具体范围见 [正式接入与验收](ego-remote-integration.md)，不沿用原型 PASS 作为正式结果。

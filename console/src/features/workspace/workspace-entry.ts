@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 Cookie bootstrap、固定设备目录、共享加密 link 与冻结官方 UI assembly。
+ * [INPUT]: 依赖 Cookie bootstrap、固定设备目录、共享加密 link、可选 Ego 能力与冻结官方 UI assembly。
  * [OUTPUT]: 装配独立原生 DSH document，显式断开当前 link、确认接管本人设备，退出时释放连接。
  * [POS]: workspace 的组合根；Console React 与原生 React 不共享渲染树或 Storage。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -13,6 +13,7 @@ import { WorkspaceBoundary } from './workspace-boundary';
 import { WorkspaceIdentity } from './workspace-identity';
 import { installWorkspaceStorage } from './workspace-storage';
 import { loadNativeImage } from './native-image';
+import { egoCapability, installEgoNetwork } from './ego-network';
 import './workspace.css';
 
 const lifetime = new AbortController();
@@ -60,6 +61,7 @@ async function run(): Promise<void> {
   link.signal.addEventListener('abort', () => { if (!lifetime.signal.aborted) feedback({ kind: 'disconnected', code: 'ENT_REMOTE_CLOSED' }); }, { once: true });
   lifetime.signal.throwIfAborted();
   feedback({ kind: 'connecting', message: '正在打开原生工作区…' });
+  installEgoNetwork(link, await egoCapability(link));
   Object.defineProperty(window, '__DSH_TRANSPORT__', { configurable: true, value: createNativeTransport(link, assembly) });
   Object.defineProperty(window, '__DSH_FILE_UPLOAD__', { configurable: true, value: { fetch: () => Promise.reject(new Error('此工作区暂不支持上传附件')) } });
   Object.defineProperty(window, '__OWNDSH_NATIVE_IMAGE__', { configurable: true, value: (url: string, signal: AbortSignal) => loadNativeImage(link, url, signal) });

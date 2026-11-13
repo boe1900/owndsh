@@ -4,6 +4,10 @@
 
 成员清单
 
+ego-remote-integration.md: Console 远程 Agent 浏览器的可选能力、固定 Ego 客户端、加密路由、输入与 watcher 契约，以及正式双机验收边界。
+
+ego-remote-proof-20261112.md: 固定 Ego 原面板的隔离验证结构、加密 SSE、Edge 实际点击输入和导航、顺序输入修正与 watcher 生命周期结果，记录 NAS 18081 环境及正式接入边界。
+
 console-workspace-product-research.md: 管控台侧栏本人设备、新标签远程 DSH 与身份条的现行契约，保留历史空间切换预研，记录固定装配、Cookie 授权、UI 接缝、Edge HTML 交互验收和未覆盖范围。
 console-remote-real-model-verification.md: 2026-11-12 断开与接管、真实 Atria-Dawn 对话及文件、审批、预览、终端的验收矩阵，明确取消请求的未知用量和未覆盖环境。
 console-nas-cross-machine-verification.md: NAS Server/Console 部署、NAS Host 真实模型与逐格式预览、Mac Host 文件和终端、Mac 原生及远程 Office、表格只读、Edge 原生隔离 HTML 交互验收及 IAB 差异、审批拒绝与连接释放、localhost 双机对照，记录 DSH OOM 恢复及未关闭根因。

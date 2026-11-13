@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 native-runtime 锁定的官方 rc.5 CLI、独立临时 profile 和官方 Web assembly HTTP 接口。
+ * [INPUT]: 依赖 native-runtime 锁定的官方 rc.5 CLI、Ego 0.9.14、独立临时 profile 和官方 Web assembly HTTP 接口。
  * [OUTPUT]: 生成不含凭据的原生工作区静态资源、精确 URL 映射及构建元数据，HTML 沿用原生配置与 iframe 隔离，成功后清除过期资源。
  * [POS]: Console 的原生 UI 构建边界；插件代码由固定制品供应，工作区 HTML 文档由原生隔离预览承载。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -12,6 +12,7 @@ import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { dirname, extname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { EGO_FACTORY, patchEgoClient } from './ego-client.mjs'
 
 const consoleRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const version = '0.2.1-rc.5'
@@ -26,6 +27,8 @@ const conversationSourceHash = 'cfbd9fd95b0509f7c93a22a62a67ebc10481c8eda611704e
 const previewSourceHash = '3c8259fed8fb6d8cf1af6ecc2c7f478df4eacab4628b91e4c9ad8defdc5fb595'
 assert.equal(hash(await readFile(official.resolve('@deepseek-ai/dsh-client-ui-conversation/client'))), conversationSourceHash)
 assert.equal(hash(await readFile(official.resolve('@deepseek-ai/dsh-client-ui-sidebar-documentpreview/client'))), previewSourceHash)
+const egoSource = await readFile(runtime.resolve('dsh-ego-browser/client'))
+const egoClient = patchEgoClient(egoSource)
 
 const temp = await mkdtemp(join(tmpdir(), 'owndsh-native-assembly-'))
 const resources = {}
@@ -48,6 +51,12 @@ async function fetchResource(path) {
   const response = await fetch(url, { headers: { cookie, 'accept-encoding': 'identity' }, redirect: 'error' })
   assert.equal(response.status, 200, `原生资源未就绪: ${path}`)
   let bytes = Buffer.from(await response.arrayBuffer())
+  if (path.startsWith('/plugins/') && bytes.includes(Buffer.from(EGO_FACTORY))) {
+    const original = egoSource.toString('utf8').replace(/\n?\/\/# sourceMappingURL=.*\s*$/, '')
+    const text = bytes.toString('utf8')
+    assert.equal(text.split(original).length, 2, 'Ego 聚合资源必须包含完整的固定客户端')
+    bytes = Buffer.from(text.replace(original, egoClient.toString('utf8')))
+  }
   if (path.startsWith('/plugins/') && bytes.includes(Buffer.from('addFiles: (files, directories ='))) {
     const source = bytes.toString('utf8')
     const intake = /addFiles: \(files, directories = [\s\S]*?\n\s*removeAttachment:/g
@@ -78,6 +87,10 @@ try {
     'ui-settings-session-log', 'ui-settings-plugins', 'ui-settings-shell',
     'ui-settings-agent-loop', 'ui-settings-subagent', 'ui-settings-web-search', 'ui-agent-preset', 'entry-customization']
   await writeFile(join(profile, 'cordis.patch.yml'), disabled.map(id => `- id: ${id}\n  disabled: true\n`).join(''))
+  await writeFile(join(profile, 'package.json'), JSON.stringify({ dependencies: { 'dsh-ego-browser': '0.9.14' }, dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', 'dsh-ego-browser'] } } }))
+  await mkdir(join(profile, 'node_modules'), { recursive: true })
+  const { symlink } = await import('node:fs/promises')
+  await symlink(dirname(runtime.resolve('dsh-ego-browser/package.json')), join(profile, 'node_modules/dsh-ego-browser'), 'dir')
   child = spawn(process.execPath, [join(dirname(cliManifestPath), 'lib/bin.js'), '--profile', 'web', '--host', '127.0.0.1', '--port', '0', '--no-open'], {
     cwd: temp,
     env: { ...process.env, DSH_HOME: join(temp, 'home'), DSH_AGENTS_HOME: join(temp, 'agents'),
@@ -164,6 +177,7 @@ try {
   assert.ok(!serialized.includes(origin), '生成产物不得包含构建 Host 地址')
   await writeFile(join(output, 'assembly.json'), serialized + '\n')
   await writeFile(join(output, 'LICENSE'), await readFile(join(consoleRoot, 'DSH_LICENSE')))
+  await writeFile(join(output, 'EGO_LICENSE'), await readFile(join(consoleRoot, 'EGO_LICENSE')))
   const retained = new Set(Object.values(resources).map(resource => resource.file.slice('/native-workspace/'.length)))
   for (const directory of ['assets', 'dist']) {
     for (const file of await filesUnder(join(output, directory))) {

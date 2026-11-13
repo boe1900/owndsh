@@ -10,6 +10,8 @@ tsconfig.json: contracts TypeScript 构建边界，仅为 Hey API Fetch 生成�
 scripts/generate.mjs: 校验、bundle 并解引用模块化 OpenAPI，在临时目录生成自包含 OpenAPI JSON、Hey API/strict Zod、JSON Schema、完整逻辑协议 hash 与漂移检查；固定 .js import 后缀，避免构建 cwd 改变 NodeNext 产物。
 src/generated/: 从唯一 OpenAPI 真源生成含 code/refresh Token 联合类型的通用、身份/auth/device、model/quota/gateway/plugin/Session/audit DTO、Fetch client、strict Zod 与协议元数据，禁止手工编辑。
 src/remote.ts: 与 HTTP OpenAPI hash 解耦的已发布 v1 握手身份和 Remote v1 control frame 的严格 Zod facade、transport/lease/capability 类型与 WebSocket URL 派生；不承载 Typert 业务 RPC。
+src/ego.ts: Console/Host 共用的 Ego 0.9.14 封闭路由、严格输入/导航 schema、64KiB 正文与可选 capability。
+tests/ego.spec.ts: 验证任意路径/查询/方法、登录桥、导航协议、额外字段和输入大小拒绝。
 src/brands.ts: 把 OpenAPI 字符串 schema 收窄为五类不可互换的品牌 ID，并只通过 Zod 校验后构造。
 src/errors.ts: 严格解码统一错误 envelope，并从生成映射返回稳定 HTTP status。
 src/index.ts: contracts 公共入口，只暴露品牌 ID、错误契约和身份/设备/模型/配额/插件/bootstrap/gateway/MCP snapshot 与本人 Remote 连接操作所需生成 DTO/Zod schema。

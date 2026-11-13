@@ -1,0 +1,177 @@
+{
+  "at": "2026-11-13T02:43:15.447Z",
+  "baseline": {
+    "commit": "a2b435474ead948dbd812451681e71e5338a0387",
+    "pushed": "origin/main"
+  },
+  "scope": "Isolated proof; no Ego product code committed",
+  "console": "http://home-nas:18081",
+  "host": "Mac isolated DSH 0.2.1-rc.5",
+  "plugin": "dsh-ego-browser@0.9.14",
+  "api": {
+    "at": "2026-11-12T13:10:44.149Z",
+    "scope": "API only; UI blocked by Mac lock screen",
+    "catalog": {
+      "ego": "0.9.14"
+    },
+    "spacesStatus": 200,
+    "denied": [
+      {
+        "method": "POST",
+        "path": "/api/remoteClient/ego/spaces"
+      },
+      {
+        "method": "GET",
+        "path": "/api/remoteClient/ego/spaces?extra=1"
+      },
+      {
+        "method": "GET",
+        "path": "/api/remoteClient/ego/video?generation=1&generation=2"
+      },
+      {
+        "method": "GET",
+        "path": "/api/remoteClient/ego/login-extension/health"
+      },
+      {
+        "method": "GET",
+        "path": "/api/ego/spaces"
+      },
+      {
+        "method": "POST",
+        "path": "/api/remoteClient/ego/settings-set"
+      }
+    ],
+    "sse": {
+      "status": 200,
+      "bytes": 116,
+      "namedEvent": true
+    },
+    "nativeInventoryEntries": 198
+  },
+  "stream": {
+    "at": "2026-11-12T13:15:28.142Z",
+    "frames": 3,
+    "base64Bytes": 98672,
+    "viewport": {
+      "width": 1280,
+      "height": 813
+    },
+    "backend": "cdp",
+    "watchersAfterDisconnect": 0
+  },
+  "regression": {
+    "files": 3,
+    "tests": 15,
+    "passed": true
+  },
+  "ui": {
+    "status": "PASS_PROTOTYPE",
+    "date": "2026-11-13",
+    "browser": "Microsoft Edge",
+    "nativePanel": true,
+    "liveFrameRender": true,
+    "pointer": {
+      "clickCount": 2,
+      "marker": "MAC_BROWSER_CLICK_PASS_2"
+    },
+    "textInput": {
+      "value": "EDGE_EGO_FINAL_20261113",
+      "method": "paste",
+      "pageInputEventObserved": true
+    },
+    "navigation": {
+      "url": "http://127.0.0.1:18763/navigation.html",
+      "marker": "MAC_EGO_NAV_PASS_20261113"
+    },
+    "reload": {
+      "newFixtureLoaded": true,
+      "counterReset": true
+    },
+    "session": {
+      "existingRealAtriaConversationReadable": true,
+      "newModelRequestThisTurn": false
+    },
+    "terminal": {
+      "marker": "EGO_REMOTE_TERMINAL_PASS_20261113",
+      "system": "Darwin",
+      "testShellExited": true
+    },
+    "lifecycle": [
+      {
+        "phase": "sidebar-hidden",
+        "watchers": 0,
+        "state": "idle"
+      },
+      {
+        "phase": "sidebar-resume",
+        "watchers": 1,
+        "state": "streaming"
+      },
+      {
+        "phase": "manual-disconnect",
+        "watchers": 0,
+        "state": "idle"
+      },
+      {
+        "phase": "reconnect-final-artifact",
+        "watchers": 1,
+        "state": "streaming"
+      },
+      {
+        "phase": "active-tab-closed",
+        "watchers": 0,
+        "state": "idle"
+      }
+    ],
+    "artifacts": {
+      "input": ".tmp/ego-remote-proof/edge-panel-final.jpg",
+      "navigation": ".tmp/ego-remote-proof/edge-panel-navigation.jpg",
+      "terminal": ".tmp/ego-remote-proof/edge-panel-terminal.jpg"
+    },
+    "inputOrdering": {
+      "issue": "EGO-P01",
+      "before": "Concurrent input HTTP requests; mouseReleased reply preceded mousePressed reply; clicks failed",
+      "after": "Link-scoped FIFO; page observed mousedown, mouseup, click and exact input; repeated after diagnostic removal",
+      "capacity": 64,
+      "diagnosticsRemoved": true
+    },
+    "finalArtifact": {
+      "asset": "/assets/workspace-DsHTIJYs.js",
+      "sha256": "73034b88404643638b84b6bc59c710c181ad7bfb448b4d3f5133062609aa7ea4",
+      "servedBytesMatch": true,
+      "adapterSha256": "e5695bc8149de00924557d94506a845e2190b69718aa9e5f184d5e13c4e66076",
+      "inputScreenshotSha256": "9b1fed4d342fa775a5d88e1427d4ce268fd1c104856b3aec046c64228b8c089d"
+    }
+  },
+  "linkReleased": true,
+  "finalConsoleRegression": {
+    "files": 3,
+    "tests": 9,
+    "passed": true,
+    "typecheck": true,
+    "viteBuild": true
+  },
+  "environment": {
+    "prototypeHealth": "UP",
+    "stableConsoleHttpStatus": 200,
+    "macFixtureHttpStatus": 200,
+    "watchers": 0,
+    "captureState": "idle",
+    "servicesPreserved": true
+  },
+  "productReady": false,
+  "unverified": [
+    "optional capability behavior when Ego is absent",
+    "high frequency input and queue overflow",
+    "IME",
+    "revocation during an active stream",
+    "plugin disable and Host restart",
+    "long duration stability",
+    "ffmpeg/MSE",
+    "Linux Host",
+    "Windows Host",
+    "mobile touch",
+    "arbitrary browser plugins",
+    "HMR/audio/download/DevTools"
+  ]
+}
