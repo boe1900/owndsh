@@ -1,13 +1,14 @@
 /**
  * [INPUT]: 依赖官方 ToolRuntime 注册表/guard、SystemPrompt assembly、TS/Python SDK renderer、Pi vendored 检索纯逻辑与 runtime 的有效授权租约。
- * [OUTPUT]: 提供 mountMcpTools 与 MCP 连接代次，按工具曝光档维护发现目录、下一轮选择状态、本步声明快照和执行守卫，并支持传输掉线时暂时撤下呈现。
- * [POS]: bundle 的 MCP 呈现与执行边界；保持官方注册表和 DSH 模式，只管理 OwnDsh 保留的 namespaces。
+ * [OUTPUT]: 提供 mountMcpTools 与 MCP 连接代次，按工具曝光档维护发现目录、下一轮选择状态、本步声明快照和执行守卫，区分实时失效与本步未声明，并支持掉线时暂时撤下呈现。
+ * [POS]: bundle 的 MCP 呈现与执行边界；委托官方 registry/executor 和本步 toolSet，按 Agent assembly/programFormat 投影，只管理 OwnDsh 保留的 namespaces。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { createHash } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
 import type { Context } from '@deepseek-ai/cordis'
-import { defineTool, renderToolsSdk, renderToolsSdkPy, type ToolDefinition, type ToolExecution } from '@deepseek-ai/dsh-tools'
+import { defineTool, type ResolvedToolSet, type ToolActivationContext, type ToolRegistrationOptions, type ToolDefinition, type ToolExecution } from '@deepseek-ai/dsh-tools'
+import { renderToolsSdk, renderToolsSdkPy } from '@deepseek-ai/dsh-tool-executor-ptc'
 import type { AssembleContext } from '@deepseek-ai/dsh-system-prompt'
 import type { ToolSchema } from '@deepseek-ai/dsh-llm'
 import {
@@ -69,6 +70,7 @@ export function publicMcpToolName(serverName: string, rawName: string): string {
 }
 
 type DshMode = 'native' | 'ptc'
+const EMPTY_PROBE_SET: ResolvedToolSet = { dispose() {}, view: () => new Map() }
 
 export function mountMcpTools(ctx: Context, access: { fresh(): boolean; refresh(): Promise<void>; authorizationRequired?(): string[] }) {
   const connections = new Map<string, McpConnection>()
@@ -77,6 +79,7 @@ export function mountMcpTools(ctx: Context, access: { fresh(): boolean; refresh(
   const selected = new WeakMap<object, Map<string, object>>()
   const nativePresented = new WeakMap<object, Map<string, object>>()
   const modes = new WeakMap<object, DshMode>()
+  const activationModes = new WeakMap<ToolActivationContext, Promise<DshMode>>()
   const executions = new WeakMap<object, Entry>()
   const codeExecutions = new Map<ToolExecution['token'], Readonly<ToolExecution>>()
   const dispatching = new Map<Readonly<ToolExecution>, { entry: Entry; abort: AbortController }>()
@@ -85,7 +88,8 @@ export function mountMcpTools(ctx: Context, access: { fresh(): boolean; refresh(
   let stopped = false
   const owned = (name: string): boolean => [...namespaces].some(value => name.startsWith(value))
 
-  const fallbackMode = (): DshMode => ctx.tools.get('run_code') === undefined ? 'native' : 'ptc'
+  // 无 Agent 的目录投影采用 deferred；执行模式只由该 Agent 的官方 assembly 确认。
+  const fallbackMode = (): DshMode => 'native'
 
   function defaultExposure(): McpExposure {
     return fallbackMode() === 'native' ? 'deferred' : 'codemode'
@@ -140,11 +144,11 @@ export function mountMcpTools(ctx: Context, access: { fresh(): boolean; refresh(
     catalog = next
   }
 
-  function eligible(scope?: object): Entry[] {
+  function eligible(scope?: object, toolSet?: ResolvedToolSet): Entry[] {
     if (stopped || !access.fresh()) return []
     if (dirty) rebuild()
     return [...catalog.values()].filter(item => (item.connection.expiresAt === undefined || Date.now() < item.connection.expiresAt)
-      && ctx.tools.get(item.schema.name, scope) === item.definition)
+      && ctx.tools.get(item.schema.name, scope, toolSet) === item.definition)
   }
 
   function isSelected(agent: object, item: Entry): boolean {
@@ -186,11 +190,13 @@ export function mountMcpTools(ctx: Context, access: { fresh(): boolean; refresh(
     const mode = exec.agent === undefined ? fallbackMode() : modes.get(exec.agent) ?? fallbackMode()
     if (effectiveExposure(entry, mode) === 'hidden') return 'MCP_GENERATION_CHANGED'
     if (!eligible(exec.agent).includes(entry)) return 'MCP_GENERATION_CHANGED'
+    // 注册定义仍有效但本步未准入时，搜索只能让它在下一步可用。
+    const admitted = ctx.tools.get(exec.name, exec.agent, exec.toolSet) === entry.definition
     // 只有同一 Agent 正在执行的 run_code token 才代表 PTC；任意嵌套调用不能绕过原生声明快照。
     const parent = exec.parent === undefined ? undefined : codeExecutions.get(exec.parent)
-    if (parent !== undefined && parent.agent === exec.agent && mode !== 'native') return undefined
+    if (admitted && parent !== undefined && parent.agent === exec.agent && mode !== 'native') return undefined
     const visible = exec.agent === undefined ? undefined : nativePresented.get(exec.agent)
-    return visible?.get(exec.name) === entry.key
+    return admitted && visible?.get(exec.name) === entry.key
       ? undefined : 'MCP_TOOL_NOT_LOADED: 请先调用 tool_search，并在下一步推理时调用工具'
   }
 
@@ -254,7 +260,7 @@ export function mountMcpTools(ctx: Context, access: { fresh(): boolean; refresh(
         ...(authorizationRequired.length ? { authorizationRequired } : {}),
       }
     },
-  }))
+  }), { when: async context => { await activationMode(context); return true } })
 
   const change = ctx.on('tools/change', () => {
     for (const [exec, call] of dispatching) {
@@ -290,30 +296,35 @@ export function mountMcpTools(ctx: Context, access: { fresh(): boolean; refresh(
     try { return await next() } finally { dispatching.delete(exec); exec.signal = signal }
   })
   const assemble = ctx.on('system-prompt/assemble', async (assembly, context: AssembleContext, next) => {
+    if (context.toolSet === undefined || context.toolSet === EMPTY_PROBE_SET) return next()
     if (dirty) rebuild()
     const before = new Map([...catalog].map(([name, entry]) => [name, entry.key]))
-    const sdkBefore = ctx.tools.schemas(context.scope).filter(schema => schema.name !== 'run_code')
-      .map(schema => ({ ...schema, output: ctx.tools.get(schema.name, context.scope)!.output.schema }))
+    const sdkBefore = ctx.tools.schemas(context.scope, context.toolSet).filter(schema => schema.name !== 'run_code')
+      .map(schema => ({ ...schema, output: ctx.tools.get(schema.name, context.scope, context.toolSet)!.output.schema }))
     await access.refresh()
     const output = await next()
     const sdk = output.sections.filter(section => section.name === 'tools:sdk' && section.text !== '')
     if (sdk.length > 1) throw new Error('MCP_PRESENTATION_UNSUPPORTED')
     const mode: DshMode = sdk[0] === undefined ? 'native' : 'ptc'
     if (context.agent !== undefined) modes.set(context.agent, mode)
-    const entries = eligible(context.scope)
+    const entries = eligible(context.scope, context.toolSet)
     const selectedEntries = selection(context.agent, entries, mode).filter(item => before.get(item.schema.name) === item.key)
     const nativeAllowed = new Map(project(selectedEntries, mode, 'native').map(item => [item.schema.name, item]))
     const sdkAllowed = new Map(project(selectedEntries, mode, 'sdk').map(item => [item.schema.name, item]))
-    output.tools = output.tools.filter(schema => !owned(schema.name)
-      || (nativeAllowed.has(schema.name) && isDeepStrictEqual(schema, nativeAllowed.get(schema.name)!.schema)))
-    const visible = new Set(output.tools.map(schema => schema.name))
+    const visible = new Set(mode === 'native' ? ctx.tools.schemas(context.scope, context.toolSet).map(schema => schema.name) : [])
     if (sdk[0] !== undefined) {
-      const language = (ctx.get('ptcRuntime') as { language?: string } | undefined)?.language
-      const render = language === 'typescript' ? renderToolsSdk : language === 'python' ? renderToolsSdkPy : undefined
-      if (render === undefined || sdk[0].text !== render(sdkBefore)) throw new Error('MCP_PRESENTATION_UNSUPPORTED')
-      const schemas = ctx.tools.schemas(context.scope).filter(schema => schema.name !== 'run_code'
+      // SDK 文本来自实际 executor 的 runtime；preset 继承不保证 agent.ctx 能读取它。
+      const renderers = [
+        (schemas: SdkSchema[]) => renderToolsSdk(schemas, 'function-body'),
+        (schemas: SdkSchema[]) => renderToolsSdk(schemas, 'repl'),
+        (schemas: SdkSchema[]) => renderToolsSdk(schemas, 'script'),
+        (schemas: SdkSchema[]) => renderToolsSdkPy(schemas),
+      ]
+      const render = renderers.find(candidate => candidate(sdkBefore) === sdk[0]!.text)
+      if (render === undefined) throw new Error('MCP_PRESENTATION_UNSUPPORTED')
+      const schemas = ctx.tools.schemas(context.scope, context.toolSet).filter(schema => schema.name !== 'run_code'
         && (!owned(schema.name) || sdkAllowed.has(schema.name)))
-        .map(schema => ({ ...schema, output: ctx.tools.get(schema.name, context.scope)!.output.schema }))
+        .map(schema => ({ ...schema, output: ctx.tools.get(schema.name, context.scope, context.toolSet)!.output.schema }))
       sdk[0].text = render(schemas)
     }
     if (context.agent !== undefined) {
@@ -324,7 +335,40 @@ export function mountMcpTools(ctx: Context, access: { fresh(): boolean; refresh(
     return output
   })
 
+  function activationMode(context: ToolActivationContext): Promise<DshMode> {
+    let pending = activationModes.get(context)
+    if (pending === undefined) {
+      pending = (async () => {
+        context.signal.throwIfAborted()
+        const assembly = await ctx.systemPrompt.assemble({ scope: context.agent, toolSet: EMPTY_PROBE_SET,
+          modelSelection: context.modelSelection, signal: context.signal })
+        context.signal.throwIfAborted()
+        const names = assembly.tools.map(tool => tool.name)
+        const mode = names.length === 0 ? 'native' : names.length === 1 && names[0] === 'run_code' ? 'ptc' : undefined
+        if (mode === undefined) throw new Error('MCP_PRESENTATION_UNSUPPORTED')
+        modes.set(context.agent, mode)
+        return mode
+      })()
+      activationModes.set(context, pending)
+    }
+    return pending
+  }
+
   return {
+    register(definition: ToolDefinition, options: ToolRegistrationOptions = {}, registry: Pick<Context['tools'], 'register'> = ctx.tools): () => void {
+      return registry.register(definition, { when: async context => {
+        if (options.when !== undefined && !await options.when(context)) return false
+        const mode = await activationMode(context)
+        if (dirty) rebuild()
+        const entry = catalog.get(definition.name)
+        // resolve 早于正式 assembly 的租约刷新；这里只固定定义和 scope，不提前撤回可恢复的本步能力。
+        if (entry === undefined || entry.definition !== definition || ctx.tools.get(definition.name, context.agent) !== definition) return false
+        const exposure = effectiveExposure(entry, mode)
+        if (exposure === 'hidden') return false
+        // PTC 的可调用 binding 与 SDK 可发现性分开；原生 admission 才按本步选择裁剪。
+        return mode === 'ptc' || exposure === 'direct' || exposure === 'deferred' && isSelected(context.agent, entry)
+      } })
+    },
     begin(serverName: string, displayName: string, exposureConfig: McpExposureConfig = {}, namespace: { description?: string } = {}): McpConnection {
       const name = prefix(serverName)
       if (connections.has(serverName) || [...connections.keys()].some(value => name.startsWith(prefix(value)) || prefix(value).startsWith(name))

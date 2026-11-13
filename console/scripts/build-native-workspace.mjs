@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 native-runtime 锁定的官方 rc.5 CLI、Ego 0.9.14、独立临时 profile 和官方 Web assembly HTTP 接口。
+ * [INPUT]: 依赖 native-runtime 锁定的官方 rc.3 CLI、Ego 0.9.14、独立临时 profile 和官方 Web assembly HTTP 接口。
  * [OUTPUT]: 生成不含凭据的原生工作区静态资源、精确 URL 映射及构建元数据；释放构建 Host 并保留退出码或信号错误。
  * [POS]: Console 的原生 UI 构建边界；插件代码由固定制品供应，工作区 HTML 文档由原生隔离预览承载。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -15,16 +15,16 @@ import { fileURLToPath } from 'node:url'
 import { EGO_FACTORY, patchEgoClient } from './ego-client.mjs'
 
 const consoleRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const version = '0.2.1-rc.5'
+const version = '0.2.2-rc.3'
 const output = join(consoleRoot, 'public/native-workspace')
 const runtime = createRequire(join(consoleRoot, 'native-runtime/package.json'))
 const cliManifestPath = runtime.resolve('@deepseek-ai/dsh/package.json')
 const official = createRequire(cliManifestPath)
 assert.equal(JSON.parse(await readFile(cliManifestPath, 'utf8')).version, version)
 const hash = bytes => createHash('sha256').update(bytes).digest('hex')
-const shellSourceHash = '0f3fc6b857e4f8bd4d69619ce1010240cdaaa443abf0826532a24ef8f6e32ef0'
-const conversationSourceHash = 'cfbd9fd95b0509f7c93a22a62a67ebc10481c8eda611704ea50c2e195b9a5a69'
-const previewSourceHash = '3c8259fed8fb6d8cf1af6ecc2c7f478df4eacab4628b91e4c9ad8defdc5fb595'
+const shellSourceHash = '65411dabad4de33466b12643cf30376d3d41ea1b7ce10ce329e97c89992d308b'
+const conversationSourceHash = '3d166eab312749bf8c528dd7d26d95340df75a27fec668b3510e4558fe9b343b'
+const previewSourceHash = 'f4c84ba525e3593c3f9ad1fc19f821fce3ff381320f9e27746fc441d12ce25fd'
 assert.equal(hash(await readFile(official.resolve('@deepseek-ai/dsh-client-ui-conversation/client'))), conversationSourceHash)
 assert.equal(hash(await readFile(official.resolve('@deepseek-ai/dsh-client-ui-sidebar-documentpreview/client'))), previewSourceHash)
 const egoSource = await readFile(runtime.resolve('dsh-ego-browser/client'))
@@ -36,6 +36,8 @@ const metadata = {}
 let child
 let cookie = ''
 let origin = ''
+let shellPatches = 0
+let intakePatches = 0
 
 async function saveResource(path, bytes, contentType) {
   const extension = extname(path.split('?')[0]) || (contentType.includes('javascript') ? '.js' : '.bin')
@@ -57,11 +59,12 @@ async function fetchResource(path) {
     assert.equal(text.split(original).length, 2, 'Ego 聚合资源必须包含完整的固定客户端')
     bytes = Buffer.from(text.replace(original, egoClient.toString('utf8')))
   }
-  if (path.startsWith('/plugins/') && bytes.includes(Buffer.from('addFiles: (files, directories ='))) {
+  if (path.startsWith('/plugins/') && bytes.includes(Buffer.from('addFiles:(files,directories='))) {
     const source = bytes.toString('utf8')
-    const intake = /addFiles: \(files, directories = [\s\S]*?\n\s*removeAttachment:/g
+    const intake = /addFiles:\(files,directories=new Set\)=>\{[\s\S]*?\},removeAttachment:/g
     assert.equal([...source.matchAll(intake)].length, 1, '文件 intake 已变化，必须重新核验禁用上传的接缝')
-    bytes = Buffer.from(source.replace(intake, 'addFiles: void 0,\nremoveAttachment:'))
+    bytes = Buffer.from(source.replace(intake, 'addFiles:void 0,removeAttachment:'))
+    intakePatches++
   }
   await saveResource(path, bytes, response.headers.get('content-type') ?? 'application/octet-stream')
 }
@@ -129,6 +132,15 @@ try {
     const packageName = row.id
     let clientPath
     try { clientPath = official.resolve(`${packageName}/client`) } catch { continue }
+    const packageRoot = dirname(official.resolve(`${packageName}/package.json`))
+    const manifest = JSON.parse(await readFile(join(packageRoot, 'package.json'), 'utf8'))
+    if (manifest.exports?.['./assets/*'] !== undefined) {
+      assert.equal(manifest.exports['./assets/*'], './lib/assets/*', '官方包资源导出边界已变化')
+      for (const asset of await filesUnder(join(packageRoot, 'lib/assets'))) {
+        const encoded = asset.split('/').map(part => encodeURIComponent(part).replace(/[!'()*]/g, char => `%${char.charCodeAt(0).toString(16).toUpperCase()}`)).join('/')
+        await fetchResource(`/plugins/${packageName}/assets/${encoded}`)
+      }
+    }
     for (const file of await readdir(dirname(clientPath))) {
       if (/^client\..+\.js$/.test(file) && !file.startsWith('client.node.')) {
         const entryUrl = new URL(row.url, origin)
@@ -142,18 +154,19 @@ try {
   for (const file of await filesUnder(dist)) {
     if (file === 'index.html' || file.endsWith('.map')) continue
     let bytes = await readFile(join(dist, file))
-    if (file === 'assets/index-BXV-oxvX.js') {
+    if (file === 'assets/index-Ciz7DZxv.js') {
+      shellPatches++
       assert.equal(hash(bytes), shellSourceHash, '官方 Web 入口已变化，必须重新核验启动回调接缝')
       const source = bytes.toString('utf8')
-      const bootCall = 't.run(Ls===void 0?void 0:o7)'
+      const bootCall = 't.run(Ma===void 0?void 0:c9)'
       assert.equal(source.split(bootCall).length, 2)
-      const imageFunction = 'function fU({src:e,alt:t,destination:r,preview:i}){'
+      const imageFunction = 'function lK({src:e,alt:t,destination:r,preview:i}){'
       assert.equal(source.split(imageFunction).length, 2, 'Markdown 图片组件已变化，必须重新核验远端媒体接缝')
-      const hoverFunction = 'function eU({src:e,alt:t,loadingLabel:r,failedLabel:i}){'
+      const hoverFunction = 'function WW({src:e,alt:t,loadingLabel:r,failedLabel:i}){'
       assert.equal(source.split(hoverFunction).length, 2, '悬停图片组件已变化，必须重新核验远端媒体接缝')
-      const imageHook = 'function owndshUseImage(input){const[state,setState]=C.useState();C.useEffect(()=>{const abort=new AbortController();let media;globalThis.__OWNDSH_NATIVE_IMAGE__(input,abort.signal).then(value=>{if(abort.signal.aborted){value.dispose();return}media=value;setState({input,url:value.url})},()=>{if(!abort.signal.aborted)setState({input,failed:true})});return()=>{abort.abort();media?.dispose()}},[input]);return state?.input===input?state:{}}'
-      const imagePatch = imageHook + 'function fU({src:remoteSrc,alt:t,destination:r,preview:i}){const{url:e,failed}=owndshUseImage(remoteSrc);if(!e)return d.jsx("span",{className:St.imageAlt,children:failed?(i?.labels.failed??t):(i?.labels.loading??t)});return d.jsx(owndshLoadedImage,{src:e,alt:t,destination:r,preview:i})}function owndshLoadedImage({src:e,alt:t,destination:r,preview:i}){'
-      const hoverPatch = 'function eU({src:remoteSrc,alt:t,loadingLabel:r,failedLabel:i}){const{url:e,failed}=owndshUseImage(remoteSrc);if(!e)return d.jsx("span",{className:b0.status,role:"status",children:failed?i:r});return d.jsx(owndshLoadedPreview,{src:e,alt:t,loadingLabel:r,failedLabel:i})}function owndshLoadedPreview({src:e,alt:t,loadingLabel:r,failedLabel:i}){'
+      const imageHook = 'function owndshUseImage(input){const[state,setState]=x.useState();x.useEffect(()=>{const abort=new AbortController();let media;globalThis.__OWNDSH_NATIVE_IMAGE__(input,abort.signal).then(value=>{if(abort.signal.aborted){value.dispose();return}media=value;setState({input,url:value.url})},()=>{if(!abort.signal.aborted)setState({input,failed:true})});return()=>{abort.abort();media?.dispose()}},[input]);return state?.input===input?state:{}}'
+      const imagePatch = imageHook + 'function lK({src:remoteSrc,alt:t,destination:r,preview:i}){const{url:e,failed}=owndshUseImage(remoteSrc);if(!e)return m.jsx("span",{className:Lt.imageAlt,children:failed?(i?.labels.failed??t):(i?.labels.loading??t)});return m.jsx(owndshLoadedImage,{src:e,alt:t,destination:r,preview:i})}function owndshLoadedImage({src:e,alt:t,destination:r,preview:i}){'
+      const hoverPatch = 'function WW({src:remoteSrc,alt:t,loadingLabel:r,failedLabel:i}){const{url:e,failed}=owndshUseImage(remoteSrc);if(!e)return m.jsx("span",{className:Q0.status,role:"status",children:failed?i:r});return m.jsx(owndshLoadedPreview,{src:e,alt:t,loadingLabel:r,failedLabel:i})}function owndshLoadedPreview({src:e,alt:t,loadingLabel:r,failedLabel:i}){'
       bytes = Buffer.from(source.replace(imageFunction, imagePatch).replace(hoverFunction, hoverPatch).replace(bootCall,
         't.run(e=>globalThis.__OWNDSH_NATIVE_BOOT_FAILED__?.(e)).then(()=>globalThis.__OWNDSH_NATIVE_BOOT__?.())'))
     }
@@ -163,6 +176,8 @@ try {
     await writeFile(join(output, 'dist', file), bytes)
     resources['/' + file] = { file: `/native-workspace/dist/${file}`, sha256: hash(bytes), contentType: types[extname(file)] ?? 'application/octet-stream' }
   }
+  assert.equal(shellPatches, 1, '官方 shell 接缝必须恰好应用一次')
+  assert.ok(intakePatches > 0, '官方文件 intake 接缝必须覆盖冻结的聚合与独立资源')
   for (const path of ['/api/settings/describe', '/api/dynamicCordisRunner/syncInspectManifest', '/api/dynamicCordisRunner/inventory']) {
     const args = path.endsWith('/syncInspectManifest') ? { providers: [] } : {}
     const response = await fetch(origin + path, { method: 'POST', headers: { cookie, 'content-type': 'application/json' },

@@ -26,7 +26,7 @@ const hash = value => createHash('sha256').update(value).digest('hex')
 const bundleHash = hash(await readFile(join(profile, 'node_modules/owndsh-plugin/lib/index.js')))
 assert.equal(bundleHash, hash(await readFile(new URL('../packages/bundle/lib/index.js', import.meta.url))), 'Installed profile must contain the current built bundle')
 const manifest = requireRuntime('@deepseek-ai/dsh/package.json')
-assert.equal(manifest.version, '0.2.1-rc.5')
+assert.equal(manifest.version, '0.2.2-rc.3')
 const dshEntry = join(dirname(requireRuntime.resolve('@deepseek-ai/dsh/package.json')), 'lib/bin.js')
 const { chromium } = await import(process.env.OWNDSH_PLAYWRIGHT_MODULE ?? 'playwright')
 const home = await mkdtemp(join(tmpdir(), 'owndsh-web-mcp-'))
@@ -356,6 +356,10 @@ async function handle(req, res) {
     else throw new Error(`Unexpected MCP method ${input.method}`)
     return json(res, { jsonrpc: '2.0', id: input.id, result })
   }
+  if (req.method === 'GET' && pathname === '/authorized') {
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }).end('<!doctype html><title>Authorized</title><p>Authorization complete.</p>')
+    return
+  }
   assert.equal(req.headers.authorization, 'Bearer platform-access-e2e')
   if (pathname.endsWith('/devices/enroll')) {
     const input = await body(req); assert.equal(input.harnessVersion, manifest.version)
@@ -388,7 +392,7 @@ async function handle(req, res) {
 const server = createServer((req, res) => { void handle(req, res).catch(error => { errors.push(error.stack); json(res, { error: 'fixture failure' }, 500) }) })
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
 origin = `http://127.0.0.1:${server.address().port}`
-await writeFile(join(home, 'profiles/web/cordis.patch.yml'), `- id: owndsh\n  config:\n    baseUrl: '${origin}'\n- id: tools\n  config:\n    mode: '${toolsMode}'\n- id: session-title-llm\n  disabled: true\n`)
+await writeFile(join(home, 'profiles/web/cordis.patch.yml'), `- id: owndsh\n  config:\n    baseUrl: '${origin}'\n- id: tool-executor-native\n  disabled: ${toolsMode !== 'native'}\n- id: tool-executor-ptc\n  disabled: ${toolsMode !== 'ptc'}\n- id: session-title-llm\n  disabled: true\n`)
 const env = { ...process.env, DSH_HOME: home, OWNDSH_AUTH_URL_FILE: authorizeFile,
   SSH_TTY: 'web-mcp-e2e', DSH_PERMISSION_MODE: 'danger-full-access', PATH: `${join(home, 'opener')}:${dirname(process.execPath)}:${process.env.PATH}` }
 let harness, browser, page, output = ''

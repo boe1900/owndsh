@@ -1,13 +1,13 @@
 /**
- * [INPUT]: 依赖构建时冻结的官方 HTML、资源映射与精确 rc.5 metadata。
- * [OUTPUT]: 提供每次从服务端读取并校验版本的 assembly、逐项脚本装配与 bundle URL 映射。
+ * [INPUT]: 依赖构建时冻结的官方 HTML、资源映射与精确 rc.3 metadata。
+ * [OUTPUT]: 提供每次从服务端读取并校验版本的 assembly、逐项脚本装配与 bundle/package asset URL 映射。
  * [POS]: workspace 的静态 UI 边界；代码只来自随 Console 发布的固定制品。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { z } from 'zod';
 
 const asset = z.object({ file: z.string().startsWith('/native-workspace/'), sha256: z.string().regex(/^[a-f0-9]{64}$/), contentType: z.string() });
-const manifest = z.object({ harnessVersion: z.literal('0.2.1-rc.5'), html: z.string(), resources: z.record(z.string(), asset), metadata: z.record(z.string(), z.unknown()) });
+const manifest = z.object({ harnessVersion: z.literal('0.2.2-rc.3'), html: z.string(), resources: z.record(z.string(), asset), metadata: z.record(z.string(), z.unknown()) });
 export type NativeAssembly = z.infer<typeof manifest>;
 
 export async function loadNativeAssembly(signal: AbortSignal): Promise<NativeAssembly> {
@@ -21,7 +21,7 @@ export async function loadNativeAssembly(signal: AbortSignal): Promise<NativeAss
 
 export function assemblyResource(assembly: NativeAssembly, input: string): string {
   const url = new URL(input, location.origin);
-  if (url.origin !== location.origin) throw new Error('ENT_REMOTE_UI_RESOURCE');
+  if (url.origin !== location.origin || url.hash) throw new Error('ENT_REMOTE_UI_RESOURCE');
   const resource = assembly.resources[url.pathname + url.search];
   if (!resource || !/^\/native-workspace\/(?:assets|dist)\/[a-zA-Z0-9._/-]+$/.test(resource.file) || resource.file.split('/').some(part => part === '..' || part === '.')) throw new Error('ENT_REMOTE_UI_RESOURCE');
   return resource.file;

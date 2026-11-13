@@ -34,7 +34,9 @@ GitHub Actions 仅在 push 时登录两个仓库，每个镜像构建一次，�
 ./deploy/scripts/build-release.sh --version 0.1.0 --output /srv/releases
 ```
 
-生成的 tarball 包含 `owndsh/server`、`owndsh/console` 镜像归档、Compose、运维脚本、预编译 Harness bundle、两份 MIT 许可证和 SHA-256 清单。PostgreSQL 官方入口只创建数据库和数据库账号；Server 镜像包含 Flyway V0 基础建表/种子数据和全部后续迁移，启动时按版本执行，无需挂载或手工导入 SQL。已有 baseline 0 的数据库跳过 V0，按历史记录增量升级；已经发布的迁移 SQL 不改写。构建使用固定 Maven 3.9.11、Temurin 21.0.8、Node 24.6.0、Nginx 1.28.0、PostgreSQL 17.6、Redis 7.4.5 标签与 digest。
+生成的 tarball 包含 `owndsh/server`、`owndsh/console` 镜像归档、Compose、运维脚本、预编译 Harness bundle、两份 MIT 许可证和 SHA-256 清单。PostgreSQL 官方入口只创建数据库和数据库账号；Server 镜像包含 Flyway V0 基础建表/种子数据和全部后续迁移，启动时按版本执行，无需挂载或手工导入 SQL。已有 baseline 0 的数据库跳过 V0，按历史记录增量升级；已经发布的迁移 SQL 不改写。构建使用固定 Maven 3.9.11、Temurin 21.0.8、glibc Node 24.15.0、Nginx 1.28.0、PostgreSQL 17.6、Redis 7.4.5 标签与 digest。Console 原生工作区锁定 DSH `0.2.2-rc.3`，开发、构建与测试 Node 要求 ≥24.15；Host/插件要求 ≥24.9，Host 与 Console 必须使用配套版本。构建阶段使用 Debian，避免 Ego 子进程的 Koffi 在 musl 上误载 glibc 二进制导致 SIGSEGV；生产 Nginx 仍为 Alpine，且不运行 Host。
+
+`manifest.env` 的 `OWNDSH_HARNESS_VERSION` 来自插件 bundle 的精确 DSH peers，并与 Console native-runtime 版本交叉校验，不一致时拒绝打包。历史源码锁保持原样，仅以 `OWNDSH_HARNESS_SOURCE_FIXTURE_VERSION/COMMIT` 记录，不再作为发行 runtime 的版本或 commit。
 
 默认从 `docker.io/library` 读取基础镜像。构建机或目标机网络受限时可设置 `OWNDSH_BASE_IMAGE_REGISTRY` 指向透明 registry mirror；Dockerfile 与 Compose 仍校验同一不可变 digest，mirror 不能替换镜像内容：
 

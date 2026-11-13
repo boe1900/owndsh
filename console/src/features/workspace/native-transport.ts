@@ -1,12 +1,12 @@
 /**
  * [INPUT]: 依赖单个已就绪加密 link、固定 assembly metadata 与官方文本 mux 契约。
- * [OUTPUT]: 提供原生 __DSH_TRANSPORT__ fetch/createWebSocket/loadBundle 接口。
+ * [OUTPUT]: 提供原生 __DSH_TRANSPORT__ fetch/createWebSocket/loadBundle/resolveAsset 接口。
  * [POS]: workspace 的官方 carrier 适配器；未知路径只到远端，绝不回退本机。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { dshPath, safeHeaders, type RemoteDshLink, type RemoteDshMux } from '@owndsh/remote-core';
 import { z } from 'zod';
-import { createBundleLoader, type NativeAssembly } from './native-assembly';
+import { assemblyResource, createBundleLoader, type NativeAssembly } from './native-assembly';
 
 const requestEnvelope = z.object({ type: z.literal('client-request'), rpcId: z.string(), method: z.string() });
 const metadataResponse = z.object({ type: z.literal('server-response'), rpcId: z.string(), result: z.unknown() });
@@ -15,6 +15,7 @@ export function createNativeTransport(link: RemoteDshLink, assembly: NativeAssem
   return {
     streamBaseUrl: `${location.origin}/`,
     loadBundle: createBundleLoader(assembly),
+    resolveAsset: (ref: string) => assemblyResource(assembly, ref),
     async fetch(input: string | URL, init: RequestInit): Promise<Response> {
       link.signal.throwIfAborted();
       const path = nativeApiPath(input.toString());

@@ -5,7 +5,7 @@
   "type": "module",
   "packageManager": "pnpm@11.7.0",
   "engines": {
-    "node": "^22.19.0 || >=24.0.0"
+    "node": ">=24.9.0"
   },
   "scripts": {
     "build": "pnpm --recursive --if-present run build",
@@ -24,10 +24,10 @@
     "test:desktop-skill": "node --test scripts/skill-desktop.test.mjs"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "4.0.5",
-    "@deepseek-ai/cordis-plugin-group": "1.0.4",
-    "@deepseek-ai/cordis-plugin-include": "1.0.10",
-    "@deepseek-ai/cordis-plugin-loader": "1.0.6",
+    "@deepseek-ai/cordis": "4.1.0",
+    "@deepseek-ai/cordis-plugin-group": "1.0.5",
+    "@deepseek-ai/cordis-plugin-include": "1.1.0",
+    "@deepseek-ai/cordis-plugin-loader": "1.1.0",
     "@types/node": "22.20.0",
     "@types/react": "18.3.28",
     "esbuild": "0.28.1",

@@ -4,6 +4,8 @@ OwnDsh Console 包含独立 Vite 管控台和原生 DSH 工作区两个 document
 
 产品壳与 `/examples` 直接迁移自 Beautiful UI Harness commit `3ea4c18114de3d4bc9b63b8e3ea6f533b1a562bd`。上游 Next.js 运行时改为 Vite/TanStack，Central Icons 改为 Lucide，并移除 PostHog；其余组件源码与完整 Harness 保留为可执行参考。版本锁见 `../upstream/beautiful-ui.lock.json`，许可证见 `BEAUTIFUL_UI_LICENSE`。
 
+开发、构建与测试使用 Node.js ≥24.15.0 和锁定的 pnpm；DSH Host/插件自身要求 Node.js ≥24.9.0。
+
 ```sh
 pnpm install
 pnpm check
@@ -22,7 +24,7 @@ OpenAPI 客户端由 `../contracts/enterprise-openapi.yaml` 生成；不要手�
 
 远程页复用当前 Cookie 登录，建立加密连接并启动官方 UI，身份条显示固定设备名、文字连接状态与新标签管控台链接；原生品牌按钮仍新建会话。切换浏览器标签不释放连接。关闭、刷新、离开远程页或在错误页显式返回管控台会释放；身份条打开管控台不释放当前页。当前每个 Host 仍只允许一个控制 link，不抢占、不共享或自动重放。
 
-`pnpm dev` 和 `pnpm build` 自动构建共享协议包并生成原生 UI。`pnpm native:prepare` 可单独重建 `public/native-workspace/`。该目录不进入 Git。脚本使用 `native-runtime/` 独立锁定的官方 `@deepseek-ai/dsh@0.2.1-rc.5`，短暂启动隔离 Host 后采集静态资源，结束时清理进程和临时凭据。生成资源随 Console 发布，附带 `DSH_LICENSE`。Docker 构建执行相同步骤，运行容器只需要 Nginx。
+`pnpm dev` 和 `pnpm build` 自动构建共享协议包并生成原生 UI。`pnpm native:prepare` 可单独重建 `public/native-workspace/`。该目录不进入 Git。脚本使用 `native-runtime/` 独立锁定的官方 `@deepseek-ai/dsh@0.2.2-rc.3`，短暂启动隔离 Host 后采集静态资源，结束时清理进程和临时凭据。生成资源随 Console 发布，附带 `DSH_LICENSE`。Docker 构建执行相同步骤，运行容器只需要 Nginx。
 
 开发时将 `CONSOLE_REMOTE_ORIGIN` 指向同一 Server 的 Remote HTTP 端口，默认 `http://127.0.0.1:8090`。浏览器仍使用 Console 同源 `/remote/ws/v1`，由 Vite 或部署 Nginx 转发 Upgrade。HTTP API 目标由 `CONSOLE_API_ORIGIN` 设置，两个目标必须属于同一套后端。
 

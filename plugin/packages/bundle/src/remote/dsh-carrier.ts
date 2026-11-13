@@ -8,12 +8,12 @@ import { createRequire } from 'node:module'
 import WebSocket from 'ws'
 import { clientRequestSchema } from '@deepseek-ai/dsh-client-connection'
 import { parseRemoteStreamClientMessage, parseRemoteStreamServerMessage } from '@deepseek-ai/dsh-api-gateway/stream-protocol'
-import { MAX_MUX_MESSAGE_BYTES, safeHeaders, type DshCarrier, type RemoteDshMux } from '@owndsh/remote-core'
-export { safeHeaders } from '@owndsh/remote-core'
+import { DSH_CARRIER_VERSION, MAX_MUX_MESSAGE_BYTES, safeHeaders, type DshCarrier, type RemoteDshMux } from '@owndsh/remote-core'
+export { DSH_CARRIER_VERSION, safeHeaders } from '@owndsh/remote-core'
 import { z } from 'zod'
 import { createEgoPolicy, type EgoContext } from './ego-policy.js'
 import { EGO_PREFIX, EGO_BODY_LIMIT } from '@owndsh/contracts'
-import { authorizeFilePayload, authorizeOfficePayload, authorizeMedia, dshPath, DSH_STREAM_ENDPOINTS, DSH_UNARY_ENDPOINTS, type WorkspaceCatalog } from './dsh-policy.js'
+import { authorizeFilePayload, authorizeSearchPayload, authorizeOfficePayload, authorizeMedia, dshPath, DSH_STREAM_ENDPOINTS, DSH_UNARY_ENDPOINTS, type WorkspaceCatalog } from './dsh-policy.js'
 
 export interface DshCarrierContext extends EgoContext {
   readonly connection: { authenticatedUrl(baseUrl: string): string }
@@ -21,7 +21,6 @@ export interface DshCarrierContext extends EgoContext {
   readonly workspaceRegistry: WorkspaceCatalog
 }
 export type { DshCarrier, DshFetchInit, RemoteDshMux } from '@owndsh/remote-core'
-export const DSH_CARRIER_VERSION = '0.2.1-rc.5'
 
 export async function openDshCarrier(ctx: DshCarrierContext, signal: AbortSignal): Promise<DshCarrier> {
   const require = createRequire(import.meta.url)
@@ -66,8 +65,8 @@ export async function openDshCarrier(ctx: DshCarrierContext, signal: AbortSignal
         return ego.fetch(path, init.method, init.body ? await boundedBody(init.body, EGO_BODY_LIMIT) : undefined, init.signal)
       }
       if (target.pathname === '/api/file') {
-        if (!['GET', 'HEAD'].includes(init.method) || [...target.searchParams.keys()].some(key => key !== 'path')) throw new Error('ENT_REMOTE_DENIED')
-        await authorizeMedia(ctx.workspaceRegistry, target.searchParams.get('path') ?? '')
+        if (!['GET', 'HEAD'].includes(init.method) || init.body) throw new Error('ENT_REMOTE_DENIED')
+        await authorizeMediaUrl(ctx.workspaceRegistry, target)
       } else if (init.method !== 'POST' || target.search || !DSH_UNARY_ENDPOINTS.has(target.pathname.slice(5))) throw new Error('ENT_REMOTE_DENIED')
       const headers = safeHeaders(new Headers(init.headers))
       let body = init.body
@@ -76,6 +75,7 @@ export async function openDshCarrier(ctx: DshCarrierContext, signal: AbortSignal
         const envelope = clientRequestSchema.parse(JSON.parse(new TextDecoder().decode(bytes)))
         if (envelope.method !== target.pathname.slice(5)) throw new Error('ENT_REMOTE_DENIED')
         if (envelope.method === 'officeToPdf/render') await authorizeOfficePayload(ctx.workspaceRegistry, envelope.payload)
+        else if (envelope.method === 'workspaceFiles/search') await authorizeSearchPayload(ctx.workspaceRegistry, envelope.payload)
         else if (envelope.method.startsWith('workspaceFiles/')) await authorizeFilePayload(ctx.workspaceRegistry, envelope.payload)
         body = new ReadableStream({ start(controller) { controller.enqueue(bytes); controller.close() } })
       }
@@ -84,7 +84,8 @@ export async function openDshCarrier(ctx: DshCarrierContext, signal: AbortSignal
         signal: AbortSignal.any([combined, ...(init.signal ? [init.signal] : [])]),
         ...(body === undefined ? {} : { body, duplex: 'half' }),
       })
-      const result = await fetch(request)
+      const result = target.pathname === '/api/file'
+        ? await fetchVersionedMedia(request, origin, ctx.workspaceRegistry) : await fetch(request)
       if (result.status >= 300 && result.status < 400) { await result.body?.cancel(); throw new Error('ENT_REMOTE_DENIED') }
       return new Response(result.body, { status: result.status, headers: safeHeaders(result.headers) })
     },
@@ -93,6 +94,40 @@ export async function openDshCarrier(ctx: DshCarrierContext, signal: AbortSignal
   }
 }
 
+
+async function authorizeMediaUrl(catalog: WorkspaceCatalog, url: URL): Promise<void> {
+  const keys = [...url.searchParams.keys()]
+  if (url.pathname !== '/api/file' || url.hash || keys.some(key => !['path', 'v', 'load'].includes(key))
+    || new Set(keys).size !== keys.length) throw new Error('ENT_REMOTE_DENIED')
+  const load = url.searchParams.get('load')
+  if (load !== null && (!/^[1-9]\d*$/u.test(load) || !Number.isSafeInteger(Number(load)))) throw new Error('ENT_REMOTE_DENIED')
+  for (const key of ['v']) {
+    const value = url.searchParams.get(key)
+    if (value !== null && (value.length === 0 || value.length > 1024 || /[\u0000-\u001f]/u.test(value))) throw new Error('ENT_REMOTE_DENIED')
+  }
+  await authorizeMedia(catalog, url.searchParams.get('path') ?? '')
+}
+
+/** 只跟随官方同文件版本重定向，owner cookie 与 Location 均留在 Host。 */
+async function fetchVersionedMedia(request: Request, origin: URL, catalog: WorkspaceCatalog): Promise<Response> {
+  const path = new URL(request.url).searchParams.get('path')
+  const visited = new Set<string>()
+  for (let hop = 0; hop < 4; hop++) {
+    const target = new URL(request.url)
+    if (target.origin !== origin.origin || target.username || target.password || target.searchParams.get('path') !== path || visited.has(target.href)) throw new Error('ENT_REMOTE_DENIED')
+    await authorizeMediaUrl(catalog, target)
+    visited.add(target.href)
+    const result = await fetch(request)
+    if (result.status < 300 || result.status >= 400) return result
+    const location = result.headers.get('location')
+    await result.body?.cancel()
+    if (result.status !== 302 || !location) throw new Error('ENT_REMOTE_DENIED')
+    const next = new URL(location, target)
+    if (!next.searchParams.has('v')) throw new Error('ENT_REMOTE_DENIED')
+    request = new Request(next, { method: request.method, headers: request.headers, signal: request.signal, redirect: 'manual' })
+  }
+  throw new Error('ENT_REMOTE_DENIED')
+}
 
 async function boundedBody(body: ReadableStream<Uint8Array> | undefined, limit: number): Promise<Uint8Array> {
   if (!body) throw new Error('ENT_REMOTE_DENIED')

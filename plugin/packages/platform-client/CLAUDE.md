@@ -5,7 +5,7 @@
 成员清单
 
 README.md: 平台客户端使用与安全边界，记录可选安装默认值、官方 SettingsForms 地址持久化、本地 API 和 Token 不出 Host 约束。
-package.json: 私有 workspace package 清单，声明 caret-compatible Cordis/credentials/settings/Schemastery peers、T02 contracts 与 strict Zod 运行依赖。
+package.json: 私有 workspace package 清单，声明 精确 rc.3 credentials/settings 与同宿主 minor Cordis/Schemastery peers、T02 contracts 与 strict Zod 运行依赖。
 tsconfig.json: Host TypeScript 构建边界，从 `src/` 生成 ESM、声明与 sourcemap 到 `lib/`。
 src/browser.ts: 通过无 shell argv 调用系统 URL/文件 opener，向 PKCE 事务和技能编辑/目录动作提供可取消 Host 交接。
 src/index.ts: package 公开入口，集中导出 Service、PKCE、installation、bootstrap 与本地 API 契约。

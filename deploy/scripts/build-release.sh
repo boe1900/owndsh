@@ -1,6 +1,6 @@
 #!/bin/sh
-# [INPUT]: 依赖产品源码、Harness 机器锁、锁定 digest 的 Linux amd64 Docker base、可选受验本地镜像缓存、pnpm workspace 与许可证。
-# [OUTPUT]: 生成含 Server/Console 镜像、随 Server 交付的 Flyway 全量迁移、企业 bundle、Compose、脚本、许可证、Harness 基线和 SHA-256 清单的发布 tarball。
+# [INPUT]: 依赖产品源码、bundle/native-runtime 精确 DSH 版本、历史源码机器锁、锁定 digest 的 Linux amd64 Docker base、可选受验本地镜像缓存、pnpm workspace 与许可证。
+# [OUTPUT]: 生成含 Server/Console 镜像、Flyway 迁移、企业 bundle、Compose、许可证、实际 Harness 版本、独立历史夹具信息和 SHA-256 清单的发布 tarball。
 # [POS]: T21 源码到离线交付包的唯一构建入口，不写入安装状态或生产 secret。
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -49,8 +49,19 @@ local_image_by_digest() {
 source_root=$(CDPATH= cd -- "$script_directory/../.." && pwd)
 harness_lock="$source_root/upstream/deepseek-harness.lock.json"
 require_file "$harness_lock"
-harness_version=$(node -e 'const lock = require(process.argv[1]); if (!/^[A-Za-z0-9._-]+$/.test(lock.version ?? "")) throw new Error("invalid Harness version lock"); process.stdout.write(lock.version)' "$harness_lock")
-harness_commit=$(node -e 'const lock = require(process.argv[1]); if (!/^[0-9a-f]{40}$/.test(lock.commit ?? "")) throw new Error("invalid Harness commit lock"); process.stdout.write(lock.commit)' "$harness_lock")
+harness_version=$(node -e '
+  const bundle = require(process.argv[1]);
+  const native = require(process.argv[2]);
+  const version = bundle.peerDependencies["@deepseek-ai/dsh-llm"];
+  if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version ?? "")
+    || native.dependencies["@deepseek-ai/dsh"] !== version
+    || Object.entries(bundle.peerDependencies).some(([name, value]) => name.startsWith("@deepseek-ai/dsh-") && value !== version)) {
+    throw new Error("Harness bundle and Console require the same exact DSH version");
+  }
+  process.stdout.write(version);
+' "$source_root/plugin/packages/bundle/package.json" "$source_root/console/native-runtime/package.json")
+harness_source_fixture_version=$(node -e 'const lock = require(process.argv[1]); if (!/^[A-Za-z0-9._-]+$/.test(lock.version ?? "")) throw new Error("invalid Harness source fixture version"); process.stdout.write(lock.version)' "$harness_lock")
+harness_source_fixture_commit=$(node -e 'const lock = require(process.argv[1]); if (!/^[0-9a-f]{40}$/.test(lock.commit ?? "")) throw new Error("invalid Harness source fixture commit"); process.stdout.write(lock.commit)' "$harness_lock")
 output=$(mkdir -p "$output" && CDPATH= cd -- "$output" && pwd)
 server_image="owndsh/server:$version"
 console_image="owndsh/console:$version"
@@ -62,7 +73,7 @@ package_root="$staging/$package_name"
 if [ "${OWNDSH_USE_LOCAL_BASE_IMAGES:-0}" = 1 ]; then
   maven_image=$(local_image_by_digest sha256:922927df2c662cdd47ddb116443d6bec4696cfae3de1a0ddac8fcc7b87ce61ae)
   jre_image=$(local_image_by_digest sha256:cddd554e8d69b48b46e8b0c9d1ce72ae5fe8d84819dcdb7131328531e9cc100b)
-  node_image=$(local_image_by_digest sha256:51dbfc749ec3018c7d4bf8b9ee65299ff9a908e38918ce163b0acfcd5dd931d9)
+  node_image=$(local_image_by_digest sha256:4e6b70dd6cbfc88c8157ba19aa3d9f9cce6ba4703576d55459e45efcbc9c5f5d)
   nginx_image=$(local_image_by_digest sha256:30f1c0d78e0ad60901648be663a710bdadf19e4c10ac6782c235200619158284)
   DOCKER_BUILDKIT=0 docker build --platform linux/amd64 \
     --build-arg OWNDSH_MAVEN_IMAGE="$maven_image" --build-arg OWNDSH_JRE_IMAGE="$jre_image" \
@@ -99,7 +110,8 @@ OWNDSH_SERVER_IMAGE=$server_image
 OWNDSH_CONSOLE_IMAGE=$console_image
 OWNDSH_HARNESS_BUNDLE=$bundle_name
 OWNDSH_HARNESS_VERSION=$harness_version
-OWNDSH_HARNESS_COMMIT=$harness_commit
+OWNDSH_HARNESS_SOURCE_FIXTURE_VERSION=$harness_source_fixture_version
+OWNDSH_HARNESS_SOURCE_FIXTURE_COMMIT=$harness_source_fixture_commit
 EOF
 
 (

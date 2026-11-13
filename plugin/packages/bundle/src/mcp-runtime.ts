@@ -10,7 +10,7 @@ import { performance } from 'node:perf_hooks'
 import type { Context } from '@deepseek-ai/cordis'
 import { APP_IDENTITY } from '@deepseek-ai/dsh-llm'
 import type { CredentialProvider } from '@deepseek-ai/dsh-credentials'
-import { apply as applyMcpClient, createMcpToolDefinition, type Config as McpClientConfig, type ReconnectConfig } from '@deepseek-ai/dsh-mcp-client'
+import { apply as applyMcpClient, Config as normalizeMcpClientConfig, createMcpToolDefinition, type ReconnectConfig } from '@deepseek-ai/dsh-mcp-client'
 import { auth as mcpOAuthAuth, Client, StreamableHTTPClientTransport, type Tool } from '@modelcontextprotocol/client'
 import type { McpResourceProvider, McpResourceRequest } from '@deepseek-ai/dsh-mcp-resources'
 import type { ToolExecution } from '@deepseek-ai/dsh-tools'
@@ -416,7 +416,7 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
       for (const dispose of disposers.values()) dispose()
       const next = new Map<string, () => void>()
       try {
-        for (const [name, definition] of definitions) next.set(name, ctx.tools.register(definition))
+        for (const [name, definition] of definitions) next.set(name, toolsSurface.register(definition))
       } catch (error) {
         for (const dispose of next.values()) dispose()
         throw error
@@ -611,12 +611,12 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
           headers = { ...headers, [auth.headerName ?? 'Authorization']: secret }
         }
         if (stopped || generation !== assignmentGeneration || isPaused(serverName)) return
-        const clientConfig: Extract<McpClientConfig, { transport: 'streamable-http' }> = {
+        const clientConfig = normalizeMcpClientConfig({
           transport: 'streamable-http', serverName, url, headers,
           toolCallTimeoutMs: typeof assignment.toolCallTimeoutMs === 'number' ? assignment.toolCallTimeoutMs : 60_000,
           failOnStartupError: true,
-          reconnect: (assignment.reconnect ?? {}) as ReconnectConfig,
-        }
+          reconnect: assignment.reconnect ?? {},
+        })
         const exposure = localExposure(readLiveValue(config.mcp), serverName)
         const signature = auth?.type === 'oauth'
           ? JSON.stringify({ revision: serverRevision, url, headers, auth, exposure })
@@ -633,7 +633,14 @@ export function mountMcpRuntime(ctx: Context & { webServer: WebServerRoutePort }
         try {
           const fiber = auth?.type === 'oauth'
             ? await connectOAuth(assignment, managerFor(assignment), connection)
-            : ctx.plugin({ name: 'owndsh-mcp-client', inject: ['tools'], apply: applyMcpClient }, clientConfig)
+            : ctx.plugin({ name: 'owndsh-mcp-client', inject: ['tools'], apply(scope: Context, config: typeof clientConfig) {
+              // 官方 client 只注册工具；窄 facade 将定义交回唯一 registry 的企业 admission。
+              const canonical = scope.tools
+              const registry: Pick<Context['tools'], 'register'> = {
+                register: (definition, options) => toolsSurface.register(definition, options, canonical),
+              }
+              return applyMcpClient(scope.extend({ tools: registry }), config)
+            } }, clientConfig)
           const current = { fiber, revision: serverRevision, signature, connection }
           mounted.set(serverName, current)
           await fiber

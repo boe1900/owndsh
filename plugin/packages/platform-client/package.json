@@ -11,7 +11,10 @@
       "default": "./lib/index.js"
     }
   },
-  "files": ["lib", "README.md"],
+  "files": [
+    "lib",
+    "README.md"
+  ],
   "scripts": {
     "build": "pnpm --filter @owndsh/platform-client^... run build && tsc -p tsconfig.json",
     "typecheck": "pnpm --filter @owndsh/platform-client^... run build && tsc -p tsconfig.json --noEmit",
@@ -23,16 +26,16 @@
     "zod": "4.4.3"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "^4.0.5",
-    "@deepseek-ai/dsh-credentials": "^0.2.1-rc.5",
-    "@deepseek-ai/dsh-skill": "^0.2.1-rc.5",
-    "@deepseek-ai/dsh-settings": "^0.2.1-rc.5",
-    "@deepseek-ai/schemastery": "^3.18.5"
+    "@deepseek-ai/cordis": "~4.1.0",
+    "@deepseek-ai/dsh-credentials": "0.2.2-rc.3",
+    "@deepseek-ai/dsh-skill": "0.2.2-rc.3",
+    "@deepseek-ai/dsh-settings": "0.2.2-rc.3",
+    "@deepseek-ai/schemastery": "~3.19.0"
   },
   "devDependencies": {
-    "@deepseek-ai/dsh-credentials": "0.2.1-rc.5",
-    "@deepseek-ai/dsh-skill": "0.2.1-rc.5",
-    "@deepseek-ai/dsh-settings": "0.2.1-rc.5",
-    "@deepseek-ai/schemastery": "3.18.5"
+    "@deepseek-ai/dsh-credentials": "0.2.2-rc.3",
+    "@deepseek-ai/dsh-skill": "0.2.2-rc.3",
+    "@deepseek-ai/dsh-settings": "0.2.2-rc.3",
+    "@deepseek-ai/schemastery": "3.19.0"
   }
 }

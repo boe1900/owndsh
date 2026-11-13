@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 Cordis/Schemastery、Harness credentials/LLM/pluginManager/inventory/skills/connection/workspaceRegistry、官方运行时身份与企业业务模块；inventory 仅供 Remote 本机能力读取
+ * [INPUT]: 依赖 Cordis/Schemastery、Harness credentials/LLM/pluginManager/inventory/skills/connection/workspaceRegistry/systemPrompt、官方运行时身份与企业业务模块；inventory 仅供 Remote 本机能力读取
  * [OUTPUT]: 提供 Web/Desktop bundle apply、本机市场与认证、模型/MCP/技能组合，以及默认关闭的远端 Host 和逐页 DSH 工作区控制入口
  * [POS]: bundle 的唯一 Host Loader 入口，组合平台认证、官方企业模型、隔离 skill provider 与官方插件市场；官方 market 只访问 loopback 代理，MCP 连接由独立 Cordis fiber 隔离并可撤销
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -32,7 +32,7 @@ import { mountRemoteLocalApi } from './remote/local-remote-api.js'
 import { mountRemoteViewHttp, mountRemoteViewMux, type RemoteViewContext } from './remote/view-mount.js'
 
 export const name = 'owndsh'
-export const inject = ['webServer', 'connection', 'workspaceRegistry', 'credentials', 'settings', 'llm', 'pluginInventory', 'pluginManager', 'pluginMarket', 'tools']
+export const inject = ['webServer', 'connection', 'workspaceRegistry', 'credentials', 'settings', 'llm', 'pluginInventory', 'pluginManager', 'pluginMarket', 'tools', 'systemPrompt']
 
 const HARNESS_VERSION = APP_IDENTITY.version
 const { version: BUNDLE_VERSION } = createRequire(import.meta.url)('../package.json') as { version: string }

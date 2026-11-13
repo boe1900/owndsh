@@ -16,6 +16,10 @@
 - id: llm-pi-ai
   disabled: true
 
+# 官方新默认 fleet 可另建未受管连接；企业连接仍由 OwnDsh 独立 fiber 负责。
+- id: mcp-manager
+  disabled: true
+
 - id: ui-settings-models
   disabled: true
 

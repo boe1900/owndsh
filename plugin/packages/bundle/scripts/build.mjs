@@ -39,6 +39,7 @@ await build({
     '@deepseek-ai/dsh-mcp-resources',
     '@modelcontextprotocol/client',
     '@deepseek-ai/dsh-tools',
+    '@deepseek-ai/dsh-tool-executor-ptc',
     '@deepseek-ai/dsh-settings',
     '@deepseek-ai/schemastery',
     'ws',
@@ -48,7 +49,7 @@ await build({
   outfile: 'lib/index.js',
   platform: 'node',
   sourcemap: true,
-  target: 'node22',
+  target: 'node24',
 })
 
 await build({

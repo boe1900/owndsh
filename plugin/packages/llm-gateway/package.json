@@ -11,7 +11,10 @@
       "default": "./lib/index.js"
     }
   },
-  "files": ["lib", "README.md"],
+  "files": [
+    "lib",
+    "README.md"
+  ],
   "scripts": {
     "build": "pnpm --filter @owndsh/llm-gateway^... run build && tsc -p tsconfig.json",
     "typecheck": "pnpm --filter @owndsh/llm-gateway^... run build && tsc -p tsconfig.json --noEmit",
@@ -21,10 +24,10 @@
     "@owndsh/platform-client": "workspace:*"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "^4.0.5",
-    "@deepseek-ai/dsh-llm-pi-ai": "^0.2.1-rc.5"
+    "@deepseek-ai/cordis": "~4.1.0",
+    "@deepseek-ai/dsh-llm-pi-ai": "0.2.2-rc.3"
   },
   "devDependencies": {
-    "@deepseek-ai/dsh-llm-pi-ai": "0.2.1-rc.5"
+    "@deepseek-ai/dsh-llm-pi-ai": "0.2.2-rc.3"
   }
 }

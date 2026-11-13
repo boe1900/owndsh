@@ -1,11 +1,11 @@
 /**
  * [INPUT]: 依赖真实 Noise/link/connection 实现、冻结 Remote wire 身份和进程内认证控制帧路由。
- * [OUTPUT]: 验证握手+租约前拒绝业务、完整加密HTTP/mux、撤权及过期关门、旧socket隔离。
+ * [OUTPUT]: 验证握手+租约+同版 ready 前拒绝业务、完整加密HTTP/mux、撤权及过期关门、旧socket隔离。
  * [POS]: bundle/remote 的双端状态机测试；控制面路由夹具不替代密码实现。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { describe, it, expect, vi } from 'vitest'
-import { encodeKey, generateNoiseKeyPair, deferred } from '@owndsh/remote-core'
+import { encodeKey, generateNoiseKeyPair, deferred, NoiseSession, decodeCarrierFrame, encodeCarrierFrame } from '@owndsh/remote-core'
 import { remoteProtocolSha256, parseRemoteControlFrame, parseRemoteRelayFrame, type RemoteControlFrame } from '@owndsh/contracts'
 import { SecureDshLink, remoteFrameId } from '../src/remote/secure-link.js'
 import { RemoteServerConnection, type RemoteSocketLike } from '../src/remote/server-connection.js'
@@ -58,6 +58,22 @@ async function linked(carrier: DshCarrier, ttl = 60_000) {
 }
 
 describe('secure DSH link', () => {
+  it('rejects an authenticated old Host ready before admitting any business request', async () => {
+    const encrypt = NoiseSession.prototype.encrypt
+    const oldHost = vi.spyOn(NoiseSession.prototype, 'encrypt').mockImplementation(function (this: NoiseSession, bytes) {
+      const frame = decodeCarrierFrame(bytes)
+      return encrypt.call(this, encodeCarrierFrame(frame.kind === 'ready' ? { ...frame, version: '0.2.1-rc.5' } : frame))
+    })
+    let calls = 0
+    const fixture = await linked({ async fetch() { calls++; return new Response('remote') }, async openMux() { throw new Error('unused') }, close() {} })
+    try {
+      fixture.accept()
+      await expect(fixture.clientLink.ready.promise).rejects.toThrow('ENT_REMOTE_DSH_VERSION')
+      expect(fixture.clientLink.signal.aborted).toBe(true)
+      expect(() => fixture.clientLink.fetch('/api/session/list', { method: 'POST', headers: {} })).toThrow()
+      expect(calls).toBe(0)
+    } finally { fixture.close(); oldHost.mockRestore() }
+  })
   it('requires two Noise messages plus lease, encrypts carrier paths and closes on revoke', async () => {
     let calls = 0
     let closed = false

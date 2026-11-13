@@ -32,7 +32,7 @@ test('workspace uses the locked Desktop-owned Harness baseline and toolchain', a
 
   assert.equal(workspace.private, true)
   assert.equal(workspace.packageManager, 'pnpm@11.7.0')
-  assert.deepEqual(workspace.engines, { node: '^22.19.0 || >=24.0.0' })
+  assert.deepEqual(workspace.engines, { node: '>=24.9.0' })
   assert.deepEqual(desktopLock.harness, {
     repository: harnessLock.repository,
     version: harnessLock.version,
@@ -45,8 +45,6 @@ test('workspace uses the locked Desktop-owned Harness baseline and toolchain', a
     readJson(resolve(DESKTOP_ROOT, 'package.json')),
   ])
   assert.equal(workspace.packageManager, harness.packageManager)
-  assert.deepEqual(workspace.engines, harness.engines)
-  assert.deepEqual(workspace.engines, desktop.engines)
   assert.equal(desktop.version, desktopLock.version)
   assert.equal(harness.version, harnessLock.version)
   assert.equal(

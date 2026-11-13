@@ -1,10 +1,11 @@
 /**
  * [INPUT]: 依赖 Zod 边界校验与 Web Streams；每条明文进入 Noise 后才允许 relay。
- * [OUTPUT]: 提供有限 carrier 帧、逐流字节信用和有界读取队列。
+ * [OUTPUT]: 提供独立于 Remote wire 的 DSH 应用版本、有限 carrier 帧、逐流字节信用和有界读取队列。
  * [POS]: remote-core 的流量控制层；HTTP 与原生 mux 共用字节流，不解释业务 RPC。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { z } from 'zod'
+export const DSH_CARRIER_VERSION = '0.2.2-rc.3'
 export const CARRIER_CHUNK_BYTES = 24_576
 export const CARRIER_WINDOW_BYTES = CARRIER_CHUNK_BYTES * 4
 export const MAX_CARRIER_CHANNELS = 32
@@ -12,7 +13,7 @@ export const MAX_MUX_MESSAGE_BYTES = 4 * 1024 * 1024
 const id = z.string().regex(/^[a-z0-9-]{1,64}$/)
 const headers = z.partialRecord(z.enum(['content-type', 'accept', 'range', 'content-range', 'accept-ranges']), z.string().max(1024))
 export const carrierFrameSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('ready'), version: z.literal('0.2.1-rc.5') }).strict(),
+  z.object({ kind: z.literal('ready'), version: z.string().min(1).max(64) }).strict(),
   z.object({ kind: z.literal('http.open'), id, path: z.string().max(8192).startsWith('/api/'), method: z.enum(['GET', 'HEAD', 'POST']), headers }).strict(),
   z.object({ kind: z.literal('http.response'), id, status: z.number().int().min(200).max(599), headers }).strict(),
   z.object({ kind: z.literal('mux.open'), id }).strict(),

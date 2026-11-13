@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖原生 WorkspaceRegistry 的可信目录和公开 mux 协议。
- * [OUTPUT]: 提供逐端点准入、插件库存只读访问、Office 源文件与原生文件的 realpath 约束，隔离两种路径语义，拒绝管理及写文件旁路。
+ * [OUTPUT]: 提供逐端点准入、插件库存只读访问、工作区搜索 scope、Office 源文件与原生文件的 realpath 约束，隔离两种路径语义，拒绝管理及写文件旁路。
  * [POS]: remote Host 的业务权限边界；agent/terminal 仍以原生 DSH 的 OS 用户执行。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -18,10 +18,10 @@ export const DSH_UNARY_ENDPOINTS = new Set([
   'session/cancel', 'session/page', 'session/projections',
   'workspace/rename', 'workspace/insertBefore', 'workspace/insertSessionBefore',
   'workspace/archiveSession', 'workspace/unarchiveSession', 'workspace/pinSession', 'workspace/unpinSession',
-  'workspaceFiles/read', 'workspaceFiles/readBytes', 'workspaceFiles/stat', 'workspaceFiles/list',
+  'workspaceFiles/search', 'workspaceFiles/read', 'workspaceFiles/readBytes', 'workspaceFiles/stat', 'workspaceFiles/list',
   'officeToPdf/generation', 'officeToPdf/render',
   'terminal/environment', 'terminal/shells', 'terminal/list', 'terminal/create', 'terminal/rename', 'terminal/close',
-  'commands/list', 'commands/execute', 'subagents/prompt', 'subagents/interruptByParent', 'job/kill',
+  'commands/list', 'commands/execute', 'subagents/prompt', 'subagents/interruptByUser', 'job/kill',
   'agentPresets/list', 'agentPresets/read', 'agentPresets/select', 'permissionPresets/catalog', 'skills/list',
   'pluginInventory/list',
 ])
@@ -45,6 +45,19 @@ export async function authorizeFilePayload(catalog: WorkspaceCatalog, payload: u
     path = resolve(dirname(base), relativePath)
   }
   await containPath(workspace.path, path)
+}
+const searchPayload = z.object({ args: z.object({
+  workspaceFileScopeId: z.string().min(1),
+  request: z.object({ query: z.string().trim().min(1).max(8192), excludedPaths: z.array(z.string().max(8192)).max(512),
+    includeHidden: z.boolean(), respectGitignore: z.boolean() }).strict(),
+}).strict() }).passthrough()
+
+/** 搜索没有调用方路径：官方服务仅在已授权会话的 workspace root 执行 rg。 */
+export async function authorizeSearchPayload(catalog: WorkspaceCatalog, payload: unknown): Promise<void> {
+  const { args } = searchPayload.parse(payload)
+  const workspace = catalog.list().find(value => value.sessionIds.includes(args.workspaceFileScopeId))
+  if (!workspace) throw new Error('ENT_REMOTE_DENIED')
+  await containPath(workspace.path, '.')
 }
 export function authorizeOfficePayload(catalog: WorkspaceCatalog, payload: unknown): Promise<void> {
   const { args } = filePayload.parse(payload)

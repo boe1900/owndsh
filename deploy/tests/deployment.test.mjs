@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 deploy Compose/Nginx/脚本、单一 application.yml、Docker Compose v2 与测试环境变量。
- * [OUTPUT]: 验证内部数据服务加 HTTP Console/Server 拓扑、原生平台静态构建与目标平台运行镜像、无外部 SQL 挂载与应用日志卷、GHCR/ACR 双仓库镜像和 GitHub 插件制品发布、默认免签名密钥与可选 key 归档、环境参数、幂等 bootstrap、API/SPA 路由与运维边界。
+ * [OUTPUT]: 验证内部数据服务加 HTTP Console/Server 拓扑、原生平台静态构建与目标平台运行镜像、发行 Harness 版本交叉校验、无外部 SQL 挂载与应用日志卷、GHCR/ACR 双仓库镜像和 GitHub 插件制品发布、默认免签名密钥与可选 key 归档、环境参数、幂等 bootstrap、API/SPA 路由与运维边界。
  * [POS]: T21/P2-08 部署与本地人工验收静态门禁，先于昂贵镜像构建发现配置漂移。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -269,7 +269,9 @@ test('operations scripts parse, keep Harness bundles aligned, and rollback canno
   assert.match(release, /DOCKER_BUILDKIT=0 docker build/)
   assert.match(release, /harness_lock="\$source_root\/upstream\/deepseek-harness\.lock\.json"/)
   assert.match(release, /OWNDSH_HARNESS_VERSION=\$harness_version/)
-  assert.match(release, /OWNDSH_HARNESS_COMMIT=\$harness_commit/)
+  assert.match(release, /OWNDSH_HARNESS_SOURCE_FIXTURE_VERSION=\$harness_source_fixture_version/)
+  assert.match(release, /OWNDSH_HARNESS_SOURCE_FIXTURE_COMMIT=\$harness_source_fixture_commit/)
+  assert.doesNotMatch(release, /OWNDSH_HARNESS_COMMIT=/)
   assert.match(release, /console\/BEAUTIFUL_UI_LICENSE/)
   assert.doesNotMatch(release, /OWNDSH_HARNESS_VERSION=\d/)
   assert.doesNotMatch(release, /admin-web\/LICENSE/)
@@ -277,6 +279,29 @@ test('operations scripts parse, keep Harness bundles aligned, and rollback canno
   for (const script of scripts.filter(file => file !== 'common.sh')) {
     assert.doesNotMatch(read(`deploy/scripts/${script}`), /\bsha256sum\b/)
   }
+})
+
+test('release Harness metadata uses the exact bundle and Console runtime, rejecting a mismatched or ranged version', () => {
+  const release = read('deploy/scripts/build-release.sh')
+  const program = release.match(/harness_version=\$\(node -e '([\s\S]*?)' "\$source_root\/plugin\/packages\/bundle\/package.json"/)
+  assert.ok(program)
+  const state = mkdtempSync(join(tmpdir(), 'owndsh-release-version-'))
+  try {
+    const bundle = join(state, 'bundle.json')
+    const native = join(state, 'native.json')
+    const version = JSON.parse(read('console/native-runtime/package.json')).dependencies['@deepseek-ai/dsh']
+    writeFileSync(bundle, read('plugin/packages/bundle/package.json'))
+    writeFileSync(native, read('console/native-runtime/package.json'))
+    const run = () => spawnSync(process.execPath, ['-e', program[1], bundle, native], { encoding: 'utf8' })
+    const current = run()
+    assert.equal(current.status, 0, current.stderr)
+    assert.equal(current.stdout, version)
+    writeFileSync(native, JSON.stringify({ dependencies: { '@deepseek-ai/dsh': '0.0.0' } }))
+    assert.notEqual(run().status, 0)
+    writeFileSync(native, JSON.stringify({ dependencies: { '@deepseek-ai/dsh': `^${version}` } }))
+    writeFileSync(bundle, JSON.stringify({ peerDependencies: { '@deepseek-ai/dsh-llm': `^${version}` } }))
+    assert.notEqual(run().status, 0)
+  } finally { rmSync(state, { recursive: true, force: true }) }
 })
 
 test('portable SHA-256 helper emits and verifies standard manifests', () => {
@@ -385,6 +410,12 @@ test('Docker build contexts lock every build and runtime base by digest', () => 
     /eclipse-temurin:21\.0\.8_9-jre-jammy@sha256:[a-f0-9]{64}/
   )
   const console = read('deploy/compose/Dockerfile.console')
+  const nodeImage = console.match(/^ARG OWNDSH_NODE_IMAGE=.*node:(\d+\.\d+\.\d+).*@(sha256:[a-f0-9]{64})$/m)
+  assert.ok(nodeImage)
+  const minimumNode = JSON.parse(read('console/package.json')).engines.node
+  assert.match(minimumNode, /^>=\d+\.\d+\.\d+$/)
+  assert.ok(nodeImage[1].localeCompare(minimumNode.slice(2), 'en', { numeric: true }) >= 0)
+  assert.ok(read('deploy/scripts/build-release.sh').includes(`node_image=$(local_image_by_digest ${nodeImage[2]})`))
   assert.deepEqual(console.split('\n').filter(line => line.startsWith('FROM ')), [
     'FROM --platform=$BUILDPLATFORM ${OWNDSH_NODE_IMAGE} AS build',
     'FROM ${OWNDSH_NGINX_IMAGE}',

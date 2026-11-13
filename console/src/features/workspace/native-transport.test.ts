@@ -10,7 +10,7 @@ import { createNativeTransport, nativeApiPath } from './native-transport';
 import type { NativeAssembly } from './native-assembly';
 
 const assembly: NativeAssembly = {
-  harnessVersion: '0.2.1-rc.5', html: '', resources: {},
+  harnessVersion: '0.2.2-rc.3', html: '', resources: { '/plugins/trusted/assets/whale-abcd.png': { file: '/native-workspace/assets/abc.png', sha256: 'a'.repeat(64), contentType: 'image/png' } },
   metadata: { '/api/settings/describe': { type: 'server-response', rpcId: 'captured', result: { ok: true, value: [] } } },
 };
 function fixture() {
@@ -34,6 +34,15 @@ describe('native remote carrier boundary', () => {
     await expect(transport.fetch('api/session/prompt', { method: 'POST', body: 'test' })).rejects.toThrow('ENT_REMOTE_CLOSED');
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(fetch.mock.calls[0]?.[0]).toBe('/api/session/prompt');
+  });
+
+  it('resolves only trusted frozen package assets without requesting the remote host', () => {
+    const { fetch, transport } = fixture();
+    expect(transport.resolveAsset('plugins/trusted/assets/whale-abcd.png')).toBe('/native-workspace/assets/abc.png');
+    for (const ref of ['https://other.invalid/plugins/trusted/assets/whale-abcd.png', 'plugins/unknown/assets/whale.png', 'plugins/trusted/assets/whale-abcd.png#other']) {
+      expect(() => transport.resolveAsset(ref)).toThrow('ENT_REMOTE_UI_RESOURCE');
+    }
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it('rejects paths and sockets outside the single native API carrier', () => {

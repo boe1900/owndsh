@@ -13,7 +13,7 @@ checkout. T01 establishes formal packages for PKCE, local Host APIs,
 OpenAI-compatible SSE, Session seed restoration, Client slots, and a
 self-contained bundle. OwnDsh does not fork or maintain the official Harness
 Web/Desktop UI: `owndsh-plugin` is the only employee-side deliverable, and the
-locked upstream checkouts remain read-only verification fixtures. Published peers follow the same caret ranges as Harness packages, while the Host reports its actual Harness version through the official LLM runtime identity. T06 promotes the PKCE probe into `ctx.enterprisePlatform`
+locked upstream checkouts remain read-only verification fixtures. This source targets DSH 0.2.2-rc.3 on Node.js 24.9 or later. DSH peers are exact; Cordis and Schemastery share the Host minor series, while the Host reports its actual Harness version through the official LLM runtime identity. T06 promotes the PKCE probe into `ctx.enterprisePlatform`
 with in-memory Access Token ownership, official Host `GrantRecord` persistence for the rotating Refresh Token,
 installation persistence, enroll/bootstrap, restart recovery, and request-time Token renewal and same-origin local JSON (no resident enterprise SSE). The workspace uses the locked Harness
 release's public plugin surface and does not generate or mount a custom Typert

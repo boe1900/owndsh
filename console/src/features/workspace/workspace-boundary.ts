@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖稳定错误码、显式返回动作和本人设备连接快照/准确断开端口。
- * [OUTPUT]: 阻断失联工作区；占用时以原生对话框确认准确连接后接管，不重放业务操作。
+ * [OUTPUT]: 阻断失联工作区并提示版本升级；占用时以原生对话框确认准确连接后接管，不重放业务操作。
  * [POS]: workspace 的唯一连接反馈，接管请求独立于已终止的 document link，旧页不会自动抢回。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -12,6 +12,7 @@ const messages: Record<string, string> = {
   ENT_REMOTE_CLOSED: '与设备的连接已断开。重新连接后可以继续查看会话。',
   ENT_REMOTE_DISCONNECTED: '已主动断开连接。需要继续使用时，请点击重新连接。',
   ENT_REMOTE_TIMEOUT: '设备连接超时。请确认设备在线且已开启远控。',
+  ENT_REMOTE_DSH_VERSION: '设备工作区版本与管控台不一致。请将设备上的 DSH 和 OwnDsh 插件升级到与管控台配套的版本后重新连接。',
   ENT_REMOTE_UI_UNAVAILABLE: '工作区界面资源暂时不可用。请刷新重试。',
   ENT_REMOTE_UI_RESOURCE: '工作区界面资源加载失败。请刷新重试。',
 };

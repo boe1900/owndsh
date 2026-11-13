@@ -141,7 +141,7 @@ export class WorkspaceRuntime implements RemoteWorkspaceRuntime {
     const abort = () => { link?.close(); connection.close() }
     combined.addEventListener('abort', abort, { once: true })
     try {
-      const request: RemoteTicketRequest = { controllerDeviceId: controllerId, controllerPublicKey, requestedCapabilities: ['remote.connect', 'host.describe'], clientVersion: '0.2.1-rc.5' }
+      const request: RemoteTicketRequest = { controllerDeviceId: controllerId, controllerPublicKey, requestedCapabilities: ['remote.connect', 'host.describe'], clientVersion: '0.2.2-rc.3' }
       const response = await this.platform.request(`/enterprise/api/v1/remote/devices/${deviceId}/ticket`, {
         method: 'POST', headers: { 'content-type': 'application/json', 'Idempotency-Key': crypto.randomUUID() },
         body: JSON.stringify(request), signal: combined,

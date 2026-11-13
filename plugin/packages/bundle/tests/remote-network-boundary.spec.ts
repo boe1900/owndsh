@@ -132,3 +132,96 @@ it('admits native Office previews and authorizes the actual source path before f
     await rm(root, { recursive: true, force: true })
   }
 })
+
+it('admits workspace search only for an authorized session scope and the rc.3 user interrupt endpoint', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'owndsh-search-scope-'))
+  const forwarded: string[] = []
+  const server = createServer((request, response) => {
+    if (request.url?.startsWith('/connect')) { response.writeHead(302, { 'set-cookie': 'native-owner=test-only; HttpOnly' }).end(); return }
+    forwarded.push(request.url ?? '')
+    request.pipe(response)
+  })
+  const sockets = new WebSocketServer({ server })
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  const address = server.address()
+  if (!address || typeof address === 'string') throw new Error('listener unavailable')
+  const carrier = await openDshCarrier({ connection: { authenticatedUrl: url => url },
+    webServer: { getOrigin: () => `http://127.0.0.1:${address.port}` },
+    workspaceRegistry: { list: () => [{ id: 'workspace', path: root, sessionIds: ['session'] }] },
+  }, new AbortController().signal)
+  const send = (method: string, args: unknown) => carrier.fetch(`/api/${method}`, { method: 'POST', headers: {},
+    body: new ReadableStream({ start(controller) {
+      controller.enqueue(new TextEncoder().encode(JSON.stringify({ type: 'client-request', rpcId: 'test', method, payload: { args } })))
+      controller.close()
+    } }),
+  })
+  const args = { workspaceFileScopeId: 'session', request: { query: 'report', excludedPaths: ['.git'], includeHidden: false, respectGitignore: true } }
+  try {
+    await (await send('workspaceFiles/search', args)).body?.cancel()
+    for (const invalid of [
+      { ...args, workspaceFileScopeId: 'other' },
+      { ...args, path: '../outside' },
+      { ...args, request: { ...args.request, root: '../outside' } },
+      { ...args, request: { ...args.request, query: '' } },
+    ]) await expect(send('workspaceFiles/search', invalid)).rejects.toThrow()
+    await (await send('subagents/interruptByUser', { childSessionId: 'child' })).body?.cancel()
+    await expect(send('subagents/interruptByParent', {})).rejects.toThrow('ENT_REMOTE_DENIED')
+    expect(forwarded).toEqual(['/api/workspaceFiles/search', '/api/subagents/interruptByUser'])
+  } finally {
+    carrier.close()
+    for (const socket of sockets.clients) socket.terminate()
+    sockets.close(); server.closeAllConnections()
+    await new Promise<void>(resolve => server.close(() => resolve()))
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+it('follows only bounded same-file media version redirects and keeps native credentials private', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'owndsh-media-version-'))
+  const path = join(root, 'image.png')
+  await writeFile(path, 'image-content')
+  let mode: 'normal' | 'origin' | 'path' | 'loop' = 'normal'
+  const versions: Array<string | null> = []
+  const server = createServer((request, response) => {
+    if (request.url?.startsWith('/connect')) { response.writeHead(302, { 'set-cookie': 'native-owner=test-only; HttpOnly' }).end(); return }
+    const url = new URL(request.url ?? '/', 'http://localhost')
+    versions.push(url.searchParams.get('v'))
+    expect(request.headers.cookie).toBe('native-owner=test-only')
+    if (mode === 'normal' && url.searchParams.get('v') === 'current') {
+      response.writeHead(200, { 'content-type': 'image/png', 'set-cookie': 'private=hidden' }).end('image-content'); return
+    }
+    const params = new URLSearchParams({ path: mode === 'path' ? join(root, 'different.png') : path,
+      v: mode === 'loop' ? 'loop' : 'current' })
+    response.writeHead(302, { location: `${mode === 'origin' ? 'https://other.invalid/api/file' : ''}?${params}` }).end()
+  })
+  const sockets = new WebSocketServer({ server })
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  const address = server.address()
+  if (!address || typeof address === 'string') throw new Error('listener unavailable')
+  const carrier = await openDshCarrier({ connection: { authenticatedUrl: url => url },
+    webServer: { getOrigin: () => `http://127.0.0.1:${address.port}` },
+    workspaceRegistry: { list: () => [{ id: 'workspace', path: root, sessionIds: ['session'] }] },
+  }, new AbortController().signal)
+  const fetchImage = (query: Record<string, string> = {}, method = 'GET') => carrier.fetch(`/api/file?${new URLSearchParams({ path, ...query })}`, { method, headers: {} })
+  try {
+    for (const query of [{}, { v: 'old' }, { v: 'current', load: '1' }]) {
+      const response = await fetchImage(query)
+      expect(await response.text()).toBe('image-content')
+      expect(response.headers.has('set-cookie')).toBe(false)
+      expect(response.headers.has('location')).toBe(false)
+    }
+    await (await fetchImage({}, 'HEAD')).body?.cancel()
+    expect(versions).toEqual([null, 'current', 'old', 'current', 'current', null, 'current'])
+    for (const value of ['origin', 'path', 'loop'] as const) {
+      mode = value
+      await expect(fetchImage()).rejects.toThrow('ENT_REMOTE_DENIED')
+    }
+    for (const query of [{ load: 'text' }, { extra: '1' }, { v: '' }]) await expect(fetchImage(query)).rejects.toThrow('ENT_REMOTE_DENIED')
+  } finally {
+    carrier.close()
+    for (const socket of sockets.clients) socket.terminate()
+    sockets.close(); server.closeAllConnections()
+    await new Promise<void>(resolve => server.close(() => resolve()))
+    await rm(root, { recursive: true, force: true })
+  }
+})
