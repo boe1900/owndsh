@@ -6,7 +6,7 @@
 
 tsconfig.json: 严格 NodeNext 编译纯浏览器兼容源码，不隐式加载 Node 全局类型，支持 Console 独立工作区构建。
 
-package.json: 无框架 Remote core，使用 MIT clatterjs 完整标准 Noise IK、noble X25519 与 Zod 边界校验。
+package.json: 无框架 Remote core，使用 MIT clatterjs 完整标准 Noise IK、noble X25519 与 Zod 边界校验；build/typecheck 先构建 workspace 依赖，干净 checkout 不依赖已有 contracts 声明产物。
 src/index.ts: 共享 facade 与既有 fragment、counter、lease 和 transport 纯逻辑，导出 Noise、carrier、完整安全 link/tunnel 与平台适配契约。
 src/noise.ts: 固定 Noise_IK_25519_ChaChaPoly_SHA256 双消息握手，验证双方静态公钥；JSON prologue 绑定 link、设备与公钥，transport 严格递增计数且单帧含 AEAD 不超过 65536 字节。关闭清零自有密钥并释放提供者，clatterjs 没有内部派生密钥擦除 API。
 src/secure-link.ts: Host/浏览器共用的 Noise IK、租约截止时间与 carrier ready 状态机，通过结构化 connection 边界发送帧，不依赖 Node Buffer 或原生 socket。
