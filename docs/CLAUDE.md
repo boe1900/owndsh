@@ -16,7 +16,7 @@ remote-dsh-workspace-design.md: R1–R5 后 DSH 实际业务的实施契约，�
 
 unified-login-design.md: 统一登录实施真源，冻结新鲜登录直达授权完成、已有浏览器身份确认、独立客户端 PKCE、退出范围与桌面唤回，记录真实本地验收。
 
-dsh-022-rc3-compatibility-20261113.md: rc.3 源码差异、API迁移、冻结Console资源、真实模型与桌面制品补验，记录 NAS 失联和未通过边界，不推导旧版本兼容。
+dsh-022-rc3-compatibility-20261113.md: rc.3 源码差异、API迁移、冻结Console资源、真实模型、npm beta.21 与三平台桌面发行证据，区分本机旧版自动更新进度和 NAS 未验收边界，不推导旧版本兼容。
 
 dsh-compatibility.md: DSH 升级检查入口，记录当前 npm/Web 基线、上游依赖契约与本地代码/测试映射、历史夹具边界、逐项验收流程及 OAuth 接缝删除条件。
 remote-access-design.md: 远程访问唯一方案，确定 Remote 核心复用、OwnDsh 账号与设备授权、Java/TS 职责、WebRTC/TURN/加密 Relay、统一撤权、浏览器接入与实施验收边界。

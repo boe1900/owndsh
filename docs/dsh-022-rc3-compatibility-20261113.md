@@ -192,4 +192,14 @@ NAS 安装期间 SSH/Tailscale 多次失去响应。用户反馈恢复后，首�
 
 ## 发布与自动更新记录
 
-用户已授权将本次已验证源码发布为 `owndsh-plugin@0.1.0-beta.21` 的 npm `next`，再发布预置该精确插件的 `OwnDsh Desktop v0.2.2-rc.3`。插件使用现有标签 Trusted Publishing，桌面使用现有三平台 GitHub Actions；补验阶段的 beta.20 私有候选不直接对外发布。实际 npm 完整性、GitHub Release 和旧版更新结果在执行后补入。
+用户已授权将本次已验证源码发布为 `owndsh-plugin@0.1.0-beta.21` 的 npm `next`，再发布预置该精确插件的 `OwnDsh Desktop v0.2.2-rc.3`。插件使用现有标签 Trusted Publishing，桌面使用现有三平台 GitHub Actions；补验阶段的 beta.20 私有候选不直接对外发布。
+
+OwnDsh commit `7b36b36c73f14215fb74181de8ea865e8304fe9c` 与标签 `v0.1.0-beta.21` 已推送。发布流水线 [43435877761](https://github.com/boe1900/owndsh/actions/runs/43435877761) 的插件检查、npm 发布、服务端和管控台镜像均成功。npm 公共仓库已返回 `next=0.1.0-beta.21`。实际下载的 53 文件 tgz 通过 registry SHA-512 校验，25 个 DSH peer 全部精确锁为 `0.2.2-rc.3`，两份 bundle sourcemap 的源码内容哈希集合与本地审阅包一致，并携带 GitHub Actions SLSA provenance。公开 tgz 的 SHA-256 为 `786706e05e0d119ed169c0ef23e23ef2dd444b4322bde3a54bfe28d404b50b0a`。证据为 `release/npm-beta21.json`、`npm-verified.json` 和 `npm-publish-ci.log`。
+
+桌面 commit `b05d4e51c8089b3594b1c46ce8845ba2fb1081fb` 与标签 `v0.2.2-rc.3` 已原子推送，预置插件锁改为公共 `beta.21`，README 同步当前发行版本。再次运行接缝测试得到 18 项通过、2 项本机平台跳过、零失败。三平台发行由 [43437067760](https://github.com/boe1900/owndsh-desktop/actions/runs/43437067760) 执行，Windows x64、macOS ARM64、macOS x64 和 Release job 全部成功。两个 macOS 平台均校验 App 与 ZIP 内 App 的 deep strict 签名和稳定 designated requirement，实际安装依赖日志均确认 `beta.21`。
+
+[OwnDsh Desktop v0.2.2-rc.3](https://github.com/boe1900/owndsh-desktop/releases/tag/v0.2.2-rc.3) 已发布，GitHub `releases/latest` 已指向该版本，非 Draft、非 GitHub prerelease。实际核对 10 个资产齐全，包含三平台安装文件、blockmap 和两个 feed。`nightly-mac.yml` 同时包含 ARM64、x64 ZIP，版本为 `0.2.2-rc.3`，文件名与大小匹配 Release 资产；Windows feed 版本也一致。证据为 `release/desktop-ci-result.json`、`desktop-release.json`、`release-verified.json` 与 `feeds/`。Windows 和 Intel 本轮完成真实平台构建及门禁，但没有真机 UI 或自动更新验收。
+
+实际更新从用户原 `/Applications/OwnDsh Desktop.app` 开始，版本为 `0.2.1-rc.5`。原 `app.asar` 内 `dsh/node_modules/owndsh-plugin/package.json` 确认预置插件为 `beta.20`。旧 profile 的依赖字段残留 `beta.17`，但 profile 下该插件副本不存在，不能用这条记录判断实际加载版本。此次包内插件升级为 `beta.20 → beta.21`。发布前通过原生菜单检查更新，提示已是最新版本，截图为 `release/before-update-check.png`。原 App、`~/.owndsh` 与 Electron userData 已备份至私有 `release/before-update/`，原数据文件另存哈希清单。候选隔离 App 已退出，避免把先前实包验收当成此次更新结果。
+
+Release 发布后准备点击原 App 检查更新时，电脑工具报告 Mac 已锁定且自动解锁失败，要求用户手动解锁。已请求解锁；此时原 App 尚未开始本轮下载和安装，不能将 feed 校验或之前候选安装结果当成自动更新通过。
