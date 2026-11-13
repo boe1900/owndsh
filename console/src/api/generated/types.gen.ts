@@ -397,12 +397,6 @@ export type McpCatalogUpload = McpMcpCatalogUpload;
 
 export type McpCatalogUploadResponse = McpMcpCatalogUploadResponse;
 
-export type PluginInventoryRequest = PluginPluginInventoryRequest;
-
-export type PluginInventoryResponse = PluginPluginInventoryResponse;
-
-export type AdminPluginInventoryListResponse = PluginAdminPluginInventoryListResponse;
-
 export type SessionId = SessionSessionId;
 
 export type SessionReplicaId = SessionSessionReplicaId;
@@ -2045,30 +2039,6 @@ export type ModelProviderUpdateRequest = {
     description?: ProviderDescription;
 };
 
-export type AdminPluginInventoryItem = {
-    deviceId: EnterpriseDeviceId;
-    username: string;
-    packageName: PluginPackageName;
-    version: PluginSemanticVersion | null;
-    desiredRevision: Revision;
-    state: ManagedPluginState;
-    loaderPhase: string | null;
-    lastErrorCode: string | null;
-    observedAt: string;
-};
-
-export type PluginAdminPluginInventoryListResponse = {
-    data: AdminPluginInventoryPageData;
-    requestId: RequestId;
-};
-
-export type AdminPluginInventoryPageData = {
-    items: Array<AdminPluginInventoryItem>;
-    page: CursorPage;
-};
-
-export type ManagedPluginState = 'EXPECTED' | 'INSTALLING' | 'RESTART_REQUIRED' | 'ACTIVE' | 'REMOVE_PENDING' | 'REMOVING' | 'FAILED' | 'ROLLBACK';
-
 export type PluginAssignment = {
     id: PluginPluginAssignmentId;
     packageId: PluginPluginPackageId;
@@ -2115,29 +2085,6 @@ export type PluginPluginInstallation = {
     author: string;
     repositoryUrl: string;
     category: string;
-};
-
-export type PluginInventoryAck = {
-    reported: number;
-};
-
-export type PluginInventoryItem = {
-    packageName: PluginPackageName;
-    version: PluginSemanticVersion | null;
-    desiredRevision: Revision;
-    state: ManagedPluginState;
-    loaderPhase: string | null;
-    lastErrorCode: string | null;
-    observedAt: string;
-};
-
-export type PluginPluginInventoryRequest = {
-    items: Array<PluginInventoryItem>;
-};
-
-export type PluginPluginInventoryResponse = {
-    data: PluginInventoryAck;
-    requestId: RequestId;
 };
 
 export type PluginMarketMetadata = {
@@ -2980,8 +2927,6 @@ export type ProviderEnable = unknown;
 
 export type ProviderItem = unknown;
 
-export type AdminPluginInventory = unknown;
-
 export type PluginAssignmentBatch = unknown;
 
 export type PluginCollection = unknown;
@@ -2997,8 +2942,6 @@ export type PluginVersionRegistration = unknown;
 export type PluginVersionRetire = unknown;
 
 export type PluginRuntimePluginAssignments2 = unknown;
-
-export type RuntimePluginInventory = unknown;
 
 export type AdminUsage = unknown;
 
@@ -7316,44 +7259,6 @@ export type ReplacePluginAssignmentsResponses = {
 
 export type ReplacePluginAssignmentsResponse = ReplacePluginAssignmentsResponses[keyof ReplacePluginAssignmentsResponses];
 
-export type ListPluginInventoryData = {
-    body?: never;
-    path?: never;
-    query?: {
-        /**
-         * Server-signed opaque cursor; clients must not parse it.
-         */
-        cursor?: Cursor;
-        /**
-         * Cursor page size.
-         */
-        limit?: PageLimit;
-    };
-    url: '/enterprise/admin/v1/plugins/inventory';
-};
-
-export type ListPluginInventoryErrors = {
-    /**
-     * Authentication failed.
-     */
-    401: EnterpriseErrorResponse;
-    /**
-     * Permission denied.
-     */
-    403: EnterpriseErrorResponse;
-};
-
-export type ListPluginInventoryError = ListPluginInventoryErrors[keyof ListPluginInventoryErrors];
-
-export type ListPluginInventoryResponses = {
-    /**
-     * Managed device plugin inventory page.
-     */
-    200: PluginAdminPluginInventoryListResponse;
-};
-
-export type ListPluginInventoryResponse = ListPluginInventoryResponses[keyof ListPluginInventoryResponses];
-
 export type GetPluginAssignmentsData = {
     body?: never;
     path?: never;
@@ -7382,39 +7287,6 @@ export type GetPluginAssignmentsResponses = {
 };
 
 export type GetPluginAssignmentsResponse = GetPluginAssignmentsResponses[keyof GetPluginAssignmentsResponses];
-
-export type ReplacePluginInventoryData = {
-    body: PluginPluginInventoryRequest;
-    path?: never;
-    query?: never;
-    url: '/enterprise/api/v1/plugins/inventory';
-};
-
-export type ReplacePluginInventoryErrors = {
-    /**
-     * Invalid request.
-     */
-    400: EnterpriseErrorResponse;
-    /**
-     * Authentication failed.
-     */
-    401: EnterpriseErrorResponse;
-    /**
-     * Permission denied.
-     */
-    403: EnterpriseErrorResponse;
-};
-
-export type ReplacePluginInventoryError = ReplacePluginInventoryErrors[keyof ReplacePluginInventoryErrors];
-
-export type ReplacePluginInventoryResponses = {
-    /**
-     * Inventory replacement accepted.
-     */
-    200: PluginPluginInventoryResponse;
-};
-
-export type ReplacePluginInventoryResponse = ReplacePluginInventoryResponses[keyof ReplacePluginInventoryResponses];
 
 export type ListOwnedSessionsData = {
     body?: never;

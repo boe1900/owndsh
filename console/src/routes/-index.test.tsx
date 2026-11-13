@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Testing Library、Vitest、内存 history、静态角色元数据与完整产品 routeTree。
- * [OUTPUT]: 在仅有 getRandomValues 的 HTTP 环境验证角色矩阵、登录页会话复用、业务写入、模型列表与供应商切换、插件分类登记、发布确认及双 revision 范围升级、read/write 分权及 Sign out。
+ * [OUTPUT]: 在仅有 getRandomValues 的 HTTP 环境验证角色矩阵、登录页会话复用、业务写入、模型列表与供应商切换、插件分类登记、发布确认及双 revision 范围升级、read/write 分权、插件管理员活动重定向及 Sign out。
  * [POS]: routes 的产品壳最小集成门禁，覆盖前端可见性但不替代 Server ent:* 权限测试。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -603,20 +603,6 @@ function mockApi(role: AuthBuiltInRole, logoutStatus = 200, permissions: string[
       });
       return json({ data: [], requestId: 'req_plugin_assignments' });
     }
-    if (pathname.endsWith('/enterprise/admin/v1/plugins/inventory')) {
-      return json({
-        data: {
-          items: [{
-            deviceId: 'device-1', username: 'candidate', packageName: '@owndsh/audit-tools',
-            version: '1.1.0', desiredRevision: 7,
-            state: 'RESTART_REQUIRED', loaderPhase: 'loaded', lastErrorCode: null,
-            observedAt: '2026-09-01T05:30:00Z'
-          }],
-          page: { hasMore: false, limit: 100, nextCursor: null }
-        },
-        requestId: 'req_plugin_inventory'
-      });
-    }
     if (pathname.endsWith('/enterprise/auth/v1/logout')) {
       return logoutStatus === 200
         ? json({ data: { loggedOut: true }, requestId: 'req_logout' })
@@ -674,7 +660,7 @@ describe('product console access', () => {
     const paths = (role: AuthBuiltInRole) => productRoutesFor([role]).map((route) => route.to);
     expect(paths('enterprise_admin')).toEqual(['/', '/access', '/plugins', '/skills', '/mcp', '/members', '/activity', '/remote']);
     expect(paths('model_admin')).toEqual(['/', '/access', '/activity', '/remote']);
-    expect(paths('plugin_admin')).toEqual(['/plugins', '/skills', '/mcp', '/activity']);
+    expect(paths('plugin_admin')).toEqual(['/plugins', '/skills', '/mcp']);
     expect(paths('auditor')).toEqual(['/activity']);
     expect(paths('employee')).toEqual([]);
     expect(productRoutesFor(['model_admin', 'plugin_admin']).map((route) => route.to))
@@ -698,6 +684,16 @@ describe('product console access', () => {
   it('redirects a direct unauthorized URL to the first accessible page', async () => {
     renderRoute('/plugins', 'model_admin');
     expect(await screen.findByRole('heading', { name: '模型' }, { timeout: 5_000 })).toBeTruthy();
+  });
+
+  it('keeps plugin administrators on plugin pages when opening retired activity access', async () => {
+    renderRoute('/activity', 'plugin_admin', 200, ['ent:plugin:read']);
+    expect(await screen.findByRole('heading', { name: '企业插件' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '活动记录' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: '活动记录' })).toBeNull();
+    expect(screen.queryByRole('tab', { name: '设备状态' })).toBeNull();
+    expect(screen.getByRole('tab', { name: '插件版本' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: '可见范围' })).toBeTruthy();
   });
 
   it('renders the product member directory and continues with the Server cursor', async () => {
@@ -1205,9 +1201,7 @@ describe('product console access', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: '可见范围' }));
     expect(await screen.findByText('所有成员')).toBeTruthy();
-    fireEvent.click(screen.getByRole('tab', { name: '设备状态' }));
-    expect(await screen.findByText('candidate')).toBeTruthy();
-    expect(screen.getAllByText('需要重启')).toHaveLength(2);
+    expect(screen.queryByRole('tab', { name: '设备状态' })).toBeNull();
   });
 
   it('saves optional plugin visibility with a selected member, CAS and idempotency', async () => {

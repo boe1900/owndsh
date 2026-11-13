@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 PluginCatalogService、可信 enterprise-admin 上下文、认证 cursor 与 ent:plugin 权限码。
- * [OUTPUT]: 提供 catalog、登记、发布/退休、原子发布升级、包/版本删除、范围和库存入口；删除使用包 revision。
+ * [OUTPUT]: 提供 catalog、登记、发布/退休、原子发布升级、包/版本删除、范围入口；删除使用包 revision。
  * [POS]: plugin/web 的管理 HTTP 入口，只接收安装配置，包内容由客户端宿主获取。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -18,7 +18,6 @@ import com.owndsh.enterprise.common.api.EnterpriseCursorCodec;
 import com.owndsh.enterprise.common.api.EnterpriseResponse;
 import com.owndsh.enterprise.plugin.application.PluginCatalogService;
 import com.owndsh.enterprise.plugin.application.PluginMutationContext;
-import com.owndsh.enterprise.plugin.domain.DevicePluginInventory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -38,7 +37,6 @@ import java.util.UUID;
 @RequestMapping("/enterprise/admin/v1/plugins")
 public final class AdminPluginController {
     private static final String CATALOG_CURSOR_SCOPE = "plugin_packages";
-    private static final String INVENTORY_CURSOR_SCOPE = "plugin_inventory";
 
     private final PluginCatalogService catalog;
     private final IdentityAdminRequestContextResolver contexts;
@@ -166,30 +164,6 @@ public final class AdminPluginController {
         EnterpriseRequestContext context = contexts.resolve(request);
         catalog.deleteVersion(mutation(context), packageId, versionId, expectedRevision);
         return response(DeletedResourceView.of(versionId), context);
-    }
-
-    @GetMapping("/inventory")
-    @SaCheckPermission("ent:plugin:read")
-    public EnterpriseResponse<CursorPageData<PluginViews.InventoryView>> inventory(
-        @RequestParam(required = false) String cursor,
-        @RequestParam(defaultValue = "50") int limit,
-        HttpServletRequest request
-    ) {
-        EnterpriseRequestContext context = contexts.resolve(request);
-        int pageLimit = EnterpriseApiValidation.requirePageLimit(limit);
-        long afterId = cursors.decode(cursor, context.tenantId(), INVENTORY_CURSOR_SCOPE);
-        List<DevicePluginInventory> fetched = catalog.listInventory(context.tenantId(), afterId, pageLimit + 1);
-        boolean hasMore = fetched.size() > pageLimit;
-        List<DevicePluginInventory> items = hasMore ? fetched.subList(0, pageLimit) : fetched;
-        String nextCursor = hasMore
-            ? cursors.encode(context.tenantId(), INVENTORY_CURSOR_SCOPE, items.getLast().id())
-            : null;
-        return response(
-            new CursorPageData<>(
-                items.stream().map(PluginViews::inventory).toList(),
-                new CursorPageMetadata(hasMore, pageLimit, nextCursor)
-            ), context
-        );
     }
 
     private static PluginMutationContext mutation(EnterpriseRequestContext context) {

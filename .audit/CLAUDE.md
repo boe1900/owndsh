@@ -3,6 +3,9 @@
 
 成员清单
 
+retire-plugin-inventory.todo.md: 企业插件设备库存整链路退役的实施、迁移、跨端验证和独立审查清单。
+retire-plugin-inventory.tsv: 库存退役边界、兼容保留、真实验证与审查修复的无密决策记录。
+
 ego-remote-integration.todo.md: Ego 正式接入的可选能力、跨端契约、独占实现和双机验收清单。
 ego-remote-integration-e2e.mjs: 复用真实 BrowserConnection 的 NAS→Mac 能力、策略拒绝、原生业务、CDP SSE 及旧 NAS Host 降级验收，读取临时凭据并释放自己的连接。
 ego-remote-integration-evidence.json: 正式 NAS→Mac API 与 Edge 交互、旧 Host 兼容、部署 hash 和最终资源释放证据，不包含凭据。

@@ -14,7 +14,7 @@ src/ego.ts: Console/Host 共用的 Ego 0.9.14 封闭路由、严格输入/导航
 tests/ego.spec.ts: 验证任意路径/查询/方法、登录桥、导航协议、额外字段和输入大小拒绝。
 src/brands.ts: 把 OpenAPI 字符串 schema 收窄为五类不可互换的品牌 ID，并只通过 Zod 校验后构造。
 src/errors.ts: 严格解码统一错误 envelope，并从生成映射返回稳定 HTTP status。
-src/index.ts: contracts 公共入口，只暴露品牌 ID、错误契约和身份/设备/模型/配额/插件/bootstrap/gateway/MCP snapshot 与本人 Remote 连接操作所需生成 DTO/Zod schema。
+src/index.ts: contracts 公共入口，只暴露品牌 ID、错误契约和身份/设备/模型/配额/插件发布与授权/bootstrap/gateway/MCP snapshot 与本人 Remote 连接操作所需生成 DTO/Zod schema。
 tests/contracts.spec.ts: 遍历 OpenAPI 正反 fixture，验证 Zod、错误码映射、bootstrap/成员/gateway、必填安装配置、发布升级的旧版 ID/包 revision 严格输入、封闭审计及秘密字段拒绝和品牌隔离。
 tests/remote.spec.ts: Remote v1 control/relay fixture 边界及 Java/TypeScript 已发布握手身份回归。
 

@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 投影 plugin catalog/version/assignment/runtime/inventory 领域对象。
+ * [INPUT]: 投影 plugin catalog/version/assignment/runtime 领域对象。
  * [OUTPUT]: 对外提供字符串化 snowflake、完整 catalog assignments、安装配置与严格 HTTP views。
  * [POS]: plugin/web 的统一安全投影，管理端和 runtime 共用安装配置。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -9,7 +9,6 @@ package com.owndsh.enterprise.plugin.web;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.owndsh.enterprise.plugin.application.EffectivePluginResolver;
 import com.owndsh.enterprise.plugin.application.PluginCatalogService;
-import com.owndsh.enterprise.plugin.domain.DevicePluginInventory;
 import com.owndsh.enterprise.plugin.domain.PluginAssignment;
 import com.owndsh.enterprise.plugin.domain.PluginVersion;
 import com.owndsh.enterprise.plugin.domain.PluginInstallation;
@@ -60,14 +59,6 @@ public final class PluginViews {
         return new RuntimeAssignmentView(
             Long.toString(value.pluginVersionId()), value.packageName(), value.version(),
             value.required(), value.desiredState().name(), value.installation(), value.source(), value.engines()
-        );
-    }
-
-    public static InventoryView inventory(DevicePluginInventory value) {
-        return new InventoryView(
-            Long.toString(value.deviceId()), value.username(), value.packageName(), value.version(),
-            value.desiredRevision(), value.state().name(), value.loaderPhase(), value.lastErrorCode(),
-            value.observedAt()
         );
     }
 
@@ -132,19 +123,4 @@ public final class PluginViews {
     ) {
     }
 
-    public record InventoryView(
-        String deviceId,
-        String username,
-        String packageName,
-        String version,
-        long desiredRevision,
-        String state,
-        String loaderPhase,
-        String lastErrorCode,
-        Instant observedAt
-    ) {
-    }
-
-    public record InventoryAck(int reported) {
-    }
 }

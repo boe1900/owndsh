@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖插件编辑器/管理页、生成 SDK、Query 与 Testing Library，HTTP 使用可控响应。
- * [OUTPUT]: 验证 npm 表单、历史操作、发布迁移及删除确认、取消、防重复提交、包 revision、失败保留和只读权限。
+ * [OUTPUT]: 验证 npm 表单、历史操作、发布迁移及删除确认、取消、防重复提交、包 revision、失败保留、只读权限和版本/范围双视图。
  * [POS]: features/plugins 的升级交互回归；真实事务与规则保留由服务端 PostgreSQL 验收。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -255,6 +255,7 @@ it('does not expose writes to read-only administrators in the list or history', 
   access.permissions = ['ent:plugin:read'];
   show();
   await screen.findByText('1.1.0');
+  expect(screen.getAllByRole('tab').map(tab => tab.textContent)).toEqual(['插件版本', '可见范围']);
   expect(screen.queryByRole('button', { name: /新增版本|添加插件|发布 @|删除/ })).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: '查看 @company/plugin 历史版本' }));
   expect(screen.queryByRole('button', { name: /新增版本|发布 @|退休 @|删除/ })).toBeNull();

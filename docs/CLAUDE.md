@@ -29,14 +29,14 @@ model-onboarding-prototype.html: 模型接入完整闭环可交互单文件原�
 dsh-020-rc1-compatibility-20260929.md: DSH 0.2.0-rc.1 兼容门禁、个人账号模型 row 适配与 beta.15 隔离验证证据，区分本地制品和 npm 发布状态。
 dsh-017-alpha1-compatibility-20260922.md: DSH 0.1.7-alpha.1 目标 runtime 的 Web/MCP 行为验收、当前 pluginManager/SettingsForms 适配及未覆盖范围。
 dsh-017-rc1-compatibility-20260924.md: DSH 0.1.7-rc.1 目标 runtime 的 Web/MCP 行为验收、Release notes 对照、必要依赖适配及未覆盖范围。
-v1-product-feature-catalog.md: V1 产品功能真源，汇总身份、LDAP 用户/组目录接入、模型、授权、配额、限流、插件安装配置、设备与审计的交付状态、关键语义、发布门禁和明确非目标。
+v1-product-feature-catalog.md: V1 产品功能真源，汇总身份、LDAP 用户/组目录接入、模型、授权、配额、限流、插件安装配置、设备与审计的交付状态、关键语义、发布门禁和明确非目标；企业插件库存和同源运行异常已退役。
 plugin-signing-e2e-20260909.md: 已退役上传/验签链路的历史验收记录；当前安装配置模式以详细设计第 11 节为准，原复现脚本已删除。
 plugin-market-e2e-20260917.md: 旧版 OwnDsh 插件目录联合验收历史记录；当前插件发现与安装已迁移到 DSH 标准 plugin market index 和官方 Discover 页面。
-v1-e2e-acceptance.md: V1 发布验收执行真源，以真实部署、LDAP/OIDC、锁定 Harness/Desktop 和浏览器场景覆盖全部冻结能力，并记录隔离、恢复与逐项证据。
+v1-e2e-acceptance.md: V1 发布验收执行真源，以真实部署、LDAP/OIDC、锁定 Harness/Desktop 和浏览器场景记录隔离、恢复与逐项历史证据；明确库存比对退役后的现行验收边界。
 owndsh-work-platform.md: 产品预研，定义企业工作平台形态、能力边界、演进阶段与商业方向；skill 范围由现行详细设计覆盖早期签名分发设想。
 skill-management-design.md: OwnDsh skill 管理与分发设计，冻结 WorkBuddy 格式、公开 GitLab/GitHub 固定 commit 回源、全局按需安装、DSH provider 隔离和永久不做 Skill 权限分配；不纳入项目级 skill，不做制品签名或客户端验签。
-owndsh-governance-mvp-design.md: MVP 实施真源，定义冻结决策、模块、API、数据表、测试、T00-T23 顺序和验收标准；插件已切换到安装配置模式，早期上传记录仅作历史证据。
-phase-2-product-console-design.md: 第二阶段产品化实施真源，冻结 TanStack/Beautiful UI 控制台、成员多身份、LDAP 目录组映射、集合授权，以及 TOKEN 多窗口、组织级供应商与其他资源 RATE 瞬时限流结构。
+owndsh-governance-mvp-design.md: MVP 实施真源，定义冻结决策、模块、API、数据表、测试、T00-T23 顺序和验收标准；插件采用安装配置，企业库存上报退役，旧库存审计和早期上传记录仅作历史证据。
+phase-2-product-console-design.md: 第二阶段产品化实施真源，冻结 TanStack/Beautiful UI 控制台、成员多身份、LDAP 目录组映射、集合授权，以及 TOKEN 多窗口、组织级供应商与其他资源 RATE 瞬时限流结构；插件设备库存退役后同步页面职责与角色矩阵。
 mcp-management-design.md: MCP 历史详细设计入口，保留公共连接、授权、数据库和管理面背景；曝光与检索以 mcp-pi-adaptation-design.md 为现行真源。
 mcp-runtime-design.md: MCP 历史端侧实施规格，保留身份/凭据、官方 SDK v2 OAuth、连接与撤销状态机及 local API 边界；曝光与检索以 Pi 适配设计为准。
 mcp-implementation-plan.md: MCP 历史开发任务与验收记录，保留连接/OAuth/资源证据；新的曝光、检索和 DSH 模式矩阵以 mcp-pi-adaptation-design.md 为准。
@@ -58,9 +58,9 @@ t09-quota-management-acceptance.md: T09 独立验收证据，记录叠加配额�
 t10-model-gateway-acceptance.md: T10 独立验收证据，记录请求级授权、三协议透明 SSE、精确伪拒绝重试、2xx 后 SENT、配额终态、审计原子性与敏感信息隔离。
 t11-harness-model-integration-acceptance.md: T11 独立验收证据，记录 rc.7 官方 dsh-llm-pi-ai、动态三协议 profile/default、本机认证代理、真实 ctx.llm 流与 Agent 瞬时失败恢复。
 t12-admin-console-acceptance.md: T12 独立验收证据，记录管理 PKCE、治理纵向页面、真实 Server E2E、CAS 恢复、密钥隔离和跨端门禁。
-t13-plugin-server-acceptance.md: T13 独立验收证据，记录流式验包、JCS/Ed25519、CAS、状态/分配、下载授权、库存、协议与真实 PostgreSQL 事务结果。
+t13-plugin-server-acceptance.md: T13 独立验收证据，记录流式验包、JCS/Ed25519、CAS、状态/分配、下载授权、历史库存、协议与真实 PostgreSQL 事务结果；设备库存链路现已退役。
 t14-plugin-client-acceptance.md: T14 旧版插件分发验收历史证据；当前 DSH `0.2.1-rc.2` 安装、更新、启停和卸载由官方 pluginMarket/pluginManager 承载。
-t15-plugin-pages-acceptance.md: T15 旧版插件页面验收历史证据，记录管理插件页面、assignment CAS、设备 inventory 与员工插件 tab；当前员工发现/安装由 DSH 官方 Discover 承载。
+t15-plugin-pages-acceptance.md: T15 旧版插件页面验收历史证据，记录管理插件页面、assignment CAS、设备 inventory 与员工插件 tab；当前员工发现/安装由 DSH 官方 Discover 承载，设备库存链路已退役。
 t16-session-server-acceptance.md: T16 独立验收证据，记录官方 format v0、精确 JSONL/hash、源设备并发复制、AES-GCM、正文权限、tombstone 与 retention。
 t19-audit-closure-acceptance.md: T19 独立验收证据，记录 30-action metadata 白名单、requestId 关联、只读权限、retention、用户治理和 heartbeat 防洪。
 t20-security-fault-acceptance.md: T20 独立验收证据，记录分层安全上限、drain、秘密扫描、服务/磁盘故障与四类恢复演练。

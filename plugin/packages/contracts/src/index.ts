@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖品牌 ID、统一错误边界与 OpenAPI 生成的 DTO/Zod/meta 模块
- * [OUTPUT]: 对外提供品牌 ID、错误边界、企业 API、本人 Remote 设备/ticket/连接操作 DTO 和固定 Ego 路由 strict Zod API，并统一导出 schema 库
+ * [OUTPUT]: 对外提供品牌 ID、错误边界、企业身份/模型/插件发布 API、本人 Remote 设备/ticket/连接操作 DTO 和固定 Ego 路由 strict Zod API，并统一导出 schema 库
  * [POS]: contracts 的 package facade，约束后续 Harness 业务包只消费验证后的跨 HTTP 语义
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -59,9 +59,6 @@ export type {
   AdminSession,
   AdminSessionListResponse,
   AdminSessionPageData,
-  AdminPluginInventoryItem,
-  AdminPluginInventoryListResponse,
-  AdminPluginInventoryPageData,
   AuthSourcesResponse,
   BootstrapModel,
   BootstrapQuota,
@@ -98,7 +95,6 @@ export type {
   ManagedModelListResponse,
   ManagedModelResponse,
   ManagedModelWriteRequest,
-  ManagedPluginState,
   MyQuotaUsageResponse,
   NativeGatewayRequest,
   OwnedSession,
@@ -129,10 +125,6 @@ export type {
   PluginInstallation,
   PluginRegistrationRequest,
   PluginDesiredState,
-  PluginInventoryAck,
-  PluginInventoryItem,
-  PluginInventoryRequest,
-  PluginInventoryResponse,
   PluginPackage,
   PluginPackageId,
   PluginPackageListResponse,
@@ -219,9 +211,6 @@ export {
   zAdminSession,
   zAdminSessionListResponse,
   zAdminSessionPageData,
-  zAdminPluginInventoryItem,
-  zAdminPluginInventoryListResponse,
-  zAdminPluginInventoryPageData,
   zAuthSourcesResponse,
   zBootstrapModel,
   zBootstrapQuota,
@@ -256,7 +245,6 @@ export {
   zManagedModelListResponse,
   zManagedModelResponse,
   zManagedModelWriteRequest,
-  zManagedPluginState,
   zMyQuotaUsageResponse,
   zNativeGatewayRequest,
   zOwnedSession,
@@ -283,10 +271,6 @@ export {
   zPluginInstallation,
   zPluginRegistrationRequest,
   zPluginDesiredState,
-  zPluginInventoryAck,
-  zPluginInventoryItem,
-  zPluginInventoryRequest,
-  zPluginInventoryResponse,
   zPluginPackage,
   zPluginPackageId,
   zPluginPackageListResponse,

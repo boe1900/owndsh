@@ -277,12 +277,6 @@
       "zodExport": "zRuntimePluginAssignmentsResponse"
     },
     {
-      "file": "fixtures/plugin-inventory-success.json",
-      "schema": "PluginInventoryResponse",
-      "valid": true,
-      "zodExport": "zPluginInventoryResponse"
-    },
-    {
       "file": "fixtures/session-batch-success.json",
       "schema": "SessionBatchAcceptedResponse",
       "valid": true,
@@ -319,5 +313,5 @@
       "zodExport": "zAuditEventListResponse"
     }
   ],
-  "protocolSha256": "842751cb7bf764aedcffe50f46554c0627b4c772e07a4d58ddff9e382c5d63a1"
+  "protocolSha256": "577f54fc2c7aa2cb993c2fafb4e7aae69b582ebf4653d2b7951d978b53640b63"
 }

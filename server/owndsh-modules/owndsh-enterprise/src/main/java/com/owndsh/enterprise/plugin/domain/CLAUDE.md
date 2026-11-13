@@ -12,6 +12,5 @@ PluginPackage.java: tenant 内 npm package 聚合根、包级市场元数据与 
 PluginVersion.java: 不可变包身份、版本来源、发布时间与安装配置，状态为 VALIDATED→PUBLISHED→RETIRED。
 PluginAssignment.java: ALL/DEPT/USER 主体、INSTALLED/ABSENT 期望态与 required 约束。
 RuntimePluginAssignment.java: 当前用户有权安装的固定版本、来源与权限事实，供 bootstrap 和安装前重新授权共用。
-DevicePluginInventory.java: ACTIVE 设备上报的本地调和状态和 Loader 观测事实。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

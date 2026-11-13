@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖普通数据库所有者、空数据库、classpath V0-V48 migration 与旧版 baseline 0 历史。
- * [OUTPUT]: 验证空库建表、旧库接管/升级、ProviderConnection 拆分、重复启动、字符串时间参数、数据库计量迁移、MCP 原样认证值与 Skill 权限清理约束。
+ * [INPUT]: 依赖普通数据库所有者、空数据库、classpath V0 起的全部 migration 与旧版 baseline 0 历史。
+ * [OUTPUT]: 验证空库建表、旧库接管/升级、设备插件库存退役及目录/审计保留、ProviderConnection 拆分、重复启动、字符串时间参数、数据库计量迁移、MCP 原样认证值与 Skill 权限清理约束。
  * [POS]: database 的持续 migration 门禁，防止后续任务只验证最终 schema 而遗漏中间版本不可升级。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -42,6 +42,53 @@ class EnterpriseMigrationTest {
         } catch (Exception exception) {
             throw new IllegalStateException("读取 db/migration 失败", exception);
         }
+    }
+
+    @Test
+    void retiresDevicePluginInventoryWithoutDeletingCatalogOrHistoricalAudit() {
+        var database = PostgresTestDatabase.create("plugin_inventory_retirement");
+        PostgresTestDatabase.migrate(database, "57");
+        var jdbc = database.jdbc();
+        long userId = 1_901_300_000_000_999_001L;
+        PostgresTestDatabase.insertActiveUser(database, userId, 1_761_000_000_000_000_103L,
+            "inventory-retirement", "Inventory Retirement");
+        jdbc.update("""
+            insert into ent_device(id,tenant_id,user_id,installation_id,name,platform,status,revision)
+            values(990021,'000000',?,'123e4567-e89b-42d3-a456-426614174058','Retirement Device','darwin-arm64','ACTIVE',0)
+            """, userId);
+        jdbc.update("insert into ent_plugin_package(id,tenant_id,package_name,display_name,status,revision) values(990022,'000000','retirement-plugin','Retirement','ACTIVE',0)");
+        jdbc.update("""
+            insert into ent_plugin_version(id,tenant_id,package_id,version,status,created_by,revision,installation_json)
+            values(990023,'000000',990022,'1.0.0','PUBLISHED',?,0,
+                '{"spec":"retirement-plugin@1.0.0","displayName":"Retirement","description":"","author":"","repositoryUrl":"","category":""}')
+            """, userId);
+        jdbc.update("""
+            insert into ent_plugin_assignment(id,tenant_id,package_id,plugin_version_id,subject_type,desired_state,status)
+            values(990024,'000000',990022,990023,'ALL','INSTALLED','ACTIVE')
+            """);
+        jdbc.update("""
+            insert into ent_device_plugin(id,tenant_id,device_id,package_name,version,desired_revision,state,observed_at)
+            values(990025,'000000',990021,'retirement-plugin','1.0.0',0,'FAILED',now())
+            """);
+        jdbc.update("""
+            insert into ent_audit_event(id,tenant_id,occurred_at,actor_type,actor_id,action,resource_type,resource_id,result,request_id,metadata_json)
+            values(990026,'000000',now(),'USER',?,'PLUGIN_INVENTORY_REPORTED','PLUGIN_VERSION','990021','SUCCESS',
+                'req_inventory_retirement','{"operation":"INVENTORY","resourceRevision":0,"bootstrapRevision":0,"itemCount":1,"required":false}')
+            """, userId);
+        var packageBefore = jdbc.queryForMap("select * from ent_plugin_package where id=990022");
+        var versionBefore = jdbc.queryForMap("select * from ent_plugin_version where id=990023");
+        var assignmentBefore = jdbc.queryForMap("select * from ent_plugin_assignment where id=990024");
+        var auditBefore = jdbc.queryForMap("select * from ent_audit_event where id=990026");
+
+        PostgresTestDatabase.migrate(database, "58");
+        PostgresTestDatabase.migrate(database, null);
+
+        assertThat(jdbc.queryForObject("select to_regclass('public.ent_device_plugin')", String.class)).isNull();
+        assertThat(jdbc.queryForMap("select * from ent_plugin_package where id=990022")).isEqualTo(packageBefore);
+        assertThat(jdbc.queryForMap("select * from ent_plugin_version where id=990023")).isEqualTo(versionBefore);
+        assertThat(jdbc.queryForMap("select * from ent_plugin_assignment where id=990024")).isEqualTo(assignmentBefore);
+        assertThat(jdbc.queryForMap("select * from ent_audit_event where id=990026")).isEqualTo(auditBefore);
+        assertThat(jdbc.queryForObject("select count(*) from ent_device where id=990021", Integer.class)).isEqualTo(1);
     }
 
     @Test
@@ -135,9 +182,9 @@ class EnterpriseMigrationTest {
             where table_schema = 'public' and table_name like 'ent_%'
             """, Integer.class);
         // Skill only has release/catalog facts; user/device assignment tables are intentionally absent.
-        // 含 V56 的 ent_quota_window_legacy 归档表；新增 ent_ 表时同步更新
-        assertThat(tableCount).isEqualTo(37);
-        assertThat(database.jdbc().queryForObject("select count(*) from information_schema.tables where table_schema='public' and table_name in ('ent_skill_assignment','ent_skill_device_inventory')", Integer.class)).isZero();
+        // 含 V56 窗口归档与 V57 两张 Remote 表，V58 删除设备插件库存；新增 ent_ 表时同步更新
+        assertThat(tableCount).isEqualTo(38);
+        assertThat(database.jdbc().queryForObject("select count(*) from information_schema.tables where table_schema='public' and table_name in ('ent_skill_assignment','ent_skill_device_inventory','ent_device_plugin')", Integer.class)).isZero();
         assertThat(database.jdbc().queryForObject("select count(*) from sys_menu where perms in ('ent:skill:read','ent:skill:write')", Integer.class)).isZero();
         assertThat(database.jdbc().queryForObject(
             "select policy_type from ent_quota_policy where tenant_id='000000'",

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖事务、PluginStore、revision、审计与 ID。
- * [OUTPUT]: 提供幂等配置登记、公开市场投影、发布/退休、范围迁移及替换、包/版本删除；删除以包 revision 保护完整聚合并保留设备库存。
+ * [OUTPUT]: 提供幂等配置登记、公开市场投影、发布/退休、范围迁移及替换、包/版本删除；删除以包 revision 保护完整聚合。
  * [POS]: plugin/application 的管理状态编排，版本不可变，发布与可见范围共用 revision/审计事务。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -11,7 +11,6 @@ import com.owndsh.enterprise.audit.AuditActorType;
 import com.owndsh.enterprise.audit.AuditEvent;
 import com.owndsh.enterprise.audit.AuditResult;
 import com.owndsh.enterprise.audit.AuditSink;
-import com.owndsh.enterprise.plugin.domain.DevicePluginInventory;
 import com.owndsh.enterprise.plugin.domain.PluginAssignment;
 import com.owndsh.enterprise.plugin.domain.PluginPackage;
 import com.owndsh.enterprise.plugin.domain.PluginInstallation;
@@ -236,10 +235,6 @@ public final class PluginCatalogService {
             );
             return plugins.listAssignments(context.tenantId(), packageId);
         }));
-    }
-
-    public List<DevicePluginInventory> listInventory(String tenantId, long afterId, int limit) {
-        return plugins.listInventory(tenantId, afterId, limit);
     }
 
     public void deletePackage(PluginMutationContext context, long packageId, long expectedRevision) {

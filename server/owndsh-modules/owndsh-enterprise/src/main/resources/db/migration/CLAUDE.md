@@ -64,5 +64,6 @@ V54__model_grant_multi_subject.sql: 授权升级为多主体策略——新增 g
 V55__quota_policy_multi_subject.sql: 配额主体多主体化——新增策略主体子表，先退旧主体约束再迁移 ORGANIZATION→ALL_MEMBERS 值与 MEMBER 主体，约束三态化，每租户一条 ORG 索引退役（叠加语义下重复集合由 service 拒绝），并退役单数 subject_id 列。
 V56__quota_window_per_user.sql: 配额窗口按用户隔离——存量 policy 级共享窗口整体归档进 ent_quota_window_legacy 保审计后清零，窗口唯一键升级为 (策略, 用户, 类型, 起点)，多主体策略下额度每人一份；Redis RATE key 同步按 (策略, 用户) 隔离，升级不阻塞已产生用量的实例。
 V57__remote_core.sql: Remote P0 设备 capability/presence/identity key/revoke epoch、link audit 事实，外键统一引用 ent_device(id) bigint，不保存业务密文。
+V58__retire_plugin_inventory.sql: 删除退役的设备插件库存快照表及其索引、约束，保留插件目录、范围和历史审计。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

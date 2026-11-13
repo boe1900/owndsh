@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖第 13 节全部 AuditAction 与各业务域真实 metadata DTO
- * [OUTPUT]: 验证全部 action 全覆盖、唯一 action 声明、敏感语义 key 缺失、声明字段不序列化和错配拒绝
+ * [OUTPUT]: 验证当前生产 action 全覆盖、退役 action 只读保留、唯一 action 声明、敏感语义 key 缺失、声明字段不序列化和错配拒绝
  * [POS]: audit metadata 白名单的纯单元总门禁，新增 action 未配 DTO 时立即失败
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -56,7 +56,9 @@ class AuditMetadataPolicyTest {
         List<AuditMetadata> samples = samples();
 
         var activeActions = EnumSet.allOf(AuditAction.class);
-        activeActions.removeAll(List.of(AuditAction.PLUGIN_UPLOADED, AuditAction.PLUGIN_DOWNLOADED));
+        activeActions.removeAll(List.of(
+            AuditAction.PLUGIN_UPLOADED, AuditAction.PLUGIN_DOWNLOADED, AuditAction.PLUGIN_INVENTORY_REPORTED
+        ));
         assertThat(samples).hasSize(activeActions.size());
         assertThat(samples.stream().map(AuditMetadata::action))
             .containsExactlyInAnyOrderElementsOf(activeActions);
@@ -120,7 +122,6 @@ class AuditMetadataPolicyTest {
             plugin(PluginAuditMetadata.Operation.PUBLISH),
             plugin(PluginAuditMetadata.Operation.DELETE),
             plugin(PluginAuditMetadata.Operation.ASSIGN),
-            plugin(PluginAuditMetadata.Operation.INVENTORY),
             skill(SkillAuditMetadata.Operation.REGISTER),
             skill(SkillAuditMetadata.Operation.PUBLISH),
             skill(SkillAuditMetadata.Operation.REVOKE),

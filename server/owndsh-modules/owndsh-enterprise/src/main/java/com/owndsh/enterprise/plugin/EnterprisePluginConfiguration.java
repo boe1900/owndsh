@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 JDBC/Jackson/事务、设备/用户、revision/audit、ID 。
+ * [INPUT]: 依赖 JDBC/Jackson/目录事务、设备/用户、revision/audit 与目录 ID。
  * [OUTPUT]: 装配 plugin persistence、catalog 与 runtime 服务 Beans。
  * [POS]: plugin 纵向模块的 Spring composition root，领域/application 不使用静态容器或请求路径。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -56,17 +56,12 @@ public class EnterprisePluginConfiguration {
 
     @Bean
     PluginRuntimeService enterprisePluginRuntimeService(
-        PlatformTransactionManager transactionManager,
         DeviceService deviceService,
         BootstrapUserStore userStore,
-        EffectivePluginResolver resolver,
-        PluginStore pluginStore,
-        AuditSink auditSink,
-        @Qualifier("enterpriseIdSupplier") LongSupplier ids
+        EffectivePluginResolver resolver
     ) {
         return new PluginRuntimeService(
-            new TransactionTemplate(transactionManager), deviceService, userStore, resolver,
-            pluginStore, auditSink, ids
+            deviceService, userStore, resolver
         );
     }
 }

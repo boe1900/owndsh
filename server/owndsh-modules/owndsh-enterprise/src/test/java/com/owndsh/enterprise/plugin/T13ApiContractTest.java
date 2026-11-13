@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖插件管理/runtime Controller、MockMvc、权限注解与派生 OpenAPI schemas。
- * [OUTPUT]: 验证十个插件 operation、发布升级与删除参数、完整 assignment 投影、稳定错误和权限码。
+ * [OUTPUT]: 验证保留的插件 operation 及库存路由退役、发布升级与删除参数、完整 assignment 投影、稳定错误和权限码。
  * [POS]: T13 Server/OpenAPI 同步门禁，application services 使用 mock 以隔离 HTTP 翻译与安装配置。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -28,7 +28,6 @@ import com.owndsh.enterprise.plugin.application.PluginCatalogService;
 import com.owndsh.enterprise.plugin.application.PluginRuntimeService;
 import com.owndsh.enterprise.plugin.application.PluginResourceNotFoundException;
 import com.owndsh.enterprise.revision.RevisionConflictException;
-import com.owndsh.enterprise.plugin.domain.DevicePluginInventory;
 import com.owndsh.enterprise.plugin.domain.PluginAssignment;
 import com.owndsh.enterprise.plugin.domain.PluginPackage;
 import com.owndsh.enterprise.plugin.domain.PluginVersion;
@@ -116,9 +115,7 @@ class T13ApiContractTest {
             .thenReturn(version(PluginVersion.Status.RETIRED, 3));
         when(catalog.replaceAssignments(any(), anyLong(), anyLong(), any()))
             .thenReturn(List.of(assignment()));
-        when(catalog.listInventory("000000", 0, 51)).thenReturn(List.of(inventory()));
         when(runtime.assignments(any())).thenReturn(resolvedAssignments());
-        when(runtime.replaceInventory(any(), any())).thenReturn(1);
     }
 
     @Test
@@ -150,8 +147,6 @@ class T13ApiContractTest {
                 {"items":[{"pluginVersionId":"%s","subjectType":"ALL","subjectId":null,
                 "desiredState":"INSTALLED","required":false}]}
                 """.formatted(VERSION_ID)), 200), "PluginAssignmentBatchResponse");
-        assertSchema(response(get("/enterprise/admin/v1/plugins/inventory"), 200),
-            "AdminPluginInventoryListResponse");
     }
 
     @Test
@@ -195,17 +190,13 @@ class T13ApiContractTest {
     }
 
     @Test
-    void servesRuntimeAssignmentsAndInventory() throws Exception {
+    void removesInventoryRoutesWhileKeepingRuntimeAssignmentsAvailable() throws Exception {
+        response(get("/enterprise/admin/v1/plugins/inventory"), 405);
+        response(put("/enterprise/api/v1/plugins/inventory")
+            .contentType(MediaType.APPLICATION_JSON).content("{\"items\":[]}"), 404);
         assertSchema(response(get("/enterprise/api/v1/plugins/assignments"), 200),
             "RuntimePluginAssignmentsResponse");
-        assertSchema(response(put("/enterprise/api/v1/plugins/inventory")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content("""
-                {"items":[{"packageName":"@example/t13-tools","version":"1.0.0",
-                "desiredRevision":9,"state":"ACTIVE","loaderPhase":"active",
-                "lastErrorCode":null,"observedAt":"2026-08-19T03:00:00Z"}]}
-                """), 200), "PluginInventoryResponse");
-
+        verify(runtime).assignments(any());
     }
 
     @Test
@@ -243,8 +234,7 @@ class T13ApiContractTest {
             "retire", "ent:plugin:write",
             "deletePackage", "ent:plugin:write",
             "deleteVersion", "ent:plugin:write",
-            "replaceAssignments", "ent:plugin:write",
-            "inventory", "ent:plugin:read"
+            "replaceAssignments", "ent:plugin:write"
         ));
     }
 
@@ -317,14 +307,6 @@ class T13ApiContractTest {
         return new PluginAssignment(
             ASSIGNMENT_ID, "000000", PACKAGE_ID, VERSION_ID, PluginAssignment.SubjectType.ALL, null,
             PluginAssignment.DesiredState.INSTALLED, false, PluginAssignment.Status.ACTIVE, 0
-        );
-    }
-
-    private static DevicePluginInventory inventory() {
-        return new DevicePluginInventory(
-            1_901_300_000_000_000_501L, "000000", DEVICE_ID, "admin", "@example/t13-tools",
-            "1.0.0", 9, DevicePluginInventory.State.ACTIVE, "active", null,
-            Instant.parse("2026-08-19T03:00:00Z")
         );
     }
 

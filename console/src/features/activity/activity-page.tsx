@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖用量、审计、插件库存 operation，console 权限、TanStack Query 与产品表格。
+ * [INPUT]: 依赖用量、审计 operation，console 权限、TanStack Query 与产品表格。
  * [OUTPUT]: 提供按 ent:* 权限裁剪的活动分段，用量和审计最新优先；实测 Token、配额扣额和未知用量独立展示。
- * [POS]: features/activity 的产品观测工作台；V1 只呈现用量、审计和插件运行异常。
+ * [POS]: features/activity 的产品观测工作台；只呈现用量和审计。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -10,12 +10,9 @@ import { useRouteContext } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 import {
   listAuditEvents,
-  listPluginInventory,
   listUsageLedger
 } from '@/api/generated/sdk.gen';
 import type {
-  AdminPluginInventoryItem,
-  AdminPluginInventoryPageData,
   AuditEvent,
   AuditEventPageData,
   EnterpriseErrorResponse,
@@ -28,8 +25,7 @@ import { ProductDataTable, type ProductTableColumn } from '@/components/product/
 
 const ACTIVITY_SECTIONS = [
   ['用量', 'ent:usage:read'],
-  ['审计', 'ent:audit:read'],
-  ['运行异常', 'ent:plugin:read']
+  ['审计', 'ent:audit:read']
 ] as const;
 
 export type ActivitySection = (typeof ACTIVITY_SECTIONS)[number][0];
@@ -78,10 +74,6 @@ async function loadAudit(cursor?: string) {
   return unwrapData<AuditEventPageData>(await listAuditEvents({ query: { cursor, limit: 100 } }), '审计读取失败');
 }
 
-async function loadRuntimeErrors(cursor?: string) {
-  return unwrapData<AdminPluginInventoryPageData>(await listPluginInventory({ query: { cursor, limit: 100 } }), '运行状态读取失败');
-}
-
 const usageColumns: ReadonlyArray<ProductTableColumn<QuotaUsageLedgerItem>> = [
   {
     id: 'member',
@@ -126,38 +118,25 @@ const auditColumns: ReadonlyArray<ProductTableColumn<AuditEvent>> = [
   { accessorKey: 'requestId', header: 'Request ID', cell: ({ getValue }) => <span className="block truncate font-mono text-[11px]" title={String(getValue())}>{String(getValue())}</span>, meta: { label: 'Request ID', className: 'w-[190px]', cellClassName: 'w-[190px]' } }
 ];
 
-const runtimeErrorColumns: ReadonlyArray<ProductTableColumn<AdminPluginInventoryItem>> = [
-  { id: 'member', accessorFn: (row) => row.username, header: '成员', meta: { label: '成员', className: 'w-[160px]', cellClassName: 'w-[160px]' } },
-  { accessorKey: 'packageName', header: '插件', cell: ({ getValue }) => <span className="block truncate font-mono text-[11px]" title={String(getValue())}>{String(getValue())}</span>, meta: { label: '插件', className: 'w-[190px]', cellClassName: 'w-[190px]' } },
-  { accessorKey: 'version', header: '版本', meta: { label: '版本', className: 'w-[100px]', cellClassName: 'w-[100px]' } },
-  { accessorKey: 'state', header: '状态', cell: ({ getValue }) => <StatusPill tone="red">{String(getValue())}</StatusPill>, meta: { label: '状态', className: 'w-[150px]', cellClassName: 'w-[150px]' } },
-  { id: 'error', accessorFn: (row) => row.lastErrorCode ?? '-', header: '错误码', cell: ({ getValue }) => <span className="block truncate font-mono text-[11px]" title={String(getValue())}>{String(getValue())}</span>, meta: { label: '错误码', className: 'w-[240px]', cellClassName: 'w-[240px]' } },
-  { id: 'observedAt', accessorFn: (row) => dateTime(row.observedAt), header: '上报时间', meta: { label: '上报时间', className: 'w-[170px]', cellClassName: 'w-[170px]' } }
-];
-
 export function ActivityPage() {
   const { bootstrap } = useRouteContext({ from: '/_console' });
   const sections = activitySectionsFor(bootstrap.permissions);
-  const [section, setSection] = useState<ActivitySection>(sections[0] ?? '用量');
+  const [section, setSection] = useState<ActivitySection | undefined>(sections[0]);
   const usage = useInfiniteQuery({ queryKey: ['activity', 'usage'], queryFn: ({ pageParam }) => loadUsage(pageParam), initialPageParam: undefined as string | undefined, getNextPageParam: nextCursor, enabled: section === '用量' });
   const audit = useInfiniteQuery({ queryKey: ['activity', 'audit'], queryFn: ({ pageParam }) => loadAudit(pageParam), initialPageParam: undefined as string | undefined, getNextPageParam: nextCursor, enabled: section === '审计' });
-  const runtimeErrors = useInfiniteQuery({ queryKey: ['activity', 'runtime-errors'], queryFn: ({ pageParam }) => loadRuntimeErrors(pageParam), initialPageParam: undefined as string | undefined, getNextPageParam: nextCursor, enabled: section === '运行异常' });
   const usageRows = useMemo(() => usage.data?.pages.flatMap((page) => page.items) ?? [], [usage.data]);
   const auditRows = useMemo(() => audit.data?.pages.flatMap((page) => page.items) ?? [], [audit.data]);
-  const runtimeErrorRows = useMemo(() => runtimeErrors.data?.pages.flatMap((page) => page.items)
-    .filter((item) => item.state === 'FAILED' || item.lastErrorCode !== null) ?? [], [runtimeErrors.data]);
   const summary = usage.data?.pages[0]?.summary;
 
   const table = section === '用量' ? <ProductDataTable ariaLabel="模型用量" columns={usageColumns} data={usageRows} emptyText="暂无模型用量" error={usage.error} filter={{ columnId: 'result', label: '全部结算状态', options: [{ label: '已实测', value: 'SETTLED' }, { label: '用量未知', value: 'CHARGED_MAX' }] }} getRowId={(row) => row.id} hasMore={usage.hasNextPage} isLoading={usage.isLoading} isLoadingMore={usage.isFetchingNextPage} onLoadMore={() => void usage.fetchNextPage()} onRetry={() => void usage.refetch()} searchPlaceholder="搜索成员、模型或 Request ID" toolbarAction={summary ? <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-ink-3"><span>{tokens(summary.requests)} 次</span><span>实测 {tokens(summary.totalTokens)} tokens</span><span>配额扣额 {tokens(summary.chargedTokens)}</span><span>用量未知 {tokens(summary.unmeasuredRequests)} 次</span></div> : undefined} />
-    : section === '审计' ? <ProductDataTable ariaLabel="审计事件" columns={auditColumns} data={auditRows} emptyText="暂无审计事件" error={audit.error} filter={{ columnId: 'result', label: '全部结果', options: [{ label: '成功', value: 'SUCCESS' }, { label: '失败', value: 'FAILURE' }] }} getRowId={(row) => row.id} hasMore={audit.hasNextPage} isLoading={audit.isLoading} isLoadingMore={audit.isFetchingNextPage} onLoadMore={() => void audit.fetchNextPage()} onRetry={() => void audit.refetch()} searchPlaceholder="搜索动作、资源、原因或 Request ID" />
-      : <ProductDataTable ariaLabel="关键运行异常" columns={runtimeErrorColumns} data={runtimeErrorRows} emptyText="暂无关键运行异常" error={runtimeErrors.error} getRowId={(row) => `${row.deviceId}:${row.packageName}`} hasMore={runtimeErrors.hasNextPage} isLoading={runtimeErrors.isLoading} isLoadingMore={runtimeErrors.isFetchingNextPage} onLoadMore={() => void runtimeErrors.fetchNextPage()} onRetry={() => void runtimeErrors.refetch()} searchPlaceholder="搜索成员、插件或错误码" />;
+    : <ProductDataTable ariaLabel="审计事件" columns={auditColumns} data={auditRows} emptyText="暂无审计事件" error={audit.error} filter={{ columnId: 'result', label: '全部结果', options: [{ label: '成功', value: 'SUCCESS' }, { label: '失败', value: 'FAILURE' }] }} getRowId={(row) => row.id} hasMore={audit.hasNextPage} isLoading={audit.isLoading} isLoadingMore={audit.isFetchingNextPage} onLoadMore={() => void audit.fetchNextPage()} onRetry={() => void audit.refetch()} searchPlaceholder="搜索动作、资源、原因或 Request ID" />;
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto scrollbar-stable">
       <div className="mx-auto flex min-h-full w-full max-w-[1320px] flex-col gap-5 px-5 py-7 sm:px-8 sm:py-9">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-5">
           <h1 className="m-0 text-[22px] font-semibold leading-tight text-ink">活动记录</h1>
-          {sections.length > 0 ? <SegmentedControl options={sections} value={section} onChange={setSection} /> : null}
+          {section !== undefined ? <SegmentedControl options={sections} value={section} onChange={setSection} /> : null}
         </header>
         {sections.length === 0 ? <p className="m-0 text-[13px] text-ink-3">当前角色没有可读取的活动数据</p> : table}
       </div>

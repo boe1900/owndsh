@@ -126,8 +126,6 @@ globalThis.Date = class extends NativeDate {
       } })
     } else if (url.pathname.endsWith('/mcp/assignments')) {
       json(response, 200, { data: { schemaVersion: 1, revision: 1, validForMs: 60000, assignments: [] } })
-    } else if (url.pathname.endsWith('/plugins/inventory')) {
-      json(response, 200, { data: { reported: (await readBody(request)).items.length } })
     } else if (url.pathname.endsWith('/chat/completions')) {
       await readBody(request)
       gatewayCalls++

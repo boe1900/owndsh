@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 PluginCatalogService 的已发布插件投影与 DSH Bearer 会话解析器提供的可信 tenant。
- * [OUTPUT]: 提供受 DSH Desktop 会话保护的 DSH plugin market format 1 JSON 索引，不泄露 assignment、inventory 或凭据。
+ * [OUTPUT]: 提供受 DSH Desktop 会话保护的 DSH plugin market format 1 JSON 索引，不泄露 assignment 或凭据。
  * [POS]: plugin/web 的标准市场适配器；本机 DSH Host 代理携带内存 Bearer 读取资源并自行安装插件。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */

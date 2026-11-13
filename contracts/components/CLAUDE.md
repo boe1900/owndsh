@@ -11,7 +11,7 @@ member.yaml: LOCAL 成员创建、产品成员 cursor/detail、固定角色、�
 model.yaml: T08/P2-08A Harness providerKey/type/apiProtocol、reasoningEfforts 三态/compat、model/model set/grant 管理与授权主体替换、grant 创建/更新时间、writeOnly credential、脱敏模型发现与完整 bootstrap schema 分片。
 quota.yaml: TOKEN/RATE 策略、四窗口与 prompt-free ledger；实测 Token、chargedTokens 配额扣额和 unmeasuredRequests 未知请求独立表达。
 gateway.yaml: 三协议共用的最小流式治理字段 schema，消息、工具、推理与回放保持原生透传。
-plugin.yaml: 安装配置、版本发布状态、可选旧版 ID/包 revision 的发布升级请求、完整可见范围和设备库存 schema。
+plugin.yaml: 安装配置、版本发布状态、可选旧版 ID/包 revision 的发布升级请求、完整可见范围 schema。
 skill.yaml: OwnDsh skill release 草稿/发布状态、runtime catalog 与制品下载 schema；管理 release 可带公开源码仓库链接，不包含 assignment、inventory、正文、来源凭据或路径。
 mcp.yaml: MCP 公共配置、认证声明（单个 API Key 仅指定 headerName，认证值由用户端原样提供）、工具目录、ALL/USER/GROUP 授权（ALL 的 subjectId=null）与 assignment/catalog schema；不承载用户秘密或 tools/call 代理。
 session.yaml: 官方 rc.7 format v0 header、精确 JSONL/hash、本人/admin metadata、正文页、tombstone 与恢复审计 schema 分片。

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖真实 PostgreSQL 17/Flyway 最新迁移、三个活动用户、设备与插件 JDBC/application 服务。
- * [OUTPUT]: 验证登记/并发幂等、范围优先级、发布升级、删除的租户隔离/revision/关联清理/库存保留及审计失败回滚。
+ * [OUTPUT]: 验证登记/并发幂等、范围优先级、用户停用/设备撤销授权、发布升级、删除的租户隔离/revision/关联清理及审计失败回滚。
  * [POS]: T13 服务端纵向验收，跨越 domain、persistence 与 application 的真实事务边界。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -11,15 +11,16 @@ import com.owndsh.enterprise.auth.application.PlatformSession;
 import com.owndsh.enterprise.auth.application.PlatformSessionGateway;
 import com.owndsh.enterprise.auth.domain.PlatformClient;
 import com.owndsh.enterprise.device.application.DeviceCallContext;
+import com.owndsh.enterprise.device.application.DeviceAccessException;
 import com.owndsh.enterprise.device.application.DeviceService;
 import com.owndsh.enterprise.device.persistence.JdbcDeviceStore;
 import com.owndsh.enterprise.model.persistence.JdbcBootstrapUserStore;
 import com.owndsh.enterprise.plugin.application.EffectivePluginResolver;
 import com.owndsh.enterprise.plugin.application.PluginCatalogService;
+import com.owndsh.enterprise.plugin.application.PluginAccessException;
 import com.owndsh.enterprise.plugin.application.PluginMutationContext;
 import com.owndsh.enterprise.plugin.application.PluginRuntimeService;
 import com.owndsh.enterprise.plugin.application.PluginResourceNotFoundException;
-import com.owndsh.enterprise.plugin.domain.DevicePluginInventory;
 import com.owndsh.enterprise.plugin.domain.PluginAssignment;
 import com.owndsh.enterprise.plugin.domain.PluginVersion;
 import com.owndsh.enterprise.plugin.domain.PluginInstallation;
@@ -84,7 +85,7 @@ class PluginServerIntegrationTest {
     }
 
     @Test
-    void completesPluginLifecycleResolutionAuthorizationInventoryAndCompensation() throws Exception {
+    void completesPluginLifecycleResolutionAuthorizationAndCompensation() throws Exception {
         JsonMapper json = JsonMapper.builder().build();
         var jdbc = database.jdbc();
         var transaction = new TransactionTemplate(new DataSourceTransactionManager(database.dataSource()));
@@ -99,7 +100,7 @@ class PluginServerIntegrationTest {
             transaction, new JdbcDeviceStore(jdbc), audit, mock(PlatformSessionGateway.class), ids
         );
         PluginRuntimeService runtime = new PluginRuntimeService(
-            transaction, devices, new JdbcBootstrapUserStore(jdbc), resolver, store, audit, ids
+            devices, new JdbcBootstrapUserStore(jdbc), resolver
         );
         PluginMutationContext mutation = mutationContext();
         List<PluginCatalogService.RegistrationResult> duplicates = concurrentRegistrations(catalog, mutation);
@@ -156,27 +157,6 @@ class PluginServerIntegrationTest {
         assertResolved(resolver.resolve(TENANT, OTHER_USER, OTHER_DEPT), publishedOne.id(), "INSTALLED");
         assertThat(catalog.list(TENANT, 0, 10).getFirst().pluginPackage().revision()).isEqualTo(5);
 
-        List<PluginRuntimeService.InventoryObservation> firstInventory = List.of(
-            observation("@example/t13-tools", "2.0.0", 4,
-                DevicePluginInventory.State.ACTIVE, "active", null),
-            observation("@example/removed", null, 4,
-                DevicePluginInventory.State.REMOVE_PENDING, null, null)
-        );
-        assertThat(runtime.replaceInventory(peerContext, firstInventory)).isEqualTo(2);
-        assertThat(runtime.replaceInventory(peerContext, List.of(
-            observation("@example/t13-tools", "2.0.0", 5,
-                DevicePluginInventory.State.FAILED, "failed", "ENT_PLUGIN_INSTALL_FAILED")
-        ))).isEqualTo(1);
-        assertThat(catalog.listInventory(TENANT, 0, 10)).singleElement().satisfies(value -> {
-            assertThat(value.username()).isEqualTo("t13-peer");
-            assertThat(value.state()).isEqualTo(DevicePluginInventory.State.FAILED);
-            assertThat(value.desiredRevision()).isEqualTo(5);
-        });
-        assertThatThrownBy(() -> runtime.replaceInventory(peerContext, List.of(
-            firstInventory.getFirst(), firstInventory.getFirst()
-        ))).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("重复");
-        assertThat(jdbc.queryForObject("select count(*) from ent_device_plugin", Long.class)).isEqualTo(1);
-
         assertThat(jdbc.queryForObject(
             "select count(*) from ent_audit_event where action='PLUGIN_REGISTERED'", Long.class
         )).isEqualTo(2);
@@ -188,7 +168,7 @@ class PluginServerIntegrationTest {
         )).isEqualTo(1);
         assertThat(jdbc.queryForObject(
             "select count(*) from ent_audit_event where action='PLUGIN_INVENTORY_REPORTED'", Long.class
-        )).isEqualTo(2);
+        )).isZero();
         assertThat(revisions.current(TENANT)).isEqualTo(revisionBeforeAssignments + 2);
 
         PluginCatalogService failingCatalog = new PluginCatalogService(
@@ -256,12 +236,10 @@ class PluginServerIntegrationTest {
 
         // ---- 删除以包 revision 保护版本与范围，失败必须回滚完整聚合 ----
         long beforeDelete = revisions.current(TENANT);
-        var inventoryBeforeDelete = catalog.listInventory(TENANT, 0, 10);
-        // 已有目录、范围、库存和历史审计通过 V37 前向迁移保持原样。
+        // 重复迁移保留已有目录、范围和历史审计。
         long auditCount = jdbc.queryForObject("select count(*) from ent_audit_event", Long.class);
         PostgresTestDatabase.migrate(database, null);
         assertThat(jdbc.queryForObject("select count(*) from ent_audit_event", Long.class)).isEqualTo(auditCount);
-        assertThat(catalog.listInventory(TENANT, 0, 10)).containsExactlyElementsOf(inventoryBeforeDelete);
         PluginMutationContext otherTenant = new PluginMutationContext(
             "other", ADMIN_USER, mutation.requestId(), mutation.sourceIp(), mutation.userAgentHash());
         assertThatThrownBy(() -> catalog.deletePackage(otherTenant, packageId, emptySourceRevision))
@@ -302,7 +280,6 @@ class PluginServerIntegrationTest {
         assertThat(store.listVersions(TENANT, packageId)).isEmpty();
         assertThat(store.listAssignments(TENANT, packageId)).isEmpty();
         assertThat(resolver.resolve(TENANT, OTHER_USER, OTHER_DEPT).assignments()).isEmpty();
-        assertThat(catalog.listInventory(TENANT, 0, 10)).containsExactlyElementsOf(inventoryBeforeDelete);
         assertThat(store.findVersion(TENANT, otherVersion.id())).contains(otherVersion);
         assertThat(revisions.current(TENANT)).isEqualTo(beforeDelete + 2);
 
@@ -312,6 +289,15 @@ class PluginServerIntegrationTest {
         assertThat(revisions.current(TENANT)).isEqualTo(beforeDelete + 3);
         assertThat(catalog.register(mutation, "@example/t13-tools", "1.0.0", installation("1.0.0")).created()).isTrue();
         assertThat(catalog.register(mutation, "@example/other", "1.0.0", otherVersion.installation()).created()).isTrue();
+
+        jdbc.update("update sys_user set status='1' where user_id=?", PEER_USER);
+        assertThatThrownBy(() -> runtime.assignments(peerContext)).isInstanceOf(PluginAccessException.class);
+        jdbc.update("update sys_user set status='0' where user_id=?", PEER_USER);
+        assertThat(runtime.assignments(peerContext).assignments()).isEmpty();
+        jdbc.update("update ent_device set status='REVOKED', revoked_at=now(), revision=revision+1 where id=?", PEER_DEVICE);
+        assertThatThrownBy(() -> runtime.assignments(peerContext))
+            .isInstanceOfSatisfying(DeviceAccessException.class,
+                exception -> assertThat(exception.code()).isEqualTo("ENT_DEVICE_REVOKED"));
     }
 
     private static List<PluginCatalogService.RegistrationResult> concurrentRegistrations(
@@ -358,19 +344,6 @@ class PluginServerIntegrationTest {
     ) {
         return new PluginCatalogService.AssignmentSpec(
             versionId, subjectType, subjectId, desiredState, required
-        );
-    }
-
-    private static PluginRuntimeService.InventoryObservation observation(
-        String packageName,
-        String version,
-        long desiredRevision,
-        DevicePluginInventory.State state,
-        String loaderPhase,
-        String lastErrorCode
-    ) {
-        return new PluginRuntimeService.InventoryObservation(
-            packageName, version, desiredRevision, state, loaderPhase, lastErrorCode, OBSERVED_AT
         );
     }
 

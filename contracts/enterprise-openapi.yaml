@@ -157,12 +157,8 @@ paths:
     $ref: './paths/plugin.yaml#/PluginVersionRetire'
   /enterprise/admin/v1/plugins/{pluginPackageId}/assignments/batch:
     $ref: './paths/plugin.yaml#/PluginAssignmentBatch'
-  /enterprise/admin/v1/plugins/inventory:
-    $ref: './paths/plugin.yaml#/AdminPluginInventory'
   /enterprise/api/v1/plugins/assignments:
     $ref: './paths/plugin.yaml#/RuntimePluginAssignments'
-  /enterprise/api/v1/plugins/inventory:
-    $ref: './paths/plugin.yaml#/RuntimePluginInventory'
   /enterprise/api/v1/sessions:
     $ref: './paths/session.yaml#/RuntimeSessionCollection'
   /enterprise/api/v1/sessions/{sessionId}/batches:
@@ -447,9 +443,6 @@ x-enterprise-fixtures:
     valid: true
   - file: fixtures/plugin-assignments-success.json
     schema: RuntimePluginAssignmentsResponse
-    valid: true
-  - file: fixtures/plugin-inventory-success.json
-    schema: PluginInventoryResponse
     valid: true
   - file: fixtures/session-batch-success.json
     schema: SessionBatchAcceptedResponse
@@ -960,9 +953,6 @@ components:
     McpSnapshotResponse: {$ref: './components/mcp.yaml#/McpSnapshotResponse'}
     McpCatalogUpload: {$ref: './components/mcp.yaml#/McpCatalogUpload'}
     McpCatalogUploadResponse: {$ref: './components/mcp.yaml#/McpCatalogUploadResponse'}
-    PluginInventoryRequest: {$ref: './components/plugin.yaml#/PluginInventoryRequest'}
-    PluginInventoryResponse: {$ref: './components/plugin.yaml#/PluginInventoryResponse'}
-    AdminPluginInventoryListResponse: {$ref: './components/plugin.yaml#/AdminPluginInventoryListResponse'}
     SessionId: {$ref: './components/session.yaml#/SessionId'}
     SessionReplicaId: {$ref: './components/session.yaml#/SessionReplicaId'}
     SessionSequence: {$ref: './components/session.yaml#/SessionSequence'}

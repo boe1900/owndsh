@@ -1,5 +1,5 @@
 # [INPUT]: 依赖根协议的资源 ID、revision、cursor、requestId 与严格成功 envelope
-# [OUTPUT]: 提供安装配置、可选双 revision 发布升级、可见范围和设备库存 schemas
+# [OUTPUT]: 提供安装配置、可选双 revision 发布升级、可见范围 schemas
 # [POS]: contracts/components 的插件分发真源，保留 assignment 线协议并以可见范围承载员工自主安装
 # [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
@@ -29,17 +29,6 @@ PluginDesiredState:
 PluginAssignmentStatus:
   type: string
   enum: [ACTIVE, DISABLED]
-ManagedPluginState:
-  type: string
-  enum:
-    - EXPECTED
-    - INSTALLING
-    - RESTART_REQUIRED
-    - ACTIVE
-    - REMOVE_PENDING
-    - REMOVING
-    - FAILED
-    - ROLLBACK
 PluginPackageName:
   type: string
   minLength: 1
@@ -312,129 +301,5 @@ RuntimePluginAssignmentsResponse:
   required: [data, requestId]
   properties:
     data: {$ref: '#/RuntimePluginAssignments'}
-    requestId:
-      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
-
-PluginInventoryItem:
-  type: object
-  additionalProperties: false
-  required:
-    - packageName
-    - version
-    - desiredRevision
-    - state
-    - loaderPhase
-    - lastErrorCode
-    - observedAt
-  properties:
-    packageName: {$ref: '#/PluginPackageName'}
-    version:
-      oneOf:
-        - $ref: '#/PluginSemanticVersion'
-        - type: 'null'
-    desiredRevision:
-      $ref: '../enterprise-openapi.yaml#/components/schemas/Revision'
-    state: {$ref: '#/ManagedPluginState'}
-    loaderPhase:
-      oneOf:
-        - type: string
-          minLength: 1
-          maxLength: 32
-        - type: 'null'
-    lastErrorCode:
-      oneOf:
-        - type: string
-          minLength: 1
-          maxLength: 64
-        - type: 'null'
-    observedAt:
-      type: string
-      format: date-time
-PluginInventoryRequest:
-  type: object
-  additionalProperties: false
-  required: [items]
-  properties:
-    items:
-      type: array
-      maxItems: 500
-      items: {$ref: '#/PluginInventoryItem'}
-PluginInventoryAck:
-  type: object
-  additionalProperties: false
-  required: [reported]
-  properties:
-    reported:
-      type: integer
-      minimum: 0
-      maximum: 500
-PluginInventoryResponse:
-  type: object
-  additionalProperties: false
-  required: [data, requestId]
-  properties:
-    data: {$ref: '#/PluginInventoryAck'}
-    requestId:
-      $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
-AdminPluginInventoryItem:
-  type: object
-  additionalProperties: false
-  required:
-    - deviceId
-    - username
-    - packageName
-    - version
-    - desiredRevision
-    - state
-    - loaderPhase
-    - lastErrorCode
-    - observedAt
-  properties:
-    deviceId:
-      $ref: '../enterprise-openapi.yaml#/components/schemas/EnterpriseDeviceId'
-    username:
-      type: string
-      minLength: 1
-      maxLength: 100
-    packageName: {$ref: '#/PluginPackageName'}
-    version:
-      oneOf:
-        - $ref: '#/PluginSemanticVersion'
-        - type: 'null'
-    desiredRevision:
-      $ref: '../enterprise-openapi.yaml#/components/schemas/Revision'
-    state: {$ref: '#/ManagedPluginState'}
-    loaderPhase:
-      oneOf:
-        - type: string
-          minLength: 1
-          maxLength: 32
-        - type: 'null'
-    lastErrorCode:
-      oneOf:
-        - type: string
-          minLength: 1
-          maxLength: 64
-        - type: 'null'
-    observedAt:
-      type: string
-      format: date-time
-AdminPluginInventoryPageData:
-  type: object
-  additionalProperties: false
-  required: [items, page]
-  properties:
-    items:
-      type: array
-      maxItems: 200
-      items: {$ref: '#/AdminPluginInventoryItem'}
-    page:
-      $ref: '../enterprise-openapi.yaml#/components/schemas/CursorPage'
-AdminPluginInventoryListResponse:
-  type: object
-  additionalProperties: false
-  required: [data, requestId]
-  properties:
-    data: {$ref: '#/AdminPluginInventoryPageData'}
     requestId:
       $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'

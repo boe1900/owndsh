@@ -5,7 +5,7 @@
 成员清单
 
 README.md: 协议真源使用规则，定义手写与生成边界、双端消费方式和漂移门禁。
-enterprise-openapi.yaml: OpenAPI 3.1 逻辑协议导航根，定义 Bearer 与 HTTP/HTTPS 管理端 Cookie、38 个稳定错误码和 141 个 operation，并引用受控 Path Item/schema 分片。
+enterprise-openapi.yaml: OpenAPI 3.1 逻辑协议导航根，定义 Bearer 与 HTTP/HTTPS 管理端 Cookie、38 个稳定错误码和 139 个 operation，并引用受控 Path Item/schema 分片。
 paths/: 身份、模型治理、插件、Session、审计与 Remote 控制面的 operation 分片；员工 Remote 复用 Bearer，管理 Remote 复用 Cookie；局部地图见 paths/CLAUDE.md。
 components/: 身份治理、模型、插件、Session、审计与 Remote 授权事实的 schema 分片；局部地图见 components/CLAUDE.md。
 fixtures/auth-sources-success.json: T05 登录事务、CSRF 与公开身份源成功响应样例。
@@ -41,7 +41,6 @@ fixtures/usage-ledger-list-success.json: prompt-free ledger 与分页样例，�
 fixtures/gateway-request-success.json: T10/T11 default sentinel 与官方 adapter 原生字段透明传输成功请求样例。
 fixtures/plugin-version-success.json: VALIDATED 安装配置与展示元数据示例。
 fixtures/plugin-assignments-success.json: 用户授权的固定版本与安装配置示例。
-fixtures/plugin-inventory-success.json: T13 ACTIVE 设备原子替换本地插件库存的成功响应样例。
 fixtures/session-batch-success.json: T16 精确事件批次确认序列与 rolling hash 成功响应样例。
 fixtures/session-list-success.json: T16 员工本人 ACTIVE 远端副本与解密标题 cursor 列表成功样例。
 fixtures/session-export-success.json: T16 官方 v0 header、精确 JSONL payload 与前后 hash 证明成功样例。

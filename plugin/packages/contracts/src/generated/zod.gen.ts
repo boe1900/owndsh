@@ -2064,17 +2064,6 @@ export const zModelProviderUpdateRequest = z.object({
 
 export const zProviderUpdateRequest = zModelProviderUpdateRequest;
 
-export const zManagedPluginState = z.enum([
-    'EXPECTED',
-    'INSTALLING',
-    'RESTART_REQUIRED',
-    'ACTIVE',
-    'REMOVE_PENDING',
-    'REMOVING',
-    'FAILED',
-    'ROLLBACK'
-]);
-
 export const zPluginPluginAssignmentId = z.string().regex(/^[1-9][0-9]{0,18}$/);
 
 export const zPluginAssignmentId = zPluginPluginAssignmentId;
@@ -2097,17 +2086,6 @@ export const zPluginPluginInstallation = z.object({
 }).strict();
 
 export const zPluginInstallation = zPluginPluginInstallation;
-
-export const zPluginInventoryAck = z.object({
-    reported: z.int().gte(0).lte(500)
-}).strict();
-
-export const zPluginPluginInventoryResponse = z.object({
-    data: zPluginInventoryAck,
-    requestId: zRequestId
-}).strict();
-
-export const zPluginInventoryResponse = zPluginPluginInventoryResponse;
 
 export const zPluginMarketMetadata = z.object({
     title: z.string().max(120),
@@ -2132,46 +2110,6 @@ export const zPluginPackageName = z.string().min(1).max(214).regex(/^(?:@[a-z0-9
 export const zPluginPackageStatus = z.enum(['ACTIVE', 'DISABLED']);
 
 export const zPluginSemanticVersion = z.string().min(1).max(64).regex(/^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/);
-
-export const zAdminPluginInventoryItem = z.object({
-    deviceId: zEnterpriseDeviceId,
-    username: z.string().min(1).max(100),
-    packageName: zPluginPackageName,
-    version: zPluginSemanticVersion.nullable(),
-    desiredRevision: zRevision,
-    state: zManagedPluginState,
-    loaderPhase: z.string().min(1).max(32).nullable(),
-    lastErrorCode: z.string().min(1).max(64).nullable(),
-    observedAt: z.iso.datetime({ offset: true })
-}).strict();
-
-export const zAdminPluginInventoryPageData = z.object({
-    items: z.array(zAdminPluginInventoryItem).max(200),
-    page: zCursorPage
-}).strict();
-
-export const zPluginAdminPluginInventoryListResponse = z.object({
-    data: zAdminPluginInventoryPageData,
-    requestId: zRequestId
-}).strict();
-
-export const zAdminPluginInventoryListResponse = zPluginAdminPluginInventoryListResponse;
-
-export const zPluginInventoryItem = z.object({
-    packageName: zPluginPackageName,
-    version: zPluginSemanticVersion.nullable(),
-    desiredRevision: zRevision,
-    state: zManagedPluginState,
-    loaderPhase: z.string().min(1).max(32).nullable(),
-    lastErrorCode: z.string().min(1).max(64).nullable(),
-    observedAt: z.iso.datetime({ offset: true })
-}).strict();
-
-export const zPluginPluginInventoryRequest = z.object({
-    items: z.array(zPluginInventoryItem).max(500)
-}).strict();
-
-export const zPluginInventoryRequest = zPluginPluginInventoryRequest;
 
 export const zPluginSource = z.union([
     z.object({
@@ -3257,8 +3195,6 @@ export const zProviderEnable = z.unknown();
 
 export const zProviderItem = z.unknown();
 
-export const zAdminPluginInventory = z.unknown();
-
 export const zPluginAssignmentBatch = z.unknown();
 
 export const zPluginCollection = z.unknown();
@@ -3274,8 +3210,6 @@ export const zPluginVersionRegistration = z.unknown();
 export const zPluginVersionRetire = z.unknown();
 
 export const zPluginRuntimePluginAssignments2 = z.unknown();
-
-export const zRuntimePluginInventory = z.unknown();
 
 export const zAdminUsage = z.unknown();
 
@@ -4746,27 +4680,10 @@ export const zReplacePluginAssignmentsPath = z.object({
  */
 export const zReplacePluginAssignmentsResponse = zPluginPluginAssignmentBatchResponse;
 
-export const zListPluginInventoryQuery = z.object({
-    cursor: zCursor.optional(),
-    limit: zPageLimit.optional()
-});
-
-/**
- * Managed device plugin inventory page.
- */
-export const zListPluginInventoryResponse = zPluginAdminPluginInventoryListResponse;
-
 /**
  * Effective assignments for the active Harness device owner.
  */
 export const zGetPluginAssignmentsResponse = zPluginRuntimePluginAssignmentsResponse;
-
-export const zReplacePluginInventoryBody = zPluginPluginInventoryRequest;
-
-/**
- * Inventory replacement accepted.
- */
-export const zReplacePluginInventoryResponse = zPluginPluginInventoryResponse;
 
 export const zListOwnedSessionsQuery = z.object({
     cursor: zCursor.optional(),

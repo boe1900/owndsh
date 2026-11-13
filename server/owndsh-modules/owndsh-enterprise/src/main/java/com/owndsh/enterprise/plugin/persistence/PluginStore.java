@@ -1,12 +1,11 @@
 /**
- * [INPUT]: 接收 tenant、catalog/version CAS、完整 assignment 集合和 ACTIVE 设备 inventory 事实。
- * [OUTPUT]: 提供自然键幂等、版本范围迁移、包/版本及关联范围删除、USER→DEPT→ALL 生效查询和 inventory replace 端口。
+ * [INPUT]: 接收 tenant、catalog/version CAS、完整 assignment 集合。
+ * [OUTPUT]: 提供自然键幂等、版本范围迁移、包/版本及关联范围删除、USER→DEPT→ALL 生效查询端口。
  * [POS]: plugin application 的 PostgreSQL DIP 边界，隐藏 JSONB/窗口函数和 SQL 锁细节。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.plugin.persistence;
 
-import com.owndsh.enterprise.plugin.domain.DevicePluginInventory;
 import com.owndsh.enterprise.plugin.domain.PluginAssignment;
 import com.owndsh.enterprise.plugin.domain.PluginPackage;
 import com.owndsh.enterprise.plugin.domain.PluginVersion;
@@ -68,7 +67,4 @@ public interface PluginStore {
         Long departmentId
     );
 
-    void replaceInventory(String tenantId, long deviceId, List<DevicePluginInventory> inventory);
-
-    List<DevicePluginInventory> listInventory(String tenantId, long afterId, int limit);
 }

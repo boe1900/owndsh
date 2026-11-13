@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖 Cordis/Schemastery、Harness credentials/LLM/pluginManager/inventory/skills/connection/workspaceRegistry、官方运行时身份与企业业务模块
+ * [INPUT]: 依赖 Cordis/Schemastery、Harness credentials/LLM/pluginManager/inventory/skills/connection/workspaceRegistry、官方运行时身份与企业业务模块；inventory 仅供 Remote 本机能力读取
  * [OUTPUT]: 提供 Web/Desktop bundle apply、本机市场与认证、模型/MCP/技能组合，以及默认关闭的远端 Host 和逐页 DSH 工作区控制入口
- * [POS]: bundle 的唯一 Host Loader 入口，组合平台认证、官方企业模型、隔离 skill provider 与环境原生插件调和；官方 market 只访问 loopback 代理，MCP 连接由独立 Cordis fiber 隔离并可撤销
+ * [POS]: bundle 的唯一 Host Loader 入口，组合平台认证、官方企业模型、隔离 skill provider 与官方插件市场；官方 market 只访问 loopback 代理，MCP 连接由独立 Cordis fiber 隔离并可撤销
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -11,7 +11,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { CredentialProvider } from '@deepseek-ai/dsh-credentials'
 import type { SettingsForms } from '@deepseek-ai/dsh-settings'
 import type { PluginInventoryGateway } from '@deepseek-ai/dsh-host-plugin-inventory'
-import type { BundleInfo, PluginManager } from '@deepseek-ai/dsh-plugin-manager'
+import type { PluginManager } from '@deepseek-ai/dsh-plugin-manager'
 import type PluginMarket from '@deepseek-ai/dsh-plugin-market'
 import { APP_IDENTITY, type LlmRuntime } from '@deepseek-ai/dsh-llm'
 import z from '@deepseek-ai/schemastery'
@@ -20,7 +20,6 @@ import {
   EnterprisePlatformError,
   EnterprisePlatformService,
   OWNDSH_SETTINGS_ENTRY,
-  type EnterprisePluginInventoryItem,
   type WebServerRoutePort,
 } from '@owndsh/platform-client'
 import { mountMcpRuntime } from './mcp-runtime.js'
@@ -88,54 +87,6 @@ type EnterpriseHostContext = Context & RemoteWorkspaceContext & RemoteViewContex
 
 interface DesktopActionsPort {
   requestRestart(): Promise<void>
-}
-
-function inventoryState(
-  assignment: NonNullable<ReturnType<EnterprisePlatformService['bootstrap']>>['plugins']['assignments'][number],
-  bundle: BundleInfo | undefined,
-  phase: string | null,
-): EnterprisePluginInventoryItem['state'] {
-  if (assignment.desiredState === 'ABSENT') return 'REMOVE_PENDING'
-  if (bundle?.error !== undefined || (bundle?.version !== undefined && bundle.version !== assignment.version)) return 'FAILED'
-  if (bundle === undefined) return 'EXPECTED'
-  if (bundle.enabled && phase === 'active') return 'ACTIVE'
-  return 'RESTART_REQUIRED'
-}
-
-async function reportPluginInventory(
-  platform: EnterprisePlatformService,
-  pluginManager: PluginManager,
-  pluginInventory: PluginInventoryGateway,
-  logger: Context['logger'],
-): Promise<void> {
-  if (!['READY', 'REFRESHING'].includes(platform.status().state)) return
-  const snapshot = platform.bootstrap()
-  if (snapshot === undefined) return
-  const [bundles, loader] = await Promise.all([pluginManager.listBundles(), pluginInventory.list()])
-  const items: EnterprisePluginInventoryItem[] = []
-  for (const assignment of snapshot.plugins.assignments) {
-    const bundle = bundles.find(item => item.name === assignment.packageName)
-    if (assignment.desiredState === 'ABSENT' && bundle === undefined) continue
-    const entries = loader.entries.filter(item => item.moduleName === assignment.packageName)
-    const entry = entries.find(item => item.enabled && item.fiberPhase === 'active') ?? entries[0]
-    const state = inventoryState(assignment, bundle, entry?.fiberPhase ?? null)
-    const lastErrorCode = bundle?.error?.code
-      ?? (bundle?.version !== undefined && bundle.version !== assignment.version ? 'ENT_PLUGIN_VERSION_MISMATCH' : null)
-    items.push({
-      packageName: assignment.packageName,
-      version: bundle?.version ?? null,
-      desiredRevision: snapshot.plugins.revision,
-      state,
-      loaderPhase: entry?.fiberPhase ?? null,
-      lastErrorCode,
-      observedAt: new Date().toISOString(),
-    })
-  }
-  try {
-    await platform.reportPluginInventory(items)
-  } catch (error) {
-    logger.warn('owndsh: plugin inventory report failed %s', error instanceof Error ? error.message : String(error))
-  }
 }
 
 const OWNDSH_MARKET_INDEX_PATH = '/enterprise/plugin-market/index.json'
@@ -277,35 +228,20 @@ export function apply(ctx: EnterpriseHostContext, config: RuntimeConfig): void {
     harnessVersion: HARNESS_VERSION,
     bundleVersion: BUNDLE_VERSION,
   }), 'enterpriseGateway.registration')
-  let inventoryTask: Promise<void> | undefined
   let marketTask: Promise<void> | undefined
   let disposed = false
   const marketUrl = ownDshMarketProxyUrl(ctx.webServer)
   const disposeMarketProxy = registerOwnDshMarketProxy(ctx.webServer, platform)
-  const scheduleInventory = (): void => {
-    if (inventoryTask !== undefined || disposed) return
-    const task = reportPluginInventory(platform, ctx.pluginManager, ctx.pluginInventory, ctx.logger)
-      .catch(error => ctx.logger.warn('owndsh: plugin inventory task failed %s', error instanceof Error ? error.message : String(error)))
-      .finally(() => { if (inventoryTask === task) inventoryTask = undefined })
-    inventoryTask = task
-  }
   const scheduleMarket = (): void => {
     if (marketTask !== undefined || disposed) return
     const task = syncPluginMarketIndex(platform, ctx.pluginMarket, ctx.logger, marketUrl)
     marketTask = task
     void task.finally(() => { if (marketTask === task) marketTask = undefined })
   }
-  const disposePluginChange = ctx.on('plugin-manager/changed', scheduleInventory)
   const disposeMarketChange = ctx.on('plugin-market/changed', scheduleMarket)
-  const disposePlatformStatus = platform.subscribe(status => {
-    if (status.state === 'READY' || status.state === 'REFRESHING') {
-      scheduleInventory()
-    }
-    scheduleMarket()
-  })
+  const disposePlatformStatus = platform.subscribe(scheduleMarket)
   ctx.effect(() => () => {
     disposed = true
-    disposePluginChange()
     disposeMarketChange()
     disposePlatformStatus()
     disposeMarketProxy()
@@ -314,7 +250,6 @@ export function apply(ctx: EnterpriseHostContext, config: RuntimeConfig): void {
     disposeRemoteViews()
     remoteViews.dispose()
     disposeRemoteSettings()
-  }, 'owndsh.pluginInventory')
-  scheduleInventory()
+  }, 'owndsh.lifecycle')
   scheduleMarket()
 }

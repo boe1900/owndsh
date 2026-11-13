@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖生成的插件管理 operation、JSON 安装配置、成员目录、console 权限事实、TanStack Query、ProductDataTable 与插件编辑器，共享 lib/crypto 生成 HTTP/HTTPS 通用幂等键。
- * [OUTPUT]: 提供按插件聚合的版本/范围/设备三视图；包和历史版本删除须确认范围，并携带包 revision。
+ * [OUTPUT]: 提供按插件聚合的版本/范围双视图；包和历史版本删除须确认范围，并携带包 revision。
  * [POS]: features/plugins 的产品插件工作台；服务端负责目录、状态机和分配裁决，宿主负责包安装及依赖。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -12,7 +12,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   deletePluginPackage,
   deletePluginVersion,
-  listPluginInventory,
   listPluginPackages,
   publishPluginVersion,
   replacePluginAssignments,
@@ -20,8 +19,6 @@ import {
   registerPluginVersion
 } from '@/api/generated/sdk.gen';
 import type {
-  AdminPluginInventoryItem,
-  AdminPluginInventoryPageData,
   EnterpriseErrorResponse,
   PluginAssignment,
   PluginPackage,
@@ -47,7 +44,7 @@ import {
   type PluginRegistrationValue
 } from './plugin-editors';
 
-const SECTIONS = ['插件版本', '可见范围', '设备状态'] as const;
+const SECTIONS = ['插件版本', '可见范围'] as const;
 
 type PluginPackageRow = PluginPackage & { latestVersion: PluginVersion };
 type PluginDeleteTarget = { pluginPackage: PluginPackage; version?: PluginVersion };
@@ -82,11 +79,6 @@ async function loadPackages(cursor?: string) {
   return unwrapData<PluginPackagePageData>(result, 'ENT_PLUGIN_CATALOG_UNAVAILABLE');
 }
 
-async function loadInventory(cursor?: string) {
-  const result = await listPluginInventory({ query: { limit: 100, ...(cursor ? { cursor } : {}) } });
-  return unwrapData<AdminPluginInventoryPageData>(result, 'ENT_PLUGIN_INVENTORY_UNAVAILABLE');
-}
-
 function nextCursor(page: { page: { hasMore: boolean; nextCursor: string | null } }) {
   return page.page.hasMore ? page.page.nextCursor ?? undefined : undefined;
 }
@@ -101,27 +93,10 @@ const VERSION_STATUS = {
   RETIRED: { label: '已退休', tone: 'neutral' }
 } as const;
 
-const DEVICE_STATUS: Record<AdminPluginInventoryItem['state'], { label: string; tone: 'accent' | 'green' | 'neutral' | 'orange' | 'red' }> = {
-  EXPECTED: { label: '等待处理', tone: 'neutral' },
-  INSTALLING: { label: '安装中', tone: 'accent' },
-  RESTART_REQUIRED: { label: '需要重启', tone: 'orange' },
-  ACTIVE: { label: '正常', tone: 'green' },
-  REMOVE_PENDING: { label: '等待移除', tone: 'neutral' },
-  REMOVING: { label: '移除中', tone: 'accent' },
-  FAILED: { label: '失败', tone: 'red' },
-  ROLLBACK: { label: '回滚中', tone: 'orange' }
-};
-
 const VERSION_FILTER = {
   columnId: 'status',
   label: '全部状态',
   options: Object.entries(VERSION_STATUS).map(([value, item]) => ({ label: item.label, value }))
-};
-
-const DEVICE_FILTER = {
-  columnId: 'state',
-  label: '全部状态',
-  options: Object.entries(DEVICE_STATUS).map(([value, item]) => ({ label: item.label, value }))
 };
 
 function VersionStatus({ status }: { status: PluginVersion['status'] }) {
@@ -299,56 +274,6 @@ const assignmentColumns: ReadonlyArray<ProductTableColumn<PluginAssignmentRow>> 
   }
 ];
 
-const inventoryColumns: ReadonlyArray<ProductTableColumn<AdminPluginInventoryItem>> = [
-  {
-    accessorKey: 'username',
-    header: '设备成员',
-    cell: ({ row }) => (
-      <div className="min-w-0">
-        <div className="truncate font-medium text-ink">{row.original.username}</div>
-        <div className="truncate font-mono text-[11px] text-ink-3" title={row.original.deviceId}>{row.original.deviceId}</div>
-      </div>
-    ),
-    meta: { label: '设备成员', className: 'w-[190px]', cellClassName: 'w-[190px]' }
-  },
-  { accessorKey: 'packageName', header: '插件', meta: { label: '插件', className: 'w-[210px]', cellClassName: 'w-[210px]' } },
-  {
-    id: 'version',
-    accessorFn: (row) => row.version ?? '未安装',
-    header: '本地版本',
-    meta: { label: '本地版本', className: 'w-[115px]', cellClassName: 'w-[115px]' }
-  },
-  {
-    accessorKey: 'state',
-    header: '状态',
-    cell: ({ getValue }) => {
-      const item = DEVICE_STATUS[getValue() as AdminPluginInventoryItem['state']];
-      return <StatusPill tone={item.tone}>{item.label}</StatusPill>;
-    },
-    filterFn: 'equalsString',
-    meta: { label: '状态', className: 'w-[120px]', cellClassName: 'w-[120px]' }
-  },
-  {
-    id: 'loaderPhase',
-    accessorFn: (row) => row.loaderPhase ?? '-',
-    header: 'Loader',
-    meta: { label: 'Loader', className: 'w-[110px]', cellClassName: 'w-[110px]' }
-  },
-  {
-    id: 'lastErrorCode',
-    accessorFn: (row) => row.lastErrorCode ?? '-',
-    header: '最近错误',
-    cell: ({ getValue }) => <span className="block truncate font-mono text-[11px]" title={String(getValue())}>{String(getValue())}</span>,
-    meta: { label: '最近错误', className: 'w-[190px]', cellClassName: 'w-[190px]' }
-  },
-  {
-    id: 'observedAt',
-    accessorFn: (row) => formatDate(row.observedAt),
-    header: '上报时间',
-    meta: { label: '上报时间', className: 'w-[160px]', cellClassName: 'w-[160px]' }
-  }
-];
-
 export function PluginManagementPage() {
   const { bootstrap } = useRouteContext({ from: '/_console' });
   const canWrite = bootstrap.permissions.includes('ent:plugin:write');
@@ -367,16 +292,7 @@ export function PluginManagementPage() {
     queryFn: ({ pageParam }) => loadPackages(pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: nextCursor,
-    enabled: section !== '设备状态',
     staleTime: 30_000
-  });
-  const inventory = useInfiniteQuery({
-    queryKey: ['plugins', 'inventory'],
-    queryFn: ({ pageParam }) => loadInventory(pageParam),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: nextCursor,
-    enabled: section === '设备状态',
-    staleTime: 15_000
   });
   useEffect(() => {
     if (registrationOpen && packages.hasNextPage && !packages.isFetching && !packages.isFetchNextPageError) {
@@ -469,7 +385,6 @@ export function PluginManagementPage() {
         : memberNames.get(assignment.subjectId ?? '') ?? '未知成员',
       version: pluginPackage.versions.find((version) => version.id === assignment.pluginVersionId)?.version ?? assignment.pluginVersionId
     }))), [memberNames, packageRows]);
-  const inventoryRows = useMemo(() => inventory.data?.pages.flatMap((page) => page.items) ?? [], [inventory.data]);
 
   const table = section === '插件版本' ? (
     <ProductDataTable
@@ -504,7 +419,7 @@ export function PluginManagementPage() {
         </Button>
       ) : undefined}
     />
-  ) : section === '可见范围' ? (
+  ) : (
     <ProductDataTable
       ariaLabel="插件可见范围"
       columns={assignmentColumns}
@@ -525,22 +440,6 @@ export function PluginManagementPage() {
           配置范围
         </Button>
       ) : undefined}
-    />
-  ) : (
-    <ProductDataTable
-      ariaLabel="插件设备状态"
-      columns={inventoryColumns}
-      data={inventoryRows}
-      emptyText="暂无设备插件状态"
-      error={inventory.error}
-      filter={DEVICE_FILTER}
-      getRowId={(row) => `${row.deviceId}:${row.packageName}`}
-      hasMore={inventory.hasNextPage}
-      isLoading={inventory.isLoading}
-      isLoadingMore={inventory.isFetchingNextPage}
-      onLoadMore={() => void inventory.fetchNextPage()}
-      onRetry={() => void inventory.refetch()}
-      searchPlaceholder="搜索成员、设备或插件"
     />
   );
 

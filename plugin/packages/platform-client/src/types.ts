@@ -13,7 +13,6 @@ import {
   zRequestId,
   zRevision,
   type EnterpriseErrorCode,
-  type PluginInventoryItem,
 } from '@owndsh/contracts'
 import type { InstallationOptions } from './installation.js'
 
@@ -43,8 +42,6 @@ export interface EnterprisePlatformConfig {
   readonly dshHome?: string
   readonly installationName?: string
 }
-
-export type EnterprisePluginInventoryItem = PluginInventoryItem
 
 /** 不进入可序列化 bundle Config 的测试与 carrier seam。 */
 export interface EnterprisePlatformInternals {

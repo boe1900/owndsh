@@ -1,12 +1,11 @@
 /**
  * [INPUT]: 依赖 Spring JdbcOperations、Jackson 3 与 V34 安装配置表、sys_user/sys_dept 主体事实。
- * [OUTPUT]: 实现 catalog/version CAS、幂等、可见范围优先级与库存；包/版本删除按外键顺序清理范围，保留独立的设备库存。
+ * [OUTPUT]: 实现 catalog/version CAS、幂等、可见范围优先级；包/版本删除按外键顺序清理范围。
  * [POS]: plugin/persistence 的 PostgreSQL adapter，所有业务查询同时限定 tenant 与 package ownership。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.plugin.persistence;
 
-import com.owndsh.enterprise.plugin.domain.DevicePluginInventory;
 import com.owndsh.enterprise.plugin.domain.PluginAssignment;
 import com.owndsh.enterprise.plugin.domain.PluginPackage;
 import com.owndsh.enterprise.plugin.domain.PluginInstallation;
@@ -109,23 +108,6 @@ public final class JdbcPluginStore implements PluginStore {
         select plugin_version_id, package_name, version, installation_json, source_json, engines_json, required, desired_state
         from ranked where priority=1 and (version_status='PUBLISHED' or desired_state='ABSENT') order by package_name
         """;
-    private static final String DELETE_INVENTORY =
-        "delete from ent_device_plugin where tenant_id=? and device_id=?";
-    private static final String INSERT_INVENTORY = """
-        insert into ent_device_plugin(
-            id,tenant_id,device_id,package_name,version,desired_revision,
-            state,loader_phase,last_error_code,observed_at
-        ) values (?,?,?,?,?,?,?,?,?,?)
-        """;
-    private static final String LIST_INVENTORY = """
-        select i.id,i.tenant_id,i.device_id,u.user_name as username,i.package_name,i.version,
-               i.desired_revision,i.state,i.loader_phase,i.last_error_code,i.observed_at
-        from ent_device_plugin i
-        join ent_device d on d.id=i.device_id and d.tenant_id=i.tenant_id
-        join sys_user u on u.user_id=d.user_id
-        where i.tenant_id=? and i.id>? order by i.id limit ?
-        """;
-
     private final JdbcOperations jdbc;
     private final JsonMapper json;
     private final RowMapper<PluginPackage> packageMapper = this::mapPackage;
@@ -290,25 +272,6 @@ public final class JdbcPluginStore implements PluginStore {
         );
     }
 
-    @Override
-    public void replaceInventory(String tenantId, long deviceId, List<DevicePluginInventory> inventory) {
-        jdbc.update(DELETE_INVENTORY, tenantId, deviceId);
-        for (DevicePluginInventory value : inventory) {
-            jdbc.update(
-                INSERT_INVENTORY,
-                value.id(), tenantId, deviceId, value.packageName(), value.version(),
-                value.desiredRevision(), value.state().name(), value.loaderPhase(), value.lastErrorCode(),
-                at(value.observedAt())
-            );
-        }
-    }
-
-    @Override
-    public List<DevicePluginInventory> listInventory(String tenantId, long afterId, int limit) {
-        if (afterId < 0 || limit < 1 || limit > 201) throw new IllegalArgumentException("库存分页参数非法");
-        return jdbc.query(LIST_INVENTORY, this::mapInventory, tenantId, afterId, limit);
-    }
-
     private PluginPackage mapPackage(ResultSet resultSet, int rowNumber) throws SQLException {
         return new PluginPackage(
             resultSet.getLong("id"), resultSet.getString("tenant_id"), resultSet.getString("package_name"),
@@ -338,16 +301,6 @@ public final class JdbcPluginStore implements PluginStore {
             PluginAssignment.DesiredState.valueOf(resultSet.getString("desired_state")),
             resultSet.getBoolean("required"), PluginAssignment.Status.valueOf(resultSet.getString("status")),
             resultSet.getLong("revision")
-        );
-    }
-
-    private DevicePluginInventory mapInventory(ResultSet resultSet, int rowNumber) throws SQLException {
-        return new DevicePluginInventory(
-            resultSet.getLong("id"), resultSet.getString("tenant_id"), resultSet.getLong("device_id"),
-            resultSet.getString("username"), resultSet.getString("package_name"), resultSet.getString("version"),
-            resultSet.getLong("desired_revision"),
-            DevicePluginInventory.State.valueOf(resultSet.getString("state")), resultSet.getString("loader_phase"),
-            resultSet.getString("last_error_code"), instant(resultSet, "observed_at")
         );
     }
 

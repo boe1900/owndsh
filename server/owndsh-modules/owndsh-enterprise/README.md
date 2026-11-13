@@ -8,7 +8,7 @@ Authorization Code + PKCE、Sa-Token 终端隔离、公开登录页与设备生�
 provider/model/grant 管理、provider 密钥保护、有效默认解析和 runtime bootstrap 模型目录；T09
 增加 Flyway `V6`、叠加配额、PostgreSQL reservation、Redis lease、结算恢复和用量 API；T10
 增加请求级授权、三协议透明 upstream、原生 SSE、计费终态和模型调用审计；T13 增加
-Flyway `V34`、插件安装配置登记、发布/可见范围、安装前授权与库存；T16
+Flyway `V34`、插件安装配置登记、发布/可见范围、安装前授权；T16
 增加 Flyway `V9`、官方 Session format v0 精确 JSONL/hash、AES-GCM 远端副本、读取权限、tombstone 与 retention。T19 补齐显式审计白名单与查询/retention；T20 在模块前置增加 2 MiB 普通 JSON 上限、稳定 413 和未知故障秘密隔离。
 
 ## 身份边界
@@ -121,7 +121,9 @@ master key 的独立 `API_CURSOR` 用途进行 AES-GCM 认证，并绑定 tenant
 
 支持 npm 精确版本、固定 commit 的 GitHub 包和 HTTP(S) tgz。服务端不接收、下载或签名插件包。普通 dependencies、peer 和脚本由宿主 pnpm 自己处理，私有源认证留在客户端宿主。
 
-管理入口 `/enterprise/admin/v1/plugins` 使用 `ent:plugin:read/write`。runtime 的 `/plugins/assignments` 每次重新确认 ACTIVE 用户和设备及有效范围，客户端显式安装前重新读取；库存替换和审计同事务。Bootstrap 与目录共用安装配置投影。
+管理入口 `/enterprise/admin/v1/plugins` 使用 `ent:plugin:read/write`。runtime 的 `/plugins/assignments` 每次重新确认 ACTIVE 用户和设备及有效范围，客户端显式安装前重新读取。Bootstrap 与目录共用安装配置投影。
+
+设备插件库存及其运行异常展示已退役。管理库存查询与 runtime 库存上报路由已删除，V58 删除 `ent_device_plugin`，保留插件登记、发布、范围与每次安装前授权。`PLUGIN_INVENTORY_REPORTED` 仅供历史审计读取，不再生产新事件。
 
 V34 清空旧上传目录、可见范围和库存并删除制品列，保留历史审计。更新后需重新登记插件，同步更新 Server/Console/员工插件，不提供旧上传协议兼容。
 
@@ -173,7 +175,7 @@ PATH=/usr/local/opt/openjdk@21/bin:$PATH \
 模拟 PostgreSQL 约束。身份/设备/网关测试还会启动 WireMock OIDC/DeepSeek、OpenLDAP StartTLS、
 Redis 8 和 PostgreSQL 17 Testcontainers，并使用 OpenAPI 派生 JSON Schema 验证认证、设备、模型、
 配额、bootstrap、用量、模型流、插件与 Session 接口的成功/失败响应。插件测试还覆盖安装目标、
-并发幂等登记、assignment 优先级、自选安装范围、越权/退休版本拒绝、库存原子替换和旧目录清理迁移；Session
+并发幂等登记、assignment 优先级、自选安装范围、越权/退休版本拒绝、库存路由退役、目录保留和旧目录清理迁移；Session
 测试覆盖精确字节 hash、连续/重复/gap/diverge/跨设备/并发、密文、正文权限、删除与 retention。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

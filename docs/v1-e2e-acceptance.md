@@ -1,5 +1,5 @@
 <!--
-[INPUT]: 依赖 v1-product-feature-catalog.md 的冻结范围、锁定 Desktop/Harness 基线、真实部署拓扑及当前控制台、LDAP/OIDC、模型治理、插件和审计实现。
+[INPUT]: 依赖 v1-product-feature-catalog.md 的冻结范围、锁定 Desktop/Harness 基线、真实部署拓扑及控制台、LDAP/OIDC、模型治理、插件和审计执行证据；企业插件库存已按后续修订退役。
 [OUTPUT]: 提供 V1 全场景 E2E 用例、参数化覆盖维度、执行边界、隔离规则和逐项验收证据。
 [POS]: V1 发布验收的执行真源；功能清单回答“做什么”，本文回答“怎样证明整条产品链路可用”，旧阶段测试仅作为回归旁证。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -12,6 +12,8 @@
 执行日期：2026-09-03 至 2026-09-04（Asia/Shanghai）
 
 适用基线：DSH Desktop `2.0.3`、DeepSeek Harness `0.1.1-rc.2`。
+
+库存退役修订（2026-11-13）：本文 PASS 记录属于上述历史执行基线。E44 的库存与控制台比对已退役，现行插件验收检查官方 Discover/Host 的安装、版本切换、卸载与本机状态，不再要求企业库存上报。本次未重新执行本文整套 V1 E2E。
 
 ## 1. 验收原则
 

@@ -21,7 +21,6 @@ import {
   zNativeGatewayRequest,
   zMyQuotaUsageResponse,
   zPluginAssignmentBatchRequest,
-  zPluginInventoryResponse,
   zPluginVersionResponse,
   zQuotaExceededDetails,
   zQuotaPolicyListResponse,
@@ -211,7 +210,6 @@ describe('generated enterprise contracts', () => {
     const fixtures = [
       ['plugin-version-success.json', zPluginVersionResponse],
       ['plugin-assignments-success.json', zRuntimePluginAssignmentsResponse],
-      ['plugin-inventory-success.json', zPluginInventoryResponse],
     ] as const
     for (const [file, schema] of fixtures) {
       const value: unknown = JSON.parse(await readFile(resolve(CONTRACT_ROOT, 'fixtures', file), 'utf8'))

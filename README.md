@@ -1,5 +1,5 @@
 <!--
-[INPUT]: 依赖控制台共享 APNG 品牌图标、GHCR/阿里云 ACR next 镜像、根 Docker Compose、npm next 插件、Harness 官方 profile 与 OwnDsh 当前产品边界。
+[INPUT]: 依赖控制台共享 APNG 品牌图标、GHCR/阿里云 ACR next 镜像、根 Docker Compose、npm next 插件、Harness 官方 profile 与企业插件库存退役后的产品边界。
 [OUTPUT]: 提供品牌展示、Compose 自托管、管理员初始化、员工插件和 Pake 客户端、更新、排障与静态官网发布入口。
 [POS]: 项目公开用户入口；优先让管理员启动 OwnDsh，让员工连接既有 DeepSeek Harness。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -28,7 +28,7 @@ OwnDsh 不 fork 官方 Harness Web UI，不接管员工工作区，也不远程�
 |---|---|
 | 平台管理员 | 自托管控制台、LOCAL/LDAP/OIDC 身份、成员与设备治理 |
 | 模型管理员 | 集中保管供应商 API Key，管理模型、模型集、授权、Token、RPM 与并发 |
-| 插件管理员 | 配置安装地址、发布企业插件，设置可见范围并查看客户端状态 |
+| 插件管理员 | 配置安装地址、发布企业插件并设置可见范围 |
 | 审计员 | 查询管理操作、模型调用、用量与 request ID 关联记录 |
 | 员工 | 用企业账号登录 Harness，使用获准模型并自主安装企业插件，无需持有上游 API Key |
 

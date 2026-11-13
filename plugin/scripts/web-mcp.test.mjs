@@ -371,7 +371,6 @@ async function handle(req, res) {
     sessionPolicy: { enabled: false, retentionDays: 90, maxBatchBytes: 1048576 } } })
   if (pathname.endsWith('/mcp/assignments')) return json(res, { requestId, data: { schemaVersion: 1, revision: 1, validForMs: 60000, assignments: assignments() } })
   if (pathname.endsWith('/plugins/assignments')) return json(res, { requestId, data: { revision: 1, assignments: [] } })
-  if (pathname.endsWith('/plugins/inventory')) { await body(req); return json(res, { requestId, data: { reported: 0 } }) }
   if (pathname.endsWith('/mcp/catalog')) { await body(req); return json(res, { requestId, data: {} }) }
   if (pathname.endsWith('/logout')) return json(res, { requestId, data: { loggedOut: true } })
   if (pathname.endsWith('/chat/completions')) {

@@ -1,5 +1,5 @@
 <!--
-[INPUT]: 依赖第一阶段控制面、OpenAPI、身份/模型/插件/会话/审计事实，GitHub/GitLab/Auth0/Keycloak/Datadog 身份与授权语义、OpenAI Project/rate limit 与 Sub2API 时间窗口语义，以及 Beautiful UI MIT registry 与 TanStack 稳定版本。
+[INPUT]: 依赖第一阶段控制面、OpenAPI、身份/模型/插件/会话/审计事实与企业插件库存退役边界，GitHub/GitLab/Auth0/Keycloak/Datadog 身份与授权语义、OpenAI Project/rate limit 与 Sub2API 时间窗口语义，以及 Beautiful UI MIT registry 与 TanStack 稳定版本。
 [OUTPUT]: 提供第二阶段产品控制台重建、后台能力裁剪、固定角色路由、成员身份、LDAP 目录组映射、批量授权及 TOKEN/RATE 分型治理的冻结详细设计与验收顺序。
 [POS]: 第一阶段 MVP 之后的产品化实施真源；约束新前端和身份语义，不宣称尚未实施的代码已经完成。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -13,7 +13,7 @@
 
 插件修订（2026-09-17）：插件协议已改为安装配置登记，删除上传/制品/签名链路。V34 清空旧插件目录、可见范围和库存，需要重新登记；本文的早期上传验收条目只作历史证据。
 
-当前插件端修订（2026-10-17）：DSH `0.2.1-rc.2` 官方 `Plugins → Discover` 读取 OwnDsh Server 的标准 plugin market index；员工端 OwnDsh 插件 tab、local plugin directory API 和第二套安装状态机已删除。控制台插件页继续管理登记、发布、assignment 和 inventory，官方 Host 负责安装生命周期。
+当前插件端修订（2026-11-13）：DSH `0.2.1-rc.5` 官方 `Plugins → Discover` 读取 OwnDsh Server 的标准 plugin market index；员工端 OwnDsh 插件 tab、local plugin directory API 和第二套安装状态机已删除。控制台插件页管理登记、发布与可见范围，官方 Host 负责安装生命周期。企业库存上报、设备状态与同源运行异常已退役，V58 删除库存快照，保留历史审计；下文早期验收中的库存事实仅作历史证据。
 
 设计日期：2026-08-31（Asia/Shanghai）
 
@@ -49,7 +49,7 @@ Token 限额支持 5 小时、自然日、自然周和自然月窗口；速率�
 - 管理端和 Harness 的 Authorization Code + PKCE 登录。
 - OIDC、LDAP、LOCAL 三类身份适配器及稳定 subject。
 - Provider、受管模型、授权、配额和三协议模型网关。
-- 插件发布、分配、设备安装状态和回滚。
+- 插件发布、分配与官方 Host 的安装和回滚。
 - Session 复制、恢复、正文权限、删除和 retention。
 - 审计、requestId 关联、设备撤销和单机私有部署。
 - OpenAPI 3.1 真源和 Java/TypeScript 生成链。
@@ -269,9 +269,9 @@ Chat、Prompt Bar、Thinking、Streaming Text、Tool Chips、Flowchart、Fine-tu
 |---|---|---|
 | 模型 | Provider、受管模型、连接测试、模型能力和启停 | 模型协议 adapter、客户端重试设置 |
 | 访问策略 | 模型授权、固定角色作用域、配额 | 任意权限树、菜单授权 |
-| 插件 | 包、版本、发布、分配、设备安装结果 | 通用文件存储管理 |
+| 插件 | 包、版本、发布、可见范围 | 通用文件存储管理 |
 | 成员 | 状态、固定角色、登录身份、身份源、LDAP 组映射和设备摘要 | 部门、岗位、社交账号中心 |
-| 活动记录 | 用量、审计、Session 管理和关键运行异常 | 独立登录日志/操作日志/在线用户页面 |
+| 活动记录 | 用量、审计 | 独立登录日志/操作日志/在线用户页面 |
 
 模型 Provider 与受管模型使用同一功能域；设备进入成员详情，Session 在 V1 隐藏；身份源进入成员的“身份接入”。不得为每张
 后端表创建一个一级菜单。
@@ -322,7 +322,7 @@ type ConsoleRouteMeta = {
 | 访问策略 | 管理 | 管理模型策略 | 无 | 无 | 无控制台 |
 | 插件 | 管理 | 无 | 管理 | 无 | 无控制台 |
 | 成员 | 管理 | 无 | 无 | 无 | 无控制台 |
-| 活动记录 | 全部 | 模型相关 | 插件相关 | 全部只读 | 无控制台 |
+| 活动记录 | 全部 | 模型相关 | 无 | 全部只读 | 无控制台 |
 
 页面可见性使用角色矩阵；按钮和 API 继续使用 `ent:*` 权限码。角色是产品概念，权限码是 Server 安全边界。
 前端隐藏页面或按钮不代替 `@SaCheckPermission`。
@@ -798,7 +798,7 @@ Playwright 必须通过真实 PostgreSQL、Redis、Java Server 和配置一致�
 3. 五种固定角色分别只能看到角色矩阵允许的页面。
 4. 直接访问无权静态路由返回 403，直接调用无权 API 仍被 Server 拒绝。
 5. 创建 Provider、模型集、模型、ALL_MEMBERS/ACCESS_GROUP/MEMBER 授权及多资源 Token 限额后，Harness bootstrap 和模型调用实际生效。
-6. 发布插件并观察设备安装状态。
+6. 发布插件并从官方 Discover 验证可见范围与安装结果，本机运行状态由官方 Host 展示。
 7. 成员列表一次请求显示 LOCAL/OIDC/LDAP/多身份摘要；创建 LOCAL 成员后首次登录必须改密，用户中心凭旧密码改密后全部会话失效。
 8. 同名或同邮箱的 OIDC/LDAP 身份不自动合并；邮箱和显示名变化不创建新成员。
 9. 同一 stable subject 不能绑定两个成员；有效 link transaction 经目标身份真实认证后绑定第二身份。
@@ -831,7 +831,7 @@ Playwright 必须通过真实 PostgreSQL、Redis、Java Server 和配置一致�
 | P2-02 设计系统与外壳 | `completed` | P2-01 | 从锁定 Beautiful UI commit 完整迁移组件与 Harness 到 Vite/TanStack，产品复用同源 SidebarNav，并以 Lucide 替换收费图标 | `/examples`、完整 Harness、产品壳桌面/移动/键盘/主题验收通过；无收费图标和遥测依赖 |
 | P2-03 登录与静态路由 | `completed` | P2-01,P2-02 | bootstrap、PKCE、固定角色 route guards 和左侧导航 | 五角色矩阵和 direct URL E2E 通过；无 `/getRouters` |
 | P2-04 模型与访问策略 | `completed` | P2-03 | Provider、模型、ALL_MEMBERS/MEMBER 授权、组织/成员限额与速率页，删除 DEPT 授权/配额语义 | 自动化与真实 Server UI 通过；协议、Schema、运行时均无 DEPT 授权分支，Harness 生效留到 P2-08 集成验收 |
-| P2-05 插件 | `completed` | P2-03 | 插件版本、发布、分配和设备状态 | 自动化与真实 Server UI 通过；Desktop 安装/回滚留到 P2-08 集成验收 |
+| P2-05 插件 | `completed` | P2-03 | 插件版本、发布和可见范围 | 自动化与真实 Server UI 通过；Desktop 安装/回滚留到 P2-08 集成验收；设备库存已退役 |
 | P2-06 成员与身份 | `completed` | P2-03 | product member DTO、身份摘要、固定角色、link transaction、停用 | Server/协议门禁通过；真实 Harness/Desktop E2E 留在 P2-08 |
 | P2-07 活动与身份接入 | `completed` | P2-03 | 用量、审计、Session 隐藏与身份源管理 | auditor 只读、身份源 secret 隔离通过 |
 | P2-08 切换 | `in_progress` | P2-04..P2-07 | 集中执行真实 Harness/Desktop E2E、网关静态资源切换、升级/回滚演练和旧页面调用观测 | 第 13.2 节全链路人工验收通过；不换数据卷 |

@@ -13,6 +13,8 @@
 
 认证接缝（2026-11-09）：系统浏览器授权仍使用既有 PKCE/随机端口 loopback，新增浏览器账号确认不改变 Host Token/installation 协议；仅 OwnDsh 回调选择无凭据 `/authorized` 交接，MCP 默认回调不受影响。独立桌面壳注册 `owndsh://open` 只负责窗口激活。源码、npm 插件制品和桌面 runtime 精确锁分别交付；本次源码检查不代表已发布或已通过原生安装包验收。现行设计和验证证据见[统一登录设计](unified-login-design.md)。
 
+设备插件库存退役（2026-11-13）：源码已删除企业库存上报、对应 HTTP 接口、Console“设备状态”及同源“运行异常”；V58 删除 `ent_device_plugin` 快照表，旧库存审计仍可查询。官方 `pluginInventory` 继续用于 Remote 可选 Ego 能力检查，与退役的企业上报无关。本次退役不改变已发布 npm 插件或桌面制品，发布版本需独立核对。
+
 ## 1. 当前基线与证据
 
 升级核对：2026-10-31。当前代码面向 DSH `0.2.1-rc.5`，并已拉取源码 commit `b830ec950faba0a46dda564be3e2d854afed94f1` 对照公开插件市场、Client slots、MCP 与 PTC 接缝。OwnDsh 插件版本为 `0.1.0-beta.20`，npm 渠道为 `next`；本轮插件 workspace 的 typecheck、模块测试和 workspace 门禁以 rc5 依赖完成。官方 Plugins → Discover 读取 OwnDsh Server 提供的标准 plugin market index，不再维护 OwnDsh 插件目录 tab。历史证据保留在 [0.2.0 RC1 报告](dsh-020-rc1-compatibility-20260929.md)。

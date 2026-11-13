@@ -60,3 +60,7 @@ The proxy uses the in-memory platform Bearer to read the protected OwnDsh index;
 the access token never enters the market URL. The official Host owns catalog
 refresh and installation facts; Server only publishes package metadata and npm
 install targets.
+
+Enterprise device plugin inventory reporting is retired. The official Host
+`pluginInventory` remains available for Remote plugin listings and Ego capability
+checks; it does not send installation observations to OwnDsh Server.

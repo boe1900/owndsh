@@ -1,0 +1,10 @@
+ts	phase	decision	why	evidence	result
+2026-11-13T07:32:00Z	frame	删除库存观测链路	用户明确要求退役设备状态和同源运行异常	plugin/packages/bundle/src/index.ts	实施中
+2026-11-13T07:36:00Z	database	新增 V58 而不改历史迁移	保证现有 Flyway checksum 与升级路径	server/owndsh-modules/owndsh-enterprise/src/main/resources/db/migration/V58__retire_plugin_inventory.sql	等待主仓复验
+2026-11-13T07:36:00Z	audit	保留旧库存审计 action 的读取	历史账本需要继续可查询	server/owndsh-modules/owndsh-enterprise/src/main/java/com/owndsh/enterprise/audit/AuditAction.java	不再产生新库存事件
+2026-11-13T07:45:31Z	console	删除两个观测入口并收紧插件管理员活动导航	退役后不留下空页面或无权限请求	console/src/app/product-routes.ts	tsc及152项测试通过，浏览器tabs与重定向通过
+2026-11-13T07:45:32Z	plugin	删除企业上报并保留Remote官方inventory	实际安装和Remote能力仍由官方Host负责	plugin/packages/bundle/src/index.ts	pnpm run check全部通过
+2026-11-13T07:49:57Z	verification	主目录后端和数据库复验通过	修正 Colima Ryuk socket 挂载后复核实际集成结果	/tmp/owndsh-retire-server-main-tests-retry.log	27项测试通过，0失败，0错误；V57到V58仅删除库存快照表
+2026-11-13T07:53:24Z	review	独立审阅发现并修正文档残留	代码无发现，现行设计与审计地图仍需反映库存退役	.audit/CLAUDE.md; docs/v1-product-feature-catalog.md; docs/phase-2-product-console-design.md; docs/skill-management-design.md; docs/v1-e2e-acceptance.md	已删除当前能力承诺，历史验收保留并注明退役；待文档复核
+2026-11-13T07:57:19Z	evidence	补充跨端验收与清理证据	让验收结果可以从实际制品和日志复核	/tmp/owndsh-retire-console-build.log; /tmp/owndsh-retire-plugins.png; /tmp/owndsh-retire-activity.png; /tmp/owndsh-retire-server-main-tests-retry.log	Console152项与浏览器核查通过，plugin完整check通过，后端27项通过；本次Vite与3个隔离worktree已清理，patch已验证完整合入主工作区
+2026-11-13T08:00:23Z	complete	独立审查闭环并完成退役	代码和文档均需反映整条库存链路已删除	retirement_final_review代码审查; retirement_docs_recheck及retirement_docs_final_gate文档复核; .audit/retire-plugin-inventory.todo.md	代码无发现，当前文档遗留已修，最终复核无发现；所有验证完成，尚未提交或部署；前三条轨迹为近似时间的回溯录入，后续均由helper记录

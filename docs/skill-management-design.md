@@ -1,5 +1,5 @@
 <!--
-[INPUT]: 依赖 DSH 0.2.1-rc.2 的 ctx.skills/provider 语义、WorkBuddy Skill 格式、OwnDsh 登录会话与 GitHub/GitLab 源访问凭据。
+[INPUT]: 依赖 DSH 0.2.1-rc.2 的 ctx.skills/provider 语义、WorkBuddy Skill 格式、OwnDsh 登录会话、GitHub/GitLab 源访问凭据与企业插件库存退役边界。
 [OUTPUT]: 定义 OwnDsh Skill 目录、按需安装、全局缓存、运行时挂载、来源回源和无权限分配边界。
 [POS]: OwnDsh Skill 管理的产品与技术真源；不替代 DSH provider、plugin manager 或工作区语义。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -10,13 +10,15 @@
 状态：implementation-in-progress  
 基线：DSH 0.2.1-rc.2，OwnDsh Plugin/Console/Server 当前实现
 
+修订日期：2026-11-13。本次仅同步企业插件设备库存退役边界。
+
 ## 1. 冻结结论
 
 OwnDsh 只提供一个简单的全局 Skill 市场和本地运行时。管理员维护 Skill 来源、版本、发布和撤销；用户在 OwnDsh 设置的“技能”页自行安装、启用、编辑、打开目录和卸载。
 
 **永久不做 Skill 权限分配。** 不建立用户、用户组、设备、租户、组织或工作区的 Skill assignment，也不建立设备 Skill inventory、自动分发、远程撤销同步或本地权限矩阵。已发布的 Skill 对登录设备可见，是否安装和启用由当前设备用户决定。
 
-这条边界只针对 Skill。插件原有的安装授权、设备库存和权限模型继续保留；Skill 不注册独立 RBAC 权限码，目录管理接口只要求已有的登录管理会话。
+这条边界只针对 Skill。插件的发布、可见范围和运行授权独立保留，企业设备库存已退役。Skill 不注册独立 RBAC 权限码，目录管理接口只要求已有的登录管理会话。
 
 ## 2. 范围
 
