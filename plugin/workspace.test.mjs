@@ -1,14 +1,15 @@
 /**
- * [INPUT]: 依赖当前 workspace package.json、pnpm-workspace.yaml、Desktop/Harness 版本锁与可选同级只读 checkout
- * [OUTPUT]: 提供可独立 CI 验证的工具链、生命周期脚本策略、正式包集合、源码边界及本地 checkout 精确基线测试
- * [POS]: plugin 的根级不变量测试，发布不依赖同级源码，本地存在锁定 checkout 时追加验证 commit
+ * [INPUT]: 依赖 workspace 清单、真实 pnpm 调度、Desktop/Harness 版本锁与可选同级只读 checkout
+ * [OUTPUT]: 提供工具链、嵌套构建共享产物互斥、正式包集合、源码边界及本地 checkout 精确基线测试
+ * [POS]: plugin 的根级不变量测试，以隔离 workspace 验证调度，不生成产品产物或依赖同级源码
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { readdir, readFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { dirname, resolve } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
@@ -76,6 +77,87 @@ test('workspace only discovers product packages below packages', async () => {
     /allowBuilds:\n  '@google\/genai': false\n  esbuild: true\n  protobufjs: false\n/,
   )
   assert.doesNotMatch(definition, /deepseek-harness|\.\.\//)
+})
+
+test('nested workspace builds never read or overwrite an active dependency output', async () => {
+  const temporaryRoot = await mkdtemp(resolve(tmpdir(), 'owndsh-workspace-build-'))
+  try {
+    const [definition, workspace] = await Promise.all([
+      readFile(resolve(WORKSPACE_ROOT, 'pnpm-workspace.yaml'), 'utf8'),
+      readJson(resolve(WORKSPACE_ROOT, 'package.json')),
+    ])
+    await writeFile(resolve(temporaryRoot, 'pnpm-workspace.yaml'), definition)
+    await writeFile(resolve(temporaryRoot, 'package.json'), JSON.stringify({
+      name: 'workspace-build-fixture',
+      private: true,
+      packageManager: workspace.packageManager,
+    }))
+    await writeFile(resolve(temporaryRoot, 'step.mjs'), `
+import assert from 'node:assert/strict'
+import { closeSync, existsSync, openSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { setTimeout } from 'node:timers/promises'
+import { fileURLToPath } from 'node:url'
+
+const root = fileURLToPath(new URL('.', import.meta.url))
+const writing = resolve(root, 'contracts.writing')
+const output = resolve(root, 'contracts.d.ts')
+if (process.argv[2] === 'contracts') {
+  const writer = openSync(writing, 'wx')
+  try {
+    writeFileSync(output, '')
+    await setTimeout(300)
+    writeFileSync(output, 'export type Contract = string\\n')
+  } finally {
+    closeSync(writer)
+    unlinkSync(writing)
+  }
+} else {
+  assert.equal(existsSync(writing), false, 'dependency output is still being written')
+  assert.equal(readFileSync(output, 'utf8'), 'export type Contract = string\\n')
+  await setTimeout(100)
+  assert.equal(existsSync(writing), false, 'dependency output was overwritten while in use')
+  writeFileSync(resolve(root, process.argv[2] + '.checked'), 'ready')
+}
+`)
+    const packages = {
+      contracts: [],
+      first: ['contracts'],
+      second: ['contracts'],
+      bundle: ['first', 'second'],
+    }
+    for (const [name, dependencies] of Object.entries(packages)) {
+      const directory = resolve(temporaryRoot, 'packages', name)
+      await mkdir(directory, { recursive: true })
+      const prepare = dependencies.length > 0
+        ? `pnpm --filter @fixture/${name}^... run build && `
+        : ''
+      await writeFile(resolve(directory, 'package.json'), JSON.stringify({
+        name: `@fixture/${name}`,
+        version: '1.0.0',
+        scripts: {
+          build: `${prepare}node ../../step.mjs ${name}`,
+          typecheck: name === 'contracts' ? 'node --version' : `${prepare}node ../../step.mjs ${name}`,
+        },
+        dependencies: Object.fromEntries(dependencies.map(dependency => [
+          `@fixture/${dependency}`, 'workspace:*',
+        ])),
+      }))
+    }
+
+    execFileSync('pnpm', ['--recursive', '--if-present', 'run', 'typecheck'], {
+      cwd: temporaryRoot,
+      encoding: 'utf8',
+      stdio: 'pipe',
+      timeout: 60_000,
+    })
+    for (const name of ['first', 'second', 'bundle']) {
+      assert.equal(await readFile(resolve(temporaryRoot, `${name}.checked`), 'utf8'), 'ready')
+    }
+    assert.equal(await readFile(resolve(temporaryRoot, 'contracts.d.ts'), 'utf8'), 'export type Contract = string\n')
+  } finally {
+    await rm(temporaryRoot, { recursive: true, force: true })
+  }
 })
 
 test('workspace uses only the formal product package boundaries', async () => {
