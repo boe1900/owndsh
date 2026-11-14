@@ -1,6 +1,6 @@
 <!--
-[INPUT]: 官方 rc.5/rc.3 精确源码、目标 npm 制品、当前 manifests/lockfiles、真实模型与隔离 Web/Desktop 制品验收。
-[OUTPUT]: 记录 D01–D17 兼容判断、必要迁移、保留接缝，以及本机、桌面和 NAS 补验的实际边界。
+[INPUT]: 官方 rc.5/rc.3 精确源码、公共 npm 与桌面发行制品、当前 manifests/lockfiles、真实模型、隔离验收与原 App 自动更新证据。
+[OUTPUT]: 记录 D01–D17 兼容判断、必要迁移、保留接缝，以及本机、桌面自动更新和 NAS 补验的实际边界。
 [POS]: 本次 DSH 升级的审查记录；当前依赖入口为 dsh-compatibility.md，真实 Host/双机验收独立补证。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
@@ -202,4 +202,12 @@ OwnDsh commit `7b36b36c73f14215fb74181de8ea865e8304fe9c` 与标签 `v0.1.0-beta.
 
 实际更新从用户原 `/Applications/OwnDsh Desktop.app` 开始，版本为 `0.2.1-rc.5`。原 `app.asar` 内 `dsh/node_modules/owndsh-plugin/package.json` 确认预置插件为 `beta.20`。旧 profile 的依赖字段残留 `beta.17`，但 profile 下该插件副本不存在，不能用这条记录判断实际加载版本。此次包内插件升级为 `beta.20 → beta.21`。发布前通过原生菜单检查更新，提示已是最新版本，截图为 `release/before-update-check.png`。原 App、`~/.owndsh` 与 Electron userData 已备份至私有 `release/before-update/`，原数据文件另存哈希清单。候选隔离 App 已退出，避免把先前实包验收当成此次更新结果。
 
-Release 发布后准备点击原 App 检查更新时，电脑工具报告 Mac 已锁定且自动解锁失败，要求用户手动解锁。已请求解锁；此时原 App 尚未开始本轮下载和安装，不能将 feed 校验或之前候选安装结果当成自动更新通过。
+2026-11-14 用户解锁后，原 App 已自行发现新版。点击原生“新版本”按钮后，更新器完成下载、校验并显示“新版本 0.2.2-rc.3 已准备就绪”。08:30 的 ShipIt 日志确认原 `/Applications/OwnDsh Desktop.app` 被替换，随后自动启动新版，安装进程返回 0。绑定新版 UI 前先独立检查进程，确认 PID 88312 于 08:30:29 自动启动，避免由验收工具启动 App 掩盖重启失败。没有手工覆盖 App 或修改更新缓存。新版原生“检查更新”再次返回“已是最新版本，当前版本：0.2.2-rc.3”。证据为 `release/ShipIt_stderr.log`、`auto-update-result.json`、`updated-check-ax.txt` 和 `updated-check-latest.png`。本机 macOS ARM64 的真实自动更新通过。
+
+独立下载的三平台正式更新文件均通过 feed SHA-512 和 GitHub 资产 SHA-256 比对。原 App 实际下载的 ARM64 ZIP 为 365,039,712 字节，SHA-256 为 `2f604bf09442934987d6f7fe678984ddaff78fd9a924b14bd390877f5f7d305a`，与正式资产一致。对实际安装路径运行 `release/verify-installed-release.mjs`，根 App、`dsh`、`dsh-desktop-host`、`dsh-web-frontend` 均为 `0.2.2-rc.3`，插件为 `0.1.0-beta.21`。五个插件保留文件与公共 npm tgz 逐字节一致，manifest 先按官方 builder transformer 转换再精确比对。安装后的 deep strict 签名及 `com.owndsh.desktop` 稳定 designated requirement 均通过。证据为 `public-update-assets-verified.json` 和 `installed-release-result.json`。
+
+安装前另备份用户数据，并对 25 个观测文件计算哈希。更新后 23 个不变、2 个变化、0 个缺失；凭据、设备、工作区和其余会话观测文件不变。已打开旧会话的变化为官方 row 版本、序号及新增运行字段，会话消息仍可见；profile patch 的变化为本机插件市场回环端口更新。旧“你好”会话三轮、历史模型回复、默认工作区和 DS Bot 工作区均在新版显示。证据为 `preinstall-baseline-private.json`、`postupdate-data-comparison.json`、`postupdate-session-differences.json` 和 `updated-old-session.png`。
+
+原日常 profile 仍配置 `http://home-nas:18080`。新版 OwnDsh 设置显示插件 `beta.21`，同时显示 `ENT_PLATFORM_UNAVAILABLE` 与正在恢复企业会话。凭据文件没有变化，但本轮未确认该 NAS 服务可用，不能把凭据保留写成企业登录已恢复 `READY`。按用户决定不再恢复 NAS 或追加模型测试。应用保留打开，供用户查看。
+
+本次验收另发现一个未修复的品牌显示问题。上游 rc.3 的 `apps/desktop/scripts/package-target.ts` 对 unsigned 构建显式选择 `build --profile local`，前端侧栏因此显示“DSH 本地构建”和 `0.2.2-rc.3-38a6a5c-dirty`，窗口标题也使用该名称。OwnDsh 品牌接缝已覆盖原生 App、菜单和安装器，却未覆盖此新增前端 fallback。`dirty` 来自对锁定上游源码施加发行补丁，不表示用户数据损坏。该包仍是 GitHub 正式资产，以上安装与更新核验不变。后续品牌修正应显示 OwnDsh 身份并保留真实签名状态，不把 unsigned 伪装成官方签名发行。
