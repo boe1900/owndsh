@@ -1,6 +1,6 @@
 <!--
-[INPUT]: 官方 rc.5/rc.3 精确源码、公共 npm 与桌面发行制品、当前 manifests/lockfiles、真实模型、隔离验收与原 App 自动更新证据。
-[OUTPUT]: 记录 D01–D17 兼容判断、必要迁移、保留接缝，以及本机、桌面自动更新和 NAS 补验的实际边界。
+[INPUT]: 官方 rc.5/rc.3 精确源码、公共 npm 与桌面发行制品、当前 manifests/lockfiles、真实模型、隔离验收、原 App 自动更新与侧栏品牌修正证据。
+[OUTPUT]: 记录 D01–D17 兼容判断、必要迁移、保留接缝，以及本机、桌面自动更新、同版重发和 NAS 补验的实际边界。
 [POS]: 本次 DSH 升级的审查记录；当前依赖入口为 dsh-compatibility.md，真实 Host/双机验收独立补证。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
@@ -210,4 +210,22 @@ OwnDsh commit `7b36b36c73f14215fb74181de8ea865e8304fe9c` 与标签 `v0.1.0-beta.
 
 原日常 profile 仍配置 `http://home-nas:18080`。新版 OwnDsh 设置显示插件 `beta.21`，同时显示 `ENT_PLATFORM_UNAVAILABLE` 与正在恢复企业会话。凭据文件没有变化，但本轮未确认该 NAS 服务可用，不能把凭据保留写成企业登录已恢复 `READY`。按用户决定不再恢复 NAS 或追加模型测试。应用保留打开，供用户查看。
 
-本次验收另发现一个未修复的品牌显示问题。上游 rc.3 的 `apps/desktop/scripts/package-target.ts` 对 unsigned 构建显式选择 `build --profile local`，前端侧栏因此显示“DSH 本地构建”和 `0.2.2-rc.3-38a6a5c-dirty`，窗口标题也使用该名称。OwnDsh 品牌接缝已覆盖原生 App、菜单和安装器，却未覆盖此新增前端 fallback。`dirty` 来自对锁定上游源码施加发行补丁，不表示用户数据损坏。该包仍是 GitHub 正式资产，以上安装与更新核验不变。后续品牌修正应显示 OwnDsh 身份并保留真实签名状态，不把 unsigned 伪装成官方签名发行。
+原发行验收另发现侧栏品牌显示问题。上游 rc.3 的 `apps/desktop/scripts/package-target.ts` 对 unsigned 构建显式选择 `build --profile local`，前端侧栏因此显示“DSH 本地构建”和 `0.2.2-rc.3-38a6a5c-dirty`，窗口标题也使用该名称。OwnDsh 品牌接缝已覆盖原生 App、菜单和安装器，却未覆盖此新增前端 fallback。`dirty` 来自对锁定上游源码施加发行补丁，不表示用户数据损坏。该包仍是 GitHub 正式资产，以上安装与更新核验不变。
+
+### 左上角品牌修正与同版重发
+
+用户最终选择仅将工作区左上角恢复为 DSH 正式版标志和名称，其余 OwnDsh 发行配置保持原样。桌面 commit `e2a0f64afe810c6cd6406b5b48d8bed0f1ff5358` 只移除官方 `ui-brand-official` 模块注册侧栏品牌时的 profile 门控，复用原版 `OfficialBrandMark` 和 `OfficialBrandName`，由官方 slot 替换包含本地构建与版本徽标的 fallback。没有修改全局构建 profile、窗口标题逻辑或真实来源元数据，`dshBuildDirty=true` 仍保留。应用名、平台图标、appId、菜单、企业登录、数据隔离、更新源与预置插件 beta.21 均沿用 OwnDsh 配置，unsigned 签名状态不变。
+
+接缝回归为 18 项通过、2 项平台跳过、零失败。独立复核覆盖真实 Cordis Context 和 SlotRegistry 的 6 组注册、重声明和卸载探针，结果为 `PASS+NOTES`，要求实际新安装包验收后才替换 Release。旧安装包运行本轮 `verify-sidebar-app.mjs`，明确失败于官方侧栏标志未注册，作为修正前证据。
+
+精确 head 的手动构建 [43536488648](https://github.com/boe1900/owndsh-desktop/actions/runs/43536488648) 三平台均成功，未由手动构建直接发布。ARM64 ZIP 中的真实 App 通过官方侧栏组件注册、四份 rc.3 版本、公共 beta.21 文件一致性、deep strict 签名与稳定 requirement 核验。使用已有独立本机测试 profile 打开该 App，CUA 截图确认左上角显示原版 `deepseek HARNESS` 标志和名称，没有“本地构建”或版本徽标。原测试会话和历史真实模型回复仍可见，本轮没有新增模型调用，也没有重测 NAS。
+
+Intel ZIP 中的 App 也通过相同的侧栏组件、版本、公共插件与签名检查，两个架构的编译品牌模块 SHA-256 一致。Windows 与 Intel 本轮没有真机 UI 验收，不从 ARM64 截图推导其运行结果。
+
+本机 `/Applications/OwnDsh Desktop.app` 已用同一新包覆盖安装，再次通过上述实包核验。替换前正常退出旧 App 并备份 App、Harness 数据和 Electron userData，替换后、首次启动前的 55 项数据文件哈希全部不变，没有缺失。此轮是用户授权的同版本覆盖安装，不计作另一次自动更新。证据位于桌面仓库忽略目录 `.build/sidebar-brand-release/`，包括 `candidate-sidebar-result.json`、`candidate-official-sidebar.png`、`ui-verification.json`、`installed-sidebar-result.json` 和 `postinstall-data-result.json`；完整插件与签名结果为主仓库 `release/sidebar-candidate-package-result.json`、`sidebar-installed-package-result.json`。
+
+覆盖安装后正常启动原日常 profile，Server 地址仍为 `http://home-nas:18080`，插件显示 beta.21，企业门禁显示未登录。替换前的原 App 登录尝试已超时；本轮没有代替用户修改 Server、登录 NAS 或清理凭据。侧栏画面验收使用上述独立本机测试 profile，不能将其登录状态视为原日常账号已恢复。
+
+2026-11-14 已按用户授权删除旧 Release `444315271`，将同名 `v0.2.2-rc.3` 标签更新到已审阅 commit `e2a0f64`，并用上述构建的 10 个文件创建新 Release `444911639`。标签更新触发的重复构建 [43539853881](https://github.com/boe1900/owndsh-desktop/actions/runs/43539853881) 已主动取消；正式制品只来自完整成功的 `43536488648`，未混入重复构建产物。发布前后均逐文件核对 GitHub 资产大小和 SHA-256，公开 `latest` 已指向新 Release，两个公开 `releases/latest/download` 更新清单与本地待发布字节完全一致。证据为 `public-release-verified.json`、`public-feeds-verified.json` 和 `latest-release.json`。
+
+新 ARM64 ZIP 为 365,039,733 字节，SHA-256 为 `b2170bbec755f0257d65cedf2803f0714a27404474713a07673d5c99462a48a4`，替代上一节原发行文件。同版本重发不会让已安装 rc.3 的客户端自动下载新包，需覆盖安装；本机已完成该操作。较旧版本仍使用原有更新源，本轮没有再次从旧版执行自动更新。历史 rc.5 → 原 rc.3 的真实自动更新结论保持独立。
