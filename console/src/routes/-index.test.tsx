@@ -658,13 +658,13 @@ function renderRoute(path: string, role?: AuthBuiltInRole, logoutStatus = 200, p
 describe('product console access', () => {
   it('uses the fixed role page matrix', () => {
     const paths = (role: AuthBuiltInRole) => productRoutesFor([role]).map((route) => route.to);
-    expect(paths('enterprise_admin')).toEqual(['/', '/access', '/plugins', '/skills', '/mcp', '/members', '/activity', '/remote']);
-    expect(paths('model_admin')).toEqual(['/', '/access', '/activity', '/remote']);
+    expect(paths('enterprise_admin')).toEqual(['/', '/access', '/plugins', '/skills', '/mcp', '/members', '/activity']);
+    expect(paths('model_admin')).toEqual(['/', '/access', '/activity']);
     expect(paths('plugin_admin')).toEqual(['/plugins', '/skills', '/mcp']);
     expect(paths('auditor')).toEqual(['/activity']);
     expect(paths('employee')).toEqual([]);
     expect(productRoutesFor(['model_admin', 'plugin_admin']).map((route) => route.to))
-      .toEqual(['/', '/access', '/plugins', '/skills', '/mcp', '/activity', '/remote']);
+      .toEqual(['/', '/access', '/plugins', '/skills', '/mcp', '/activity']);
   });
 
   it('sends an unauthenticated product URL to login', async () => {

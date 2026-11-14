@@ -22,7 +22,7 @@ dsh-022-rc3-compatibility-20261113.md: rc.3 源码差异、API迁移、冻结Con
 
 dsh-compatibility.md: DSH 升级检查入口，记录当前 npm/Web 基线、上游依赖契约与本地代码/测试映射、历史夹具边界、逐项验收流程及 OAuth 接缝删除条件。
 remote-access-design.md: 远程访问唯一方案，确定 Remote 核心复用、OwnDsh 账号与设备授权、Java/TS 职责、WebRTC/TURN/加密 Relay、统一撤权、浏览器接入与实施验收边界。
-remote-access-implementation-design.md: 远程访问首期三端实施真源，定义 Java/Host/Web 连接基础、Remote ticket/lease、Control/Noise/Relay、能力探测、数据模型、开发阶段、验收矩阵和直接开发门槛。
+remote-access-implementation-design.md: 远程访问首期三端实施真源，定义 Java/Host/Web 连接基础、Remote ticket/lease、Control/Noise/Relay、能力探测、数据模型、开发阶段与验收门槛；P0 诊断页已退役，现行 Console 入口指向 workspace 模块。
 
 remote-access-java-design.md: Remote Java Server 实施附录，定义实际 Netty pipeline、每 Channel 提交前发送预算、在途与关闭语义、模块边界、连接状态处理和分布式部署边界。
 remote-access-business-extension-design.md: 仅 DSH 原生工作区的 Remote 业务扩展附录，记录插件控制端复用原生界面的目标，以及 R6/R7 会话、文件与终端的候选 RPC、scope、传输和生命周期约束。

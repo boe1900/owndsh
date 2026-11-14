@@ -1,12 +1,18 @@
 /**
  * [INPUT]: 依赖稳定错误码、显式返回动作和本人设备连接快照/准确断开端口。
- * [OUTPUT]: 阻断失联工作区并提示版本升级；占用时以原生对话框确认准确连接后接管，不重放业务操作。
+ * [OUTPUT]: 将连接错误映射为操作提示并阻断失联工作区；占用时以原生对话框确认准确连接后接管，不重放业务操作。
  * [POS]: workspace 的唯一连接反馈，接管请求独立于已终止的 document link，旧页不会自动抢回。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
-import { remoteErrorMessage } from '@/features/remote/remote-state';
-
 const messages: Record<string, string> = {
+  ENT_AUTH_REQUIRED: '登录已失效，请重新登录。',
+  ENT_DEVICE_REVOKED: '设备已撤销，远控已关闭。',
+  ENT_PERMISSION_DENIED: '当前账号没有远控权限。',
+  ENT_REMOTE_UNAVAILABLE: '设备当前不在线。',
+  ENT_REMOTE_DISABLED: '设备未开启远控。',
+  ENT_REMOTE_FEATURE_NOT_SUPPORTED: '设备不支持请求的远控能力。',
+  ENT_REMOTE_TURN_NOT_CONFIGURED: '远程中继服务尚未配置。',
+  ENT_REMOTE_IDENTITY_UNSUPPORTED: '当前浏览器不支持远控身份密钥。',
   ENT_REMOTE_BUSY: '这台设备正在被另一个远程页面使用。可以关闭原页面，或断开旧连接后在这里连接。',
   ENT_REMOTE_TAKEN_OVER: '此连接已被另一个远程页面断开。需要继续使用时，请显式重新连接。',
   ENT_REMOTE_CLOSED: '与设备的连接已断开。重新连接后可以继续查看会话。',
@@ -16,6 +22,7 @@ const messages: Record<string, string> = {
   ENT_REMOTE_UI_UNAVAILABLE: '工作区界面资源暂时不可用。请刷新重试。',
   ENT_REMOTE_UI_RESOURCE: '工作区界面资源加载失败。请刷新重试。',
 };
+const connectionFailureMessage = '远程连接出现异常，请确认设备在线且已开启远控后重试。';
 
 type TakeoverState = { kind: 'idle' } | { kind: 'loading' } | { kind: 'confirming'; linkId: string } | { kind: 'disconnecting' };
 interface TakeoverActions {
@@ -64,7 +71,7 @@ export class WorkspaceBoundary {
   fail(code: string): void {
     this.block();
     this.element.setAttribute('role', 'alert');
-    this.detail.textContent = messages[code] ?? remoteErrorMessage(code);
+    this.detail.textContent = messages[code] ?? connectionFailureMessage;
     this.retry.hidden = false;
     this.takeover.hidden = code !== 'ENT_REMOTE_BUSY';
   }
@@ -121,7 +128,7 @@ export class WorkspaceBoundary {
     const code = error instanceof Error ? error.message : 'ENT_PLATFORM_UNAVAILABLE';
     this.detail.textContent = code === 'ENT_REMOTE_BUSY'
       ? '连接已发生变化。请重新点击断开旧连接并连接，确认当前连接后再操作。'
-      : `未能断开旧连接。${messages[code] ?? remoteErrorMessage(code)}`;
+      : `未能断开旧连接。${messages[code] ?? connectionFailureMessage}`;
     this.takeover.focus();
   }
 }

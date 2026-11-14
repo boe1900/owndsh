@@ -7,7 +7,7 @@
 
 # 管控台远程设备入口与原生 DSH 工作区预研
 
-日期：2026-11-12。状态：初版已实现、部署 NAS，尚未提交。跨机结果见 [NAS 部署与右栏验收](console-nas-cross-machine-verification.md)，其中 NAS Host 已完成真实模型与右栏格式测试，NAS 管控台到 Mac Host 已完成文件、终端及 DOCX/PPTX 预览测试。NAS DSH 曾被 OOM 杀死，已恢复环境，内存增长来源与早期断链原因仍待查。第 1 至 5 节为现行产品契约，第 6 至 8 节保留历史预研依据，第 9 节保留初版实施记录。
+日期：2026-11-12。状态：初版已实现并部署 NAS，后续源码与验收进展见追加章节。跨机结果见 [NAS 部署与右栏验收](console-nas-cross-machine-verification.md)，其中 NAS Host 已完成真实模型与右栏格式测试，NAS 管控台到 Mac Host 已完成文件、终端及 DOCX/PPTX 预览测试。NAS DSH 曾被 OOM 杀死，已恢复环境，内存增长来源与早期断链原因仍待查。第 1 至 5 节为现行产品契约，第 6 至 8 节保留历史预研依据，第 9 节保留初版实施记录。
 
 本轮解决一个问题：用户在 OwnDsh 管控台中选择自己的工作电脑，进入该设备的原生 DSH 工作区，继续对话并查看成果。预研先确定页面、交互和能力边界，随后按用户要求实现初版，复用既有加密连接协议，不增加远端网站代理。
 
@@ -19,7 +19,7 @@
 
 目录沿用本人 Cookie API 与 Query 缓存，提供手动刷新、初始加载、空列表和失败提示。刷新失败保留旧设备并注明状态可能过时。折叠后保留设备图标、完整可访问名称和状态；移动设备点击链接后关闭抽屉。目录可用性只是入口提示，实际授权、占用与版本条件仍以建链裁决为准。
 
-账号菜单删除设备和刷新操作，仅保留邀请成员、用户中心和 Sign out。管理端 `/remote` 更名为“远程诊断”，固定角色与服务端权限不变；普通员工仍进入 `/account`，从同一侧栏访问本人设备。
+账号菜单删除设备和刷新操作，仅保留邀请成员、用户中心和 Sign out。早期 `/remote` 诊断页及导航已删除，远控统一从本人设备分组进入；普通员工仍进入 `/account`，从同一侧栏访问本人设备。连接失败、占用与接管提示由独立工作区页面提供。
 
 原生远程页保留官方工作区树和品牌按钮的新会话行为。独立身份条显示固定设备名、文字连接状态与真实的新标签管控台链接。身份条是原生 `#root` 的兄弟节点，通过 flex 分配剩余视口高度，不覆盖原生内容。连接状态为 connecting/connected/disconnected，只有官方 boot 成功后显示已连接，断线与启动失败使用同一反馈入口。
 
@@ -165,7 +165,7 @@ OwnDsh 源码基线为 `332bf504e8d82c82eacf4e4a9ce0dcfa8a9c7e2a`。进入预研
 
 - [现有原生工作区传输适配器](../plugin/packages/bundle/src/remote/view-mount.ts)：本机 UI assembly、远端业务分流与页面嵌入限制。
 - [远端业务权限边界](../plugin/packages/bundle/src/remote/dsh-policy.ts)：API allowlist 与文件路径约束。
-- [管控台角色门禁](../console/src/routes/_console.tsx)及 [Remote 模块地图](../console/src/features/remote/CLAUDE.md)：现有管理入口和 P0 诊断范围。
+- [管控台角色门禁](../console/src/routes/_console.tsx)及 [工作区模块地图](../console/src/features/workspace/CLAUDE.md)：现行角色门禁与本人设备入口。预研时的 P0 诊断模块已删除。
 - [Harness 示例](../console/src/examples/harness-example-page.tsx)及 [SidebarNav](../console/src/components/primitives/SidebarNav.tsx)：既有 Beautiful UI 基础。
 
 原生源码基线为 DeepSeek Harness `0.2.1-rc.5`，commit `b830ec950faba0a46dda564be3e2d854afed94f1`：
@@ -233,7 +233,7 @@ Markdown 内嵌图片、图片文件链接的悬停组件及插件文档图片�
 | 项目 | 结果 |
 | --- | --- |
 | 普通员工入口 | 本人设备显示在侧栏，账号菜单只保留账号操作 |
-| 管理员完整布局 | 按用户要求给同一隔离体验账号增加 enterprise_admin；模型、访问策略、插件、技能、MCP、成员、活动记录、远程诊断与本人远程设备同时显示 |
+| 管理员完整布局 | 当时按用户要求给同一隔离体验账号增加 enterprise_admin；模型、访问策略、插件、技能、MCP、成员、活动记录、远程诊断与本人远程设备同时显示。此为历史验收，远程诊断现已删除 |
 | 新标签链接 | 点击设备生成独立标签，原 Console 的 `/account` 页面保留；移动抽屉随点击关闭，链接带 target=_blank、noopener、noreferrer |
 | 桌面与窄屏 | 展开和折叠侧栏入口均可用；390px 设备抽屉与原生工作区无 document 横向溢出；身份条高 40px，原生根节点占据剩余高度，输入区可见 |
 | 原生交互 | 品牌按钮新建会话，三条测试消息（包含升级管理员后的继续对话）均完成真实网关、Host 与本机模型夹具的往返 |

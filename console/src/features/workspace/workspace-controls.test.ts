@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖真实 document 控件与可控的本人设备快照/断开端口。
- * [OUTPUT]: 验证断开按钮、版本升级提示、键盘阻断、接管确认/取消、重复点击和陈旧确认保护。
+ * [OUTPUT]: 验证断开按钮、连接错误提示、版本升级提示、键盘阻断、接管确认/取消、重复点击和陈旧确认保护。
  * [POS]: workspace 的操作语义回归；网络授权与 Gateway fencing 由服务端测试验证。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -34,6 +34,18 @@ function fixture() {
 }
 
 describe('workspace connection controls', () => {
+  it.each([
+    ['ENT_AUTH_REQUIRED', '登录已失效，请重新登录。'],
+    ['ENT_REMOTE_UNAVAILABLE', '设备当前不在线。'],
+    ['UNEXPECTED_FAILURE', '远程连接出现异常，请确认设备在线且已开启远控后重试。'],
+  ])('shows an actionable connection error for %s', (code, message) => {
+    const { boundary } = fixture();
+    boundary.fail(code);
+    expect(document.querySelector('[role="alert"]')?.textContent).toContain(message);
+    expect(button('重新连接').hidden).toBe(false);
+    expect(button('断开旧连接并连接').hidden).toBe(true);
+  });
+
   it('blocks incompatible Host versions with an actionable upgrade message', () => {
     const { boundary } = fixture();
     boundary.fail('ENT_REMOTE_DSH_VERSION');

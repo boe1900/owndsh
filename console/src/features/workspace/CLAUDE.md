@@ -19,8 +19,8 @@ ego-network.test.ts: 验证旧 Host 降级、断线不降级、网络隔离、�
 ego-input.ts: 每 link 有界 FIFO，连续移动合并不跨按键/点击，捕获失效或输入失败时停止并释放已按输入，断线不重放。
 ego-input.test.ts: 验证点击顺序、移动合并边界、队列满、HTTP 故障释放与断线丢弃。
 workspace-entry.ts: 独立 document 组合根，固定账号/设备、隔离 Storage、建链后按可选 Ego 能力启动官方 UI；集中发布 connecting/connected/disconnected 反馈，官方 boot 成功才标记已连接；主动断开保留终态，退出或原生启动失败释放 link，BFCache 恢复重新建链。
-workspace-boundary.ts: 失联时遮罩与 root.inert 阻断原生操作，版本不符明确提示升级；占用时先获取准确 link 快照，经原生 dialog 确认后断开，独立有界请求不复用已中止的连接 signal，陈旧确认要求重新操作。
-workspace-controls.test.ts: 验证手动断开按钮、版本升级提示、原生 root.inert、确认取消、重复提交与陈旧快照重新确认。
+workspace-boundary.ts: 独立拥有连接错误文案与未知故障重试提示，失联时遮罩与 root.inert 阻断原生操作，版本不符明确提示升级；占用时先获取准确 link 快照，经原生 dialog 确认后断开，独立有界请求不复用已中止的连接 signal，陈旧确认要求重新操作。
+workspace-controls.test.ts: 验证手动断开按钮、登录失效/离线/未知错误提示、版本升级提示、原生 root.inert、确认取消、重复提交与陈旧快照重新确认。
 workspace-storage.ts: 仅在当前 document 隔离账号/设备 localStorage、sessionStorage 与 storage event，不修改 Storage.prototype。
 workspace.css: 独立 document 的连接遮罩、原生接管确认与设备身份条样式，通过 flex 为原生根节点分配剩余视口高度，避免进入 Console React 样式树。
 

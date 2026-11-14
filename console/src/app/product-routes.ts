@@ -5,11 +5,11 @@
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
-import { Activity, Boxes, CircleUserRound, Puzzle, Router, ServerCog, ShieldCheck, Sparkles, Users, type LucideIcon } from 'lucide-react';
+import { Activity, Boxes, CircleUserRound, Puzzle, ServerCog, ShieldCheck, Sparkles, Users, type LucideIcon } from 'lucide-react';
 import type { AuthBuiltInRole } from '@/api/generated/types.gen';
 
 type ProductRouteDefinition = {
-  to: '/' | '/access' | '/plugins' | '/skills' | '/mcp' | '/members' | '/activity' | '/remote';
+  to: '/' | '/access' | '/plugins' | '/skills' | '/mcp' | '/members' | '/activity';
   label: string;
   icon: LucideIcon;
   allowedRoles: readonly AuthBuiltInRole[];
@@ -22,8 +22,7 @@ export const PRODUCT_ROUTES = [
   { to: '/skills', label: '技能', icon: Sparkles, allowedRoles: ['enterprise_admin', 'plugin_admin'] },
   { to: '/mcp', label: 'MCP', icon: ServerCog, allowedRoles: ['enterprise_admin', 'plugin_admin'] },
   { to: '/members', label: '成员', icon: Users, allowedRoles: ['enterprise_admin'] },
-  { to: '/activity', label: '活动记录', icon: Activity, allowedRoles: ['enterprise_admin', 'model_admin', 'auditor'] },
-  { to: '/remote', label: '远程诊断', icon: Router, allowedRoles: ['enterprise_admin', 'model_admin'] }
+  { to: '/activity', label: '活动记录', icon: Activity, allowedRoles: ['enterprise_admin', 'model_admin', 'auditor'] }
 ] as const satisfies readonly ProductRouteDefinition[];
 
 export const ACCOUNT_ROUTE = { to: '/account', label: '用户中心', icon: CircleUserRound } as const;

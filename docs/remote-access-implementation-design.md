@@ -9,6 +9,8 @@
 
 更新日期：2026-11-11。P0 与 R1–R5 的连接基础保留其原有验收边界。首个实际业务已经按 [DSH 远程工作区设计](remote-dsh-workspace-design.md) 实现，复用官方原生页面与 HTTP/mux，通过完整 Noise IK、lease 和加密 Relay 连接两个真实 npm rc.5 Harness。下文的业务 RPC 预留描述属于连接基础的历史范围，不替代新的业务实施契约。独立 Web/Android 页面、跨节点、跨 NAT 的 P2P/TURN 回落与生产证书仍未验收。
 
+2026-11-14 后续：早期 `/remote` 诊断页及专用客户端骨架已删除。Console 的现行设备入口、建链和错误反馈由 `console/src/features/workspace/` 提供；下文 P0 诊断面板描述仅保留连接基础的历史记录。
+
 本文是 OwnDsh 远程访问的开发真源。它回答四个问题：三端各自负责什么、Host 到底支持哪些能力、连接如何安全可靠地建立与撤销、后续按什么顺序写代码和验收。
 
 本轮已经把**产品级连接基础的核心代码**推进到可继续联调的状态：Java Server 完成身份绑定、原子 ticket/lease/revoke、Peer/Link/Relay 状态机；Host 完成平台会话、hello、presence、connect.accept 和 heartbeat carrier；Web 完成 Cookie WebSocket、ticket connect、Relay fallback 和 lease watchdog；remote-core 完成 Noise IK、counter、fragment、transport selection，bundle 提供 WebRTC DataChannel adapter。会话、文件、终端、审批、模型、插件操作等业务 RPC 只保留接口和 capability 预留，不实现具体业务；页面只做设备列表、连接状态和连接诊断面板，正式产品页面另行设计。
@@ -743,7 +745,7 @@ OwnDsh 首版协议版本为 `v=1`，遵守以下规则：
 | P0 | Java Netty 运行基础尚未接入 | **已落地核心**。`owndsh-enterprise` 已加入 Netty、Spring lifecycle、TLS/Origin/大小边界、Bearer/Cookie Upgrade 边界、Sa-Token peer adapter、Peer/Link、Relay、lease 和优雅关闭；listener 默认关闭，健康检查和多节点 owner fencing 仍需实现。 |
 | P0 | 持久化与原子操作没有落到现有版本 | **已落地并通过真实存储验收**。`V57__remote_core.sql` 使用 `ent_device(id) bigint`，Java 已有 Remote device snapshot store、ticket/link/idempotency 原子写、绑定 ticket consume、lease acquire/renew/release、revoke epoch、presence TTL Lua；真实 Redis 8/PostgreSQL 17 Testcontainers 已执行全部 Flyway migration 并通过 Remote 集成测试。 |
 | P1 | 运行与验收环境未写成可执行配置 | **已落地配置键**。`application.yml` 已有 listener/TLS/Origin/frame 配置；coturn、双节点、受限 UDP 和真实 WebRTC 仍需验收拓扑。 |
-| P1 | 控制台连接面板没有代码落点 | **已落地骨架**。`console/src/features/remote/`、route、query key、ticket、状态机和诊断面板已存在；页面暂不宣告 Session/File/Terminal 能力。 |
+| P1 | 控制台连接面板没有代码落点 | **历史骨架已退役**。P0 的 `/remote` 路由及诊断模块已删除，现行本人设备入口、连接反馈与原生工作区由 `console/src/features/workspace/` 承载。 |
 
 R0 的最小可审计文件清单已经落地为：`contracts/remote/control-frame.schema.json`、`relay-frame.schema.json`、`rpc-envelope.schema.json`、`close-codes.json`、`limits.json`、正反 fixture、`remote-core` exports 和 `crypto-vectors.json`。它们现在可以作为 R1 至 R5 的唯一协议输入；真实跨网络验收仍是实现门槛。
 
@@ -759,7 +761,7 @@ Typert、`ctx.typertGateway`、`connection`、文件 provider 和 PTY provider �
 
 ### 19.4 文档与代码的接入边界
 
-远控 HTTP 契约属于 `contracts/enterprise-openapi.yaml`，远控 WebSocket/Noise 契约属于 `contracts/remote/`，Java 实现属于 `server/owndsh-modules/owndsh-enterprise/.../remote/`，Host 实现属于 `plugin/packages/bundle/src/remote/`，Web 面板属于 `console/src/features/remote/`。新增或修改这些目录时，必须同步维护各自的 L2/L3 文档和测试入口。
+远控 HTTP 契约属于 `contracts/enterprise-openapi.yaml`，远控 WebSocket/Noise 契约属于 `contracts/remote/`，Java 实现属于 `server/owndsh-modules/owndsh-enterprise/.../remote/`，Host 实现属于 `plugin/packages/bundle/src/remote/`，Console 设备入口及独立原生工作区属于 `console/src/features/workspace/`。新增或修改这些目录时，必须同步维护各自的 L2/L3 文档和测试入口。
 
 ### 19.5 R1-R5 当前验证状态
 
