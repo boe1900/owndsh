@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖真实 Node HTTP/WS listener、官方 stream parser 与 Host carrier。
- * [OUTPUT]: 验证独立API cookie只留Host、HTTP/WS共用Peer、远端插件库存只读准入、取消流回收、慢消费心跳与有界队列关闭。
+ * [OUTPUT]: 验证独立API cookie只留Host、HTTP/WS共用Peer、远端插件库存准入与通用设置隔离、取消流回收、慢消费心跳与有界队列关闭。
  * [POS]: remote Host 原生carrier接缝回归，真实收发字节而非仅检查调用参数。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -85,7 +85,7 @@ it('closes the native peer when unconsumed messages exceed the 4 MiB queue limit
   }
 })
 
-it('reads plugin inventory from the remote owner while keeping plugin management denied', async () => {
+it('reads plugin inventory from the remote owner while keeping unrelated management endpoints denied', async () => {
   const inventory = { entries: [{ entryId: 'remote-only', moduleName: '@example/nas-only-plugin', enabled: true, fiberPhase: 'active' }] }
   const requests: { path: string | undefined; cookie: string | undefined }[] = []
   const server = createServer((request, response) => {
@@ -114,7 +114,7 @@ it('reads plugin inventory from the remote owner while keeping plugin management
       { method: 'POST', path: '/api/pluginInventory/list/' },
       { method: 'POST', path: '/api/pluginInventory/listAll' },
       { method: 'POST', path: '/api/pluginInventory/list%2F' },
-      ...['installBundle', 'removeBundle', 'setPluginEnabled', 'setBundleEnabled', 'setVersionExemption']
+      ...['unknown', 'setVersionExemption', 'listVersionExemptions']
         .map(method => ({ method: 'POST', path: `/api/pluginManager/${method}` })),
       { method: 'POST', path: '/api/settings/update' },
       { method: 'POST', path: '/api/credentials/get' },

@@ -52,6 +52,8 @@ Console 原生工作区：管控台侧栏“远程连接”分组以原生链接
 
 Console 可选 Ego 浏览器：构建固定 `dsh-ego-browser@0.9.14` 客户端及 MIT 许可，只在 Host Loader、安装版本和运行包版本同时通过时挂原生右栏。其局部 fetch/EventSource 经共享封闭路由转入密文 carrier，登录导入、登录桥、设置及本机弹窗不开放。输入每 link 保序、连续移动合并、失败停止并释放按键；Host 回收 watcher 与在途画面，未安装/旧 Host 保留普通会话和文件。当前仅接入 Console `/workspace.html` 的 CDP 模式，不代表插件端 remote view、通用网页隧道或任意插件 UI 已支持。
 
+Console 原生导航：固定装配官方 Plugins/Discover、自动化任务、More 和预设选择；插件安装、更新、启停及卸载和任务持久化、定时投递均由远端 Host 执行，沿用精确 RPC 集合与既有事件流。More 完整复用官方打开、固定、浏览插件和创造模式草稿入口，不单独裁剪 Creator。原生预设组件从远端读取模式列表，经既有 agentPresets/select 切换未开始会话，开始对话后只显示模式标识。创造模式入口仅通过现有会话路径初始化 cordis 草稿，不表示动态插件审批、运行与新界面加载已接通。插件文档图片只新增两条 GET 路径，仍经唯一 link 与官方包文件 reader；远端安装新插件不增加 Console 主页面可执行代码。普通 settings、credentials 和动态 Cordis 管理接口不开放，任意插件配置 UI 不自动获得支持。本轮源码待发布，真实隔离 Host 验收见 docs/remote-native-navigation-verification-20261114.md。
+
 企业插件市场：管理端登记 npm 精确包名、版本和公开展示元数据，服务端输出 DSH plugin market index；官方 Plugins → Discover 读取该索引并负责发现、安装、更新、卸载、配置和启停，插件 manifest 的 peerDependencies 与官方 Host 执行 DSH 兼容门禁，本机安装与运行事实由官方 Host 管理。OwnDsh 不维护第二套插件目录 UI。企业设备库存上报、管理端“设备状态”和同源“运行异常”已退役，V58 删除库存快照表；历史库存审计保留读取，Remote 使用的官方 Host inventory 能力独立保留。
 
 

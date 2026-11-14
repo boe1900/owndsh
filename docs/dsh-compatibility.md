@@ -15,6 +15,10 @@
 
 设备插件库存退役（2026-11-13）：源码已删除企业库存上报、对应 HTTP 接口、Console“设备状态”及同源“运行异常”；V58 删除 `ent_device_plugin` 快照表，旧库存审计仍可查询。官方 `pluginInventory` 继续用于 Remote 可选 Ego 能力检查，与退役的企业上报无关。本次退役不改变已发布 npm 插件或桌面制品，发布版本需独立核对。
 
+远程会话操作补齐（2026-11-14，源码待发布）：Console 的原生 Markdown 复制控制器已绑定现有远端 transport，Host 精确准入 `/api/session.markdown` 和 `agentTeams/setEnabled`。隔离原生页面的系统剪贴板、普通 HTTP 备用复制、团队开启及确认关闭后的刷新回显通过。现有 npm `beta.21` 不含此修复，需同时更新 Console 和远端 Host 插件；仅更新 Java Server 无效。[本轮验收与发布边界](remote-session-actions-verification-20261114.md)。
+
+远程原生导航补齐（2026-11-14，源码待发布）：Console 恢复官方 Plugins/Discover、自动化任务和完整 More，Host 新增 25 个精确 RPC 及两条 GET 图片路径。真实隔离 rc.3 Host 的插件升级重装、启停、索引源修改、任务 CRUD、运行记录及关页定时执行通过。Creator 保留原生创造模式草稿入口，动态插件审批、运行和新界面加载尚未接通；第三方 Client 与配置页面仍受固定 assembly 限制。现有 npm `beta.21` 和生产 Console 均未包含本轮变更，需配对更新。[原生导航验收](remote-native-navigation-verification-20261114.md)。
+
 ## 1. 当前基线与证据
 
 升级核对：2026-11-13。当前源码迁移目标为 DSH `0.2.2-rc.3`（tag commit `38a6a5c965aa99ab525161efb7cc5cf1fe62fced`），对照旧 `0.2.1-rc.5`。插件发布目标为 `0.1.0-beta.21`，Desktop 同步锁定官方 rc.3 与该插件版本。升级补验已通过，公开发布和实际自动更新单独记录。rc.5 使用历史发行物；只声明同版本 rc.3 Host 与 Console assembly 配对，不承诺交叉版本工作区。
@@ -22,13 +26,13 @@
 | 项目 | 当前事实与真源 |
 |---|---|
 | 开发与发布依赖 | DSH 包精确锁定 `0.2.2-rc.3`，Cordis `4.1.0`、Schemastery `3.19.0`，MCP SDK `2.2.0`；要求 Node.js ≥24.9。DSH peers 精确版本，Cordis/Schemastery peers 为宿主同 minor 系列，官方运行类均 external。完整图见 manifests 与 `plugin/pnpm-lock.yaml`。未使用且目标不再发布的旧 `dsh-invariants` 开发依赖已移除。 |
-| Console 固定资源 | 官方 rc.3 CLI 在临时 profile 中生成 56 个 Client 模块、160 项固定资源；包含官方 `./assets/*` 导出资源，transport 增加 `resolveAsset`。shell/会话/预览精确 hash 与 shell 恰好一次补丁门禁保持；Ego 固定 `0.9.14`。 |
+| Console 固定资源 | 当前 rc.3 CLI 在临时 profile 中生成 61 个 Client 模块、166 项固定资源，较升级首轮恢复五个导航及预设模块；包含官方 `./assets/*` 导出资源与固定 Ego `0.9.14`。shell、会话、预览和 Markdown 的源码 hash 与唯一替换门禁保护适配，More 和预设选择使用官方原始客户端。 |
 | 发行 Node 与基线元数据 | Console engines ≥24.15，Node 24.15 Debian glibc 构建镜像与本地缓存 fallback 共用精确 digest，生产 Nginx 仍为 Alpine；Host/插件仍 ≥24.9。离线包实际 Harness 版本取自 bundle peers 与 native-runtime 的精确交叉校验；旧源码版本/commit 只写独立 SOURCE_FIXTURE 字段。 |
-| Console 检查 | 独立 frozen 安装、生产构建、TypeScript 与 22 文件 /154 项测试通过。固定 Node 24.15 Debian glibc arm64 Docker 构建和测试通过，最终 Nginx 的全部 160 资源逐项 GET/hash 通过；未实际运行 amd64。 |
+| Console 检查 | 当前原生导航及预设扩展的生产构建、TypeScript 与 24 文件 /166 项测试通过；已删除 Creator 裁剪专用 hash 测试，保留三处官方菜单行为测试。升级首轮曾通过固定 Node 24.15 Debian glibc arm64 Docker 构建、测试和 Nginx 160 资源逐项 GET/hash；新增导航及预设后的 166 资源本轮仅在本机验证，未重跑 Docker 或 amd64。 |
 | Remote 边界 | Host 三包门禁与密文 ready 共用单一 rc.3 应用版本，Controller 以 `ENT_REMOTE_DSH_VERSION` 拒绝旧 ready；Remote wire/hash 不变。`workspaceFiles/search` 会话 scope、新 `subagents/interruptByUser`、同文件有限版本媒体重定向已适配；真实 HTTP/WS 回归覆盖搜索越权、方法绑定及恶意媒体跳转。 |
 | Host 与产品验收 | 最新 tgz 在 rc.3 Edge native/PTC 各 9 项 MCP 业务及各 3 项 structured 专项通过；两个隔离 rc.3 Host、新 Console 冷会话、流式对话、搜索、图片与断线恢复通过；Ego 原生右栏真实导航、密文画面与点击到达 Host 通过。使用本机模型协议 fixture 和同机多进程，外部真实模型、Desktop 安装包及 NAS 双机本轮未复验。详见 rc.3 迁移报告。 |
 
-企业模型显式容量继续投影 bootstrap 的 `contextWindow/maxTokens`；缺省值继承官方 rc.3 的 1,000,000/128,000（旧版为 262,144/32,768）。DeepSeekSearch、智能体团队、OfficeKit 和新官方账号通知是原生可选能力，本轮不扩展为企业已验收功能。官方 MCP manager 没有 OAuth provider 注入口，不能替代现有 owner/target、SDK OAuth、企业租约和曝光策略。逐项差异与验证见 [rc.3 升级报告](dsh-022-rc3-compatibility-20261113.md)。
+企业模型显式容量继续投影 bootstrap 的 `contextWindow/maxTokens`；缺省值继承官方 rc.3 的 1,000,000/128,000（旧版为 262,144/32,768）。DeepSeekSearch、OfficeKit 和新官方账号通知是原生可选能力，rc.3 升级未扩展为企业已验收功能。智能体团队的远程模式开关后来补验见 D18，该结果不代表真实多智能体任务验收。官方 MCP manager 没有 OAuth provider 注入口，不能替代现有 owner/target、SDK OAuth、企业租约和曝光策略。逐项差异与验证见 [rc.3 升级报告](dsh-022-rc3-compatibility-20261113.md)。
 
 ### Host Bridge spike（2026-11-08）
 
@@ -81,6 +85,8 @@
 | D15 官方 pluginMarket / pluginManager / 自定义索引 | OwnDsh bundle 通过 loopback 代理以内存 Bearer 读取受保护的 `/enterprise/plugin-market/index.json`，并将代理 URL 写入官方 `pluginMarket.indexes`；Server 输出 DSH plugin market format 1 元数据和 npm 安装目标，安装事实由官方 Host 管理。 | [bundle](../plugin/packages/bundle/src/index.ts)、[PluginMarketController](../server/owndsh-modules/owndsh-enterprise/src/main/java/com/owndsh/enterprise/plugin/web/PluginMarketController.java)；bundle 回归、Server API 合同。 | 检查索引 URL 去重、Server 切换后的旧 OwnDsh 索引清理、loopback 代理不会向 LAN 暴露、Bearer 失效后的读取拒绝、ACTIVE/PUBLISHED 投影和官方 Discover 安装门禁；不恢复第二套目录 UI。 |
 | D16 官方重启与安装进度 | 官方 Discover 页面自行管理安装日志、取消、恢复和重启交互；OwnDsh 只保留整包卸载的宿主重启动作。 | [bundle](../plugin/packages/bundle/src/index.ts)；bundle 回归和目标 Desktop。 | Web/Desktop 的官方安装与重启语义需分别验证；Server 索引不可携带 assignment、inventory、token 或权限字段。 |
 | D17 Console 原生工作区与可选 Ego 浏览器 | 构建锁定 Harness `0.2.2-rc.3` 与 Ego `0.9.14`，原始 Ego 客户端 SHA-256 为 `a49c16bc762a4f8091faac840bd3c2ec70fdb57a3eeed674175ba50f129c5520`。固定 factory 注入局部 fetch/EventSource，原生 IME/坐标逻辑复用；仅 CDP，禁用配置、登录桥和本机窗口。 | [构建适配](../console/scripts/ego-client.mjs)、[共享契约](../plugin/packages/contracts/src/ego.ts)、[Host policy](../plugin/packages/bundle/src/remote/ego-policy.ts)、[网络适配](../console/src/features/workspace/ego-network.ts)；Ego contract/input/network/Host suites。 | 升级任一客户端 hash、slot、控制器行为或 Ego HTTP route 时重审接缝，验证无插件/禁用/版本不符不阻断普通工作区，以及真实点击、IME、尺寸、断开/重连与 watcher 回收。API/模块通过不能代替双机浏览器验收。 |
+| D18 原生会话 Markdown 与团队模式 | 固定 `dsh-session-log-export@0.2.2-rc.3` 的复制控制器通过现有 transport 读取 Markdown，成功响应须为 `text/markdown`。Host 只新增 GET/HEAD `/api/session.markdown?sessionId=…` 和 unary `agentTeams/setEnabled`，由官方 owner Peer 执行。团队状态沿用 `session/follow` 与 `session/projections`，不走 settings。 | [复制适配与测试](../console/scripts/session-markdown-client.mjs)、[网络边界回归](../plugin/packages/bundle/tests/remote-network-boundary.spec.ts)、[验收记录](remote-session-actions-verification-20261114.md)。 | 核对独立和聚合资源都注入固定控制器。验证系统剪贴板字节、非安全 HTTP fallback、错误 MIME 和读取失败，以及开关启停后的重新跟随；继续拒绝 ZIP、settings 和额外团队端点。Console 与 Host 插件均需交付。 |
+| D19 Console 原生插件、任务、More 与预设 | 固定装配 `ui-plugin-manager`、`ui-plugin-market`、`ui-schedule`、`ui-entry-customization`、`ui-agent-preset`，More 完整保留创造模式草稿入口，预设组件恢复选择与模式标识。新增精确插件与 schedule RPC、两条 GET detail-file 图片路径；mutation 和事件交由同一官方 owner Peer，预设使用既有 `agentPresets/list/read/select`。 | [官方菜单行为测试](../console/scripts/entry-customization-client.test.mjs)、[精确边界测试](../plugin/packages/bundle/tests/remote-navigation-boundary.spec.ts)、[真实浏览器验收](remote-native-navigation-verification-20261114.md)。 | 核对五模块仍在 graph、Discover companion 显式启用、三处 More 的 cordis 草稿参数及不自动发送、预设选择与 Host Session 投影及只读模式标识一致、图片 GET query 和无 body、原生任务 CRUD/定时投递。创造模式入口不代表动态插件审批及运行已支持；保留 metadata 三项静态边界，拒绝动态 Client、通用 settings、凭据和版本豁免。 |
 
 未启用的历史 Session 同步实现不作为当前发布能力验收；上游 Session/Agent 变化若影响 D12/D13 的执行上下文，仍必须检查。新增上游接入时补矩阵，不能只补 manifest。
 

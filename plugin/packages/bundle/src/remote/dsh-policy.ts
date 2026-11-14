@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖原生 WorkspaceRegistry 的可信目录和公开 mux 协议。
- * [OUTPUT]: 提供逐端点准入、插件库存只读访问、工作区搜索 scope、Office 源文件与原生文件的 realpath 约束，隔离两种路径语义，拒绝管理及写文件旁路。
+ * [OUTPUT]: 提供逐端点准入、原生插件管理与自动化任务 RPC 及工作区 realpath 约束；通用设置、凭据和版本豁免保持关闭。
  * [POS]: remote Host 的业务权限边界；agent/terminal 仍以原生 DSH 的 OS 用户执行。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -22,8 +22,15 @@ export const DSH_UNARY_ENDPOINTS = new Set([
   'officeToPdf/generation', 'officeToPdf/render',
   'terminal/environment', 'terminal/shells', 'terminal/list', 'terminal/create', 'terminal/rename', 'terminal/close',
   'commands/list', 'commands/execute', 'subagents/prompt', 'subagents/interruptByUser', 'job/kill',
+  'agentTeams/setEnabled',
   'agentPresets/list', 'agentPresets/read', 'agentPresets/select', 'permissionPresets/catalog', 'skills/list',
   'pluginInventory/list',
+  'pluginManager/listBundles', 'pluginManager/listPlugins', 'pluginManager/registries', 'pluginManager/readBundleDetail',
+  'pluginManager/inspect', 'pluginManager/listVersions', 'pluginManager/setBundleEnabled', 'pluginManager/setPluginEnabled',
+  'pluginManager/removeBundle', 'pluginManager/installBundle', 'pluginManager/updateBundle', 'pluginManager/waitForInstall', 'pluginManager/cancelInstall',
+  'pluginRegistryProbe/fastest',
+  'pluginMarket/listIndexes', 'pluginMarket/setIndexes', 'pluginMarket/search', 'pluginMarket/readEntryDetail',
+  'schedule/catalog', 'schedule/deliveryLimits', 'schedule/create', 'schedule/edit', 'schedule/run', 'schedule/history', 'schedule/deleteInactive',
 ])
 export const DSH_STREAM_ENDPOINTS = new Set([
   '$events', 'remoteAccess/follow', 'workspace/follow', 'session/follow', 'session/control',

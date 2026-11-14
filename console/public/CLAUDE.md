@@ -4,7 +4,7 @@
 
 成员清单
 
-native-workspace/: 构建生成并忽略的固定 rc.5/Ego 0.9.14 浏览器资源、assembly.json、DSH/Ego 独立许可证；由 scripts/build-native-workspace.mjs 生成，主页面禁止从远端 Host 加载任意插件代码，工作区 HTML 由官方隔离 iframe 承载。
+native-workspace/: 构建生成并忽略的固定 rc.3/Ego 0.9.14 浏览器资源、assembly.json、DSH/Ego 独立许可证；由 scripts/build-native-workspace.mjs 生成，含官方 Plugins/Discover、自动化任务、完整 More 创造模式草稿入口及预设选择与会话模式标识，Markdown 复制与插件文档图片使用远端 transport；主页面禁止从远端 Host 加载任意插件代码，工作区 HTML 由官方隔离 iframe 承载。
 beautiful-ui-logo.png: Beautiful UI 上游组件画廊品牌图，仅由 `/examples` 参考页使用，不进入企业产品导航。
 owndsh-whale-mono-m2.png: OwnDsh 黑白守护鲸基准稿，以纯黑背景、纯白鲸身和短圆上扬笑口构成最终角色造型，作为背景色派生版本的唯一编辑输入。
 owndsh-whale-mono-m2-animated.png: 黑白守护鲸的 512×512 循环 APNG 动态稿，保持基准构图并仅加入一次自然眨眼与两次轻柔尾鳍摆动。

@@ -59,7 +59,7 @@ Beautiful UI 保留在管理控制台中。已有 Harness 示例可参考视觉�
 
 ## 3. 功能按可用能力呈现
 
-首个产品范围是本人设备、已有 DSH 工作区、新建或继续会话，以及这条流程必需的原生交互。远程空间不额外增加 Bot、CodeX 工作区、自动化任务、运维或另一套插件管理页面。
+首个产品范围是本人设备、已有 DSH 工作区、新建或继续会话，以及这条流程必需的原生交互。2026-11-14 的后续扩展复用官方 Plugins/Discover、自动化任务和 More，操作进入远端 Host，不建立第二套业务页面。Bot、CodeX 工作区和运维不纳入。该扩展为待发布源码，支持范围与验收见[原生导航验收](remote-native-navigation-verification-20261114.md)。
 
 原生已有某个入口，不表示 OwnDsh 浏览器远控已经支持它。未纳入当前范围或缺少远程能力的入口先不展示。已经呈现的交互必须能完成，不能点击后长期停在占位说明。
 
@@ -190,15 +190,17 @@ Remote 公开源码基线为 `d91ff98f60231efbdeaf304e36e1f69fc6f66fbc`。已查
 
 插件和 Console 共用 `@owndsh/remote-core` 的 Noise IK、lease 和 carrier。Remote wire hash 保留已发布值，HTTP OpenAPI 增加 operation 不改变旧插件握手身份。`workspace.html` 的网络请求和文本 mux 经加密 link 到达目标，mutation 不自动重放，也不回落本机 Host。
 
-`console/scripts/build-native-workspace.mjs` 在构建机启动固定 rc.5 官方 Host，冻结模块图、资源和三项启动 metadata。管控台主页面只执行随 Console 发布的插件代码，不执行目标设备供应的插件 JS；工作区 HTML 由原生隔离 iframe 承载。启动失败、文件 intake 和图片接缝由源码 hash 门禁保护，HTML 模式不再改写。升级原生包需要重新核验这些接缝。
+`console/scripts/build-native-workspace.mjs` 在构建机启动固定 rc.3 官方 Host，冻结模块图、资源和三项启动 metadata。管控台主页面只执行随 Console 发布的插件代码，不执行目标设备供应的插件 JS；工作区 HTML 由原生隔离 iframe 承载。启动失败、文件 intake、图片及 Markdown 复制接缝由源码 hash 门禁保护，HTML 模式与 More 菜单不再改写。升级原生包需要重新核验这些接缝。
 
 ### 9.2 当前支持与裁剪
 
 原生侧栏保留目标已有工作区、新建及已有会话。消息、工具和审批组件仍由原生模块装配。账号和设备分别隔离浏览器 Storage，远程页独立持有连接，离开该页后释放 link。连接失败显示具体原因，当前 Host 仍只有一个控制 link。
 
-首版关闭文件选择、粘贴及拖放 intake，保留原生附件栏和历史展示。底层上传服务与配置表单仍是原生模块依赖，不通过禁用服务来隐藏入口。设置页、任意目录创建、网站面板和第三方插件管理入口不装配。
+首版关闭文件选择、粘贴及拖放 intake，保留原生附件栏和历史展示。底层上传服务与配置表单仍是原生模块依赖，不通过禁用服务来隐藏入口。设置页、任意目录创建和原生网站面板不装配。当前源码已恢复原生插件管理、Discover 和自动化任务，More 完整保留打开、固定、浏览插件和创造模式草稿入口。Creator 复用 `uiWorkspace.startSession` 初始化 `cordis` 会话并填入提示词，不自动发送。动态插件审批、运行及新界面加载尚未远程接通；管理安装也不等于装载任意第三方 Client 或支持它自带的配置页面。
 
-Markdown 内嵌图片与图片文件链接的悬停组件共用远端媒体接缝。`/api/file` 经加密 link 读取为组件拥有的 Blob URL，换图、取消及卸载时释放。外部图片 URL 保持原生行为。HTML 沿用原生配置与隔离交互 renderer，当前冻结 metadata 启用交互。配置来源、脚本和网络边界及 Edge 验收结果见第 4.1 节。
+`ui-agent-preset` 同时恢复原生新会话预设选择和对话头部模式标识。列表来自目标 Host 的 `agentPresets/list`，未开始会话通过已有 `agentPresets/select` 切换，已开始会话沿用原生只读规则。隔离浏览器已核对标准、PTC、极简、创造模式与远端 Session 投影一致；Creator 草稿显示创造模式，刷新保留模式和草稿。默认预设配置和 Coding Tools 设置仍受现有静态 settings metadata 边界限制，本轮未开放设置写入。
+
+Markdown 内嵌图片、图片文件链接的悬停组件及插件文档图片共用远端媒体接缝。`/api/file` 和两条精确插件 detail-file 路径经加密 link 读取为组件拥有的 Blob URL，换图、取消及卸载时释放。外部图片 URL 保持原生行为。HTML 沿用原生配置与隔离交互 renderer，当前冻结 metadata 启用交互。配置来源、脚本和网络边界及 Edge 验收结果见第 4.1 节。
 
 ### 9.3 入口调整前的既有验收
 

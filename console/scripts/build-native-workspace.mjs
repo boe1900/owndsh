@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 native-runtime 锁定的官方 rc.3 CLI、Ego 0.9.14、独立临时 profile 和官方 Web assembly HTTP 接口。
- * [OUTPUT]: 生成不含凭据的原生工作区静态资源、精确 URL 映射及构建元数据；释放构建 Host 并保留退出码或信号错误。
+ * [INPUT]: 依赖 native-runtime 锁定的官方 rc.3 CLI、Ego/Markdown 局部网络适配、独立临时 profile 和官方 Web assembly HTTP 接口。
+ * [OUTPUT]: 生成包含官方预设选择与会话模式标识的无凭据原生工作区静态资源、精确 URL 映射及构建元数据；释放构建 Host 并保留退出码或信号错误。
  * [POS]: Console 的原生 UI 构建边界；插件代码由固定制品供应，工作区 HTML 文档由原生隔离预览承载。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -13,6 +13,7 @@ import { tmpdir } from 'node:os'
 import { dirname, extname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { EGO_FACTORY, patchEgoClient } from './ego-client.mjs'
+import { MARKDOWN_FACTORY, MARKDOWN_SOURCE_SHA256, patchSessionMarkdownClient } from './session-markdown-client.mjs'
 
 const consoleRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const version = '0.2.2-rc.3'
@@ -29,6 +30,8 @@ assert.equal(hash(await readFile(official.resolve('@deepseek-ai/dsh-client-ui-co
 assert.equal(hash(await readFile(official.resolve('@deepseek-ai/dsh-client-ui-sidebar-documentpreview/client'))), previewSourceHash)
 const egoSource = await readFile(runtime.resolve('dsh-ego-browser/client'))
 const egoClient = patchEgoClient(egoSource)
+const markdownSource = await readFile(official.resolve('@deepseek-ai/dsh-session-log-export/client'))
+const markdownClient = patchSessionMarkdownClient(markdownSource)
 
 const temp = await mkdtemp(join(tmpdir(), 'owndsh-native-assembly-'))
 const resources = {}
@@ -38,6 +41,7 @@ let cookie = ''
 let origin = ''
 let shellPatches = 0
 let intakePatches = 0
+let markdownPatches = 0
 
 async function saveResource(path, bytes, contentType) {
   const extension = extname(path.split('?')[0]) || (contentType.includes('javascript') ? '.js' : '.bin')
@@ -58,6 +62,13 @@ async function fetchResource(path) {
     const text = bytes.toString('utf8')
     assert.equal(text.split(original).length, 2, 'Ego 聚合资源必须包含完整的固定客户端')
     bytes = Buffer.from(text.replace(original, egoClient.toString('utf8')))
+  }
+  if (path.startsWith('/plugins/') && bytes.includes(Buffer.from(MARKDOWN_FACTORY))) {
+    const original = markdownSource.toString('utf8').replace(/\n?\/\/# sourceMappingURL=.*\s*$/, '')
+    const text = bytes.toString('utf8')
+    assert.equal(text.split(original).length, 2, 'Markdown 聚合资源必须包含完整的固定客户端')
+    bytes = Buffer.from(text.replace(original, markdownClient.toString('utf8')))
+    markdownPatches++
   }
   if (path.startsWith('/plugins/') && bytes.includes(Buffer.from('addFiles:(files,directories='))) {
     const source = bytes.toString('utf8')
@@ -83,13 +94,14 @@ try {
   await mkdir(profile, { recursive: true })
   // 只裁剪未开放的 UI 入口，保留原生会话、审批、工作区和文件预览依赖。
   const disabled = ['product-analytics', 'client-hmr', 'ui-open-in-app', 'ui-settings-account',
-    'ui-settings-models', 'ui-plugin-manager', 'ui-settings-plugin-inventory', 'ui-cordis',
-    'ui-schedule', 'ui-sidebar-browser', 'ui-message-feedback', 'ui-deliverables',
+    'ui-settings-models', 'ui-settings-plugin-inventory', 'ui-cordis',
+    'ui-sidebar-browser', 'ui-message-feedback', 'ui-deliverables',
     'directory-picker', 'ui-directory-picker-browse', 'ui-directory-picker-native',
     'ui-settings-general',
     'ui-settings-session-log', 'ui-settings-plugins', 'ui-settings-shell',
-    'ui-settings-agent-loop', 'ui-settings-subagent', 'ui-settings-web-search', 'ui-agent-preset', 'entry-customization']
-  await writeFile(join(profile, 'cordis.patch.yml'), disabled.map(id => `- id: ${id}\n  disabled: true\n`).join(''))
+    'ui-settings-agent-loop', 'ui-settings-subagent', 'ui-settings-web-search']
+  await writeFile(join(profile, 'cordis.patch.yml'), disabled.map(id => `- id: ${id}\n  disabled: true\n`).join('')
+    + "- insert:\n    - id: ui-plugin-market\n      name: '@deepseek-ai/dsh-client-ui-plugin-market'\n")
   await writeFile(join(profile, 'package.json'), JSON.stringify({ dependencies: { 'dsh-ego-browser': '0.9.14' }, dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', 'dsh-ego-browser'] } } }))
   await mkdir(join(profile, 'node_modules'), { recursive: true })
   const { symlink } = await import('node:fs/promises')
@@ -127,6 +139,9 @@ try {
   assert.ok(graphMatch, '缺少官方 boot graph')
   const graph = JSON.parse(graphMatch[1])
   assert.ok(Array.isArray(graph.entries) && Array.isArray(graph.batches))
+  for (const name of ['ui-plugin-manager', 'ui-plugin-market', 'ui-schedule', 'ui-entry-customization', 'ui-agent-preset']) {
+    assert.ok(graph.entries.some(row => row.id === `@deepseek-ai/dsh-client-${name}`), `原生导航模块缺失: ${name}`)
+  }
   for (const row of [...graph.entries, ...graph.batches]) await fetchResource(new URL(row.url, origin).pathname + new URL(row.url, origin).search)
   for (const row of graph.entries) {
     const packageName = row.id
@@ -178,6 +193,7 @@ try {
   }
   assert.equal(shellPatches, 1, '官方 shell 接缝必须恰好应用一次')
   assert.ok(intakePatches > 0, '官方文件 intake 接缝必须覆盖冻结的聚合与独立资源')
+  assert.ok(markdownPatches > 0, 'Markdown 复制接缝必须覆盖冻结资源')
   for (const path of ['/api/settings/describe', '/api/dynamicCordisRunner/syncInspectManifest', '/api/dynamicCordisRunner/inventory']) {
     const args = path.endsWith('/syncInspectManifest') ? { providers: [] } : {}
     const response = await fetch(origin + path, { method: 'POST', headers: { cookie, 'content-type': 'application/json' },
@@ -186,7 +202,7 @@ try {
     metadata[path] = await response.json()
     assert.equal(metadata[path].result?.ok, true, `assembly metadata RPC: ${path}: ${JSON.stringify(metadata[path].result).slice(0, 1500)}`)
   }
-  const assembly = { harnessVersion: version, html, resources, metadata, patches: { shellSourceSha256: shellSourceHash, conversationSourceSha256: conversationSourceHash, previewSourceSha256: previewSourceHash } }
+  const assembly = { harnessVersion: version, html, resources, metadata, patches: { shellSourceSha256: shellSourceHash, conversationSourceSha256: conversationSourceHash, previewSourceSha256: previewSourceHash, markdownSourceSha256: MARKDOWN_SOURCE_SHA256 } }
   const serialized = JSON.stringify(assembly)
   assert.ok(!serialized.includes(cookie), '生成产物不得包含 owner 凭据')
   assert.ok(!serialized.includes(origin), '生成产物不得包含构建 Host 地址')

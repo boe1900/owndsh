@@ -12,8 +12,8 @@ browser-link.test.ts: 使用真实双端 Noise/lease 和仅路由控制帧的浏
 native-assembly.ts: 每次从服务端读取并校验精确 rc.3 静态 assembly，防止升级沿用旧清单；仅映射构建时固定脚本及 package assets并顺序执行官方 HTML injections/shell，拒绝外部代码来源。
 native-transport.ts: 将官方 fetch/文本 WebSocket/loadBundle/resolveAsset 接口接到唯一加密 link；少数装配 metadata 重绑当前 rpcId，业务路径永不回落本机。
 native-transport.test.ts: 验证 metadata 关联、mutation 只转发一次、冻结资产解析、跨 origin 和非 API 路径拒绝。
-native-image.ts: Markdown 内嵌图片与文件链接悬停图经加密 link 读取为组件拥有的 Blob URL，取消或卸载时释放，禁止直打 Console 本机。
-native-image.test.ts: 验证媒体通过唯一 link、Blob 释放、拒绝后不回落与取消时不发送。
+native-image.ts: Markdown 内嵌图片、文件链接悬停图及插件文档图片经加密 link 读取为组件拥有的 Blob URL，取消或卸载时释放，禁止直打 Console 本机。
+native-image.test.ts: 验证文件与插件文档媒体通过唯一 link、Blob 释放、错误 MIME 拒绝、拒绝后不回落与取消时不发送。
 ego-network.ts: 按 Host catalog 可选挂载固定 Ego UI；局部 fetch/EventSource 只走密文路由，旧 Host 不阻断普通工作区，捕获模式或操作失败给出可见提示。
 ego-network.test.ts: 验证旧 Host 降级、断线不降级、网络隔离、受限接口拒绝及非 CDP/关闭回传提示。
 ego-input.ts: 每 link 有界 FIFO，连续移动合并不跨按键/点击，捕获失效或输入失败时停止并释放已按输入，断线不重放。

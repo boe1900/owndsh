@@ -13,6 +13,8 @@ console-remote-real-model-verification.md: 2026-11-12 断开与接管、真实 A
 console-nas-cross-machine-verification.md: NAS Server/Console 部署、NAS Host 真实模型与逐格式预览、Mac Host 文件和终端、Mac 原生及远程 Office、表格只读、Edge 原生隔离 HTML 交互验收及 IAB 差异、审批拒绝与连接释放、localhost 双机对照，记录 DSH OOM 恢复及未关闭根因。
 
 remote-dsh-workspace-design.md: R1–R5 后 DSH 实际业务的实施契约，固定目标整页、Noise/lease、逐页 owner Peer、Storage 隔离、插件目录只读边界、慢消费心跳与 Netty 提交前发送预算、占用提示，以及本机与 Mac/NAS 双机业务和稳定性验收。
+remote-session-actions-verification-20261114.md: Markdown 复制与 rc.3 团队开关的原生调用、Host 精确准入和系统剪贴板及状态回显验收，区分隔离测试桥与尚未更新的生产部署。
+remote-native-navigation-verification-20261114.md: Console 原生 Plugins/Discover、自动化任务、完整 More 和预设选择的静态装配及精确 Host 准入，记录真实插件升级重装、任务 CRUD、关页定时执行及创造模式草稿与预设切换的隔离浏览器验收和待发布边界。
 
 unified-login-design.md: 统一登录实施真源，冻结新鲜登录直达授权完成、已有浏览器身份确认、独立客户端 PKCE、退出范围与桌面唤回，记录真实本地验收。
 

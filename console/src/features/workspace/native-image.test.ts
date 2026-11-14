@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖原生媒体适配器、真实 Response/AbortSignal 和可记录的加密 link 边界。
- * [OUTPUT]: 验证本地媒体只经远端读取、Blob 释放和失败不回落 Console。
+ * [OUTPUT]: 验证原生文件与插件文档媒体只经远端读取、Blob 释放、错误 MIME 拒绝和失败不回落 Console。
  * [POS]: workspace 的 DOM 媒体边界回归，与 RPC transport 测试互补。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -37,5 +37,31 @@ it('rejects failed media without local fallback and skips cancelled requests', a
   await expect(loadNativeImage(link, input, abort.signal)).rejects.toThrow();
   expect(fetch).toHaveBeenCalledTimes(1);
   expect((await loadNativeImage(link, 'https://example.org/image.png', new AbortController().signal)).url).toBe('https://example.org/image.png');
+  expect(fetch).toHaveBeenCalledTimes(1);
+});
+
+it.each([
+  '/api/plugin-manager/detail-file?bundle=remote-plugin&document=README.md&path=images%2Flogo.png&sources=jsdelivr',
+  '/api/plugin-market/detail-file?document=cached-remote-document&path=logo.png',
+])('loads remote plugin documentation images through the same link: %s', async path => {
+  const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:remote-plugin-image');
+  const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+  const { link, fetch } = fixture(new Response('remote plugin image', { headers: { 'content-type': 'image/svg+xml' } }));
+  const image = await loadNativeImage(link, path, new AbortController().signal);
+  expect(fetch).toHaveBeenCalledWith(path, expect.objectContaining({ method: 'GET' }));
+  expect(create).toHaveBeenCalledTimes(1);
+  expect(image.url).toBe('blob:remote-plugin-image');
+  image.dispose();
+  expect(revoke).toHaveBeenCalledWith('blob:remote-plugin-image');
+});
+
+it('rejects non-image plugin responses and does not request another origin through the link', async () => {
+  const create = vi.spyOn(URL, 'createObjectURL');
+  const { link, fetch } = fixture(new Response('<html>Console</html>', { headers: { 'content-type': 'text/html' } }));
+  const path = '/api/plugin-market/detail-file?document=remote&path=logo.png';
+  await expect(loadNativeImage(link, path, new AbortController().signal)).rejects.toThrow('ENT_REMOTE_MEDIA_UNAVAILABLE');
+  expect(create).not.toHaveBeenCalled();
+  const external = 'https://example.org' + path;
+  expect((await loadNativeImage(link, external, new AbortController().signal)).url).toBe(external);
   expect(fetch).toHaveBeenCalledTimes(1);
 });

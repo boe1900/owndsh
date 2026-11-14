@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖真实 HTTP/WS、临时工作目录与 Node socket/原生 carrier。
- * [OUTPUT]: 验证平台 Origin/Bearer Upgrade、文件与 Office 转换 RPC 的方法绑定、工作区范围及 baseFile 语义隔离。
+ * [OUTPUT]: 验证平台 Origin/Bearer Upgrade、Markdown 只读查询、团队协作 RPC、文件与 Office 方法绑定和工作区范围。
  * [POS]: remote 的网络边界回归，覆盖真实双 Harness 联调发现的协议差异。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -223,5 +223,107 @@ it('follows only bounded same-file media version redirects and keeps native cred
     sockets.close(); server.closeAllConnections()
     await new Promise<void>(resolve => server.close(() => resolve()))
     await rm(root, { recursive: true, force: true })
+  }
+})
+
+it('forwards native Markdown for live and stored sessions while rejecting other export routes and ambiguous queries', async () => {
+  const markdown = '# 远端会话\n\n## User\n\n请保留 **Markdown**。\n\n```ts\nconst answer = 42\n```\n'
+  const forwarded: Array<{ method: string | undefined; sessionId: string | null }> = []
+  const server = createServer((request, response) => {
+    if (request.url?.startsWith('/connect')) { response.writeHead(302, { 'set-cookie': 'native-owner=test-only; HttpOnly' }).end(); return }
+    const sessionId = new URL(request.url ?? '/', 'http://localhost').searchParams.get('sessionId')
+    forwarded.push({ method: request.method, sessionId })
+    expect(request.headers.cookie).toBe('native-owner=test-only')
+    const missing = sessionId === 'missing'
+    response.writeHead(missing ? 404 : 200, { 'content-type': 'text/markdown; charset=utf-8', 'set-cookie': 'private=hidden' })
+      .end(missing ? 'session not found' : markdown)
+  })
+  const sockets = new WebSocketServer({ server })
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  const address = server.address()
+  if (!address || typeof address === 'string') throw new Error('listener unavailable')
+  const carrier = await openDshCarrier({ connection: { authenticatedUrl: url => url },
+    webServer: { getOrigin: () => `http://127.0.0.1:${address.port}` }, workspaceRegistry: { list: () => [] },
+  }, new AbortController().signal)
+  try {
+    for (const sessionId of ['live-session', 'stored-session', 'child-session']) {
+      const result = await carrier.fetch(`/api/session.markdown?${new URLSearchParams({ sessionId })}`, { method: 'GET', headers: { cookie: 'controller=untrusted' } })
+      expect(result.headers.get('content-type')).toBe('text/markdown; charset=utf-8')
+      expect(result.headers.has('set-cookie')).toBe(false)
+      expect(await result.text()).toBe(markdown)
+    }
+    const head = await carrier.fetch('/api/session.markdown?sessionId=stored-session', { method: 'HEAD', headers: {} })
+    expect(head.status).toBe(200)
+    expect(await head.text()).toBe('')
+    const missing = await carrier.fetch('/api/session.markdown?sessionId=missing', { method: 'GET', headers: {} })
+    expect(missing.status).toBe(404)
+    expect(await missing.text()).toBe('session not found')
+    for (const path of [
+      '/api/session.markdown', '/api/session.markdown?sessionId=', '/api/session.markdown?sessionId=%20',
+      '/api/session.markdown?sessionId=one&sessionId=two', '/api/session.markdown?sessionId=one&extra=1',
+      '/api/session.markdown?sessionId=%00', '/api/session.markdown?sessionId=%0A', '/api/session.markdown?sessionId=%7F',
+      `/api/session.markdown?sessionId=${'s'.repeat(1025)}`, '/api/session.markdown/extra?sessionId=one',
+      '/api/session.log.zip?sessionId=one', '/api/session.export?sessionId=one',
+    ]) await expect(carrier.fetch(path, { method: 'GET', headers: {} })).rejects.toThrow('ENT_REMOTE_DENIED')
+    for (const method of ['POST', 'PUT', 'DELETE']) {
+      await expect(carrier.fetch('/api/session.markdown?sessionId=one', { method, headers: {} })).rejects.toThrow('ENT_REMOTE_DENIED')
+    }
+    await expect(carrier.fetch('/api/session.markdown?sessionId=one', { method: 'GET', headers: {},
+      body: new ReadableStream({ start(controller) { controller.close() } }),
+    })).rejects.toThrow('ENT_REMOTE_DENIED')
+    expect(forwarded).toEqual([
+      { method: 'GET', sessionId: 'live-session' }, { method: 'GET', sessionId: 'stored-session' },
+      { method: 'GET', sessionId: 'child-session' }, { method: 'HEAD', sessionId: 'stored-session' },
+      { method: 'GET', sessionId: 'missing' },
+    ])
+    expect(carrier.signal?.aborted).toBe(false)
+  } finally {
+    carrier.close()
+    for (const socket of sockets.clients) socket.terminate()
+    sockets.close(); server.closeAllConnections()
+    await new Promise<void>(resolve => server.close(() => resolve()))
+  }
+})
+
+it('forwards the native agent team toggle through the owner Peer without opening settings or other team APIs', async () => {
+  const forwarded: unknown[] = []
+  const server = createServer((request, response) => {
+    if (request.url?.startsWith('/connect')) { response.writeHead(302, { 'set-cookie': 'native-owner=test-only; HttpOnly' }).end(); return }
+    expect(request.headers.cookie).toBe('native-owner=test-only')
+    const chunks: Buffer[] = []
+    request.on('data', chunk => chunks.push(chunk))
+    request.on('end', () => {
+      const envelope: unknown = JSON.parse(Buffer.concat(chunks).toString())
+      forwarded.push(envelope)
+      response.setHeader('content-type', 'application/json')
+      response.end(JSON.stringify(envelope))
+    })
+  })
+  const sockets = new WebSocketServer({ server })
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  const address = server.address()
+  if (!address || typeof address === 'string') throw new Error('listener unavailable')
+  const carrier = await openDshCarrier({ connection: { authenticatedUrl: url => url },
+    webServer: { getOrigin: () => `http://127.0.0.1:${address.port}` }, workspaceRegistry: { list: () => [] },
+  }, new AbortController().signal)
+  const init = (value: unknown) => ({ method: 'POST', headers: { 'content-type': 'application/json' },
+    body: new ReadableStream<Uint8Array>({ start(controller) { controller.enqueue(new TextEncoder().encode(JSON.stringify(value))); controller.close() } }) })
+  try {
+    const expected = [true, false].map(enabled => ({ type: 'client-request', rpcId: crypto.randomUUID(),
+      method: 'agentTeams/setEnabled', payload: { args: { agentId: 'session', enabled } } }))
+    for (const envelope of expected) {
+      expect(await (await carrier.fetch('/api/agentTeams/setEnabled', init(envelope))).json()).toEqual(envelope)
+    }
+    for (const path of ['/api/settings/update', '/api/settings/get', '/api/agentTeams/configure', '/api/agentTeams/setEnabled?extra=1']) {
+      await expect(carrier.fetch(path, init(expected[0]))).rejects.toThrow('ENT_REMOTE_DENIED')
+    }
+    await expect(carrier.fetch('/api/agentTeams/setEnabled', { method: 'GET', headers: {} })).rejects.toThrow('ENT_REMOTE_DENIED')
+    expect(forwarded).toEqual(expected)
+    expect(carrier.signal?.aborted).toBe(false)
+  } finally {
+    carrier.close()
+    for (const socket of sockets.clients) socket.terminate()
+    sockets.close(); server.closeAllConnections()
+    await new Promise<void>(resolve => server.close(() => resolve()))
   }
 })

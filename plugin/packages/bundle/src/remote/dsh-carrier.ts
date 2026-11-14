@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖官方 connection /connect、WebServer 固定回环 origin、WorkspaceRegistry 与原生 WS mux parser。
- * [OUTPUT]: 为授权 link 创建独立 owner API Peer，提供可选 Ego、文件及 Office RPC 准入、HTTP/WS carrier，cookie 留在 Host。
+ * [OUTPUT]: 为授权 link 创建独立 owner API Peer，提供 Markdown、插件文档图片、可选 Ego、文件及 Office RPC 准入和 HTTP/WS carrier，cookie 留在 Host。
  * [POS]: remote Host 唯一原生执行接缝；不复制 Gateway 编解码，不向 Controller 暴露原生凭据。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -67,6 +67,13 @@ export async function openDshCarrier(ctx: DshCarrierContext, signal: AbortSignal
       if (target.pathname === '/api/file') {
         if (!['GET', 'HEAD'].includes(init.method) || init.body) throw new Error('ENT_REMOTE_DENIED')
         await authorizeMediaUrl(ctx.workspaceRegistry, target)
+      } else if (PLUGIN_DETAIL_IMAGE_FIELDS.has(target.pathname)) {
+        authorizePluginDetailImage(target, init.method, init.body !== undefined)
+      } else if (target.pathname === '/api/session.markdown') {
+        const sessionId = target.searchParams.get('sessionId')
+        if (!['GET', 'HEAD'].includes(init.method) || init.body || target.searchParams.size !== 1
+          || sessionId === null || sessionId.trim().length === 0 || sessionId.length > 1024
+          || /[\u0000-\u001f\u007f-\u009f]/u.test(sessionId)) throw new Error('ENT_REMOTE_DENIED')
       } else if (init.method !== 'POST' || target.search || !DSH_UNARY_ENDPOINTS.has(target.pathname.slice(5))) throw new Error('ENT_REMOTE_DENIED')
       const headers = safeHeaders(new Headers(init.headers))
       let body = init.body
@@ -94,6 +101,24 @@ export async function openDshCarrier(ctx: DshCarrierContext, signal: AbortSignal
   }
 }
 
+
+const PLUGIN_DETAIL_IMAGE_FIELDS = new Map<string, readonly string[]>([
+  ['/api/plugin-manager/detail-file', ['bundle', 'document', 'path']],
+  ['/api/plugin-market/detail-file', ['document', 'path']],
+])
+const MAX_PLUGIN_DETAIL_QUERY_LENGTH = 8192
+
+function authorizePluginDetailImage(url: URL, method: string, hasBody: boolean): void {
+  const required = PLUGIN_DETAIL_IMAGE_FIELDS.get(url.pathname)
+  const keys = [...url.searchParams.keys()]
+  if (!required || method !== 'GET' || hasBody || new Set(keys).size !== keys.length
+    || required.some(key => !url.searchParams.has(key))) throw new Error('ENT_REMOTE_DENIED')
+  for (const [key, value] of url.searchParams) {
+    if ((!required.includes(key) && !(key === 'sources' && required.includes('bundle')))
+      || value.trim().length === 0 || value.length > MAX_PLUGIN_DETAIL_QUERY_LENGTH
+      || /[\u0000-\u001f\u007f-\u009f]/u.test(value)) throw new Error('ENT_REMOTE_DENIED')
+  }
+}
 
 async function authorizeMediaUrl(catalog: WorkspaceCatalog, url: URL): Promise<void> {
   const keys = [...url.searchParams.keys()]
