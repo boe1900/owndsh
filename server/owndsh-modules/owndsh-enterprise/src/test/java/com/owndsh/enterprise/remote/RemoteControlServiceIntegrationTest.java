@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖真实 PostgreSQL、Redis、员工安装/Console 登录上下文与 V57 身份公钥字段。
- * [OUTPUT]: 验证本人设备授权、跨来源/跨登录拒绝、并发首次 pin、ticket 单次消费及续租/撤销的原子状态。
+ * [OUTPUT]: 验证本人目录排除撤销设备的分页、本人设备授权、跨来源/跨登录拒绝、并发首次 pin、ticket 单次消费及续租/撤销的原子状态。
  * [POS]: remote/application 跨存储验收，不用 fake 替代数据库所有权或 Redis TTL。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -11,6 +11,7 @@ import com.owndsh.enterprise.auth.domain.PlatformClient;
 import com.owndsh.enterprise.auth.web.EnterpriseRequestContext;
 import com.owndsh.enterprise.device.application.DeviceAccessException;
 import com.owndsh.enterprise.device.application.DeviceCallContext;
+import com.owndsh.enterprise.device.domain.DeviceStatus;
 import com.owndsh.enterprise.remote.application.RemoteControlService;
 import com.owndsh.enterprise.remote.application.RemoteTicketRequest;
 import com.owndsh.enterprise.remote.persistence.JdbcRemoteDeviceStore;
@@ -57,6 +58,24 @@ class RemoteControlServiceIntegrationTest {
     private static final JsonMapper JSON = JsonMapper.builder().findAndAddModules().build();
 
     @AfterAll static void closeRedis() { REDIS.shutdown(); }
+
+    @Test
+    void hidesRevokedDevicesBeforeOwnerPaginationAndRetainsOfflineDevicesAndDiagnosticHistory() {
+        Fixture f = fixture("remote_directory_revoked");
+        f.database.jdbc().update("update ent_device set status = 'REVOKED', revoked_at = now() where id = ?", HOST);
+        f.database.jdbc().update("update ent_remote_device_config set remote_enabled = false, presence_state = 'SIGNED_OUT' where device_id = ?", UNPINNED);
+
+        PlatformSession browser = console(OWNER, "admin-" + UUID.randomUUID());
+        assertThat(f.service.listConsoleOwned(admin(OWNER), browser, 0, 1))
+            .extracting(value -> value.deviceId()).containsExactly(SOURCE);
+        assertThat(f.service.listConsoleOwned(admin(OWNER), browser, SOURCE, 1))
+            .extracting(value -> value.deviceId()).containsExactly(UNPINNED);
+        assertThat(f.service.listOwned(employee(), 0, 100))
+            .extracting(value -> value.deviceId()).containsExactly(UNPINNED);
+        assertThat(f.service.list(admin(OWNER), 0, 100))
+            .extracting(value -> value.deviceId()).contains(HOST);
+        assertThat(f.store.find(TENANT, HOST, Instant.now()).orElseThrow().status()).isEqualTo(DeviceStatus.REVOKED);
+    }
 
     @Test
     void scopesEmployeeDevicesTicketsAndPinsToCurrentOwnerAndInstallation() {

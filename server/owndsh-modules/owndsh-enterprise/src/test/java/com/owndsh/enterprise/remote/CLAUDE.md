@@ -16,7 +16,7 @@ RemoteGatewayOutboundTest.java: 验证 UTF-8 字节和帧数预算、成功/失�
 RemoteGatewayEventLoopTest.java: 通过两个真实 Netty eventloop 和 latch 验证未执行写任务计入预算，任务/关闭 deadline 拒绝后仍释放消息并隔离故障 carrier。
 RemoteNettyServerLifecycleTest.java: 通过 JDK WebSocket 客户端验证真实 TCP/HTTP Upgrade、Bearer 鉴权、Origin 和 hello.ack 进程级链路。
 RemoteWebSocketProbeMain.java: 独立 JVM 的最小 WebSocket 客户端，验证 `ws://`/`wss://` hello.ack 进程边界，不属于生产 client。
-RemoteControlServiceIntegrationTest.java: 真实 Redis/PostgreSQL 验证 owner/installation 隔离、Console 登录及跨来源拒绝、并发不可换钥 pin、租约持续目标授权、Console 本人设备 guard、Gateway adapter 的真实 Redis 撤销和旧 Harness ticket。
+RemoteControlServiceIntegrationTest.java: 真实 Redis/PostgreSQL 验证本人目录在分页前排除撤销设备并保留离线设备及诊断历史、owner/installation 隔离、Console 登录及跨来源拒绝、并发不可换钥 pin、租约持续目标授权、Console 本人设备 guard、Gateway adapter 的真实 Redis 撤销和旧 Harness ticket。
 RemoteEmployeeApiTest.java: MockMvc 验证员工 Bearer/安装准入、owner cursor 隔离、设备列表无密钥及新旧 ticket JSON 形状。
 RemoteConsoleApiTest.java: MockMvc 使用真实同源上下文解析器验证本人连接操作/输入边界、owner/404/409、本人分页、跨登录/账号 cursor 拒绝、Host pin、外站写和 Harness/退出拒绝。
 
