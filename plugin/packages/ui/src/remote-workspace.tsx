@@ -1,11 +1,11 @@
 /**
- * [INPUT]: 依赖原生 Modal/Button、远控状态控制器与账号 launcher 的登录门禁
- * [OUTPUT]: 提供设备选择弹窗、持续机器标识、断线阻断与无效 view 返回入口
+ * [INPUT]: 依赖原生 Modal/Button/Switch、远控状态控制器与账号 launcher 的登录门禁
+ * [OUTPUT]: 提供自适应设备选择弹窗、持续机器标识、断线阻断与无效 view 返回入口
  * [POS]: dsh-ui 的远程工作区呈现层；业务内容继续由官方原生页面渲染，所有切换均整页导航
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
-import { Button, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, Modal, Switch } from '@deepseek-ai/dsh-client-ui-primitives'
 import { ArrowLeft, CircleAlert, Laptop, LoaderCircle, Monitor, RefreshCw } from 'lucide-react'
 import { useEffect, useMemo, useSyncExternalStore, type ReactNode } from 'react'
 import { ConfirmAction } from './confirm-action.js'
@@ -20,6 +20,7 @@ export function RemoteDeviceDialog({ api, onClose }: { readonly api: RemoteLocal
   const state = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot)
   const busy = state.kind === 'loading' || (state.kind === 'ready' && state.action.kind !== 'idle')
   return <Modal open onClose={onClose} title="远程工作区" closeLabel="关闭"
+    className={styles.deviceDialog ?? ''} contentClassName={styles.dialogContent ?? ''}
     description="打开本人另一台机器的 DSH。工作区、会话和执行都属于所选机器。"
     footer={<div className={styles.actions}>
       <Button variant="outline" icon={<RefreshCw size={16} />} disabled={busy} onClick={() => { void store.refresh() }}>刷新设备</Button>
@@ -31,12 +32,11 @@ export function RemoteDeviceDialog({ api, onClose }: { readonly api: RemoteLocal
       {state.kind === 'ready' && <>
         <div className={styles.hostSetting}>
           <div><strong>允许远程访问本机</strong><p>开启后，本账号的其他机器可访问本机 DSH。此开关不影响访问其他机器。</p></div>
-          {state.enabled
-            ? <Button variant="outline" size="sm" disabled={busy} onClick={() => { void store.setEnabled(false) }}>关闭</Button>
-            : <ConfirmAction title="允许远程访问本机？" description="本账号的其他机器将可打开本机工作区、操作会话和终端。仅在你信任的机器上登录此账号。"
-              confirmLabel="允许访问" disabled={busy} onConfirm={() => { void store.setEnabled(true) }}>
-              {confirm => <Button variant="outline" size="sm" disabled={busy} onClick={confirm}>开启</Button>}
-            </ConfirmAction>}
+          <ConfirmAction title="允许远程访问本机？" description="本账号的其他机器将可打开本机工作区、操作会话和终端。仅在你信任的机器上登录此账号。"
+            confirmLabel="允许访问" disabled={busy} onConfirm={() => { void store.setEnabled(true) }}>
+            {confirm => <Switch checked={state.enabled} label="允许远程访问本机" disabled={busy}
+              onChange={enabled => { if (enabled) confirm(); else void store.setEnabled(false) }} />}
+          </ConfirmAction>
         </div>
         {state.message && <div className={styles.notice} role="alert"><CircleAlert size={18} />{state.message}</div>}
         <div className={styles.listTitle}>我的其他设备 <span>{state.devices.length}</span></div>

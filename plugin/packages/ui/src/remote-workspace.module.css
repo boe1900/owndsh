@@ -1,9 +1,11 @@
 /*
- * [INPUT]: 原生 Modal/Button 的尺寸与宿主主题 tokens
- * [OUTPUT]: 设备列表、独立远程状态条与断线阻断卡片样式
+ * [INPUT]: 原生 Modal/Button/Switch 的尺寸与宿主主题 tokens
+ * [OUTPUT]: 自适应设备选择弹窗、设备列表、独立远程状态条与断线阻断卡片样式
  * [POS]: dsh-ui 的远程工作区局部样式，状态条占据 shell.bottom 自身空间
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
+.deviceDialog { width: min(640px, 100%); max-height: 100%; }
+.dialogContent { min-height: 0; overflow-y: auto; }
 .dialog { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
 .actions { display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 8px; }
 .hostSetting { display: flex; align-items: center; gap: 20px; padding: 14px; border: 1px solid var(--dsw-alias-border-l2); border-radius: var(--dsw-radius-md); background: var(--dsw-alias-bg-layer-2); }
@@ -12,13 +14,13 @@
 .hostSetting p, .secondary { margin: 6px 0 0; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 1.6; }
 .listTitle { display: flex; align-items: center; gap: 8px; color: var(--dsw-alias-label-secondary); font-size: 12px; }
 .listTitle span { color: var(--dsw-alias-label-tertiary); }
-.devices { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; max-height: min(420px, 45vh); overflow-y: auto; }
+.devices { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .device { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--dsw-alias-border-l2); border-radius: var(--dsw-radius-md); background: var(--dsw-alias-bg-base); }
 .deviceIcon { display: flex; flex: none; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: var(--dsw-radius-md); background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-secondary); }
 .deviceInfo { display: flex; flex: 1; flex-direction: column; gap: 4px; min-width: 0; }
 .deviceInfo strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 500; }
 .deviceInfo span { color: var(--dsw-alias-label-secondary); font-size: 12px; }
-.empty { display: flex; justify-content: center; align-items: center; gap: 8px; padding: 28px 14px; color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 1.7; text-align: center; }
+.empty { display: flex; justify-content: center; align-items: center; gap: 8px; padding: 24px 14px; color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 1.7; text-align: center; }
 .notice { display: flex; align-items: flex-start; gap: 8px; color: var(--dsw-alias-state-error-primary); font-size: 13px; line-height: 1.6; }
 .notice svg { flex: none; margin-top: 2px; }
 .banner { box-sizing: border-box; display: flex; align-items: center; gap: 10px; min-height: 38px; padding: 4px 12px; border-top: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); font-size: 12px; }

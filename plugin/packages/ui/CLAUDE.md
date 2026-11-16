@@ -20,8 +20,8 @@ src/index.ts: 无运行行为的 Host 占位入口，使官方 scanner 从 Loade
 src/local-api.ts: 固定同源路径的严格 Server/账号/卸载/可安装与已安装技能/MCP DTO 与显式刷新解码，承载 OAuth/API Key 本地动作、技能安装和严格 OAuth flow 进度与连接意愿/名称简介目录/发现数量/有效呈现事实；插件市场由 DSH 官方索引服务承载，本地 API 不投影插件目录。
 src/remote-api.ts: 远控浏览器网络边界，复用 contracts 设备 schema 严格解析非秘密 view 与本机控制响应，只接受固定同源路径与 canonical view URL；严格匹配 ENT_REMOTE_BUSY/409 后提供占用提示，重连接受新的隔离 view，不持有票据或转发业务。
 src/remote-store.ts: 独立设备选择与固定远端页控制器，按订阅生命周期取消请求；本机只显式刷新，远端 15 秒检查/可见性检查，断线继续保活但保持锁定直到用户重连并整页加载，返回本机不等待 close。
-src/remote-workspace.tsx: 原生 Menu 入口的设备弹窗、确认本机入站开关、持续机器名和不可关闭断线卡片；仅呈现控制事实，远端业务仍由官方工作区/会话页面负责。
-src/remote-workspace.module.css: 复用官方主题 tokens 的设备列表、shell.bottom 状态条与阻断卡片，在窄屏保留明确机器名和返回入口。
+src/remote-workspace.tsx: 原生 Menu 入口的自适应设备弹窗、本机入站 Switch、持续机器名和不可关闭断线卡片；Switch 复用通用设置控件，开启须确认，保存期间禁用并以服务端结果呈现状态；设备弹窗复用 Modal 的卡片和内容插槽，远端业务仍由官方工作区/会话页面负责。
+src/remote-workspace.module.css: 设备弹窗宽度上限 640px，随原生遮罩留白收窄，内容可滚动且底部操作保持可见；设备列表、shell.bottom 状态条与阻断卡片复用官方主题 tokens，在窄屏保留明确机器名和返回入口。
 src/skill-market.tsx: OwnDsh 设置技能 tab 的发现状态、已安装条件筛选与分类筛选，展示 `_icon.png`、WorkBuddy 元数据、搜索、安装进度、启用开关、安装和编辑/打开文件夹/卸载菜单；发现状态合并目录与本地副本，所有动作经 EnterpriseSkillStore 委托本地 Host API。
 src/skill-market-filters.ts: 技能市场的纯数据投影，合并目录与本地副本并生成分类筛选；不依赖 React 或 Host。
 src/skill-market.module.css: 技能 tab 的分类筛选、已安装数量按钮、双列卡片、图标、搜索栏、标签和窄屏布局，复用宿主 tokens。
