@@ -18,6 +18,8 @@ remote-native-navigation-verification-20261114.md: Console 原生 Plugins/Discov
 
 unified-login-design.md: 统一登录实施真源，冻结新鲜登录直达授权完成、已有浏览器身份确认、独立客户端 PKCE、退出范围与桌面唤回，记录真实本地验收。
 
+dsh-022-rc5-compatibility-20261119.md: rc.5 精确源码比较、插件 beta.22 与 Console 同版适配、真实 Host/MCP/模型及桌面制品与更新 feed 的逐阶段验收和发布边界。
+
 dsh-022-rc3-compatibility-20261113.md: rc.3 源码差异、API迁移、冻结Console资源、真实模型、npm beta.21、三平台桌面发行与旧版自动更新实测，记录仅侧栏复用官方 DSH 品牌的修正、同版重发和 NAS 未验收边界，不推导旧版本兼容。
 
 dsh-compatibility.md: DSH 升级检查入口，记录当前 npm/Web 基线、上游依赖契约与本地代码/测试映射、历史夹具边界、逐项验收流程及 OAuth 接缝删除条件。

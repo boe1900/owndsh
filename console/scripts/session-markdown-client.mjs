@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖锁定 rc.3 的官方会话导出客户端制品和原生 transport。
+ * [INPUT]: 依赖锁定 rc.5 的官方会话导出客户端制品和原生 transport。
  * [OUTPUT]: 将 Markdown 复制的读取接入唯一远端连接并校验响应类型，保留官方剪贴板生命周期。
  * [POS]: 原生工作区的构建期适配；只修改复制控制器，不接管全局 fetch 或 ZIP 下载。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

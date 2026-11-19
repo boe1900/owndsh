@@ -5,7 +5,7 @@
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { z } from 'zod'
-export const DSH_CARRIER_VERSION = '0.2.2-rc.3'
+export const DSH_CARRIER_VERSION = '0.2.2-rc.5'
 export const CARRIER_CHUNK_BYTES = 24_576
 export const CARRIER_WINDOW_BYTES = CARRIER_CHUNK_BYTES * 4
 export const MAX_CARRIER_CHANNELS = 32

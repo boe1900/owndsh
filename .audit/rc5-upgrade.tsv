@@ -1,0 +1,7 @@
+ts	phase	decision	why	evidence	result
+2026-11-19T01:44:15Z	frame	核对 rc.3 到 rc.5 后发布插件并升级桌面	用户已授权验证后发行，先验证最易失配的原生协议与桌面接缝	官方 dsh-v0.2.2-rc.5 release；两个仓库精确锁与既有验收脚本	现有基线 rc.3 / 插件 beta.21，回归运行中
+2026-11-19T02:47:32Z	source	保留当前官方接缝	精确比较显示企业使用的协议与桌面实现未变	.tmp/dsh-022-rc5/compatibility-source-comparison.json	无结构适配
+2026-11-19T02:47:32Z	checks	同步升级版本并对齐Cordis-group	官方依赖要求group1.1.0	plugin-check.log/console-check.log/patch-tests.log	插件与Console及桌面补丁检查通过
+2026-11-19T03:13:32Z	runtime	以真实点击释放Ego键盘接管后再填对话	脚本fill没有触发插件pointerdown释放分支	Ego0.9.14-client-onDocPointerDown	修正临时验收夹具而非修改产品
+2026-11-19T03:13:32Z	review	独立审阅通过	未发现版本门禁或发行接缝阻塞	rc5_release_review	VERIFIED-待运行及发行制品核对
+2026-11-19T03:32:08Z	runtime	rc5真实Host核心能力通过	MCP四组及双Host/Ego和真实Atria完整验收	.tmp/dsh-022-rc5/e2e/run-1795058635946/result.json	VERIFIED

@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖构建时冻结的官方 HTML、资源映射与精确 rc.3 metadata。
+ * [INPUT]: 依赖构建时冻结的官方 HTML、资源映射与精确 rc.5 metadata。
  * [OUTPUT]: 提供每次从服务端读取并校验版本的 assembly、逐项脚本装配与 bundle/package asset URL 映射。
  * [POS]: workspace 的静态 UI 边界；代码只来自随 Console 发布的固定制品。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -7,7 +7,7 @@
 import { z } from 'zod';
 
 const asset = z.object({ file: z.string().startsWith('/native-workspace/'), sha256: z.string().regex(/^[a-f0-9]{64}$/), contentType: z.string() });
-const manifest = z.object({ harnessVersion: z.literal('0.2.2-rc.3'), html: z.string(), resources: z.record(z.string(), asset), metadata: z.record(z.string(), z.unknown()) });
+const manifest = z.object({ harnessVersion: z.literal('0.2.2-rc.5'), html: z.string(), resources: z.record(z.string(), asset), metadata: z.record(z.string(), z.unknown()) });
 export type NativeAssembly = z.infer<typeof manifest>;
 
 export async function loadNativeAssembly(signal: AbortSignal): Promise<NativeAssembly> {

@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 native-runtime 锁定的官方 rc.3 CLI、Ego/Markdown 局部网络适配、独立临时 profile 和官方 Web assembly HTTP 接口。
+ * [INPUT]: 依赖 native-runtime 锁定的官方 rc.5 CLI、Ego/Markdown 局部网络适配、独立临时 profile 和官方 Web assembly HTTP 接口。
  * [OUTPUT]: 生成包含官方预设选择与会话模式标识的无凭据原生工作区静态资源、精确 URL 映射及构建元数据；释放构建 Host 并保留退出码或信号错误。
  * [POS]: Console 的原生 UI 构建边界；插件代码由固定制品供应，工作区 HTML 文档由原生隔离预览承载。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -16,7 +16,7 @@ import { EGO_FACTORY, patchEgoClient } from './ego-client.mjs'
 import { MARKDOWN_FACTORY, MARKDOWN_SOURCE_SHA256, patchSessionMarkdownClient } from './session-markdown-client.mjs'
 
 const consoleRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const version = '0.2.2-rc.3'
+const version = '0.2.2-rc.5'
 const output = join(consoleRoot, 'public/native-workspace')
 const runtime = createRequire(join(consoleRoot, 'native-runtime/package.json'))
 const cliManifestPath = runtime.resolve('@deepseek-ai/dsh/package.json')

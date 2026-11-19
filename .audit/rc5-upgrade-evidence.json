@@ -1,0 +1,137 @@
+{
+  "date": "2026-11-19",
+  "official": {
+    "version": "0.2.2-rc.5",
+    "commit": "9c2670d3bce5275e0d1610272958121af87787bb"
+  },
+  "plugin": {
+    "version": "0.1.0-beta.22",
+    "tarballSha256": "2c9f3bfb0409280b0a23bae90cb224d0a910b3283e6fd9c6409069f2cbaca8d5",
+    "hostSha256": "8d6e4746e449fd09586ded9584aedbe47c6aefe3d7ef92b4f6a5eae8ca46f3a8",
+    "clientSha256": "01d70e006d4070a1331a5d38b9d0f59c85b4d1325fe08443ff71651b7b7657a8",
+    "publication": "pending"
+  },
+  "sourceComparison": {
+    "from": "dsh-v0.2.2-rc.3",
+    "to": "dsh-v0.2.2-rc.5",
+    "targetCommit": "9c2670d3bce5275e0d1610272958121af87787bb",
+    "manifestChangesExceptVersion": [],
+    "implementationChanges": {
+      "host-wire": [],
+      "login-settings": [],
+      "mcp-tools": [],
+      "client-contracts": [],
+      "enterprise-llm": []
+    }
+  },
+  "checks": {
+    "plugin": {
+      "moduleFiles": 35,
+      "moduleTests": 239,
+      "workspaceTests": 5,
+      "result": "passed"
+    },
+    "console": {
+      "files": 24,
+      "tests": 169,
+      "modules": 61,
+      "resources": 166,
+      "result": "passed"
+    },
+    "desktopPatch": {
+      "passed": 18,
+      "skippedWindowsInterpreterChecks": 2,
+      "failed": 0
+    }
+  },
+  "mcp": {
+    "native": {
+      "checks": [
+        "enterprise browser login; official Plugins → Discover available",
+        "no-auth/API-key/OAuth connection; paginated discovery; resource-only server",
+        "real AgentLoop: cold/search/accumulate/deduplicate/current-step call; API-key/OAuth calls; shared URI resources/templates/read",
+        "official SDK handles HTTP 401 and refresh-token rotation",
+        "invalid_grant blocks the rejected call, shows reauthorization, and recovers the same conversation",
+        "pause removes tools from the existing conversation; ordinary chat remains usable",
+        "reenable works; a new Agent does not inherit loaded tools",
+        "real AgentLoop: Notion-shaped BM25 natural-language, stopword/Chinese NO_MATCH, and next-step injection",
+        "Host restart restores enterprise/OAuth credentials without another browser login"
+      ],
+      "result": "passed"
+    },
+    "ptc": {
+      "checks": [
+        "enterprise browser login; official Plugins → Discover available",
+        "no-auth/API-key/OAuth connection; paginated discovery; resource-only server",
+        "real AgentLoop: cold/search/accumulate/deduplicate/current-step call; API-key/OAuth calls; shared URI resources/templates/read",
+        "official SDK handles HTTP 401 and refresh-token rotation",
+        "invalid_grant blocks the rejected call, shows reauthorization, and recovers the same conversation",
+        "pause removes tools from the existing conversation; ordinary chat remains usable",
+        "reenable works; a new Agent does not inherit loaded tools",
+        "real AgentLoop: Notion-shaped BM25 natural-language, stopword/Chinese NO_MATCH, and next-step injection",
+        "Host restart restores enterprise/OAuth credentials without another browser login"
+      ],
+      "result": "passed"
+    },
+    "structured-native": {
+      "checks": [
+        "enterprise browser login; official Plugins → Discover available",
+        "no-auth/API-key/OAuth connection; paginated discovery; resource-only server",
+        "real AgentLoop native: outputSchema, structuredContent, A-to-B text value continuation, unknown structured result, and MCP isError"
+      ],
+      "result": "passed"
+    },
+    "structured-ptc": {
+      "checks": [
+        "enterprise browser login; official Plugins → Discover available",
+        "no-auth/API-key/OAuth connection; paginated discovery; resource-only server",
+        "real AgentLoop ptc: outputSchema, structuredContent, A-to-B structured field composition, unknown structured result, and MCP isError"
+      ],
+      "result": "passed"
+    }
+  },
+  "review": {
+    "independentReview": "VERIFIED",
+    "issues": []
+  },
+  "remote": {
+    "checks": [
+      "create-real-employee",
+      "explicit-local-model-protocol-fixture-through-real-server",
+      "two-isolated-harness-employee-login",
+      "host-default-disabled",
+      "explicit-host-enable-confirmation",
+      "encrypted-link-native-remote-page",
+      "remote-session-mutation-isolated-from-local",
+      "native-remote-prompt-and-stream-via-local-provider-fixture",
+      "rc5-workspace-file-search-and-versioned-media-load",
+      "remote-files-and-over-64k-response",
+      "remote-terminal-input-output-only-on-host",
+      "refresh-new-view-rejects-old-url-and-preserves-remote-draft",
+      "disconnect-blocks-and-never-falls-back-local",
+      "disconnected-refresh-failed-retry-and-manual-recovery",
+      "return-to-local-page",
+      "rc5-host-real-ego-loader-and-frozen-console-capability",
+      "real-ego-tool-navigation-and-encrypted-cdp-frame-on-rc5",
+      "rc5-ego-native-panel-image-and-real-pointer-input",
+      "built-console-rc5-native-ui-cold-session-prompt-search-and-image",
+      "external-atria-dawn-native-stream-tools-write-shell-on-mac",
+      "external-atria-dawn-multi-turn-context",
+      "real-host-profile-restart-restores-login",
+      "external-atria-dawn-partial-stream-and-user-cancel-through-remote-link",
+      "external-atria-dawn-followup-recovers-after-stop"
+    ],
+    "result": "passed",
+    "evidence": ".tmp/dsh-022-rc5/e2e/run-1795058011799/result.json",
+    "supplementalEvidence": ".tmp/dsh-022-rc5/e2e/run-1795058635946/result.json",
+    "runtime": "0.2.2-rc.5",
+    "provider": "actual Atria-Dawn plus deterministic fixture"
+  },
+  "desktopRelease": "pending",
+  "limits": [
+    "no NAS deployment",
+    "no Windows/Intel interaction test",
+    "no Android/P2P/TURN/production TLS/multi-node test",
+    "Console and Host require matched rc.5"
+  ]
+}

@@ -9,7 +9,7 @@ workspace-identity.ts: 原生 #root 兄弟身份条，固定设备名称、明�
 workspace-api.ts: 复用生成的 Cookie operation 和 contracts schema，读取本人设备连接快照、以 expectedLinkId 准确断开并签发绑定当前登录和临时控制密钥的 ticket。
 browser-link.ts: 单 document 的 Cookie WebSocket 所有者，经共享 Noise IK、lease ack 和 carrier ready 才提供远端 link；页面退出关闭，准确 link 的接管原因保留，不自动重发 mutation。
 browser-link.test.ts: 使用真实双端 Noise/lease 和仅路由控制帧的浏览器服务器夹具，验证加密 HTTP、connect.reject/error 两条 busy 原因、准确 link 接管原因保留与页面退出释放。
-native-assembly.ts: 每次从服务端读取并校验精确 rc.3 静态 assembly，防止升级沿用旧清单；仅映射构建时固定脚本及 package assets并顺序执行官方 HTML injections/shell，拒绝外部代码来源。
+native-assembly.ts: 每次从服务端读取并校验精确 rc.5 静态 assembly，防止升级沿用旧清单；仅映射构建时固定脚本及 package assets并顺序执行官方 HTML injections/shell，拒绝外部代码来源。
 native-transport.ts: 将官方 fetch/文本 WebSocket/loadBundle/resolveAsset 接口接到唯一加密 link；少数装配 metadata 重绑当前 rpcId，业务路径永不回落本机。
 native-transport.test.ts: 验证 metadata 关联、mutation 只转发一次、冻结资产解析、跨 origin 和非 API 路径拒绝。
 native-image.ts: Markdown 内嵌图片、文件链接悬停图及插件文档图片经加密 link 读取为组件拥有的 Blob URL，取消或卸载时释放，禁止直打 Console 本机。

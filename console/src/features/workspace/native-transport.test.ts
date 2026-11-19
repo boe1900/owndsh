@@ -10,7 +10,7 @@ import { createNativeTransport, nativeApiPath } from './native-transport';
 import type { NativeAssembly } from './native-assembly';
 
 const assembly: NativeAssembly = {
-  harnessVersion: '0.2.2-rc.3', html: '', resources: { '/plugins/trusted/assets/whale-abcd.png': { file: '/native-workspace/assets/abc.png', sha256: 'a'.repeat(64), contentType: 'image/png' } },
+  harnessVersion: '0.2.2-rc.5', html: '', resources: { '/plugins/trusted/assets/whale-abcd.png': { file: '/native-workspace/assets/abc.png', sha256: 'a'.repeat(64), contentType: 'image/png' } },
   metadata: { '/api/settings/describe': { type: 'server-response', rpcId: 'captured', result: { ok: true, value: [] } } },
 };
 function fixture() {

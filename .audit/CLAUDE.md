@@ -3,6 +3,10 @@
 
 成员清单
 
+rc5-upgrade.todo.md: 官方 rc.5 插件、Console 固定装配与桌面发行升级的阶段门禁和验收清单。
+rc5-upgrade-evidence.json: rc.5 源码比较、插件/Console/真实 Host 与桌面发行的无密逐阶段证据，区分待发布和实际完成。
+rc5-upgrade.tsv: 精确上游差异、验证制品、npm 和桌面发行结果的无密决策记录。
+
 retire-plugin-inventory.todo.md: 企业插件设备库存整链路退役的实施、迁移、跨端验证和独立审查清单。
 retire-plugin-inventory.tsv: 库存退役边界、兼容保留、真实验证与审查修复的无密决策记录。
 

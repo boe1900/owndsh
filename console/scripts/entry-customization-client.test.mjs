@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖锁定 rc.3 官方 More 客户端原字节与真实 React 渲染器。
+ * [INPUT]: 依赖锁定 rc.5 官方 More 客户端原字节与真实 React 渲染器。
  * [OUTPUT]: 验证三处原生 More 的打开、固定、浏览插件及带区域提示词的 Creator 草稿动作。
  * [POS]: 原生导航的 factory 行为回归，保持官方菜单及 uiWorkspace 草稿语义。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
