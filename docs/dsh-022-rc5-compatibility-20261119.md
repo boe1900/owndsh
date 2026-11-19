@@ -33,11 +33,15 @@ rc.3 至 rc.5 的 Host wire、API gateway、登录/设置/凭据、插件管理�
 | rc.5 真实 Host MCP | Edge native/PTC 各 9 项业务通过，包括登录、none/API-key/OAuth、分页、资源、搜索累加/释放/隔离、401 刷新、invalid_grant 恢复和 Host 重启。两模式 structured 各 3 项通过，覆盖 outputSchema、structuredContent、跨工具值传递和 isError。 |
 | 桌面接缝 | 使用 rc.5 官方源码与 beta.22 锁运行 `npm test`，18 通过、0 失败，2 个 Windows 解释器检查在 macOS 跳过，留给 Windows CI。 |
 | 双 Host 与真实模型 | 两个隔离 rc.5 Host 的登录、远控开关、会话/文件/终端、刷新重连、断线阻断、166 资源 GET/hash、Ego 导航/画面/点击通过。Atria-Dawn 真实工具写文件与 shell 读取、Mac 执行位置隔离、多轮上下文通过；经过真实部分输出后中断、后续恢复和 Host 静默恢复登录补验通过。验收脚本显式点击 composer 释放 Ego 键盘接管，并按渲染后的空白分隔识别部分输出，未修改产品逻辑。 |
-| npm 发布 | 待发布，发布前 tgz 已经通过上述 Host 验收。 |
-| 桌面发行 | 待插件发布后构建三平台并核对 Release 与更新 feed。 |
+| npm 发布 | [beta.22](https://www.npmjs.com/package/owndsh-plugin/v/0.1.0-beta.22) 已发布到 `next`；[发行流水线](https://github.com/boe1900/owndsh/actions/runs/44452148832) 全部成功。registry SHA-512 校验通过，GitHub CI 上传包与 npm 包逐字节一致；对照本地验收包，52 个文件逐字节相同，package.json 仅由 npm 排序键、JSON 语义相同。 |
+| 桌面发行 | `7814fef` 与 `v0.2.2-rc.5` 的 [Windows x64、macOS ARM64/x64 构建](https://github.com/boe1900/owndsh-desktop/actions/runs/44453742535) 全部成功；[正式 Release](https://github.com/boe1900/owndsh-desktop/releases/tag/v0.2.2-rc.5) 为公开 latest，非 Draft、非 prerelease，10 个资产齐全。Windows CI 完成 macOS 本机跳过的解释器检查。 |
+| 正式 Mac 包 | 从 Release ARM64 ZIP 解包，实际大小和 GitHub SHA-256 一致；DSH、desktop-host、web-frontend 均为 rc.5，预置插件 beta.22。随包 5 个插件文件与 npm 内容匹配，package.json 按官方 builder 清理规则比对。App deep/strict 签名与稳定 `com.owndsh.desktop` requirement 通过。隔离启动、企业 PKCE 登录、真实 Atria-Dawn 对话及同 profile 重启后的凭据和历史恢复通过，零页面异常。 |
+| 更新 feed | Windows EXE 与双架构 macOS ZIP 的实际大小、SHA-512 和 GitHub SHA-256 一致；macOS feed 同时包含 ARM64/x64。两个 `latest/download` URL 返回已核验的 feed。本轮未执行旧版日常 App 原地更新。 |
+
+运行证据保留了验收脚本失败和补验过程。双 Host 首轮已通过核心业务、工具和多轮对话，部分输出检查因 Markdown 将数字换行渲染为空白而误判；同 Host 补验通过实际中断和继续。正式 Mac 包前三项启动、登录和模型验收通过后，重启脚本在 Host 就绪前解析响应失败；同 profile 的独立补验通过重启恢复。最终结论合并两次记录，不把早期失败改写为通过。对应证据分别为 `e2e/run-1795058011799/result.json`、`e2e/run-1795058635946/result.json`、`desktop/smoke-third-attempt.json` 与 `desktop/restart-result.json`。
 
 临时无密证据位于 `.tmp/dsh-022-rc5/`；决策记录位于 `.audit/rc5-upgrade.tsv`。隔离 profile 和临时登录凭据不提交。
 
 ## 运行边界
 
-本轮使用本机独立 Java/PostgreSQL/Redis、两个隔离 rc.5 Host 和独立 Edge，不修改日常桌面 profile，也不部署 NAS。NAS 跨机、Android、P2P/TURN、生产 TLS 和多节点不是本轮验收范围。三平台构建不等于三个系统的交互验收；macOS 本机安装包测试与 Windows/Intel 的 CI 构建分别记录。
+本轮使用本机独立 Java/PostgreSQL/Redis、两个隔离 rc.5 Host 和独立 Edge，正式 Mac ARM64 包使用隔离 profile，不替换日常桌面安装。NAS 跨机、Windows/Intel 交互、Android、P2P/TURN、生产 TLS 和多节点不是本轮验收范围。三平台构建与更新 feed 校验不等于三个系统的交互验收，也不代表已在用户日常安装上执行原地更新。

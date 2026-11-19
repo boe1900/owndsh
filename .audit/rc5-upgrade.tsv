@@ -5,3 +5,13 @@ ts	phase	decision	why	evidence	result
 2026-11-19T03:13:32Z	runtime	以真实点击释放Ego键盘接管后再填对话	脚本fill没有触发插件pointerdown释放分支	Ego0.9.14-client-onDocPointerDown	修正临时验收夹具而非修改产品
 2026-11-19T03:13:32Z	review	独立审阅通过	未发现版本门禁或发行接缝阻塞	rc5_release_review	VERIFIED-待运行及发行制品核对
 2026-11-19T03:32:08Z	runtime	rc5真实Host核心能力通过	MCP四组及双Host/Ego和真实Atria完整验收	.tmp/dsh-022-rc5/e2e/run-1795058635946/result.json	VERIFIED
+2026-11-19T03:49:41Z	publish	npm-next-beta22发布成功	正式包完整性和代码内容必须与验收包一致	.tmp/dsh-022-rc5/published/verification.json	52文件逐字节一致-manifest仅键排序
+2026-11-19T05:04:37Z	audit-correction	补齐检查与审阅证据路径	旧简称不能独立解析	.tmp/dsh-022-rc5/plugin-check.log,.tmp/dsh-022-rc5/console-check.log,/Users/cola/Projects/owndsh-desktop/.build/rc5-probe/patch-tests.log,.audit/rc5-upgrade-evidence.json	取代checks与review行的简称指针
+2026-11-19T05:04:37Z	audit-correction	记录numeric输出判定失败与补验	Markdown把数字行渲染为空格导致换行正则误判	.tmp/dsh-022-rc5/e2e/run-1795058011799/result.json,.tmp/dsh-022-rc5/e2e/run-1795058635946/result.json	核心和工具多轮先通过-以同Host恢复补验完成取消与继续
+2026-11-19T05:04:37Z	audit-correction	记录包字节比较的manifest例外	初次严格比较仅package.json不同JSON解析值相同	.tmp/dsh-022-rc5/published/verification.json	CI上传tgz与npm下载tgz逐字节一致-本地包仅manifest键排序
+2026-11-19T05:04:37Z	desktop-test	使用隔离ZDOTDIR保留测试opener	官方login-shell会覆盖继承PATH使首次脚本未捕获授权	.tmp/dsh-022-rc5/desktop/smoke-first-attempt.json,/Users/cola/Projects/owndsh-desktop/.build/rc5-probe/upstream/apps/desktop/src/login-shell-environment.ts	只修正测试环境不改桌面发行
+2026-11-19T05:23:45Z	desktop-test	记录折叠目录与启动期轮询的脚本失败	UI中目标目录折叠需点击展开-重启Host未ready时返回非JSON	.tmp/dsh-022-rc5/desktop/smoke-second-attempt.json,.tmp/dsh-022-rc5/desktop/smoke-third-attempt.json	正式包登录与模型已通过-以同profile补验重启恢复
+2026-11-19T05:23:45Z	release	三平台正式Release与更新文件通过	需确认公开latest资产与实际字节一致	.tmp/dsh-022-rc5/desktop/feed-verification.json,.tmp/dsh-022-rc5/desktop/package-result.json	Windows与双Mac-10资产-精确rc5和beta22-签名及feed校验通过
+2026-11-19T05:25:09Z	desktop-runtime	正式Mac包登录模型与重启恢复通过	必须验证发布包而非源码替代	.tmp/dsh-022-rc5/desktop/smoke-third-attempt.json,.tmp/dsh-022-rc5/desktop/restart-result.json	3项实际启动登录模型加同profile重启恢复-零页面异常
+2026-11-19T05:25:09Z	audit	跨模型审计后追加补正证据	先前简称及补验过程需可追溯	.audit/rc5-upgrade-evidence.json	gpt6-luna审计指出记录缺口-已追加numeric和manifest及桌面脚本补验记录
+2026-11-19T05:53:45Z	closure	完成正式制品验收并同步当前兼容文档	实物验证要求以npm和GitHub实际发布状态收尾	docs/dsh-022-rc5-compatibility-20261119.md,.audit/rc5-upgrade-evidence.json	beta22与rc5已发布-三平台构建通过-保留未验收边界

@@ -9,7 +9,20 @@
     "tarballSha256": "2c9f3bfb0409280b0a23bae90cb224d0a910b3283e6fd9c6409069f2cbaca8d5",
     "hostSha256": "8d6e4746e449fd09586ded9584aedbe47c6aefe3d7ef92b4f6a5eae8ca46f3a8",
     "clientSha256": "01d70e006d4070a1331a5d38b9d0f59c85b4d1325fe08443ff71651b7b7657a8",
-    "publication": "pending"
+    "publication": {
+      "version": "0.1.0-beta.22",
+      "next": "0.1.0-beta.22",
+      "publishedIntegrity": "sha512-bfdK6iQmZBSpOsu1NBqdi8xfVwtISImUno9JPThCT/PDuoODmEdUBCZUf/wFjb1MB6AJAeVMkuk0Kf/kHPhkyg==",
+      "tgzSha256": "107d6aa45c4ea9ec632f83ac08c999bafeba7ca64c9c618605c18cd05bc3e045",
+      "identicalFileCount": 52,
+      "fileCount": 53,
+      "manifestSemanticsMatch": true,
+      "manifestByteDifference": "npm pkg set sorts dependency keys",
+      "publication": "verified",
+      "tagCommit": "d98762f76",
+      "ciArtifactBytesMatch": true
+    },
+    "workflow": "https://github.com/boe1900/owndsh/actions/runs/44452148832"
   },
   "sourceComparison": {
     "from": "dsh-v0.2.2-rc.3",
@@ -92,7 +105,22 @@
   },
   "review": {
     "independentReview": "VERIFIED",
-    "issues": []
+    "issues": [],
+    "trailAudit": {
+      "model": "gpt-6-luna",
+      "findings": [
+        "test assertion failure and subsequent supplemental coverage needed explicit trail row",
+        "log shorthand and agent identifier were not resolvable evidence paths",
+        "manifest byte comparison exception needed explicit trail row"
+      ],
+      "resolution": "append-only correction rows with exact evidence pointers"
+    },
+    "independentReviewScope": [
+      "rc.5 version and hash gates",
+      "npm artifact shape and dependency drift",
+      "desktop source/plugin pin and patch tests",
+      "OIDC and release feed seams"
+    ]
   },
   "remote": {
     "checks": [
@@ -127,11 +155,76 @@
     "runtime": "0.2.2-rc.5",
     "provider": "actual Atria-Dawn plus deterministic fixture"
   },
-  "desktopRelease": "pending",
+  "desktopRelease": {
+    "status": "published",
+    "workflow": "https://github.com/boe1900/owndsh-desktop/actions/runs/44453742535",
+    "commit": "7814fef",
+    "tag": "v0.2.2-rc.5",
+    "assetCount": 10,
+    "isDraft": false,
+    "isPrerelease": false,
+    "windowsFeedActualSizeSha512": "passed",
+    "macRuntime": {
+      "result": "PASS",
+      "checks": [
+        "published packaged rc.5 app launches isolated and seeds beta.22 login gate",
+        "actual packaged Host completes enterprise PKCE via real Java server",
+        "published desktop runs actual Atria-Dawn and renders native response",
+        "actual app restart restores enterprise credentials and native real-model session history"
+      ],
+      "pageErrors": [],
+      "evidence": [
+        ".tmp/dsh-022-rc5/desktop/smoke-third-attempt.json",
+        ".tmp/dsh-022-rc5/desktop/restart-result.json"
+      ],
+      "environment": "isolated DSH_HOME and Electron userData, captured system opener, actual Java/PostgreSQL/Redis and Atria-Dawn"
+    },
+    "workflowResult": "success",
+    "feedVerification": {
+      "tag": "v0.2.2-rc.5",
+      "url": "https://github.com/boe1900/owndsh-desktop/releases/tag/v0.2.2-rc.5",
+      "assetCount": 10,
+      "latest": true,
+      "isDraft": false,
+      "isPrerelease": false,
+      "macFeedVersion": "0.2.2-rc.5",
+      "macArchitectures": [
+        "arm64",
+        "x64"
+      ],
+      "actualZipSha512": "passed",
+      "windowsFeedBytesMatchActions": true,
+      "allDownloadedAssetDigestMatches": true,
+      "genericLatestDownloadBytesMatch": true
+    },
+    "packageVerification": {
+      "result": "PASS",
+      "manifests": {
+        "@deepseek-ai/dsh": {
+          "version": "0.2.2-rc.5"
+        },
+        "@deepseek-ai/dsh-desktop-host": {
+          "version": "0.2.2-rc.5"
+        },
+        "@deepseek-ai/dsh-web-frontend": {
+          "version": "0.2.2-rc.5"
+        },
+        "owndsh-plugin": {
+          "version": "0.1.0-beta.22"
+        }
+      },
+      "verifiedShippedPluginFiles": 5,
+      "signature": {
+        "deepStrictVerified": true,
+        "designatedRequirement": "identifier \"com.owndsh.desktop\""
+      }
+    }
+  },
   "limits": [
     "no NAS deployment",
     "no Windows/Intel interaction test",
     "no Android/P2P/TURN/production TLS/multi-node test",
-    "Console and Host require matched rc.5"
+    "Console and Host require matched rc.5",
+    "updater feeds verified; no old installed app in-place update performed this round"
   ]
 }

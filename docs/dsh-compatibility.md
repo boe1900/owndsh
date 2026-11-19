@@ -21,16 +21,17 @@
 
 ## 1. 当前基线与证据
 
-升级核对：2026-11-19。当前源码目标为 DSH `0.2.2-rc.5`，tag commit `9c2670d3bce5275e0d1610272958121af87787bb`，对照 rc.3。插件目标为 `0.1.0-beta.22`，Desktop 同步锁定官方 rc.5 与该插件版本。rc.3 的历史证据见旧报告；本轮执行与发布状态见 [rc.5 升级报告](dsh-022-rc5-compatibility-20261119.md)。只声明同版本 rc.5 Host 与 Console assembly 配对，不承诺交叉版本工作区。
+升级核对：2026-11-19。当前发布基线为 DSH `0.2.2-rc.5`，tag commit `9c2670d3bce5275e0d1610272958121af87787bb`，对照 rc.3。插件 `0.1.0-beta.22` 已发布 npm `next`，Desktop rc.5 三平台 Release 已发布并预置该插件版本。rc.3 的历史证据见旧报告；本轮执行与发布状态见 [rc.5 升级报告](dsh-022-rc5-compatibility-20261119.md)。只声明同版本 rc.5 Host 与 Console assembly 配对，不承诺交叉版本工作区。
 
 | 项目 | 当前事实与真源 |
 |---|---|
 | 开发与发布依赖 | DSH 包精确锁定 `0.2.2-rc.5`，Cordis `4.1.0`、group/loader/include `1.1.0`、Schemastery `3.19.0`，MCP SDK `2.2.0`；要求 Node.js ≥24.9。DSH peers 精确版本，Cordis/Schemastery peers 为宿主同 minor 系列，官方运行类均 external。完整图见 manifests 与 `plugin/pnpm-lock.yaml`。未使用且目标不再发布的旧 `dsh-invariants` 开发依赖已移除。 |
 | Console 固定资源 | 当前 rc.5 CLI 在临时 profile 中生成 61 个 Client 模块、166 项固定资源，较升级首轮恢复五个导航及预设模块；包含官方 `./assets/*` 导出资源与固定 Ego `0.9.14`。shell、会话、预览和 Markdown 的源码 hash 与唯一替换门禁保护适配，More 和预设选择使用官方原始客户端。 |
 | 发行 Node 与基线元数据 | Console engines ≥24.15，Node 24.15 Debian glibc 构建镜像与本地缓存 fallback 共用精确 digest，生产 Nginx 仍为 Alpine；Host/插件仍 ≥24.9。离线包实际 Harness 版本取自 bundle peers 与 native-runtime 的精确交叉校验；旧源码版本/commit 只写独立 SOURCE_FIXTURE 字段。 |
-| Console 检查 | rc.5 生产构建、TypeScript 与 24 文件 /169 项测试通过，61 模块/166 资源的严格源码 hash 门禁保持。rc.5 Docker 和 amd64 运行验收单独记录，不沿用 rc.3 的镜像结论。 |
+| Console 检查 | rc.5 生产构建、TypeScript 与 24 文件 /169 项测试通过，61 模块/166 资源的严格源码 hash 门禁保持。发行 CI 的 Server/Console 双架构镜像构建成功；本轮业务运行使用本机独立服务，不代表 NAS 部署验收。 |
 | Remote 边界 | Host 三包门禁与密文 ready 共用单一 rc.5 应用版本，Controller 以 `ENT_REMOTE_DSH_VERSION` 拒绝旧 ready；Remote wire/hash 不变。`workspaceFiles/search` 会话 scope、新 `subagents/interruptByUser`、同文件有限版本媒体重定向已适配；真实 HTTP/WS 回归覆盖搜索越权、方法绑定及恶意媒体跳转。 |
-| Host 与产品验收 | rc.5 Edge native/PTC 各 9 项 MCP 业务及各 3 项 structured 专项通过，包含重启恢复。双隔离 Host、真实 Atria-Dawn 和桌面发行制品结果见本轮报告，未完成项不由旧版结果推导。 |
+| Host 与产品验收 | rc.5 Edge native/PTC 各 9 项 MCP 业务及各 3 项 structured 专项通过，包含重启恢复。双隔离 Host 的会话、文件、终端、Ego 与真实 Atria-Dawn 工具、多轮、中断和继续通过；补验过程保留在本轮报告。 |
+| 桌面制品 | Windows x64、macOS ARM64/x64 构建与正式 Release 通过。实际 ARM64 ZIP 的版本、预置插件、签名、企业登录、真实 Atria-Dawn 和同 profile 重启恢复通过。三个平台资产与更新 feed 的大小和哈希匹配，latest URL 正确；未执行旧版原地更新或 Windows/Intel 交互验收。 |
 
 企业模型显式容量继续投影 bootstrap 的 `contextWindow/maxTokens`；缺省值继承官方 rc.3 的 1,000,000/128,000（旧版为 262,144/32,768）。DeepSeekSearch、OfficeKit 和新官方账号通知是原生可选能力，rc.3 升级未扩展为企业已验收功能。智能体团队的远程模式开关后来补验见 D18，该结果不代表真实多智能体任务验收。官方 MCP manager 没有 OAuth provider 注入口，不能替代现有 owner/target、SDK OAuth、企业租约和曝光策略。逐项差异与验证见 [rc.3 升级报告](dsh-022-rc3-compatibility-20261113.md)。
 
