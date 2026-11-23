@@ -17,7 +17,8 @@ LocalIdentityAdapterTest.java: 验证 Host BCrypt、统一失败策略、稳定 
 MemberDirectoryQueryServiceTest.java: 以真实 PostgreSQL 验证成员 cursor/detail、角色、登录方式与设备/Session 聚合。
 MemberManagementServiceTest.java: 以真实 PostgreSQL 验证 LOCAL 建号、改密、角色、停用、会话撤销与身份解绑。
 OidcIdentityAdapterTest.java: 以 WireMock 和真实签名验证 Discovery、PKCE、OIDC claims 与 JWKS 轮换。
-PlatformAuthorizationSecurityTest.java: 以真实 Redis 验证 PKCE、登录事务、授权码并发消费与 Refresh Session 接缝；覆盖浏览器复用、CSRF、批准/拒绝一次性消费与新鲜身份绑定隔离；覆盖部署 loopback 调试回调仅精确放行、installationId 混用拒绝，且不影响 Desktop 回调与默认空白名单。
+PlatformAuthorizationSecurityTest.java: 以真实 Redis 验证 PKCE、登录事务、授权码并发消费与 Refresh Session 接缝；覆盖浏览器复用、CSRF、批准/拒绝一次性消费、身份绑定隔离，以及固定移动回调的 redirect/client/installation/S256 绑定与重放拒绝；保留部署 loopback 调试回调和默认白名单边界。
+PlatformClientTest.java: 纯领域验证 Harness 固定移动 URI 逐字放行、相近 scheme/authority/path/query/fragment 拒绝、installation UUIDv4 和原有 loopback/管理端回调约束。
 RedisAuthStateStoreIntegrationTest.java: 以真实 Redis 验证认证事务、授权码 TTL、GETDEL 与 namespace 隔离。
 RefreshSessionServiceIntegrationTest.java: 以真实 PostgreSQL 验证 Refresh Token 摘要落库、installation 绑定、单次轮换、重放补偿与 family 吊销。
 T05ApiContractTest.java: 以 MockMvc 和派生 schema 验证 code/refresh token、浏览器 Cookie、密码流程、设备与权限 HTTP 契约。

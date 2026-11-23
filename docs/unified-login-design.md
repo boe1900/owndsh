@@ -1,15 +1,15 @@
 # OwnDsh 统一登录与客户端授权
 
-> 状态：设计冻结，2026-11-09；2026-11-10 修订新鲜登录后的授权交互。取代 MVP §6.3–6.4 与 P2-08C 关于两套登录页面及客户端不复用浏览器身份的决策；旧验收作为历史证据保留。
+> 状态：设计冻结，2026-11-09；2026-11-10 修订新鲜登录后的授权交互；2026-11-24 为 Android 增加固定原生回调边界，真机验收另列。取代 MVP §6.3–6.4 与 P2-08C 关于两套登录页面及客户端不复用浏览器身份的决策；旧验收作为历史证据保留。
 
-[INPUT]: 固定 public clients、Sa-Token 浏览器会话、Host PKCE/Refresh Grant、设备归属与官方 Electron 桌面生命周期。
-[OUTPUT]: 唯一网页登录入口、浏览器身份复用、一次性客户端授权和无凭据桌面唤回的实施契约。
+[INPUT]: 固定 public clients、Sa-Token 浏览器会话、Host PKCE/Refresh Grant、设备归属与桌面/Android 原生回调边界。
+[OUTPUT]: 唯一网页登录入口、浏览器身份复用、一次性客户端授权、桌面 loopback 与固定 Android callback 的实施契约。
 [POS]: 认证体验的实施真源；管理权限归 RBAC，客户端授权归 PKCE。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 
 ## 1. 身份与会话
 
-采用 RFC 8252 / RFC 7636 的系统浏览器、Authorization Code、S256 PKCE 和随机端口 IPv4 loopback。只有 `/login` 一套 React 凭据界面，LOCAL/LDAP/OIDC、验证码和首次改密共用现有状态机。后端静态登录表单退役，历史 URL 仅重定向。
+采用 RFC 8252 / RFC 7636 的系统浏览器、Authorization Code 和 S256 PKCE。桌面等现有客户端保留随机端口 IPv4 loopback；Android 企业登录额外允许唯一固定私有 scheme 回调 `com.owndsh.mobile://oauth/callback`，使浏览器先唤醒应用再完成 Host 交换。只有 `/login` 一套 React 凭据界面，LOCAL/LDAP/OIDC、验证码和首次改密共用现有状态机。后端静态登录表单退役，历史 URL 仅重定向。
 
 浏览器沿用 `enterprise-admin` public client 和现有 HttpOnly、host-only Cookie；该历史协议名称不表示管理角色，employee 同样能认证。公开认证账号查询不依赖控制台 bootstrap，管理页面和 API 的 RBAC 保持独立。
 
@@ -17,12 +17,12 @@
 
 ## 2. 唯一旅程
 
-1. Host 生成 state/verifier、监听 `127.0.0.1` 随机端口，打开既有 `/enterprise/auth/v1/authorize`。
-2. Server 校验 client/redirect/S256/installation，创建 5 分钟桌面授权事务，跳转公开 `/authorize?transaction_id=…`。
+1. Host 生成 state/verifier，建立回调后打开既有 `/enterprise/auth/v1/authorize`。原有端侧监听 `127.0.0.1` 随机端口；Android 企业登录使用固定原生回调，由 Node 保有待完成事务与 PKCE proof。
+2. Server 校验 client/redirect/S256/installation，创建 5 分钟 Harness 授权事务，跳转公开 `/authorize?transaction_id=…`。Android 仍使用 `dsh-desktop`，不新增 clientId。
 3. 授权页读取事务和浏览器会话。未登录进入 `/login?redirect=/authorize…`；登录页运行独立的浏览器 PKCE 事务，既有 `/browser-session` 只写 Cookie。本次新鲜认证完成后，由共享 PKCE 完成器直接批准其保存的原桌面事务，无需第二次点击；LOCAL、首次改密、LDAP 与 OIDC 使用同一完成器。
 4. 浏览器已有会话时展示真实账号和“以 {username} 继续”，点击后批准原桌面事务；切换账号后重新认证成功也直接续授。不向 Host 复制浏览器 Token。
-5. 原 loopback callback 向 Host 交付 code/state；Host 校验后以自己的 verifier 交换客户端凭据，继续登记设备与 bootstrap。
-6. 新插件 callback 重定向 `/authorized` 品牌页，显示“网页授权已完成，应用正在完成登录”，尝试无参数 `owndsh://open`，保留手动打开按钮。是否就绪仍以 Host READY 为准。
+5. 原 loopback callback 向 Host 交付 code/state；Android callback 先唤醒 Activity，再通过应用私有 IPC 交付同代、未过期事务。Host 校验后以自己的 verifier 交换客户端凭据，继续登记设备与 bootstrap。
+6. loopback 路径重定向 `/authorized` 品牌页，显示“网页授权已完成，应用正在完成登录”，尝试无参数 `owndsh://open`，保留手动打开按钮。Android 固定 callback 直接回到应用，不依赖该完成页。是否就绪仍以 Host READY 为准。
 
 取消原子消费事务，回调 `error=access_denied&state=…`；新 Host 映射已取消。刷新不自动重复确认。超时、网络错误不显示客户端已登录。
 
@@ -36,7 +36,10 @@
 - 身份绑定保留指定源的新鲜认证，复用 React 表单但不能跳过凭据；首次改密完成前不建立浏览器会话。
 - 继续检查账号启停、设备 owner/ACTIVE。同一 installation 不静默转移 owner，换账号可能返回既有设备归属错误。
 - HTTPS 保留 `__Host-`、Secure、SameSite=Strict。跨站首跳后通过同源 API 读取 Cookie；HTTP 自托管遵循既有约定。
-- 应用链接只有 `owndsh://open`，不携带 code/state/Token/Server 地址或任意导航。认证结果只经过 loopback。
+- `owndsh://open` 保留为不携带 code/state/Token/Server 地址的普通窗口唤回。Android 企业授权仅接受固定 `com.owndsh.mobile://oauth/callback`，请求 authorize 时逐字匹配完整 URI，不接受 query、fragment、userinfo、port、大小写或路径变体。
+- Console 的共享批准入口对原生回调只放行单个 `code,state` 或 `error,state`；code/state 非空，error 仅允许 `access_denied`，拒绝未知/重复参数及 fragment。新鲜登录和已有身份确认共用此边界。
+- code 兑换保留现有 URI 比较语义绑定 redirectUri/client/installation/S256，先原子消费 code 后校验，不新增绕过或回环替代兑换。Node 继续持有 verifier 和令牌；Activity 不将回调导航进 WebView，不记录凭据，不从失效 Intent 恢复登录。
+- 私有 scheme 不能证明唯一接收应用；PKCE 防止被截获的 code 被其他应用兑换，但不能阻止恶意接收造成登录失败。此方案不是经域名校验的 HTTPS App Link。
 
 ## 4. 退出范围
 
@@ -50,14 +53,15 @@
 
 ## 5. 兼容与原生唤回
 
-- 保留 authorize 参数、`/token`、client_id、callback URI、凭据格式与存量会话。旧插件能使用新网页，保留旧回调文本；历史登录没有 Cookie 时需首次网页登录。
-- OwnDsh callback 选择品牌完成页；MCP 共用 loopback 原语不注入 OwnDsh 跳转。
+- 保留 authorize 参数、`/token`、client_id、现有 callback URI、凭据格式与存量会话；只给 Harness 增加一个固定 Android callback。旧插件能使用新网页，保留旧回调文本；历史登录没有 Cookie 时需首次网页登录。
+- 原有 OwnDsh loopback callback 选择品牌完成页；MCP 共用 loopback 原语不注入 OwnDsh 跳转。iOS 与桌面保持既有路径，本轮 Android 适配不改 MCP。
+- Android 只替换企业登录 callback factory，保留锁定插件的业务、PKCE 和 token 流程；移动宿主注册固定 Intent 并以 generation、state、截止时间和一次性交付约束私有 IPC。必须 Server、Console 与 APK 配套，不能仅升级 APK 后宣称回调已接通。
 - 桌面沿用官方 Electron 协议注册与窗口聚焦，现有品牌补丁将 `dsh://open` 映射为 `owndsh://open`；macOS/Windows 安装注册由官方打包链路负责。不增加认证逻辑、第二套协议处理器或任意命令 IPC。
 - 插件发布和桌面 npm 精确锁升级分别交付。源码完成不能宣称已发布；macOS/Windows 实包验收状态单列。
 
 ## 6. 改动地图
 
-auth/application 增加浏览器会话批准/拒绝和审计；auth/web 提供公开账号摘要、授权与统一入口；contracts 增加 operation/schema 并派生；console 增加 `/authorize`、`/authorized` 并统一身份绑定表单；platform-client 支持专属完成页与取消；desktop 复用现有官方 scheme 品牌映射。同步 L1/L2/L3 和历史设计入口。
+auth/application 增加浏览器会话批准/拒绝和审计；auth/web 提供公开账号摘要、授权与统一入口；contracts 增加 operation/schema 并派生；console 增加 `/authorize`、`/authorized` 并统一身份绑定表单；platform-client 支持专属完成页与取消；desktop 复用现有官方 scheme 品牌映射。Android 扩展只触及 PlatformClient 精确 allowlist、Console 共享回调检查和独立移动仓库的企业 callback 适配，无新接口或数据库迁移。同步 L1/L2/L3 和历史设计入口。
 
 ## 7. 验收
 
@@ -67,6 +71,7 @@ auth/application 增加浏览器会话批准/拒绝和审计；auth/web 提供�
 - 客户端退出保留浏览器身份；浏览器退出保留客户端 Grant；设备撤销/owner 冲突不可绕过。
 - code/verifier 不混用；取消正确归类；MCP 不跳转；页面不提前宣称 READY。
 - 原生 scheme 构建配置有自动验证，处理器只接受固定链接；macOS/Windows 实包唤回分别记录。
+- Android 需在 OPPO/Edge 真机经公网完成新鲜密码与已有身份各至少两次，允许浏览器期间进程冻结但回调须唤回原引擎并达到 READY；另测后台 UI 重建、取消、过期和无活动事务拒绝。下方历史桌面/浏览器记录不代表该真机门禁已通过。
 
 ## 8. 实施记录
 
@@ -94,3 +99,11 @@ auth/application 增加浏览器会话批准/拒绝和审计；auth/web 提供�
 本次交互修订只修改 Console：共享 PKCE 完成器续授其保存的原事务，账号确认页与自动续授共用批准及回调校验，按钮改为“以 {username} 继续”。Console PKCE/授权/角色相关 65 项测试及 production build/TypeScript 通过，覆盖交换失败或 state 错误不续授、重放拒绝、事务替换拒绝、非法 loopback 拒绝和 URL 参数不能跳过已有会话确认；LOCAL/LDAP/OIDC 在实现上共用完成器，本轮真实提供方验证仍仅为 LOCAL。原插件包及本地 Server 可直接承接，无需新增接口或修改凭据格式。
 
 结果见 `.audit/unified-login-local-evidence.json`；本机截图在 `.tmp/unified-login-local/evidence/`，覆盖账号确认、无凭据完成页、Host 门禁解除及 390px 完成页。服务保留运行，自动化 Host 已停止。网页退出后的验证使用现有 Access Token 刷新 bootstrap，未将它作为 Refresh Grant 轮换证据；系统级 scheme 唤回、LDAP/OIDC 与模型聊天不在本轮范围。
+
+### 2026-11-24 Android 固定回调源码门禁
+
+Server 只给既有 Harness client 增加固定 URI；Console 在新鲜登录与已有身份批准/拒绝共用的边界增加对应校验。原有桌面 loopback、管理端回调和 token exchange 实现保持既有行为，无新 API、协议 schema 或数据库迁移。
+
+Java 21 门禁显式设置 `maven.test.skip=false`，使用真实 Redis 8：PlatformClientTest 2 项、PlatformAuthorizationSecurityTest 14 项全部通过且无跳过。Console 聚焦 PKCE/授权 45 项、TypeScript 与完整 production build 通过；本机 Node 24.13.0 低于声明的 24.15.0 下限并产生 engine 警告，该环境事实不扩大运行时兼容承诺。
+
+上述结果仅证明 Server/Console 源码与生产构建，未代表部署、APK 或 OPPO/Edge 真机验收完成。Android 的 IPC、超时/取消及系统唤醒由独立移动仓库记录；发布前仍须通过第 7 节真机门禁。

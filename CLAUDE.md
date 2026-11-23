@@ -59,6 +59,6 @@ Console 原生导航：固定装配官方 Plugins/Discover、自动化任务、M
 
 MCP 员工能力仍在唯一 `owndsh-plugin` 的 OwnDsh 设置中；公共配置和服务授权归 Console/Server，用户秘密归 Host credentials。MCP/OAuth 各地址统一接受管理员指定的 HTTP(S)，协议、发现、PKCE、token exchange、refresh、协商与分页均由官方 SDK/client 执行。端侧复用 Harness `0.2.2-rc.5` 官方 MCP client 的独立 fiber，并挂载官方 `dsh-mcp-resources`，按 Agent 搜索累加、显式释放和本步调用快照呈现工具；无自动 LRU/16工具/64KiB会话硬限。OwnDsh 只绑定凭据 owner/target、保存官方 SDK 的 client information/tokens 与短生命周期 discovery state/verifier，并提供系统浏览器和本机 loopback callback，不复制第二套 OAuth 协议。实现进度与官方 SDK v2 兼容性见 docs/mcp-implementation-plan.md。
 
-统一登录的现行实施契约见 [统一登录与客户端授权](docs/unified-login-design.md)：唯一 React 凭据页、独立浏览器会话与客户端 PKCE 授权，保留现有客户端协议及 RBAC；已按冻结方案实现，验证状态以该文档为准；原生实包与插件发布单独核对。
+统一登录的现行实施契约见 [统一登录与客户端授权](docs/unified-login-design.md)：唯一 React 凭据页、独立浏览器会话与客户端 PKCE 授权；Harness 在原有 IPv4 loopback 之外只额外接受固定 Android callback `com.owndsh.mobile://oauth/callback`，保留同一 client、installation、一次性 code 和 S256 绑定及 RBAC。验证状态以该文档为准；原生实包与发布部署单独核对。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
