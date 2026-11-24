@@ -16,7 +16,7 @@ remote-dsh-workspace-design.md: R1–R5 后 DSH 实际业务的实施契约，�
 remote-session-actions-verification-20261114.md: Markdown 复制与 rc.3 团队开关的原生调用、Host 精确准入和系统剪贴板及状态回显验收，区分隔离测试桥与尚未更新的生产部署。
 remote-native-navigation-verification-20261114.md: Console 原生 Plugins/Discover、自动化任务、完整 More 和预设选择的静态装配及精确 Host 准入，记录真实插件升级重装、任务 CRUD、关页定时执行及创造模式草稿与预设切换的隔离浏览器验收和待发布边界。
 
-unified-login-design.md: 统一登录实施真源，冻结新鲜登录直达授权完成、已有浏览器身份确认、独立客户端 PKCE、退出范围与桌面唤回，记录真实本地验收。
+unified-login-design.md: 统一登录实施真源，定义新鲜登录续授、已有身份确认、独立客户端 PKCE、退出范围、桌面 loopback 唤回和固定 Android callback 边界；历史本地验收与移动端待验收范围分列。
 
 dsh-022-rc5-compatibility-20261119.md: rc.5 精确源码比较、插件 beta.22 与 Console 同版适配、真实 Host/MCP/模型及桌面制品与更新 feed 的逐阶段验收和发布边界。
 

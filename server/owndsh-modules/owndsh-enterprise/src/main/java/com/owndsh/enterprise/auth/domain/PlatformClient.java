@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 接收协议固定的 client_id，并依赖部署配置的管理端精确 redirect URI。
- * [OUTPUT]: 对外提供 dsh-desktop/enterprise-admin 参数集合、redirect allowlist 与终端类型不变量。
+ * [OUTPUT]: 对外提供固定客户端参数与回调 allowlist；Harness 仅接受精确移动回调或 IPv4 loopback，管理端保持部署回调。
  * [POS]: auth 领域的固定 public client 真源，拒绝动态注册和两类客户端参数混用。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -17,6 +17,7 @@ public enum PlatformClient {
     DSH_DESKTOP("dsh-desktop", "harness"),
     ENTERPRISE_ADMIN("enterprise-admin", "console");
 
+    private static final String MOBILE_CALLBACK_URI = "com.owndsh.mobile://oauth/callback";
     private final String clientId;
     private final String deviceType;
 
@@ -44,7 +45,8 @@ public enum PlatformClient {
         Objects.requireNonNull(redirectUri, "redirectUri");
         switch (this) {
             case DSH_DESKTOP -> {
-                if (installationId == null || installationId.version() != 4 || !isLoopbackCallback(redirectUri)) {
+                if (installationId == null || installationId.version() != 4
+                    || !isLoopbackCallback(redirectUri) && !MOBILE_CALLBACK_URI.equals(redirectUri.toString())) {
                     throw new IllegalArgumentException("dsh-desktop 参数非法");
                 }
             }

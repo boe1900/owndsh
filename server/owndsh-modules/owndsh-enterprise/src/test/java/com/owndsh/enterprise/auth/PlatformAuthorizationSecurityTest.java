@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 PlatformAuthorizationService、真实 Redis store、PKCE/client policy 与 mock 身份/Access/Refresh 会话边界。
- * [OUTPUT]: 验证 PKCE 绕过、public base 派生管理回调、参数混用、一次性 code/事务、已有浏览器身份批准/拒绝，以及身份绑定只能使用指定源且不签发会话。
+ * [OUTPUT]: 验证 PKCE 绕过、固定移动/管理回调、参数混用、一次性 code/事务、浏览器批准/拒绝与身份绑定隔离。
  * [POS]: Authorization Code 与身份绑定共用状态机的安全门禁，所有一次性状态消费后都不能重放。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -74,6 +74,7 @@ class PlatformAuthorizationSecurityTest {
     private static final String CHALLENGE = Pkce.challenge(VERIFIER);
     private static final UUID INSTALLATION = UUID.fromString("123e4567-e89b-42d3-a456-426614174000");
     private static final URI REDIRECT = URI.create("http://127.0.0.1:18080/callback");
+    private static final URI MOBILE_REDIRECT = URI.create("com.owndsh.mobile://oauth/callback");
     private static final URI ADMIN_REDIRECT = URI.create("https://platform.example/enterprise/auth/callback");
     private static final RedissonClient REDIS = RedisTestServer.client();
 
@@ -315,6 +316,43 @@ class PlatformAuthorizationSecurityTest {
             null,
             "ENT_AUTH_CODE_INVALID"
         );
+    }
+
+    @Test
+    void keepsNativeAuthorizationBoundToRedirectProofInstallationAndClient() {
+        assertThat(service.authorize(
+            PlatformClient.DSH_DESKTOP, MOBILE_REDIRECT, "client-state-0001", "S256", CHALLENGE, INSTALLATION
+        )).startsWith("tx_");
+        assertBurned(
+            grant("native-redirect-mismatch-abcdefghijklmnopqrstuvwxyz123", MOBILE_REDIRECT),
+            PlatformClient.DSH_DESKTOP, REDIRECT, VERIFIER, INSTALLATION, "ENT_AUTH_CODE_INVALID"
+        );
+        assertBurned(
+            grant("native-path-mismatch-abcdefghijklmnopqrstuvwxyz1234567", MOBILE_REDIRECT),
+            PlatformClient.DSH_DESKTOP, URI.create("com.owndsh.mobile://oauth/other"),
+            VERIFIER, INSTALLATION, "ENT_AUTH_CODE_INVALID"
+        );
+        assertBurned(
+            grant("native-proof-mismatch-abcdefghijklmnopqrstuvwxyz123456", MOBILE_REDIRECT),
+            PlatformClient.DSH_DESKTOP, MOBILE_REDIRECT, "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            INSTALLATION, "ENT_PKCE_INVALID"
+        );
+        assertBurned(
+            grant("native-install-mismatch-abcdefghijklmnopqrstuvwxyz123", MOBILE_REDIRECT),
+            PlatformClient.DSH_DESKTOP, MOBILE_REDIRECT, VERIFIER,
+            UUID.fromString("123e4567-e89b-42d3-a456-426614174001"), "ENT_AUTH_CODE_INVALID"
+        );
+        assertBurned(
+            grant("native-client-mismatch-abcdefghijklmnopqrstuvwxyz12345", MOBILE_REDIRECT),
+            PlatformClient.ENTERPRISE_ADMIN, MOBILE_REDIRECT, VERIFIER, null, "ENT_AUTH_CODE_INVALID"
+        );
+        PlatformAuthorizationCode valid = grant("native-valid-once-abcdefghijklmnopqrstuvwxyz123456789", MOBILE_REDIRECT);
+        assertThat(store.createCode(valid)).isTrue();
+        assertThat(service.exchange(valid.code(), PlatformClient.DSH_DESKTOP, MOBILE_REDIRECT, VERIFIER, INSTALLATION)
+            .accessToken()).isEqualTo("issued-platform-token");
+        assertCode(() -> service.exchange(
+            valid.code(), PlatformClient.DSH_DESKTOP, MOBILE_REDIRECT, VERIFIER, INSTALLATION
+        ), "ENT_AUTH_CODE_INVALID");
     }
 
     @Test
@@ -596,17 +634,21 @@ class PlatformAuthorizationSecurityTest {
         assertCode(() -> service.exchange(grant.code(), client, redirect, verifier, installation), firstCode);
         assertCode(
             () -> service.exchange(
-                grant.code(), PlatformClient.DSH_DESKTOP, REDIRECT, VERIFIER, INSTALLATION
+                grant.code(), PlatformClient.DSH_DESKTOP, grant.redirectUri(), VERIFIER, INSTALLATION
             ),
             "ENT_AUTH_CODE_INVALID"
         );
     }
 
     private static PlatformAuthorizationCode grant(String code) {
+        return grant(code, REDIRECT);
+    }
+
+    private static PlatformAuthorizationCode grant(String code, URI redirect) {
         return new PlatformAuthorizationCode(
             code,
             PlatformClient.DSH_DESKTOP,
-            REDIRECT,
+            redirect,
             CHALLENGE,
             1761100000000000003L,
             INSTALLATION,

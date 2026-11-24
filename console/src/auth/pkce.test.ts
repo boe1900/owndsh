@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Vitest、Node 密码学参考实现、生成 API 与浏览器 PKCE 状态机。
- * [OUTPUT]: 验证 S256 一次性交换、新鲜登录只续授原客户端事务、失败不续授及安全返回路径。
+ * [OUTPUT]: 验证 S256 一次性交换、新鲜登录续授原事务、固定移动回调与 loopback 边界及安全返回路径。
  * [POS]: auth 的 HTTP 登录与返回路径回归，锁定客户端请求中的 proof 和回调使用同一 verifier。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -9,6 +9,7 @@ import { createHash, webcrypto } from 'node:crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { client } from '@/api/generated/client.gen';
 import { completeEnterpriseAdminLogin, normalizeReturnTo, startEnterpriseAdminLogin } from './pkce';
+import { decideClientAuthorization } from './browser';
 
 afterEach(() => {
   sessionStorage.clear();
@@ -112,6 +113,16 @@ describe('fresh login completes the original client authorization', () => {
     expect(requests).toHaveLength(4);
   });
 
+  it('hands a fresh login directly to the fixed mobile callback', async () => {
+    const mobileCallback = 'com.owndsh.mobile://oauth/callback?code=mobile-code&state=mobile-state';
+    const requests = setup(204, mobileCallback);
+    await expect(completeEnterpriseAdminLogin('?code=browser-code&state=browser-state'))
+      .resolves.toEqual({ returnTo: mobileCallback });
+    expect(await requests[3].json()).toEqual({
+      transactionId, csrfToken: transaction.csrfToken, userId: account.id, approved: true
+    });
+  });
+
   it.each(['invalid-state', 'exchange-rejected'])('does not authorize when %s', async failure => {
     const requests = setup(failure === 'exchange-rejected' ? 400 : 204);
     const completion = completeEnterpriseAdminLogin(`?code=browser-code&state=${failure === 'invalid-state' ? 'wrong' : 'browser-state'}`);
@@ -132,6 +143,49 @@ describe('fresh login completes the original client authorization', () => {
     setup(204, callbackUri);
     await expect(completeEnterpriseAdminLogin('?code=browser-code&state=browser-state'))
       .rejects.toThrow('ENT_INVALID_REDIRECT_URI');
+  });
+});
+
+describe('existing browser identity authorization', () => {
+  const transaction = { transactionId: 'transaction', csrfToken: 'csrf' };
+  const account = { id: '123', username: 'employee', displayName: 'Employee' };
+
+  function setup(redirectUri: string) {
+    client.setConfig({ baseUrl: window.location.origin });
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ data: { redirectUri } }), {
+      headers: { 'content-type': 'application/json' }
+    })));
+  }
+
+  it.each([
+    { redirectUri: 'com.owndsh.mobile://oauth/callback?code=mobile-code&state=mobile-state', approved: true },
+    { redirectUri: 'com.owndsh.mobile://oauth/callback?error=access_denied&state=mobile-state', approved: false },
+    { redirectUri: 'http://127.0.0.1:54321/callback?code=desktop-code&state=desktop-state', approved: true },
+  ])('keeps the registered callback $redirectUri', async ({ redirectUri, approved }) => {
+    setup(redirectUri);
+    await expect(decideClientAuthorization(transaction, account, approved)).resolves.toBe(redirectUri);
+  });
+
+  it.each([
+    'owndsh://oauth/callback?code=c&state=s',
+    'COM.OWNDSH.MOBILE://oauth/callback?code=c&state=s',
+    'com.owndsh.mobile://OAUTH/callback?code=c&state=s',
+    'com.owndsh.mobile://other/callback?code=c&state=s',
+    'com.owndsh.mobile://oauth:1234/callback?code=c&state=s',
+    'com.owndsh.mobile://user@oauth/callback?code=c&state=s',
+    'com.owndsh.mobile://oauth/%63allback?code=c&state=s',
+    'com.owndsh.mobile://oauth/callback/extra?code=c&state=s',
+    'com.owndsh.mobile://oauth/callback?code=c&state=s#fragment',
+    'com.owndsh.mobile://oauth/callback?code=c&state=s#',
+    'com.owndsh.mobile://oauth/callback?code=c&state=s&returnTo=https://other.example',
+    'com.owndsh.mobile://oauth/callback?code=c&state=s&state=other',
+    'com.owndsh.mobile://oauth/callback?code=c&state=s&code=other',
+    'com.owndsh.mobile://oauth/callback?code=c',
+    'com.owndsh.mobile://oauth/callback?code=&state=s',
+    'com.owndsh.mobile://oauth/callback?error=other&state=s',
+  ])('rejects an unregistered or malformed mobile callback %s', async redirectUri => {
+    setup(redirectUri);
+    await expect(decideClientAuthorization(transaction, account, true)).rejects.toThrow('ENT_INVALID_REDIRECT_URI');
   });
 });
 
