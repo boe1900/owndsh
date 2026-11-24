@@ -106,4 +106,6 @@ Server 只给既有 Harness client 增加固定 URI；Console 在新鲜登录与
 
 Java 21 门禁显式设置 `maven.test.skip=false`，使用真实 Redis 8：PlatformClientTest 2 项、PlatformAuthorizationSecurityTest 14 项全部通过且无跳过。Console 聚焦 PKCE/授权 45 项、TypeScript 与完整 production build 通过；本机 Node 24.13.0 低于声明的 24.15.0 下限并产生 engine 警告，该环境事实不扩大运行时兼容承诺。
 
-上述结果仅证明 Server/Console 源码与生产构建，未代表部署、APK 或 OPPO/Edge 真机验收完成。Android 的 IPC、超时/取消及系统唤醒由独立移动仓库记录；发布前仍须通过第 7 节真机门禁。
+2026-11-24 已将本轮 Server/Console 部署到 NAS，部署前保留配置与旧镜像记录。完整 resolved Compose 比较确认仅替换两项应用 image；数据库、Redis、公开 Origin、密码、验证码及 Tunnel 配置未改。两个应用均健康，公网 `/healthz` 与 `/login` 返回200，固定 Android authorize 返回303，尾斜线变体返回400，原 loopback 返回303。无需数据库迁移。
+
+配套移动候选 `0.1.0-dev.6.4` 在 OPPO Find X6 / Android15 / Edge155.0.4283.48 上，经公网完成新鲜密码与已有身份确认各两轮 `READY`；其中一轮在浏览器前台终结 UI 后，新 Activity 仍接回原引擎。返回后 started/foreground 资格释放，无活动事务回调被忽略。测试未连接浏览器调试器，也未通过 HTTP 探测维持后台执行。另一次原生回调已唤回冻结引擎，但后续公网请求超时，不能归为完整登录通过或宣称公网稳定。移动端实现、取消/期限边界与设备证据由独立移动仓库的 `lifecycle-design.md` 记录；本轮不扩大到 iOS、其他厂商或身份提供方。
