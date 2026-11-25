@@ -1,12 +1,14 @@
 /**
  * [INPUT]: 依赖 RemoteWebSocketHandler、Remote v1 hello fixture 和 Netty EmbeddedChannel。
- * [OUTPUT]: 证明 Java carrier 返回有效 hello.ack，并拒绝坏字段、二进制帧和非法 Cookie。
+ * [OUTPUT]: 验证 carrier 消息边界，以及 Cookie 握手的可信 Origin、拒绝和请求回收。
  * [POS]: remote/ carrier 边界回归，不启动 Redis、数据库或业务 RPC。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.owndsh.enterprise.remote;
 
+import com.owndsh.enterprise.auth.EnterpriseIdentityProperties;
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.DefaultHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpMethod;
@@ -16,13 +18,20 @@ import io.netty.handler.codec.http.websocketx.CloseWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.nio.charset.StandardCharsets;
-import java.util.function.Predicate;
+import java.net.URI;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @Tag("dev")
@@ -65,27 +74,98 @@ class RemoteWebSocketHandlerTest {
         channel.finishAndReleaseAll();
     }
 
-    @Test
-    void acceptsAdminCookieDuringUpgrade() {
+    @ParameterizedTest
+    @ValueSource(strings = {"https://console.example.test", "http://127.0.0.1:62209"})
+    void acceptsAdminCookieFromPublicOrConfiguredDevOrigin(String origin) {
+        EmbeddedChannel channel = cookieUpgradeChannel();
+        try {
+            DefaultFullHttpRequest request = cookieUpgrade();
+            request.headers().set(HttpHeaderNames.ORIGIN, origin);
+            assertTrue(channel.writeInbound(request));
+            assertTrue(channel.isOpen());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(strings = {"null", "https://other.example.test", "https://console.example.test:8443"})
+    void rejectsAdminCookieWithoutTrustedOrigin(String origin) {
+        EmbeddedChannel channel = cookieUpgradeChannel();
+        try {
+            DefaultFullHttpRequest request = cookieUpgrade();
+            if (origin != null) request.headers().set(HttpHeaderNames.ORIGIN, origin);
+            assertFalse(channel.writeInbound(request));
+            assertFalse(channel.isOpen());
+            assertNull(channel.attr(RemoteUpgradeAuthHandler.PEER_IDENTITY).get());
+            assertNull(channel.attr(RemoteUpgradeAuthHandler.SESSION_ACTIVE).get());
+            assertEquals(0, request.refCnt());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void usesExplicitRemoteOriginInPlaceOfPublicOrigin(boolean matches) {
         RemoteNettyProperties properties = new RemoteNettyProperties();
-        Predicate<String> validator = "cookie-token"::equals;
-        EmbeddedChannel channel = new EmbeddedChannel(new RemoteUpgradeAuthHandler(properties, validator));
-        DefaultHttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, RemoteProtocol.WEBSOCKET_PATH);
-        request.headers().set(HttpHeaderNames.COOKIE, "enterprise-admin=cookie-token");
-        channel.writeInbound(request);
-        assertTrue(channel.isOpen());
-        channel.finishAndReleaseAll();
+        properties.setAllowedOrigin("https://remote.example.test");
+        EmbeddedChannel channel = cookieUpgradeChannel(properties);
+        try {
+            DefaultFullHttpRequest request = cookieUpgrade();
+            request.headers().set(HttpHeaderNames.ORIGIN, matches ? "https://remote.example.test" : "https://console.example.test");
+            assertEquals(matches, channel.writeInbound(request));
+            assertEquals(matches, channel.isOpen());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void rejectsMultipleOriginHeaders() {
+        EmbeddedChannel channel = cookieUpgradeChannel();
+        try {
+            DefaultFullHttpRequest request = cookieUpgrade();
+            request.headers().add(HttpHeaderNames.ORIGIN, "https://console.example.test");
+            request.headers().add(HttpHeaderNames.ORIGIN, "https://other.example.test");
+            assertFalse(channel.writeInbound(request));
+            assertFalse(channel.isOpen());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
     }
 
     @Test
     void storesAuthenticatedPeerIdentityAtUpgradeBoundary() {
         RemoteNettyProperties properties = new RemoteNettyProperties();
         RemotePeerIdentity expected = new RemotePeerIdentity("tenant", 7, "harness", "installation");
-        EmbeddedChannel channel = new EmbeddedChannel(new RemoteUpgradeAuthHandler(properties, (RemotePeerAuthenticator) token -> Optional.of(expected)));
+        EmbeddedChannel channel = new EmbeddedChannel(new RemoteUpgradeAuthHandler(properties, token -> Optional.of(expected), Set.of()));
         DefaultHttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, RemoteProtocol.WEBSOCKET_PATH);
         request.headers().set(HttpHeaderNames.AUTHORIZATION, "Bearer access-token");
         channel.writeInbound(request);
         assertEquals(expected, channel.attr(RemoteUpgradeAuthHandler.PEER_IDENTITY).get());
         channel.finishAndReleaseAll();
+    }
+
+    private static EmbeddedChannel cookieUpgradeChannel() {
+        return cookieUpgradeChannel(new RemoteNettyProperties());
+    }
+
+    private static EmbeddedChannel cookieUpgradeChannel(RemoteNettyProperties properties) {
+        EnterpriseIdentityProperties identity = new EnterpriseIdentityProperties();
+        identity.setPublicBaseUrl(URI.create("https://Console.Example.Test:443/"));
+        identity.setConsoleDevOrigins(List.of(URI.create("http://127.0.0.1:62209")));
+        RemotePeerAuthenticator authenticator = token -> "cookie-token".equals(token)
+            ? Optional.of(new RemotePeerIdentity("tenant", 7, "console", "session"))
+            : Optional.empty();
+        return new EmbeddedChannel(new RemoteUpgradeAuthHandler(
+            properties, authenticator, EnterpriseRemoteConfiguration.consoleOrigins(identity)));
+    }
+
+    private static DefaultFullHttpRequest cookieUpgrade() {
+        DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, RemoteProtocol.WEBSOCKET_PATH);
+        request.headers().set(HttpHeaderNames.COOKIE, "__Host-enterprise-admin=cookie-token");
+        return request;
     }
 }

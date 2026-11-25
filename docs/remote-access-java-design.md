@@ -1,6 +1,6 @@
 <!--
 [INPUT]: docs/remote-access-implementation-design.md 的 Java Server 章节、OwnDsh 现有 Spring/Netty/Redis/PostgreSQL 边界。
-[OUTPUT]: 提供 Remote Java Server 的模块、实际 Netty pipeline、Channel 发送预算与在途语义、状态处理和部署边界。
+[OUTPUT]: 提供 Remote Java Server 的模块、Netty 握手准入、Channel 发送预算与在途语义、状态处理和部署边界。
 [POS]: OwnDsh Remote 的 Java Server 实施附录，被主实施文档引用；不拥有 Remote wire schema。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
@@ -48,6 +48,8 @@ Spring MVC 负责 REST、业务授权和数据库事务；Netty 负责 Remote We
   → RemoteWebSocketHandler（文本大小、JSON envelope、协议字段）
   → RemoteGateway（授权、Link 状态、发送预算）
 ```
+
+Cookie 握手须在升级前提交唯一且受信任的 `Origin`。默认信任 `ENT_PUBLIC_BASE_URL` 的 scheme、host 和 port，以及 `ENT_CONSOLE_DEV_ORIGINS` 中已校验的 loopback 调试来源。缺失、多值和 `null` 来源均被拒绝。显式配置 `ENT_REMOTE_ALLOWED_ORIGIN` 时，所有握手都必须精确匹配该值。默认配置下，Bearer 握手可省略 `Origin`。
 
 Gateway 的 monitor 串行处理 Link 和发送准入。每个 Channel attribute 独立保存未完成写入的字节、帧数和 OPEN/STOPPED/CLOSE_SENT 状态。所有 Gateway JSON 共用一个发送入口，按实际序列化 UTF-8 字节加 10 字节 WebSocket header 预留预算，上限为 4 MiB 和 256 帧，恰好上限可接纳。预算在 `writeAndFlush` 前预留，因此包含目标 eventloop 尚未执行的任务。Netty 维护原有出站顺序，不新增 FIFO，不因临时 `isWritable=false` 关闭，也不提高水位。
 

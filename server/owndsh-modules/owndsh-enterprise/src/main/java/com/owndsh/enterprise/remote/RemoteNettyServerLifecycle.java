@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 RemoteNettyProperties、JsonMapper 和 Remote handlers。
+ * [INPUT]: 依赖 RemoteNettyProperties、可信 Console Origin、JsonMapper 和 Remote handlers。
  * [OUTPUT]: 提供可优雅停止的 Netty WebSocket listener，默认不抢占现有 Jetty HTTP 端口。
  * [POS]: remote 的 transport composition root；TLS、Origin 和 frame 上限在 pipeline 边界执行。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -23,50 +23,32 @@ import io.netty.handler.timeout.IdleStateHandler;
 import org.springframework.context.SmartLifecycle;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Predicate;
 
 public final class RemoteNettyServerLifecycle implements SmartLifecycle {
     private final RemoteNettyProperties properties;
     private final JsonMapper json;
-    private final Predicate<String> tokenValidator;
     private final RemotePeerAuthenticator peerAuthenticator;
     private final RemoteGateway gateway;
+    private final Set<String> consoleOrigins;
     private volatile boolean running;
     private EventLoopGroup boss;
     private EventLoopGroup workers;
     private Channel channel;
 
-    public RemoteNettyServerLifecycle(RemoteNettyProperties properties, JsonMapper json, Predicate<String> tokenValidator) {
-        this(properties, json, tokenValidator, new RemoteGateway(json, RemoteGatewayAuthorizer.rejecting()));
-    }
-
-    public RemoteNettyServerLifecycle(
-        RemoteNettyProperties properties,
-        JsonMapper json,
-        Predicate<String> tokenValidator,
-        RemoteGateway gateway
-    ) {
-        this.properties = properties;
-        this.json = json;
-        this.tokenValidator = tokenValidator;
-        this.gateway = gateway;
-        this.peerAuthenticator = token -> tokenValidator.test(token)
-            ? java.util.Optional.of(new RemotePeerIdentity("unknown", 1, "unknown", "unknown"))
-            : java.util.Optional.empty();
-    }
-
     public RemoteNettyServerLifecycle(
         RemoteNettyProperties properties,
         JsonMapper json,
         RemotePeerAuthenticator peerAuthenticator,
-        RemoteGateway gateway
+        RemoteGateway gateway,
+        Set<String> consoleOrigins
     ) {
         this.properties = properties;
         this.json = json;
-        this.tokenValidator = token -> peerAuthenticator.authenticate(token).isPresent();
         this.peerAuthenticator = peerAuthenticator;
         this.gateway = gateway;
+        this.consoleOrigins = Set.copyOf(consoleOrigins);
     }
 
     @Override
@@ -89,7 +71,7 @@ public final class RemoteNettyServerLifecycle implements SmartLifecycle {
                         if (ssl != null) socket.pipeline().addLast(ssl.newHandler(socket.alloc()));
                         socket.pipeline().addLast(new HttpServerCodec());
                         socket.pipeline().addLast(new HttpObjectAggregator(properties.getMaxFrameBytes()));
-                        socket.pipeline().addLast(new RemoteUpgradeAuthHandler(properties, peerAuthenticator));
+                        socket.pipeline().addLast(new RemoteUpgradeAuthHandler(properties, peerAuthenticator, consoleOrigins));
                         socket.pipeline().addLast(new WebSocketServerProtocolHandler(RemoteProtocol.WEBSOCKET_PATH, null, true, properties.getMaxFrameBytes()));
                         socket.pipeline().addLast(new IdleStateHandler(0, 25, 75));
                         socket.pipeline().addLast(new RemoteWebSocketHandler(json, properties.getMaxFrameBytes(), gateway));

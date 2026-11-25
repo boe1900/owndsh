@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 RemoteNettyServerLifecycle、JDK WebSocket client 和测试用 RemotePeerAuthenticator。
- * [OUTPUT]: 证明真实 TCP/HTTP Upgrade、Bearer 鉴权、WebSocket 文本帧和 hello.ack 可以跨进程边界工作。
+ * [OUTPUT]: 验证真实 TCP/HTTP Upgrade、Bearer 与同源 Cookie 鉴权，以及 WebSocket hello.ack。
  * [POS]: remote/ carrier 真实 loopback 网络级门禁；不启动 Redis、PostgreSQL、WebRTC 或业务 RPC。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -24,6 +24,7 @@ import java.security.cert.X509Certificate;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
@@ -43,13 +44,14 @@ import static org.mockito.ArgumentMatchers.nullable;
 class RemoteNettyServerLifecycleTest {
     private static final String HASH = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
-    @Test
-    void acceptsRealWebSocketUpgradeAndReturnsHelloAck() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void acceptsRealWebSocketUpgradeAndReturnsHelloAck(boolean browser) throws Exception {
         RemoteNettyProperties properties = new RemoteNettyProperties();
         properties.setEnabled(true);
         properties.setBindAddress("127.0.0.1");
         properties.setPort(freePort());
-        properties.setAllowedOrigin("http://127.0.0.1:3000");
+        String origin = "http://127.0.0.1:" + properties.getPort();
 
         RemotePeerAuthenticator authenticator = token -> "host-token".equals(token)
             ? Optional.of(new RemotePeerIdentity("tenant-a", 42L, "PLUGIN", "9001"))
@@ -58,18 +60,21 @@ class RemoteNettyServerLifecycleTest {
             properties,
             JsonMapper.builder().build(),
             authenticator,
-            new RemoteGateway(JsonMapper.builder().build(), authenticatedPeers())
+            new RemoteGateway(JsonMapper.builder().build(), authenticatedPeers()),
+            Set.of(origin)
         );
         HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
         CompletableFuture<String> response = new CompletableFuture<>();
         WebSocket socket = null;
         try {
             lifecycle.start();
-            socket = client.newWebSocketBuilder()
-                .connectTimeout(Duration.ofSeconds(2))
-                .header("Authorization", "Bearer host-token")
-                .header("Origin", "http://127.0.0.1:3000")
-                .buildAsync(
+            WebSocket.Builder upgrade = client.newWebSocketBuilder().connectTimeout(Duration.ofSeconds(2));
+            if (browser) {
+                upgrade.header("Cookie", "enterprise-admin=host-token").header("Origin", origin);
+            } else {
+                upgrade.header("Authorization", "Bearer host-token");
+            }
+            socket = upgrade.buildAsync(
                     URI.create("ws://127.0.0.1:" + properties.getPort() + RemoteProtocol.WEBSOCKET_PATH),
                     new HelloListener(response)
                 )
@@ -104,7 +109,8 @@ class RemoteNettyServerLifecycleTest {
             properties,
             JsonMapper.builder().build(),
             authenticator,
-            new RemoteGateway(JsonMapper.builder().build(), authenticatedPeers())
+            new RemoteGateway(JsonMapper.builder().build(), authenticatedPeers()),
+            Set.of()
         );
         HttpClient client = insecureTestClient();
         CompletableFuture<String> response = new CompletableFuture<>();
@@ -153,7 +159,8 @@ class RemoteNettyServerLifecycleTest {
             properties,
             JsonMapper.builder().build(),
             authenticator,
-            new RemoteGateway(JsonMapper.builder().build(), authenticatedPeers())
+            new RemoteGateway(JsonMapper.builder().build(), authenticatedPeers()),
+            Set.of()
         );
         Process probe = null;
         try {

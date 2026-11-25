@@ -47,6 +47,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Set;
 import java.net.URI;
 import java.util.UUID;
 
@@ -270,9 +271,12 @@ class OwnDshPlatformSessionGatewayTest {
         String otherBrowser = logic.createLoginSession(LOGIN_ID, admin("admin-" + UUID.randomUUID()));
         OwnDshRemotePeerAuthenticator authenticator = new OwnDshRemotePeerAuthenticator(properties);
         assertThat(authenticator.authenticate(browser)).contains(new RemotePeerIdentity(properties.getTenantId(), USER_ID, "console", sessionId));
-        EmbeddedChannel carrier = new EmbeddedChannel(new RemoteUpgradeAuthHandler(new RemoteNettyProperties(), authenticator));
+        String origin = properties.getPublicBaseUrl().toString();
+        EmbeddedChannel carrier = new EmbeddedChannel(new RemoteUpgradeAuthHandler(
+            new RemoteNettyProperties(), authenticator, Set.of(origin)));
         var upgrade = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/remote/ws");
-        upgrade.headers().set("Cookie", "enterprise-admin=" + browser);
+        upgrade.headers().set("Cookie", AdminSessionCookie.name(properties.getPublicBaseUrl()) + "=" + browser);
+        upgrade.headers().set("Origin", origin);
         assertThat(carrier.writeInbound(upgrade)).isTrue();
         ((DefaultFullHttpRequest) carrier.readInbound()).release();
         var revalidate = carrier.attr(RemoteUpgradeAuthHandler.SESSION_ACTIVE).get();

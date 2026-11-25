@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 接收部署显式配置的管理端本地调试 origin 集合（enterprise.console-dev-origins）。
- * [OUTPUT]: 对外提供 loopback-only 启动校验、console 调试回调精确匹配与 Origin/Referer scheme/host/port 匹配的不可变白名单。
+ * [OUTPUT]: 提供不可变的 loopback-only 调试来源、精确 Console 回调和 Origin/Referer scheme/host/port 匹配。
  * [POS]: auth 领域的部署级调试边界，与 PlatformClient 的 public base 精确回调互补；默认空即行为不变，永不放行非 loopback 主机。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -65,6 +65,10 @@ public final class ConsoleDevOrigins {
 
     public boolean isEmpty() {
         return origins.isEmpty();
+    }
+
+    public Set<URI> origins() {
+        return origins;
     }
 
     private static URI validate(URI value) {
