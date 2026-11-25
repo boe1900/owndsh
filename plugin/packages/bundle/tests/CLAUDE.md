@@ -7,10 +7,11 @@ bundle.spec.ts: 验证安装配置、dsh.bundle/dsh.client、credentials/pi-ai/�
 mcp-oauth.spec.ts: 验证官方 StoredOAuth* 持久化、discovery/issuer/iss 绑定、失效与取消生命周期。
 mcp-pi-search.spec.ts: 验证英文 tokenizer、schema 文档、BM25 排名和曝光覆写优先级。
 mcp-runtime.spec.ts: 验证 Pi 风格曝光、英文 tool_search、Agent 隔离、下一轮 assembly、本步未声明与定义替换的拒执行分类、scoped executor，以及闲置租约同一步恢复和持续失效拒执行。
+remote-carrier-fixture.ts: 用官方 Peer 提供可控的 Gateway 流与 Cookie 准入，供远程 HTTP 和订阅用例验证所有权与回收。
 remote-carrier.spec.ts: 验证跨帧二进制原样传输、取消与在途帧交错、有界流和文件路径准入。
 remote-ego.spec.ts: 验证能力三方门禁、watcher 私有化/限额/幂等回收、start 关闭竞态、输入释放及在途撤权。
 remote-key.spec.ts: 验证重启复用、公钥与私钥一致、用户/平台/installation隔离和损坏记录拒绝。
-remote-native-carrier.spec.ts: 验证独立API cookie只留Host、HTTP/WS共用Peer、远端插件库存准入与通用设置隔离、取消流回收、慢消费心跳与有界队列关闭。
+remote-native-carrier.spec.ts: 验证 HTTP 与进程内 Gateway 共用官方 Peer、断开撤销 Cookie、终端输入半关闭，以及大消息完整性、增量顺序、链路隔离、取消回收和订阅错误隔离。
 remote-navigation-boundary.spec.ts: 真实 HTTP/WS 验证 25 个插件/市场/任务 RPC 字节不变且只转发一次、同一 owner 事件、两条插件图片 GET/query/body 门禁和设置/凭据/版本豁免拒绝。
 remote-network-boundary.spec.ts: 验证平台 Origin/Bearer Upgrade、Markdown 字节与 GET/HEAD/query 边界、原生团队开关及管理接口拒绝、文件与 Office RPC 方法绑定、搜索 scope、rc.3子Agent中断、媒体版本重定向约束与 baseFile 语义隔离。
 remote-runtime.spec.ts: 验证登录、刷新、退出、设备撤销和销毁都同步到 Remote presence。
