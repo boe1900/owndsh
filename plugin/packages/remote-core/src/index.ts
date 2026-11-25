@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 noise/carrier 的密码与流量边界，以及既有 fragment/counter/lease 参数。
- * [OUTPUT]: 对外提供完整 Noise IK、密文内 carrier 帧、字节信用和既有纯逻辑 facade。
+ * [OUTPUT]: 对外提供 Noise IK、密文内 carrier 帧、mux 大消息契约、字节信用和既有纯逻辑 facade。
  * [POS]: remote 的平台无关核心；不依赖 React、Node、Netty、WebRTC 或 Typert。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -10,6 +10,10 @@ export * from './noise.js'
 export * from './carrier.js'
 export * from './carrier-types.js'
 export * from './carrier-tunnel.js'
+export {
+  MAX_MUX_TRANSFER_BYTES, MUX_TRANSFER_TIMEOUT_MS, MUX_TRANSFER_PATH_PREFIX, muxTransferPath,
+  muxTransferDescriptorSchema, muxTransferAckSchema, type MuxTransferDescriptor, type MuxTransferAck,
+} from './mux-transfer.js'
 export * from './secure-link.js'
 export const MAX_FRAGMENT_BYTES = 16_384
 export const MAX_REASSEMBLED_BYTES = 65_536

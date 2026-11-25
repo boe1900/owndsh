@@ -5,7 +5,7 @@
 成员清单
 
 README.md: npm 员工用户入口，说明 `next` 安装、Server 登录、官方 Discover 自定义索引与兼容基线。
-package.json: beta.22 npm 发布清单与 `dsh.bundle`/`dsh.client` 双入口，官方 Harness 依赖锁定 `0.2.2-rc.5`，Client 只注入设置页、布局和官方 Remote 所需服务，不创建未绑定 workspace 的技能会话；MCP OAuth/transport 使用官方 `@modelcontextprotocol/client` 2.2，检索使用 Pi vendored 英文 BM25 纯逻辑。
+package.json: beta.23 npm 发布清单与 `dsh.bundle`/`dsh.client` 双入口，官方 Harness 依赖锁定 `0.2.2-rc.5`，Client 只注入设置页、布局和官方 Remote 所需服务，不创建未绑定 workspace 的技能会话；MCP OAuth/transport 使用官方 `@modelcontextprotocol/client` 2.2，检索使用 Pi vendored 英文 BM25 纯逻辑。
 screenshots.json: 社区市场从插件源码目录读取的四张原始截图清单，通过 GitHub 固定提交 URL 复用 docs/assets 媒体并控制展示顺序，不改变 npm 运行包。
 tsconfig.json: bundle Host 公开声明的 emit-only TypeScript 边界，通过 workspace 声明消费产品模块，并局部跳过链接上游损坏声明检查。
 cordis.patch.yml: 官方 profile layer，覆盖企业 default、停用 API Key/个人账号 provider 与模型设置并插入 OwnDsh，同时启用 DSH 官方 plugin-market 与 Discover 页面；备用市场行使用独立 entry id，官方可选 bundle 同时存在时按模块身份禁用备用行，避免 Settings 重复配置；MCP resources 复用 0.2.2-rc.5 base 已有 row。
@@ -18,11 +18,12 @@ src/mcp-pi-search.ts: Pi MIT 纯逻辑 vendoring（基线 `3dd803d`）；提供�
 src/mcp-oauth.ts: 官方 MCP SDK v2 `OAuthClientProvider` 的宿主接缝；以确定性摘要隔离 grant，持久化官方 client information/tokens，短生命周期保存 SDK discovery/verifier 以绑定授权回调，并交接系统浏览器与 loopback callback，不实现 OAuth 协议。
 src/remote/: 本人设备的安全 DSH workspace 链路，显式 Host 开关、持久身份、完整 Noise IK、租约、字节信用和原生 HTTP/WS carrier；API Peer cookie 留在远端 Host，不复制 Gateway codec。
 tests/remote-carrier.spec.ts: 真实 HTTP 大体积二进制流、mux Unicode 跨片重组、信用背压、取消与在途响应/错误交错及 realpath 路径约束。
-tests/remote-native-carrier.spec.ts: 真实 HTTP/WS 的原生 API cookie 隔离、独立 Peer 共用、慢消费时 Ping/Pong 与有序续读、4 MiB 累计队列超限关闭、远端插件目录读取与通用设置隔离、端点准入、连续取消超过流上限及迟到帧丢弃、关闭释放。
+tests/remote-carrier-fixture.ts: 使用官方 Peer 的 Gateway 测试端口，记录 Cookie 准入和释放，向 HTTP 路由用例注入流源。
+tests/remote-native-carrier.spec.ts: 进程内 Gateway 与真实 HTTP 的原生 Cookie 隔离，验证大首屏保序、单订阅超限、一次性读取、终端半关闭、取消和 Peer 释放。
 tests/remote-ego.spec.ts: 可选 Ego 安装/版本/禁用门禁、watcher 隔离与限额、幂等 stop、start/close 竞态、按键释放及在途流撤权。
-tests/remote-navigation-boundary.spec.ts: 真实 HTTP/WS 的精确插件管理、市场、自动化 RPC 字节转发与同一 owner 事件，以及文档图片 GET/query/body 门禁和通用设置/凭据/版本豁免隔离。
+tests/remote-navigation-boundary.spec.ts: 真实 HTTP 和进程内 Gateway 的精确插件管理、市场、自动化 RPC 转发与同一 owner 事件，覆盖文档图片门禁和通用管理能力隔离。
 tests/remote-network-boundary.spec.ts: 真实 Upgrade 的平台 Origin/Bearer 隔离、Markdown 只读查询和团队开关，以及文件与 Office RPC 方法绑定、工作区范围、软链越界和 baseFile 路径伪装的准入前拒绝。
-tests/remote-secure-link.spec.ts: 双端真实 Noise 与冻结 Remote wire 身份的进程内控制面路由，验证握手/租约门禁、密文传输、撤权、过期和旧 socket 隔离。
+tests/remote-secure-link.spec.ts: 双端真实 Noise 与冻结 Remote wire 身份的进程内控制面路由，验证握手、租约门禁、carrier 修订拒绝、密文传输、撤权、过期和旧 socket 隔离。
 tests/remote-key.spec.ts: 官方 credentials 契约下的 Host 静态密钥重启复用、owner 维度隔离与损坏记录拒绝。
 tests/remote-workspace-runtime.spec.ts: 产品 Host 默认关闭、显式开启、再开启复用身份、平台撤销清理、设备目录分页/循环拒绝，以及 error/connect.reject 占用原因保留与 socket 释放。
 tests/remote-view-registry.spec.ts: 重连先释放旧链路、失败保留目标可重试，成功后新 view URL 隔离且设备存储 authority 稳定；真实 HTTP 验证创建/重连占用只返回固定 409，未知故障仍脱敏为 503。

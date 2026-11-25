@@ -5,7 +5,7 @@
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { describe, it, expect, vi } from 'vitest'
-import { encodeKey, generateNoiseKeyPair, deferred, NoiseSession, decodeCarrierFrame, encodeCarrierFrame } from '@owndsh/remote-core'
+import { encodeKey, generateNoiseKeyPair, deferred, NoiseSession, decodeCarrierFrame, encodeCarrierFrame, DSH_CARRIER_VERSION } from '@owndsh/remote-core'
 import { remoteProtocolSha256, parseRemoteControlFrame, parseRemoteRelayFrame, type RemoteControlFrame } from '@owndsh/contracts'
 import { SecureDshLink, remoteFrameId } from '../src/remote/secure-link.js'
 import { RemoteServerConnection, type RemoteSocketLike } from '../src/remote/server-connection.js'
@@ -58,6 +58,23 @@ async function linked(carrier: DshCarrier, ttl = 60_000) {
 }
 
 describe('secure DSH link', () => {
+  it('rejects a Host with the same Harness version and no carrier revision before admitting business', async () => {
+    const encrypt = NoiseSession.prototype.encrypt
+    const oldHost = vi.spyOn(NoiseSession.prototype, 'encrypt').mockImplementation(function (this: NoiseSession, bytes) {
+      if (decodeCarrierFrame(bytes).kind !== 'ready') return encrypt.call(this, bytes)
+      const oldReady = new TextEncoder().encode(JSON.stringify({ kind: 'ready', version: DSH_CARRIER_VERSION }))
+      return encrypt.call(this, oldReady)
+    })
+    let calls = 0
+    const fixture = await linked({ async fetch() { calls++; return new Response('remote') }, async openMux() { throw new Error('unused') }, close() {} })
+    try {
+      fixture.accept()
+      await expect(fixture.clientLink.ready.promise).rejects.toThrow()
+      expect(fixture.clientLink.signal.aborted).toBe(true)
+      expect(() => fixture.clientLink.fetch('/api/session/list', { method: 'POST', headers: {} })).toThrow()
+      expect(calls).toBe(0)
+    } finally { fixture.close(); oldHost.mockRestore() }
+  })
   it('rejects an authenticated old Host ready before admitting any business request', async () => {
     const encrypt = NoiseSession.prototype.encrypt
     const oldHost = vi.spyOn(NoiseSession.prototype, 'encrypt').mockImplementation(function (this: NoiseSession, bytes) {

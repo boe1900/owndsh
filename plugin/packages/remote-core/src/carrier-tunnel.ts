@@ -1,11 +1,12 @@
 /**
  * [INPUT]: 依赖已经完成 Noise/lease 的密文发送边界、字节信用流和 Host 原生 carrier。
- * [OUTPUT]: 提供 HTTP 请求/响应流与原生 WS 文本 mux 的双端隧道，取消后丢弃在途尾帧。
+ * [OUTPUT]: 提供 HTTP 请求/响应流与原生文本 mux；控制端在交付前经同 link 请求大消息。
  * [POS]: remote 链路的业务 carrier；每通道有界，不重试 mutation，不解释原生 RPC 结果。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { deferred, type Deferred, CarrierPipe, MAX_CARRIER_CHANNELS, MAX_MUX_MESSAGE_BYTES, type CarrierFrame, type CarrierSender } from './carrier.js'
 import { dshPath, safeHeaders, remoteUuid, type DshCarrier, type DshFetchInit, type RemoteDshMux } from './carrier-types.js'
+import { receiveMuxTransfers } from './mux-transfer.js'
 
 interface Channel {
   readonly pipe: CarrierPipe
@@ -79,7 +80,7 @@ export class CarrierTunnel {
     if (frame.kind !== 'mux.ready') { this.cancel(id); throw new Error('ENT_REMOTE_PROTOCOL') }
     let pending = 0
     let tail = Promise.resolve()
-    return {
+    return receiveMuxTransfers({
       send: text => {
         const bytes = new TextEncoder().encode(text)
         if (!bytes.length || pending + bytes.length > MAX_MUX_MESSAGE_BYTES) return Promise.reject(new Error('ENT_REMOTE_LIMIT'))
@@ -90,7 +91,7 @@ export class CarrierTunnel {
       },
       messages: muxMessages(channel.pipe, () => this.cancel(id)),
       close: () => this.cancel(id),
-    }
+    }, channel.abort.signal, (path, signal) => this.fetch(path, { method: 'GET', headers: {}, signal }))
   }
 
   private send(frame: CarrierFrame): Promise<void> { this.signal.throwIfAborted(); return this.sender(frame) }

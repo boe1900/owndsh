@@ -1,6 +1,6 @@
 <!--
 [INPUT]: OwnDsh 员工登录/设备归属与 Remote v1、官方 Harness 0.2.1-rc.5 的原生 UI 和 owner API Peer、ds-harness-remote 4ec80b1。
-[OUTPUT]: 提供 R1–R5 后首个 DSH 实际业务的页面、授权、加密 carrier、原生 Host 与双机业务和稳定性验收契约。
+[OUTPUT]: 提供 DSH 远程工作区的页面、授权、加密 carrier、稳定性验收和大消息传输设计。
 [POS]: 插件控制插件的实施规格；基础连接与后续独立 Web/Android 方案分别留在原有文档。
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
@@ -10,6 +10,8 @@
 2026-11-11。插件端首个 DSH 远程工作区已实现，按下文范围验收。只支持 DSH 原生工作区，不建立 Codex、ACP 或多后端 adapter。首次实施基线为 main `82e7ac311`，NAS 双机验收使用 `663c43e`。DSH 使用已锁定的 npm `0.2.1-rc.5`；依赖升级另按兼容性检查表验证。
 
 2026-11-14 后续边界：当前依赖已迁移至 rc.3。共享 Host 准入新增原生插件管理、自动化任务及两条只读插件图片路径；Console 的固定 assembly 恢复对应导航和 Discover，见[原生导航验收](remote-native-navigation-verification-20261114.md)。下文内置插件只读限制描述的是首次实施时的历史范围。插件端 remote view 使用控制机器自身的 UI assembly，本轮 Console 验收不代表该入口已复验；通用设置、凭据、动态 Cordis 和任意远端 JS 加载仍拒绝。
+
+2026-11-25。大消息传输实现见第 10 节。第 3 节和第 5 节中的回环 WebSocket 描述此前的发行路径。
 
 ## 1. 页面和权限
 
@@ -196,3 +198,39 @@ node .audit/remote-workspace-local-e2e.mjs
 | view-mount / view-bootstrap | UI assembly 与业务分流、preboot、Storage 隔离。 |
 | local-remote-api | 本机控制面认证和脱敏 API。 |
 | ui | 设备选择、共享开关、状态条、返回本机、断线阻断。 |
+
+## 10. 大消息传输
+
+状态为已实现，home-nas 部署和公网联调通过。适用于所有使用 OwnDsh 远程工作区的 Host。旧版插件的本机 WebSocket 收到超过 4 MiB 的单条消息时会关闭连接。现场断线原因已知，PPT 会话触发的实际消息类型和序列化字节数待实测。
+
+### 在插件进程内打开官方订阅
+
+Host 插件在已授权的远控 link 内通过 Connection 创建该 link 的独立 API Peer。沿用 `/connect?interactions=answer` 取得 Cookie，再用公开的 `connection.admitConnection` 取得 Peer 和释放函数。Host 插件使用同一 Peer 调用 `typertGateway.wireStream.open` 打开流，普通 HTTP 调用继续通过同一 Cookie 归到该 Peer。link 关闭时取消流并调用释放函数，Cookie 随 Peer 一起失效。此接入由 `plugin/packages/bundle` 交付，使用锁定 Harness 公开接口。 [Gateway 接口](https://github.com/deepseek-ai/deepseek-harness/blob/9c2670d3bce5275e0d1610272958121af87787bb/packages/api/gateway/src/types.ts#L91) · [Connection 托管的 Peer](https://github.com/deepseek-ai/deepseek-harness/blob/9c2670d3bce5275e0d1610272958121af87787bb/packages/client/connection/src/rpc-host.ts#L128)
+
+Host 插件保留现有的 RPC 白名单和资源校验。每条流持有独立的取消信号。终端的 `item`、`end` 和 `cancel` 要映射到有界输入队列、输入半关闭和全流取消。队列实现按完整 UTF-8 消息计费，输入超限只结束该终端订阅。rc.5 的 `wireStream.open` 支持双向流，验收覆盖终端粘贴、尺寸更新和取消后的进程保留。 [官方双向流测试](https://github.com/deepseek-ai/deepseek-harness/blob/9c2670d3bce5275e0d1610272958121af87787bb/packages/api/gateway/tests/gateway-stream.host.spec.ts#L465)
+
+### 复用现有的加密字节流
+
+1. Host 插件按完整序列化消息的 UTF-8 字节数选择发送路径。4 MiB 内经 mux 发送，普通消息的在途数据共用有界队列。超过 4 MiB 时，mux 发送包含 `streamId`、`transferId` 和总字节数的小描述。Host 插件从关联 link 的内存保存区，沿现有 HTTP 字节流按下游信用发送这条消息。
+2. `remote-core` 在收到描述后读取并校验完整消息。它核对总字节数、UTF-8、逻辑流 ID 和当前代次，把原消息交给原生客户端，再确认传输完成。Host 收到确认后才继续读取同一订阅的下一项。其他订阅可继续传输。Console 和桌面视图都通过共享 `openMux` 接收数据。
+3. 单条重组上限为 16 MiB，每 link 同时保留一条大消息。16 MiB 是 OwnDsh 的初始内存预算。现场约 5.43 MiB 的数字来自整段历史磁盘解压统计，首屏完整消息仍需在发送端量测。诊断只记录端点、消息类型和总字节数。描述和已打开的读取均受 30 秒空闲超时约束。传输 ID 绑定当前 link 和订阅，读取为一次性，完成、拒绝、超时、取消、撤权或断线均释放内存。单条超预算或没有可用传输名额时，Host 返回原生单订阅错误。失败流只产生一次终态，迟到确认只匹配原传输。
+
+大消息读取由 Host 插件在自己的 carrier 内处理。它仅接受当前 link 发起的内部读取，路径归该 link 的传输表管理。普通业务 HTTP 继续由 DSH 处理。加密字节流的现有分片上限为 24 KiB，信用窗口为 96 KiB。24 KiB 原始数据做 Base64 后占 32 KiB，符合 carrier 帧的字段限额。两者都与 16 MiB 单条重组上限分属不同层。 [现有 HTTP carrier](../plugin/packages/remote-core/src/carrier-tunnel.ts)
+
+### 交付与验收
+
+OwnDsh 插件和 `remote-core` 同批发布。Console 静态资源和桌面控制端使用同一版 carrier，通过加密 ready 消息核对 Harness 版本和 OwnDsh carrier 修订号 2。验收包含原生 DSH UI、同版本的两种控制端和至少两个 Host 系统。
+
+| 场景 | 通过条件 |
+|---|---|
+| PPT 会话 | 手动选中、刷新自动恢复和向前翻页均可用，切换会话后仍能读取其他会话。记录实际首屏字节数和消息类型。 |
+| 多字节字符和实时更新 | 超过 4 MiB 的首屏逐字节一致，首屏之后的增量保序，无重复或缺失。 |
+| 超限或慢消费 | 按上限拒绝单条大消息。正常订阅、文件和终端仍可用，链路不会因为业务队列堆满而断开。 |
+| 生命周期 | 取消、客户端关闭、重连及撤权均回收在途数据和 Peer。另一条 link 授权无法读取旧数据，旧确认无法影响新传输。 |
+| 原生权限和终端 | 流和 HTTP 归同一独立 API Peer，审批可往返。终端输入按序，半关闭、粘贴和 resize 均可用。 |
+
+本机回归使用锁定的 rc.5 npm 包验证同一 API Peer 服务 HTTP 和进程内 `$events` 流，释放 Peer 后原 Cookie 的准入返回 401。Host 与 Controller 组合测试覆盖超 4 MiB 的中文和 emoji 首屏、16 MiB 边界、首屏后的实时增量、独立订阅、一次性读取、终端半关闭和取消回收。插件 tarball 在隔离 rc.5 profile 中启动，插件状态接口返回 HTTP 200。
+
+本机分别驱动 Console 的原生传输适配器和桌面远程视图的真实回环 WebSocket。两端均通过真实 Noise 链路和 rc.5 流客户端完整收到 7,800,047 字节的合成首屏，随后收到实时增量并打开另一条工作区订阅。实验使用进程内 Relay 和合成会话。
+
+2026-11-25 在 home-nas 替换服务端和 Console 应用镜像，标签均为 `remote-mux-d409866`。线上工作区静态资源与本地构建逐字节一致。两个隔离的 rc.5 profile 安装同批插件实包并完成企业授权。公网 Console 和桌面原生远程视图经部署后的 Relay 各自读取了 5,752,324 字节的合成首屏，包含全部 28 条用户消息。Console 刷新后恢复连接，桌面端收到 Host 关闭远控的断开状态。大首屏的第一次公网验收在持续收块时超过脚本的两分钟总时限，延长脚本等待后收到完整响应。Windows 现场原 PPT 会话仍待实包验收。

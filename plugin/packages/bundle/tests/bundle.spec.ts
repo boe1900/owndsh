@@ -141,7 +141,7 @@ describe('enterprise bundle', () => {
     expect(manifest.peerDependencies['@deepseek-ai/schemastery']).toBe('~3.19.0')
     expect(manifest.peerDependencies.yaml).toBe('^2.9.1')
     expect(inject).toEqual([
-      'webServer', 'connection', 'workspaceRegistry', 'credentials', 'settings', 'llm', 'pluginInventory', 'pluginManager', 'pluginMarket', 'tools', 'systemPrompt',
+      'webServer', 'connection', 'typertGateway', 'workspaceRegistry', 'credentials', 'settings', 'llm', 'pluginInventory', 'pluginManager', 'pluginMarket', 'tools', 'systemPrompt',
     ])
     expect(BuiltModule.inject).toEqual(inject)
     expect(Config({

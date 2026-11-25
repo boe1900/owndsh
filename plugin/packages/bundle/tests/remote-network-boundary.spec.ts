@@ -12,6 +12,7 @@ import { WebSocketServer } from 'ws'
 import { expect, it } from 'vitest'
 import { createNodeRemoteSocketFactory } from '../src/remote/node-socket-factory.js'
 import { openDshCarrier } from '../src/remote/dsh-carrier.js'
+import { nativeGatewayFixture } from './remote-carrier-fixture.js'
 
 it('sends the platform Origin and keeps the Bearer out of the WebSocket URL', async () => {
   const server = createServer()
@@ -44,12 +45,11 @@ it('authorizes the payload inside a native file envelope and rejects mismatched 
     forwarded++
     request.pipe(response)
   })
-  const sockets = new WebSocketServer({ server })
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
   const address = server.address()
   if (!address || typeof address === 'string') throw new Error('listener unavailable')
   const carrier = await openDshCarrier({
-    connection: { authenticatedUrl: url => url }, webServer: { getOrigin: () => `http://127.0.0.1:${address.port}` },
+    ...nativeGatewayFixture(), webServer: { getOrigin: () => `http://127.0.0.1:${address.port}` },
     workspaceRegistry: { list: () => [{ id: 'workspace', path: root, sessionIds: ['session'] }] },
   }, new AbortController().signal)
   const envelope = { type: 'client-request', rpcId: crypto.randomUUID(), method: 'workspaceFiles/read',
@@ -64,8 +64,7 @@ it('authorizes the payload inside a native file envelope and rejects mismatched 
     expect(forwarded).toBe(1)
   } finally {
     carrier.close()
-    for (const socket of sockets.clients) socket.terminate()
-    sockets.close(); server.closeAllConnections()
+    server.closeAllConnections()
     await new Promise<void>(resolve => server.close(() => resolve()))
     await rm(root, { recursive: true, force: true })
   }
@@ -88,12 +87,11 @@ it('admits native Office previews and authorizes the actual source path before f
     response.setHeader('content-type', 'application/json')
     request.pipe(response)
   })
-  const sockets = new WebSocketServer({ server })
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
   const address = server.address()
   if (!address || typeof address === 'string') throw new Error('listener unavailable')
   const carrier = await openDshCarrier({
-    connection: { authenticatedUrl: url => url }, webServer: { getOrigin: () => `http://127.0.0.1:${address.port}` },
+    ...nativeGatewayFixture(), webServer: { getOrigin: () => `http://127.0.0.1:${address.port}` },
     workspaceRegistry: { list: () => [{ id: 'workspace', path: workspace, sessionIds: ['session'] }] },
   }, new AbortController().signal)
   const envelope = (method: string, args: unknown) => ({ type: 'client-request', rpcId: crypto.randomUUID(), method, payload: { args } })
@@ -126,8 +124,7 @@ it('admits native Office previews and authorizes the actual source path before f
     expect(carrier.signal?.aborted).toBe(false)
   } finally {
     carrier.close()
-    for (const socket of sockets.clients) socket.terminate()
-    sockets.close(); server.closeAllConnections()
+    server.closeAllConnections()
     await new Promise<void>(resolve => server.close(() => resolve()))
     await rm(root, { recursive: true, force: true })
   }
@@ -141,11 +138,10 @@ it('admits workspace search only for an authorized session scope and the rc.3 us
     forwarded.push(request.url ?? '')
     request.pipe(response)
   })
-  const sockets = new WebSocketServer({ server })
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
   const address = server.address()
   if (!address || typeof address === 'string') throw new Error('listener unavailable')
-  const carrier = await openDshCarrier({ connection: { authenticatedUrl: url => url },
+  const carrier = await openDshCarrier({ ...nativeGatewayFixture(),
     webServer: { getOrigin: () => `http://127.0.0.1:${address.port}` },
     workspaceRegistry: { list: () => [{ id: 'workspace', path: root, sessionIds: ['session'] }] },
   }, new AbortController().signal)
@@ -169,8 +165,7 @@ it('admits workspace search only for an authorized session scope and the rc.3 us
     expect(forwarded).toEqual(['/api/workspaceFiles/search', '/api/subagents/interruptByUser'])
   } finally {
     carrier.close()
-    for (const socket of sockets.clients) socket.terminate()
-    sockets.close(); server.closeAllConnections()
+    server.closeAllConnections()
     await new Promise<void>(resolve => server.close(() => resolve()))
     await rm(root, { recursive: true, force: true })
   }
@@ -194,11 +189,10 @@ it('follows only bounded same-file media version redirects and keeps native cred
       v: mode === 'loop' ? 'loop' : 'current' })
     response.writeHead(302, { location: `${mode === 'origin' ? 'https://other.invalid/api/file' : ''}?${params}` }).end()
   })
-  const sockets = new WebSocketServer({ server })
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
   const address = server.address()
   if (!address || typeof address === 'string') throw new Error('listener unavailable')
-  const carrier = await openDshCarrier({ connection: { authenticatedUrl: url => url },
+  const carrier = await openDshCarrier({ ...nativeGatewayFixture(),
     webServer: { getOrigin: () => `http://127.0.0.1:${address.port}` },
     workspaceRegistry: { list: () => [{ id: 'workspace', path: root, sessionIds: ['session'] }] },
   }, new AbortController().signal)
@@ -219,8 +213,7 @@ it('follows only bounded same-file media version redirects and keeps native cred
     for (const query of [{ load: 'text' }, { extra: '1' }, { v: '' }]) await expect(fetchImage(query)).rejects.toThrow('ENT_REMOTE_DENIED')
   } finally {
     carrier.close()
-    for (const socket of sockets.clients) socket.terminate()
-    sockets.close(); server.closeAllConnections()
+    server.closeAllConnections()
     await new Promise<void>(resolve => server.close(() => resolve()))
     await rm(root, { recursive: true, force: true })
   }
@@ -238,11 +231,10 @@ it('forwards native Markdown for live and stored sessions while rejecting other 
     response.writeHead(missing ? 404 : 200, { 'content-type': 'text/markdown; charset=utf-8', 'set-cookie': 'private=hidden' })
       .end(missing ? 'session not found' : markdown)
   })
-  const sockets = new WebSocketServer({ server })
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
   const address = server.address()
   if (!address || typeof address === 'string') throw new Error('listener unavailable')
-  const carrier = await openDshCarrier({ connection: { authenticatedUrl: url => url },
+  const carrier = await openDshCarrier({ ...nativeGatewayFixture(),
     webServer: { getOrigin: () => `http://127.0.0.1:${address.port}` }, workspaceRegistry: { list: () => [] },
   }, new AbortController().signal)
   try {
@@ -279,8 +271,7 @@ it('forwards native Markdown for live and stored sessions while rejecting other 
     expect(carrier.signal?.aborted).toBe(false)
   } finally {
     carrier.close()
-    for (const socket of sockets.clients) socket.terminate()
-    sockets.close(); server.closeAllConnections()
+    server.closeAllConnections()
     await new Promise<void>(resolve => server.close(() => resolve()))
   }
 })
@@ -299,11 +290,10 @@ it('forwards the native agent team toggle through the owner Peer without opening
       response.end(JSON.stringify(envelope))
     })
   })
-  const sockets = new WebSocketServer({ server })
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
   const address = server.address()
   if (!address || typeof address === 'string') throw new Error('listener unavailable')
-  const carrier = await openDshCarrier({ connection: { authenticatedUrl: url => url },
+  const carrier = await openDshCarrier({ ...nativeGatewayFixture(),
     webServer: { getOrigin: () => `http://127.0.0.1:${address.port}` }, workspaceRegistry: { list: () => [] },
   }, new AbortController().signal)
   const init = (value: unknown) => ({ method: 'POST', headers: { 'content-type': 'application/json' },
@@ -322,8 +312,7 @@ it('forwards the native agent team toggle through the owner Peer without opening
     expect(carrier.signal?.aborted).toBe(false)
   } finally {
     carrier.close()
-    for (const socket of sockets.clients) socket.terminate()
-    sockets.close(); server.closeAllConnections()
+    server.closeAllConnections()
     await new Promise<void>(resolve => server.close(() => resolve()))
   }
 })

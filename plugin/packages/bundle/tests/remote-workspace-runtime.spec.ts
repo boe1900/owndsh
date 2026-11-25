@@ -9,6 +9,7 @@ import { remoteProtocolSha256, type RemoteDevice } from '@owndsh/contracts'
 import { encodeKey, generateNoiseKeyPair } from '@owndsh/remote-core'
 import type { CredentialKey, CredentialProvider, CredentialRecord } from '@deepseek-ai/dsh-credentials'
 import type { EnterprisePlatformStatus } from '@owndsh/platform-client'
+import { nativeGatewayFixture } from './remote-carrier-fixture.js'
 import { WorkspaceRuntime } from '../src/remote/workspace-runtime.js'
 import { remoteFrameId } from '../src/remote/secure-link.js'
 import type { RemoteSocketLike } from '../src/remote/server-connection.js'
@@ -45,7 +46,7 @@ it('keeps Host off by default, preserves identity across explicit re-enable and 
     async request() { throw new Error('unused') },
     markDeviceRevoked() { status = { ...status, state: 'DEVICE_REVOKED' }; notify?.(status) },
   }
-  const runtime = new WorkspaceRuntime({ credentials, connection: { authenticatedUrl: value => value }, webServer: { getOrigin: () => 'http://127.0.0.1' }, workspaceRegistry: { list: () => [] } }, platform, factory)
+  const runtime = new WorkspaceRuntime({ credentials, ...nativeGatewayFixture(), webServer: { getOrigin: () => 'http://127.0.0.1' }, workspaceRegistry: { list: () => [] } }, platform, factory)
   try {
     runtime.start()
     await new Promise(resolve => setTimeout(resolve, 1))
@@ -71,7 +72,7 @@ it('loads later device pages and rejects truncated or cyclic directories', async
   const paths: string[] = []
   const runtime = new WorkspaceRuntime({
     credentials: { async modifyRecord() { throw new Error('unused') } },
-    connection: { authenticatedUrl: value => value }, webServer: { getOrigin: () => 'http://127.0.0.1' }, workspaceRegistry: { list: () => [] },
+    ...nativeGatewayFixture(), webServer: { getOrigin: () => 'http://127.0.0.1' }, workspaceRegistry: { list: () => [] },
   }, {
     status: () => ({ state: 'READY', bundleVersion: 'test', transport: 'webServer.register' }),
     bootstrap: () => ({ user: { id: '1' } }), subscribe: () => () => {}, markDeviceRevoked() {},
@@ -97,7 +98,7 @@ it.each(['error', 'connect.reject'])('preserves the busy reason from a %s contro
   const closed = vi.fn()
   const runtime = new WorkspaceRuntime({
     credentials: { async modifyRecord() { throw new Error('unused') } },
-    connection: { authenticatedUrl: value => value }, webServer: { getOrigin: () => 'http://127.0.0.1' }, workspaceRegistry: { list: () => [] },
+    ...nativeGatewayFixture(), webServer: { getOrigin: () => 'http://127.0.0.1' }, workspaceRegistry: { list: () => [] },
   }, {
     status: () => ({ state: 'READY', bundleVersion: 'test', transport: 'webServer.register' }),
     bootstrap: () => ({ user: { id: '1' } }), subscribe: () => () => {}, markDeviceRevoked() {},

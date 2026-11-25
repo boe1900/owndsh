@@ -1,13 +1,13 @@
 /**
- * [INPUT]: 依赖真实 HTTP/WS listener、官方原生 carrier 与远端插件/自动化请求字节。
+ * [INPUT]: 依赖真实 HTTP listener、进程内 Gateway、官方原生 carrier 与远端插件/自动化请求字节。
  * [OUTPUT]: 验证精确 RPC 转发、同一 owner 的事件、插件文档图片门禁及通用管理能力拒绝。
  * [POS]: remote 原生导航的网络准入回归；业务参数与安装/任务状态仍由官方 Host 拥有。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { createServer } from 'node:http'
-import { WebSocketServer } from 'ws'
 import { expect, it } from 'vitest'
 import { openDshCarrier } from '../src/remote/dsh-carrier.js'
+import { nativeGatewayFixture } from './remote-carrier-fixture.js'
 
 const methods = [
   'pluginManager/listBundles', 'pluginManager/listPlugins', 'pluginManager/registries', 'pluginManager/readBundleDetail',
@@ -20,7 +20,7 @@ const image = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0, 255])
 
 async function fixture() {
   const requests: { path: string; cookie: string | undefined; body: Buffer }[] = []
-  const upgrades: (string | undefined)[] = []
+  const admittedCookies: (string | null)[] = []
   let redirect = false
   const server = createServer((request, response) => {
     if (request.url?.startsWith('/connect')) {
@@ -39,27 +39,22 @@ async function fixture() {
       response.writeHead(200, { 'content-type': 'application/json' }).end(body)
     })
   })
-  const sockets = new WebSocketServer({ server })
   const events = ['plugin-manager/changed', 'plugin-manager/install-state', 'plugin-manager/install-log', 'plugin-manager/update-state', 'schedule/changed']
-  sockets.on('connection', (peer, request) => {
-    upgrades.push(request.headers.cookie)
-    peer.on('message', bytes => {
-      const frame = JSON.parse(bytes.toString())
-      if (frame.type === 'open' && frame.endpoint === '$events') {
-        for (const name of events) peer.send(JSON.stringify({ type: 'item', streamId: frame.streamId, value: { name, args: ['remote-only'] } }))
-      }
-    })
+  const gateway = nativeGatewayFixture({
+    onAdmit: headers => { admittedCookies.push(headers.get('cookie')) },
+    async *open(endpoint) {
+      if (endpoint === '$events') for (const name of events) yield { name, args: ['remote-only'] }
+    },
   })
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
   const address = server.address()
   if (!address || typeof address === 'string') throw new Error('listener unavailable')
-  const carrier = await openDshCarrier({ connection: { authenticatedUrl: url => url },
+  const carrier = await openDshCarrier({ ...gateway,
     webServer: { getOrigin: () => `http://127.0.0.1:${address.port}` }, workspaceRegistry: { list: () => [] },
   }, new AbortController().signal)
-  return { carrier, requests, upgrades, events, redirect: () => { redirect = true }, async close() {
+  return { carrier, requests, admittedCookies, events, redirect: () => { redirect = true }, async close() {
     carrier.close()
-    for (const socket of sockets.clients) socket.terminate()
-    sockets.close(); server.closeAllConnections()
+    server.closeAllConnections()
     await new Promise<void>(resolve => server.close(() => resolve()))
   } }
 }
@@ -88,7 +83,7 @@ it('forwards native plugin and schedule requests without changing or replaying t
       const message = await reader.next()
       expect(JSON.parse(message.value ?? '')).toEqual({ type: 'item', streamId: 'navigation-events', value: { name, args: ['remote-only'] } })
     }
-    expect(test.upgrades).toEqual(['native-owner=navigation-test-only'])
+    expect(test.admittedCookies).toEqual(['native-owner=navigation-test-only'])
     for (const method of ['pluginManager/unknown', 'pluginManager/setVersionExemption', 'pluginManager/listVersionExemptions',
       'settings/update', 'settings/describe', 'credentials/get', 'dynamicCordisRunner/restart', 'schedule/unknown']) {
       await expect(test.carrier.fetch(`/api/${method}`, rpcInit(method).init)).rejects.toThrow('ENT_REMOTE_DENIED')

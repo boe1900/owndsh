@@ -1,10 +1,10 @@
 /**
  * [INPUT]: 依赖认证 Server 绑定的双端静态公钥、标准 Noise 会话、租约 ack、跨平台计时器与原生 carrier 工厂。
- * [OUTPUT]: 提供有截止时间的同版 DSH link；ready 版本不符拒绝建链，失联/撤权同步关闭准入、流和密钥所有者。
+ * [OUTPUT]: 分别核对 DSH 应用版本和 carrier 修订号，提供有截止时间的 link，失联或撤权后关闭流和密钥所有者。
  * [POS]: remote 的授权状态机；presence socket 与每个 link 生命周期分离。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
-import { DSH_CARRIER_VERSION, deferred, decodeCarrierFrame, encodeCarrierFrame, type CarrierFrame } from './carrier.js'
+import { DSH_CARRIER_VERSION, OWNDSH_CARRIER_REVISION, deferred, decodeCarrierFrame, encodeCarrierFrame, type CarrierFrame } from './carrier.js'
 import { createNoisePrologue, decodeKey, NoiseSession, type NoiseKeyPair } from './noise.js'
 import type { RemoteControlFrame, RemoteRelayFrame } from '@owndsh/contracts'
 import { CarrierTunnel } from './carrier-tunnel.js'
@@ -121,6 +121,11 @@ export class SecureDshLink implements RemoteDshLink {
           this.close()
           return
         }
+        if (message.revision !== OWNDSH_CARRIER_REVISION) {
+          this.ready.reject(new Error('ENT_REMOTE_PROTOCOL'))
+          this.close()
+          return
+        }
         clearTimeout(this.handshakeTimer)
         this.ready.resolve(this)
       } else {
@@ -190,7 +195,7 @@ export class SecureDshLink implements RemoteDshLink {
     carrier.signal?.addEventListener('abort', () => this.close(), { once: true })
     if (carrier.signal?.aborted) { this.close(); return }
     this.tunnel = new CarrierTunnel(frame => this.send(frame), this.signal, carrier)
-    await this.send({ kind: 'ready', version: DSH_CARRIER_VERSION })
+    await this.send({ kind: 'ready', version: DSH_CARRIER_VERSION, revision: OWNDSH_CARRIER_REVISION })
     clearTimeout(this.handshakeTimer)
     this.ready.resolve(this)
   }

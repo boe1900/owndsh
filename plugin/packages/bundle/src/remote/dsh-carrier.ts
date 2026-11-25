@@ -1,24 +1,27 @@
 /**
- * [INPUT]: 依赖官方 connection /connect、WebServer 固定回环 origin、WorkspaceRegistry 与原生 WS mux parser。
- * [OUTPUT]: 为授权 link 创建独立 owner API Peer，提供 Markdown、插件文档图片、可选 Ego、文件及 Office RPC 准入和 HTTP/WS carrier，cookie 留在 Host。
- * [POS]: remote Host 唯一原生执行接缝；不复制 Gateway 编解码，不向 Controller 暴露原生凭据。
+ * [INPUT]: 使用官方 Connection 的 API Peer、Gateway wireStream、固定回环 origin 和 WorkspaceRegistry。
+ * [OUTPUT]: 为授权 link 提供共享同一 Peer 的进程内订阅、HTTP、资源准入和按 link 读取大消息。
+ * [POS]: remote Host 的原生执行接缝；持有 Peer 生命周期和 Host 私有 Cookie。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { createRequire } from 'node:module'
-import WebSocket from 'ws'
-import { clientRequestSchema } from '@deepseek-ai/dsh-client-connection'
-import { parseRemoteStreamClientMessage, parseRemoteStreamServerMessage } from '@deepseek-ai/dsh-api-gateway/stream-protocol'
-import { DSH_CARRIER_VERSION, MAX_MUX_MESSAGE_BYTES, safeHeaders, type DshCarrier, type RemoteDshMux } from '@owndsh/remote-core'
+import type { Logger } from '@deepseek-ai/cordis'
+import type { TypertGateway } from '@deepseek-ai/dsh-api-gateway'
+import { clientRequestSchema, type HostConnectionHandle } from '@deepseek-ai/dsh-client-connection'
+import { DSH_CARRIER_VERSION, MUX_TRANSFER_PATH_PREFIX, safeHeaders, type DshCarrier } from '@owndsh/remote-core'
 export { DSH_CARRIER_VERSION, safeHeaders } from '@owndsh/remote-core'
 import { z } from 'zod'
 import { createEgoPolicy, type EgoContext } from './ego-policy.js'
 import { EGO_PREFIX, EGO_BODY_LIMIT } from '@owndsh/contracts'
-import { authorizeFilePayload, authorizeSearchPayload, authorizeOfficePayload, authorizeMedia, dshPath, DSH_STREAM_ENDPOINTS, DSH_UNARY_ENDPOINTS, type WorkspaceCatalog } from './dsh-policy.js'
+import { authorizeFilePayload, authorizeSearchPayload, authorizeOfficePayload, authorizeMedia, dshPath, DSH_UNARY_ENDPOINTS, type WorkspaceCatalog } from './dsh-policy.js'
+import { DshStreamMux } from './dsh-stream-mux.js'
 
 export interface DshCarrierContext extends EgoContext {
-  readonly connection: { authenticatedUrl(baseUrl: string): string }
+  readonly connection: Pick<HostConnectionHandle, 'authenticatedUrl' | 'admitConnection'>
+  readonly typertGateway: Pick<TypertGateway, 'wireStream'>
   readonly webServer: { getOrigin(): string }
   readonly workspaceRegistry: WorkspaceCatalog
+  readonly logger?: Pick<Logger, 'info'>
 }
 export type { DshCarrier, DshFetchInit, RemoteDshMux } from '@owndsh/remote-core'
 
@@ -33,13 +36,19 @@ export async function openDshCarrier(ctx: DshCarrierContext, signal: AbortSignal
   const url = new URL(ctx.connection.authenticatedUrl(new URL('/connect', origin).href))
   url.searchParams.set('interactions', 'answer')
   const response = await fetch(url, { redirect: 'manual', signal })
-  await response.body?.cancel()
+  await response.body?.cancel().catch(() => {})
   if (response.status !== 302) throw new Error('ENT_REMOTE_OPERATOR_FAILED')
   let cookie = response.headers.getSetCookie().map(value => value.split(';')[0]).join('; ')
   if (!cookie) throw new Error('ENT_REMOTE_OPERATOR_FAILED')
+  const admission = ctx.connection.admitConnection({ headers: { host: origin.host, cookie } })
+  if ('rejection' in admission) throw new Error('ENT_REMOTE_OPERATOR_FAILED')
+  const { peer, release } = admission
+  if (signal.aborted || peer.signal.aborted || peer.principal.kind !== 'owner' || peer.interactions !== 'answer') {
+    await release()
+    throw new Error('ENT_REMOTE_OPERATOR_FAILED')
+  }
   const lifetime = new AbortController()
-  const combined = AbortSignal.any([signal, lifetime.signal])
-  const mux = await nativeMux(new URL('/api/remote.mux', origin), cookie, ctx.workspaceRegistry, combined, () => lifetime.abort())
+  const combined = AbortSignal.any([signal, peer.signal, lifetime.signal])
   let cleanupCookie = cookie
   const ego = createEgoPolicy(ctx, async (path, method, body, requestSignal) => {
     const response = await fetch(new URL(path, origin), { method, headers: { cookie: cleanupCookie, ...(body ? { 'content-type': 'application/json' } : {}) },
@@ -47,16 +56,25 @@ export async function openDshCarrier(ctx: DshCarrierContext, signal: AbortSignal
     if (response.status >= 300 && response.status < 400) { await response.body?.cancel(); throw new Error('ENT_REMOTE_DENIED') }
     return new Response(response.body, { status: response.status, headers: safeHeaders(response.headers) })
   })
-  const disposeEgo = () => { void ego.close().finally(() => { cleanupCookie = '' }) }
+  const close = () => {
+    if (lifetime.signal.aborted) return
+    lifetime.abort()
+    cookie = ''
+    void ego.close().finally(async () => {
+      cleanupCookie = ''
+      await release()
+    }).catch(() => {})
+  }
   let claimed = false
-  const close = () => { disposeEgo(); lifetime.abort(); cookie = ''; void mux.close() }
-  signal.addEventListener('abort', close, { once: true })
-  lifetime.signal.addEventListener('abort', () => { disposeEgo(); cookie = ''; void mux.close() }, { once: true })
+  const mux = new DshStreamMux(ctx.typertGateway.wireStream, peer, ctx.workspaceRegistry, combined, close, (endpoint, kind, bytes) => {
+    ctx.logger?.info('owndsh remote large stream response %s %s %d bytes', endpoint, kind, bytes)
+  })
   return {
     signal: lifetime.signal,
     async fetch(path, init) {
       combined.throwIfAborted()
       const target = dshPath(path)
+      if (target.pathname.startsWith(MUX_TRANSFER_PATH_PREFIX)) return mux.fetchTransfer(target, init)
       if (target.pathname === '/api/remoteClient/catalog') {
         if (init.method !== 'GET' || target.search || init.body) throw new Error('ENT_REMOTE_DENIED')
         return Response.json({ ego: await ego.available() })
@@ -167,76 +185,4 @@ async function boundedBody(body: ReadableStream<Uint8Array> | undefined, limit: 
   let offset = 0
   for (const chunk of chunks) { result.set(chunk, offset); offset += chunk.length }
   return result
-}
-
-async function nativeMux(url: URL, cookie: string, catalog: WorkspaceCatalog, signal: AbortSignal, lost: () => void): Promise<RemoteDshMux> {
-  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
-  const socket = new WebSocket(url, { headers: { cookie }, maxPayload: MAX_MUX_MESSAGE_BYTES, perMessageDeflate: false })
-  const streams = new Map<string, string>()
-  const queue: string[] = []
-  let bytes = 0
-  let ended = false
-  let failed = false
-  let wake: (() => void) | undefined
-  const close = () => { if (ended) return; ended = true; socket.terminate(); wake?.() }
-  const enqueue = (text: string) => {
-    bytes += Buffer.byteLength(text)
-    if (bytes > MAX_MUX_MESSAGE_BYTES) throw new Error('ENT_REMOTE_LIMIT')
-    queue.push(text)
-    wake?.()
-  }
-  const denied = (streamId: string) => enqueue(JSON.stringify({ type: 'error', streamId,
-    error: { code: 'gateway/access-denied', message: 'Remote endpoint is unavailable', details: {} },
-  }))
-  signal.addEventListener('abort', close, { once: true })
-  socket.on('close', () => { ended = true; signal.removeEventListener('abort', close); wake?.(); lost() })
-  socket.on('error', () => { failed = true; close() })
-  socket.on('message', (data, binary) => {
-    try {
-      if (binary) throw new Error('ENT_REMOTE_MUX_BINARY')
-      const text = data.toString()
-      const frame = parseRemoteStreamServerMessage(text)
-      if (!streams.has(frame.streamId)) return
-      if (frame.type !== 'item') streams.delete(frame.streamId)
-      enqueue(text)
-    } catch { failed = true; close() }
-  })
-  await new Promise<void>((resolve, reject) => {
-    const abort = () => reject(new Error('ENT_REMOTE_OPERATOR_FAILED'))
-    socket.once('open', () => { signal.removeEventListener('abort', abort); resolve() })
-    socket.once('error', abort); socket.once('close', abort)
-    signal.addEventListener('abort', abort, { once: true })
-    if (signal.aborted) abort()
-  })
-  return {
-    async send(text) {
-      signal.throwIfAborted()
-      if (ended || Buffer.byteLength(text) > MAX_MUX_MESSAGE_BYTES) throw new Error('ENT_REMOTE_LIMIT')
-      const frame = parseRemoteStreamClientMessage(text)
-      if (frame.type === 'open') {
-        if (streams.has(frame.streamId)) throw new Error('ENT_REMOTE_DENIED')
-        if (streams.size >= 128 || !DSH_STREAM_ENDPOINTS.has(frame.endpoint)) { denied(frame.streamId); return }
-        if (frame.endpoint === 'workspaceFiles/changes') {
-          try { await authorizeFilePayload(catalog, frame.payload) }
-          catch { denied(frame.streamId); return }
-        }
-        streams.set(frame.streamId, frame.endpoint)
-      } else {
-        const endpoint = streams.get(frame.streamId)
-        if (endpoint === undefined && (frame.type === 'cancel' || frame.type === 'end')) return
-        if (endpoint === undefined || (frame.type === 'item' && endpoint !== 'terminal/attach')) throw new Error('ENT_REMOTE_DENIED')
-        if (frame.type === 'cancel') streams.delete(frame.streamId)
-      }
-      await new Promise<void>((resolve, reject) => socket.send(text, error => error ? reject(error) : resolve()))
-    },
-    messages: (async function* () {
-      while (!ended) {
-        const value = queue.shift()
-        if (value !== undefined) { yield value; bytes -= Buffer.byteLength(value) }
-        else await new Promise<void>(resolve => { wake = resolve })
-      }
-      if (failed || !signal.aborted) throw new Error('ENT_REMOTE_MUX_CLOSED')
-    })(),
-    close,
-  }
 }
