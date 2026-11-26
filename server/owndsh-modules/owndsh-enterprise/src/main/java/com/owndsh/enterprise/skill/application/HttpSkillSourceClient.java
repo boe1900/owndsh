@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 JDK HttpClient、GitLab/GitHub commit API、archive endpoint 和一次性 token。
+ * [INPUT]: 依赖 JDK HttpClient、GitHub 纯文本 SHA 与 GitLab commit JSON、archive endpoint 和一次性 token。
  * [OUTPUT]: 将 branch/tag/ref 固定解析为 commit，并下载受限源码 ZIP。
  * [POS]: skill/application 的默认源码 adapter；token 只进入请求 header，不进入 URL。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -50,11 +50,10 @@ public final class HttpSkillSourceClient implements SkillSourceClient {
     }
 
     private String resolveCommit(Repository repository, String revision, char[] credential) {
-        URI url = repository.commitApiUrl(revision);
-        JsonNode body = readJson(url, repository, credential);
-        JsonNode value = repository.github() ? body.path("sha") : body.isArray() && !body.isEmpty()
-            ? body.get(0).path("id") : body.path("id");
-        String commit = value.asString("");
+        byte[] body = downloadCommitResponse(repository.commitApiUrl(revision), repository, credential);
+        String commit = repository.github()
+            ? new String(body, StandardCharsets.US_ASCII)
+            : parseGitLabCommit(body);
         if (!commit.matches("^[0-9a-fA-F]{7,64}$")) throw sourceFailure(Kind.UPSTREAM_INVALID, "源码 ref 未解析为 commit");
         return commit.toLowerCase();
     }
@@ -81,18 +80,20 @@ public final class HttpSkillSourceClient implements SkillSourceClient {
         }
     }
 
-    private JsonNode readJson(URI uri, Repository repository, char[] credential) {
-        byte[] body = downloadJson(uri, repository, credential);
+    private String parseGitLabCommit(byte[] body) {
         try {
-            return json.readTree(body);
+            JsonNode response = json.readTree(body);
+            JsonNode entry = response.isArray() && !response.isEmpty() ? response.get(0) : response;
+            return entry.path("id").asString("");
         } catch (RuntimeException exception) {
             throw sourceFailure(Kind.UPSTREAM_INVALID, "源码 commit API 返回 JSON 无效", exception);
         }
     }
 
-    private byte[] downloadJson(URI uri, Repository repository, char[] credential) {
+    private byte[] downloadCommitResponse(URI uri, Repository repository, char[] credential) {
         HttpRequest.Builder builder = HttpRequest.newBuilder(uri).timeout(REQUEST_TIMEOUT)
-            .header("Accept", "application/json").header("User-Agent", "OwnDsh-Skill-Importer/1");
+            .header("Accept", repository.github() ? "application/vnd.github.sha" : "application/json")
+            .header("User-Agent", "OwnDsh-Skill-Importer/1");
         addCredential(builder, repository, credential);
         HttpRequest request = builder.GET().build();
         try {

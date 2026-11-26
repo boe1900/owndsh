@@ -12,6 +12,7 @@ SkillCatalogIntegrationTest.java: 真实 PostgreSQL 回归门禁，复现旧单�
 SkillArchiveValidatorTest.java: P1 公开源码 ZIP、WorkBuddy frontmatter、路径和大小边界回归。
 SkillArtifactStoreTest.java: P1 本地不可变 artifact 保存、摘要和符号链接边界回归。
 application/GitLabSkillArtifactStoreTest.java: P1 GitLab Generic Package Registry 上传坐标、Deploy-Token、重复坐标和下载摘要回归。
+application/HttpSkillSourceClientTest.java: 锁定 GitHub SHA 响应协商与固定 commit 的归档下载，覆盖私库 Bearer 凭据。
 SkillSourceCredentialServiceTest.java: 凭据加密、历史租户/项目范围兼容、平台撤销状态和请求后清零回归；不由平台判断外部 token 过期。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
