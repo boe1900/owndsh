@@ -70,7 +70,7 @@ export const Config: z<Config> = z.object({
     toolExposure: z.dict(mcpExposure).default({}),
     servers: z.dict(z.object({ exposure: mcpExposureOptional, toolExposure: z.dict(mcpExposure).default({}) })).default({}),
   }).default({ desiredConnected: {} })),
-  requestTimeoutMs: z.number().step(1).min(1).default(30_000),
+  requestTimeoutMs: z.number().step(1).min(1).default(360_000),
   disposeTimeoutMs: z.number().step(1).min(1).default(3_000),
 })
 

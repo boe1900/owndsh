@@ -943,7 +943,7 @@ Client 包通过 `settings.section` 注册一个 `enterprise` 设置页，通过
 | `heartbeatIntervalMs` | `60000` |
 | `sessionSyncDebounceMs` | `2000` |
 | `sessionBatchMaxBytes` | `1048576`，不得超过 Server 返回值 |
-| `requestTimeoutMs` | `30000`，模型流式请求除外 |
+| `requestTimeoutMs` | `360000`，模型流式请求除外 |
 | `disposeTimeoutMs` | `3000` |
 | `dshCommand` | `dsh` |
 | `localApiPrefix` | `/enterprise/api/v1/local`，固定同源路径，不能改为外部 origin |

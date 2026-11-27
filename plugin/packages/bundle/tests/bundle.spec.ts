@@ -147,7 +147,7 @@ describe('enterprise bundle', () => {
     expect(Config({
       baseUrl: 'https://enterprise.example.com',
     })).toMatchObject({
-      requestTimeoutMs: 30_000,
+      requestTimeoutMs: 360_000,
       disposeTimeoutMs: 3_000,
     })
     const defaultConfig = Config({})

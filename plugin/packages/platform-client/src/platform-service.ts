@@ -119,7 +119,7 @@ function resolveConfig(config: EnterprisePlatformConfig): ResolvedConfig {
   return {
     harnessVersion: config.harnessVersion,
     bundleVersion: config.bundleVersion,
-    requestTimeoutMs: positiveInteger(config.requestTimeoutMs, 30_000, 'requestTimeoutMs'),
+    requestTimeoutMs: positiveInteger(config.requestTimeoutMs, 360_000, 'requestTimeoutMs'),
     disposeTimeoutMs: positiveInteger(config.disposeTimeoutMs, 3_000, 'disposeTimeoutMs'),
     callbackTimeoutMs: positiveInteger(config.callbackTimeoutMs, 5 * 60_000, 'callbackTimeoutMs'),
     ...(config.dshHome === undefined ? {} : { dshHome: config.dshHome }),
