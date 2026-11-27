@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 T09 三个 Controller、统一异常边界、可信管理/设备上下文与派生 JSON Schemas。
- * [OUTPUT]: 验证十个 quota/usage operation、资源/主体失效、404/409/429 details 与 ledger 敏感字段隔离。
+ * [OUTPUT]: 验证配额与用量接口、个人页身份与游标隔离、稳定错误和账本字段边界。
  * [POS]: T09 Server/OpenAPI 同步门禁，application services 使用 mock 隔离 HTTP 翻译与设备授权边界。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -30,6 +30,9 @@ import com.owndsh.enterprise.quota.application.QuotaExceededException;
 import com.owndsh.enterprise.quota.application.QuotaPolicyService;
 import com.owndsh.enterprise.quota.application.QuotaResourceNotFoundException;
 import com.owndsh.enterprise.quota.application.QuotaUsageQueryService;
+import com.owndsh.enterprise.quota.application.QuotaWindowCalculator;
+import com.owndsh.enterprise.quota.application.EffectiveQuotaResolver;
+import com.owndsh.enterprise.quota.application.QuotaRateLimiter;
 import com.owndsh.enterprise.quota.application.RequestAlreadyCompletedException;
 import com.owndsh.enterprise.quota.application.RequestInProgressException;
 import com.owndsh.enterprise.quota.domain.QuotaPolicy;
@@ -42,9 +45,11 @@ import com.owndsh.enterprise.quota.domain.UsageLedger;
 import com.owndsh.enterprise.quota.domain.UsageLedgerMetadata;
 import com.owndsh.enterprise.quota.domain.UsageResult;
 import com.owndsh.enterprise.quota.persistence.QuotaSubjectStore;
+import com.owndsh.enterprise.quota.persistence.QuotaWindowStore;
 import com.owndsh.enterprise.quota.persistence.UsageLedgerStore;
 import com.owndsh.enterprise.quota.web.AdminQuotaController;
 import com.owndsh.enterprise.quota.web.AdminUsageController;
+import com.owndsh.enterprise.quota.web.PersonalUsageController;
 import com.owndsh.enterprise.quota.web.RuntimeUsageController;
 import com.owndsh.enterprise.revision.RevisionConflictException;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,6 +65,8 @@ import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -75,6 +82,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -149,6 +157,48 @@ class T09ApiContractTest {
             .thenReturn(Optional.of(new QuotaSubjectStore.QuotaUser(USER_ID, DEPARTMENT_ID)));
         when(usage.myUsage(TENANT, USER_ID)).thenReturn(List.of(policyUsage()));
         when(usage.listUsage(anyString(), any(), anyInt(), any())).thenReturn(usagePage());
+    }
+
+    @Test
+    void personalUsageBindsLedgerAndCursorToTheConsoleMemberAndDateRange() throws Exception {
+        UsageLedgerStore ledgers = mock(UsageLedgerStore.class);
+        var query = new QuotaUsageQueryService(mock(EffectiveQuotaResolver.class),
+            new QuotaWindowCalculator(ZoneId.of("Asia/Shanghai")), mock(QuotaWindowStore.class),
+            mock(QuotaRateLimiter.class), ledgers);
+        var row = usagePage().items().getFirst();
+        var filter = new UsageLedgerStore.UsageLedgerFilter(USER_ID, null, null, null,
+            WINDOW_START, Instant.parse("2026-08-19T16:00:00Z"));
+        when(ledgers.summarize(TENANT, filter)).thenReturn(usagePage().summary());
+        when(ledgers.personalOutcomes(TENANT, USER_ID, filter.from(), filter.to()))
+            .thenReturn(new UsageLedgerStore.CallOutcomes(2, 1));
+        when(ledgers.personalDays(TENANT, filter, ZoneId.of("Asia/Shanghai")))
+            .thenReturn(List.of(new UsageLedgerStore.DailyUsage(LocalDate.parse("2026-08-18"), 175)));
+        when(ledgers.list(TENANT, null, 2, filter)).thenReturn(List.of(row, row));
+        var cursor = new EnterpriseCursorCodec(new SecretCipher(new byte[32]));
+        MockMvc personal = standaloneSetup(new PersonalUsageController(query, request ->
+            new EnterpriseRequestContext(TENANT, USER_ID, EnterpriseRequestIds.current(request), "127.0.0.1", new byte[32]),
+            cursor
+        )).setControllerAdvice(new EnterpriseExceptionHandler()).addFilters(new EnterpriseRequestIdFilter()).build();
+        var result = personal.perform(get("/enterprise/console/v1/usage")
+                .param("range", "custom").param("start", "2026-08-18").param("end", "2026-08-19")
+                .param("userId", "999").param("limit", "1"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.dailyTrend[1].tokens").value(0))
+            .andExpect(jsonPath("$.data.outcomes.finished").value(2))
+            .andExpect(jsonPath("$.data.items[0].userId").doesNotExist())
+            .andExpect(jsonPath("$.data.page.hasMore").value(true))
+            .andReturn();
+        assertSchema(result.getResponse().getContentAsString(), "PersonalUsageResponse");
+        verify(ledgers).list(TENANT, null, 2, filter);
+
+        String ownCursor = cursor.encodeTime(TENANT, "personal_usage:" + USER_ID + ":2026-08-18:2026-08-19",
+            new EnterpriseCursorCodec.TimePosition(row.ledger().createdAt(), row.id()));
+        personal.perform(get("/enterprise/console/v1/usage").param("range", "custom")
+                .param("start", "2026-08-17").param("end", "2026-08-19").param("cursor", ownCursor))
+            .andExpect(status().isBadRequest());
+        personal.perform(get("/enterprise/console/v1/usage").param("range", "custom")
+                .param("start", "2026-01-01").param("end", "2026-08-19"))
+            .andExpect(status().isBadRequest());
     }
 
     @Test

@@ -2519,6 +2519,46 @@ export const zQuotaUsageSummary = z.object({
 
 export const zUsageSummary = zQuotaUsageSummary;
 
+export const zQuotaPersonalUsageResponse = z.object({
+    requestId: zRequestId,
+    data: z.object({
+        start: z.iso.date(),
+        end: z.iso.date(),
+        timeZone: z.string(),
+        summary: zQuotaUsageSummary,
+        outcomes: z.object({
+            finished: z.int().gte(0),
+            successful: z.int().gte(0)
+        }).strict(),
+        models: z.array(z.object({
+            id: zManagedModelId,
+            alias: z.string(),
+            name: z.string(),
+            inputTokens: z.int().gte(0),
+            outputTokens: z.int().gte(0),
+            totalTokens: z.int().gte(0),
+            requests: z.int().gte(0)
+        }).strict()),
+        dailyTrend: z.array(z.object({
+            date: z.iso.date(),
+            tokens: z.int().gte(0)
+        }).strict()).max(90),
+        items: z.array(z.object({
+            id: zQuotaUsageLedgerId,
+            createdAt: z.iso.datetime({ offset: true }),
+            modelName: z.string(),
+            modelAlias: z.string(),
+            inputTokens: z.int().gte(0),
+            outputTokens: z.int().gte(0),
+            totalTokens: z.int().gte(0),
+            result: zQuotaUsageResult
+        }).strict()),
+        page: zCursorPage
+    }).strict()
+}).strict();
+
+export const zPersonalUsageResponse = zQuotaPersonalUsageResponse;
+
 export const zQuotaUsageLedgerPageData = z.object({
     items: z.array(zQuotaUsageLedgerItem),
     page: zCursorPage,
@@ -3214,6 +3254,8 @@ export const zPluginRuntimePluginAssignments2 = z.unknown();
 export const zAdminUsage = z.unknown();
 
 export const zMyUsage = z.unknown();
+
+export const zPersonalUsage = z.unknown();
 
 export const zQuotaCollection = z.unknown();
 
@@ -4555,6 +4597,24 @@ export const zListUsageLedgerQuery = z.object({
  * Prompt-free usage ledger page and aggregate.
  */
 export const zListUsageLedgerResponse = zQuotaUsageLedgerListResponse;
+
+export const zGetPersonalUsageQuery = z.object({
+    cursor: zCursor.optional(),
+    limit: zPageLimit.optional(),
+    range: z.enum([
+        '7d',
+        '30d',
+        'month',
+        'custom'
+    ]).optional().default('7d'),
+    start: z.iso.date().optional(),
+    end: z.iso.date().optional()
+});
+
+/**
+ * Personal usage dashboard and paginated ledger.
+ */
+export const zGetPersonalUsageResponse = zQuotaPersonalUsageResponse;
 
 export const zStreamEnterpriseChatCompletionsBody = zGatewayNativeGatewayRequest;
 

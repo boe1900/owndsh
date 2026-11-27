@@ -1,0 +1,46 @@
+{
+  "requestId": "req_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+  "data": {
+    "start": "2026-08-18",
+    "end": "2026-08-19",
+    "timeZone": "Asia/Shanghai",
+    "summary": {
+      "requests": 1,
+      "inputTokens": 100,
+      "outputTokens": 50,
+      "cacheTokens": 25,
+      "totalTokens": 175,
+      "chargedTokens": 175,
+      "unmeasuredRequests": 0
+    },
+    "outcomes": { "finished": 1, "successful": 1 },
+    "models": [
+      {
+        "id": "1900800000000000101",
+        "alias": "deepseek-chat",
+        "name": "DeepSeek Chat",
+        "inputTokens": 100,
+        "outputTokens": 50,
+        "totalTokens": 175,
+        "requests": 1
+      }
+    ],
+    "dailyTrend": [
+      { "date": "2026-08-18", "tokens": 175 },
+      { "date": "2026-08-19", "tokens": 0 }
+    ],
+    "items": [
+      {
+        "id": "1900900000000000201",
+        "createdAt": "2026-08-18T10:59:00Z",
+        "modelName": "DeepSeek Chat",
+        "modelAlias": "deepseek-chat",
+        "inputTokens": 100,
+        "outputTokens": 50,
+        "totalTokens": 175,
+        "result": "SETTLED"
+      }
+    ],
+    "page": { "hasMore": false, "nextCursor": null, "limit": 50 }
+  }
+}

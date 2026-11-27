@@ -14,6 +14,9 @@ import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.RowMapper;
 
 import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -114,6 +117,47 @@ public final class JdbcUsageLedgerStore implements UsageLedgerStore {
             ),
             query.arguments.toArray()
         ));
+    }
+
+    @Override
+    public List<ModelUsage> personalModels(String tenantId, UsageLedgerFilter filter) {
+        Query query = query(tenantId, filter);
+        return jdbc.query("""
+            select m.id, m.alias, coalesce(m.display_name, m.upstream_model) as name,
+                   sum(l.input_tokens) as input_tokens, sum(l.output_tokens) as output_tokens,
+                   sum(l.total_tokens) as total_tokens, count(*) as requests
+              from ent_usage_ledger l
+              join ent_managed_model m on m.id = l.model_id and m.tenant_id = l.tenant_id
+            """ + query.where + """
+             group by m.id, m.alias, m.display_name, m.upstream_model
+             order by total_tokens desc, m.id
+            """,
+            (rs, row) -> new ModelUsage(rs.getString("id"), rs.getString("alias"), rs.getString("name"),
+                rs.getLong("input_tokens"), rs.getLong("output_tokens"), rs.getLong("total_tokens"), rs.getLong("requests")),
+            query.arguments.toArray());
+    }
+
+    @Override
+    public List<DailyUsage> personalDays(String tenantId, UsageLedgerFilter filter, ZoneId zone) {
+        Query query = query(tenantId, filter);
+        query.arguments.addFirst(zone.getId());
+        return jdbc.query("""
+            select (l.created_at at time zone ?)::date as day, sum(l.total_tokens) as tokens
+              from ent_usage_ledger l
+            """ + query.where + " group by 1 order by 1",
+            (rs, row) -> new DailyUsage(rs.getObject("day", LocalDate.class), rs.getLong("tokens")),
+            query.arguments.toArray());
+    }
+
+    @Override
+    public CallOutcomes personalOutcomes(String tenantId, long userId, Instant from, Instant to) {
+        return Objects.requireNonNull(jdbc.queryForObject("""
+            select count(*) as finished, count(*) filter (where result = 'SUCCESS') as successful
+              from ent_audit_event
+             where tenant_id = ? and actor_id = ? and action = 'MODEL_REQUEST_FINISHED'
+               and occurred_at >= ? and occurred_at < ?
+            """, (rs, row) -> new CallOutcomes(rs.getLong("finished"), rs.getLong("successful")),
+            tenantId, userId, Timestamp.from(from), Timestamp.from(to)));
     }
 
     private static Query query(String tenantId, UsageLedgerFilter filter) {

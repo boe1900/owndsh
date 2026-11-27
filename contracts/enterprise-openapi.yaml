@@ -137,6 +137,8 @@ paths:
     $ref: './paths/quota.yaml#/MyUsage'
   /enterprise/admin/v1/usage:
     $ref: './paths/quota.yaml#/AdminUsage'
+  /enterprise/console/v1/usage:
+    $ref: './paths/quota.yaml#/PersonalUsage'
   /enterprise/gateway/v1/chat/completions:
     $ref: './paths/gateway.yaml#/ChatCompletions'
   /enterprise/gateway/v1/responses:
@@ -434,6 +436,9 @@ x-enterprise-fixtures:
     valid: true
   - file: fixtures/usage-ledger-list-success.json
     schema: UsageLedgerListResponse
+    valid: true
+  - file: fixtures/personal-usage-success.json
+    schema: PersonalUsageResponse
     valid: true
   - file: fixtures/gateway-request-success.json
     schema: NativeGatewayRequest
@@ -1011,6 +1016,7 @@ components:
     UsageSummary: {$ref: './components/quota.yaml#/UsageSummary'}
     UsageLedgerPageData: {$ref: './components/quota.yaml#/UsageLedgerPageData'}
     UsageLedgerListResponse: {$ref: './components/quota.yaml#/UsageLedgerListResponse'}
+    PersonalUsageResponse: {$ref: './components/quota.yaml#/PersonalUsageResponse'}
     GatewayModel: {$ref: './components/gateway.yaml#/GatewayModel'}
     NativeGatewayRequest: {$ref: './components/gateway.yaml#/NativeGatewayRequest'}
     EnterpriseUserId:

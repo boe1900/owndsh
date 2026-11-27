@@ -1,12 +1,15 @@
 /**
- * [INPUT]: 依赖 coss UI Card/Tabs/Popover/Field/Input/Button/Badge/Separator、共享 ProductDataTable（TableStackCell / TableStatusBadge）与静态时间窗口示例数据集。
- * [OUTPUT]: 提供面向全部已登录成员的静态占位页 `PersonalUsagePage`，支持近 7 天/近 30 天/本月/自定义日期区间切换，展示个人用量 KPI、模型用量分布条、消耗趋势与统一 ProductDataTable 近期调用明细。
- * [POS]: features/usage 的个人用量工作台，作为全角色共用的「个人 -> 用量」入口与普通员工默认首页，待后续接入个人统计接口。
+ * [INPUT]: 依赖 coss UI Card/Tabs/Popover/Field/Input/Button/Badge/Separator、共享 ProductDataTable（TableStackCell / TableStatusBadge）与生成的本人用量接口。
+ * [OUTPUT]: 提供面向全部已登录成员的用量页 `PersonalUsagePage`，支持近 7 天/近 30 天/本月/自定义日期区间切换，展示个人用量 KPI、模型用量分布条、消耗趋势与统一 ProductDataTable 近期调用明细。
+ * [POS]: features/usage 的个人用量工作台，作为全角色共用的「个人 -> 用量」入口与普通员工默认首页。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { Activity, CalendarRange, Cpu, Layers, Sparkles } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useInfiniteQuery } from '@tanstack/react-query';
+import { getPersonalUsage } from '@/api/generated/sdk.gen';
+import type { GetPersonalUsageResponse } from '@/api/generated/types.gen';
 import {
   ProductDataTable,
   TableStackCell,
@@ -34,131 +37,11 @@ type PresetRangeKey = '7d' | '30d' | 'month';
 type UsageRangeKey = PresetRangeKey | 'custom';
 type CustomDateRange = { start: string; end: string };
 
-type ModelShareItem = {
-  id: string;
-  name: string;
-  alias: string;
-  inputTokens: number;
-  outputTokens: number;
-  requests: number;
-  barClass: string;
-  dotClass: string;
-};
+type UsageData = GetPersonalUsageResponse['data'];
+type RecentCallItem = UsageData['items'][number] & { time: string };
 
-type DailyTrendItem = {
-  label: string;
-  tokens: number;
-};
-
-type RecentCallItem = {
-  id: string;
-  time: string;
-  modelName: string;
-  modelAlias: string;
-  inputTokens: number;
-  outputTokens: number;
-  status: '已完成' | '已降级';
-  tone: 'success' | 'warning';
-};
-
-type UsageSnapshot = {
-  label: string;
-  totalTokens: number;
-  inputTokens: number;
-  outputTokens: number;
-  totalRequests: number;
-  successRate: string;
-  dailyAverageTokens: number;
-  models: readonly ModelShareItem[];
-  dailyTrend: readonly DailyTrendItem[];
-  recentCalls: readonly RecentCallItem[];
-};
-
-const USAGE_SNAPSHOTS: Record<PresetRangeKey, UsageSnapshot> = {
-  '7d': {
-    label: '近 7 天',
-    totalTokens: 2_840_000,
-    inputTokens: 2_120_000,
-    outputTokens: 720_000,
-    totalRequests: 614,
-    successRate: '99.5%',
-    dailyAverageTokens: 405_714,
-    models: [
-      { id: 'deepseek-v4', name: 'DeepSeek-V4.1-Flash', alias: 'deepseek-v4.1-flash', inputTokens: 1_120_000, outputTokens: 360_000, requests: 318, barClass: 'bg-sky-500', dotClass: 'bg-sky-500' },
-      { id: 'sage-a15', name: 'Sage-A1.5', alias: 'sage-a1.5', inputTokens: 590_000, outputTokens: 205_000, requests: 172, barClass: 'bg-emerald-500', dotClass: 'bg-emerald-500' },
-      { id: 'atria-dawn', name: 'Atria-Dawn', alias: 'atria-dawn', inputTokens: 280_000, outputTokens: 110_000, requests: 88, barClass: 'bg-amber-500', dotClass: 'bg-amber-500' },
-      { id: 'agents-a1', name: 'Agents-A1', alias: 'agents-a1', inputTokens: 130_000, outputTokens: 45_000, requests: 36, barClass: 'bg-violet-500', dotClass: 'bg-violet-500' }
-    ],
-    dailyTrend: [
-      { label: '03-21', tokens: 320_000 },
-      { label: '03-22', tokens: 410_000 },
-      { label: '03-23', tokens: 295_000 },
-      { label: '03-24', tokens: 485_000 },
-      { label: '03-25', tokens: 440_000 },
-      { label: '03-26', tokens: 510_000 },
-      { label: '03-27', tokens: 380_000 }
-    ],
-    recentCalls: [
-      { id: 'call-1', time: '今天 11:18', modelName: 'DeepSeek-V4.1-Flash', modelAlias: 'deepseek-v4.1-flash', inputTokens: 12_400, outputTokens: 3_180, status: '已完成', tone: 'success' },
-      { id: 'call-2', time: '今天 10:42', modelName: 'Sage-A1.5', modelAlias: 'sage-a1.5', inputTokens: 8_920, outputTokens: 2_450, status: '已完成', tone: 'success' },
-      { id: 'call-3', time: '今天 09:55', modelName: 'Atria-Dawn', modelAlias: 'atria-dawn', inputTokens: 6_150, outputTokens: 1_920, status: '已完成', tone: 'success' },
-      { id: 'call-4', time: '昨天 19:20', modelName: 'Agents-A1', modelAlias: 'agents-a1', inputTokens: 4_300, outputTokens: 860, status: '已降级', tone: 'warning' }
-    ]
-  },
-  '30d': {
-    label: '近 30 天',
-    totalTokens: 11_480_000,
-    inputTokens: 8_640_000,
-    outputTokens: 2_840_000,
-    totalRequests: 2_510,
-    successRate: '99.2%',
-    dailyAverageTokens: 382_667,
-    models: [
-      { id: 'deepseek-v4', name: 'DeepSeek-V4.1-Flash', alias: 'deepseek-v4.1-flash', inputTokens: 4_250_000, outputTokens: 1_390_000, requests: 1_240, barClass: 'bg-sky-500', dotClass: 'bg-sky-500' },
-      { id: 'sage-a15', name: 'Sage-A1.5', alias: 'sage-a1.5', inputTokens: 2_480_000, outputTokens: 820_000, requests: 710, barClass: 'bg-emerald-500', dotClass: 'bg-emerald-500' },
-      { id: 'atria-dawn', name: 'Atria-Dawn', alias: 'atria-dawn', inputTokens: 1_260_000, outputTokens: 420_000, requests: 382, barClass: 'bg-amber-500', dotClass: 'bg-amber-500' },
-      { id: 'agents-a1', name: 'Agents-A1', alias: 'agents-a1', inputTokens: 650_000, outputTokens: 210_000, requests: 178, barClass: 'bg-violet-500', dotClass: 'bg-violet-500' }
-    ],
-    dailyTrend: [
-      { label: '第 1 周', tokens: 2_310_000 },
-      { label: '第 2 周', tokens: 2_890_000 },
-      { label: '第 3 周', tokens: 3_440_000 },
-      { label: '第 4 周', tokens: 2_840_000 }
-    ],
-    recentCalls: [
-      { id: 'call-1', time: '今天 11:18', modelName: 'DeepSeek-V4.1-Flash', modelAlias: 'deepseek-v4.1-flash', inputTokens: 12_400, outputTokens: 3_180, status: '已完成', tone: 'success' },
-      { id: 'call-2', time: '今天 10:42', modelName: 'Sage-A1.5', modelAlias: 'sage-a1.5', inputTokens: 8_920, outputTokens: 2_450, status: '已完成', tone: 'success' },
-      { id: 'call-5', time: '3 天前', modelName: 'DeepSeek-V4.1-Flash', modelAlias: 'deepseek-v4.1-flash', inputTokens: 19_200, outputTokens: 4_810, status: '已完成', tone: 'success' }
-    ]
-  },
-  month: {
-    label: '本月',
-    totalTokens: 9_920_000,
-    inputTokens: 7_420_000,
-    outputTokens: 2_500_000,
-    totalRequests: 2_186,
-    successRate: '99.4%',
-    dailyAverageTokens: 367_407,
-    models: [
-      { id: 'sage-a15', name: 'Sage-A1.5', alias: 'sage-a1.5', inputTokens: 3_320_000, outputTokens: 1_140_000, requests: 980, barClass: 'bg-emerald-500', dotClass: 'bg-emerald-500' },
-      { id: 'deepseek-v4', name: 'DeepSeek-V4.1-Flash', alias: 'deepseek-v4.1-flash', inputTokens: 2_840_000, outputTokens: 910_000, requests: 825, barClass: 'bg-sky-500', dotClass: 'bg-sky-500' },
-      { id: 'atria-dawn', name: 'Atria-Dawn', alias: 'atria-dawn', inputTokens: 890_000, outputTokens: 310_000, requests: 265, barClass: 'bg-amber-500', dotClass: 'bg-amber-500' },
-      { id: 'agents-a1', name: 'Agents-A1', alias: 'agents-a1', inputTokens: 370_000, outputTokens: 140_000, requests: 116, barClass: 'bg-violet-500', dotClass: 'bg-violet-500' }
-    ],
-    dailyTrend: [
-      { label: '1 日', tokens: 260_000 },
-      { label: '5 日', tokens: 340_000 },
-      { label: '10 日', tokens: 420_000 },
-      { label: '15 日', tokens: 390_000 },
-      { label: '20 日', tokens: 495_000 },
-      { label: '25 日', tokens: 470_000 }
-    ],
-    recentCalls: [
-      { id: 'call-2', time: '今天 10:42', modelName: 'Sage-A1.5', modelAlias: 'sage-a1.5', inputTokens: 8_920, outputTokens: 2_450, status: '已完成', tone: 'success' },
-      { id: 'call-1', time: '今天 11:18', modelName: 'DeepSeek-V4.1-Flash', modelAlias: 'deepseek-v4.1-flash', inputTokens: 12_400, outputTokens: 3_180, status: '已完成', tone: 'success' }
-    ]
-  }
-};
+const RANGE_LABELS = { '7d': '近 7 天', '30d': '近 30 天', month: '本月' };
+const MODEL_COLORS = ['bg-sky-500', 'bg-emerald-500', 'bg-amber-500', 'bg-violet-500'];
 
 function formatTokens(value: number) {
   return new Intl.NumberFormat('zh-CN').format(value);
@@ -222,48 +105,6 @@ function previousMonthRange(today: Date): CustomDateRange {
   };
 }
 
-function buildCustomSnapshot({ start, end }: CustomDateRange): UsageSnapshot {
-  const days = Math.max(1, diffDaysInclusive(start, end));
-  const scale = days / 7;
-  const base = USAGE_SNAPSHOTS['7d'];
-  const models: ModelShareItem[] = base.models.map((model) => ({
-    ...model,
-    inputTokens: Math.round(model.inputTokens * scale),
-    outputTokens: Math.round(model.outputTokens * scale),
-    requests: Math.max(1, Math.round(model.requests * scale))
-  }));
-  const inputTokens = models.reduce((sum, item) => sum + item.inputTokens, 0);
-  const outputTokens = models.reduce((sum, item) => sum + item.outputTokens, 0);
-  const totalTokens = inputTokens + outputTokens;
-  const totalRequests = models.reduce((sum, item) => sum + item.requests, 0);
-
-  const buckets = Math.min(days, 7);
-  const step = Math.max(1, Math.floor((days - 1) / Math.max(1, buckets - 1)));
-  const dailyTrend: DailyTrendItem[] = Array.from({ length: buckets }, (_, index) => {
-    const offset = index === buckets - 1 ? days - 1 : index * step;
-    const label = formatShortDate(shiftDateInput(start, offset));
-    const wave = [0.84, 1.05, 0.91, 1.18, 0.96, 1.12, 0.94][index % 7] ?? 1;
-    const bucketDays = index === buckets - 1 ? Math.max(1, days - offset) : step;
-    return {
-      label,
-      tokens: Math.round((totalTokens / days) * bucketDays * wave)
-    };
-  });
-
-  return {
-    label: `${formatShortDate(start)} ~ ${formatShortDate(end)}`,
-    totalTokens,
-    inputTokens,
-    outputTokens,
-    totalRequests,
-    successRate: base.successRate,
-    dailyAverageTokens: Math.round(totalTokens / days),
-    models,
-    dailyTrend,
-    recentCalls: base.recentCalls
-  };
-}
-
 const recentCallColumns: ReadonlyArray<ProductTableColumn<RecentCallItem>> = [
   {
     accessorKey: 'time',
@@ -283,40 +124,44 @@ const recentCallColumns: ReadonlyArray<ProductTableColumn<RecentCallItem>> = [
   {
     accessorKey: 'inputTokens',
     header: '输入',
-    cell: ({ getValue }) => (
-      <span className="block truncate font-mono text-xs tabular-nums">{formatTokens(Number(getValue()))}</span>
+    cell: ({ getValue, row }) => (
+      <span className="block truncate font-mono text-xs tabular-nums">{row.original.result === 'SETTLED' ? formatTokens(Number(getValue())) : '—'}</span>
     ),
     meta: { label: '输入', className: 'w-[110px]', cellClassName: 'w-[110px]' }
   },
   {
     accessorKey: 'outputTokens',
     header: '输出',
-    cell: ({ getValue }) => (
-      <span className="block truncate font-mono text-xs tabular-nums">{formatTokens(Number(getValue()))}</span>
+    cell: ({ getValue, row }) => (
+      <span className="block truncate font-mono text-xs tabular-nums">{row.original.result === 'SETTLED' ? formatTokens(Number(getValue())) : '—'}</span>
     ),
     meta: { label: '输出', className: 'w-[110px]', cellClassName: 'w-[110px]' }
   },
   {
     id: 'totalTokens',
-    accessorFn: (row) => row.inputTokens + row.outputTokens,
+    accessorKey: 'totalTokens',
     header: '总计',
-    cell: ({ getValue }) => (
+    cell: ({ getValue, row }) => (
       <span className="block truncate font-mono text-xs font-medium tabular-nums">
-        {formatTokens(Number(getValue()))}
+        {row.original.result === 'SETTLED' ? formatTokens(Number(getValue())) : '—'}
       </span>
     ),
     meta: { label: '总计', className: 'w-[120px]', cellClassName: 'w-[120px]' }
   },
   {
-    accessorKey: 'status',
+    id: 'status',
+    accessorFn: (row) => row.result,
     header: '状态',
     filterFn: 'equalsString',
-    cell: ({ row }) => <TableStatusBadge label={row.original.status} tone={row.original.tone} />,
+    cell: ({ row }) => <TableStatusBadge
+      label={row.original.result === 'SETTLED' ? '已计量' : '用量未知'}
+      tone={row.original.result === 'SETTLED' ? 'success' : 'warning'}
+    />,
     meta: { label: '状态', className: 'w-[110px]', cellClassName: 'w-[110px]' }
   }
 ];
 
-export function PersonalUsagePage() {
+export function PersonalUsagePage({ memberId }: { memberId: string }) {
   const today = useMemo(() => new Date(), []);
   const todayStr = useMemo(() => toDateInputValue(today), [today]);
   const defaultCustomRange = useMemo<CustomDateRange>(
@@ -331,13 +176,29 @@ export function PersonalUsagePage() {
   const [draftEnd, setDraftEnd] = useState(defaultCustomRange.end);
   const [customError, setCustomError] = useState<string>();
 
-  const snapshot = useMemo(
-    () => (range === 'custom' ? buildCustomSnapshot(customRange) : USAGE_SNAPSHOTS[range]),
-    [customRange, range]
-  );
-  const topModel = snapshot.models[0];
-  const topModelTotal = topModel ? topModel.inputTokens + topModel.outputTokens : 0;
-  const maxDailyTokens = Math.max(...snapshot.dailyTrend.map((item) => item.tokens), 1);
+  const filters = range === 'custom'
+    ? { range, start: customRange.start, end: customRange.end }
+    : { range };
+  const usage = useInfiniteQuery({
+    queryKey: ['personal-usage', memberId, filters],
+    initialPageParam: undefined as string | undefined,
+    queryFn: async ({ pageParam, signal }) => {
+      const result = await getPersonalUsage({ query: { ...filters, cursor: pageParam }, signal });
+      if (!result.data) throw new Error(result.error?.error?.message ?? '个人用量读取失败');
+      return result.data.data;
+    },
+    getNextPageParam: (lastPage) => lastPage.page.nextCursor ?? undefined
+  });
+  const snapshot = usage.data?.pages[0];
+  const recentCalls = useMemo(() => {
+    if (!usage.data) return [];
+    const dates = new Intl.DateTimeFormat('zh-CN', {
+      dateStyle: 'short', timeStyle: 'short', timeZone: usage.data.pages[0]?.timeZone
+    });
+    return usage.data.pages.flatMap((page) => page.items.map((item) => ({
+      ...item, time: dates.format(new Date(item.createdAt))
+    })));
+  }, [usage.data]);
 
   const handleCustomOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
@@ -357,7 +218,10 @@ export function PersonalUsagePage() {
       setCustomError('开始日期不能晚于结束日期');
       return;
     }
-    if (draftEnd > todayStr) {
+    const latestDate = snapshot
+      ? new Intl.DateTimeFormat('sv-SE', { timeZone: snapshot.timeZone }).format(today)
+      : todayStr;
+    if (draftEnd > latestDate) {
       setCustomError('结束日期不能超过今天');
       return;
     }
@@ -384,9 +248,6 @@ export function PersonalUsagePage() {
               <h1 className="m-0 text-[22px] font-semibold tracking-tight leading-tight text-foreground">
                 个人用量
               </h1>
-              <Badge variant="outline" size="sm">
-                示例数据 · 待接入个人用量接口
-              </Badge>
             </div>
             <p className="m-0 text-sm text-muted-foreground">
               查看当前账号在不同模型上的 Token 消耗分布与日常调用趋势。
@@ -527,162 +388,219 @@ export function PersonalUsagePage() {
           </Tabs>
         </header>
 
-        <section aria-label="关键用量指标" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <UsageMetricCard
-            icon={<Layers aria-hidden className="size-4 text-muted-foreground" />}
-            label={`${snapshot.label}总消耗`}
-            value={formatCompactTokens(snapshot.totalTokens)}
-            hint={`输入 ${formatCompactTokens(snapshot.inputTokens)} · 输出 ${formatCompactTokens(snapshot.outputTokens)}`}
+        {usage.isPending ? <p role="status" className="text-sm text-muted-foreground">正在加载个人用量…</p> : null}
+        {usage.isError && !snapshot ? (
+          <Alert variant="error">
+            <AlertDescription>{usage.error.message}</AlertDescription>
+            <Button size="sm" variant="outline" onClick={() => void usage.refetch()}>重试</Button>
+          </Alert>
+        ) : null}
+        {snapshot ? (
+          <UsageResults
+            snapshot={snapshot}
+            label={range === 'custom' ? customLabel : RANGE_LABELS[range]}
+            recentCalls={recentCalls}
+            hasMore={usage.hasNextPage}
+            isLoadingMore={usage.isFetchingNextPage}
+            error={usage.error}
+            onLoadMore={() => void usage.fetchNextPage()}
+            onRetry={() => void (usage.isFetchNextPageError ? usage.fetchNextPage() : usage.refetch())}
           />
-          <UsageMetricCard
-            icon={<Activity aria-hidden className="size-4 text-muted-foreground" />}
-            label="请求总次数"
-            value={formatTokens(snapshot.totalRequests)}
-            hint={`调用成功率 ${snapshot.successRate}`}
-          />
-          <UsageMetricCard
-            icon={<Sparkles aria-hidden className="size-4 text-muted-foreground" />}
-            label="主力模型"
-            value={topModel ? topModel.name : '-'}
-            hint={topModel ? `占比 ${sharePercent(topModelTotal, snapshot.totalTokens)}%` : '暂无调用'}
-            compactValue
-          />
-          <UsageMetricCard
-            icon={<Cpu aria-hidden className="size-4 text-muted-foreground" />}
-            label="日均 Token"
-            value={formatCompactTokens(snapshot.dailyAverageTokens)}
-            hint={`覆盖 ${snapshot.models.length} 款受管模型`}
-          />
-        </section>
-
-        <section className="grid gap-4 lg:grid-cols-5">
-          <Card className="lg:col-span-3">
-            <CardHeader className="border-b pb-4">
-              <CardTitle render={<h2 />} className="text-base">模型用量分布</CardTitle>
-              <CardDescription>
-                按 {snapshot.label} 实测输入与输出 Token 合计占比排序
-              </CardDescription>
-            </CardHeader>
-            <CardPanel className="space-y-5 pt-5">
-              <div
-                aria-label="模型用量占比条"
-                className="flex h-3 w-full overflow-hidden rounded-full bg-muted"
-              >
-                {snapshot.models.map((model) => {
-                  const modelTotal = model.inputTokens + model.outputTokens;
-                  const pct = sharePercent(modelTotal, snapshot.totalTokens);
-                  return (
-                    <div
-                      key={model.id}
-                      title={`${model.name} (${pct}%)`}
-                      style={{ width: `${pct}%` }}
-                      className={cn('h-full transition-all', model.barClass)}
-                    />
-                  );
-                })}
-              </div>
-
-              <div className="space-y-4">
-                {snapshot.models.map((model) => {
-                  const modelTotal = model.inputTokens + model.outputTokens;
-                  const pct = sharePercent(modelTotal, snapshot.totalTokens);
-                  return (
-                    <div key={model.id} className="space-y-1.5">
-                      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                        <div className="flex min-w-0 items-center gap-2">
-                          <span aria-hidden className={cn('size-2.5 shrink-0 rounded-full', model.dotClass)} />
-                          <span className="truncate font-medium text-foreground">{model.name}</span>
-                          <Badge variant="outline" size="sm" className="hidden font-mono sm:inline-flex">
-                            {model.alias}
-                          </Badge>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-3 font-mono text-xs tabular-nums">
-                          <span className="text-muted-foreground">{formatTokens(model.requests)} 次</span>
-                          <span className="font-semibold text-foreground">{formatCompactTokens(modelTotal)}</span>
-                          <span className="w-12 text-right text-muted-foreground">{pct}%</span>
-                        </div>
-                      </div>
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                        <div
-                          style={{ width: `${pct}%` }}
-                          className={cn('h-full rounded-full transition-all', model.barClass)}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                        <span>输入 {formatCompactTokens(model.inputTokens)} · 输出 {formatCompactTokens(model.outputTokens)}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardPanel>
-          </Card>
-
-          <Card className="lg:col-span-2">
-            <CardHeader className="border-b pb-4">
-              <CardTitle render={<h2 />} className="text-base">消耗趋势</CardTitle>
-              <CardDescription>{snapshot.label} 各统计周期 Token 起伏</CardDescription>
-            </CardHeader>
-            <CardPanel className="flex flex-col justify-between gap-4 pt-5">
-              <div className="flex h-48 items-end gap-2.5 pt-4">
-                {snapshot.dailyTrend.map((point) => {
-                  const heightPct = Math.max(12, Math.round((point.tokens / maxDailyTokens) * 100));
-                  return (
-                    <div
-                      key={point.label}
-                      className="group flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1.5"
-                    >
-                      <span className="font-mono text-[10px] text-muted-foreground tabular-nums opacity-80 group-hover:opacity-100">
-                        {formatCompactTokens(point.tokens)}
-                      </span>
-                      <div
-                        title={`${point.label}：${formatTokens(point.tokens)} Tokens`}
-                        style={{ height: `${heightPct}%` }}
-                        className="w-full max-w-9 rounded-t-md bg-primary/80 transition-colors group-hover:bg-primary"
-                      />
-                      <span className="truncate text-[11px] text-muted-foreground">{point.label}</span>
-                    </div>
-                  );
-                })}
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>峰值周期消耗</span>
-                <span className="font-mono font-medium text-foreground tabular-nums">
-                  {formatCompactTokens(maxDailyTokens)} Tokens
-                </span>
-              </div>
-            </CardPanel>
-          </Card>
-        </section>
-
-        <section className="space-y-3">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="m-0 text-base font-semibold text-foreground">近期调用明细</h2>
-            <span className="text-xs text-muted-foreground">
-              仅预览当前账号最近几笔调用结构，正式版接入分页账本
-            </span>
-          </div>
-          <ProductDataTable
-            ariaLabel="近期调用明细"
-            className="flex-none"
-            columns={recentCallColumns}
-            data={snapshot.recentCalls}
-            emptyText="暂无个人调用明细"
-            filter={{
-              columnId: 'status',
-              label: '全部状态',
-              options: [
-                { label: '已完成', value: '已完成' },
-                { label: '已降级', value: '已降级' }
-              ]
-            }}
-            getRowId={(row) => row.id}
-            searchPlaceholder="搜索模型名称或别名"
-          />
-        </section>
+        ) : null}
       </div>
     </div>
+  );
+}
+
+function UsageResults({
+  snapshot, label, recentCalls, hasMore, isLoadingMore, error, onLoadMore, onRetry
+}: {
+  snapshot: UsageData;
+  label: string;
+  recentCalls: RecentCallItem[];
+  hasMore: boolean;
+  isLoadingMore: boolean;
+  error: Error | null;
+  onLoadMore: () => void;
+  onRetry: () => void;
+}) {
+  const topModel = snapshot.models.find((model) => model.totalTokens > 0);
+  const topModelTotal = topModel?.totalTokens ?? 0;
+  const maxDailyTokens = Math.max(0, ...snapshot.dailyTrend.map((item) => item.tokens));
+  const dailyAverageTokens = Math.round(snapshot.summary.totalTokens / Math.max(1, snapshot.dailyTrend.length));
+  const { successful, finished } = snapshot.outcomes;
+  const successRate = finished ? `${sharePercent(successful, finished)}%` : '—';
+  const labelStep = Math.max(1, Math.ceil(snapshot.dailyTrend.length / 7));
+
+  return (
+    <>
+      <section aria-label="关键用量指标" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <UsageMetricCard
+          icon={<Layers aria-hidden className="size-4 text-muted-foreground" />}
+          label={`${label}总消耗`}
+          value={formatCompactTokens(snapshot.summary.totalTokens)}
+          hint={`输入 ${formatCompactTokens(snapshot.summary.inputTokens)} · 输出 ${formatCompactTokens(snapshot.summary.outputTokens)} · 缓存 ${formatCompactTokens(snapshot.summary.cacheTokens)}`}
+        />
+        <UsageMetricCard
+          icon={<Activity aria-hidden className="size-4 text-muted-foreground" />}
+          label="已结束请求"
+          value={formatTokens(snapshot.outcomes.finished)}
+          hint={`调用成功率 ${successRate}`}
+        />
+        <UsageMetricCard
+          icon={<Sparkles aria-hidden className="size-4 text-muted-foreground" />}
+          label="主力模型"
+          value={topModel ? topModel.name : '-'}
+          hint={topModel ? `占比 ${sharePercent(topModelTotal, snapshot.summary.totalTokens)}%` : '暂无调用'}
+          compactValue
+        />
+        <UsageMetricCard
+          icon={<Cpu aria-hidden className="size-4 text-muted-foreground" />}
+          label="日均 Token"
+          value={formatCompactTokens(dailyAverageTokens)}
+          hint={`覆盖 ${snapshot.models.length} 款受管模型`}
+        />
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-5">
+        <Card className="lg:col-span-3">
+          <CardHeader className="border-b pb-4">
+            <CardTitle render={<h2 />} className="text-base">模型用量分布</CardTitle>
+            <CardDescription>
+              按 {label} 实测 Token 总量排序
+            </CardDescription>
+          </CardHeader>
+          <CardPanel className="space-y-5 pt-5">
+            <div
+              aria-label="模型用量占比条"
+              className="flex h-3 w-full overflow-hidden rounded-full bg-muted"
+            >
+              {snapshot.models.map((model, index) => {
+                const modelTotal = model.totalTokens;
+                const pct = sharePercent(modelTotal, snapshot.summary.totalTokens);
+                return (
+                  <div
+                    key={model.id}
+                    title={`${model.name} (${pct}%)`}
+                    style={{ width: `${pct}%` }}
+                    className={cn('h-full transition-all', MODEL_COLORS[index % MODEL_COLORS.length])}
+                  />
+                );
+              })}
+            </div>
+
+            <div className="space-y-4">
+              {snapshot.models.length === 0 ? <p className="text-sm text-muted-foreground">暂无模型用量</p> : null}
+              {snapshot.models.map((model, index) => {
+                const modelTotal = model.totalTokens;
+                const pct = sharePercent(modelTotal, snapshot.summary.totalTokens);
+                return (
+                  <div key={model.id} className="space-y-1.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span aria-hidden className={cn('size-2.5 shrink-0 rounded-full', MODEL_COLORS[index % MODEL_COLORS.length])} />
+                        <span className="truncate font-medium text-foreground">{model.name}</span>
+                        <Badge variant="outline" size="sm" className="hidden font-mono sm:inline-flex">
+                          {model.alias}
+                        </Badge>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-3 font-mono text-xs tabular-nums">
+                        <span className="text-muted-foreground">{formatTokens(model.requests)} 次</span>
+                        <span className="font-semibold text-foreground">{formatCompactTokens(modelTotal)}</span>
+                        <span className="w-12 text-right text-muted-foreground">{pct}%</span>
+                      </div>
+                    </div>
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                      <div
+                        style={{ width: `${pct}%` }}
+                        className={cn('h-full rounded-full transition-all', MODEL_COLORS[index % MODEL_COLORS.length])}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                      <span>输入 {formatCompactTokens(model.inputTokens)} · 输出 {formatCompactTokens(model.outputTokens)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardPanel>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader className="border-b pb-4">
+            <CardTitle render={<h2 />} className="text-base">消耗趋势</CardTitle>
+            <CardDescription>{label}每日实测 Token</CardDescription>
+          </CardHeader>
+          <CardPanel className="flex flex-col justify-between gap-4 pt-5">
+            <div className={cn('flex h-48 items-end pt-4', snapshot.dailyTrend.length > 14 ? 'gap-px' : 'gap-1.5')}>
+              {snapshot.dailyTrend.map((point, index) => {
+                const heightPct = maxDailyTokens ? (point.tokens / maxDailyTokens) * 100 : 0;
+                const showLabel = index % labelStep === 0;
+                const date = formatShortDate(point.date);
+                return (
+                  <div
+                    key={point.date}
+                    className="group flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1.5"
+                  >
+                    <span className="font-mono text-[10px] text-muted-foreground tabular-nums opacity-80 group-hover:opacity-100">
+                      {labelStep === 1 ? formatCompactTokens(point.tokens) : null}
+                    </span>
+                    <div
+                      title={`${point.date} · ${formatTokens(point.tokens)} Tokens`}
+                      style={{ height: `${heightPct}%` }}
+                      className="w-full max-w-9 rounded-t-md bg-primary/80 transition-colors group-hover:bg-primary"
+                    />
+                    <span className="relative h-4 w-full text-[10px] text-muted-foreground">
+                      {showLabel ? <span className="absolute left-0 whitespace-nowrap">{date}</span> : null}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>单日峰值</span>
+              <span className="font-mono font-medium text-foreground tabular-nums">
+                {formatCompactTokens(maxDailyTokens)} Tokens
+              </span>
+            </div>
+          </CardPanel>
+        </Card>
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="m-0 text-base font-semibold text-foreground">近期调用明细</h2>
+          <span className="text-xs text-muted-foreground">
+            {snapshot.summary.unmeasuredRequests > 0
+              ? `${formatTokens(snapshot.summary.unmeasuredRequests)} 次调用用量未知`
+              : `${formatTokens(snapshot.summary.requests)} 条用量记录`}
+          </span>
+        </div>
+        <ProductDataTable
+          ariaLabel="近期调用明细"
+          className="flex-none"
+          columns={recentCallColumns}
+          data={recentCalls}
+          hasMore={hasMore}
+          isLoadingMore={isLoadingMore}
+          error={error}
+          onLoadMore={onLoadMore}
+          onRetry={onRetry}
+          emptyText="暂无个人调用明细"
+          filter={{
+            columnId: 'status',
+            label: '全部状态',
+            options: [
+              { label: '已计量', value: 'SETTLED' },
+              { label: '用量未知', value: 'CHARGED_MAX' }
+            ]
+          }}
+          getRowId={(row) => row.id}
+          searchPlaceholder="搜索模型名称或别名"
+        />
+      </section>
+    </>
   );
 }
 

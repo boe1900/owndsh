@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖有效策略、窗口 store/calculator、Redis counter snapshot 与 prompt-free ledger store。
- * [OUTPUT]: 对外提供四类当前策略窗口、本人实时用量及管理员时间/ID 倒序筛选分页/聚合查询。
+ * [OUTPUT]: 提供当前策略窗口、个人历史统计及管理员用量筛选分页。
  * [POS]: quota/application 的只读组合服务，不创建窗口也不改变 reservation 状态。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -17,12 +17,18 @@ import com.owndsh.enterprise.quota.persistence.UsageLedgerStore;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 public final class QuotaUsageQueryService {
+    private static final int MAX_PERSONAL_DAYS = 90;
+
     private final EffectiveQuotaResolver resolver;
     private final QuotaWindowCalculator calculator;
     private final QuotaWindowStore windows;
@@ -89,6 +95,58 @@ public final class QuotaUsageQueryService {
             ledgers.summarize(tenantId, filter)
         );
     }
+
+    public PersonalRange personalRange(String range, LocalDate start, LocalDate end) {
+        LocalDate today = LocalDate.now(clock.withZone(calculator.zone()));
+        if ("custom".equals(range)) {
+            if (start == null || end == null || end.isAfter(today)) {
+                throw new IllegalArgumentException("请选择有效的起止日期，结束日期不能超过今天");
+            }
+        } else {
+            if (start != null || end != null) throw new IllegalArgumentException("预设范围不接受起止日期");
+            start = switch (range) {
+                case "7d" -> today.minusDays(6);
+                case "30d" -> today.minusDays(29);
+                case "month" -> today.withDayOfMonth(1);
+                default -> throw new IllegalArgumentException("用量统计范围无效");
+            };
+            end = today;
+        }
+        long days = ChronoUnit.DAYS.between(start, end) + 1;
+        if (days < 1 || days > MAX_PERSONAL_DAYS) {
+            throw new IllegalArgumentException("起止日期顺序无效或超过 90 天");
+        }
+        return new PersonalRange(start, end, calculator.zone());
+    }
+
+    public PersonalUsage personalUsage(
+        String tenantId, long userId, PersonalRange range, TimePosition before, int limit
+    ) {
+        Instant from = range.start().atStartOfDay(range.zone()).toInstant();
+        Instant to = range.end().plusDays(1).atStartOfDay(range.zone()).toInstant();
+        var filter = new UsageLedgerStore.UsageLedgerFilter(userId, null, null, null, from, to);
+        Map<LocalDate, Long> days = ledgers.personalDays(tenantId, filter, range.zone()).stream()
+            .collect(Collectors.toMap(UsageLedgerStore.DailyUsage::date, UsageLedgerStore.DailyUsage::tokens));
+        return new PersonalUsage(
+            ledgers.summarize(tenantId, filter),
+            ledgers.personalOutcomes(tenantId, userId, from, to),
+            ledgers.personalModels(tenantId, filter),
+            range.start().datesUntil(range.end().plusDays(1))
+                .map(date -> new UsageLedgerStore.DailyUsage(date, days.getOrDefault(date, 0L)))
+                .toList(),
+            ledgers.list(tenantId, before, limit, filter)
+        );
+    }
+
+    public record PersonalRange(LocalDate start, LocalDate end, ZoneId zone) {}
+
+    public record PersonalUsage(
+        UsageLedgerStore.UsageTotals totals,
+        UsageLedgerStore.CallOutcomes outcomes,
+        List<UsageLedgerStore.ModelUsage> models,
+        List<UsageLedgerStore.DailyUsage> dailyTrend,
+        List<UsageLedgerMetadata> items
+    ) {}
 
     private PolicyUsage usage(
         String tenantId,

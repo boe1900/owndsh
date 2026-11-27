@@ -513,6 +513,8 @@ export type UsageLedgerPageData = QuotaUsageLedgerPageData;
 
 export type UsageLedgerListResponse = QuotaUsageLedgerListResponse;
 
+export type PersonalUsageResponse = QuotaPersonalUsageResponse;
+
 export type GatewayModel = GatewayGatewayModel;
 
 export type NativeGatewayRequest = GatewayNativeGatewayRequest;
@@ -2240,6 +2242,47 @@ export type NullableResourceId = string | null;
 
 export type NullableTokenWindowUsage = QuotaTokenWindowUsage | null;
 
+export type QuotaPersonalUsageResponse = {
+    requestId: RequestId;
+    data: {
+        start: string;
+        end: string;
+        timeZone: string;
+        summary: QuotaUsageSummary;
+        /**
+         * Terminal model requests with available audit records.
+         */
+        outcomes: {
+            finished: number;
+            successful: number;
+        };
+        models: Array<{
+            id: ManagedModelId;
+            alias: string;
+            name: string;
+            inputTokens: number;
+            outputTokens: number;
+            totalTokens: number;
+            requests: number;
+        }>;
+        dailyTrend: Array<{
+            date: string;
+            tokens: number;
+        }>;
+        items: Array<{
+            id: QuotaUsageLedgerId;
+            createdAt: string;
+            modelName: string;
+            modelAlias: string;
+            inputTokens: number;
+            outputTokens: number;
+            totalTokens: number;
+            result: QuotaUsageResult;
+        }>;
+        page: CursorPage;
+    };
+};
+
 export type QuotaQuotaPolicy = {
     id: QuotaQuotaPolicyId;
     name: string;
@@ -2946,6 +2989,8 @@ export type PluginRuntimePluginAssignments2 = unknown;
 export type AdminUsage = unknown;
 
 export type MyUsage = unknown;
+
+export type PersonalUsage = unknown;
 
 export type QuotaCollection = unknown;
 
@@ -6745,6 +6790,53 @@ export type ListUsageLedgerResponses = {
 };
 
 export type ListUsageLedgerResponse = ListUsageLedgerResponses[keyof ListUsageLedgerResponses];
+
+export type GetPersonalUsageData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Server-signed opaque cursor; clients must not parse it.
+         */
+        cursor?: Cursor;
+        /**
+         * Cursor page size.
+         */
+        limit?: PageLimit;
+        range?: '7d' | '30d' | 'month' | 'custom';
+        /**
+         * Required for the custom range.
+         */
+        start?: string;
+        /**
+         * Required for the custom range.
+         */
+        end?: string;
+    };
+    url: '/enterprise/console/v1/usage';
+};
+
+export type GetPersonalUsageErrors = {
+    /**
+     * Invalid request.
+     */
+    400: EnterpriseErrorResponse;
+    /**
+     * Authentication failed.
+     */
+    401: EnterpriseErrorResponse;
+};
+
+export type GetPersonalUsageError = GetPersonalUsageErrors[keyof GetPersonalUsageErrors];
+
+export type GetPersonalUsageResponses = {
+    /**
+     * Personal usage dashboard and paginated ledger.
+     */
+    200: QuotaPersonalUsageResponse;
+};
+
+export type GetPersonalUsageResponse = GetPersonalUsageResponses[keyof GetPersonalUsageResponses];
 
 export type StreamEnterpriseChatCompletionsData = {
     body: GatewayNativeGatewayRequest;

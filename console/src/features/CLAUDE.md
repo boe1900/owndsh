@@ -13,6 +13,6 @@ members/: 产品成员、扁平用户组、OIDC/LDAP/LOCAL 身份接入、LDAP �
 models/: Provider 与受管模型目录、三协议配置、模型发现和 Harness 能力声明管理；局部地图见 models/CLAUDE.md。
 plugins/: 插件版本、发布状态与可见范围管理，以及独立 `/mcp` 页的服务配置/访问授权；局部地图见 plugins/CLAUDE.md。
 skills/: skill release 导入、发布/撤销目录工作台；员工端按需安装，局部地图见 skills/CLAUDE.md。
-usage/: 全角色共用的「个人 -> 用量」静态占位页（个人总消耗、时间窗口切换、模型用量分布与近期调用结构预览）；局部地图见 usage/CLAUDE.md。
+usage/: 全角色共用的「个人 -> 用量」用量页，从本人统计接口读取日期范围内的实测汇总、分布、趋势和分页明细；局部地图见 usage/CLAUDE.md。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

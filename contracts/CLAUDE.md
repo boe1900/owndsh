@@ -5,7 +5,7 @@
 成员清单
 
 README.md: 协议真源使用规则，定义手写与生成边界、双端消费方式和漂移门禁。
-enterprise-openapi.yaml: OpenAPI 3.1 逻辑协议导航根，定义 Bearer 与 HTTP/HTTPS 管理端 Cookie、38 个稳定错误码和 139 个 operation，并引用受控 Path Item/schema 分片。
+enterprise-openapi.yaml: OpenAPI 3.1 逻辑协议导航根，定义 Bearer 与 HTTP/HTTPS 管理端 Cookie、38 个稳定错误码和 140 个 operation，并引用受控 Path Item/schema 分片。
 paths/: 身份、模型治理、插件、Session、审计与 Remote 控制面的 operation 分片；员工 Remote 复用 Bearer，管理 Remote 复用 Cookie；局部地图见 paths/CLAUDE.md。
 components/: 身份治理、模型、插件、Session、审计与 Remote 授权事实的 schema 分片；局部地图见 components/CLAUDE.md。
 fixtures/auth-sources-success.json: T05 登录事务、CSRF 与公开身份源成功响应样例。
@@ -36,6 +36,7 @@ fixtures/bootstrap-models-success.json: ACTIVE 设备的模型、配额与必填
 fixtures/quota-policy-success.json: 多主体 TOKEN policy 与 nullable 四窗口 limits 成功样例。
 fixtures/quota-policy-list-success.json: T09 quota policy 空 cursor page 成功样例。
 fixtures/quota-window-list-success.json: T09 当前自然日窗口计数与 reset time 成功样例。
+fixtures/personal-usage-success.json: 控制台本人用量汇总、调用结果、模型分布、每日趋势和脱敏账本分页。
 fixtures/quota-usage-me-success.json: P2-08A 员工生效 TOKEN 策略的资源范围与四窗口实时计数样例。
 fixtures/usage-ledger-list-success.json: prompt-free ledger 与分页样例，分开表达实测 Token、配额扣额和未知用量请求数。
 fixtures/gateway-request-success.json: T10/T11 default sentinel 与官方 adapter 原生字段透明传输成功请求样例。

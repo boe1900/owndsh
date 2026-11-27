@@ -259,6 +259,12 @@
       "zodExport": "zUsageLedgerListResponse"
     },
     {
+      "file": "fixtures/personal-usage-success.json",
+      "schema": "PersonalUsageResponse",
+      "valid": true,
+      "zodExport": "zPersonalUsageResponse"
+    },
+    {
       "file": "fixtures/gateway-request-success.json",
       "schema": "NativeGatewayRequest",
       "valid": true,
@@ -313,5 +319,5 @@
       "zodExport": "zAuditEventListResponse"
     }
   ],
-  "protocolSha256": "577f54fc2c7aa2cb993c2fafb4e7aae69b582ebf4653d2b7951d978b53640b63"
+  "protocolSha256": "bd8c30dee1896231f524ad279c4d24777575918aa5fac56322823f808c095dcb"
 }

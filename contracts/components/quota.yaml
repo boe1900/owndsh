@@ -473,3 +473,66 @@ UsageLedgerListResponse:
     data: {$ref: '#/UsageLedgerPageData'}
     requestId:
       $ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'
+PersonalUsageResponse:
+  type: object
+  additionalProperties: false
+  required: [data, requestId]
+  properties:
+    requestId: {$ref: '../enterprise-openapi.yaml#/components/schemas/RequestId'}
+    data:
+      type: object
+      additionalProperties: false
+      required: [start, end, timeZone, summary, outcomes, models, dailyTrend, items, page]
+      properties:
+        start: {type: string, format: date}
+        end: {type: string, format: date}
+        timeZone: {type: string}
+        summary: {$ref: '#/UsageSummary'}
+        outcomes:
+          description: Terminal model requests with available audit records.
+          type: object
+          additionalProperties: false
+          required: [finished, successful]
+          properties:
+            finished: {type: integer, minimum: 0}
+            successful: {type: integer, minimum: 0}
+        models:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, alias, name, inputTokens, outputTokens, totalTokens, requests]
+            properties:
+              id: {$ref: '../enterprise-openapi.yaml#/components/schemas/ManagedModelId'}
+              alias: {type: string}
+              name: {type: string}
+              inputTokens: {type: integer, minimum: 0}
+              outputTokens: {type: integer, minimum: 0}
+              totalTokens: {type: integer, minimum: 0}
+              requests: {type: integer, minimum: 0}
+        dailyTrend:
+          type: array
+          maxItems: 90
+          items:
+            type: object
+            additionalProperties: false
+            required: [date, tokens]
+            properties:
+              date: {type: string, format: date}
+              tokens: {type: integer, minimum: 0}
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, createdAt, modelName, modelAlias, inputTokens, outputTokens, totalTokens, result]
+            properties:
+              id: {$ref: '#/UsageLedgerId'}
+              createdAt: {type: string, format: date-time}
+              modelName: {type: string}
+              modelAlias: {type: string}
+              inputTokens: {type: integer, minimum: 0}
+              outputTokens: {type: integer, minimum: 0}
+              totalTokens: {type: integer, minimum: 0}
+              result: {$ref: '#/UsageResult'}
+        page: {$ref: '../enterprise-openapi.yaml#/components/schemas/CursorPage'}

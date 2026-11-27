@@ -1,0 +1,272 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:owndsh:contracts:PersonalUsageResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "data",
+    "requestId"
+  ],
+  "properties": {
+    "requestId": {
+      "type": "string",
+      "description": "Server-generated req_ prefix followed by one canonical ULID.",
+      "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$",
+      "examples": [
+        "req_01ARZ3NDEKTSV4RRFFQ69G5FAV"
+      ]
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start",
+        "end",
+        "timeZone",
+        "summary",
+        "outcomes",
+        "models",
+        "dailyTrend",
+        "items",
+        "page"
+      ],
+      "properties": {
+        "start": {
+          "type": "string",
+          "format": "date"
+        },
+        "end": {
+          "type": "string",
+          "format": "date"
+        },
+        "timeZone": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "requests",
+            "inputTokens",
+            "outputTokens",
+            "cacheTokens",
+            "totalTokens",
+            "chargedTokens",
+            "unmeasuredRequests"
+          ],
+          "properties": {
+            "requests": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            },
+            "inputTokens": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            },
+            "outputTokens": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            },
+            "cacheTokens": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            },
+            "totalTokens": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            },
+            "chargedTokens": {
+              "description": "全部请求的配额扣额，不等同于实测 Token 总数。",
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            },
+            "unmeasuredRequests": {
+              "description": "没有获得最终上游 usage 的请求数，不包含在实测 Token 总数中。",
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          }
+        },
+        "outcomes": {
+          "description": "Terminal model requests with available audit records.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "finished",
+            "successful"
+          ],
+          "properties": {
+            "finished": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "successful": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "models": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "alias",
+              "name",
+              "inputTokens",
+              "outputTokens",
+              "totalTokens",
+              "requests"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[1-9][0-9]{0,18}$",
+                "description": "Managed model snowflake ID serialized as a string."
+              },
+              "alias": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "inputTokens": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "outputTokens": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "totalTokens": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "requests": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        "dailyTrend": {
+          "type": "array",
+          "maxItems": 90,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "date",
+              "tokens"
+            ],
+            "properties": {
+              "date": {
+                "type": "string",
+                "format": "date"
+              },
+              "tokens": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "createdAt",
+              "modelName",
+              "modelAlias",
+              "inputTokens",
+              "outputTokens",
+              "totalTokens",
+              "result"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[1-9][0-9]{0,18}$"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "modelName": {
+                "type": "string"
+              },
+              "modelAlias": {
+                "type": "string"
+              },
+              "inputTokens": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "outputTokens": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "totalTokens": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "result": {
+                "type": "string",
+                "enum": [
+                  "SETTLED",
+                  "CHARGED_MAX"
+                ]
+              }
+            }
+          }
+        },
+        "page": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "hasMore",
+            "limit",
+            "nextCursor"
+          ],
+          "properties": {
+            "hasMore": {
+              "type": "boolean"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            },
+            "nextCursor": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "minLength": 16,
+                  "maxLength": 512,
+                  "pattern": "^[A-Za-z0-9_-]+$",
+                  "description": "Server-signed opaque cursor."
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

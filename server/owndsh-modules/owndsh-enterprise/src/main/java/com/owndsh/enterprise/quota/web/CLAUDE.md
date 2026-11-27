@@ -13,6 +13,7 @@ MyQuotaUsageView.java: 员工有效策略的资源范围、5 小时/日/周/月�
 RuntimeUsageController.java: ACTIVE dsh-desktop owner 与 ACTIVE 用户双重校验的 `/enterprise/api/v1/usage/me` 入口。
 UsageLedgerView.java: prompt-free 实测分类、chargedTokens 扣额与结果状态，关联当前用户/部门/模型显示语义。
 UsageLedgerPageView.java: items/cursor 及实测 Token、配额扣额、unmeasuredRequests 未知请求独立汇总。
-AdminUsageController.java: 用户/部门/模型/canonical requestId/时间筛选和最新优先时间/ID 游标的 `/enterprise/admin/v1/usage` 入口。
+PersonalUsageController.java: 控制台 Cookie 会话下的本人用量、日趋势、模型分布和脱敏明细，分页游标绑定成员与日期范围。
+AdminUsageController.java: 用户/部门/模型/canonical requestId/时间筛选和最新优先时间/ID 游标的管理员用量入口。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

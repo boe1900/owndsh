@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 接收终态 ledger、tenant 筛选、时间/ID 倒序 keyset 与时间范围。
- * [OUTPUT]: 对外提供 reservation 唯一账本、prompt-free 管理分页及实测用量/扣额/未知请求分开的聚合端口。
+ * [OUTPUT]: 提供 reservation 唯一账本、管理分页和按本人聚合的实测用量及调用结果。
  * [POS]: quota/application 的不可重复计费与只读用量查询抽象。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -11,6 +11,8 @@ import com.owndsh.enterprise.quota.domain.UsageLedger;
 import com.owndsh.enterprise.quota.domain.UsageLedgerMetadata;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -23,6 +25,18 @@ public interface UsageLedgerStore {
     List<UsageLedgerMetadata> list(String tenantId, TimePosition before, int limit, UsageLedgerFilter filter);
 
     UsageTotals summarize(String tenantId, UsageLedgerFilter filter);
+
+    List<ModelUsage> personalModels(String tenantId, UsageLedgerFilter filter);
+
+    List<DailyUsage> personalDays(String tenantId, UsageLedgerFilter filter, ZoneId zone);
+
+    CallOutcomes personalOutcomes(String tenantId, long userId, Instant from, Instant to);
+
+    record ModelUsage(String id, String alias, String name, long inputTokens, long outputTokens, long totalTokens, long requests) {}
+
+    record DailyUsage(LocalDate date, long tokens) {}
+
+    record CallOutcomes(long finished, long successful) {}
 
     record UsageLedgerFilter(
         Long userId,

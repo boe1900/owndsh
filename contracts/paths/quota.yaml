@@ -148,6 +148,38 @@ MyUsage:
       '403': {$ref: '../enterprise-openapi.yaml#/components/responses/Error403'}
       '503': {$ref: '../enterprise-openapi.yaml#/components/responses/Error503'}
 
+PersonalUsage:
+  get:
+    operationId: getPersonalUsage
+    description: Usage and call outcomes for the signed-in console member, grouped by deployment-local date. Custom dates are inclusive and limited to 90 days. Details are newest first.
+    security:
+      - EnterpriseAdminCookie: []
+    parameters:
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Cursor'
+      - $ref: '../enterprise-openapi.yaml#/components/parameters/Limit'
+      - name: range
+        in: query
+        schema:
+          type: string
+          enum: ['7d', '30d', month, custom]
+          default: '7d'
+      - name: start
+        in: query
+        description: Required for the custom range.
+        schema: {type: string, format: date}
+      - name: end
+        in: query
+        description: Required for the custom range.
+        schema: {type: string, format: date}
+    responses:
+      '200':
+        description: Personal usage dashboard and paginated ledger.
+        content:
+          application/json:
+            schema: {$ref: '../enterprise-openapi.yaml#/components/schemas/PersonalUsageResponse'}
+      '400': {$ref: '../enterprise-openapi.yaml#/components/responses/Error400'}
+      '401': {$ref: '../enterprise-openapi.yaml#/components/responses/Error401'}
+
 AdminUsage:
   get:
     operationId: listUsageLedger
