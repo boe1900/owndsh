@@ -1,18 +1,17 @@
 /**
- * [INPUT]: 依赖 coss UI Sidebar(Header/Content/Footer/Trigger/Rail)/Avatar/Badge/Menu/Button/Alert 原生组件、AccountDialog、WorkspaceDevicesMenuGroup/useWorkspaceDevicesQuery、ConsoleTabBar、OwnDsh 鲸鱼品牌资源、静态控制台路由与 TanStack navigation。
- * [OUTPUT]: 提供左上纯展示品牌与收缩按钮、按模型/扩展/团队/个人四组组织的角色过滤产品侧栏、停靠在左下角的单入口个人头像菜单（在线设备指示与计数、身份抬头、远程连接分组、邀请成员、弹窗用户中心、Sign out）、与 ConsoleTabBar 协同的多标签状态、移动抽屉和内容窗口。
+ * [INPUT]: 依赖 coss UI Sidebar(Header/Content/Footer/Trigger/Rail)/Avatar/Badge/Menu 原生组件、ConfirmDialog、AccountDialog、WorkspaceDevicesMenuGroup/useWorkspaceDevicesQuery、ConsoleTabBar、OwnDsh 鲸鱼品牌资源、静态控制台路由与 TanStack navigation。
+ * [OUTPUT]: 提供左上纯展示品牌与收缩按钮、按模型/扩展/团队/个人四组组织的角色过滤产品侧栏、停靠在左下角的单入口个人头像菜单（在线设备指示与计数、身份抬头、远程连接分组、邀请成员、弹窗用户中心、登出与 AlertDialog 二次确认）、与 ConsoleTabBar 协同的多标签状态、移动抽屉和内容窗口。
  * [POS]: app 的产品外壳；使用 coss UI 原生 Sidebar inset 布局承接原型布局与原生 coss 组件规范。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { Outlet, useNavigate, useRouteContext, useRouterState } from '@tanstack/react-router';
-import { ChevronsUpDown, CircleUserRound, LogOut, UserPlus, X } from 'lucide-react';
+import { ChevronsUpDown, CircleUserRound, LogOut, UserPlus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { logoutCurrentSession } from '@/auth/session';
-import { Alert, AlertAction, AlertDescription } from '@/components/ui/alert';
+import { ConfirmDialog } from '@/components/product/ConfirmDialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import {
   Menu,
   MenuItem,
@@ -186,60 +185,58 @@ function ConsoleSidebar({
                   <ChevronsUpDown className="size-4 text-muted-foreground" />
                 </div>
               </MenuTrigger>
-              {menuOpen ? (
-                <MenuPopup
-                  align="start"
-                  side={collapsed ? 'right' : 'top'}
-                  sideOffset={8}
-                  className="w-64"
-                  data-workspace-menu=""
+              <MenuPopup
+                align="start"
+                side={collapsed ? 'right' : 'top'}
+                sideOffset={8}
+                className="w-64"
+                data-workspace-menu=""
+              >
+                <div className="px-2.5 py-2">
+                  <p className="truncate text-sm font-semibold text-foreground">{member.displayName}</p>
+                  <p className="truncate text-xs text-muted-foreground">{memberSubtitle}</p>
+                </div>
+                <MenuSeparator />
+                <WorkspaceDevicesMenuGroup
+                  state={workspaceDevices}
+                  onOpen={() => {
+                    setMenuOpen(false);
+                    if (isMobile) setOpenMobile(false);
+                  }}
+                />
+                <MenuSeparator />
+                {availableRoutes.some((route) => route.to === '/members') ? (
+                  <MenuItem
+                    nativeButton
+                    render={<button type="button" className="w-full" />}
+                    onClick={() => navigateAndClose('/members')}
+                  >
+                    <UserPlus aria-hidden />
+                    <span>邀请成员</span>
+                  </MenuItem>
+                ) : null}
+                <MenuItem
+                  nativeButton
+                  render={<button type="button" className="w-full" />}
+                  onClick={openAccountDialog}
                 >
-                  <div className="px-2.5 py-2">
-                    <p className="truncate text-sm font-semibold text-foreground">{member.displayName}</p>
-                    <p className="truncate text-xs text-muted-foreground">{memberSubtitle}</p>
-                  </div>
-                  <MenuSeparator />
-                  <WorkspaceDevicesMenuGroup
-                    state={workspaceDevices}
-                    onOpen={() => {
-                      setMenuOpen(false);
-                      if (isMobile) setOpenMobile(false);
-                    }}
-                  />
-                  <MenuSeparator />
-                  {availableRoutes.some((route) => route.to === '/members') ? (
-                    <MenuItem
-                      nativeButton
-                      render={<button type="button" className="w-full" />}
-                      onClick={() => navigateAndClose('/members')}
-                    >
-                      <UserPlus aria-hidden />
-                      <span>邀请成员</span>
-                    </MenuItem>
-                  ) : null}
-                  <MenuItem
-                    nativeButton
-                    render={<button type="button" className="w-full" />}
-                    onClick={openAccountDialog}
-                  >
-                    <CircleUserRound aria-hidden />
-                    <span>用户中心</span>
-                  </MenuItem>
-                  <MenuSeparator />
-                  <MenuItem
-                    nativeButton
-                    variant="destructive"
-                    render={<button type="button" className="w-full" />}
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onSignOut();
-                    }}
-                  >
-                    <LogOut aria-hidden />
-                    <span>Sign out</span>
-                  </MenuItem>
-                </MenuPopup>
-              ) : null}
+                  <CircleUserRound aria-hidden />
+                  <span>用户中心</span>
+                </MenuItem>
+                <MenuSeparator />
+                <MenuItem
+                  nativeButton
+                  variant="destructive"
+                  render={<button type="button" className="w-full" />}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onSignOut();
+                  }}
+                >
+                  <LogOut aria-hidden />
+                  <span>登出</span>
+                </MenuItem>
+              </MenuPopup>
             </Menu>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -257,6 +254,8 @@ export function ConsoleShell() {
   const activeRoute: ProductRoute = isAccountRoute(pathname) ? '/account' : isProductRoute(pathname) ? pathname : '/';
   const [openTabs, setOpenTabs] = useState<ProductRoute[]>([activeRoute]);
   const [pinnedTabs, setPinnedTabs] = useState<ProductRoute[]>([]);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState<string>();
   const availableRoutes = productRoutesFor(bootstrap.roles);
 
@@ -300,10 +299,20 @@ export function ConsoleShell() {
     if (!nextTabs.includes(activeRoute)) go(target);
   };
 
-  const signOut = () => {
+  const requestSignOut = () => {
+    setLogoutError(undefined);
+    setLogoutConfirmOpen(true);
+  };
+
+  const confirmSignOut = () => {
+    setLoggingOut(true);
+    setLogoutError(undefined);
     void logoutCurrentSession()
       .then(() => navigate({ to: '/login', replace: true }))
-      .catch(() => setLogoutError('退出失败，会话仍然有效，请重试。'));
+      .catch(() => {
+        setLoggingOut(false);
+        setLogoutError('退出失败，会话仍然有效，请重试。');
+      });
   };
 
   return (
@@ -313,7 +322,7 @@ export function ConsoleShell() {
         availableRoutes={availableRoutes}
         member={bootstrap.member}
         onNavigate={go}
-        onSignOut={signOut}
+        onSignOut={requestSignOut}
       />
 
       <SidebarInset className="min-h-0 min-w-0 overflow-hidden md:peer-data-[variant=inset]:h-[calc(100dvh-1rem)] md:peer-data-[variant=inset]:border">
@@ -334,23 +343,23 @@ export function ConsoleShell() {
         </div>
       </SidebarInset>
 
-      {logoutError ? (
-        <div className="fixed bottom-4 right-4 z-50 max-w-[min(380px,calc(100vw-32px))]">
-          <Alert variant="error" className="bg-popover shadow-lg">
-            <AlertDescription>{logoutError}</AlertDescription>
-            <AlertAction>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-xs"
-                aria-label="关闭退出错误"
-                onClick={() => setLogoutError(undefined)}
-              >
-                <X aria-hidden className="size-3.5" />
-              </Button>
-            </AlertAction>
-          </Alert>
-        </div>
+      {logoutConfirmOpen ? (
+        <ConfirmDialog
+          cancelAutoFocus
+          title="确认登出"
+          description="登出后将结束当前浏览器会话，需要重新登录才能进入控制台。"
+          confirmLabel="确认登出"
+          pendingLabel="正在登出..."
+          confirmVariant="destructive"
+          saving={loggingOut}
+          error={logoutError}
+          onClose={() => {
+            if (loggingOut) return;
+            setLogoutConfirmOpen(false);
+            setLogoutError(undefined);
+          }}
+          onConfirm={confirmSignOut}
+        />
       ) : null}
     </SidebarProvider>
   );

@@ -11,7 +11,7 @@ _console.account.index.tsx: `/account` 基本信息子页面，展示 bootstrap 
 _console.account.security.tsx: `/account/security` 安全设置子页面，承载本人 LOCAL 密码修改。
 login.tsx: 唯一 React 凭据页，使用 coss UI `Tabs`/`Field`/`Input`/`InputGroup`/`Button`/`Alert`/`Card`，共用 LOCAL/LDAP/OIDC、验证码及首次改密；本次新鲜登录通过共享 PKCE 完成器续授原客户端事务，已有会话保留账号确认，身份绑定必须新鲜认证。
 enterprise.auth.callback.tsx: OIDC 等回调通过共享 PKCE 完成器建立 HttpOnly Cookie，续授原客户端事务或恢复内部路由，以 replace 清除 code/state。
-403.tsx: employee 或无任何控制台角色的固定拒绝页，使用 coss UI `Card`/`Alert`/`Button` 提供服务端确认的 Sign out。
+403.tsx: employee 或无任何控制台角色的固定拒绝页，使用 coss UI `Button` 与 `ConfirmDialog` 提供带二次确认和服务端校验的「登出」。
 _console.index.tsx: 根路径模型路由，薄转发到 features/models 的 Provider、受管模型和模型集目录页面。
 _console.access.tsx: 模型授权、Token 配额和速率限制真实产品页的薄路由入口。
 _console.activity.tsx: 活动记录薄路由入口，转发到 features/activity 的权限分段与观测事实。

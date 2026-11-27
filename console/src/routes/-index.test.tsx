@@ -1326,20 +1326,20 @@ describe('product console session', () => {
     const menu = document.querySelector('[data-workspace-menu]')!;
     const buttons = menu.querySelectorAll('button');
     expect(buttons.item(buttons.length - 2).textContent).toContain('用户中心');
-    expect(buttons.item(buttons.length - 1).textContent).toContain('Sign out');
+    expect(buttons.item(buttons.length - 1).textContent).toContain('登出');
     fireEvent.click(screen.getByRole('menuitem', { name: '用户中心' }));
 
-    expect(await screen.findByRole('dialog')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Close' }).className).toContain('absolute');
-    expect(screen.getByRole('heading', { name: '用户中心' })).toBeTruthy();
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByRole('button', { name: 'Close' }).className).toContain('absolute');
+    expect(within(dialog).getByRole('heading', { name: '用户中心' })).toBeTruthy();
     expect(document.querySelector('h1')?.textContent).toBe('模型管理');
     const tabBar = document.querySelector('[aria-label="已打开工作区标签页"]');
     expect(tabBar?.textContent).not.toContain('用户中心');
-    expect(screen.getByRole('tab', { name: '基本信息' })).toBeTruthy();
-    expect(screen.getByText('@candidate.admin')).toBeTruthy();
-    expect(screen.getByText('candidate.admin@example.org')).toBeTruthy();
-    expect(screen.getByText('本地 · 本地')).toBeTruthy();
-    expect(screen.getByText('LDAP · Corporate LDAP')).toBeTruthy();
+    expect(within(dialog).getByRole('tab', { name: '基本信息' })).toBeTruthy();
+    expect(within(dialog).getByText('@candidate.admin')).toBeTruthy();
+    expect(within(dialog).getByText('candidate.admin@example.org')).toBeTruthy();
+    expect(within(dialog).getByText('本地 · 本地')).toBeTruthy();
+    expect(within(dialog).getByText('LDAP · Corporate LDAP')).toBeTruthy();
     fireEvent.click(screen.getByRole('tab', { name: '安全设置' }));
     expect(await screen.findByLabelText('当前密码')).toBeTruthy();
     fireEvent.change(screen.getByLabelText('当前密码'), { target: { value: 'CurrentReady!42' } });
@@ -1356,16 +1356,28 @@ describe('product console session', () => {
     expect(await screen.findByRole('heading', { name: '登录 OwnDsh 账号' })).toBeTruthy();
   });
 
-  it('keeps Sign out last and leaves the console only after Server logout succeeds', async () => {
+  it('keeps 登出 last, requires confirmation and leaves the console only after Server logout succeeds', async () => {
     renderRoute('/', 'enterprise_admin');
     expect(await screen.findByRole('heading', { name: '模型' })).toBeTruthy();
 
     fireEvent.click(await screen.findByRole('button', { name: /账号菜单/ }));
     const menu = document.querySelector('[data-workspace-menu]')!;
     const buttons = menu.querySelectorAll('button');
-    expect(buttons.item(buttons.length - 1).textContent).toContain('Sign out');
+    expect(buttons.item(buttons.length - 1).textContent).toContain('登出');
 
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Sign out' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '登出' }));
+    expect(await screen.findByRole('alertdialog')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: '确认登出' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '取消' }));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(document.querySelector('h1')?.textContent).toBe('模型管理');
+
+    fireEvent.click(await screen.findByRole('button', { name: /账号菜单/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '登出' }));
+    expect(await screen.findByRole('alertdialog')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '确认登出' }));
+
     expect(await screen.findByRole('heading', { name: '登录 OwnDsh 账号' })).toBeTruthy();
   });
 
@@ -1391,10 +1403,12 @@ describe('product console session', () => {
     renderRoute('/', 'enterprise_admin', 500);
     expect(await screen.findByRole('heading', { name: '模型' })).toBeTruthy();
     fireEvent.click(await screen.findByRole('button', { name: /账号菜单/ }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Sign out' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '登出' }));
+    expect(await screen.findByRole('alertdialog')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '确认登出' }));
 
     expect((await screen.findByRole('alert')).textContent).toContain('会话仍然有效');
-    expect(screen.getByRole('heading', { name: '模型' })).toBeTruthy();
+    expect(document.querySelector('h1')?.textContent).toBe('模型管理');
   });
 
   it('uses the HttpOnly browser-session exchange without persisting a token in JavaScript', async () => {
