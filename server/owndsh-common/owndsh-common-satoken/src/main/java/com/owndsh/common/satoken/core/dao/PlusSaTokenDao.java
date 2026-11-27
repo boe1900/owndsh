@@ -1,6 +1,13 @@
+/**
+ * [INPUT]: 依赖 Sa-Token DAO 契约、Redis 对象和 TTL 操作、Caffeine 本地缓存。
+ * [OUTPUT]: 提供 Sa-Token 会话与键值持久化，会话读取直接查询 Redis。
+ * [POS]: 认证存储边界，避免续期复用 Redis 中已过期的会话对象。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 package com.owndsh.common.satoken.core.dao;
 
 import cn.dev33.satoken.dao.auto.SaTokenDaoBySessionFollowObject;
+import cn.dev33.satoken.session.SaSession;
 import cn.dev33.satoken.util.SaFoxUtil;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -32,6 +39,11 @@ public class PlusSaTokenDao implements SaTokenDaoBySessionFollowObject {
         // 缓存的最大条数
         .maximumSize(1000)
         .build();
+
+    @Override
+    public SaSession getSession(String sessionId) {
+        return (SaSession) RedisUtils.getCacheObject(sessionId);
+    }
 
     /**
      * 获取Value，如无返空

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Sa-Token 1.45 JWT/权限拦截器/mock HTTP context、Refresh Session store 与平台会话 adapter。
- * [OUTPUT]: 验证管理/本人远控 Cookie 前置生效、浏览器/客户端独立退出、单 installation/成员撤销与 Remote carrier 的过期/退出重验。
+ * [OUTPUT]: 验证管理/本人远控 Cookie、终端信息缺失时的认证错误、独立退出、设备/成员撤销与 Remote 终端重验。
  * [POS]: owndsh-server 会话回归门禁，覆盖浏览器 Cookie 与 Desktop 长短期凭据共用的服务端生命周期。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -23,10 +23,12 @@ import cn.dev33.satoken.stp.StpUtil;
 import cn.dev33.satoken.stp.parameter.SaLoginParameter;
 import jakarta.servlet.http.Cookie;
 import com.owndsh.common.satoken.utils.LoginHelper;
+import com.owndsh.enterprise.auth.application.AuthFlowException;
 import com.owndsh.enterprise.auth.application.PlatformSession;
 import com.owndsh.enterprise.auth.EnterpriseIdentityProperties;
 import com.owndsh.enterprise.auth.persistence.RefreshSessionStore;
 import com.owndsh.enterprise.auth.web.AdminSessionCookie;
+import com.owndsh.enterprise.common.api.EnterpriseExceptionHandler;
 import com.owndsh.enterprise.remote.RemotePeerIdentity;
 import com.owndsh.enterprise.remote.RemoteNettyProperties;
 import com.owndsh.enterprise.remote.RemoteUpgradeAuthHandler;
@@ -43,6 +45,7 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -52,6 +55,7 @@ import java.net.URI;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
@@ -155,6 +159,23 @@ class OwnDshPlatformSessionGatewayTest {
         ((SaRequestForMock) SaHolder.getRequest()).cookieMap.put(AdminSessionCookie.INSECURE_NAME, token);
 
         assertThat(gateway.current().userId()).isEqualTo(USER_ID);
+    }
+
+    @Test
+    void reportsAnAccessTokenWithoutItsTerminalAsUnauthorized() {
+        String token = logic.createLoginSession(LOGIN_ID, device(FIRST)
+            .setExtra(LoginHelper.USER_KEY, USER_ID).setExtra(LoginHelper.CLIENT_KEY, "dsh-desktop"));
+        testDao.deleteSession(logic.splicingKeySession(LOGIN_ID));
+        SaTokenContextMockUtil.setMockContext();
+        StpUtil.setTokenValueToStorage(token);
+
+        AuthFlowException error = catchThrowableOfType(gateway::current, AuthFlowException.class);
+
+        assertThat(logic.getLoginIdByToken(token)).isEqualTo(LOGIN_ID);
+        assertThat(error).isNotNull();
+        assertThat(error.code()).isEqualTo("ENT_AUTH_REQUIRED");
+        var response = new EnterpriseExceptionHandler().authFlow(error, new MockHttpServletRequest());
+        assertThat(response.getStatusCode().value()).isEqualTo(401);
     }
 
     @Test

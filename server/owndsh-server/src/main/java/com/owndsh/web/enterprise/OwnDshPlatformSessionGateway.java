@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 PlatformSessionGateway、RefreshSessionStore、Host user/RBAC、LoginHelper、Sa-Token 与外部 HTTP(S) 地址。
- * [OUTPUT]: 提供 12 小时平台会话签发/读取，并统一吊销 Access 与 Refresh installation/user 会话。
+ * [OUTPUT]: 提供 12 小时平台会话签发与验证，终端信息异常时返回认证失败，统一吊销 Access 与 Refresh installation/user 会话。
  * [POS]: owndsh-server 会话 adapter，在 Sa-Token 通用 Cookie 读取关闭时桥接管理 Cookie 并同步长期凭据生命周期。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -9,6 +9,7 @@ package com.owndsh.web.enterprise;
 import cn.dev33.satoken.exception.NotLoginException;
 import cn.dev33.satoken.context.SaHolder;
 import cn.dev33.satoken.session.SaSession;
+import cn.dev33.satoken.session.SaTerminalInfo;
 import cn.dev33.satoken.stp.StpLogic;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.dev33.satoken.stp.parameter.SaLoginParameter;
@@ -87,12 +88,12 @@ public final class OwnDshPlatformSessionGateway implements PlatformSessionGatewa
         } catch (IllegalArgumentException exception) {
             throw new AuthFlowException("ENT_AUTH_REQUIRED");
         }
-        return new PlatformSession(
-            userId,
-            client,
-            StpUtil.getLoginDeviceType(),
-            StpUtil.getLoginDeviceId()
-        );
+        SaTerminalInfo terminal = logic.getTerminalInfoByToken(tokenValue);
+        if (terminal == null || !client.deviceType().equals(terminal.getDeviceType())
+            || terminal.getDeviceId() == null || terminal.getDeviceId().isBlank()) {
+            throw new AuthFlowException("ENT_AUTH_REQUIRED");
+        }
+        return new PlatformSession(userId, client, terminal.getDeviceType(), terminal.getDeviceId());
     }
 
     private String currentToken() {

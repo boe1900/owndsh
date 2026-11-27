@@ -8,6 +8,7 @@ package com.owndsh.web.enterprise;
 
 import cn.dev33.satoken.stp.StpLogic;
 import cn.dev33.satoken.stp.StpUtil;
+import cn.dev33.satoken.session.SaTerminalInfo;
 import com.owndsh.common.satoken.utils.LoginHelper;
 import com.owndsh.enterprise.auth.EnterpriseIdentityProperties;
 import com.owndsh.enterprise.remote.RemotePeerAuthenticator;
@@ -40,8 +41,9 @@ public final class OwnDshRemotePeerAuthenticator implements RemotePeerAuthentica
         }
         if (loginId == null) return Optional.empty();
         long actorId = actorId(loginId);
-        String deviceType = logic.getLoginDeviceTypeByToken(token);
-        String deviceId = logic.getLoginDeviceIdByToken(token);
+        SaTerminalInfo terminal = logic.getTerminalInfoByToken(token);
+        String deviceType = terminal == null ? null : terminal.getDeviceType();
+        String deviceId = terminal == null ? null : terminal.getDeviceId();
         if ("console".equals(deviceType) && !"enterprise-admin".equals(logic.getExtra(token, LoginHelper.CLIENT_KEY))) {
             return Optional.empty();
         }
