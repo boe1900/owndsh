@@ -1,15 +1,70 @@
 /**
- * [INPUT]: 依赖 React children、OwnDsh 品牌资源和产品 ThemeToggle。
- * [OUTPUT]: 提供登录、账号授权与返回应用页面共用的品牌布局。
+ * [INPUT]: 依赖 React、OwnDsh 品牌资源与 coss UI Button/ToggleGroup 主题切换器。
+ * [OUTPUT]: 提供登录、账号授权与返回应用页面共用的双栏品牌布局和原生 coss 深浅主题切换控件。
  * [POS]: auth 的纯呈现外壳，页面各自拥有认证状态，不复制凭据表单。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
-import type { ReactNode } from 'react';
-import { ThemeToggle } from '@/components/site/ThemeToggle';
+
+import { Moon, Sun } from 'lucide-react';
+import { type ReactNode, useEffect, useState } from 'react';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+
+export function ThemeToggle() {
+  const [dark, setDark] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('bui-theme') !== 'light';
+    } catch {
+      return typeof document !== 'undefined' ? document.documentElement.classList.contains('dark') : true;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      setDark(localStorage.getItem('bui-theme') !== 'light');
+    } catch {
+      setDark(document.documentElement.classList.contains('dark'));
+    }
+  }, []);
+
+  function apply(next: boolean) {
+    if (next === dark) return;
+    setDark(next);
+    const root = document.documentElement;
+    root.classList.add('theme-switching');
+    root.classList.toggle('dark', next);
+    requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove('theme-switching')));
+    try {
+      localStorage.setItem('bui-theme', next ? 'dark' : 'light');
+    } catch {
+      // ignore storage errors
+    }
+  }
+
+  return (
+    <ToggleGroup
+      aria-label="主题切换"
+      size="sm"
+      variant="outline"
+      value={[dark ? 'dark' : 'light']}
+      onValueChange={(values) => {
+        const next = values[0];
+        if (next === 'light') apply(false);
+        else if (next === 'dark') apply(true);
+      }}
+    >
+      <ToggleGroupItem aria-label="Light mode" title="浅色模式" value="light">
+        <Sun aria-hidden className="size-3.5" />
+      </ToggleGroupItem>
+      <ToggleGroupItem aria-label="Dark mode" title="深色模式" value="dark">
+        <Moon aria-hidden className="size-3.5" />
+      </ToggleGroupItem>
+    </ToggleGroup>
+  );
+}
 
 export function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <main className="grid min-h-[100dvh] bg-page text-ink lg:grid-cols-2">
+    <main className="grid min-h-[100dvh] bg-background text-foreground lg:grid-cols-2">
       <section className="relative hidden flex-col overflow-hidden bg-[#081523] p-10 text-white lg:flex">
         <img
           src="/owndsh-whale-bg-navy.png"

@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖生成的插件管理 operation、JSON 安装配置、成员目录、console 权限事实、TanStack Query、ProductDataTable 与插件编辑器，共享 lib/crypto 生成 HTTP/HTTPS 通用幂等键。
+ * [INPUT]: 依赖生成的插件管理 operation、JSON 安装配置、成员目录、console 权限事实、TanStack Query、ProductDataTable、插件编辑器与 coss UI Tabs/Badge/Button/Card/Alert。
  * [OUTPUT]: 提供按插件聚合的版本/范围双视图；包和历史版本删除须确认范围，并携带包 revision。
  * [POS]: features/plugins 的产品插件工作台；服务端负责目录、状态机和分配裁决，宿主负责包安装及依赖。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -7,16 +7,16 @@
 
 import { useInfiniteQuery, useMutation, useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { useRouteContext } from '@tanstack/react-router';
-import { Archive, History, Send, Settings2, Plus, Trash2 } from 'lucide-react';
+import { Archive, History, Plus, Send, Settings2, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import {
   deletePluginPackage,
   deletePluginVersion,
   listPluginPackages,
   publishPluginVersion,
+  registerPluginVersion,
   replacePluginAssignments,
-  retirePluginVersion,
-  registerPluginVersion
+  retirePluginVersion
 } from '@/api/generated/sdk.gen';
 import type {
   EnterpriseErrorResponse,
@@ -27,19 +27,27 @@ import type {
   PluginRegistrationRequest,
   PluginVersion
 } from '@/api/generated/types.gen';
-import { randomUuid } from '@/lib/crypto';
-import { Button } from '@/components/atoms/Button';
-import { SegmentedControl } from '@/components/atoms/SegmentedControl';
-import { StatusPill } from '@/components/atoms/StatusPill';
-import { ProductDataTable, type ProductTableColumn } from '@/components/product/DataTable';
+import {
+  ProductDataTable,
+  TableStackCell,
+  TableStatusBadge,
+  type ProductTableColumn
+} from '@/components/product/DataTable';
+import { ConfirmDialog } from '@/components/product/ConfirmDialog';
 import { ProductDialog } from '@/components/product/Dialog';
 import { DialogFooter } from '@/components/product/DialogFooter';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardPanel } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTab } from '@/components/ui/tabs';
 import { useMembers } from '@/features/member-select';
+import { randomUuid } from '@/lib/crypto';
 import {
   PluginAssignmentDialog,
-  RetirePluginVersionDialog,
-  RegisterPluginVersionDialog,
   PublishPluginVersionDialog,
+  RegisterPluginVersionDialog,
+  RetirePluginVersionDialog,
   type PluginAssignmentValue,
   type PluginRegistrationValue
 } from './plugin-editors';
@@ -88,8 +96,8 @@ function formatDate(value: string) {
 }
 
 const VERSION_STATUS = {
-  VALIDATED: { label: '待发布', tone: 'accent' },
-  PUBLISHED: { label: '已发布', tone: 'green' },
+  VALIDATED: { label: '待发布', tone: 'info' },
+  PUBLISHED: { label: '已发布', tone: 'success' },
   RETIRED: { label: '已退休', tone: 'neutral' }
 } as const;
 
@@ -101,25 +109,21 @@ const VERSION_FILTER = {
 
 function VersionStatus({ status }: { status: PluginVersion['status'] }) {
   const item = VERSION_STATUS[status];
-  return <StatusPill tone={item.tone}>{item.label}</StatusPill>;
+  return <TableStatusBadge tone={item.tone} label={item.label} />;
 }
 
 const packageColumns: ReadonlyArray<ProductTableColumn<PluginPackageRow>> = [
   {
     accessorKey: 'displayName',
     header: '插件',
-    cell: ({ row }) => (
-      <div className="min-w-0">
-        <div className="truncate font-medium text-ink" title={row.original.displayName}>{row.original.displayName}</div>
-        <div className="truncate font-mono text-[11px] text-ink-3" title={row.original.packageName}>{row.original.packageName}</div>
-      </div>
-    ),
-    meta: { label: '插件', className: 'w-[250px]', cellClassName: 'w-[250px]' }
+    cell: ({ row }) => <TableStackCell primary={row.original.displayName} secondary={row.original.packageName} />,
+    meta: { label: '插件', className: 'w-[240px]', cellClassName: 'w-[240px]' }
   },
   {
     id: 'version',
     accessorFn: row => row.latestVersion.version,
     header: '当前版本',
+    cell: ({ getValue }) => <span className="block truncate font-mono text-xs text-muted-foreground tabular-nums" title={String(getValue())}>{String(getValue())}</span>,
     meta: { label: '当前版本', className: 'w-[110px]', cellClassName: 'w-[110px]' }
   },
   {
@@ -134,19 +138,22 @@ const packageColumns: ReadonlyArray<ProductTableColumn<PluginPackageRow>> = [
     id: 'category',
     accessorFn: row => row.marketMetadata?.category || row.latestVersion.installation.category || '未分类',
     header: '分类',
-    meta: { label: '分类', className: 'w-[140px]', cellClassName: 'w-[140px]' }
+    cell: ({ getValue }) => <span className="block truncate text-muted-foreground" title={String(getValue())}>{String(getValue())}</span>,
+    meta: { label: '分类', className: 'w-[130px]', cellClassName: 'w-[130px]' }
   },
   {
     id: 'history',
     accessorFn: row => row.versions.length,
     header: '版本数',
-    meta: { label: '版本数', className: 'w-[90px]', cellClassName: 'w-[90px]' }
+    cell: ({ getValue }) => <span className="font-mono text-xs text-muted-foreground tabular-nums">{String(getValue())}</span>,
+    meta: { label: '版本数', className: 'w-[85px]', cellClassName: 'w-[85px]' }
   },
   {
     id: 'createdAt',
     accessorFn: row => formatDate(row.latestVersion.createdAt),
     header: '最近更新',
-    meta: { label: '添加时间', className: 'w-[160px]', cellClassName: 'w-[160px]' }
+    cell: ({ getValue }) => <span className="block truncate font-mono text-xs text-muted-foreground tabular-nums" title={String(getValue())}>{String(getValue())}</span>,
+    meta: { label: '添加时间', className: 'w-[155px]', cellClassName: 'w-[155px]' }
   }
 ];
 
@@ -165,29 +172,66 @@ function packageColumnsWithActions(
     enableGlobalFilter: false,
     enableHiding: false,
     enableSorting: false,
-    cell: ({ row }) => <div className="flex items-center gap-1">
-      <Button variant="quiet" size="xs" className="h-7 gap-1 rounded-md px-2" disabled={disabled}
-        aria-label={`查看 ${row.original.packageName} 历史版本`} onClick={() => onHistory(row.original)}>
-        <History aria-hidden className="size-3.5" />历史版本
-      </Button>
-      {canWrite ? <Button variant="quiet" size="xs" className="h-7 gap-1 rounded-md px-2" disabled={disabled}
-        aria-label={`基于 ${row.original.packageName}@${row.original.latestVersion.version} 新增版本`} onClick={() => onNewVersion(row.original.latestVersion)}>
-        <Plus aria-hidden className="size-3.5" />新增版本
-      </Button> : null}
-      {canWrite && row.original.latestVersion.status === 'VALIDATED' ? (
-      <Button variant="quiet" size="xs" className="size-7 rounded-md p-0" disabled={disabled} aria-label={`发布 ${row.original.packageName}@${row.original.latestVersion.version}`} title="发布" onClick={() => onPublish(row.original.latestVersion)}>
-        <Send aria-hidden className="size-3.5" />
-      </Button>
-    ) : canWrite && row.original.latestVersion.status === 'PUBLISHED' ? (
-      <Button variant="quiet" size="xs" className="size-7 rounded-md p-0" disabled={disabled} aria-label={`退休 ${row.original.packageName}@${row.original.latestVersion.version}`} title="退休" onClick={() => onRetire(row.original.latestVersion)}>
-        <Archive aria-hidden className="size-3.5" />
-      </Button>
-    ) : null}
-      {canWrite ? <Button variant="quiet" size="xs" className="size-7 rounded-md p-0 text-red" disabled={disabled}
-        aria-label={`删除插件 ${row.original.packageName}`} title="删除插件" onClick={() => onDelete(row.original)}>
-        <Trash2 aria-hidden className="size-3.5" />
-      </Button> : null}
-    </div>,
+    cell: ({ row }) => (
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="xs"
+          disabled={disabled}
+          aria-label={`查看 ${row.original.packageName} 历史版本`}
+          onClick={() => onHistory(row.original)}
+        >
+          <History aria-hidden />历史版本
+        </Button>
+        {canWrite ? (
+          <Button
+            variant="ghost"
+            size="xs"
+            disabled={disabled}
+            aria-label={`基于 ${row.original.packageName}@${row.original.latestVersion.version} 新增版本`}
+            onClick={() => onNewVersion(row.original.latestVersion)}
+          >
+            <Plus aria-hidden />新增版本
+          </Button>
+        ) : null}
+        {canWrite && row.original.latestVersion.status === 'VALIDATED' ? (
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            disabled={disabled}
+            aria-label={`发布 ${row.original.packageName}@${row.original.latestVersion.version}`}
+            title="发布"
+            onClick={() => onPublish(row.original.latestVersion)}
+          >
+            <Send aria-hidden />
+          </Button>
+        ) : canWrite && row.original.latestVersion.status === 'PUBLISHED' ? (
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            disabled={disabled}
+            aria-label={`退休 ${row.original.packageName}@${row.original.latestVersion.version}`}
+            title="退休"
+            onClick={() => onRetire(row.original.latestVersion)}
+          >
+            <Archive aria-hidden />
+          </Button>
+        ) : null}
+        {canWrite ? (
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className="text-destructive-foreground"
+            disabled={disabled}
+            aria-label={`删除插件 ${row.original.packageName}`}
+            title="删除插件"
+            onClick={() => onDelete(row.original)}
+          >
+            <Trash2 aria-hidden />
+          </Button>
+        ) : null}
+      </div>
+    ),
     meta: { label: '操作', className: 'w-[250px]', cellClassName: 'w-[250px]' }
   }];
 }
@@ -211,64 +255,111 @@ function PluginHistoryDialog({
   onNewVersion: (version: PluginVersion) => void;
   onDelete: (version: PluginVersion) => void;
 }) {
-  return <ProductDialog title={`${pluginPackage.displayName} · 历史版本`} onClose={onClose} className="max-w-[680px]">
-    <div className="grid gap-2 p-5">
-      {pluginPackage.versions.map(version => <div key={version.id} className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-lg border border-line px-3 py-2.5">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <strong className="font-mono text-[13px] text-ink">v{version.version}</strong>
-            <VersionStatus status={version.status} />
-          </div>
-          <p className="m-0 mt-1 truncate font-mono text-[11px] text-ink-3" title={version.installation.spec}>{version.installation.spec}</p>
-          <p className="m-0 mt-1 text-[11px] text-ink-3">{formatDate(version.createdAt)}</p>
-        </div>
-        {canWrite ? <div className="flex items-center gap-1">
-          <Button variant="quiet" size="xs" className="h-7 gap-1 rounded-md px-2" disabled={disabled}
-            aria-label={`基于 ${pluginPackage.packageName}@${version.version} 新增版本`} onClick={() => onNewVersion(version)}>
-            <Plus aria-hidden className="size-3.5" />新增版本
-          </Button>
-          {version.status === 'VALIDATED' ? <Button variant="quiet" size="xs" className="size-7 rounded-md p-0" disabled={disabled}
-            aria-label={`发布 ${pluginPackage.packageName}@${version.version}`} title="发布" onClick={() => onPublish(version)}><Send aria-hidden className="size-3.5" /></Button> : null}
-          {version.status === 'PUBLISHED' ? <Button variant="quiet" size="xs" className="size-7 rounded-md p-0" disabled={disabled}
-            aria-label={`退休 ${pluginPackage.packageName}@${version.version}`} title="退休" onClick={() => onRetire(version)}><Archive aria-hidden className="size-3.5" /></Button> : null}
-          <Button variant="quiet" size="xs" className="size-7 rounded-md p-0 text-red" disabled={disabled}
-            aria-label={`删除版本 ${pluginPackage.packageName}@${version.version}`} title="删除版本" onClick={() => onDelete(version)}>
-            <Trash2 aria-hidden className="size-3.5" />
-          </Button>
-        </div> : null}
-      </div>)}
-    </div>
-  </ProductDialog>;
+  return (
+    <ProductDialog title={`${pluginPackage.displayName} · 历史版本`} onClose={onClose} className="max-w-[680px]">
+      <div className="grid gap-2 p-5">
+        {pluginPackage.versions.map(version => (
+          <Card key={version.id}>
+            <CardPanel className="grid grid-cols-[1fr_auto] items-center gap-3 px-3 py-2.5">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <strong className="font-mono text-xs">v{version.version}</strong>
+                  <VersionStatus status={version.status} />
+                </div>
+                <p className="m-0 mt-1 truncate font-mono text-[11px] text-muted-foreground" title={version.installation.spec}>{version.installation.spec}</p>
+                <p className="m-0 mt-1 text-[11px] text-muted-foreground">{formatDate(version.createdAt)}</p>
+              </div>
+              {canWrite ? (
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    disabled={disabled}
+                    aria-label={`基于 ${pluginPackage.packageName}@${version.version} 新增版本`}
+                    onClick={() => onNewVersion(version)}
+                  >
+                    <Plus aria-hidden />新增版本
+                  </Button>
+                  {version.status === 'VALIDATED' ? (
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      disabled={disabled}
+                      aria-label={`发布 ${pluginPackage.packageName}@${version.version}`}
+                      title="发布"
+                      onClick={() => onPublish(version)}
+                    >
+                      <Send aria-hidden />
+                    </Button>
+                  ) : null}
+                  {version.status === 'PUBLISHED' ? (
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      disabled={disabled}
+                      aria-label={`退休 ${pluginPackage.packageName}@${version.version}`}
+                      title="退休"
+                      onClick={() => onRetire(version)}
+                    >
+                      <Archive aria-hidden />
+                    </Button>
+                  ) : null}
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className="text-destructive-foreground"
+                    disabled={disabled}
+                    aria-label={`删除版本 ${pluginPackage.packageName}@${version.version}`}
+                    title="删除版本"
+                    onClick={() => onDelete(version)}
+                  >
+                    <Trash2 aria-hidden />
+                  </Button>
+                </div>
+              ) : null}
+            </CardPanel>
+          </Card>
+        ))}
+      </div>
+    </ProductDialog>
+  );
 }
 
 const assignmentColumns: ReadonlyArray<ProductTableColumn<PluginAssignmentRow>> = [
   {
     accessorKey: 'displayName',
     header: '插件',
-    cell: ({ row }) => (
-      <div className="min-w-0">
-        <div className="truncate font-medium text-ink">{row.original.displayName}</div>
-        <div className="truncate font-mono text-[11px] text-ink-3">{row.original.packageName}</div>
-      </div>
-    ),
-    meta: { label: '插件', className: 'w-[220px]', cellClassName: 'w-[220px]' }
+    cell: ({ row }) => <TableStackCell primary={row.original.displayName} secondary={row.original.packageName} />,
+    meta: { label: '插件', className: 'w-[240px]', cellClassName: 'w-[240px]' }
   },
-  { accessorKey: 'version', header: '版本', meta: { label: '版本', className: 'w-[110px]', cellClassName: 'w-[110px]' } },
+  {
+    accessorKey: 'version',
+    header: '版本',
+    cell: ({ getValue }) => <span className="block truncate font-mono text-xs text-muted-foreground tabular-nums" title={String(getValue())}>{String(getValue())}</span>,
+    meta: { label: '版本', className: 'w-[110px]', cellClassName: 'w-[110px]' }
+  },
   {
     accessorKey: 'subjectName',
     header: '可见成员',
+    cell: ({ getValue }) => <span className="block truncate font-medium" title={String(getValue())}>{String(getValue())}</span>,
     meta: { label: '可见成员', className: 'w-[220px]', cellClassName: 'w-[220px]' }
   },
   {
     id: 'desiredState',
     accessorFn: (row) => row.desiredState === 'INSTALLED' ? '可选安装' : '已撤回',
     header: '可用状态',
+    cell: ({ getValue }) => <span className="block truncate text-muted-foreground">{String(getValue())}</span>,
     meta: { label: '可用状态', className: 'w-[120px]', cellClassName: 'w-[120px]' }
   },
   {
     accessorKey: 'status',
     header: '状态',
-    cell: ({ getValue }) => <StatusPill tone={getValue() === 'ACTIVE' ? 'green' : 'neutral'}>{getValue() === 'ACTIVE' ? '启用' : '停用'}</StatusPill>,
+    cell: ({ getValue }) => (
+      <TableStatusBadge
+        tone={getValue() === 'ACTIVE' ? 'success' : 'neutral'}
+        label={getValue() === 'ACTIVE' ? '启用' : '停用'}
+      />
+    ),
     filterFn: 'equalsString',
     meta: { label: '状态', className: 'w-[100px]', cellClassName: 'w-[100px]' }
   }
@@ -413,8 +504,8 @@ export function PluginManagementPage() {
       onRetry={() => void packages.refetch()}
       searchPlaceholder="搜索插件或版本"
       toolbarAction={canWrite ? (
-        <Button variant="primary" size="xs" onClick={() => { registration.reset(); setRegistrationBase(undefined); setRegistrationOpen(true); }}>
-          <Plus aria-hidden className="size-3.5" />
+        <Button size="sm" onClick={() => { registration.reset(); setRegistrationBase(undefined); setRegistrationOpen(true); }}>
+          <Plus aria-hidden />
           添加插件
         </Button>
       ) : undefined}
@@ -435,8 +526,8 @@ export function PluginManagementPage() {
       onRetry={() => void packages.refetch()}
       searchPlaceholder="搜索插件或分配对象"
       toolbarAction={canWrite ? (
-        <Button variant="primary" size="xs" disabled={packageRows.length === 0} onClick={() => { saveAssignments.reset(); setAssignmentOpen(true); }}>
-          <Settings2 aria-hidden className="size-3.5" />
+        <Button size="sm" disabled={packageRows.length === 0} onClick={() => { saveAssignments.reset(); setAssignmentOpen(true); }}>
+          <Settings2 aria-hidden />
           配置范围
         </Button>
       ) : undefined}
@@ -445,12 +536,22 @@ export function PluginManagementPage() {
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto scrollbar-stable">
-      <div className="mx-auto flex min-h-full w-full max-w-[1320px] flex-col gap-5 px-5 py-7 sm:px-8 sm:py-9">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-5">
-          <h1 className="m-0 text-[22px] font-semibold leading-tight text-ink">企业插件</h1>
-          <SegmentedControl options={SECTIONS} value={section} onChange={setSection} />
+      <div className="mx-auto flex h-full min-h-[540px] w-full max-w-[1320px] flex-col gap-5 px-5 py-7 sm:px-8 sm:py-9">
+        <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b pb-5">
+          <h1 className="m-0 text-[22px] font-semibold leading-tight">企业插件</h1>
+          <Tabs value={section} onValueChange={(next) => setSection(next as (typeof SECTIONS)[number])}>
+            <TabsList>
+              {SECTIONS.map((item) => (
+                <TabsTab key={item} value={item}>{item}</TabsTab>
+              ))}
+            </TabsList>
+          </Tabs>
         </header>
-        {changeVersion.error && !retireTarget && !publishTarget ? <p role="alert" className="m-0 text-[12.5px] text-red">{changeVersion.error.message}</p> : null}
+        {changeVersion.error && !retireTarget && !publishTarget ? (
+          <Alert variant="error">
+            <AlertDescription>{changeVersion.error.message}</AlertDescription>
+          </Alert>
+        ) : null}
         {table}
       </div>
       {registrationOpen ? (
@@ -467,40 +568,44 @@ export function PluginManagementPage() {
           onSave={(value) => registration.mutate(value)}
         />
       ) : null}
-      {historyTarget ? <PluginHistoryDialog
-        pluginPackage={historyTarget}
-        canWrite={canWrite}
-        disabled={registration.isPending || changeVersion.isPending || deletion.isPending}
-        onClose={() => setHistoryTarget(undefined)}
-        onPublish={version => {
-          setHistoryTarget(undefined);
-          changeVersion.reset();
-          setPublishTarget({ version, pluginPackage: historyTarget });
-        }}
-        onRetire={version => {
-          setHistoryTarget(undefined);
-          changeVersion.reset();
-          setRetireTarget(version);
-        }}
-        onNewVersion={version => {
-          setHistoryTarget(undefined);
-          registration.reset();
-          setRegistrationBase(version);
-          setRegistrationOpen(true);
-        }}
-        onDelete={version => {
-          setHistoryTarget(undefined);
-          deletion.reset();
-          setDeleteTarget({ pluginPackage: historyTarget, version });
-        }}
-      /> : null}
-      {publishTarget ? <PublishPluginVersionDialog
-        {...publishTarget}
-        error={changeVersion.error?.message}
-        saving={changeVersion.isPending}
-        onClose={() => { if (!changeVersion.isPending) setPublishTarget(undefined); }}
-        onPublish={upgrade => changeVersion.mutate({ action: 'publish', version: publishTarget.version, upgrade })}
-      /> : null}
+      {historyTarget ? (
+        <PluginHistoryDialog
+          pluginPackage={historyTarget}
+          canWrite={canWrite}
+          disabled={registration.isPending || changeVersion.isPending || deletion.isPending}
+          onClose={() => setHistoryTarget(undefined)}
+          onPublish={version => {
+            setHistoryTarget(undefined);
+            changeVersion.reset();
+            setPublishTarget({ version, pluginPackage: historyTarget });
+          }}
+          onRetire={version => {
+            setHistoryTarget(undefined);
+            changeVersion.reset();
+            setRetireTarget(version);
+          }}
+          onNewVersion={version => {
+            setHistoryTarget(undefined);
+            registration.reset();
+            setRegistrationBase(version);
+            setRegistrationOpen(true);
+          }}
+          onDelete={version => {
+            setHistoryTarget(undefined);
+            deletion.reset();
+            setDeleteTarget({ pluginPackage: historyTarget, version });
+          }}
+        />
+      ) : null}
+      {publishTarget ? (
+        <PublishPluginVersionDialog
+          {...publishTarget}
+          error={changeVersion.error?.message}
+          saving={changeVersion.isPending}
+          onClose={() => { if (!changeVersion.isPending) setPublishTarget(undefined); }}
+          onPublish={upgrade => changeVersion.mutate({ action: 'publish', version: publishTarget.version, upgrade })}
+        />
+      ) : null}
       {assignmentOpen ? (
         <PluginAssignmentDialog
           error={saveAssignments.error?.message}
@@ -510,25 +615,22 @@ export function PluginManagementPage() {
           onSave={(value) => saveAssignments.mutate(value)}
         />
       ) : null}
-      {deleteTarget ? <ProductDialog title={deleteTarget.version ? '删除插件版本' : '删除插件'} onClose={closeDelete}>
-        <div className="grid gap-4 p-5">
-          <p className="m-0 break-all text-sm text-ink">
-            确认删除 {deleteTarget.pluginPackage.packageName}{deleteTarget.version ? `@${deleteTarget.version.version}` : ''}？
-          </p>
-          <p className="m-0 text-[12.5px] text-ink-2">
-            {deleteTarget.version
-              ? '将删除此版本及其可见范围；如果这是最后一个版本，插件记录也会删除。'
-              : '将删除此插件的全部版本及可见范围。'}
-            删除后无法恢复，设备上已安装的插件不会卸载。
-          </p>
-          {deletion.error ? <p role="alert" className="m-0 rounded-md bg-red-tint px-3 py-2 text-[12.5px] text-red">{deletion.error.message}</p> : null}
-          <DialogFooter sticky>
-            <Button size="sm" autoFocus disabled={deletion.isPending} onClick={closeDelete}>取消</Button>
-            <Button variant="primary" size="sm" className="bg-red text-white" disabled={deletion.isPending}
-              onClick={() => deletion.mutate(deleteTarget)}>{deletion.isPending ? '删除中' : '确认删除'}</Button>
-          </DialogFooter>
-        </div>
-      </ProductDialog> : null}
+      {deleteTarget ? (
+        <ConfirmDialog
+          title={deleteTarget.version ? '删除插件版本' : '删除插件'}
+          description={`确认删除 ${deleteTarget.pluginPackage.packageName}${deleteTarget.version ? `@${deleteTarget.version.version}` : ''}？`}
+          detail={`${deleteTarget.version
+            ? '将删除此版本及其可见范围；如果这是最后一个版本，插件记录也会删除。'
+            : '将删除此插件的全部版本及可见范围。'}删除后无法恢复，设备上已安装的插件不会卸载。`}
+          confirmLabel="确认删除"
+          pendingLabel="删除中"
+          cancelAutoFocus
+          saving={deletion.isPending}
+          error={deletion.error?.message}
+          onClose={closeDelete}
+          onConfirm={() => deletion.mutate(deleteTarget)}
+        />
+      ) : null}
       {retireTarget ? (
         <RetirePluginVersionDialog
           error={changeVersion.error?.message}

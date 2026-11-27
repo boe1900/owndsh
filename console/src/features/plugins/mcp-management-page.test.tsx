@@ -63,6 +63,19 @@ it('switches between service configuration and authorization in header tabs', as
   expect(screen.getByRole('region', { name: 'MCP 服务' })).toBeDefined();
   expect(screen.queryByRole('button', { name: '添加授权' })).toBeNull();
 });
+function chooseOption(triggerLabel: string, optionLabel: string) {
+  fireEvent.click(screen.getByRole('combobox', { name: triggerLabel }));
+  const option = screen.getByRole('option', { name: optionLabel });
+  fireEvent.pointerDown(option);
+  fireEvent.click(option);
+}
+
+const AUTH_TYPE_LABELS: Record<McpMcpAuth['type'], string> = {
+  none: '无认证',
+  'api-key': 'API Key（用户端填写）',
+  oauth: 'OAuth 2.0（用户端授权）'
+};
+
 it('creates API Key metadata and public headers without a user secret', async () => {
   show();
   await screen.findByText('设计工具');
@@ -70,7 +83,7 @@ it('creates API Key metadata and public headers without a user secret', async ()
   fireEvent.change(screen.getByLabelText('服务标识'), { target: { value: 'apifox' } });
   fireEvent.change(screen.getByLabelText('显示名称'), { target: { value: 'Apifox' } });
   fireEvent.change(screen.getByPlaceholderText('https://mcp.example.com/mcp'), { target: { value: 'https://mcp.example.test/mcp' } });
-  fireEvent.change(screen.getByRole('combobox', { name: '认证方式' }), { target: { value: 'api-key' } });
+  chooseOption('认证方式', 'API Key（用户端填写）');
   fireEvent.click(screen.getByRole('button', { name: '添加请求头' }));
   fireEvent.change(screen.getByLabelText('固定 Header 名称 1'), { target: { value: 'X-Apifox-Api-Version' } });
   fireEvent.change(screen.getByLabelText('固定 Header 值 1'), { target: { value: '2025-09-01' } });
@@ -78,7 +91,7 @@ it('creates API Key metadata and public headers without a user secret', async ()
   await waitFor(() => expect(writes[0]).toMatchObject({ serverName: 'apifox', headers: { 'X-Apifox-Api-Version': '2025-09-01' } }));
   expect((writes[0] as { auth: unknown }).auth).toEqual({ type: 'api-key', headerName: 'Authorization' });
 });
-it('submits ALL authorization from the authorization dialog', async () => { access.permissions = ['ent:mcp:read', 'ent:mcp:grant']; show(); await screen.findByText('设计工具'); fireEvent.click(screen.getByRole('tab', { name: '访问授权' })); fireEvent.click(screen.getByRole('button', { name: '添加授权' })); fireEvent.change(screen.getByRole('dialog').querySelector('select') as HTMLSelectElement, { target: { value: serverId } }); fireEvent.click(screen.getByRole('button', { name: '保存授权' })); await waitFor(() => expect(writes[0]).toEqual({ items: [{ serverId, subjectType: 'ALL', subjectId: null, status: 'ACTIVE' }] })); });
+it('submits ALL authorization from the authorization dialog', async () => { access.permissions = ['ent:mcp:read', 'ent:mcp:grant']; show(); await screen.findByText('设计工具'); fireEvent.click(screen.getByRole('tab', { name: '访问授权' })); fireEvent.click(screen.getByRole('button', { name: '添加授权' })); chooseOption('MCP 服务', '设计工具'); fireEvent.click(screen.getByRole('button', { name: '保存授权' })); await waitFor(() => expect(writes[0]).toEqual({ items: [{ serverId, subjectType: 'ALL', subjectId: null, status: 'ACTIVE' }] })); });
 it('shows a recoverable query error when the server page is null', async () => { badPage = true; show(); expect(await screen.findByText('MCP 服务加载失败')).toBeDefined(); expect(screen.getByRole('button', { name: '重试' })).toBeDefined(); });
 it('does not mount MCP without read permission', () => { access.permissions = []; show(); expect(screen.getByText('没有 MCP 查看权限')).toBeDefined(); expect(screen.queryByRole('button', { name: '添加 MCP' })).toBeNull(); });
 
@@ -106,7 +119,7 @@ it('creates an HTTP OAuth configuration and defaults Resource to the HTTP MCP ad
   fireEvent.change(screen.getByLabelText('服务标识'), { target: { value: 'intranet-mcp' } });
   fireEvent.change(screen.getByLabelText('显示名称'), { target: { value: '内网 MCP' } });
   fireEvent.change(screen.getByPlaceholderText('https://mcp.example.com/mcp'), { target: { value: 'http://localhost:8090/mcp' } });
-  fireEvent.change(screen.getByLabelText('认证方式'), { target: { value: 'oauth' } });
+  chooseOption('认证方式', 'OAuth 2.0（用户端授权）');
   fireEvent.change(screen.getByLabelText('Issuer'), { target: { value: 'http://auth.internal/auth' } });
   fireEvent.change(screen.getByLabelText('Public client ID'), { target: { value: 'public-client' } });
   fireEvent.change(screen.getByLabelText('Authorization endpoint'), { target: { value: 'http://auth.internal/auth/authorize' } });
@@ -127,14 +140,14 @@ it.each(authenticationCases)('edits $name configuration without resetting existi
   expect(screen.getByRole('dialog', { name: '编辑 MCP 服务' })).toBeDefined();
   expect((screen.getByLabelText('服务标识') as HTMLInputElement).value).toBe('design_tools');
   expect((screen.getByLabelText('显示名称') as HTMLInputElement).value).toBe('设计工具');
-  expect((screen.getByLabelText('认证方式') as HTMLSelectElement).value).toBe(auth.type);
+  expect(screen.getByRole('combobox', { name: '认证方式' }).textContent).toContain(AUTH_TYPE_LABELS[auth.type]);
   if (auth.type === 'api-key') {
     expect((screen.getByLabelText('Header 名称') as HTMLInputElement).value).toBe(auth.headerName);
     expect(screen.queryByLabelText('值前缀')).toBeNull();
   }
   if (auth.type === 'oauth') {
     expect((screen.getByLabelText('Resource') as HTMLInputElement).value).toBe(auth.resource);
-    expect((screen.getByLabelText('允许动态注册 public client') as HTMLInputElement).checked).toBe(auth.dynamicRegistration === true);
+    expect(screen.getByRole('checkbox', { name: '允许动态注册 public client' }).getAttribute('aria-checked') === 'true').toBe(auth.dynamicRegistration === true);
     expect((screen.getByLabelText('Public client ID') as HTMLInputElement).value).toBe('clientId' in auth ? auth.clientId : '');
   }
   fireEvent.change(screen.getByLabelText('显示名称'), { target: { value: '更新后的工具' } });

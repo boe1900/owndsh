@@ -1,154 +1,549 @@
 /**
- * [INPUT]: 依赖 OpenAPI provider/connection/model operations、TanStack Query、模型接入编辑器、容量格式化工具及其 Provider ID 配色规则。
+ * [INPUT]: 依赖 OpenAPI provider/connection/model operations、TanStack Query、模型接入编辑器、容量格式化工具与 coss UI Card/Tabs/Badge/Button/InputGroup/Select/Table/Alert。
  * [OUTPUT]: 提供树状“模型与供应商”工作台、模型集入口、连接复制入口及 Provider/Connection/ManagedModel 的真实数据操作。
  * [POS]: features/models 的页面编排层；Provider 只承载身份，Connection 承载 endpoint/凭据，ManagedModel 绑定 Connection，页面固定使用树状目录。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, ChevronRight, Copy, Cpu, Edit2, Globe, Image as ImageIcon, KeyRound, MessageSquare, Plus, Power, PowerOff, RefreshCw, Search, Server, Settings2, Terminal, Trash2, Zap } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouteContext } from '@tanstack/react-router';
-import { createManagedModel, createModelOnboarding, createModelProvider, createProviderConnection, deleteManagedModel, deleteModelProvider, deleteProviderConnection, disableManagedModel, disableModelProvider, enableManagedModel, enableModelProvider, listManagedModels, listModelProviders, listProviderConnections, probeProviderConnection, testProviderConnection, updateManagedModel, updateModelProvider, updateProviderConnection } from '@/api/generated/sdk.gen';
-import type { EnterpriseErrorResponse, ManagedModel, ManagedModelPageData, ManagedModelWriteRequest, ModelProviderConnection, ModelProviderConnectionCreateRequestWritable, ModelProviderConnectionPageData, ModelProviderConnectionUpdateRequestWritable, Provider, ProviderCreateRequest, ProviderPageData, ProviderProbeRequestWritable, ProviderProbeResult, ProviderUpdateRequest } from '@/api/generated/types.gen';
-import { randomUuid } from '@/lib/crypto';
-import { Button } from '@/components/atoms/Button';
-import { SegmentedControl } from '@/components/atoms/SegmentedControl';
+import {
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  Cpu,
+  Edit2,
+  Globe,
+  Image as ImageIcon,
+  KeyRound,
+  MessageSquare,
+  Plus,
+  Power,
+  PowerOff,
+  RefreshCw,
+  Search,
+  Settings2,
+  Terminal,
+  Trash2,
+  X,
+  Zap
+} from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  createManagedModel,
+  createModelOnboarding,
+  createModelProvider,
+  createProviderConnection,
+  deleteManagedModel,
+  deleteModelProvider,
+  deleteProviderConnection,
+  disableManagedModel,
+  disableModelProvider,
+  enableManagedModel,
+  enableModelProvider,
+  listManagedModels,
+  listModelProviders,
+  listProviderConnections,
+  probeProviderConnection,
+  testProviderConnection,
+  updateManagedModel,
+  updateModelProvider,
+  updateProviderConnection
+} from '@/api/generated/sdk.gen';
+import type {
+  EnterpriseErrorResponse,
+  ManagedModel,
+  ManagedModelPageData,
+  ManagedModelWriteRequest,
+  ModelProviderConnection,
+  ModelProviderConnectionCreateRequestWritable,
+  ModelProviderConnectionPageData,
+  ModelProviderConnectionUpdateRequestWritable,
+  Provider,
+  ProviderCreateRequest,
+  ProviderPageData,
+  ProviderProbeRequestWritable,
+  ProviderProbeResult,
+  ProviderUpdateRequest
+} from '@/api/generated/types.gen';
 import { ConfirmDialog } from '@/components/product/ConfirmDialog';
-import { ConnectionEditorDialog, DeleteModelDialog, ModelEditorDialog, ModelOnboardingDialog, ProviderEditorDialog, providerGradient, type ModelOnboardingPayload, type ModelSaveEntry } from './model-editors';
+import { TableStatusBadge } from '@/components/product/DataTable';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardPanel } from '@/components/ui/card';
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { Spinner } from '@/components/ui/spinner';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsList, TabsTab } from '@/components/ui/tabs';
+import { randomUuid } from '@/lib/crypto';
+import {
+  ConnectionEditorDialog,
+  DeleteModelDialog,
+  ModelEditorDialog,
+  ModelOnboardingDialog,
+  ProviderEditorDialog,
+  providerGradient,
+  type ModelOnboardingPayload,
+  type ModelSaveEntry
+} from './model-editors';
 import { ModelSetManagement } from './model-set-management';
 import { formatTokenCapacity } from './token-capacity';
 
 const SECTIONS = ['模型与供应商', '模型集'] as const;
+const STATUS_FILTER_ITEMS = [
+  { value: 'all', label: '全部启用状态' },
+  { value: 'ACTIVE', label: '仅看已启用' },
+  { value: 'DISABLED', label: '仅看已停用' }
+];
 
 function errorMessage(error: unknown, fallback: string) {
- if (error && typeof error === 'object' && 'error' in error) {
- const payload = (error as EnterpriseErrorResponse).error;
- if (payload?.message) return payload.message;
- }
- return error instanceof Error && error.message ? error.message : fallback;
+  if (error && typeof error === 'object' && 'error' in error) {
+    const payload = (error as EnterpriseErrorResponse).error;
+    if (payload?.message) return payload.message;
+  }
+  return error instanceof Error && error.message ? error.message : fallback;
 }
 
 function unwrap<T>(result: { data?: { data: T }; error?: EnterpriseErrorResponse }, fallback: string) {
- if (result.error) throw result.error;
- if (!result.data) throw new Error(fallback);
- return result.data.data;
+  if (result.error) throw result.error;
+  if (!result.data) throw new Error(fallback);
+  return result.data.data;
 }
 
 function nextCursor(page: { page: { hasMore: boolean; nextCursor: string | null } }) {
- return page.page.hasMore ? page.page.nextCursor ?? undefined : undefined;
+  return page.page.hasMore ? page.page.nextCursor ?? undefined : undefined;
 }
 
 async function loadModels(cursor?: string) {
- return unwrap<ManagedModelPageData>(await listManagedModels({ query: { limit: 100, ...(cursor ? { cursor } : {}) } }), '模型暂不可用');
+  return unwrap<ManagedModelPageData>(await listManagedModels({ query: { limit: 100, ...(cursor ? { cursor } : {}) } }), '模型暂不可用');
 }
 
 async function loadProviders(cursor?: string) {
- return unwrap<ProviderPageData>(await listModelProviders({ query: { limit: 100, ...(cursor ? { cursor } : {}) } }), '供应商暂不可用');
+  return unwrap<ProviderPageData>(await listModelProviders({ query: { limit: 100, ...(cursor ? { cursor } : {}) } }), '供应商暂不可用');
 }
 
-function status(value: 'ACTIVE' | 'DISABLED') {
- return value === 'ACTIVE'
- ? <span className="inline-flex items-center gap-1.5 rounded-full border border-green/70 bg-green-tint px-2.5 py-0.5 text-[11px] font-medium text-green "><span className="size-1.5 rounded-full bg-green " />已启用</span>
- : <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-field px-2.5 py-0.5 text-[11px] font-medium text-ink-3 "><span className="size-1.5 rounded-full bg-ink-3 " />已停用</span>;
+function ModelStatusBadge({ value }: { value: 'ACTIVE' | 'DISABLED' }) {
+  return <TableStatusBadge tone={value === 'ACTIVE' ? 'success' : 'neutral'} label={value === 'ACTIVE' ? '已启用' : '已停用'} />;
 }
 
-function providerStatus(value: 'ACTIVE' | 'DISABLED') {
- return value === 'ACTIVE'
- ? <span className="inline-flex items-center gap-1.5 rounded-full border border-green/70 bg-green-tint px-2.5 py-0.5 text-[11px] font-medium text-green "><span className="size-1.5 animate-pulse rounded-full bg-green " />启用</span>
- : <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-field px-2.5 py-0.5 text-[11px] font-medium text-ink-3 "><span className="size-1.5 rounded-full bg-ink-3 " />已停用</span>;
+function ProviderStatusBadge({ value }: { value: 'ACTIVE' | 'DISABLED' }) {
+  return value === 'ACTIVE'
+    ? <Badge variant="success"><span className="size-1.5 animate-pulse rounded-full bg-success" />启用</Badge>
+    : <Badge variant="secondary"><span className="size-1.5 rounded-full bg-muted-foreground" />已停用</Badge>;
 }
 
 function capabilityBadges(model: ManagedModel) {
- return <div className="flex flex-wrap items-center gap-1.5">
- {(model.input ?? ['text']).includes('text') ? <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium text-ink-2 bg-field "><MessageSquare className="size-2.5 text-ink-3 " />文本</span> : null}
- {model.input?.includes('image') ? <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium text-ink-2 bg-field "><ImageIcon className="size-2.5 text-ink-3 " />图片</span> : null}
- {model.reasoningEfforts && typeof model.reasoningEfforts === 'object' ? <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium text-orange bg-orange-tint "><Zap className="size-2.5 text-orange " />推理思考</span> : null}
- </div>;
+  return (
+    <div className="flex min-w-0 items-center gap-1 overflow-hidden">
+      {(model.input ?? ['text']).includes('text') ? <Badge variant="outline" size="sm"><MessageSquare aria-hidden />文本</Badge> : null}
+      {model.input?.includes('image') ? <Badge variant="outline" size="sm"><ImageIcon aria-hidden />图片</Badge> : null}
+      {model.reasoningEfforts && typeof model.reasoningEfforts === 'object' ? <Badge variant="outline" size="sm"><Zap aria-hidden className="text-amber-500" />推理</Badge> : null}
+    </div>
+  );
 }
 
-function InlineModelTable({ models, canWrite, onMaintainModels, onEdit, onDelete, onToggle }: { models: ReadonlyArray<ManagedModel>; canWrite: boolean; onMaintainModels: () => void; onEdit: (model: ManagedModel) => void; onDelete: (model: ManagedModel) => void; onToggle: (model: ManagedModel) => void }) {
- if (!models.length) return <div className="flex flex-col items-center justify-center gap-3 px-4 py-5 text-center text-xs text-ink-3 sm:flex-row"><span>此连接通道下暂未绑定任何受管模型</span>{canWrite ? <Button variant="quiet" size="xs" className="rounded-full border border-ink/40 bg-ink/10 text-ink hover:bg-ink hover:text-canvas " onClick={onMaintainModels}><Settings2 className="size-3" />维护模型</Button> : null}</div>;
- return <div className="overflow-x-auto rounded-xl border border-line/80 bg-surface shadow-[0_1px_2px_rgba(0,0,0,.025)]"><table className="w-full min-w-[760px] border-collapse text-left"><thead><tr className="border-b border-line bg-canvas/80 text-[11px] font-semibold uppercase tracking-wide text-ink-3 "><th className="px-3.5 py-2">受管模型名称 / 上游 ID</th><th className="px-3.5 py-2">上下文 / 最大输出</th><th className="px-3.5 py-2">支持模态 / 能力</th><th className="px-3.5 py-2">状态</th><th className="px-3.5 py-2 text-right">模型操作</th></tr></thead><tbody className="divide-y divide-line text-xs">{models.map((model) => <tr key={model.id} className="transition-colors hover:bg-canvas/70 "><td className="px-3.5 py-2.5"><div className="flex items-center gap-2"><span className="font-semibold text-ink ">{model.name ?? model.modelId}</span><span className="rounded bg-field px-1.5 py-0.5 font-mono text-[11px] text-ink-3 ">{model.modelId}</span></div></td><td className="px-3.5 py-2.5 font-mono text-[11px] text-ink-2 ">窗口 {formatTokenCapacity(model.contextWindow ?? 256000)} · 输出 {formatTokenCapacity(model.maxTokens ?? 32768)}</td><td className="px-3.5 py-2.5">{capabilityBadges(model)}</td><td className="px-3.5 py-2.5">{status(model.status)}</td><td className="px-3.5 py-2.5 text-right">{canWrite ? <div className="inline-flex items-center gap-1"><Button variant="quiet" size="xs" className="rounded-full px-2 py-1 text-[11px] text-ink-2 hover:bg-field hover:text-ink " onClick={() => onToggle(model)}>{model.status === 'ACTIVE' ? '停用' : '启用'}</Button><Button variant="quiet" size="xs" className="rounded-full px-2 py-1 text-[11px] text-ink-2 hover:bg-field hover:text-ink " onClick={() => onEdit(model)}>配置</Button><Button variant="quiet" size="xs" className="rounded-full p-1 text-ink-3 hover:bg-red-tint hover:text-red " title="移除该模型" onClick={() => onDelete(model)}><Trash2 className="size-3.5" /></Button></div> : null}</td></tr>)}</tbody></table></div>;
+function InlineModelTable({ models, canWrite, onMaintainModels, onEdit, onDelete, onToggle }: {
+  models: ReadonlyArray<ManagedModel>; canWrite: boolean; onMaintainModels: () => void;
+  onEdit: (model: ManagedModel) => void; onDelete: (model: ManagedModel) => void; onToggle: (model: ManagedModel) => void;
+}) {
+  if (!models.length) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 px-4 py-5 text-center text-xs text-muted-foreground sm:flex-row">
+        <span>此连接通道下暂未绑定任何受管模型</span>
+        {canWrite ? (
+          <Button variant="outline" size="xs" onClick={onMaintainModels}>
+            <Settings2 aria-hidden />维护模型
+          </Button>
+        ) : null}
+      </div>
+    );
+  }
+  return (
+    <Card className="overflow-hidden">
+      <Table className="min-w-[760px] table-fixed">
+        <TableHeader className="bg-muted/60">
+          <TableRow className="hover:bg-transparent">
+            <TableHead className="w-[250px]">受管模型</TableHead>
+            <TableHead className="w-[190px]">上下文 / 最大输出</TableHead>
+            <TableHead className="w-[170px]">能力</TableHead>
+            <TableHead className="w-[100px]">状态</TableHead>
+            <TableHead className="w-[140px] text-right">操作</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {models.map((model) => (
+            <TableRow key={model.id}>
+              <TableCell>
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="truncate font-medium" title={model.name ?? model.modelId}>{model.name ?? model.modelId}</span>
+                  <Badge variant="outline" size="sm" className="max-w-[140px] shrink-0 font-mono">
+                    <span className="truncate" title={model.modelId}>{model.modelId}</span>
+                  </Badge>
+                </div>
+              </TableCell>
+              <TableCell className="font-mono text-xs text-muted-foreground tabular-nums">
+                <span className="block truncate" title={`窗口 ${formatTokenCapacity(model.contextWindow ?? 256000)} · 输出 ${formatTokenCapacity(model.maxTokens ?? 32768)}`}>
+                  窗口 {formatTokenCapacity(model.contextWindow ?? 256000)} · 输出 {formatTokenCapacity(model.maxTokens ?? 32768)}
+                </span>
+              </TableCell>
+              <TableCell>{capabilityBadges(model)}</TableCell>
+              <TableCell><ModelStatusBadge value={model.status} /></TableCell>
+              <TableCell className="text-right">
+                {canWrite ? (
+                  <div className="inline-flex items-center gap-1">
+                    <Button variant="ghost" size="xs" onClick={() => onToggle(model)}>{model.status === 'ACTIVE' ? '停用' : '启用'}</Button>
+                    <Button variant="ghost" size="xs" onClick={() => onEdit(model)}>配置</Button>
+                    <Button variant="ghost" size="icon-xs" className="text-destructive-foreground" title="移除该模型" onClick={() => onDelete(model)}>
+                      <Trash2 aria-hidden />
+                    </Button>
+                  </div>
+                ) : null}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Card>
+  );
 }
 
-function ConnectionRow({ connection, models, modelCount, expanded, canWrite, onToggleExpand, onMaintainModels, onEdit, onCopy, onTest, onDelete, onEditModel, onDeleteModel, onToggleModel }: { connection: ModelProviderConnection; models: ReadonlyArray<ManagedModel>; modelCount: number; expanded: boolean; canWrite: boolean; onToggleExpand: () => void; onMaintainModels: () => void; onEdit: () => void; onCopy: () => void; onTest: () => void; onDelete: () => void; onEditModel: (model: ManagedModel) => void; onDeleteModel: (model: ManagedModel) => void; onToggleModel: (model: ManagedModel) => void }) {
- return <div className="overflow-hidden rounded-xl border border-line/90 bg-surface shadow-[0_1px_2px_rgba(0,0,0,.025)]"><div className="flex flex-col gap-3.5 p-3.5 transition-colors hover:bg-canvas/40 sm:flex-row sm:items-center sm:justify-between sm:px-4"><button type="button" aria-expanded={expanded} onClick={onToggleExpand} className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 text-left select-none sm:items-center"><span className="flex shrink-0 items-center gap-2"><span className="grid size-6 place-items-center rounded-md text-ink-3 transition-colors hover:bg-field hover:text-ink-2 "><ChevronRight className={`size-4 transition-transform duration-200 ${expanded ? 'rotate-90 text-ink ' : ''}`} /></span><span className={`grid size-7 place-items-center rounded-lg border ${connection.status === 'ACTIVE' ? 'border-green/70 bg-green-tint text-green ' : 'border-line bg-field text-ink-3 '}`} title={connection.status === 'ACTIVE' ? '连接通道正常' : '连接通道已停用'}><span className={`size-2 rounded-full ${connection.status === 'ACTIVE' ? 'bg-green ' : 'bg-ink-3 '}`} /></span></span><span className="min-w-0 flex-1 space-y-1"><span className="flex flex-wrap items-center gap-2"><strong className="truncate text-xs font-semibold text-ink ">{connection.name}</strong><span className="inline-flex items-center gap-1 rounded-md border border-line/70 bg-field px-2 py-0.5 font-mono text-[11px] font-medium text-ink-2 "><Terminal className="size-2.5 text-ink-3 " />{connection.apiProtocol}</span><span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-medium ${connection.credentialConfigured ? 'border-green/60 bg-green-tint/70 text-green ' : 'border-orange/70 bg-orange-tint text-orange '}`}><KeyRound className={`size-2.5 ${connection.credentialConfigured ? 'text-green ' : 'text-orange '}`} />{connection.credentialConfigured ? '密钥已配置' : '未配置密钥'}</span></span><span className="flex items-center gap-2 truncate font-mono text-xs text-ink-3 "><Globe className="size-3.5 shrink-0 text-ink-3 " /><span className="truncate" title={connection.baseUrl}>{connection.baseUrl}</span><span className="shrink-0 text-[10px] text-ink-3 ">{connection.modelDiscoveryPath ?? '/models'}</span></span></span></button>{canWrite ? <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-line pt-2 sm:border-t-0 sm:pt-0"><Button variant="quiet" size="xs" className="rounded-full border border-line/80 bg-canvas text-ink-2 hover:bg-field hover:text-ink " onClick={onTest}><RefreshCw className="size-3.5 text-ink-3 " />测试连接</Button><Button variant="quiet" size="xs" className="rounded-full border border-line/80 bg-canvas text-ink-2 hover:bg-field hover:text-ink " onClick={onEdit}><Edit2 className="size-3.5 text-ink-3 " />编辑连接</Button><Button variant="quiet" size="xs" className="rounded-full border border-line/80 bg-canvas text-ink-2 hover:bg-field hover:text-ink " onClick={onCopy}><Copy className="size-3.5 text-ink-3 " />复制连接</Button><Button variant="quiet" size="xs" aria-expanded={expanded} className={`rounded-full border font-semibold ${expanded ? 'border-ink bg-ink text-canvas hover:bg-ink hover:text-canvas' : 'border-line/90 bg-surface text-ink hover:bg-field '}`} onClick={(event) => { event.stopPropagation(); onToggleExpand(); }}><Cpu className="size-3.5" />下属模型（{modelCount}）<ChevronDown className={`size-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`} /></Button><Button variant="quiet" size="xs" className="rounded-full border border-ink bg-ink font-semibold text-canvas hover:opacity-90" onClick={(event) => { event.stopPropagation(); onMaintainModels(); }}><Settings2 className="size-3.5 stroke-[2.5]" />维护模型</Button><Button variant="quiet" size="xs" className="rounded-full text-red hover:bg-red-tint disabled:cursor-not-allowed disabled:opacity-40" disabled={modelCount > 0} title={modelCount > 0 ? '请先删除下属模型' : '删除连接'} onClick={(event) => { event.stopPropagation(); onDelete(); }}><Trash2 className="size-3.5" />删除</Button></div> : null}</div>{expanded ? <div className="border-t border-line/80 bg-canvas/60 px-4 py-3"><InlineModelTable models={models} canWrite={canWrite} onMaintainModels={onMaintainModels} onEdit={onEditModel} onDelete={onDeleteModel} onToggle={onToggleModel} /></div> : null}</div>;
+function ConnectionRow({ connection, models, modelCount, expanded, canWrite, onToggleExpand, onMaintainModels, onEdit, onCopy, onTest, onDelete, onEditModel, onDeleteModel, onToggleModel }: {
+  connection: ModelProviderConnection; models: ReadonlyArray<ManagedModel>; modelCount: number; expanded: boolean; canWrite: boolean;
+  onToggleExpand: () => void; onMaintainModels: () => void; onEdit: () => void; onCopy: () => void; onTest: () => void; onDelete: () => void;
+  onEditModel: (model: ManagedModel) => void; onDeleteModel: (model: ManagedModel) => void; onToggleModel: (model: ManagedModel) => void;
+}) {
+  return (
+    <Card className="overflow-hidden">
+      <div className="flex flex-col gap-3.5 p-3.5 transition-colors hover:bg-muted/30 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+        <button type="button" aria-expanded={expanded} onClick={onToggleExpand} className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 text-left select-none sm:items-center">
+          <span className="flex shrink-0 items-center gap-2">
+            <span className="grid size-6 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted">
+              <ChevronRight className={`size-4 transition-transform duration-200 ${expanded ? 'rotate-90 text-foreground' : ''}`} />
+            </span>
+            <span
+              className={`grid size-7 place-items-center rounded-lg border ${connection.status === 'ACTIVE' ? 'border-success/50 bg-success/10 text-success-foreground' : 'bg-muted text-muted-foreground'}`}
+              title={connection.status === 'ACTIVE' ? '连接通道正常' : '连接通道已停用'}
+            >
+              <span className={`size-2 rounded-full ${connection.status === 'ACTIVE' ? 'bg-success' : 'bg-muted-foreground'}`} />
+            </span>
+          </span>
+          <span className="min-w-0 flex-1 space-y-1">
+            <span className="flex flex-wrap items-center gap-2">
+              <strong className="truncate text-xs font-semibold">{connection.name}</strong>
+              <Badge variant="outline" size="sm" className="font-mono"><Terminal aria-hidden />{connection.apiProtocol}</Badge>
+              <Badge variant={connection.credentialConfigured ? 'success' : 'warning'} size="sm">
+                <KeyRound aria-hidden />
+                {connection.credentialConfigured ? '密钥已配置' : '未配置密钥'}
+              </Badge>
+            </span>
+            <span className="flex items-center gap-2 truncate font-mono text-xs text-muted-foreground">
+              <Globe className="size-3.5 shrink-0" />
+              <span className="truncate" title={connection.baseUrl}>{connection.baseUrl}</span>
+              <span className="shrink-0 text-[10px]">{connection.modelDiscoveryPath ?? '/models'}</span>
+            </span>
+          </span>
+        </button>
+        {canWrite ? (
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 border-t pt-2 sm:border-t-0 sm:pt-0">
+            <Button variant="outline" size="xs" onClick={onTest}><RefreshCw aria-hidden />测试连接</Button>
+            <Button variant="outline" size="xs" onClick={onEdit}><Edit2 aria-hidden />编辑连接</Button>
+            <Button variant="outline" size="xs" onClick={onCopy}><Copy aria-hidden />复制连接</Button>
+            <Button
+              variant={expanded ? 'default' : 'outline'}
+              size="xs"
+              aria-expanded={expanded}
+              onClick={(event) => { event.stopPropagation(); onToggleExpand(); }}
+            >
+              <Cpu aria-hidden />
+              下属模型（{modelCount}）
+              <ChevronDown className={`transition-transform ${expanded ? 'rotate-180' : ''}`} />
+            </Button>
+            <Button
+              size="xs"
+              onClick={(event) => { event.stopPropagation(); onMaintainModels(); }}
+            >
+              <Settings2 aria-hidden />维护模型
+            </Button>
+            <Button
+              variant="ghost"
+              size="xs"
+              className="text-destructive-foreground"
+              disabled={modelCount > 0}
+              title={modelCount > 0 ? '请先删除下属模型' : '删除连接'}
+              onClick={(event) => { event.stopPropagation(); onDelete(); }}
+            >
+              <Trash2 aria-hidden />删除
+            </Button>
+          </div>
+        ) : null}
+      </div>
+      {expanded ? (
+        <div className="border-t bg-muted/30 px-4 py-3">
+          <InlineModelTable models={models} canWrite={canWrite} onMaintainModels={onMaintainModels} onEdit={onEditModel} onDelete={onDeleteModel} onToggle={onToggleModel} />
+        </div>
+      ) : null}
+    </Card>
+  );
 }
 
-function ProviderCard({ provider, connections, models, allModels, canWrite, expandedConnections, onToggleConnection, onEdit, onToggle, onDelete, onDeleteConnection, onNewConnection, onMaintainModels, onEditConnection, onCopyConnection, onTest, onEditModel, onDeleteModel, onToggleModel }: { provider: Provider; connections: ReadonlyArray<ModelProviderConnection>; models: ReadonlyArray<ManagedModel>; allModels: ReadonlyArray<ManagedModel>; canWrite: boolean; expandedConnections: ReadonlyArray<string>; onToggleConnection: (connection: ModelProviderConnection) => void; onEdit: () => void; onToggle: () => void; onDelete: () => void; onDeleteConnection: (connection: ModelProviderConnection) => void; onNewConnection: () => void; onMaintainModels: (connection: ModelProviderConnection) => void; onEditConnection: (connection: ModelProviderConnection) => void; onCopyConnection: (connection: ModelProviderConnection) => void; onTest: (connection: ModelProviderConnection) => void; onEditModel: (model: ManagedModel) => void; onDeleteModel: (model: ManagedModel) => void; onToggleModel: (model: ManagedModel) => void }) {
- const providerModels = models.filter((model) => model.providerId === provider.id);
- return <article className={`overflow-hidden rounded-2xl border bg-surface shadow-[0_1px_2px_rgba(0,0,0,.04)] ${provider.status === 'ACTIVE' ? 'border-line/90 ' : 'border-line/60 bg-canvas/40 opacity-85'}`}><div className="flex flex-col gap-4 border-b border-line bg-surface p-5 sm:flex-row sm:items-center sm:justify-between"><div className="flex min-w-0 items-start gap-3.5 sm:items-center"><div className={`grid size-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br ${providerGradient(provider.id, provider.name)} text-base font-bold text-white shadow-sm`}>{provider.name.slice(0, 1).toUpperCase()}</div><div className="min-w-0"><div className="flex flex-wrap items-center gap-2.5"><h2 className="m-0 truncate text-base font-semibold tracking-tight text-ink ">{provider.name}</h2>{providerStatus(provider.status)}<span className="text-xs font-medium text-ink-3 ">{connections.length} 个连接 · 共 {providerModels.length} 款受管模型</span></div><p className="mt-1 max-w-2xl truncate text-xs text-ink-3 ">{provider.description || '未填写供应商描述'}</p></div></div>{canWrite ? <div className="flex shrink-0 items-center gap-2 self-end sm:self-center"><Button variant="quiet" size="xs" aria-label={`编辑 ${provider.name}`} className="rounded-full text-ink-2 hover:bg-field hover:text-ink " onClick={onEdit}><Edit2 className="size-3.5 text-ink-3 " />编辑供应商</Button><Button variant="quiet" size="xs" className={`${provider.status === 'ACTIVE' ? 'text-ink-2 hover:bg-orange-tint hover:text-orange ' : 'bg-green-tint text-green hover:bg-green-tint '}`} onClick={onToggle}>{provider.status === 'ACTIVE' ? <PowerOff className="size-3.5" /> : <Power className="size-3.5" />}{provider.status === 'ACTIVE' ? '停用' : '启用'}</Button><Button variant="quiet" size="xs" className="rounded-full text-red hover:bg-red-tint disabled:cursor-not-allowed disabled:opacity-40" disabled={connections.length > 0} title={connections.length > 0 ? '请先删除下属连接' : '删除供应商'} onClick={onDelete}><Trash2 className="size-3.5" />删除</Button><span className="hidden h-4 w-px bg-line sm:block" /><Button variant="quiet" size="xs" className="rounded-full border border-line/80 bg-field/90 font-semibold text-ink hover:border-ink hover:bg-ink hover:text-canvas" onClick={onNewConnection}><Plus className="size-3.5 stroke-[2.5]" />新建连接</Button></div> : null}</div><div className="space-y-3 bg-canvas/50 p-4 sm:p-5">{connections.length ? connections.map((connection) => <ConnectionRow key={connection.id} connection={connection} models={models.filter((model) => model.connectionId === connection.id)} modelCount={allModels.filter((model) => model.connectionId === connection.id).length} expanded={expandedConnections.includes(connection.id)} canWrite={canWrite} onToggleExpand={() => onToggleConnection(connection)} onMaintainModels={() => onMaintainModels(connection)} onEdit={() => onEditConnection(connection)} onCopy={() => onCopyConnection(connection)} onTest={() => onTest(connection)} onDelete={() => onDeleteConnection(connection)} onEditModel={onEditModel} onDeleteModel={onDeleteModel} onToggleModel={onToggleModel} />) : <div className="space-y-2 rounded-xl border border-dashed border-line bg-surface/70 p-6 text-center"><p className="m-0 text-xs text-ink-3 ">该供应商暂未配置任何连接通道</p>{canWrite ? <Button variant="quiet" size="xs" className="rounded-full bg-accent-tint text-accent hover:bg-accent-tint " onClick={onNewConnection}><Plus className="size-3.5" />立即新建连接</Button> : null}</div>}</div></article>;
+function ProviderCard({ provider, connections, models, allModels, canWrite, expandedConnections, onToggleConnection, onEdit, onToggle, onDelete, onDeleteConnection, onNewConnection, onMaintainModels, onEditConnection, onCopyConnection, onTest, onEditModel, onDeleteModel, onToggleModel }: {
+  provider: Provider; connections: ReadonlyArray<ModelProviderConnection>; models: ReadonlyArray<ManagedModel>; allModels: ReadonlyArray<ManagedModel>;
+  canWrite: boolean; expandedConnections: ReadonlyArray<string>; onToggleConnection: (connection: ModelProviderConnection) => void;
+  onEdit: () => void; onToggle: () => void; onDelete: () => void; onDeleteConnection: (connection: ModelProviderConnection) => void;
+  onNewConnection: () => void; onMaintainModels: (connection: ModelProviderConnection) => void;
+  onEditConnection: (connection: ModelProviderConnection) => void; onCopyConnection: (connection: ModelProviderConnection) => void;
+  onTest: (connection: ModelProviderConnection) => void; onEditModel: (model: ManagedModel) => void;
+  onDeleteModel: (model: ManagedModel) => void; onToggleModel: (model: ManagedModel) => void;
+}) {
+  const providerModels = models.filter((model) => model.providerId === provider.id);
+  return (
+    <Card render={<article />} className={`overflow-hidden ${provider.status === 'ACTIVE' ? '' : 'opacity-85'}`}>
+      <div className="flex flex-col gap-4 border-b p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3.5 sm:items-center">
+          <div className={`grid size-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br ${providerGradient(provider.id, provider.name)} text-base font-bold text-white shadow-sm`}>
+            {provider.name.slice(0, 1).toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h2 className="m-0 truncate text-base font-semibold tracking-tight">{provider.name}</h2>
+              <ProviderStatusBadge value={provider.status} />
+              <span className="text-xs font-medium text-muted-foreground">{connections.length} 个连接 · 共 {providerModels.length} 款受管模型</span>
+            </div>
+            <p className="mt-1 max-w-2xl truncate text-xs text-muted-foreground">{provider.description || '未填写供应商描述'}</p>
+          </div>
+        </div>
+        {canWrite ? (
+          <div className="flex shrink-0 items-center gap-2 self-end sm:self-center">
+            <Button variant="ghost" size="xs" aria-label={`编辑 ${provider.name}`} onClick={onEdit}><Edit2 aria-hidden />编辑供应商</Button>
+            <Button variant="ghost" size="xs" onClick={onToggle}>
+              {provider.status === 'ACTIVE' ? <PowerOff aria-hidden /> : <Power aria-hidden />}
+              {provider.status === 'ACTIVE' ? '停用' : '启用'}
+            </Button>
+            <Button variant="ghost" size="xs" className="text-destructive-foreground" disabled={connections.length > 0} title={connections.length > 0 ? '请先删除下属连接' : '删除供应商'} onClick={onDelete}>
+              <Trash2 aria-hidden />删除
+            </Button>
+            <Separator orientation="vertical" className="hidden h-4 sm:block" />
+            <Button variant="outline" size="xs" onClick={onNewConnection}><Plus aria-hidden />新建连接</Button>
+          </div>
+        ) : null}
+      </div>
+      <div className="space-y-3 bg-muted/25 p-4 sm:p-5">
+        {connections.length ? connections.map((connection) => (
+          <ConnectionRow
+            key={connection.id}
+            connection={connection}
+            models={models.filter((model) => model.connectionId === connection.id)}
+            modelCount={allModels.filter((model) => model.connectionId === connection.id).length}
+            expanded={expandedConnections.includes(connection.id)}
+            canWrite={canWrite}
+            onToggleExpand={() => onToggleConnection(connection)}
+            onMaintainModels={() => onMaintainModels(connection)}
+            onEdit={() => onEditConnection(connection)}
+            onCopy={() => onCopyConnection(connection)}
+            onTest={() => onTest(connection)}
+            onDelete={() => onDeleteConnection(connection)}
+            onEditModel={onEditModel}
+            onDeleteModel={onDeleteModel}
+            onToggleModel={onToggleModel}
+          />
+        )) : (
+          <div className="space-y-2 rounded-xl border border-dashed bg-card p-6 text-center">
+            <p className="m-0 text-xs text-muted-foreground">该供应商暂未配置任何连接通道</p>
+            {canWrite ? (
+              <Button variant="secondary" size="xs" onClick={onNewConnection}><Plus aria-hidden />立即新建连接</Button>
+            ) : null}
+          </div>
+        )}
+      </div>
+    </Card>
+  );
 }
 
 export function ModelCatalog() {
- const { bootstrap } = useRouteContext({ from: '/_console' });
- const canWrite = bootstrap.permissions.includes('ent:model:write');
- const queryClient = useQueryClient();
- const [section, setSection] = useState<(typeof SECTIONS)[number]>('模型与供应商');
- const [searchQuery, setSearchQuery] = useState('');
- const [statusFilter, setStatusFilter] = useState<'all' | 'ACTIVE' | 'DISABLED'>('ACTIVE');
- const [expandedConnections, setExpandedConnections] = useState<string[]>([]);
- const [modelSetCount, setModelSetCount] = useState(0);
- const workspaceScrollRef = useRef<HTMLDivElement>(null);
- // 分区切换时重置共享滚动位置，避免从一个分区的中段切到另一分区；直接赋值 scrollTop 以兼容无 scrollTo 的环境
- useEffect(() => { if (workspaceScrollRef.current) workspaceScrollRef.current.scrollTop = 0; }, [section]);
- const [providerEditor, setProviderEditor] = useState<'create' | Provider | null>(null);
- const [connectionEditor, setConnectionEditor] = useState<'create' | ModelProviderConnection | null>(null);
- const [connectionCopySource, setConnectionCopySource] = useState<ModelProviderConnection>();
- const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
- const [onboarding, setOnboarding] = useState(false);
- const [modelEditor, setModelEditor] = useState<'create' | ManagedModel | null>(null);
- const [modelConnection, setModelConnection] = useState<ModelProviderConnection | undefined>();
- const [deleteTarget, setDeleteTarget] = useState<ManagedModel | null>(null);
- const [confirmTarget, setConfirmTarget] = useState<{ kind: 'provider-delete' | 'connection-delete' | 'provider-toggle' | 'model-toggle'; provider?: Provider; connection?: ModelProviderConnection; model?: ManagedModel }>();
- const [notice, setNotice] = useState<{ error: boolean; text: string }>();
+  const { bootstrap } = useRouteContext({ from: '/_console' });
+  const canWrite = bootstrap.permissions.includes('ent:model:write');
+  const queryClient = useQueryClient();
+  const [section, setSection] = useState<(typeof SECTIONS)[number]>('模型与供应商');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'ACTIVE' | 'DISABLED'>('ACTIVE');
+  const [expandedConnections, setExpandedConnections] = useState<string[]>([]);
+  const [modelSetCount, setModelSetCount] = useState(0);
+  const workspaceScrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (workspaceScrollRef.current) workspaceScrollRef.current.scrollTop = 0; }, [section]);
+  const [providerEditor, setProviderEditor] = useState<'create' | Provider | null>(null);
+  const [connectionEditor, setConnectionEditor] = useState<'create' | ModelProviderConnection | null>(null);
+  const [connectionCopySource, setConnectionCopySource] = useState<ModelProviderConnection>();
+  const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
+  const [onboarding, setOnboarding] = useState(false);
+  const [modelEditor, setModelEditor] = useState<'create' | ManagedModel | null>(null);
+  const [modelConnection, setModelConnection] = useState<ModelProviderConnection | undefined>();
+  const [deleteTarget, setDeleteTarget] = useState<ManagedModel | null>(null);
+  const [confirmTarget, setConfirmTarget] = useState<{ kind: 'provider-delete' | 'connection-delete' | 'provider-toggle' | 'model-toggle'; provider?: Provider; connection?: ModelProviderConnection; model?: ManagedModel }>();
+  const [notice, setNotice] = useState<{ error: boolean; text: string }>();
 
- const models = useInfiniteQuery({ queryKey: ['models', 'catalog'], queryFn: ({ pageParam }) => loadModels(pageParam), initialPageParam: undefined as string | undefined, getNextPageParam: nextCursor, staleTime: 30000 });
- const providers = useInfiniteQuery({ queryKey: ['models', 'providers'], queryFn: ({ pageParam }) => loadProviders(pageParam), initialPageParam: undefined as string | undefined, getNextPageParam: nextCursor, staleTime: 30000 });
- const providerRows = useMemo(() => providers.data?.pages.flatMap((page) => page.items) ?? [], [providers.data]);
- const modelRows = useMemo(() => models.data?.pages.flatMap((page) => page.items) ?? [], [models.data]);
- const allConnections = useQuery({ queryKey: ['models', 'connections', 'all', providerRows.map((provider) => provider.id).join(',')], queryFn: async () => (await Promise.all(providerRows.map(async (provider) => unwrap<ModelProviderConnectionPageData>(await listProviderConnections({ path: { providerId: provider.id }, query: { limit: 100 } }), '连接暂不可用')))).flatMap((page) => page.items), enabled: providerRows.length > 0, staleTime: 30000 });
- const connectionRows = allConnections.data ?? [];
- const connectionNames = useMemo(() => new Map(connectionRows.map((connection) => [connection.id, connection.name])), [connectionRows]);
- const connectionEndpoints = useMemo(() => new Map(connectionRows.map((connection) => [connection.id, connection.baseUrl])), [connectionRows]);
- const connectionsByProvider = useMemo(() => { const map = new Map<string, ModelProviderConnection[]>(); connectionRows.forEach((connection) => map.set(connection.providerId, [...(map.get(connection.providerId) ?? []), connection])); return map; }, [connectionRows]);
- const onboardingProviders = useMemo(() => providerRows.map((provider) => ({ ...provider, connectionCount: connectionsByProvider.get(provider.id)?.length ?? 0 })), [providerRows, connectionsByProvider]);
- const filteredModels = useMemo(() => { const query = searchQuery.trim().toLowerCase(); return modelRows.filter((model) => { const connection = connectionRows.find((item) => item.id === model.connectionId); const matchesQuery = !query || [model.name, model.modelId, model.providerName, connection?.name, connection?.baseUrl].some((value) => value?.toLowerCase().includes(query)); return matchesQuery && (statusFilter === 'all' || model.status === statusFilter); }); }, [modelRows, connectionRows, searchQuery, statusFilter]);
- const filteredProviders = useMemo(() => { const query = searchQuery.trim().toLowerCase(); return providerRows.filter((provider) => { const connections = connectionsByProvider.get(provider.id) ?? []; const providerModels = filteredModels.filter((model) => model.providerId === provider.id); const matchesQuery = !query || provider.name.toLowerCase().includes(query) || provider.description?.toLowerCase().includes(query) || connections.some((connection) => connection.name.toLowerCase().includes(query) || connection.baseUrl.toLowerCase().includes(query)); return (statusFilter === 'all' || provider.status === statusFilter || providerModels.length > 0) && (matchesQuery || providerModels.length > 0); }); }, [providerRows, connectionsByProvider, filteredModels, searchQuery, statusFilter]);
+  const models = useInfiniteQuery({ queryKey: ['models', 'catalog'], queryFn: ({ pageParam }) => loadModels(pageParam), initialPageParam: undefined as string | undefined, getNextPageParam: nextCursor, staleTime: 30000 });
+  const providers = useInfiniteQuery({ queryKey: ['models', 'providers'], queryFn: ({ pageParam }) => loadProviders(pageParam), initialPageParam: undefined as string | undefined, getNextPageParam: nextCursor, staleTime: 30000 });
+  const providerRows = useMemo(() => providers.data?.pages.flatMap((page) => page.items) ?? [], [providers.data]);
+  const modelRows = useMemo(() => models.data?.pages.flatMap((page) => page.items) ?? [], [models.data]);
+  const allConnections = useQuery({ queryKey: ['models', 'connections', 'all', providerRows.map((provider) => provider.id).join(',')], queryFn: async () => (await Promise.all(providerRows.map(async (provider) => unwrap<ModelProviderConnectionPageData>(await listProviderConnections({ path: { providerId: provider.id }, query: { limit: 100 } }), '连接暂不可用')))).flatMap((page) => page.items), enabled: providerRows.length > 0, staleTime: 30000 });
+  const connectionRows = allConnections.data ?? [];
+  const connectionNames = useMemo(() => new Map(connectionRows.map((connection) => [connection.id, connection.name])), [connectionRows]);
+  const connectionEndpoints = useMemo(() => new Map(connectionRows.map((connection) => [connection.id, connection.baseUrl])), [connectionRows]);
+  const connectionsByProvider = useMemo(() => { const map = new Map<string, ModelProviderConnection[]>(); connectionRows.forEach((connection) => map.set(connection.providerId, [...(map.get(connection.providerId) ?? []), connection])); return map; }, [connectionRows]);
+  const onboardingProviders = useMemo(() => providerRows.map((provider) => ({ ...provider, connectionCount: connectionsByProvider.get(provider.id)?.length ?? 0 })), [providerRows, connectionsByProvider]);
+  const filteredModels = useMemo(() => { const query = searchQuery.trim().toLowerCase(); return modelRows.filter((model) => { const connection = connectionRows.find((item) => item.id === model.connectionId); const matchesQuery = !query || [model.name, model.modelId, model.providerName, connection?.name, connection?.baseUrl].some((value) => value?.toLowerCase().includes(query)); return matchesQuery && (statusFilter === 'all' || model.status === statusFilter); }); }, [modelRows, connectionRows, searchQuery, statusFilter]);
+  const filteredProviders = useMemo(() => { const query = searchQuery.trim().toLowerCase(); return providerRows.filter((provider) => { const connections = connectionsByProvider.get(provider.id) ?? []; const providerModels = filteredModels.filter((model) => model.providerId === provider.id); const matchesQuery = !query || provider.name.toLowerCase().includes(query) || provider.description?.toLowerCase().includes(query) || connections.some((connection) => connection.name.toLowerCase().includes(query) || connection.baseUrl.toLowerCase().includes(query)); return (statusFilter === 'all' || provider.status === statusFilter || providerModels.length > 0) && (matchesQuery || providerModels.length > 0); }); }, [providerRows, connectionsByProvider, filteredModels, searchQuery, statusFilter]);
 
- const saveProvider = useMutation({ mutationFn: async ({ current, value }: { current?: Provider; value: ProviderCreateRequest | ProviderUpdateRequest }) => unwrap<Provider>(current ? await updateModelProvider({ path: { providerId: current.id }, headers: { 'If-Match': current.revision }, body: value as ProviderUpdateRequest }) : await createModelProvider({ headers: { 'Idempotency-Key': randomUuid() }, body: value as ProviderCreateRequest }), '供应商保存失败'), onSuccess: async (provider, variables) => { setProviderEditor(null); setNotice({ error: false, text: variables.current ? '供应商信息已保存' : '供应商已保存，请继续配置第一条连接' }); if (!variables.current) { setSelectedProvider(provider); setConnectionCopySource(undefined); setConnectionEditor('create'); } await queryClient.invalidateQueries({ queryKey: ['models', 'providers'] }); } });
- const saveConnection = useMutation({ mutationFn: async ({ current, provider, value }: { current?: ModelProviderConnection; provider: Provider; value: ModelProviderConnectionCreateRequestWritable | ModelProviderConnectionUpdateRequestWritable }) => unwrap<ModelProviderConnection>(current ? await updateProviderConnection({ path: { providerId: provider.id, connectionId: current.id }, headers: { 'If-Match': current.revision }, body: value as ModelProviderConnectionUpdateRequestWritable }) : await createProviderConnection({ path: { providerId: provider.id }, headers: { 'Idempotency-Key': randomUuid() }, body: value as ModelProviderConnectionCreateRequestWritable }), '连接保存失败'), onSuccess: async () => { setConnectionEditor(null); setConnectionCopySource(undefined); setNotice({ error: false, text: '连接已保存' }); await queryClient.invalidateQueries({ queryKey: ['models', 'connections'] }); await queryClient.invalidateQueries({ queryKey: ['models', 'providers'] }); } });
- const saveModels = useMutation({ mutationFn: async (entries: ModelSaveEntry[]) => { let last: ManagedModel | undefined; for (const entry of entries) last = entry.existingModel ? unwrap<ManagedModel>(await updateManagedModel({ path: { modelId: entry.existingModel.id }, headers: { 'If-Match': entry.existingModel.revision }, body: entry.value }), '模型保存失败') : unwrap<ManagedModel>(await createManagedModel({ headers: { 'Idempotency-Key': randomUuid() }, body: entry.value }), '模型保存失败'); return last; }, onSuccess: async () => { setModelEditor(null); setModelConnection(undefined); setNotice({ error: false, text: '模型已保存' }); await queryClient.invalidateQueries({ queryKey: ['models'] }); } });
- const saveOnboarding = useMutation({ mutationFn: async (payload: ModelOnboardingPayload) => { const result = await createModelOnboarding({ headers: { 'Idempotency-Key': randomUuid() }, body: payload }); if (result.error) throw result.error; }, onSuccess: async () => { setOnboarding(false); setNotice({ error: false, text: '连接和模型已保存' }); await Promise.all([queryClient.invalidateQueries({ queryKey: ['models'] }), queryClient.invalidateQueries({ queryKey: ['models', 'connections'] })]); } });
- const action = useMutation({ mutationFn: async ({ model, kind }: { model: ManagedModel; kind: 'delete' | 'toggle' }) => { if (kind === 'delete') { const result = await deleteManagedModel({ path: { modelId: model.id }, headers: { 'If-Match': model.revision } }); if (result.error) throw result.error; return; } unwrap(await (model.status === 'ACTIVE' ? disableManagedModel : enableManagedModel)({ path: { modelId: model.id }, headers: { 'If-Match': model.revision } }), '模型状态更新失败'); }, onError: (error) => setNotice({ error: true, text: errorMessage(error, '模型操作失败') }), onSuccess: async (_data, variables) => { setConfirmTarget(undefined); setDeleteTarget(null); setNotice({ error: false, text: variables.kind === 'delete' ? '模型已删除' : '模型状态已更新' }); await queryClient.invalidateQueries({ queryKey: ['models'] }); } });
- const toggleProvider = useMutation({ mutationFn: async (provider: Provider) => unwrap(await (provider.status === 'ACTIVE' ? disableModelProvider : enableModelProvider)({ path: { providerId: provider.id }, headers: { 'If-Match': provider.revision } }), '供应商状态更新失败'), onSuccess: () => { setConfirmTarget(undefined); void queryClient.invalidateQueries({ queryKey: ['models', 'providers'] }); }, onError: (error) => setNotice({ error: true, text: errorMessage(error, '供应商状态更新失败') }) });
- const deleteProvider = useMutation({ mutationFn: async (provider: Provider) => unwrap(await deleteModelProvider({ path: { providerId: provider.id }, headers: { 'If-Match': provider.revision } }), '供应商删除失败'), onSuccess: async () => { setConfirmTarget(undefined); setNotice({ error: false, text: '供应商已删除' }); await queryClient.invalidateQueries({ queryKey: ['models'] }); }, onError: (error) => setNotice({ error: true, text: errorMessage(error, '供应商删除失败') }) });
- const deleteConnection = useMutation({ mutationFn: async ({ provider, connection }: { provider: Provider; connection: ModelProviderConnection }) => unwrap(await deleteProviderConnection({ path: { providerId: provider.id, connectionId: connection.id }, headers: { 'If-Match': connection.revision } }), '连接删除失败'), onSuccess: async () => { setConfirmTarget(undefined); setNotice({ error: false, text: '连接已删除' }); await queryClient.invalidateQueries({ queryKey: ['models'] }); }, onError: (error) => setNotice({ error: true, text: errorMessage(error, '连接删除失败') }) });
- const testConnection = async (connection: ModelProviderConnection) => unwrap<ProviderProbeResult>(await testProviderConnection({ path: { connectionId: connection.id } }), '连接测试失败');
- const probeDraft = async (value: ProviderProbeRequestWritable) => unwrap<ProviderProbeResult>(await probeProviderConnection({ body: value }), '连接探测失败');
- const showTestResult = (connection: ModelProviderConnection) => { void testConnection(connection).then((result) => setNotice({ error: !result.success, text: result.success ? `连接测试通过 · 延迟 ${result.latencyMs} ms` : `连接测试失败 · ${result.upstreamStatus}` })).catch((error) => setNotice({ error: true, text: errorMessage(error, '连接测试失败') })); };
- const openModelMaintenance = (connection: ModelProviderConnection) => { setModelConnection(connection); setModelEditor('create'); };
- const toggleConnection = (connection: ModelProviderConnection) => setExpandedConnections((items) => items.includes(connection.id) ? items.filter((id) => id !== connection.id) : [...items, connection.id]);
- const expandAll = () => setExpandedConnections(expandedConnections.length === connectionRows.length ? [] : connectionRows.map((connection) => connection.id));
+  const saveProvider = useMutation({ mutationFn: async ({ current, value }: { current?: Provider; value: ProviderCreateRequest | ProviderUpdateRequest }) => unwrap<Provider>(current ? await updateModelProvider({ path: { providerId: current.id }, headers: { 'If-Match': current.revision }, body: value as ProviderUpdateRequest }) : await createModelProvider({ headers: { 'Idempotency-Key': randomUuid() }, body: value as ProviderCreateRequest }), '供应商保存失败'), onSuccess: async (provider, variables) => { setProviderEditor(null); setNotice({ error: false, text: variables.current ? '供应商信息已保存' : '供应商已保存，请继续配置第一条连接' }); if (!variables.current) { setSelectedProvider(provider); setConnectionCopySource(undefined); setConnectionEditor('create'); } await queryClient.invalidateQueries({ queryKey: ['models', 'providers'] }); } });
+  const saveConnection = useMutation({ mutationFn: async ({ current, provider, value }: { current?: ModelProviderConnection; provider: Provider; value: ModelProviderConnectionCreateRequestWritable | ModelProviderConnectionUpdateRequestWritable }) => unwrap<ModelProviderConnection>(current ? await updateProviderConnection({ path: { providerId: provider.id, connectionId: current.id }, headers: { 'If-Match': current.revision }, body: value as ModelProviderConnectionUpdateRequestWritable }) : await createProviderConnection({ path: { providerId: provider.id }, headers: { 'Idempotency-Key': randomUuid() }, body: value as ModelProviderConnectionCreateRequestWritable }), '连接保存失败'), onSuccess: async () => { setConnectionEditor(null); setConnectionCopySource(undefined); setNotice({ error: false, text: '连接已保存' }); await queryClient.invalidateQueries({ queryKey: ['models', 'connections'] }); await queryClient.invalidateQueries({ queryKey: ['models', 'providers'] }); } });
+  const saveModels = useMutation({ mutationFn: async (entries: ModelSaveEntry[]) => { let last: ManagedModel | undefined; for (const entry of entries) last = entry.existingModel ? unwrap<ManagedModel>(await updateManagedModel({ path: { modelId: entry.existingModel.id }, headers: { 'If-Match': entry.existingModel.revision }, body: entry.value }), '模型保存失败') : unwrap<ManagedModel>(await createManagedModel({ headers: { 'Idempotency-Key': randomUuid() }, body: entry.value }), '模型保存失败'); return last; }, onSuccess: async () => { setModelEditor(null); setModelConnection(undefined); setNotice({ error: false, text: '模型已保存' }); await queryClient.invalidateQueries({ queryKey: ['models'] }); } });
+  const saveOnboarding = useMutation({ mutationFn: async (payload: ModelOnboardingPayload) => { const result = await createModelOnboarding({ headers: { 'Idempotency-Key': randomUuid() }, body: payload }); if (result.error) throw result.error; }, onSuccess: async () => { setOnboarding(false); setNotice({ error: false, text: '连接和模型已保存' }); await Promise.all([queryClient.invalidateQueries({ queryKey: ['models'] }), queryClient.invalidateQueries({ queryKey: ['models', 'connections'] })]); } });
+  const action = useMutation({ mutationFn: async ({ model, kind }: { model: ManagedModel; kind: 'delete' | 'toggle' }) => { if (kind === 'delete') { const result = await deleteManagedModel({ path: { modelId: model.id }, headers: { 'If-Match': model.revision } }); if (result.error) throw result.error; return; } unwrap(await (model.status === 'ACTIVE' ? disableManagedModel : enableManagedModel)({ path: { modelId: model.id }, headers: { 'If-Match': model.revision } }), '模型状态更新失败'); }, onError: (error) => setNotice({ error: true, text: errorMessage(error, '模型操作失败') }), onSuccess: async (_data, variables) => { setConfirmTarget(undefined); setDeleteTarget(null); setNotice({ error: false, text: variables.kind === 'delete' ? '模型已删除' : '模型状态已更新' }); await queryClient.invalidateQueries({ queryKey: ['models'] }); } });
+  const toggleProvider = useMutation({ mutationFn: async (provider: Provider) => unwrap(await (provider.status === 'ACTIVE' ? disableModelProvider : enableModelProvider)({ path: { providerId: provider.id }, headers: { 'If-Match': provider.revision } }), '供应商状态更新失败'), onSuccess: () => { setConfirmTarget(undefined); void queryClient.invalidateQueries({ queryKey: ['models', 'providers'] }); }, onError: (error) => setNotice({ error: true, text: errorMessage(error, '供应商状态更新失败') }) });
+  const deleteProvider = useMutation({ mutationFn: async (provider: Provider) => unwrap(await deleteModelProvider({ path: { providerId: provider.id }, headers: { 'If-Match': provider.revision } }), '供应商删除失败'), onSuccess: async () => { setConfirmTarget(undefined); setNotice({ error: false, text: '供应商已删除' }); await queryClient.invalidateQueries({ queryKey: ['models'] }); }, onError: (error) => setNotice({ error: true, text: errorMessage(error, '供应商删除失败') }) });
+  const deleteConnection = useMutation({ mutationFn: async ({ provider, connection }: { provider: Provider; connection: ModelProviderConnection }) => unwrap(await deleteProviderConnection({ path: { providerId: provider.id, connectionId: connection.id }, headers: { 'If-Match': connection.revision } }), '连接删除失败'), onSuccess: async () => { setConfirmTarget(undefined); setNotice({ error: false, text: '连接已删除' }); await queryClient.invalidateQueries({ queryKey: ['models'] }); }, onError: (error) => setNotice({ error: true, text: errorMessage(error, '连接删除失败') }) });
+  const testConnection = async (connection: ModelProviderConnection) => unwrap<ProviderProbeResult>(await testProviderConnection({ path: { connectionId: connection.id } }), '连接测试失败');
+  const probeDraft = async (value: ProviderProbeRequestWritable) => unwrap<ProviderProbeResult>(await probeProviderConnection({ body: value }), '连接探测失败');
+  const showTestResult = (connection: ModelProviderConnection) => { void testConnection(connection).then((result) => setNotice({ error: !result.success, text: result.success ? `连接测试通过 · 延迟 ${result.latencyMs} ms` : `连接测试失败 · ${result.upstreamStatus}` })).catch((error) => setNotice({ error: true, text: errorMessage(error, '连接测试失败') })); };
+  const openModelMaintenance = (connection: ModelProviderConnection) => { setModelConnection(connection); setModelEditor('create'); };
+  const toggleConnection = (connection: ModelProviderConnection) => setExpandedConnections((items) => items.includes(connection.id) ? items.filter((id) => id !== connection.id) : [...items, connection.id]);
+  const expandAll = () => setExpandedConnections(expandedConnections.length === connectionRows.length ? [] : connectionRows.map((connection) => connection.id));
 
- return <><div ref={workspaceScrollRef} className="min-h-0 flex-1 overflow-y-auto scrollbar-stable bg-page "><div className="mx-auto flex min-h-full w-full max-w-[1360px] flex-col gap-5 px-5 py-7 sm:px-8 sm:py-8">
- <header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5"><div><h1 aria-label="模型" className="m-0 text-[22px] font-semibold leading-tight text-ink">模型管理</h1></div><SegmentedControl options={SECTIONS} value={section} onChange={setSection} counts={{ '模型与供应商': modelRows.length, '模型集': modelSetCount }} /></header>
- {notice ? <div role={notice.error ? 'alert' : 'status'} className={notice.error ? 'rounded-lg border border-red/70 bg-red-tint px-3 py-2 text-[12.5px] text-red ' : 'rounded-lg border border-green/70 bg-green-tint px-3 py-2 text-[12.5px] text-green '}>{notice.text}</div> : null}
- <ModelSetManagement active={section === '模型集'} canWrite={canWrite} connectionNames={connectionNames} connectionEndpoints={connectionEndpoints} onCountChange={setModelSetCount} />
- {section !== '模型集' ? <>
- <div className="flex flex-col gap-3 rounded-xl border border-line bg-surface px-3.5 py-3 shadow-[0_1px_2px_oklch(0_0_0/0.03)] sm:flex-row sm:items-center sm:justify-between"><div className="flex min-w-0 flex-1 flex-wrap items-center gap-2.5"><div className="relative min-w-[260px] max-w-xl flex-1"><Search aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-ink-3" /><input aria-label="搜索模型、供应商或连接" className="h-8 w-full rounded-lg border border-line bg-canvas pl-8 pr-7 text-[12.5px] text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent-tint" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="搜索供应商、连接通道、Endpoint 或模型 ID..." />{searchQuery ? <button type="button" aria-label="清除搜索" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-3 hover:text-ink" onClick={() => setSearchQuery('')}>×</button> : null}</div><select aria-label="状态筛选" className="h-8 rounded-lg border border-line bg-surface px-2.5 text-[12.5px] text-ink-2 outline-none focus:border-accent focus:ring-2 focus:ring-accent-tint" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}><option value="all">全部启用状态</option><option value="ACTIVE">仅看已启用</option><option value="DISABLED">仅看已停用</option></select><Button variant="secondary" size="xs" onClick={expandAll}>{expandedConnections.length === connectionRows.length && connectionRows.length > 0 ? '收起' : '展开'}</Button></div><div className="flex items-center gap-2 self-end sm:self-auto">{canWrite ? <><Button variant="secondary" size="xs" onClick={() => setProviderEditor('create')}><Plus aria-hidden className="size-3.5" />新建供应商</Button><Button variant="primary" size="xs" onClick={() => setOnboarding(true)}><Plus aria-hidden className="size-3.5" />添加模型接入</Button></> : null}</div></div>
- <div className="grid gap-4">{providers.isLoading ? <div className="rounded-xl border border-line bg-surface px-4 py-10 text-center text-xs text-ink-3">加载供应商…</div> : filteredProviders.length ? filteredProviders.map((provider) => <ProviderCard key={provider.id} provider={provider} connections={connectionsByProvider.get(provider.id) ?? []} models={filteredModels} allModels={modelRows} canWrite={canWrite} expandedConnections={expandedConnections} onToggleConnection={toggleConnection} onEdit={() => setProviderEditor(provider)} onToggle={() => setConfirmTarget({ kind: 'provider-toggle', provider })} onDelete={() => setConfirmTarget({ kind: 'provider-delete', provider })} onDeleteConnection={(connection) => setConfirmTarget({ kind: 'connection-delete', provider, connection })} onNewConnection={() => { setSelectedProvider(provider); setConnectionCopySource(undefined); setConnectionEditor('create'); }} onMaintainModels={openModelMaintenance} onEditConnection={(connection) => { setSelectedProvider(provider); setConnectionCopySource(undefined); setConnectionEditor(connection); }} onCopyConnection={(connection) => { setSelectedProvider(provider); setConnectionCopySource(connection); setConnectionEditor('create'); }} onTest={showTestResult} onEditModel={(model) => { setModelConnection(undefined); setModelEditor(model); }} onDeleteModel={(model) => setDeleteTarget(model)} onToggleModel={(model) => setConfirmTarget({ kind: 'model-toggle', model })} />) : <div className="rounded-xl border border-dashed border-line-strong bg-surface px-4 py-12 text-center text-xs text-ink-3 ">没有匹配的供应商、连接或模型</div>}</div>
- </> : null}
- </div>
- {providerEditor ? <ProviderEditorDialog key={providerEditor === 'create' ? 'create' : providerEditor.id} current={providerEditor === 'create' ? undefined : providerEditor} error={saveProvider.error ? errorMessage(saveProvider.error, '供应商保存失败') : undefined} saving={saveProvider.isPending} onClose={() => setProviderEditor(null)} onSave={(value) => saveProvider.mutate({ current: providerEditor === 'create' ? undefined : providerEditor, value })} /> : null}
- {connectionEditor && selectedProvider ? <ConnectionEditorDialog key={connectionEditor === 'create' ? 'create' : connectionEditor.id} provider={selectedProvider} current={connectionEditor === 'create' ? undefined : connectionEditor} copyFrom={connectionCopySource} error={saveConnection.error ? errorMessage(saveConnection.error, '连接保存失败') : undefined} saving={saveConnection.isPending} onClose={() => { setConnectionEditor(null); setConnectionCopySource(undefined); }} onProbe={probeDraft} onSave={(value) => saveConnection.mutate({ current: connectionEditor === 'create' ? undefined : connectionEditor, provider: selectedProvider, value })} /> : null}
- {onboarding ? <ModelOnboardingDialog providers={onboardingProviders} error={saveOnboarding.error ? errorMessage(saveOnboarding.error, '模型接入保存失败') : undefined} saving={saveOnboarding.isPending} onClose={() => { saveOnboarding.reset(); setOnboarding(false); }} onProbe={probeDraft} onSave={(value) => saveOnboarding.mutate(value)} /> : null}
- {modelEditor ? <ModelEditorDialog key={modelEditor === 'create' ? `create-${modelConnection?.id ?? 'all'}` : modelEditor.id} current={modelEditor === 'create' ? undefined : modelEditor} existingModels={modelEditor === 'create' && modelConnection ? modelRows.filter((model) => model.connectionId === modelConnection.id) : undefined} connection={modelEditor === 'create' ? modelConnection : connectionRows.find((connection) => connection.id === modelEditor.connectionId)} connections={connectionRows} error={saveModels.error ? errorMessage(saveModels.error, '模型保存失败') : undefined} saving={saveModels.isPending} onClose={() => { setModelEditor(null); setModelConnection(undefined); }} onDiscover={async (connectionId) => testConnection(connectionRows.find((connection) => connection.id === connectionId)!)} onSave={(entries) => saveModels.mutate(entries)} /> : null}
- {deleteTarget ? <DeleteModelDialog error={action.error ? errorMessage(action.error, '模型删除失败') : undefined} label={deleteTarget.name ?? deleteTarget.modelId} saving={action.isPending} onClose={() => setDeleteTarget(null)} onConfirm={() => action.mutate({ model: deleteTarget, kind: 'delete' })} /> : null}
- {confirmTarget?.kind === 'provider-delete' && confirmTarget.provider ? <ConfirmDialog title="删除供应商" description={`确认删除供应商“${confirmTarget.provider.name}”？删除后无法恢复。`} confirmLabel="删除供应商" saving={deleteProvider.isPending} error={deleteProvider.error ? errorMessage(deleteProvider.error, '供应商删除失败') : undefined} onClose={() => { if (!deleteProvider.isPending) setConfirmTarget(undefined); }} onConfirm={() => deleteProvider.mutate(confirmTarget.provider!)} /> : null}
- {confirmTarget?.kind === 'connection-delete' && confirmTarget.connection && confirmTarget.provider ? <ConfirmDialog title="删除连接" description={`确认删除连接“${confirmTarget.connection.name}”？删除后无法恢复。`} confirmLabel="删除连接" saving={deleteConnection.isPending} error={deleteConnection.error ? errorMessage(deleteConnection.error, '连接删除失败') : undefined} onClose={() => { if (!deleteConnection.isPending) setConfirmTarget(undefined); }} onConfirm={() => deleteConnection.mutate({ provider: confirmTarget.provider!, connection: confirmTarget.connection! })} /> : null}
- {confirmTarget?.kind === 'provider-toggle' && confirmTarget.provider ? <ConfirmDialog title={confirmTarget.provider.status === 'ACTIVE' ? '停用供应商' : '启用供应商'} description={`确认${confirmTarget.provider.status === 'ACTIVE' ? '停用' : '启用'}供应商“${confirmTarget.provider.name}”？`} confirmLabel={confirmTarget.provider.status === 'ACTIVE' ? '停用' : '启用'} saving={toggleProvider.isPending} error={toggleProvider.error ? errorMessage(toggleProvider.error, '供应商状态更新失败') : undefined} onClose={() => { if (!toggleProvider.isPending) setConfirmTarget(undefined); }} onConfirm={() => toggleProvider.mutate(confirmTarget.provider!)} /> : null}
- {confirmTarget?.kind === 'model-toggle' && confirmTarget.model ? <ConfirmDialog title={confirmTarget.model.status === 'ACTIVE' ? '停用模型' : '启用模型'} description={`确认${confirmTarget.model.status === 'ACTIVE' ? '停用' : '启用'}模型“${confirmTarget.model.name ?? confirmTarget.model.modelId}”？`} confirmLabel={confirmTarget.model.status === 'ACTIVE' ? '停用' : '启用'} saving={action.isPending} error={action.error ? errorMessage(action.error, '模型状态更新失败') : undefined} onClose={() => { if (!action.isPending) setConfirmTarget(undefined); }} onConfirm={() => action.mutate({ model: confirmTarget.model!, kind: 'toggle' })} /> : null}
- </div></>
+  return (
+    <>
+      <div ref={workspaceScrollRef} className="min-h-0 flex-1 overflow-y-auto scrollbar-stable">
+        <div className="mx-auto flex min-h-full w-full max-w-[1360px] flex-col gap-5 px-5 py-7 sm:px-8 sm:py-8">
+          <header className="flex flex-wrap items-end justify-between gap-4 border-b pb-5">
+            <div>
+              <h1 aria-label="模型" className="m-0 text-[22px] font-semibold leading-tight">模型管理</h1>
+            </div>
+            <Tabs value={section} onValueChange={(next) => setSection(next as (typeof SECTIONS)[number])}>
+              <TabsList>
+                {SECTIONS.map((item) => {
+                  const count = item === '模型与供应商' ? modelRows.length : modelSetCount;
+                  return (
+                    <TabsTab key={item} value={item}>
+                      {item}
+                      <Badge aria-hidden variant={section === item ? 'default' : 'secondary'} size="sm" className="ms-1 rounded-full tabular-nums">
+                        {count}
+                      </Badge>
+                    </TabsTab>
+                  );
+                })}
+              </TabsList>
+            </Tabs>
+          </header>
+
+          {notice ? (
+            <Alert variant={notice.error ? 'error' : 'success'}>
+              <AlertDescription>{notice.text}</AlertDescription>
+            </Alert>
+          ) : null}
+
+          <ModelSetManagement active={section === '模型集'} canWrite={canWrite} connectionNames={connectionNames} connectionEndpoints={connectionEndpoints} onCountChange={setModelSetCount} />
+
+          {section !== '模型集' ? (
+            <>
+              <Card>
+                <CardPanel className="flex flex-col gap-3 px-3.5 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2.5">
+                    <InputGroup className="min-w-[260px] max-w-xl flex-1">
+                      <InputGroupAddon><Search aria-hidden /></InputGroupAddon>
+                      <InputGroupInput
+                        size="sm"
+                        aria-label="搜索模型、供应商或连接"
+                        value={searchQuery}
+                        onChange={(event) => setSearchQuery(event.target.value)}
+                        placeholder="搜索供应商、连接通道、Endpoint 或模型 ID..."
+                      />
+                      {searchQuery ? (
+                        <InputGroupAddon align="inline-end">
+                          <Button type="button" variant="ghost" size="icon-xs" aria-label="清除搜索" onClick={() => setSearchQuery('')}>
+                            <X aria-hidden />
+                          </Button>
+                        </InputGroupAddon>
+                      ) : null}
+                    </InputGroup>
+                    <Select items={STATUS_FILTER_ITEMS} value={statusFilter} onValueChange={(next) => { if (next) setStatusFilter(next as typeof statusFilter); }}>
+                      <SelectTrigger aria-label="状态筛选" size="sm" className="w-auto min-w-28">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectPopup>
+                        {STATUS_FILTER_ITEMS.map((item) => (
+                          <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
+                        ))}
+                      </SelectPopup>
+                    </Select>
+                    <Button variant="outline" size="sm" onClick={expandAll}>
+                      {expandedConnections.length === connectionRows.length && connectionRows.length > 0 ? '收起' : '展开'}
+                    </Button>
+                  </div>
+                  {canWrite ? (
+                    <div className="flex items-center gap-2 self-end sm:self-auto">
+                      <Button variant="outline" size="sm" onClick={() => setProviderEditor('create')}>
+                        <Plus aria-hidden />新建供应商
+                      </Button>
+                      <Button size="sm" onClick={() => setOnboarding(true)}>
+                        <Plus aria-hidden />添加模型接入
+                      </Button>
+                    </div>
+                  ) : null}
+                </CardPanel>
+              </Card>
+
+              <div className="grid gap-4">
+                {providers.isLoading ? (
+                  <Card>
+                    <CardPanel className="flex items-center justify-center gap-2 px-4 py-10 text-xs text-muted-foreground">
+                      <Spinner />加载供应商…
+                    </CardPanel>
+                  </Card>
+                ) : filteredProviders.length ? filteredProviders.map((provider) => (
+                  <ProviderCard
+                    key={provider.id}
+                    provider={provider}
+                    connections={connectionsByProvider.get(provider.id) ?? []}
+                    models={filteredModels}
+                    allModels={modelRows}
+                    canWrite={canWrite}
+                    expandedConnections={expandedConnections}
+                    onToggleConnection={toggleConnection}
+                    onEdit={() => setProviderEditor(provider)}
+                    onToggle={() => setConfirmTarget({ kind: 'provider-toggle', provider })}
+                    onDelete={() => setConfirmTarget({ kind: 'provider-delete', provider })}
+                    onDeleteConnection={(connection) => setConfirmTarget({ kind: 'connection-delete', provider, connection })}
+                    onNewConnection={() => { setSelectedProvider(provider); setConnectionCopySource(undefined); setConnectionEditor('create'); }}
+                    onMaintainModels={openModelMaintenance}
+                    onEditConnection={(connection) => { setSelectedProvider(provider); setConnectionCopySource(undefined); setConnectionEditor(connection); }}
+                    onCopyConnection={(connection) => { setSelectedProvider(provider); setConnectionCopySource(connection); setConnectionEditor('create'); }}
+                    onTest={showTestResult}
+                    onEditModel={(model) => { setModelConnection(undefined); setModelEditor(model); }}
+                    onDeleteModel={(model) => setDeleteTarget(model)}
+                    onToggleModel={(model) => setConfirmTarget({ kind: 'model-toggle', model })}
+                  />
+                )) : (
+                  <div className="rounded-2xl border border-dashed bg-card px-4 py-12 text-center text-xs text-muted-foreground">
+                    没有匹配的供应商、连接或模型
+                  </div>
+                )}
+              </div>
+            </>
+          ) : null}
+        </div>
+
+        {providerEditor ? <ProviderEditorDialog key={providerEditor === 'create' ? 'create' : providerEditor.id} current={providerEditor === 'create' ? undefined : providerEditor} error={saveProvider.error ? errorMessage(saveProvider.error, '供应商保存失败') : undefined} saving={saveProvider.isPending} onClose={() => setProviderEditor(null)} onSave={(value) => saveProvider.mutate({ current: providerEditor === 'create' ? undefined : providerEditor, value })} /> : null}
+        {connectionEditor && selectedProvider ? <ConnectionEditorDialog key={connectionEditor === 'create' ? 'create' : connectionEditor.id} provider={selectedProvider} current={connectionEditor === 'create' ? undefined : connectionEditor} copyFrom={connectionCopySource} error={saveConnection.error ? errorMessage(saveConnection.error, '连接保存失败') : undefined} saving={saveConnection.isPending} onClose={() => { setConnectionEditor(null); setConnectionCopySource(undefined); }} onProbe={probeDraft} onSave={(value) => saveConnection.mutate({ current: connectionEditor === 'create' ? undefined : connectionEditor, provider: selectedProvider, value })} /> : null}
+        {onboarding ? <ModelOnboardingDialog providers={onboardingProviders} error={saveOnboarding.error ? errorMessage(saveOnboarding.error, '模型接入保存失败') : undefined} saving={saveOnboarding.isPending} onClose={() => { saveOnboarding.reset(); setOnboarding(false); }} onProbe={probeDraft} onSave={(value) => saveOnboarding.mutate(value)} /> : null}
+        {modelEditor ? <ModelEditorDialog key={modelEditor === 'create' ? `create-${modelConnection?.id ?? 'all'}` : modelEditor.id} current={modelEditor === 'create' ? undefined : modelEditor} existingModels={modelEditor === 'create' && modelConnection ? modelRows.filter((model) => model.connectionId === modelConnection.id) : undefined} connection={modelEditor === 'create' ? modelConnection : connectionRows.find((connection) => connection.id === modelEditor.connectionId)} connections={connectionRows} error={saveModels.error ? errorMessage(saveModels.error, '模型保存失败') : undefined} saving={saveModels.isPending} onClose={() => { setModelEditor(null); setModelConnection(undefined); }} onDiscover={async (connectionId) => testConnection(connectionRows.find((connection) => connection.id === connectionId)!)} onSave={(entries) => saveModels.mutate(entries)} /> : null}
+        {deleteTarget ? <DeleteModelDialog error={action.error ? errorMessage(action.error, '模型删除失败') : undefined} label={deleteTarget.name ?? deleteTarget.modelId} saving={action.isPending} onClose={() => setDeleteTarget(null)} onConfirm={() => action.mutate({ model: deleteTarget, kind: 'delete' })} /> : null}
+        {confirmTarget?.kind === 'provider-delete' && confirmTarget.provider ? <ConfirmDialog title="删除供应商" description={`确认删除供应商“${confirmTarget.provider.name}”？删除后无法恢复。`} confirmLabel="删除供应商" saving={deleteProvider.isPending} error={deleteProvider.error ? errorMessage(deleteProvider.error, '供应商删除失败') : undefined} onClose={() => { if (!deleteProvider.isPending) setConfirmTarget(undefined); }} onConfirm={() => deleteProvider.mutate(confirmTarget.provider!)} /> : null}
+        {confirmTarget?.kind === 'connection-delete' && confirmTarget.connection && confirmTarget.provider ? <ConfirmDialog title="删除连接" description={`确认删除连接“${confirmTarget.connection.name}”？删除后无法恢复。`} confirmLabel="删除连接" saving={deleteConnection.isPending} error={deleteConnection.error ? errorMessage(deleteConnection.error, '连接删除失败') : undefined} onClose={() => { if (!deleteConnection.isPending) setConfirmTarget(undefined); }} onConfirm={() => deleteConnection.mutate({ provider: confirmTarget.provider!, connection: confirmTarget.connection! })} /> : null}
+        {confirmTarget?.kind === 'provider-toggle' && confirmTarget.provider ? <ConfirmDialog title={confirmTarget.provider.status === 'ACTIVE' ? '停用供应商' : '启用供应商'} description={`确认${confirmTarget.provider.status === 'ACTIVE' ? '停用' : '启用'}供应商“${confirmTarget.provider.name}”？`} confirmLabel={confirmTarget.provider.status === 'ACTIVE' ? '停用' : '启用'} saving={toggleProvider.isPending} error={toggleProvider.error ? errorMessage(toggleProvider.error, '供应商状态更新失败') : undefined} onClose={() => { if (!toggleProvider.isPending) setConfirmTarget(undefined); }} onConfirm={() => toggleProvider.mutate(confirmTarget.provider!)} /> : null}
+        {confirmTarget?.kind === 'model-toggle' && confirmTarget.model ? <ConfirmDialog title={confirmTarget.model.status === 'ACTIVE' ? '停用模型' : '启用模型'} description={`确认${confirmTarget.model.status === 'ACTIVE' ? '停用' : '启用'}模型“${confirmTarget.model.name ?? confirmTarget.model.modelId}”？`} confirmLabel={confirmTarget.model.status === 'ACTIVE' ? '停用' : '启用'} saving={action.isPending} error={action.error ? errorMessage(action.error, '模型状态更新失败') : undefined} onClose={() => { if (!action.isPending) setConfirmTarget(undefined); }} onConfirm={() => action.mutate({ model: confirmTarget.model!, kind: 'toggle' })} /> : null}
+      </div>
+    </>
+  );
 }

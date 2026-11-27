@@ -1,19 +1,27 @@
 /**
- * [INPUT]: 依赖共享认证布局、公开身份源、浏览器 PKCE/Cookie 状态机与独立浏览器身份查询。
- * [OUTPUT]: 提供动态沉浸式鲸鱼品牌宣言、LOCAL/LDAP Tab、OIDC 按钮、验证码及首次改密均留在产品内的统一账号登录页，历史事务只用于新鲜身份认证。
+ * [INPUT]: 依赖共享认证布局、公开身份源、浏览器 PKCE/Cookie 状态机、独立浏览器身份查询与 coss UI Tabs/Input/Button/Alert/Spinner。
+ * [OUTPUT]: 提供动态沉浸式鲸鱼品牌宣言、LOCAL/LDAP Tab、OIDC 按钮、验证码及首次改密均留在产品内的统一账号登录页。
  * [POS]: routes 的唯一凭据页；新鲜浏览器登录经共享 PKCE 完成器续授原客户端事务，身份绑定仍回到既有回调。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { Eye, EyeOff, KeyRound, LoaderCircle, LogIn, RefreshCw } from 'lucide-react';
+import { Eye, EyeOff, KeyRound, LogIn, RefreshCw } from 'lucide-react';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { completePasswordLogin, listPublicIdentitySources } from '@/api/generated/sdk.gen';
 import type { AuthSourcesData, PasswordStepData, PublicIdentitySource } from '@/api/generated/types.gen';
-import { completeEnterpriseAdminLogin, normalizeReturnTo, startEnterpriseAdminLogin } from '@/auth/pkce';
-import { AuthRequiredError } from '@/auth/session';
 import { AuthLayout } from '@/auth/auth-layout';
 import { loadBrowserIdentity } from '@/auth/browser';
+import { completeEnterpriseAdminLogin, normalizeReturnTo, startEnterpriseAdminLogin } from '@/auth/pkce';
+import { AuthRequiredError } from '@/auth/session';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Field, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
+import { Separator } from '@/components/ui/separator';
+import { Spinner } from '@/components/ui/spinner';
+import { Tabs, TabsList, TabsTab } from '@/components/ui/tabs';
 
 type LoginSearch = { redirect?: string; transaction_id?: string; source_id?: string; login_error?: string };
 type Captcha = { id: string; image: string };
@@ -217,148 +225,191 @@ function LoginPage() {
   return (
     <AuthLayout>
       <div className="text-center">
-        <img src="/owndsh-whale-mono-m2-animated.png" alt="" className="mx-auto size-11 rounded-[10px] object-cover shadow-btn" />
-        <h1 className="mt-5 text-[24px] font-semibold leading-tight">登录 OwnDsh 账号</h1>
+        <img src="/owndsh-whale-mono-m2-animated.png" alt="" className="mx-auto size-11 rounded-[10px] object-cover shadow-xs" />
+        <h1 className="mt-5 text-2xl font-semibold leading-tight">登录 OwnDsh 账号</h1>
       </div>
 
-      {!auth && !error && (
-        <div role="status" className="mt-8 flex h-10 items-center justify-center gap-2 text-[13px] text-ink-2">
-          <LoaderCircle size={16} className="animate-spin" />正在载入登录方式...
+      {!auth && !error ? (
+        <div role="status" className="mt-8 flex h-10 items-center justify-center gap-2 text-sm text-muted-foreground">
+          <Spinner />
+          <span>正在载入登录方式...</span>
         </div>
-      )}
+      ) : null}
 
-      {passwordSources.length > 1 && (
-        <div role="tablist" aria-label="登录方式" className="mt-8 flex overflow-x-auto border-b border-line [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {passwordSources.map((source) => (
-            <button
-              key={source.id}
-              type="button"
-              role="tab"
-              aria-selected={selectedSource?.id === source.id}
-              disabled={submitting || Boolean(passwordChange)}
-              onClick={() => choosePasswordSource(source)}
-              className={`relative min-w-28 flex-1 px-3 pb-3 text-[13px] font-medium transition-colors disabled:pointer-events-none ${
-                selectedSource?.id === source.id ? 'text-ink' : 'text-ink-3 hover:text-ink-2'
-              }`}
-            >
-              {sourceLabel(source)}
-              {selectedSource?.id === source.id && <span className="absolute inset-x-0 bottom-[-1px] h-0.5 bg-accent" />}
-            </button>
-          ))}
-        </div>
-      )}
+      {passwordSources.length > 1 && selectedSource ? (
+        <Tabs
+          className="mt-8"
+          value={selectedSource.id}
+          onValueChange={(nextId) => {
+            if (submitting || passwordChange) return;
+            const target = passwordSources.find((item) => item.id === nextId);
+            if (target) choosePasswordSource(target);
+          }}
+        >
+          <TabsList aria-label="登录方式" variant="underline" className="w-full border-b">
+            {passwordSources.map((source) => (
+              <TabsTab
+                key={source.id}
+                value={source.id}
+                disabled={submitting || Boolean(passwordChange)}
+                className="flex-1"
+              >
+                {sourceLabel(source)}
+              </TabsTab>
+            ))}
+          </TabsList>
+        </Tabs>
+      ) : null}
 
-      {selectedSource && (
+      {selectedSource ? (
         <form className={passwordSources.length > 1 ? 'mt-6' : 'mt-8'} onSubmit={submitPassword}>
           {passwordChange ? (
             <div className="space-y-4">
-              <div className="rounded-[8px] border border-line bg-inset px-3 py-2.5 text-[12px] leading-5 text-ink-2">
-                首次登录必须设置新密码。密码至少 14 位，并包含大小写字母、数字和符号。
-              </div>
-              <label className="block text-[13px] font-medium">
-                新密码
-                <input
-                  required type="password" autoComplete="new-password" minLength={14} maxLength={128}
+              <Alert variant="info">
+                <AlertDescription>
+                  首次登录必须设置新密码。密码至少 14 位，并包含大小写字母、数字和符号。
+                </AlertDescription>
+              </Alert>
+              <Field>
+                <FieldLabel>新密码</FieldLabel>
+                <Input
+                  required
+                  size="lg"
+                  type="password"
+                  autoComplete="new-password"
+                  minLength={14}
+                  maxLength={128}
                   placeholder="请输入新密码"
-                  value={newPassword} onChange={(event) => setNewPassword(event.target.value)}
-                  className="mt-2 h-10 w-full rounded-[8px] border border-line-strong bg-field px-3 text-[14px] outline-none shadow-inset-field transition-colors focus:border-accent"
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
                 />
-              </label>
-              <label className="block text-[13px] font-medium">
-                确认新密码
-                <input
-                  required type="password" autoComplete="new-password" minLength={14} maxLength={128}
+              </Field>
+              <Field>
+                <FieldLabel>确认新密码</FieldLabel>
+                <Input
+                  required
+                  size="lg"
+                  type="password"
+                  autoComplete="new-password"
+                  minLength={14}
+                  maxLength={128}
                   placeholder="请再次输入新密码"
-                  value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)}
-                  className="mt-2 h-10 w-full rounded-[8px] border border-line-strong bg-field px-3 text-[14px] outline-none shadow-inset-field transition-colors focus:border-accent"
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
                 />
-              </label>
+              </Field>
             </div>
           ) : (
             <div className="space-y-4">
-              <label className="block text-[13px] font-medium">
-                用户名
-                <input
-                  required autoFocus autoComplete="username" maxLength={100}
+              <Field>
+                <FieldLabel>用户名</FieldLabel>
+                <Input
+                  required
+                  autoFocus
+                  size="lg"
+                  autoComplete="username"
+                  maxLength={100}
                   placeholder="请输入企业账号"
-                  value={username} onChange={(event) => setUsername(event.target.value)}
-                  className="mt-2 h-10 w-full rounded-[8px] border border-line-strong bg-field px-3 text-[14px] outline-none shadow-inset-field transition-colors focus:border-accent"
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
                 />
-              </label>
-              <label className="block text-[13px] font-medium">
-                密码
-                <span className="relative mt-2 block">
-                  <input
-                    required type={showPassword ? 'text' : 'password'} autoComplete="current-password" maxLength={256}
+              </Field>
+              <Field>
+                <FieldLabel>密码</FieldLabel>
+                <InputGroup>
+                  <InputGroupInput
+                    required
+                    size="lg"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    maxLength={256}
                     placeholder="请输入登录密码"
-                    value={password} onChange={(event) => setPassword(event.target.value)}
-                    className="h-10 w-full rounded-[8px] border border-line-strong bg-field px-3 pr-10 text-[14px] outline-none shadow-inset-field transition-colors focus:border-accent"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
                   />
-                  <button
-                    type="button" aria-label={showPassword ? '隐藏密码' : '显示密码'}
-                    onClick={() => setShowPassword((value) => !value)}
-                    className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-ink-3 transition-colors hover:text-ink"
-                  >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </span>
-              </label>
-              {captcha && (
+                  <InputGroupAddon align="inline-end">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      aria-label={showPassword ? '隐藏密码' : '显示密码'}
+                      onClick={() => setShowPassword((value) => !value)}
+                    >
+                      {showPassword ? <EyeOff aria-hidden /> : <Eye aria-hidden />}
+                    </Button>
+                  </InputGroupAddon>
+                </InputGroup>
+              </Field>
+              {captcha ? (
                 <div className="grid grid-cols-[minmax(0,1fr)_124px] items-end gap-2">
-                  <label className="block text-[13px] font-medium">
-                    验证码
-                    <input
-                      required autoComplete="off" maxLength={16}
+                  <Field>
+                    <FieldLabel>验证码</FieldLabel>
+                    <Input
+                      required
+                      size="lg"
+                      autoComplete="off"
+                      maxLength={16}
                       placeholder="请输入验证码"
-                      value={captchaCode} onChange={(event) => setCaptchaCode(event.target.value)}
-                      className="mt-2 h-10 w-full rounded-[8px] border border-line-strong bg-field px-3 text-[14px] outline-none shadow-inset-field transition-colors focus:border-accent"
+                      value={captchaCode}
+                      onChange={(event) => setCaptchaCode(event.target.value)}
                     />
-                  </label>
-                  <button
-                    type="button" title="刷新验证码" aria-label="刷新验证码"
+                  </Field>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    title="刷新验证码"
+                    aria-label="刷新验证码"
                     onClick={() => void refreshCaptcha().catch(() => setError('验证码加载失败，请重试。'))}
-                    className="relative h-10 overflow-hidden rounded-[8px] border border-line-strong bg-surface"
+                    className="relative h-10 overflow-hidden p-0 sm:h-9"
                   >
                     <img src={`data:image/gif;base64,${captcha.image}`} alt="验证码" className="size-full object-cover" />
-                    <RefreshCw size={13} className="absolute right-1 top-1 text-ink-2" />
-                  </button>
+                    <RefreshCw size={13} className="absolute right-1 top-1 text-muted-foreground" />
+                  </Button>
                 </div>
-              )}
+              ) : null}
             </div>
           )}
 
-          <button
-            type="submit" disabled={submitting}
-            className="mt-5 flex h-10 w-full items-center justify-center gap-2 rounded-[8px] bg-ink px-4 text-[13px] font-medium text-canvas shadow-btn transition-[opacity,transform] duration-150 hover:opacity-90 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50"
-          >
-            {submitting ? <LoaderCircle size={16} className="animate-spin" /> : <LogIn size={16} />}
+          <Button type="submit" size="lg" className="mt-5 w-full" disabled={submitting}>
+            {submitting ? <Spinner /> : <LogIn aria-hidden />}
             {submitting ? '正在登录...' : passwordChange ? '设置密码并登录' : '登录'}
-          </button>
+          </Button>
         </form>
-      )}
+      ) : null}
 
-      {oidcSources.length > 0 && auth && !passwordChange && (
+      {oidcSources.length > 0 && auth && !passwordChange ? (
         <div className={selectedSource ? 'mt-7' : 'mt-8'}>
-          {selectedSource && (
-            <div className="mb-4 flex items-center gap-3 text-[12px] text-ink-3">
-              <span className="h-px flex-1 bg-line" />其他登录方式<span className="h-px flex-1 bg-line" />
+          {selectedSource ? (
+            <div className="mb-4 flex items-center gap-3 text-xs text-muted-foreground">
+              <Separator className="flex-1" />
+              <span>其他登录方式</span>
+              <Separator className="flex-1" />
             </div>
-          )}
+          ) : null}
           <div className="space-y-2">
             {oidcSources.map((source) => (
-              <button
-                key={source.id} type="button" disabled={submitting}
+              <Button
+                key={source.id}
+                type="button"
+                variant="outline"
+                size="lg"
+                className="w-full"
+                disabled={submitting}
                 onClick={() => window.location.assign(`/enterprise/auth/v1/oidc/${encodeURIComponent(source.id)}/start?transaction_id=${encodeURIComponent(auth.transactionId)}`)}
-                className="flex h-10 w-full items-center justify-center gap-2 rounded-[8px] border border-line-strong bg-surface px-4 text-[13px] font-medium text-ink shadow-btn transition-colors hover:bg-hover disabled:pointer-events-none disabled:opacity-50"
               >
-                <KeyRound size={16} />使用 {source.name} 登录
-              </button>
+                <KeyRound aria-hidden />
+                使用 {source.name} 登录
+              </Button>
             ))}
           </div>
         </div>
-      )}
+      ) : null}
 
-      {error && <p role="alert" className="mt-4 text-center text-[13px] leading-5 text-red">{error}</p>}
+      {error ? (
+        <Alert variant="error" className="mt-4">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
     </AuthLayout>
   );
 }

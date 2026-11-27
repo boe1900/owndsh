@@ -1,54 +1,188 @@
 /**
- * [INPUT]: 依赖本人设备 Cookie API、既有 Query 缓存、统一设备可用性与侧栏折叠状态。
- * [OUTPUT]: 提供远程连接设备分组，可用设备以原生链接打开独立标签，不可用项保留原因。
- * [POS]: workspace 的 Console 入口；目录状态留在业务模块，不进入产品路由或页面 tabs。
+ * [INPUT]: 依赖本人设备 Cookie API、既有 Query 缓存、统一设备可用性与 coss UI MenuGroup/MenuGroupLabel/MenuItem/MenuLinkItem/Alert/Button/Spinner 原生组件。
+ * [OUTPUT]: 提供 `useWorkspaceDevicesQuery` 设备状态查询 Hook 与嵌入左下角头像菜单内的 `WorkspaceDevicesMenuGroup`（远程连接分组标题 + 刷新、在线设备 `MenuLinkItem` 新标签直连与状态绿点、不可用设备原因、无设备提示及失败重试）。
+ * [POS]: workspace 的 Console 入口；嵌入侧栏底座账号菜单，目录状态留在业务模块，不进入产品路由或页面 tabs。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import { useQuery } from '@tanstack/react-query';
-import { Monitor, RefreshCw } from 'lucide-react';
-import { useId } from 'react';
+import { ChevronDown, ChevronUp, ExternalLink, Monitor, RefreshCw } from 'lucide-react';
+import { useId, useMemo, useState } from 'react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { MenuGroup, MenuGroupLabel, MenuItem, MenuLinkItem } from '@/components/ui/menu';
+import { Spinner } from '@/components/ui/spinner';
+import { cn } from '@/lib/utils';
 import { deviceAvailability, listWorkspaceDevices, workspaceUrl } from './workspace-api';
 
-export function WorkspaceDevicesSection({ memberId, collapsed, onOpen }: {
-  memberId: string;
-  collapsed: boolean;
+export function useWorkspaceDevicesQuery(memberId: string) {
+  const query = useQuery({
+    queryKey: ['workspace-devices', memberId],
+    queryFn: ({ signal }) => listWorkspaceDevices(signal),
+    staleTime: 15_000,
+    retry: false
+  });
+
+  const rawDevices = query.data ?? [];
+  const sortedDevices = useMemo(() => {
+    const online = rawDevices.filter((device) => deviceAvailability(device) === '在线');
+    const unavailable = rawDevices.filter((device) => deviceAvailability(device) !== '在线');
+    return [...online, ...unavailable];
+  }, [rawDevices]);
+
+  const totalCount = rawDevices.length;
+  const onlineCount = sortedDevices.filter((device) => deviceAvailability(device) === '在线').length;
+  const hasFatalError = query.isError && !query.data;
+
+  return {
+    query,
+    sortedDevices,
+    totalCount,
+    onlineCount,
+    hasFatalError
+  };
+}
+
+export type WorkspaceDevicesState = ReturnType<typeof useWorkspaceDevicesQuery>;
+
+const MAX_COMPACT_ROWS = 3;
+
+export function WorkspaceDevicesMenuGroup({ state, onOpen }: {
+  state: WorkspaceDevicesState;
   onOpen?: () => void;
 }) {
   const sectionId = useId();
-  const devices = useQuery({ queryKey: ['workspace-devices', memberId], queryFn: ({ signal }) => listWorkspaceDevices(signal), staleTime: 15_000, retry: false });
-  const notice = devices.isPending ? '正在读取设备…' : devices.isError
-    ? devices.data ? '刷新失败，显示上次设备状态' : '设备列表读取失败，请刷新重试'
-    : devices.data.length === 0 ? '暂无远程设备' : undefined;
+  const [expanded, setExpanded] = useState(false);
+  const { query, sortedDevices, totalCount, hasFatalError } = state;
+  // 最多仅占 3 行：<=3 台全量直出；>3 台前 2 台留给高频可用设备，第 3 行固定让位给“查看更多”
+  const hasOverflow = totalCount > MAX_COMPACT_ROWS;
+  const visibleDevices = !expanded && hasOverflow
+    ? sortedDevices.slice(0, MAX_COMPACT_ROWS - 1)
+    : sortedDevices;
+  const hiddenCount = totalCount - visibleDevices.length;
 
-  return <section aria-label="远程连接" className={`mt-4 ${collapsed ? 'w-[52px]' : 'w-full'}`}>
-    <div className={`mx-2 mb-1 flex items-center ${collapsed ? 'flex-col gap-1 border-t border-line pt-1' : 'justify-between pl-2'}`}>
-      {!collapsed && <h2 className="text-[11px] font-semibold tracking-[0.08em] text-ink-3">远程连接</h2>}
-      <button type="button" aria-label="刷新远程设备" title="刷新远程设备" disabled={devices.isFetching} onClick={() => void devices.refetch()}
-        className="flex size-7 shrink-0 items-center justify-center rounded-[7px] text-ink-3 hover:bg-hover-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink-3 disabled:opacity-45">
-        <RefreshCw size={13} className={devices.isFetching ? 'animate-spin' : ''} />
-      </button>
-    </div>
-    {notice && <p role="status" title={notice} className={collapsed ? 'sr-only' : 'mx-4 mb-2 text-[12px] text-ink-3'}>{notice}</p>}
-    {collapsed && notice && <span aria-hidden="true" title={notice} className="mx-2 flex h-8 items-center justify-center text-[12px] text-ink-3">{devices.isError ? '!' : '·'}</span>}
-    <ul className="flex flex-col gap-px">
-      {(devices.data ?? []).map(device => {
-        const availability = deviceAvailability(device);
-        const label = `${device.name} · ${availability}`;
-        const reasonId = `${sectionId}-${device.deviceId}`;
-        const content = <>
-          <Monitor size={18} aria-hidden="true" className="size-5 shrink-0" />
-          <span className={collapsed ? 'sr-only' : 'ml-1.5 min-w-0 flex-1'}>
-            <span className="block truncate text-[13px] font-medium">{device.name}</span>
-            <span id={reasonId} className="block text-[11px] text-ink-3">{availability}</span>
-          </span>
-        </>;
-        const rowClass = `mx-2 flex min-h-10 items-center rounded-[8px] px-2 text-ink-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink-3 ${collapsed ? 'justify-center' : ''}`;
-        return <li key={device.deviceId}>
-          {availability === '在线'
-            ? <a href={workspaceUrl(device.deviceId)} target="_blank" rel="noopener noreferrer" onClick={onOpen} aria-label={`${label}，在新标签页打开`} title={`${label}，在新标签页打开`} className={`${rowClass} hover:bg-hover-2 hover:text-ink`}>{content}</a>
-            : <div tabIndex={0} aria-disabled="true" aria-label={device.name} aria-describedby={reasonId} title={label} className={`${rowClass} opacity-55`}>{content}</div>}
-        </li>;
-      })}
-    </ul>
-  </section>;
+  return (
+    <MenuGroup aria-label="远程连接">
+      <div className="flex items-center justify-between gap-2 px-2 py-1">
+        <MenuGroupLabel className="p-0">远程连接</MenuGroupLabel>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          aria-label="刷新远程设备"
+          title="刷新远程设备"
+          disabled={query.isFetching}
+          className="size-6 text-muted-foreground hover:text-foreground"
+          onClick={(event) => {
+            event.stopPropagation();
+            void query.refetch();
+          }}
+        >
+          <RefreshCw aria-hidden className={cn('size-3', query.isFetching && 'animate-spin')} />
+        </Button>
+      </div>
+
+      {query.isPending ? (
+        <div className="flex items-center gap-2 px-2.5 py-2 text-xs text-muted-foreground">
+          <Spinner className="size-3.5" />
+          <span>正在读取设备…</span>
+        </div>
+      ) : hasFatalError ? (
+        <div className="grid gap-2 px-2 py-1.5">
+          <Alert variant="error" className="px-2.5 py-2 text-xs">
+            <AlertDescription>设备列表读取失败，请刷新重试</AlertDescription>
+          </Alert>
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            onClick={(event) => {
+              event.stopPropagation();
+              void query.refetch();
+            }}
+          >
+            重新读取
+          </Button>
+        </div>
+      ) : totalCount === 0 ? (
+        <div className="space-y-0.5 px-2.5 py-1.5 text-xs">
+          <p className="font-medium text-foreground">暂无远程设备</p>
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            在桌面客户端登录并开启远控后，设备会出现在这里。
+          </p>
+        </div>
+      ) : (
+        <div className="max-h-48 space-y-0.5 overflow-y-auto">
+          {query.isError ? (
+            <p role="status" className="m-0 px-2.5 py-1 text-[11px] text-muted-foreground">
+              刷新失败，显示上次设备状态
+            </p>
+          ) : null}
+
+          {visibleDevices.map((device) => {
+            const availability = deviceAvailability(device);
+            const isOnline = availability === '在线';
+            const label = `${device.name} · ${availability}`;
+            const reasonId = `${sectionId}-${device.deviceId}`;
+
+            return isOnline ? (
+              <MenuLinkItem
+                key={device.deviceId}
+                href={workspaceUrl(device.deviceId)}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`${label}，在新标签页打开`}
+                onClick={() => onOpen?.()}
+                className="justify-between gap-2 py-1.5"
+              >
+                <Monitor aria-hidden className="size-3.5 text-muted-foreground" />
+                <span className="min-w-0 flex-1 truncate font-medium">{device.name}</span>
+                <span className="flex shrink-0 items-center gap-1.5">
+                  <span aria-hidden className="size-2 rounded-full bg-emerald-500" />
+                  <ExternalLink aria-hidden className="size-3 text-muted-foreground" />
+                </span>
+              </MenuLinkItem>
+            ) : (
+              <MenuItem
+                key={device.deviceId}
+                disabled
+                aria-label={label}
+                aria-describedby={reasonId}
+                className="justify-between gap-2 py-1.5"
+              >
+                <Monitor aria-hidden className="size-3.5 text-muted-foreground" />
+                <span className="min-w-0 flex-1 truncate">{device.name}</span>
+                <span id={reasonId} className="shrink-0 text-[11px] text-muted-foreground">
+                  {availability}
+                </span>
+              </MenuItem>
+            );
+          })}
+
+          {hasOverflow ? (
+            <button
+              type="button"
+              aria-expanded={expanded}
+              onClick={(event) => {
+                event.stopPropagation();
+                setExpanded((current) => !current);
+              }}
+              className="flex min-h-8 w-full cursor-pointer select-none items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-left text-base text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground sm:min-h-7 sm:text-sm"
+            >
+              <span className="flex items-center gap-2">
+                {expanded ? (
+                  <ChevronUp aria-hidden className="size-3.5 shrink-0" />
+                ) : (
+                  <ChevronDown aria-hidden className="size-3.5 shrink-0" />
+                )}
+                <span>{expanded ? '收起' : '查看更多'}</span>
+              </span>
+              {!expanded ? (
+                <span className="shrink-0 font-mono text-[11px] tabular-nums">+{hiddenCount}</span>
+              ) : null}
+            </button>
+          ) : null}
+        </div>
+      )}
+    </MenuGroup>
+  );
 }

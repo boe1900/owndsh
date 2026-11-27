@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖用量、审计 operation，console 权限、TanStack Query 与产品表格。
+ * [INPUT]: 依赖用量、审计 operation，console 权限、TanStack Query、ProductDataTable（TableStackCell / TableStatusBadge）与 coss UI Tabs。
  * [OUTPUT]: 提供按 ent:* 权限裁剪的活动分段，用量和审计最新优先；实测 Token、配额扣额和未知用量独立展示。
  * [POS]: features/activity 的产品观测工作台；只呈现用量和审计。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -19,9 +19,13 @@ import type {
   QuotaUsageLedgerItem,
   QuotaUsageLedgerPageData
 } from '@/api/generated/types.gen';
-import { SegmentedControl } from '@/components/atoms/SegmentedControl';
-import { StatusPill } from '@/components/atoms/StatusPill';
-import { ProductDataTable, type ProductTableColumn } from '@/components/product/DataTable';
+import {
+  ProductDataTable,
+  TableStackCell,
+  TableStatusBadge,
+  type ProductTableColumn
+} from '@/components/product/DataTable';
+import { Tabs, TabsList, TabsTab } from '@/components/ui/tabs';
 
 const ACTIVITY_SECTIONS = [
   ['用量', 'ent:usage:read'],
@@ -79,43 +83,61 @@ const usageColumns: ReadonlyArray<ProductTableColumn<QuotaUsageLedgerItem>> = [
     id: 'member',
     accessorFn: (row) => `${row.userDisplayName} ${row.username}`,
     header: '成员',
-    cell: ({ row }) => <div className="min-w-0"><div className="truncate font-medium">{row.original.userDisplayName}</div><div className="truncate font-mono text-[11px] text-ink-3">{row.original.username}</div></div>,
-    meta: { label: '成员', className: 'w-[190px]', cellClassName: 'w-[190px]' }
+    cell: ({ row }) => <TableStackCell primary={row.original.userDisplayName} secondary={row.original.username} />,
+    meta: { label: '成员', className: 'w-[180px]', cellClassName: 'w-[180px]' }
   },
   {
-    id: 'model', accessorFn: (row) => `${row.modelDisplayName} ${row.modelAlias}`, header: '模型',
-    cell: ({ row }) => <div className="min-w-0"><div className="truncate">{row.original.modelDisplayName}</div><div className="truncate font-mono text-[11px] text-ink-3">{row.original.modelAlias}</div></div>,
-    meta: { label: '模型', className: 'w-[190px]', cellClassName: 'w-[190px]' }
+    id: 'model',
+    accessorFn: (row) => `${row.modelDisplayName} ${row.modelAlias}`,
+    header: '模型',
+    cell: ({ row }) => <TableStackCell primary={row.original.modelDisplayName} secondary={row.original.modelAlias} />,
+    meta: { label: '模型', className: 'w-[180px]', cellClassName: 'w-[180px]' }
   },
-  { accessorKey: 'inputTokens', header: '输入', cell: ({ row }) => measuredTokens(row.original.inputTokens, row.original.result), meta: { label: '输入', className: 'w-[90px]', cellClassName: 'w-[90px]' } },
-  { accessorKey: 'outputTokens', header: '输出', cell: ({ row }) => measuredTokens(row.original.outputTokens, row.original.result), meta: { label: '输出', className: 'w-[90px]', cellClassName: 'w-[90px]' } },
-  { accessorKey: 'cacheTokens', header: '缓存', cell: ({ row }) => measuredTokens(row.original.cacheTokens, row.original.result), meta: { label: '缓存', className: 'w-[90px]', cellClassName: 'w-[90px]' } },
-  { accessorKey: 'totalTokens', header: '实测总计', cell: ({ row }) => measuredTokens(row.original.totalTokens, row.original.result), meta: { label: '实测总计', className: 'w-[100px]', cellClassName: 'w-[100px]' } },
-  { accessorKey: 'chargedTokens', header: '配额扣额', cell: ({ getValue }) => tokens(Number(getValue())), meta: { label: '配额扣额', className: 'w-[100px]', cellClassName: 'w-[100px]' } },
+  { accessorKey: 'inputTokens', header: '输入', cell: ({ row }) => <span className="block truncate font-mono text-xs tabular-nums">{measuredTokens(row.original.inputTokens, row.original.result)}</span>, meta: { label: '输入', className: 'w-[90px]', cellClassName: 'w-[90px]' } },
+  { accessorKey: 'outputTokens', header: '输出', cell: ({ row }) => <span className="block truncate font-mono text-xs tabular-nums">{measuredTokens(row.original.outputTokens, row.original.result)}</span>, meta: { label: '输出', className: 'w-[90px]', cellClassName: 'w-[90px]' } },
+  { accessorKey: 'cacheTokens', header: '缓存', cell: ({ row }) => <span className="block truncate font-mono text-xs tabular-nums">{measuredTokens(row.original.cacheTokens, row.original.result)}</span>, meta: { label: '缓存', className: 'w-[90px]', cellClassName: 'w-[90px]' } },
+  { accessorKey: 'totalTokens', header: '实测总计', cell: ({ row }) => <span className="block truncate font-mono text-xs tabular-nums">{measuredTokens(row.original.totalTokens, row.original.result)}</span>, meta: { label: '实测总计', className: 'w-[100px]', cellClassName: 'w-[100px]' } },
+  { accessorKey: 'chargedTokens', header: '配额扣额', cell: ({ getValue }) => <span className="block truncate font-mono text-xs tabular-nums">{tokens(Number(getValue()))}</span>, meta: { label: '配额扣额', className: 'w-[100px]', cellClassName: 'w-[100px]' } },
   {
-    accessorKey: 'result', header: '结算', filterFn: 'equalsString',
-    cell: ({ getValue }) => <StatusPill tone={getValue() === 'SETTLED' ? 'green' : 'orange'}>{getValue() === 'SETTLED' ? '已实测' : '用量未知'}</StatusPill>,
+    accessorKey: 'result',
+    header: '结算',
+    filterFn: 'equalsString',
+    cell: ({ getValue }) => (
+      <TableStatusBadge
+        tone={getValue() === 'SETTLED' ? 'success' : 'warning'}
+        label={getValue() === 'SETTLED' ? '已实测' : '用量未知'}
+      />
+    ),
     meta: { label: '结算', className: 'w-[110px]', cellClassName: 'w-[110px]' }
   },
-  { id: 'createdAt', accessorFn: (row) => dateTime(row.createdAt), header: '时间', meta: { label: '时间', className: 'w-[170px]', cellClassName: 'w-[170px]' } }
+  { id: 'createdAt', accessorFn: (row) => dateTime(row.createdAt), header: '时间', cell: ({ getValue }) => <span className="block truncate font-mono text-xs text-muted-foreground tabular-nums" title={String(getValue())}>{String(getValue())}</span>, meta: { label: '时间', className: 'w-[160px]', cellClassName: 'w-[160px]' } }
 ];
 
 const auditColumns: ReadonlyArray<ProductTableColumn<AuditEvent>> = [
-  { id: 'occurredAt', accessorFn: (row) => dateTime(row.occurredAt), header: '时间', meta: { label: '时间', className: 'w-[170px]', cellClassName: 'w-[170px]' } },
-  { accessorKey: 'action', header: '动作', cell: ({ getValue }) => <span className="block truncate font-mono text-[11px]" title={String(getValue())}>{String(getValue())}</span>, meta: { label: '动作', className: 'w-[210px]', cellClassName: 'w-[210px]' } },
+  { id: 'occurredAt', accessorFn: (row) => dateTime(row.occurredAt), header: '时间', cell: ({ getValue }) => <span className="block truncate font-mono text-xs text-muted-foreground tabular-nums" title={String(getValue())}>{String(getValue())}</span>, meta: { label: '时间', className: 'w-[160px]', cellClassName: 'w-[160px]' } },
+  { accessorKey: 'action', header: '动作', cell: ({ getValue }) => <span className="block truncate font-mono text-xs text-foreground" title={String(getValue())}>{String(getValue())}</span>, meta: { label: '动作', className: 'w-[190px]', cellClassName: 'w-[190px]' } },
   {
-    id: 'resource', accessorFn: (row) => `${row.resourceType} ${row.resourceId}`, header: '资源',
-    cell: ({ row }) => <div className="min-w-0"><div className="truncate">{row.original.resourceType}</div><div className="truncate font-mono text-[11px] text-ink-3">{row.original.resourceId}</div></div>,
-    meta: { label: '资源', className: 'w-[230px]', cellClassName: 'w-[230px]' }
+    id: 'resource',
+    accessorFn: (row) => `${row.resourceType} ${row.resourceId}`,
+    header: '资源',
+    cell: ({ row }) => <TableStackCell primary={row.original.resourceType} secondary={row.original.resourceId} />,
+    meta: { label: '资源', className: 'w-[210px]', cellClassName: 'w-[210px]' }
   },
-  { id: 'actor', accessorFn: (row) => row.actorId ?? row.actorType, header: '执行者', cell: ({ getValue }) => <span className="block truncate font-mono text-[11px]" title={String(getValue())}>{String(getValue())}</span>, meta: { label: '执行者', className: 'w-[160px]', cellClassName: 'w-[160px]' } },
+  { id: 'actor', accessorFn: (row) => row.actorId ?? row.actorType, header: '执行者', cell: ({ getValue }) => <span className="block truncate font-mono text-xs text-muted-foreground" title={String(getValue())}>{String(getValue())}</span>, meta: { label: '执行者', className: 'w-[155px]', cellClassName: 'w-[155px]' } },
   {
-    accessorKey: 'result', header: '结果', filterFn: 'equalsString',
-    cell: ({ getValue }) => <StatusPill tone={getValue() === 'SUCCESS' ? 'green' : 'red'}>{getValue() === 'SUCCESS' ? '成功' : '失败'}</StatusPill>,
-    meta: { label: '结果', className: 'w-[100px]', cellClassName: 'w-[100px]' }
+    accessorKey: 'result',
+    header: '结果',
+    filterFn: 'equalsString',
+    cell: ({ getValue }) => (
+      <TableStatusBadge
+        tone={getValue() === 'SUCCESS' ? 'success' : 'error'}
+        label={getValue() === 'SUCCESS' ? '成功' : '失败'}
+      />
+    ),
+    meta: { label: '结果', className: 'w-[95px]', cellClassName: 'w-[95px]' }
   },
-  { id: 'reason', accessorFn: (row) => row.reasonCode ?? '-', header: '原因', cell: ({ getValue }) => <span className="block truncate font-mono text-[11px]" title={String(getValue())}>{String(getValue())}</span>, meta: { label: '原因', className: 'w-[180px]', cellClassName: 'w-[180px]' } },
-  { accessorKey: 'requestId', header: 'Request ID', cell: ({ getValue }) => <span className="block truncate font-mono text-[11px]" title={String(getValue())}>{String(getValue())}</span>, meta: { label: 'Request ID', className: 'w-[190px]', cellClassName: 'w-[190px]' } }
+  { id: 'reason', accessorFn: (row) => row.reasonCode ?? '—', header: '原因', cell: ({ getValue }) => <span className="block truncate font-mono text-xs text-muted-foreground" title={String(getValue())}>{String(getValue())}</span>, meta: { label: '原因', className: 'w-[175px]', cellClassName: 'w-[175px]' } },
+  { accessorKey: 'requestId', header: 'Request ID', cell: ({ getValue }) => <span className="block truncate font-mono text-xs text-muted-foreground" title={String(getValue())}>{String(getValue())}</span>, meta: { label: 'Request ID', className: 'w-[175px]', cellClassName: 'w-[175px]' } }
 ];
 
 export function ActivityPage() {
@@ -128,17 +150,64 @@ export function ActivityPage() {
   const auditRows = useMemo(() => audit.data?.pages.flatMap((page) => page.items) ?? [], [audit.data]);
   const summary = usage.data?.pages[0]?.summary;
 
-  const table = section === '用量' ? <ProductDataTable ariaLabel="模型用量" columns={usageColumns} data={usageRows} emptyText="暂无模型用量" error={usage.error} filter={{ columnId: 'result', label: '全部结算状态', options: [{ label: '已实测', value: 'SETTLED' }, { label: '用量未知', value: 'CHARGED_MAX' }] }} getRowId={(row) => row.id} hasMore={usage.hasNextPage} isLoading={usage.isLoading} isLoadingMore={usage.isFetchingNextPage} onLoadMore={() => void usage.fetchNextPage()} onRetry={() => void usage.refetch()} searchPlaceholder="搜索成员、模型或 Request ID" toolbarAction={summary ? <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-ink-3"><span>{tokens(summary.requests)} 次</span><span>实测 {tokens(summary.totalTokens)} tokens</span><span>配额扣额 {tokens(summary.chargedTokens)}</span><span>用量未知 {tokens(summary.unmeasuredRequests)} 次</span></div> : undefined} />
-    : <ProductDataTable ariaLabel="审计事件" columns={auditColumns} data={auditRows} emptyText="暂无审计事件" error={audit.error} filter={{ columnId: 'result', label: '全部结果', options: [{ label: '成功', value: 'SUCCESS' }, { label: '失败', value: 'FAILURE' }] }} getRowId={(row) => row.id} hasMore={audit.hasNextPage} isLoading={audit.isLoading} isLoadingMore={audit.isFetchingNextPage} onLoadMore={() => void audit.fetchNextPage()} onRetry={() => void audit.refetch()} searchPlaceholder="搜索动作、资源、原因或 Request ID" />;
+  const table = section === '用量' ? (
+    <ProductDataTable
+      ariaLabel="模型用量"
+      columns={usageColumns}
+      data={usageRows}
+      emptyText="暂无模型用量"
+      error={usage.error}
+      filter={{ columnId: 'result', label: '全部结算状态', options: [{ label: '已实测', value: 'SETTLED' }, { label: '用量未知', value: 'CHARGED_MAX' }] }}
+      getRowId={(row) => row.id}
+      hasMore={usage.hasNextPage}
+      isLoading={usage.isLoading}
+      isLoadingMore={usage.isFetchingNextPage}
+      onLoadMore={() => void usage.fetchNextPage()}
+      onRetry={() => void usage.refetch()}
+      searchPlaceholder="搜索成员、模型或 Request ID"
+      toolbarAction={summary ? (
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground tabular-nums">
+          <span>{tokens(summary.requests)} 次</span>
+          <span>实测 {tokens(summary.totalTokens)} tokens</span>
+          <span>配额扣额 {tokens(summary.chargedTokens)}</span>
+          <span>用量未知 {tokens(summary.unmeasuredRequests)} 次</span>
+        </div>
+      ) : undefined}
+    />
+  ) : (
+    <ProductDataTable
+      ariaLabel="审计事件"
+      columns={auditColumns}
+      data={auditRows}
+      emptyText="暂无审计事件"
+      error={audit.error}
+      filter={{ columnId: 'result', label: '全部结果', options: [{ label: '成功', value: 'SUCCESS' }, { label: '失败', value: 'FAILURE' }] }}
+      getRowId={(row) => row.id}
+      hasMore={audit.hasNextPage}
+      isLoading={audit.isLoading}
+      isLoadingMore={audit.isFetchingNextPage}
+      onLoadMore={() => void audit.fetchNextPage()}
+      onRetry={() => void audit.refetch()}
+      searchPlaceholder="搜索动作、资源、原因或 Request ID"
+    />
+  );
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto scrollbar-stable">
-      <div className="mx-auto flex min-h-full w-full max-w-[1320px] flex-col gap-5 px-5 py-7 sm:px-8 sm:py-9">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-5">
-          <h1 className="m-0 text-[22px] font-semibold leading-tight text-ink">活动记录</h1>
-          {section !== undefined ? <SegmentedControl options={sections} value={section} onChange={setSection} /> : null}
+      <div className="mx-auto flex h-full min-h-[540px] w-full max-w-[1320px] flex-col gap-5 px-5 py-7 sm:px-8 sm:py-9">
+        <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b pb-5">
+          <h1 className="m-0 text-[22px] font-semibold leading-tight">活动记录</h1>
+          {section !== undefined ? (
+            <Tabs value={section} onValueChange={(next) => setSection(next as ActivitySection)}>
+              <TabsList>
+                {sections.map((item) => (
+                  <TabsTab key={item} value={item}>{item}</TabsTab>
+                ))}
+              </TabsList>
+            </Tabs>
+          ) : null}
         </header>
-        {sections.length === 0 ? <p className="m-0 text-[13px] text-ink-3">当前角色没有可读取的活动数据</p> : table}
+        {sections.length === 0 ? <p className="m-0 text-sm text-muted-foreground">当前角色没有可读取的活动数据</p> : table}
       </div>
     </div>
   );

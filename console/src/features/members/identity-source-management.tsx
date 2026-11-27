@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖身份源 operation、TanStack Query、产品表格/编辑器与 LDAP 组映射弹窗，共享 lib/crypto 生成 HTTP/HTTPS 通用幂等键。
+ * [INPUT]: 依赖身份源 operation、TanStack Query、产品表格/编辑器、LDAP 组映射弹窗、lib/crypto 与 coss UI Badge/Button/Alert。
  * [OUTPUT]: 提供默认筛选启用项的 OIDC/LDAP/LOCAL 身份接入、连接测试、确认后的启停，以及绑定具体 LDAP 来源的组映射入口。
  * [POS]: features/members 的身份接入工作台；Server 独占 secret、endpoint、revision 和身份源状态裁决。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -24,11 +24,16 @@ import type {
   IdentitySourcePageData,
   IdentitySourceUpdateRequestWritable
 } from '@/api/generated/types.gen';
-import { randomUuid } from '@/lib/crypto';
-import { Button } from '@/components/atoms/Button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/product/ConfirmDialog';
-import { StatusPill } from '@/components/atoms/StatusPill';
-import { ProductDataTable, type ProductTableColumn } from '@/components/product/DataTable';
+import {
+  ProductDataTable,
+  TableStatusBadge,
+  type ProductTableColumn
+} from '@/components/product/DataTable';
+import { randomUuid } from '@/lib/crypto';
 import { IdentitySourceEditorDialog } from './identity-source-editor';
 import { LdapGroupMappingDialog } from './ldap-group-mapping';
 
@@ -96,33 +101,37 @@ export function IdentitySourceManagement({ canWrite }: { canWrite: boolean }) {
     }
   });
   const columns = useMemo<ReadonlyArray<ProductTableColumn<IdentitySource>>>(() => [
-    { accessorKey: 'name', header: '名称', meta: { label: '名称', className: 'w-[180px]', cellClassName: 'w-[180px]' } },
-    { accessorKey: 'type', header: '类型', meta: { label: '类型', className: 'w-[90px]', cellClassName: 'w-[90px]' } },
-    { accessorKey: 'provisioningMode', header: '首次登录', cell: ({ getValue }) => getValue() === 'JIT' ? 'JIT 自动创建' : '仅绑定', meta: { label: '首次登录', className: 'w-[130px]', cellClassName: 'w-[130px]' } },
-    { id: 'endpoint', accessorFn: endpoint, header: '端点', cell: ({ getValue }) => <span className="block truncate" title={String(getValue())}>{String(getValue())}</span>, meta: { label: '端点', className: 'w-[240px]', cellClassName: 'w-[240px]' } },
-    { id: 'secret', accessorFn: (source) => source.secretConfigured ? '已配置' : '未配置', header: '密钥', meta: { label: '密钥', className: 'w-[90px]', cellClassName: 'w-[90px]' } },
-    { id: 'lastTest', accessorFn: lastTest, header: '最近测试', cell: ({ row, getValue }) => <span className={row.original.lastTestOk === false ? 'text-red' : ''}>{String(getValue())}</span>, meta: { label: '最近测试', className: 'w-[180px]', cellClassName: 'w-[180px]' } },
-    { accessorKey: 'status', header: '状态', filterFn: 'equalsString', cell: ({ getValue }) => <StatusPill tone={getValue() === 'ACTIVE' ? 'green' : 'neutral'}>{getValue() === 'ACTIVE' ? '启用' : '停用'}</StatusPill>, meta: { label: '状态', className: 'w-[100px]', cellClassName: 'w-[100px]' } },
+    { accessorKey: 'name', header: '名称', cell: ({ getValue }) => <span className="block truncate font-medium" title={String(getValue())}>{String(getValue())}</span>, meta: { label: '名称', className: 'w-[170px]', cellClassName: 'w-[170px]' } },
+    { accessorKey: 'type', header: '类型', cell: ({ getValue }) => <Badge variant="outline" className="font-mono">{String(getValue())}</Badge>, meta: { label: '类型', className: 'w-[90px]', cellClassName: 'w-[90px]' } },
+    { accessorKey: 'provisioningMode', header: '首次登录', cell: ({ getValue }) => <span className="block truncate text-muted-foreground">{getValue() === 'JIT' ? 'JIT 自动创建' : '仅绑定'}</span>, meta: { label: '首次登录', className: 'w-[125px]', cellClassName: 'w-[125px]' } },
+    { id: 'endpoint', accessorFn: endpoint, header: '端点', cell: ({ getValue }) => <span className="block truncate font-mono text-xs text-muted-foreground" title={String(getValue())}>{String(getValue())}</span>, meta: { label: '端点', className: 'w-[230px]', cellClassName: 'w-[230px]' } },
+    { id: 'secret', accessorFn: (source) => source.secretConfigured ? '已配置' : '未配置', header: '密钥', cell: ({ getValue }) => <span className="block truncate text-muted-foreground">{String(getValue())}</span>, meta: { label: '密钥', className: 'w-[85px]', cellClassName: 'w-[85px]' } },
+    { id: 'lastTest', accessorFn: lastTest, header: '最近测试', cell: ({ row, getValue }) => <span className={row.original.lastTestOk === false ? 'block truncate text-xs text-destructive-foreground tabular-nums' : 'block truncate text-xs text-muted-foreground tabular-nums'} title={String(getValue())}>{String(getValue())}</span>, meta: { label: '最近测试', className: 'w-[175px]', cellClassName: 'w-[175px]' } },
+    { accessorKey: 'status', header: '状态', filterFn: 'equalsString', cell: ({ getValue }) => <TableStatusBadge tone={getValue() === 'ACTIVE' ? 'success' : 'neutral'} label={getValue() === 'ACTIVE' ? '启用' : '停用'} />, meta: { label: '状态', className: 'w-[95px]', cellClassName: 'w-[95px]' } },
     {
       id: 'actions', header: '', enableGlobalFilter: false, enableHiding: false, enableSorting: false,
-      cell: ({ row }) => <div className="flex items-center justify-end gap-1">
-        {row.original.type === 'LDAP' ? <Button variant="quiet" size="xs" className="size-7 rounded-md p-0" aria-label={`LDAP 组映射 ${row.original.name}`} title="LDAP 组映射" onClick={() => setMappingSource(row.original)}><Link2 aria-hidden className="size-3.5" /></Button> : null}
-        {canWrite ? <>
-          <Button variant="quiet" size="xs" className="size-7 rounded-md p-0" aria-label={`编辑 ${row.original.name}`} title="编辑" onClick={() => { save.reset(); setEditor(row.original); }}><Pencil aria-hidden className="size-3.5" /></Button>
-          {row.original.type !== 'LOCAL' ? <Button variant="quiet" size="xs" className="size-7 rounded-md p-0" disabled={test.isPending} aria-label={`测试 ${row.original.name}`} title="连接测试" onClick={() => test.mutate(row.original)}><FlaskConical aria-hidden className="size-3.5" /></Button> : null}
-          <Button variant="quiet" size="xs" className="size-7 rounded-md p-0" disabled={toggle.isPending} aria-label={`${row.original.status === 'ACTIVE' ? '停用' : '启用'} ${row.original.name}`} title={row.original.status === 'ACTIVE' ? '停用' : '启用'} onClick={() => { toggle.reset(); setToggleTarget(row.original); }}>{row.original.status === 'ACTIVE' ? <PowerOff aria-hidden className="size-3.5" /> : <Power aria-hidden className="size-3.5" />}</Button>
-        </> : null}
-      </div>,
+      cell: ({ row }) => (
+        <div className="flex items-center justify-end gap-1">
+          {row.original.type === 'LDAP' ? <Button variant="ghost" size="icon-xs" aria-label={`LDAP 组映射 ${row.original.name}`} title="LDAP 组映射" onClick={() => setMappingSource(row.original)}><Link2 aria-hidden className="size-3.5" /></Button> : null}
+          {canWrite ? (
+            <>
+              <Button variant="ghost" size="icon-xs" aria-label={`编辑 ${row.original.name}`} title="编辑" onClick={() => { save.reset(); setEditor(row.original); }}><Pencil aria-hidden className="size-3.5" /></Button>
+              {row.original.type !== 'LOCAL' ? <Button variant="ghost" size="icon-xs" disabled={test.isPending} aria-label={`测试 ${row.original.name}`} title="连接测试" onClick={() => test.mutate(row.original)}><FlaskConical aria-hidden className="size-3.5" /></Button> : null}
+              <Button variant="ghost" size="icon-xs" disabled={toggle.isPending} aria-label={`${row.original.status === 'ACTIVE' ? '停用' : '启用'} ${row.original.name}`} title={row.original.status === 'ACTIVE' ? '停用' : '启用'} onClick={() => { toggle.reset(); setToggleTarget(row.original); }}>{row.original.status === 'ACTIVE' ? <PowerOff aria-hidden className="size-3.5" /> : <Power aria-hidden className="size-3.5" />}</Button>
+            </>
+          ) : null}
+        </div>
+      ),
       meta: { label: '操作', className: 'w-[150px]', cellClassName: 'w-[150px]' }
     }
   ], [canWrite, test.isPending, toggle.isPending]);
   const mutationError = test.error ?? toggle.error;
 
   return (
-    <div className="grid gap-4">
-      {notice ? <div role="status" className="rounded-lg bg-green-tint px-3 py-2 text-[12.5px] text-green">{notice}</div> : null}
-      {mutationError ? <p role="alert" className="m-0 text-[12.5px] text-red">{errorMessage(mutationError, '身份源操作失败')}</p> : null}
-      <ProductDataTable ariaLabel="身份源" columns={columns} data={rows} emptyText="暂无身份源" error={sources.error} filter={{ columnId: 'status', defaultFilterValue: 'ACTIVE', label: '全部状态', options: [{ label: '启用', value: 'ACTIVE' }, { label: '停用', value: 'DISABLED' }] }} getRowId={(row) => row.id} hasMore={sources.hasNextPage} isLoading={sources.isLoading} isLoadingMore={sources.isFetchingNextPage} onLoadMore={() => void sources.fetchNextPage()} onRetry={() => void sources.refetch()} searchPlaceholder="搜索名称、类型或端点" toolbarAction={canWrite ? <Button variant="primary" size="xs" onClick={() => { save.reset(); setEditor('new'); }}><Plus aria-hidden className="size-3.5" />新建身份源</Button> : undefined} />
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
+      {notice ? <Alert variant="success"><AlertDescription>{notice}</AlertDescription></Alert> : null}
+      {mutationError ? <Alert variant="error"><AlertDescription>{errorMessage(mutationError, '身份源操作失败')}</AlertDescription></Alert> : null}
+      <ProductDataTable ariaLabel="身份源" columns={columns} data={rows} emptyText="暂无身份源" error={sources.error} filter={{ columnId: 'status', defaultFilterValue: 'ACTIVE', label: '全部状态', options: [{ label: '启用', value: 'ACTIVE' }, { label: '停用', value: 'DISABLED' }] }} getRowId={(row) => row.id} hasMore={sources.hasNextPage} isLoading={sources.isLoading} isLoadingMore={sources.isFetchingNextPage} onLoadMore={() => void sources.fetchNextPage()} onRetry={() => void sources.refetch()} searchPlaceholder="搜索名称、类型或端点" toolbarAction={canWrite ? <Button size="sm" onClick={() => { save.reset(); setEditor('new'); }}><Plus aria-hidden />新建身份源</Button> : undefined} />
       {editor ? <IdentitySourceEditorDialog current={editor === 'new' ? undefined : editor} error={save.error ? errorMessage(save.error, '身份源保存失败') : undefined} saving={save.isPending} onClose={() => setEditor(undefined)} onSave={(value) => save.mutate({ current: editor === 'new' ? undefined : editor, value })} /> : null}
       {mappingSource ? <LdapGroupMappingDialog source={mappingSource} canWrite={canWrite} onClose={() => setMappingSource(undefined)} /> : null}
       {toggleTarget ? <ConfirmDialog

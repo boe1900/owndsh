@@ -13,7 +13,6 @@ import { Route as R403RouteImport } from './routes/403'
 import { Route as ConsoleRouteImport } from './routes/_console'
 import { Route as AuthorizeRouteImport } from './routes/authorize'
 import { Route as AuthorizedRouteImport } from './routes/authorized'
-import { Route as ExamplesRouteImport } from './routes/examples'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ConsoleIndexRouteImport } from './routes/_console.index'
 import { Route as ConsoleAccessRouteImport } from './routes/_console.access'
@@ -23,8 +22,7 @@ import { Route as ConsoleMcpRouteImport } from './routes/_console.mcp'
 import { Route as ConsoleMembersRouteImport } from './routes/_console.members'
 import { Route as ConsolePluginsRouteImport } from './routes/_console.plugins'
 import { Route as ConsoleSkillsRouteImport } from './routes/_console.skills'
-import { Route as ExamplesIndexRouteImport } from './routes/examples.index'
-import { Route as ExamplesHarnessRouteImport } from './routes/examples.harness'
+import { Route as ConsoleUsageRouteImport } from './routes/_console.usage'
 import { Route as ConsoleAccountIndexRouteImport } from './routes/_console.account.index'
 import { Route as ConsoleAccountSecurityRouteImport } from './routes/_console.account.security'
 import { Route as EnterpriseAuthCallbackRouteImport } from './routes/enterprise.auth.callback'
@@ -46,11 +44,6 @@ const AuthorizeRoute = AuthorizeRouteImport.update({
 const AuthorizedRoute = AuthorizedRouteImport.update({
   id: '/authorized',
   path: '/authorized',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExamplesRoute = ExamplesRouteImport.update({
-  id: '/examples',
-  path: '/examples',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -98,15 +91,10 @@ const ConsoleSkillsRoute = ConsoleSkillsRouteImport.update({
   path: '/skills',
   getParentRoute: () => ConsoleRoute,
 } as any)
-const ExamplesIndexRoute = ExamplesIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => ExamplesRoute,
-} as any)
-const ExamplesHarnessRoute = ExamplesHarnessRouteImport.update({
-  id: '/harness',
-  path: '/harness',
-  getParentRoute: () => ExamplesRoute,
+const ConsoleUsageRoute = ConsoleUsageRouteImport.update({
+  id: '/usage',
+  path: '/usage',
+  getParentRoute: () => ConsoleRoute,
 } as any)
 const ConsoleAccountIndexRoute = ConsoleAccountIndexRouteImport.update({
   id: '/',
@@ -129,7 +117,6 @@ export interface FileRoutesByFullPath {
   '/': typeof ConsoleIndexRoute
   '/authorize': typeof AuthorizeRoute
   '/authorized': typeof AuthorizedRoute
-  '/examples': typeof ExamplesRouteWithChildren
   '/login': typeof LoginRoute
   '/access': typeof ConsoleAccessRoute
   '/account': typeof ConsoleAccountRouteWithChildren
@@ -138,8 +125,7 @@ export interface FileRoutesByFullPath {
   '/members': typeof ConsoleMembersRoute
   '/plugins': typeof ConsolePluginsRoute
   '/skills': typeof ConsoleSkillsRoute
-  '/examples/harness': typeof ExamplesHarnessRoute
-  '/examples/': typeof ExamplesIndexRoute
+  '/usage': typeof ConsoleUsageRoute
   '/account/security': typeof ConsoleAccountSecurityRoute
   '/enterprise/auth/callback': typeof EnterpriseAuthCallbackRoute
   '/account/': typeof ConsoleAccountIndexRoute
@@ -155,9 +141,8 @@ export interface FileRoutesByTo {
   '/members': typeof ConsoleMembersRoute
   '/plugins': typeof ConsolePluginsRoute
   '/skills': typeof ConsoleSkillsRoute
-  '/examples/harness': typeof ExamplesHarnessRoute
+  '/usage': typeof ConsoleUsageRoute
   '/': typeof ConsoleIndexRoute
-  '/examples': typeof ExamplesIndexRoute
   '/account/security': typeof ConsoleAccountSecurityRoute
   '/enterprise/auth/callback': typeof EnterpriseAuthCallbackRoute
   '/account': typeof ConsoleAccountIndexRoute
@@ -168,7 +153,6 @@ export interface FileRoutesById {
   '/_console': typeof ConsoleRouteWithChildren
   '/authorize': typeof AuthorizeRoute
   '/authorized': typeof AuthorizedRoute
-  '/examples': typeof ExamplesRouteWithChildren
   '/login': typeof LoginRoute
   '/_console/access': typeof ConsoleAccessRoute
   '/_console/account': typeof ConsoleAccountRouteWithChildren
@@ -177,9 +161,8 @@ export interface FileRoutesById {
   '/_console/members': typeof ConsoleMembersRoute
   '/_console/plugins': typeof ConsolePluginsRoute
   '/_console/skills': typeof ConsoleSkillsRoute
-  '/examples/harness': typeof ExamplesHarnessRoute
+  '/_console/usage': typeof ConsoleUsageRoute
   '/_console/': typeof ConsoleIndexRoute
-  '/examples/': typeof ExamplesIndexRoute
   '/_console/account/security': typeof ConsoleAccountSecurityRoute
   '/enterprise/auth/callback': typeof EnterpriseAuthCallbackRoute
   '/_console/account/': typeof ConsoleAccountIndexRoute
@@ -191,7 +174,6 @@ export interface FileRouteTypes {
     | '/'
     | '/authorize'
     | '/authorized'
-    | '/examples'
     | '/login'
     | '/access'
     | '/account'
@@ -200,8 +182,7 @@ export interface FileRouteTypes {
     | '/members'
     | '/plugins'
     | '/skills'
-    | '/examples/harness'
-    | '/examples/'
+    | '/usage'
     | '/account/security'
     | '/enterprise/auth/callback'
     | '/account/'
@@ -217,9 +198,8 @@ export interface FileRouteTypes {
     | '/members'
     | '/plugins'
     | '/skills'
-    | '/examples/harness'
+    | '/usage'
     | '/'
-    | '/examples'
     | '/account/security'
     | '/enterprise/auth/callback'
     | '/account'
@@ -229,7 +209,6 @@ export interface FileRouteTypes {
     | '/_console'
     | '/authorize'
     | '/authorized'
-    | '/examples'
     | '/login'
     | '/_console/access'
     | '/_console/account'
@@ -238,9 +217,8 @@ export interface FileRouteTypes {
     | '/_console/members'
     | '/_console/plugins'
     | '/_console/skills'
-    | '/examples/harness'
+    | '/_console/usage'
     | '/_console/'
-    | '/examples/'
     | '/_console/account/security'
     | '/enterprise/auth/callback'
     | '/_console/account/'
@@ -251,7 +229,6 @@ export interface RootRouteChildren {
   ConsoleRoute: typeof ConsoleRouteWithChildren
   AuthorizeRoute: typeof AuthorizeRoute
   AuthorizedRoute: typeof AuthorizedRoute
-  ExamplesRoute: typeof ExamplesRouteWithChildren
   LoginRoute: typeof LoginRoute
   EnterpriseAuthCallbackRoute: typeof EnterpriseAuthCallbackRoute
 }
@@ -284,13 +261,6 @@ declare module '@tanstack/react-router' {
       path: '/authorized'
       fullPath: '/authorized'
       preLoaderRoute: typeof AuthorizedRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/examples': {
-      id: '/examples'
-      path: '/examples'
-      fullPath: '/examples'
-      preLoaderRoute: typeof ExamplesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -356,19 +326,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConsoleSkillsRouteImport
       parentRoute: typeof ConsoleRoute
     }
-    '/examples/': {
-      id: '/examples/'
-      path: '/'
-      fullPath: '/examples/'
-      preLoaderRoute: typeof ExamplesIndexRouteImport
-      parentRoute: typeof ExamplesRoute
-    }
-    '/examples/harness': {
-      id: '/examples/harness'
-      path: '/harness'
-      fullPath: '/examples/harness'
-      preLoaderRoute: typeof ExamplesHarnessRouteImport
-      parentRoute: typeof ExamplesRoute
+    '/_console/usage': {
+      id: '/_console/usage'
+      path: '/usage'
+      fullPath: '/usage'
+      preLoaderRoute: typeof ConsoleUsageRouteImport
+      parentRoute: typeof ConsoleRoute
     }
     '/_console/account/': {
       id: '/_console/account/'
@@ -416,6 +379,7 @@ interface ConsoleRouteChildren {
   ConsoleMembersRoute: typeof ConsoleMembersRoute
   ConsolePluginsRoute: typeof ConsolePluginsRoute
   ConsoleSkillsRoute: typeof ConsoleSkillsRoute
+  ConsoleUsageRoute: typeof ConsoleUsageRoute
   ConsoleIndexRoute: typeof ConsoleIndexRoute
 }
 
@@ -427,32 +391,18 @@ const ConsoleRouteChildren: ConsoleRouteChildren = {
   ConsoleMembersRoute: ConsoleMembersRoute,
   ConsolePluginsRoute: ConsolePluginsRoute,
   ConsoleSkillsRoute: ConsoleSkillsRoute,
+  ConsoleUsageRoute: ConsoleUsageRoute,
   ConsoleIndexRoute: ConsoleIndexRoute,
 }
 
 const ConsoleRouteWithChildren =
   ConsoleRoute._addFileChildren(ConsoleRouteChildren)
 
-interface ExamplesRouteChildren {
-  ExamplesHarnessRoute: typeof ExamplesHarnessRoute
-  ExamplesIndexRoute: typeof ExamplesIndexRoute
-}
-
-const ExamplesRouteChildren: ExamplesRouteChildren = {
-  ExamplesHarnessRoute: ExamplesHarnessRoute,
-  ExamplesIndexRoute: ExamplesIndexRoute,
-}
-
-const ExamplesRouteWithChildren = ExamplesRoute._addFileChildren(
-  ExamplesRouteChildren,
-)
-
 const rootRouteChildren: RootRouteChildren = {
   R403Route: R403Route,
   ConsoleRoute: ConsoleRouteWithChildren,
   AuthorizeRoute: AuthorizeRoute,
   AuthorizedRoute: AuthorizedRoute,
-  ExamplesRoute: ExamplesRouteWithChildren,
   LoginRoute: LoginRoute,
   EnterpriseAuthCallbackRoute: EnterpriseAuthCallbackRoute,
 }

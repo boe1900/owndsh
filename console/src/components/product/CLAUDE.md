@@ -4,10 +4,10 @@
 
 成员清单
 
-DataTable.tsx: Beautiful UI 视觉下的 TanStack Table v9 产品数据表，统一搜索、筛选（支持业务显式默认值）、排序、列显隐、行选择、本地分页、Server cursor 续页和业务批量操作插槽；表体为记录型横向分隔语言（无竖向列线、灰底小号大写表头、2xl 容器与封底底栏），行选择经全宽深色批量条（bg-ink/text-canvas 明暗自反转）承载动作，数据更替时自动剪除已消失的选中行；提供统一工具栏筛选插槽与可选列设置入口，页面只注入内容不重写表格结构。
-DataTable.test.tsx: 共享表格的业务默认筛选、搜索、精确筛选、行选择、列显隐、分页行为与选中行消失后的选择剪枝门禁。
-Dialog.tsx: 产品表单共享的可访问模态容器，统一遮罩、标题、可选副标题、关闭动作与移动端高度边界。
-DialogFooter.tsx: 弹窗表单共享的纯视觉底部操作栏，统一分割线、右对齐按钮、间距与高度，不携带吸底或负边距默认值；两种规范用法——页内滚动弹窗的 p-5 正文传 sticky 显式吸底并抵消正文边距，flex 工作台弹窗（overflow-hidden + 内部滚动区 + footer 为普通兄弟节点）直接裸用并仅在 className 覆盖视觉。
-ConfirmDialog.tsx: 共享副作用确认弹窗，统一取消/确认、错误和提交中状态，业务页只提供操作语义。
+DataTable.tsx: coss UI (`Frame`/`Table variant="card"`/`FrameFooter`/`Pagination`/`InputGroup`/`Select`/`Menu`/`Checkbox`/`Button`/`Badge`/`Spinner`/`Alert`) 与 TanStack Table v9 组合的产品数据表及共享单元格原语（`TableStatusBadge`/`TableStackCell`），将顶部搜索筛选栏与按需多选批量栏拆出在 Frame 外部，Frame 内部固定列宽预算（`table-fixed` + 按可见列累加 `minWidth`）并支持视口自适应限高、表头吸顶（滚动出现底分割线，翻页自动回顶）与底部分页器固定；仅在传入 `selectionActions` 或 `selectable` 时渲染复选框列，并在筛选或数据变更时自动剪除不可见/已消失的选中行。
+DataTable.test.tsx: 共享表格的业务默认筛选、搜索、精确筛选、行选择、列显隐、分页、滚动吸顶状态、翻页回顶与固定列宽预算门禁。
+Dialog.tsx: 基于 coss UI `Dialog`/`DialogPopup`/`DialogHeader`/`DialogTitle`/`DialogDescription` 的可访问模态容器，统一标题、可选副标题、关闭动作与高度边界。
+DialogFooter.tsx: 基于 coss `DialogFooter` 的弹窗表单底部操作栏，保留 `sticky` 与普通 flex 兄弟两种布局协议。
+ConfirmDialog.tsx: 基于 coss UI 原生 `AlertDialog`（`AlertDialogPopup`/`AlertDialogHeader`/`AlertDialogTitle`/`AlertDialogDescription`/`AlertDialogFooter`/`AlertDialogClose`）与 `Alert`/`Button` 的共享危险/状态确认弹窗，统一取消/确认、错误保留、处理中锁止关闭与次级提示说明。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

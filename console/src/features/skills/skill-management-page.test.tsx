@@ -60,9 +60,9 @@ function show() {
 }
 
 async function confirmPublish(expectedPath: string, expectedRevision: string) {
-  const dialog = await screen.findByRole('dialog', { name: '发布技能' });
+  const dialog = await screen.findByRole('alertdialog', { name: '发布技能' });
   fireEvent.click(within(dialog).getByRole('button', { name: '发布' }));
-  await waitFor(() => expect(screen.queryByRole('dialog', { name: '发布技能' })).toBeNull());
+  await waitFor(() => expect(screen.queryByRole('alertdialog', { name: '发布技能' })).toBeNull());
   expect(writes).toContainEqual({ path: expectedPath, revision: expectedRevision });
 }
 

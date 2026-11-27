@@ -4,7 +4,8 @@
 
 成员清单
 
-workspace-devices-section.tsx: Console 侧栏专属设备目录，复用 Query 缓存与可用性裁决，可用项为原生新标签链接，不可用项保留键盘可读原因。
+workspace-devices-section.tsx: 基于 TanStack Query 与 coss `MenuGroup`/`MenuGroupLabel`/`MenuItem`/`MenuLinkItem`/`Alert`/`Button`/`Spinner` 的 Console 远程设备状态模块，提供 `useWorkspaceDevicesQuery` 聚合在线状态与数量供侧栏头像入口透出，并提供嵌入头像菜单内的 `WorkspaceDevicesMenuGroup`（<=3 台全显，>3 台默认前 2 台 + 第 3 行「查看更多」原地展开、手动刷新、在线设备 `MenuLinkItem` 新标签直连、不可用项原因展示、无设备引导与失败重试）。
+workspace-devices-section.test.tsx: 验证远程连接菜单分组在有在线设备、全离线、空列表、超过 3 台折行「查看更多」/展开收起、读取失败重试与手动刷新下的链接语义和汇总呈现。
 workspace-identity.ts: 原生 #root 兄弟身份条，固定设备名称、明确连接状态、当前 document 主动断开与新标签管控台链接，不改变原生品牌新会话语义。
 workspace-api.ts: 复用生成的 Cookie operation 和 contracts schema，读取本人设备连接快照、以 expectedLinkId 准确断开并签发绑定当前登录和临时控制密钥的 ticket。
 browser-link.ts: 单 document 的 Cookie WebSocket 所有者，经共享 Noise IK、lease ack 和 carrier ready 才提供远端 link；页面退出关闭，准确 link 的接管原因保留，不自动重发 mutation。

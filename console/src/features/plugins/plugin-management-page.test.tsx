@@ -134,7 +134,7 @@ it('inherits metadata, locks package identity, and publishes with the chosen pre
   fireEvent.click(screen.getByRole('button', { name: '保存版本' }));
   await screen.findByRole('dialog', { name: '发布插件版本' });
   expect(writes[0]?.body).toEqual({ packageName: base.packageName, version: '2.0.0', installation: { ...base.installation, spec: '@company/plugin@2.0.0' } });
-  expect(screen.getByRole('combobox', { name: '可见范围' })).toHaveProperty('value', '11');
+  expect(screen.getByRole('combobox', { name: '可见范围' }).textContent).toContain('沿用 v1.0.0 的可见范围');
   expect(screen.getByText(/1 条可见范围/)).toBeDefined();
   fireEvent.click(screen.getByRole('button', { name: '发布并更新范围' }));
   await waitFor(() => expect(writes[1]).toEqual({ path: '/enterprise/admin/v1/plugins/versions/13/actions/publish', revision: '0', body: { sourceVersionId: '11', packageRevision: 8 } }));
@@ -173,10 +173,13 @@ it('keeps the reviewed scope and revision on a publish conflict without retrying
   pluginPackage.versions.unshift({ ...base, id: '13', version: '2.0.0', status: 'VALIDATED', revision: 0 });
   show();
   fireEvent.click(await screen.findByRole('button', { name: '发布 @company/plugin@2.0.0' }));
-  fireEvent.change(screen.getByRole('combobox', { name: '可见范围' }), { target: { value: '11' } });
+  fireEvent.click(screen.getByRole('combobox', { name: '可见范围' }));
+  const scopeOption = screen.getByRole('option', { name: '沿用 v1.0.0 的可见范围' });
+  fireEvent.pointerDown(scopeOption);
+  fireEvent.click(scopeOption);
   fireEvent.click(screen.getByRole('button', { name: '发布并更新范围' }));
   expect(await screen.findByRole('alert')).toHaveProperty('textContent', '可见范围已被修改，请关闭后重新发布。');
-  expect(screen.getByRole('combobox', { name: '可见范围' })).toHaveProperty('value', '11');
+  expect(screen.getByRole('combobox', { name: '可见范围' }).textContent).toContain('沿用 v1.0.0 的可见范围');
   expect(writes).toEqual([{ path: '/enterprise/admin/v1/plugins/versions/13/actions/publish', revision: '0', body: { sourceVersionId: '11', packageRevision: 7 } }]);
 });
 
@@ -184,7 +187,10 @@ it('allows publication without moving scopes and retains the empty first-registr
   pluginPackage.versions.unshift({ ...base, id: '13', version: '2.0.0', status: 'VALIDATED', revision: 0 });
   show();
   fireEvent.click(await screen.findByRole('button', { name: '发布 @company/plugin@2.0.0' }));
-  fireEvent.change(screen.getByRole('combobox', { name: '可见范围' }), { target: { value: '' } });
+  fireEvent.click(screen.getByRole('combobox', { name: '可见范围' }));
+  const noneOption = screen.getByRole('option', { name: '仅发布，稍后配置可见范围' });
+  fireEvent.pointerDown(noneOption);
+  fireEvent.click(noneOption);
   fireEvent.click(screen.getByRole('button', { name: '确认发布' }));
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   expect(writes[0]?.body).toBeUndefined();
@@ -198,10 +204,10 @@ it('requires confirmation for package deletion, allows cancellation, and blocks 
   deleteWait = new Promise(resolve => { finish = resolve; });
   show();
   fireEvent.click(await screen.findByRole('button', { name: '删除插件 @company/plugin' }));
-  expect(screen.getByRole('dialog', { name: '删除插件' }).textContent).toContain('全部版本及可见范围');
+  expect(screen.getByRole('alertdialog', { name: '删除插件' }).textContent).toContain('全部版本及可见范围');
   expect(writes).toHaveLength(0);
   fireEvent.click(screen.getByRole('button', { name: '取消' }));
-  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(screen.queryByRole('alertdialog')).toBeNull();
   expect(writes).toHaveLength(0);
   fireEvent.click(screen.getByRole('button', { name: '删除插件 @company/plugin' }));
   fireEvent.click(screen.getByRole('button', { name: '确认删除' }));
@@ -209,25 +215,24 @@ it('requires confirmation for package deletion, allows cancellation, and blocks 
   expect(pending).toHaveProperty('disabled', true);
   expect(screen.getByRole('button', { name: '取消' })).toHaveProperty('disabled', true);
   fireEvent.click(pending);
-  fireEvent.click(screen.getByRole('button', { name: '关闭' }));
-  fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
-  expect(screen.getByRole('dialog')).toBeDefined();
+  fireEvent.keyDown(screen.getByRole('alertdialog'), { key: 'Escape' });
+  expect(screen.getByRole('alertdialog')).toBeDefined();
   expect(writes).toEqual([{ path: '/enterprise/admin/v1/plugins/1', revision: '7' }]);
   finish();
   await screen.findByText('暂无插件版本');
-  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(screen.queryByRole('alertdialog')).toBeNull();
 });
 
 it('deletes only the selected historical version with the package revision and refreshes remaining history', async () => {
   show();
   fireEvent.click(await screen.findByRole('button', { name: '查看 @company/plugin 历史版本' }));
   fireEvent.click(screen.getByRole('button', { name: '删除版本 @company/plugin@1.0.0' }));
-  const dialog = screen.getByRole('dialog', { name: '删除插件版本' });
+  const dialog = screen.getByRole('alertdialog', { name: '删除插件版本' });
   expect(dialog.textContent).toContain('@company/plugin@1.0.0');
   expect(dialog.textContent).toContain('此版本及其可见范围');
   expect(writes).toHaveLength(0);
   fireEvent.click(screen.getByRole('button', { name: '确认删除' }));
-  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
   expect(writes).toEqual([{ path: '/enterprise/admin/v1/plugins/1/versions/11', revision: '7' }]);
   fireEvent.click(screen.getByRole('button', { name: '查看 @company/plugin 历史版本' }));
   await waitFor(() => expect(screen.queryByRole('button', { name: '删除版本 @company/plugin@1.0.0' })).toBeNull());
@@ -240,7 +245,7 @@ it('retains the delete target on conflict and requires reopening to review the r
   fireEvent.click(await screen.findByRole('button', { name: '删除插件 @company/plugin' }));
   fireEvent.click(screen.getByRole('button', { name: '确认删除' }));
   expect(await screen.findByRole('alert')).toHaveProperty('textContent', '插件已被修改，请关闭后重试。');
-  expect(screen.getByRole('dialog', { name: '删除插件' }).textContent).toContain('@company/plugin');
+  expect(screen.getByRole('alertdialog', { name: '删除插件' }).textContent).toContain('@company/plugin');
   expect(writes).toEqual([{ path: '/enterprise/admin/v1/plugins/1', revision: '7' }]);
   fireEvent.click(screen.getByRole('button', { name: '取消' }));
   deleteConflict = false;

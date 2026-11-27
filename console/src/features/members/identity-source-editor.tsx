@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖身份源 OpenAPI DTO、React 本地表单状态、ProductDialog 与浏览器原生校验。
+ * [INPUT]: 依赖身份源 OpenAPI DTO、React 本地表单状态、ProductDialog、浏览器原生校验与 coss UI Button/Field/Input/Select/Alert。
  * [OUTPUT]: 提供 OIDC/LDAP 创建、目录用户/组字段配置与身份源编辑；LDAP 以 URL 区分明文/TLS，请求固定 startTls=false 且不回显 secret。
  * [POS]: features/members 的身份源写入边界，只短暂持有用户本次输入的 secret，不读取或伪造服务端秘密。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -12,11 +12,13 @@ import type {
   IdentitySourceType,
   IdentitySourceUpdateRequestWritable
 } from '@/api/generated/types.gen';
-import { Button } from '@/components/atoms/Button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Field, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ProductDialog } from '@/components/product/Dialog';
 import { DialogFooter } from '@/components/product/DialogFooter';
-
-const inputClass = 'h-9 w-full rounded-lg border border-line bg-canvas px-3 text-[13px] text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent-tint disabled:cursor-not-allowed disabled:bg-inset disabled:text-ink-3';
 
 export type IdentitySourceFormValue = {
   type: IdentitySourceType;
@@ -139,12 +141,17 @@ function TextField({
   value: string;
 }) {
   return (
-    <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
-      {label}
-      <input className={inputClass} type={type} required={required} value={value} placeholder={placeholder} autoComplete={autoComplete} onChange={(event) => onChange(event.target.value)} />
-    </label>
+    <Field className="w-full">
+      <FieldLabel>{label}</FieldLabel>
+      <Input type={type} required={required} value={value} placeholder={placeholder} autoComplete={autoComplete} onChange={(event) => onChange(event.target.value)} />
+    </Field>
   );
 }
+
+const PROVISIONING_ITEMS = [
+  { label: 'JIT 自动创建成员', value: 'JIT' },
+  { label: '仅绑定已有成员', value: 'LINK_ONLY' }
+];
 
 export function IdentitySourceEditorDialog({
   current,
@@ -162,6 +169,9 @@ export function IdentitySourceEditorDialog({
   const [value, setValue] = useState(() => identitySourceDefaults(current));
   const [validationError, setValidationError] = useState<string>();
   const set = <K extends keyof IdentitySourceFormValue>(key: K, next: IdentitySourceFormValue[K]) => setValue((previous) => ({ ...previous, [key]: next }));
+  const typeItems = current?.type === 'LOCAL'
+    ? [{ label: 'LOCAL', value: 'LOCAL' }]
+    : [{ label: 'OIDC', value: 'OIDC' }, { label: 'LDAP', value: 'LDAP' }];
   const submit = () => {
     try {
       setValidationError(undefined);
@@ -174,21 +184,30 @@ export function IdentitySourceEditorDialog({
   return (
     <ProductDialog className="max-w-[680px]" title={current ? '编辑身份源' : '新建身份源'} onClose={onClose}>
       <form className="grid gap-4 p-5" onSubmit={(event) => { event.preventDefault(); submit(); }}>
-        <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
-          类型
-          <select className={inputClass} value={value.type} disabled={current !== undefined} onChange={(event) => set('type', event.target.value as IdentitySourceType)}>
-            {current?.type === 'LOCAL' ? <option value="LOCAL">LOCAL</option> : <><option value="OIDC">OIDC</option><option value="LDAP">LDAP</option></>}
-          </select>
-        </label>
+        <Field className="w-full">
+          <FieldLabel>类型</FieldLabel>
+          <Select items={typeItems} value={value.type} disabled={current !== undefined} onValueChange={(next) => { if (next) set('type', next as IdentitySourceType); }}>
+            <SelectTrigger aria-label="类型">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectPopup>
+              {typeItems.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
+            </SelectPopup>
+          </Select>
+        </Field>
         <TextField label="名称" required value={value.name} onChange={(next) => set('name', next)} />
         {value.type !== 'LOCAL' ? (
-          <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
-            首次登录
-            <select className={inputClass} value={value.provisioningMode} onChange={(event) => set('provisioningMode', event.target.value as IdentitySourceFormValue['provisioningMode'])}>
-              <option value="JIT">JIT 自动创建成员</option>
-              <option value="LINK_ONLY">仅绑定已有成员</option>
-            </select>
-          </label>
+          <Field className="w-full">
+            <FieldLabel>首次登录</FieldLabel>
+            <Select items={PROVISIONING_ITEMS} value={value.provisioningMode} onValueChange={(next) => { if (next) set('provisioningMode', next as IdentitySourceFormValue['provisioningMode']); }}>
+              <SelectTrigger aria-label="首次登录">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectPopup>
+                {PROVISIONING_ITEMS.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
+              </SelectPopup>
+            </Select>
+          </Field>
         ) : null}
         {value.type === 'OIDC' ? (
           <div className="grid gap-4 sm:grid-cols-2">
@@ -218,10 +237,10 @@ export function IdentitySourceEditorDialog({
           </div>
         ) : null}
         {value.type !== 'LOCAL' ? <TextField label={current ? '替换密钥（留空保留）' : value.type === 'OIDC' ? 'Client Secret' : 'Manager Password'} type="password" required={!current} autoComplete="new-password" value={value.secret} onChange={(next) => set('secret', next)} /> : null}
-        {validationError || error ? <p role="alert" className="m-0 text-[12.5px] text-red">{validationError ?? error}</p> : null}
+        {validationError || error ? <Alert variant="error"><AlertDescription>{validationError ?? error}</AlertDescription></Alert> : null}
         <DialogFooter className="mt-1" sticky>
-          <Button type="button" size="sm" onClick={onClose}>取消</Button>
-          <Button type="submit" variant="primary" size="sm" disabled={saving}>{saving ? '保存中' : '保存'}</Button>
+          <Button type="button" variant="outline" size="sm" onClick={onClose}>取消</Button>
+          <Button type="submit" size="sm" disabled={saving}>{saving ? '保存中' : '保存'}</Button>
         </DialogFooter>
       </form>
     </ProductDialog>

@@ -658,13 +658,13 @@ function renderRoute(path: string, role?: AuthBuiltInRole, logoutStatus = 200, p
 describe('product console access', () => {
   it('uses the fixed role page matrix', () => {
     const paths = (role: AuthBuiltInRole) => productRoutesFor([role]).map((route) => route.to);
-    expect(paths('enterprise_admin')).toEqual(['/', '/access', '/plugins', '/skills', '/mcp', '/members', '/activity']);
-    expect(paths('model_admin')).toEqual(['/', '/access', '/activity']);
-    expect(paths('plugin_admin')).toEqual(['/plugins', '/skills', '/mcp']);
-    expect(paths('auditor')).toEqual(['/activity']);
-    expect(paths('employee')).toEqual([]);
+    expect(paths('enterprise_admin')).toEqual(['/', '/access', '/plugins', '/skills', '/mcp', '/members', '/activity', '/usage']);
+    expect(paths('model_admin')).toEqual(['/', '/access', '/activity', '/usage']);
+    expect(paths('plugin_admin')).toEqual(['/plugins', '/skills', '/mcp', '/usage']);
+    expect(paths('auditor')).toEqual(['/activity', '/usage']);
+    expect(paths('employee')).toEqual(['/usage']);
     expect(productRoutesFor(['model_admin', 'plugin_admin']).map((route) => route.to))
-      .toEqual(['/', '/access', '/plugins', '/skills', '/mcp', '/activity']);
+      .toEqual(['/', '/access', '/plugins', '/skills', '/mcp', '/activity', '/usage']);
   });
 
   it('sends an unauthenticated product URL to login', async () => {
@@ -676,9 +676,11 @@ describe('product console access', () => {
 
   it('gives an employee a personal entry without management navigation', async () => {
     renderRoute('/', 'employee');
-    expect(await screen.findByRole('heading', { name: '基本信息' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /^模型$/ })).toBeNull();
-    expect(screen.queryByRole('button', { name: /^成员$/ })).toBeNull();
+    expect(await screen.findByRole('heading', { name: '个人用量' })).toBeTruthy();
+    const sidebar = screen.getByLabelText('产品导航');
+    expect(within(sidebar).getByRole('button', { name: '用量' })).toBeTruthy();
+    expect(within(sidebar).queryByRole('button', { name: /^模型$/ })).toBeNull();
+    expect(within(sidebar).queryByRole('button', { name: /^成员$/ })).toBeNull();
   });
 
   it('redirects a direct unauthorized URL to the first accessible page', async () => {
@@ -759,10 +761,11 @@ describe('product console access', () => {
     fireEvent.click(screen.getAllByRole('button', { name: '详情' })[0]);
 
     const dialog = await screen.findByRole('dialog', { name: 'Developer One' });
-    expect(await within(dialog).findByRole('option', { name: 'Microsoft Entra (OIDC)' })).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('combobox', { name: '身份源' }));
+    expect(await screen.findByRole('option', { name: 'Microsoft Entra (OIDC)' })).toBeTruthy();
     fireEvent.click(within(dialog).getByRole('button', { name: '解除 Corporate LDAP' }));
 
-    const confirmDialog = await screen.findByRole('dialog', { name: '解除登录身份' });
+    const confirmDialog = await screen.findByRole('alertdialog', { name: '解除登录身份' });
     fireEvent.click(within(confirmDialog).getByRole('button', { name: '解除身份' }));
 
     await waitFor(() => expect(writes).toHaveLength(1));
@@ -783,9 +786,7 @@ describe('product console access', () => {
     fireEvent.click(screen.getByRole('button', { name: '新建用户组' }));
     let dialog = screen.getByRole('dialog', { name: '新建用户组' });
     fireEvent.change(within(dialog).getByLabelText('用户组名称'), { target: { value: '平台组' } });
-    const memberSelect = within(dialog).getByLabelText('手工成员') as HTMLSelectElement;
-    (await within(memberSelect).findByRole('option', { name: 'Developer One (developer.one)' }) as HTMLOptionElement).selected = true;
-    fireEvent.change(memberSelect);
+    fireEvent.click(await within(dialog).findByRole('checkbox', { name: 'Developer One (developer.one)' }));
     fireEvent.click(within(dialog).getByRole('button', { name: '保存' }));
 
     await waitFor(() => expect(writes).toHaveLength(1));
@@ -804,7 +805,7 @@ describe('product console access', () => {
     expect(writes[1]).toMatchObject({ ifMatch: '1', method: 'PUT', pathname: '/enterprise/admin/v1/access-groups/group-1' });
 
     fireEvent.click(await screen.findByRole('button', { name: '删除 研发组' }));
-    dialog = screen.getByRole('dialog', { name: '确认删除' });
+    dialog = screen.getByRole('alertdialog', { name: '确认删除' });
     fireEvent.click(within(dialog).getByRole('button', { name: '删除' }));
     await waitFor(() => expect(writes).toHaveLength(3));
     expect(writes[2]).toMatchObject({ ifMatch: '1', method: 'DELETE', pathname: '/enterprise/admin/v1/access-groups/group-1' });
@@ -967,7 +968,7 @@ describe('product console access', () => {
     expect(writes[2]).toMatchObject({ ifMatch: '1', method: 'PUT', pathname: '/enterprise/admin/v1/model-sets/set-1' });
 
     fireEvent.click(await screen.findByRole('button', { name: '删除 编码模型' }));
-    dialog = screen.getByRole('dialog', { name: '确认删除' });
+    dialog = screen.getByRole('alertdialog', { name: '确认删除' });
     fireEvent.click(within(dialog).getByRole('button', { name: '删除' }));
     await waitFor(() => expect(writes).toHaveLength(4));
     expect(writes[3]).toMatchObject({ ifMatch: '1', method: 'DELETE', pathname: '/enterprise/admin/v1/model-sets/set-1' });
@@ -1091,7 +1092,7 @@ describe('product console access', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: '编辑配额策略' }));
     dialog = screen.getByRole('dialog', { name: '编辑 Token 配额' });
-    expect((within(dialog).getByRole('checkbox', { name: '5 小时' }) as HTMLInputElement).checked).toBe(true);
+    expect(within(dialog).getByRole('checkbox', { name: '5 小时' }).getAttribute('aria-checked')).toBe('true');
     expect(within(dialog).getByText('500K')).toBeTruthy();
     expect(within(dialog).getByText('200M')).toBeTruthy();
   });
@@ -1106,9 +1107,10 @@ describe('product console access', () => {
     const dialog = screen.getByRole('dialog', { name: '新建速率限制' });
     fireEvent.change(within(dialog).getByLabelText('策略名称'), { target: { value: '架构师限流' } });
     fireEvent.change(within(dialog).getByLabelText('适用对象'), { target: { value: 'MEMBER' } });
-    const member = within(dialog).getByLabelText('成员');
-    await within(dialog).findByRole('option', { name: 'Developer Two (developer.two)' });
-    fireEvent.change(member, { target: { value: '303' } });
+    fireEvent.click(within(dialog).getByRole('combobox', { name: '成员' }));
+    const memberOption = await screen.findByRole('option', { name: 'Developer Two (developer.two)' });
+    fireEvent.pointerDown(memberOption);
+    fireEvent.click(memberOption);
     expect(within(dialog).queryByText('Token 额度')).toBeNull();
     fireEvent.click(within(dialog).getByRole('checkbox', { name: '每分钟请求（RPM）' }));
     fireEvent.change(within(dialog).getByRole('spinbutton', { name: '每分钟请求（RPM）' }), { target: { value: '60' } });
@@ -1213,9 +1215,10 @@ describe('product console access', () => {
 
     const dialog = screen.getByRole('dialog', { name: '配置可见范围' });
     fireEvent.click(within(dialog).getByRole('button', { name: '添加范围' }));
-    const member = await within(dialog).findByLabelText('成员');
-    await within(dialog).findByRole('option', { name: 'Developer Two (developer.two)' });
-    fireEvent.change(member, { target: { value: '303' } });
+    fireEvent.click(await within(dialog).findByRole('combobox', { name: '成员' }));
+    const memberOption = await screen.findByRole('option', { name: 'Developer Two (developer.two)' });
+    fireEvent.pointerDown(memberOption);
+    fireEvent.click(memberOption);
     fireEvent.click(within(dialog).getByRole('button', { name: '保存范围' }));
 
     await waitFor(() => expect(writes).toHaveLength(1));
@@ -1314,25 +1317,31 @@ describe('product console session', () => {
     expect(router.state.location.pathname).toBe('/');
   });
 
-  it('opens account security as a real page and ends every browser session after password change', async () => {
+  it('opens account center dialog without leaving the current page and ends every browser session after password change', async () => {
     const writes = renderRoute('/', 'enterprise_admin');
     expect(await screen.findByRole('heading', { name: '模型' })).toBeTruthy();
 
     expect(document.querySelector('img[src="/owndsh-whale-mono-m2-animated.png"]')).toBeTruthy();
-    fireEvent.click((await screen.findAllByRole('button', { name: 'OwnDsh' }))[0]!);
+    fireEvent.click(await screen.findByRole('button', { name: /账号菜单/ }));
     const menu = document.querySelector('[data-workspace-menu]')!;
     const buttons = menu.querySelectorAll('button');
     expect(buttons.item(buttons.length - 2).textContent).toContain('用户中心');
     expect(buttons.item(buttons.length - 1).textContent).toContain('Sign out');
-    fireEvent.click(screen.getByRole('button', { name: '用户中心' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '用户中心' }));
 
-    expect(await screen.findByRole('heading', { name: '用户中心' })).toBeTruthy();
+    expect(await screen.findByRole('dialog')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Close' }).className).toContain('absolute');
+    expect(screen.getByRole('heading', { name: '用户中心' })).toBeTruthy();
+    expect(document.querySelector('h1')?.textContent).toBe('模型管理');
+    const tabBar = document.querySelector('[aria-label="已打开工作区标签页"]');
+    expect(tabBar?.textContent).not.toContain('用户中心');
+    expect(screen.getByRole('tab', { name: '基本信息' })).toBeTruthy();
     expect(screen.getByText('@candidate.admin')).toBeTruthy();
     expect(screen.getByText('candidate.admin@example.org')).toBeTruthy();
     expect(screen.getByText('本地 · 本地')).toBeTruthy();
     expect(screen.getByText('LDAP · Corporate LDAP')).toBeTruthy();
-    fireEvent.click(screen.getByRole('link', { name: '安全设置' }));
-    expect(await screen.findByRole('heading', { name: '修改密码' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: '安全设置' }));
+    expect(await screen.findByLabelText('当前密码')).toBeTruthy();
     fireEvent.change(screen.getByLabelText('当前密码'), { target: { value: 'CurrentReady!42' } });
     fireEvent.change(screen.getByLabelText('新密码'), { target: { value: 'ChangedReady!84' } });
     fireEvent.change(screen.getByLabelText('确认新密码'), { target: { value: 'ChangedReady!84' } });
@@ -1351,24 +1360,24 @@ describe('product console session', () => {
     renderRoute('/', 'enterprise_admin');
     expect(await screen.findByRole('heading', { name: '模型' })).toBeTruthy();
 
-    fireEvent.click((await screen.findAllByRole('button', { name: 'OwnDsh' }))[0]!);
+    fireEvent.click(await screen.findByRole('button', { name: /账号菜单/ }));
     const menu = document.querySelector('[data-workspace-menu]')!;
     const buttons = menu.querySelectorAll('button');
     expect(buttons.item(buttons.length - 1).textContent).toContain('Sign out');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Sign out' }));
     expect(await screen.findByRole('heading', { name: '登录 OwnDsh 账号' })).toBeTruthy();
   });
 
   it('keeps the current page when the current password is rejected', async () => {
     renderRoute('/', 'enterprise_admin');
     expect(await screen.findByRole('heading', { name: '模型' })).toBeTruthy();
-    fireEvent.click((await screen.findAllByRole('button', { name: 'OwnDsh' }))[0]!);
-    fireEvent.click(screen.getByRole('button', { name: '用户中心' }));
+    fireEvent.click(await screen.findByRole('button', { name: /账号菜单/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '用户中心' }));
 
-    expect(await screen.findByRole('heading', { name: '用户中心' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('link', { name: '安全设置' }));
-    expect(await screen.findByRole('heading', { name: '修改密码' })).toBeTruthy();
+    expect(await screen.findByRole('dialog')).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: '安全设置' }));
+    expect(await screen.findByLabelText('当前密码')).toBeTruthy();
     fireEvent.change(screen.getByLabelText('当前密码'), { target: { value: 'WrongCurrent!42' } });
     fireEvent.change(screen.getByLabelText('新密码'), { target: { value: 'ChangedReady!84' } });
     fireEvent.change(screen.getByLabelText('确认新密码'), { target: { value: 'ChangedReady!84' } });
@@ -1381,8 +1390,8 @@ describe('product console session', () => {
   it('keeps the console when Server logout fails', async () => {
     renderRoute('/', 'enterprise_admin', 500);
     expect(await screen.findByRole('heading', { name: '模型' })).toBeTruthy();
-    fireEvent.click((await screen.findAllByRole('button', { name: 'OwnDsh' }))[0]!);
-    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+    fireEvent.click(await screen.findByRole('button', { name: /账号菜单/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Sign out' }));
 
     expect((await screen.findByRole('alert')).textContent).toContain('会话仍然有效');
     expect(screen.getByRole('heading', { name: '模型' })).toBeTruthy();

@@ -10,6 +10,6 @@ import { PluginManagementPage } from './plugin-management-page';
 
 export function PluginsWorkspacePage() {
   const { bootstrap } = useRouteContext({ from: '/_console' });
-  if (!bootstrap.permissions.includes('ent:plugin:read')) return <p role="status" className="p-5 text-sm text-ink-3">没有插件查看权限</p>;
+  if (!bootstrap.permissions.includes('ent:plugin:read')) return <p role="status" className="p-5 text-sm text-muted-foreground">没有插件查看权限</p>;
   return <PluginManagementPage />;
 }

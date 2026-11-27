@@ -2,7 +2,7 @@
 
 OwnDsh Console 包含独立 Vite 管控台和原生 DSH 工作区两个 document，不依赖旧 Umi、Ant Design 或动态菜单运行时。
 
-产品壳与 `/examples` 直接迁移自 Beautiful UI Harness commit `3ea4c18114de3d4bc9b63b8e3ea6f533b1a562bd`。上游 Next.js 运行时改为 Vite/TanStack，Central Icons 改为 Lucide，并移除 PostHog；其余组件源码与完整 Harness 保留为可执行参考。版本锁见 `../upstream/beautiful-ui.lock.json`，许可证见 `BEAUTIFUL_UI_LICENSE`。
+产品控制台界面基于 coss UI (`https://coss.com/ui`，`@base-ui/react` + Tailwind CSS v4) 原生组件库与 `@coss/style` 设计系统构建，图标统一使用 Lucide，不维护示例画廊路由或自建基础控件。
 
 开发、构建与测试使用 Node.js ≥24.15.0 和锁定的 pnpm；DSH Host/插件自身要求 Node.js ≥24.9.0。
 
@@ -12,7 +12,7 @@ pnpm check
 pnpm dev
 ```
 
-产品入口为 `/`，登录入口为 `/login`，组件参考为 `/examples`，完整 Harness 为 `/examples/harness`。本地开发将 `/enterprise` 与 `/healthz` 代理到 `CONSOLE_API_ORIGIN`，缺省为本机 OwnDsh TLS 入口 `https://127.0.0.1:62207`；自定义目标仍通过该环境变量覆盖；`/enterprise/auth/callback` 与部署 nginx 同构由本机 SPA 承接，PKCE 回调可在 dev 服务完成。`62209` 只承担 UI/HMR，完整 PKCE 通过服务端已注册回调的同源 Console 构建验收。
+产品入口为 `/`，登录入口为 `/login`。本地开发将 `/enterprise` 与 `/healthz` 代理到 `CONSOLE_API_ORIGIN`，缺省为本机 OwnDsh TLS 入口 `https://127.0.0.1:62207`；自定义目标仍通过该环境变量覆盖；`/enterprise/auth/callback` 与部署 nginx 同构由本机 SPA 承接，PKCE 回调可在 dev 服务完成。`62209` 只承担 UI/HMR，完整 PKCE 通过服务端已注册回调的同源 Console 构建验收。
 
 连接远端后端调试时，目标部署需设置 `ENT_CONSOLE_DEV_ORIGINS=http://127.0.0.1:62209`（服务端仅接受 loopback 主机 + 1024 以上显式端口的 origin，逗号分隔，生产留空）；随后 `CONSOLE_API_ORIGIN=http://<远端地址> pnpm dev` 即可完成登录、Cookie 会话与写操作，无需任何本机域名劫持。
 

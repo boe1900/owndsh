@@ -1,15 +1,15 @@
 /**
  * [INPUT]: 依赖 OpenAPI 固定角色类型与 Lucide 免费图标。
- * [OUTPUT]: 提供管理导航页面、隐藏用户中心的静态元数据、路径判断和多角色页面并集，插件管理员不单独获得活动入口。
+ * [OUTPUT]: 提供管理导航页面、全角色可见个人用量入口与隐藏用户中心的静态元数据、路径判断和多角色页面并集，插件管理员不单独获得活动入口。
  * [POS]: app 的唯一控制台路由与前端页面可见性真源，Server ent:* 权限仍独立裁决 API。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
-import { Activity, Boxes, CircleUserRound, Puzzle, ServerCog, ShieldCheck, Sparkles, Users, type LucideIcon } from 'lucide-react';
+import { Activity, BarChart3, Boxes, CircleUserRound, Puzzle, ServerCog, ShieldCheck, Sparkles, Users, type LucideIcon } from 'lucide-react';
 import type { AuthBuiltInRole } from '@/api/generated/types.gen';
 
 type ProductRouteDefinition = {
-  to: '/' | '/access' | '/plugins' | '/skills' | '/mcp' | '/members' | '/activity';
+  to: '/' | '/access' | '/plugins' | '/skills' | '/mcp' | '/members' | '/activity' | '/usage';
   label: string;
   icon: LucideIcon;
   allowedRoles: readonly AuthBuiltInRole[];
@@ -22,7 +22,8 @@ export const PRODUCT_ROUTES = [
   { to: '/skills', label: '技能', icon: Sparkles, allowedRoles: ['enterprise_admin', 'plugin_admin'] },
   { to: '/mcp', label: 'MCP', icon: ServerCog, allowedRoles: ['enterprise_admin', 'plugin_admin'] },
   { to: '/members', label: '成员', icon: Users, allowedRoles: ['enterprise_admin'] },
-  { to: '/activity', label: '活动记录', icon: Activity, allowedRoles: ['enterprise_admin', 'model_admin', 'auditor'] }
+  { to: '/activity', label: '活动记录', icon: Activity, allowedRoles: ['enterprise_admin', 'model_admin', 'auditor'] },
+  { to: '/usage', label: '用量', icon: BarChart3, allowedRoles: ['enterprise_admin', 'model_admin', 'plugin_admin', 'auditor', 'employee'] }
 ] as const satisfies readonly ProductRouteDefinition[];
 
 export const ACCOUNT_ROUTE = { to: '/account', label: '用户中心', icon: CircleUserRound } as const;

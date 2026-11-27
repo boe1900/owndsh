@@ -1,7 +1,7 @@
 /**
- * [INPUT]: 依赖服务端 Cookie 会话、console bootstrap、静态角色路由与产品 ConsoleShell。
+ * [INPUT]: 依赖服务端 Cookie 会话、console bootstrap、静态角色路由、产品 ConsoleShell 与 coss UI Button/Spinner。
  * [OUTPUT]: 为已登录用户提供个人入口与本人工作区切换，管理页面仍按固定角色裁剪。
- * [POS]: routes 的产品认证与页面可见性边界；不读取 Server 菜单，也不包裹 examples。
+ * [POS]: routes 的产品认证与页面可见性边界；不读取 Server 菜单。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -9,6 +9,8 @@ import { createFileRoute, redirect } from '@tanstack/react-router';
 import { ConsoleShell } from '@/app/console-shell';
 import { isAccountRoute, isProductRoute, productRoutesFor } from '@/app/product-routes';
 import { AuthRequiredError, loadConsoleBootstrap } from '@/auth/session';
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 
 export const Route = createFileRoute('/_console')({
   beforeLoad: async ({ location }) => {
@@ -29,13 +31,18 @@ export const Route = createFileRoute('/_console')({
     return { bootstrap };
   },
   pendingComponent: () => (
-    <main className="flex min-h-[100dvh] items-center justify-center bg-page text-[13px] text-ink-3">正在载入控制台...</main>
+    <main className="flex min-h-[100dvh] items-center justify-center gap-2 bg-background text-sm text-muted-foreground">
+      <Spinner />
+      <span>正在载入控制台...</span>
+    </main>
   ),
   errorComponent: () => (
-    <main className="flex min-h-[100dvh] items-center justify-center bg-page p-6 text-ink">
+    <main className="flex min-h-[100dvh] items-center justify-center bg-background p-6 text-foreground">
       <div className="text-center">
         <h1 className="text-xl font-semibold">暂时无法连接企业服务</h1>
-        <button type="button" onClick={() => window.location.reload()} className="mt-5 rounded-full bg-ink px-4 py-2 text-[13px] font-medium text-canvas">重试</button>
+        <Button type="button" className="mt-5" onClick={() => window.location.reload()}>
+          重试
+        </Button>
       </div>
     </main>
   ),

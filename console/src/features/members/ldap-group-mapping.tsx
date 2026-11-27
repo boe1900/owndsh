@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖选定 LDAP 身份源、目录组发现、外部组映射、产品用户组 operation、TanStack Query 和产品对话框，共享 lib/crypto 生成 HTTP/HTTPS 通用幂等键。
+ * [INPUT]: 依赖选定 LDAP 身份源、目录组发现、外部组映射、产品用户组 operation、TanStack Query、产品对话框、lib/crypto 与 coss UI Button/Field/Input/RadioGroup/Select/Alert。
  * [OUTPUT]: 提供绑定单个 LDAP 身份源的 Group DN 映射列表、创建和删除操作；操作失败留在当前表单或确认弹窗，关闭后清理状态。
  * [POS]: features/members 身份接入表格的 LDAP 行操作；只保存映射，不镜像目录成员、不展开嵌套组。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -25,13 +25,17 @@ import type {
   LdapDirectoryGroup,
   LdapDirectoryGroupSearch
 } from '@/api/generated/types.gen';
-import { randomUuid } from '@/lib/crypto';
-import { Button } from '@/components/atoms/Button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Field, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Radio, RadioGroup } from '@/components/ui/radio-group';
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ConfirmDialog } from '@/components/product/ConfirmDialog';
 import { ProductDataTable, type ProductTableColumn } from '@/components/product/DataTable';
 import { ProductDialog } from '@/components/product/Dialog';
 import { DialogFooter } from '@/components/product/DialogFooter';
-
-const inputClass = 'h-9 min-w-0 rounded-lg border border-line bg-canvas px-3 text-[13px] text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent-tint disabled:opacity-60';
+import { randomUuid } from '@/lib/crypto';
 
 function message(error: unknown, fallback: string) {
   if (error && typeof error === 'object' && 'error' in error) {
@@ -76,40 +80,56 @@ function MappingEditor({ accessGroups, error, onClose, onSave, saving, source }:
       path: { sourceId: source.id }, query: { query: query.trim(), limit: 50 }
     }), 'LDAP 组搜索失败')
   });
+  const groupItems = accessGroups.map((group) => ({ label: group.name, value: group.id }));
 
   return (
     <ProductDialog className="max-w-[680px]" title={`映射 LDAP 组 · ${source.name}`} onClose={onClose}>
       <div className="grid gap-4 p-5">
         <div className="flex min-w-0 gap-2">
-          <input autoFocus aria-label="LDAP 组关键字" className={`${inputClass} flex-1`} maxLength={128} placeholder="搜索目录组" value={query} onChange={(event) => setQuery(event.target.value)} />
+          <Input autoFocus aria-label="LDAP 组关键字" className="flex-1" maxLength={128} placeholder="搜索目录组" value={query} onChange={(event) => setQuery(event.target.value)} />
           <Button type="button" size="sm" disabled={query.trim() === '' || search.isPending || saving} onClick={() => { setSelected(undefined); search.mutate(); }}>
             <Search aria-hidden className="size-3.5" />{search.isPending ? '搜索中' : '搜索'}
           </Button>
         </div>
-        {search.data?.items.length === 0 ? <p className="m-0 text-[12.5px] text-ink-3">未找到匹配组</p> : null}
+        {search.data?.items.length === 0 ? <p className="m-0 text-[12.5px] text-muted-foreground">未找到匹配组</p> : null}
         {search.data?.items.length ? (
-          <div className="max-h-64 divide-y divide-line overflow-y-auto border-y border-line">
+          <RadioGroup
+            className="max-h-64 gap-0 divide-y overflow-y-auto border-y"
+            value={selected?.externalGroup ?? ''}
+            onValueChange={(next) => {
+              const found = search.data?.items.find((item) => item.externalGroup === next);
+              setSelected(found);
+            }}
+          >
             {search.data.items.map((group) => (
               <label key={group.externalGroup} className="flex cursor-pointer items-start gap-3 py-3 text-[12.5px]">
-                <input type="radio" name="ldap-group" checked={selected?.externalGroup === group.externalGroup} onChange={() => setSelected(group)} />
-                <span className="min-w-0"><span className="block font-medium text-ink">{group.displayName}</span><span className="block truncate font-mono text-[11px] text-ink-3" title={group.externalGroup}>{group.externalGroup}</span></span>
+                <Radio className="mt-0.5" aria-label={`${group.displayName} ${group.externalGroup}`} value={group.externalGroup} />
+                <span className="min-w-0">
+                  <span className="block font-medium text-foreground">{group.displayName}</span>
+                  <span className="block truncate font-mono text-[11px] text-muted-foreground" title={group.externalGroup}>{group.externalGroup}</span>
+                </span>
               </label>
             ))}
-          </div>
+          </RadioGroup>
         ) : null}
-        <label className="grid gap-1.5 text-[12.5px] font-medium text-ink-2">
-          产品用户组
-          <select className={inputClass} value={accessGroupId} disabled={accessGroups.length === 0 || saving} onChange={(event) => setAccessGroupId(event.target.value)}>
-            {accessGroups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
-          </select>
-        </label>
-        {accessGroups.length === 0 ? <p className="m-0 text-[12.5px] text-ink-3">请先创建产品用户组</p> : null}
-        {search.error ? <p role="alert" className="m-0 text-[12.5px] text-red">{message(search.error, 'LDAP 组搜索失败')}</p> : null}
-        {error ? <p role="alert" className="m-0 text-[12.5px] text-red">{error}</p> : null}
+        <Field className="w-full">
+          <FieldLabel>产品用户组</FieldLabel>
+          <Select items={groupItems} value={accessGroupId} disabled={accessGroups.length === 0 || saving} onValueChange={(next) => { if (next) setAccessGroupId(next); }}>
+            <SelectTrigger aria-label="产品用户组">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectPopup>
+              {groupItems.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
+            </SelectPopup>
+          </Select>
+        </Field>
+        {accessGroups.length === 0 ? <p className="m-0 text-[12.5px] text-muted-foreground">请先创建产品用户组</p> : null}
+        {search.error ? <Alert variant="error"><AlertDescription>{message(search.error, 'LDAP 组搜索失败')}</AlertDescription></Alert> : null}
+        {error ? <Alert variant="error"><AlertDescription>{error}</AlertDescription></Alert> : null}
       </div>
       <DialogFooter>
-        <Button type="button" size="sm" onClick={onClose}>取消</Button>
-        <Button type="button" variant="primary" size="sm" disabled={!selected || accessGroupId === '' || saving} onClick={() => selected && onSave(selected, accessGroupId)}>{saving ? '保存中' : '保存映射'}</Button>
+        <Button type="button" variant="outline" size="sm" onClick={onClose}>取消</Button>
+        <Button type="button" size="sm" disabled={!selected || accessGroupId === '' || saving} onClick={() => selected && onSave(selected, accessGroupId)}>{saving ? '保存中' : '保存映射'}</Button>
       </DialogFooter>
     </ProductDialog>
   );
@@ -157,9 +177,9 @@ export function LdapGroupMappingDialog({ canWrite, onClose, source }: {
   };
   const accessGroupNames = useMemo(() => new Map(accessGroups.data?.map((group) => [group.id, group.name])), [accessGroups.data]);
   const columns = useMemo<ReadonlyArray<ProductTableColumn<GroupMapping>>>(() => [
-    { accessorKey: 'externalGroup', header: 'LDAP Group DN', cell: ({ getValue }) => <span className="block truncate font-mono text-[11px]" title={String(getValue())}>{String(getValue())}</span>, meta: { label: 'LDAP Group DN', className: 'w-[560px]', cellClassName: 'w-[560px]' } },
-    { id: 'accessGroup', accessorFn: (row) => accessGroupNames.get(row.accessGroupId) ?? row.accessGroupId, header: '产品用户组', meta: { label: '产品用户组', className: 'w-[220px]', cellClassName: 'w-[220px]' } },
-    ...(canWrite ? [{ id: 'actions', header: '', enableGlobalFilter: false, enableHiding: false, enableSorting: false, cell: ({ row }: { row: { original: GroupMapping } }) => <Button variant="quiet" size="xs" className="size-7 rounded-md p-0 text-red" disabled={remove.isPending} aria-label="删除组映射" title="删除组映射" onClick={() => { remove.reset(); setDeleting(row.original); }}><Trash2 aria-hidden className="size-3.5" /></Button>, meta: { label: '操作', className: 'w-16', cellClassName: 'w-16' } } as ProductTableColumn<GroupMapping>] : [])
+    { accessorKey: 'externalGroup', header: 'LDAP Group DN', cell: ({ getValue }) => <span className="block truncate font-mono text-xs text-muted-foreground" title={String(getValue())}>{String(getValue())}</span>, meta: { label: 'LDAP Group DN', className: 'w-[460px]', cellClassName: 'w-[460px]' } },
+    { id: 'accessGroup', accessorFn: (row) => accessGroupNames.get(row.accessGroupId) ?? row.accessGroupId, header: '产品用户组', cell: ({ getValue }) => <span className="block truncate font-medium" title={String(getValue())}>{String(getValue())}</span>, meta: { label: '产品用户组', className: 'w-[220px]', cellClassName: 'w-[220px]' } },
+    ...(canWrite ? [{ id: 'actions', header: '', enableGlobalFilter: false, enableHiding: false, enableSorting: false, cell: ({ row }: { row: { original: GroupMapping } }) => <Button variant="ghost" size="icon-xs" className="text-destructive-foreground hover:text-destructive-foreground" disabled={remove.isPending} aria-label="删除组映射" title="删除组映射" onClick={() => { remove.reset(); setDeleting(row.original); }}><Trash2 aria-hidden className="size-3.5" /></Button>, meta: { label: '操作', className: 'w-16', cellClassName: 'w-16' } } as ProductTableColumn<GroupMapping>] : [])
   ], [accessGroupNames, canWrite, remove.isPending]);
   const error = accessGroups.error ?? mappings.error;
 
@@ -169,23 +189,23 @@ export function LdapGroupMappingDialog({ canWrite, onClose, source }: {
 
   if (deleting) {
     return (
-      <ProductDialog title="确认删除" onClose={closeDelete}>
-        <div className="grid gap-5 p-5">
-          <p className="m-0 break-words text-[13px] text-ink-2">确定删除“{deleting.externalGroup}”的 LDAP 组映射？</p>
-          {remove.error ? <p role="alert" className="m-0 rounded-md bg-red-tint px-3 py-2 text-[12.5px] text-red">{message(remove.error, 'LDAP 组映射删除失败')}</p> : null}
-          <DialogFooter sticky>
-            <Button size="sm" disabled={remove.isPending} onClick={closeDelete}>取消</Button>
-            <Button variant="primary" size="sm" className="bg-red text-white" disabled={remove.isPending} onClick={() => remove.mutate(deleting)}>{remove.isPending ? '删除中' : '删除'}</Button>
-          </DialogFooter>
-        </div>
-      </ProductDialog>
+      <ConfirmDialog
+        title="确认删除"
+        description={<span className="break-all">确定删除“{deleting.externalGroup}”的 LDAP 组映射？</span>}
+        confirmLabel="删除"
+        pendingLabel="删除中"
+        saving={remove.isPending}
+        error={remove.error ? message(remove.error, 'LDAP 组映射删除失败') : undefined}
+        onClose={closeDelete}
+        onConfirm={() => remove.mutate(deleting)}
+      />
     );
   }
 
   return (
     <ProductDialog className="max-w-[1000px]" title={`LDAP 组映射 · ${source.name}`} onClose={onClose}>
       <div className="grid gap-4 p-5">
-        <ProductDataTable ariaLabel="LDAP 组映射" columns={columns} data={rows} emptyText="暂无 LDAP 组映射" error={error} getRowId={(row) => row.id} hasMore={mappings.hasNextPage} isLoading={mappings.isLoading} isLoadingMore={mappings.isFetchingNextPage} onLoadMore={() => void mappings.fetchNextPage()} onRetry={() => void mappings.refetch()} searchPlaceholder="搜索 Group DN 或产品用户组" toolbarAction={canWrite ? <Button variant="primary" size="xs" disabled={source.status !== 'ACTIVE' || !accessGroups.data?.length} title={source.status === 'ACTIVE' ? undefined : '请先启用身份源'} onClick={() => { save.reset(); setEditing(true); }}><Link2 aria-hidden className="size-3.5" />新建映射</Button> : undefined} />
+        <ProductDataTable className="max-h-[65dvh]" ariaLabel="LDAP 组映射" columns={columns} data={rows} emptyText="暂无 LDAP 组映射" error={error} getRowId={(row) => row.id} hasMore={mappings.hasNextPage} isLoading={mappings.isLoading} isLoadingMore={mappings.isFetchingNextPage} onLoadMore={() => void mappings.fetchNextPage()} onRetry={() => void mappings.refetch()} searchPlaceholder="搜索 Group DN 或产品用户组" toolbarAction={canWrite ? <Button size="sm" disabled={source.status !== 'ACTIVE' || !accessGroups.data?.length} title={source.status === 'ACTIVE' ? undefined : '请先启用身份源'} onClick={() => { save.reset(); setEditing(true); }}><Link2 aria-hidden />新建映射</Button> : undefined} />
       </div>
     </ProductDialog>
   );

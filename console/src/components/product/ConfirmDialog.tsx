@@ -1,38 +1,90 @@
 /**
- * [INPUT]: 依赖 ProductDialog、DialogFooter 与 Button，接收副作用操作的文案和提交状态。
- * [OUTPUT]: 提供统一的破坏性/状态变更确认弹窗，保留错误直到用户关闭或重试。
- * [POS]: components/product 的共享确认边界，被模型、成员、插件与技能工作台复用。
+ * [INPUT]: 依赖 coss UI AlertDialog 原语（AlertDialog/AlertDialogPopup/AlertDialogHeader/AlertDialogTitle/AlertDialogDescription/AlertDialogFooter/AlertDialogClose）与 Button/Alert。
+ * [OUTPUT]: 提供基于原生 coss AlertDialog 的统一危险/状态变更确认弹窗，保留错误直到用户取消或重试，处理中禁止 Escape 或取消关闭。
+ * [POS]: components/product 的共享确认边界，统一所有删除、停用、撤销与退休确认交互。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
-import { Button } from '@/components/atoms/Button';
-import { ProductDialog } from './Dialog';
-import { DialogFooter } from './DialogFooter';
+
+import type { ReactNode } from 'react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  AlertDialog,
+  AlertDialogClose,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogPopup,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
 
 export function ConfirmDialog({
   title,
   description,
+  detail,
   confirmLabel = '确认',
+  pendingLabel = '处理中',
+  confirmVariant = 'destructive',
+  cancelAutoFocus = false,
   saving = false,
   error,
   onClose,
   onConfirm
 }: {
   title: string;
-  description: string;
+  description: ReactNode;
+  detail?: ReactNode;
   confirmLabel?: string;
+  pendingLabel?: string;
+  confirmVariant?: 'destructive' | 'default';
+  cancelAutoFocus?: boolean;
   saving?: boolean;
   error?: string;
   onClose: () => void;
   onConfirm: () => void;
 }) {
-  return <ProductDialog title={title} onClose={onClose}>
-    <div className="grid gap-5 p-5">
-      <p className="m-0 text-[13px] leading-5 text-ink-2">{description}</p>
-      {error ? <p role="alert" className="m-0 rounded-md bg-red-tint px-3 py-2 text-[12.5px] text-red">{error}</p> : null}
-      <DialogFooter sticky>
-        <Button size="sm" disabled={saving} onClick={onClose}>取消</Button>
-        <Button variant="primary" size="sm" className="bg-red text-white" disabled={saving} onClick={onConfirm}>{saving ? '处理中' : confirmLabel}</Button>
-      </DialogFooter>
-    </div>
-  </ProductDialog>;
+  return (
+    <AlertDialog open onOpenChange={(open) => { if (!open && !saving) onClose(); }}>
+      <AlertDialogPopup>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="text-lg font-semibold">{title}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
+          {detail ? (
+            <p className="m-0 text-xs leading-relaxed text-muted-foreground">{detail}</p>
+          ) : null}
+        </AlertDialogHeader>
+        {error ? (
+          <div className="px-6 pb-5">
+            <Alert variant="error">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          </div>
+        ) : null}
+        <AlertDialogFooter>
+          <AlertDialogClose
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                autoFocus={cancelAutoFocus}
+                disabled={saving}
+              />
+            }
+          >
+            取消
+          </AlertDialogClose>
+          <Button
+            type="button"
+            variant={confirmVariant}
+            size="sm"
+            disabled={saving}
+            onClick={onConfirm}
+          >
+            {saving ? pendingLabel : confirmLabel}
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogPopup>
+    </AlertDialog>
+  );
 }
