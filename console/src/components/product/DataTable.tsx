@@ -119,10 +119,10 @@ type ProductDataTableProps<TData extends object> = {
 export type TableStatusTone = 'success' | 'warning' | 'error' | 'info' | 'neutral';
 
 const STATUS_DOT_CLASS: Record<TableStatusTone, string> = {
-  success: 'bg-emerald-500',
-  warning: 'bg-amber-500',
-  error: 'bg-red-500',
-  info: 'bg-blue-500',
+  success: 'bg-success',
+  warning: 'bg-warning',
+  error: 'bg-destructive',
+  info: 'bg-info',
   neutral: 'bg-muted-foreground/64'
 };
 

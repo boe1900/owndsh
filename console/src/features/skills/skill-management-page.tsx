@@ -447,7 +447,7 @@ export function SkillManagementPage() {
           primary={row.original.name}
           secondary={row.original.description || '暂无描述'}
           monoSecondary={false}
-          primaryBadge={row.original.current ? <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" title="当前生效" /> : undefined}
+          primaryBadge={row.original.current ? <span className="size-1.5 shrink-0 rounded-full bg-success" title="当前生效" /> : undefined}
         />
       ),
       meta: { label: '技能', className: 'w-[235px]', cellClassName: 'w-[235px]' }
@@ -537,10 +537,10 @@ export function SkillManagementPage() {
   const currentError = importMutation.error?.message ?? publishMutation.error?.message ?? revokeMutation.error?.message;
   return (
     <div className="min-h-0 flex-1 overflow-y-auto scrollbar-stable">
-      <div className="mx-auto flex h-full min-h-[540px] w-full max-w-[1440px] flex-col gap-5 px-5 py-7 sm:px-8 sm:py-9">
+      <div className="mx-auto flex h-full min-h-[540px] w-full max-w-[1440px] flex-col gap-5 px-5 py-6 sm:px-8 sm:py-7">
         <header className="flex shrink-0 items-start justify-between border-b pb-5">
           <div>
-            <h1 className="m-0 text-[22px] font-semibold leading-tight">技能</h1>
+            <h1 className="m-0 font-heading text-xl font-semibold tracking-tight leading-tight text-foreground">技能</h1>
             <p className="mt-1.5 text-xs text-muted-foreground">管理企业内部与外部开源 Agent Skills，支持公有/私有 Git 仓库锚定与版本回滚。</p>
           </div>
           <Button variant="outline" size="sm" onClick={() => setCredentialManager(true)}>

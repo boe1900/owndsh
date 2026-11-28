@@ -163,7 +163,7 @@ export function ConsoleTabBar({
                   aria-pressed={active}
                   onClick={() => onSelectRoute(to)}
                   title={item.label}
-                  className="min-w-0 max-w-[120px] truncate text-left text-[13px] outline-none sm:text-xs"
+                  className="min-w-0 max-w-[120px] truncate text-left text-sm outline-none sm:text-xs"
                 >
                   {item.label}
                 </button>

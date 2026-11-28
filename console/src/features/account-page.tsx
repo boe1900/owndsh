@@ -133,9 +133,9 @@ export function AccountLayout() {
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto scrollbar-stable">
-      <div className="mx-auto w-full max-w-[1080px] px-5 py-7 sm:px-8 sm:py-9">
+      <div className="mx-auto w-full max-w-[1080px] px-5 py-6 sm:px-8 sm:py-7">
         <header className="border-b pb-5">
-          <h1 className="m-0 text-[22px] font-semibold leading-tight">用户中心</h1>
+          <h1 className="m-0 font-heading text-xl font-semibold tracking-tight leading-tight text-foreground">用户中心</h1>
         </header>
 
         <div className="grid gap-8 py-6 md:grid-cols-[180px_minmax(0,1fr)]">

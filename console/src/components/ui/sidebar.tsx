@@ -30,10 +30,12 @@ const SIDEBAR_COOKIE_MAX_AGE: number = 60 * 60 * 24 * 7;
 const SIDEBAR_WIDTH: string = "16rem";
 const SIDEBAR_WIDTH_MOBILE: string = "18rem";
 const SIDEBAR_WIDTH_ICON: string = "3rem";
+const SIDEBAR_ROW_PX: string = "0.5rem";
+const SIDEBAR_ICON_SLOT: string = "1.5rem";
 const SIDEBAR_KEYBOARD_SHORTCUT: string = "b";
 
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-lg p-2 text-left text-sm outline-hidden ring-sidebar-ring transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pe-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg:not([class*='size-'])]:size-4 [&>svg]:shrink-0",
+  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-lg px-(--sidebar-row-px) py-1.5 text-left text-base outline-hidden ring-sidebar-ring transition-[width,height,padding,color] sm:text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pe-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0! group-data-[collapsible=icon]:p-0! group-data-[collapsible=icon]:[&>*:not([data-slot=sidebar-icon]):not(svg)]:hidden [&>span:last-child]:truncate [&>svg:not([class*='size-'])]:size-4 [&>svg]:shrink-0 [&>svg:not([class*='opacity-'])]:opacity-75 [&_[data-slot=sidebar-icon]>svg:not([class*='size-'])]:size-4 [&_[data-slot=sidebar-icon]>svg]:shrink-0 [&_[data-slot=sidebar-icon]>svg:not([class*='opacity-'])]:opacity-75 hover:[&_svg]:opacity-100 data-[active=true]:[&_svg]:opacity-100 data-[state=open]:[&_svg]:opacity-100 data-popup-open:[&_svg]:opacity-100",
   {
     defaultVariants: {
       size: "default",
@@ -41,8 +43,8 @@ const sidebarMenuButtonVariants = cva(
     },
     variants: {
       size: {
-        default: "h-8 text-sm",
-        lg: "h-12 text-sm group-data-[collapsible=icon]:p-0!",
+        default: "h-9 text-base sm:h-8 sm:text-sm",
+        lg: "h-12 text-base sm:text-sm group-data-[collapsible=icon]:p-0!",
         sm: "h-7 text-xs",
       },
       variant: {
@@ -158,7 +160,7 @@ export function SidebarProvider({
     <SidebarContext.Provider value={contextValue}>
       <div
         className={cn(
-          "group/sidebar-wrapper flex min-h-svh w-full has-data-[variant=inset]:bg-sidebar",
+          "group/sidebar-wrapper isolate flex min-h-svh w-full has-data-[variant=inset]:bg-sidebar",
           className,
         )}
         data-slot="sidebar-wrapper"
@@ -166,6 +168,8 @@ export function SidebarProvider({
           {
             "--sidebar-width": SIDEBAR_WIDTH,
             "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
+            "--sidebar-row-px": SIDEBAR_ROW_PX,
+            "--sidebar-icon-slot": SIDEBAR_ICON_SLOT,
             ...style,
           } as React.CSSProperties
         }
@@ -415,7 +419,7 @@ export function SidebarContent({
     <ScrollArea className="min-h-0 flex-1" fill overscrollContain scrollFade>
       <div
         className={cn(
-          "flex h-full flex-col gap-2 group-data-[collapsible=icon]:overflow-hidden",
+          "flex h-full flex-col gap-3 group-data-[collapsible=icon]:overflow-hidden",
           className,
         )}
         data-sidebar="content"
@@ -432,7 +436,7 @@ export function SidebarGroup({
 }: React.ComponentProps<"div">): React.ReactElement {
   return (
     <div
-      className={cn("relative flex w-full min-w-0 flex-col p-2", className)}
+      className={cn("relative flex w-full min-w-0 flex-col px-2 py-1", className)}
       data-sidebar="group"
       data-slot="sidebar-group"
       {...props}
@@ -447,8 +451,8 @@ export function SidebarGroupLabel({
 }: useRender.ComponentProps<"div">): React.ReactElement {
   const defaultProps = {
     className: cn(
-      "flex h-8 shrink-0 items-center rounded-lg px-2 font-medium text-sidebar-foreground text-xs outline-hidden ring-sidebar-ring transition-[margin,opacity] duration-200 ease-linear focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0",
-      "group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0",
+      "flex h-7 shrink-0 items-center rounded-lg px-(--sidebar-row-px) font-medium text-muted-foreground text-xs outline-hidden ring-sidebar-ring transition-[margin,opacity] duration-200 ease-linear focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0",
+      "group-data-[collapsible=icon]:-mt-7 group-data-[collapsible=icon]:opacity-0",
       className,
     ),
     "data-sidebar": "group-label",
@@ -506,7 +510,7 @@ export function SidebarMenu({
 }: React.ComponentProps<"ul">): React.ReactElement {
   return (
     <ul
-      className={cn("flex w-full min-w-0 flex-col gap-1", className)}
+      className={cn("flex w-full min-w-0 flex-col gap-0.5", className)}
       data-sidebar="menu"
       data-slot="sidebar-menu"
       {...props}
@@ -523,6 +527,24 @@ export function SidebarMenuItem({
       className={cn("group/menu-item relative", className)}
       data-sidebar="menu-item"
       data-slot="sidebar-menu-item"
+      {...props}
+    />
+  );
+}
+
+/** 侧栏统一前导视觉槽位：保证品牌标识、菜单图标与头像共用同一中心轴线与文本起线。 */
+export function SidebarIcon({
+  className,
+  ...props
+}: React.ComponentProps<"span">): React.ReactElement {
+  return (
+    <span
+      className={cn(
+        "relative flex w-(--sidebar-icon-slot) shrink-0 items-center justify-center [&>svg:not([class*='size-'])]:size-4 [&>svg]:shrink-0",
+        className,
+      )}
+      data-sidebar="icon"
+      data-slot="sidebar-icon"
       {...props}
     />
   );
@@ -622,7 +644,7 @@ export function SidebarMenuBadge({
   return (
     <div
       className={cn(
-        "pointer-events-none absolute right-1 flex h-5 min-w-5 select-none items-center justify-center rounded-lg px-1 font-medium text-sidebar-foreground text-xs tabular-nums",
+        "pointer-events-none absolute right-1 flex h-5 min-w-5 select-none items-center justify-center rounded-lg px-1 font-mono font-medium text-sidebar-foreground text-xs tabular-nums",
         "peer-hover/menu-button:text-sidebar-accent-foreground peer-data-[active=true]/menu-button:text-sidebar-accent-foreground",
         "peer-data-[size=sm]/menu-button:top-1",
         "peer-data-[size=default]/menu-button:top-1.5",

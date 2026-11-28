@@ -241,11 +241,11 @@ export function PersonalUsagePage({ memberId }: { memberId: string }) {
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto scrollbar-stable">
-      <div className="mx-auto flex w-full max-w-[1160px] flex-col gap-6 px-5 py-6 sm:px-8 sm:py-8">
+      <div className="mx-auto flex w-full max-w-[1160px] flex-col gap-5 px-5 py-6 sm:px-8 sm:py-7">
         <header className="flex flex-wrap items-start justify-between gap-4 border-b pb-5">
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="m-0 text-[22px] font-semibold tracking-tight leading-tight text-foreground">
+              <h1 className="m-0 font-heading text-xl font-semibold tracking-tight leading-tight text-foreground">
                 个人用量
               </h1>
             </div>
@@ -290,7 +290,7 @@ export function PersonalUsagePage({ memberId }: { memberId: string }) {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs font-semibold text-foreground">自定义时间范围</span>
-                      <span className="text-[11px] text-muted-foreground">最长 {MAX_CUSTOM_DAYS} 天</span>
+                      <span className="text-xs text-muted-foreground">最长 {MAX_CUSTOM_DAYS} 天</span>
                     </div>
 
                     <div className="flex flex-wrap gap-1.5">
@@ -516,7 +516,7 @@ function UsageResults({
                         className={cn('h-full rounded-full transition-all', MODEL_COLORS[index % MODEL_COLORS.length])}
                       />
                     </div>
-                    <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>输入 {formatCompactTokens(model.inputTokens)} · 输出 {formatCompactTokens(model.outputTokens)}</span>
                     </div>
                   </div>

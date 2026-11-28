@@ -1,5 +1,5 @@
 /**
- * [INPUT]: 依赖 coss UI Sidebar(Header/Content/Footer/Trigger/Rail)/Avatar/Badge/Menu 原生组件、ConfirmDialog、AccountDialog、WorkspaceDevicesMenuGroup/useWorkspaceDevicesQuery、ConsoleTabBar、OwnDsh 鲸鱼品牌资源、静态控制台路由与 TanStack navigation。
+ * [INPUT]: 依赖 coss UI Sidebar(Header/Content/Footer/Trigger/Icon/Rail)/Avatar/Badge/Menu 原生组件、ConfirmDialog、AccountDialog、WorkspaceDevicesMenuGroup/useWorkspaceDevicesQuery、ConsoleTabBar、OwnDsh 鲸鱼品牌资源、静态控制台路由与 TanStack navigation。
  * [OUTPUT]: 提供左上纯展示品牌与收缩按钮、按模型/扩展/团队/个人四组组织的角色过滤产品侧栏、停靠在左下角的单入口个人头像菜单（在线设备指示与计数、身份抬头、远程连接分组、邀请成员、弹窗用户中心、登出与 AlertDialog 二次确认）、与 ConsoleTabBar 协同的多标签状态、移动抽屉和内容窗口。
  * [POS]: app 的产品外壳；使用 coss UI 原生 Sidebar inset 布局承接原型布局与原生 coss 组件规范。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -27,6 +27,7 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
+  SidebarIcon,
   SidebarInset,
   SidebarMenu,
   SidebarMenuButton,
@@ -95,7 +96,7 @@ function ConsoleSidebar({
   const initial = member.displayName.trim().charAt(0).toUpperCase() || member.username.trim().charAt(0).toUpperCase() || 'U';
   const memberSubtitle = member.email?.trim() || `@${member.username}`;
   const statusDotClass = onlineCount > 0
-    ? 'bg-emerald-500'
+    ? 'bg-success'
     : hasFatalError
       ? 'bg-destructive'
       : totalCount > 0
@@ -105,12 +106,14 @@ function ConsoleSidebar({
   return (
     <Sidebar collapsible="icon" variant="inset" aria-label="产品导航">
       <SidebarHeader>
-        <div className="flex h-9 items-center justify-between gap-2 px-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-          <div className="flex min-w-0 items-center gap-2.5">
-            <div className="flex aspect-square size-7 shrink-0 items-center justify-center overflow-hidden rounded-md border border-sidebar-border bg-background">
-              <img src="/owndsh-whale-mono-m2-animated.png" alt="" className="size-full object-cover" />
-            </div>
-            <span className="truncate font-semibold text-foreground group-data-[collapsible=icon]:hidden">OwnDsh</span>
+        <div className="flex h-8 items-center justify-between gap-2 px-(--sidebar-row-px) group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+          <div className="flex min-w-0 items-center gap-2 group-data-[collapsible=icon]:gap-0">
+            <SidebarIcon>
+              <div className="flex aspect-square size-6 items-center justify-center overflow-hidden rounded-md border border-sidebar-border bg-background">
+                <img src="/owndsh-whale-mono-m2-animated.png" alt="" className="size-full object-cover" />
+              </div>
+            </SidebarIcon>
+            <span className="truncate font-heading text-sm font-semibold tracking-tight text-foreground group-data-[collapsible=icon]:hidden">OwnDsh</span>
           </div>
           <SidebarTrigger
             aria-label="收起侧边栏"
@@ -133,7 +136,9 @@ function ConsoleSidebar({
                       tooltip={item.label}
                       onClick={() => navigateAndClose(item.to)}
                     >
-                      <item.icon aria-hidden />
+                      <SidebarIcon>
+                        <item.icon aria-hidden />
+                      </SidebarIcon>
                       <span>{item.label}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -158,8 +163,8 @@ function ConsoleSidebar({
                   />
                 }
               >
-                <div className="relative shrink-0">
-                  <Avatar className="rounded-lg [--avatar-size:--spacing(7)]">
+                <SidebarIcon>
+                  <Avatar className="rounded-lg [--avatar-size:var(--sidebar-icon-slot)]">
                     {member.avatarUrl ? <AvatarImage src={member.avatarUrl} alt="" /> : null}
                     <AvatarFallback className="rounded-lg bg-sidebar-primary text-xs font-semibold text-sidebar-primary-foreground">
                       {initial}
@@ -168,13 +173,13 @@ function ConsoleSidebar({
                   {statusDotClass ? (
                     <span
                       aria-hidden
-                      className={cn('absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-sidebar', statusDotClass)}
+                      className={cn('absolute -bottom-0.5 -right-0.5 size-2 rounded-full ring-2 ring-sidebar', statusDotClass)}
                     />
                   ) : null}
-                </div>
-                <div className="grid min-w-0 flex-1 text-left text-xs leading-tight group-data-[collapsible=icon]:hidden">
-                  <span className="truncate font-medium text-foreground">{member.displayName}</span>
-                  <span className="truncate text-[11px] text-muted-foreground">{member.username}</span>
+                </SidebarIcon>
+                <div className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
+                  <span className="truncate text-sm font-medium text-foreground">{member.displayName}</span>
+                  <span className="truncate text-xs text-muted-foreground">{member.username}</span>
                 </div>
                 <div className="ms-auto flex shrink-0 items-center gap-1.5 group-data-[collapsible=icon]:hidden">
                   {onlineCount > 0 ? (
@@ -182,7 +187,7 @@ function ConsoleSidebar({
                       {onlineCount} 在线
                     </Badge>
                   ) : null}
-                  <ChevronsUpDown className="size-4 text-muted-foreground" />
+                  <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground opacity-75" />
                 </div>
               </MenuTrigger>
               <MenuPopup
@@ -193,7 +198,7 @@ function ConsoleSidebar({
                 data-workspace-menu=""
               >
                 <div className="px-2.5 py-2">
-                  <p className="truncate text-sm font-semibold text-foreground">{member.displayName}</p>
+                  <p className="truncate font-heading text-sm font-semibold tracking-tight text-foreground">{member.displayName}</p>
                   <p className="truncate text-xs text-muted-foreground">{memberSubtitle}</p>
                 </div>
                 <MenuSeparator />
@@ -325,7 +330,7 @@ export function ConsoleShell() {
         onSignOut={requestSignOut}
       />
 
-      <SidebarInset className="min-h-0 min-w-0 overflow-hidden md:peer-data-[variant=inset]:h-[calc(100dvh-1rem)] md:peer-data-[variant=inset]:border">
+      <SidebarInset className="min-h-0 min-w-0 overflow-hidden md:peer-data-[variant=inset]:h-[calc(100dvh-1rem)] md:peer-data-[variant=inset]:border md:peer-data-[variant=inset]:border-sidebar-border">
         <ConsoleTabBar
           activeRoute={activeRoute}
           availableRoutes={availableRoutes}

@@ -106,14 +106,14 @@ export function WorkspaceDevicesMenuGroup({ state, onOpen }: {
       ) : totalCount === 0 ? (
         <div className="space-y-0.5 px-2.5 py-1.5 text-xs">
           <p className="font-medium text-foreground">暂无远程设备</p>
-          <p className="text-[11px] leading-relaxed text-muted-foreground">
+          <p className="text-xs leading-relaxed text-muted-foreground">
             在桌面客户端登录并开启远控后，设备会出现在这里。
           </p>
         </div>
       ) : (
         <div className="max-h-48 space-y-0.5 overflow-y-auto">
           {query.isError ? (
-            <p role="status" className="m-0 px-2.5 py-1 text-[11px] text-muted-foreground">
+            <p role="status" className="m-0 px-2.5 py-1 text-xs text-muted-foreground">
               刷新失败，显示上次设备状态
             </p>
           ) : null}
@@ -137,7 +137,7 @@ export function WorkspaceDevicesMenuGroup({ state, onOpen }: {
                 <Monitor aria-hidden className="size-3.5 text-muted-foreground" />
                 <span className="min-w-0 flex-1 truncate font-medium">{device.name}</span>
                 <span className="flex shrink-0 items-center gap-1.5">
-                  <span aria-hidden className="size-2 rounded-full bg-emerald-500" />
+                  <span aria-hidden className="size-2 rounded-full bg-success" />
                   <ExternalLink aria-hidden className="size-3 text-muted-foreground" />
                 </span>
               </MenuLinkItem>
@@ -151,7 +151,7 @@ export function WorkspaceDevicesMenuGroup({ state, onOpen }: {
               >
                 <Monitor aria-hidden className="size-3.5 text-muted-foreground" />
                 <span className="min-w-0 flex-1 truncate">{device.name}</span>
-                <span id={reasonId} className="shrink-0 text-[11px] text-muted-foreground">
+                <span id={reasonId} className="shrink-0 text-xs text-muted-foreground">
                   {availability}
                 </span>
               </MenuItem>
@@ -177,7 +177,7 @@ export function WorkspaceDevicesMenuGroup({ state, onOpen }: {
                 <span>{expanded ? '收起' : '查看更多'}</span>
               </span>
               {!expanded ? (
-                <span className="shrink-0 font-mono text-[11px] tabular-nums">+{hiddenCount}</span>
+                <span className="shrink-0 font-mono text-xs tabular-nums">+{hiddenCount}</span>
               ) : null}
             </button>
           ) : null}

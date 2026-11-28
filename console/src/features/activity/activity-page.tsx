@@ -194,9 +194,9 @@ export function ActivityPage() {
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto scrollbar-stable">
-      <div className="mx-auto flex h-full min-h-[540px] w-full max-w-[1320px] flex-col gap-5 px-5 py-7 sm:px-8 sm:py-9">
+      <div className="mx-auto flex h-full min-h-[540px] w-full max-w-[1320px] flex-col gap-5 px-5 py-6 sm:px-8 sm:py-7">
         <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b pb-5">
-          <h1 className="m-0 text-[22px] font-semibold leading-tight">活动记录</h1>
+          <h1 className="m-0 font-heading text-xl font-semibold tracking-tight leading-tight text-foreground">活动记录</h1>
           {section !== undefined ? (
             <Tabs value={section} onValueChange={(next) => setSection(next as ActivitySection)}>
               <TabsList>

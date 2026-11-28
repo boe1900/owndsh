@@ -140,7 +140,7 @@ function capabilityBadges(model: ManagedModel) {
     <div className="flex min-w-0 items-center gap-1 overflow-hidden">
       {(model.input ?? ['text']).includes('text') ? <Badge variant="outline" size="sm"><MessageSquare aria-hidden />文本</Badge> : null}
       {model.input?.includes('image') ? <Badge variant="outline" size="sm"><ImageIcon aria-hidden />图片</Badge> : null}
-      {model.reasoningEfforts && typeof model.reasoningEfforts === 'object' ? <Badge variant="outline" size="sm"><Zap aria-hidden className="text-amber-500" />推理</Badge> : null}
+      {model.reasoningEfforts && typeof model.reasoningEfforts === 'object' ? <Badge variant="outline" size="sm"><Zap aria-hidden className="text-warning" />推理</Badge> : null}
     </div>
   );
 }
@@ -415,10 +415,10 @@ export function ModelCatalog() {
   return (
     <>
       <div ref={workspaceScrollRef} className="min-h-0 flex-1 overflow-y-auto scrollbar-stable">
-        <div className="mx-auto flex min-h-full w-full max-w-[1360px] flex-col gap-5 px-5 py-7 sm:px-8 sm:py-8">
+        <div className="mx-auto flex min-h-full w-full max-w-[1360px] flex-col gap-5 px-5 py-6 sm:px-8 sm:py-7">
           <header className="flex flex-wrap items-end justify-between gap-4 border-b pb-5">
             <div>
-              <h1 aria-label="模型" className="m-0 text-[22px] font-semibold leading-tight">模型管理</h1>
+              <h1 aria-label="模型" className="m-0 font-heading text-xl font-semibold tracking-tight leading-tight text-foreground">模型管理</h1>
             </div>
             <Tabs value={section} onValueChange={(next) => setSection(next as (typeof SECTIONS)[number])}>
               <TabsList>
