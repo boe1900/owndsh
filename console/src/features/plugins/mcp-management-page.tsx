@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 MCP/成员/用户组生成 API、console 权限事实、TanStack Query、ProductDataTable 与 coss UI Tabs/Badge/Button/Input/Select/Checkbox/Field/Fieldset/Alert。
- * [OUTPUT]: 提供默认筛选启用项的 MCP 服务配置与访问授权目录；配置与授权通过统一弹窗提交，服务/授权启停与删除均先确认。
+ * [INPUT]: 依赖 MCP/成员/用户组生成 API、console 权限事实、TanStack Query、ProductDataTable 与 coss UI Tabs/Badge/Button/Card/Input/Select/Checkbox/Field/Alert。
+ * [OUTPUT]: 提供默认筛选启用项的 MCP 服务配置与访问授权目录；服务编辑采用 coss UI 分区卡片与吸底操作栏弹窗，服务/授权启停与删除均先确认。
  * [POS]: features/plugins 中独立 /mcp 路由的管理工作台，和插件版本页面共享组件但不再共享菜单或 tab。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -8,7 +8,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouteContext } from '@tanstack/react-router';
 import { Pencil, Plus, Power, PowerOff, Trash2 } from 'lucide-react';
-import { useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent } from 'react';
 import { createMcpGrants, createMcpServer, deleteMcpGrant, disableMcpServer, enableMcpServer, listAccessGroups, listMcpGrants, listMcpServers, updateMcpGrant, updateMcpServer } from '@/api/generated/sdk.gen';
 import type { EnterpriseErrorResponse, McpMcpAuth, McpMcpGrant, McpMcpServer, McpMcpServerCreateRequest } from '@/api/generated/types.gen';
 import { ConfirmDialog } from '@/components/product/ConfirmDialog';
@@ -23,9 +23,9 @@ import { DialogFooter } from '@/components/product/DialogFooter';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
-import { Fieldset, FieldsetLegend } from '@/components/ui/fieldset';
 import { Input } from '@/components/ui/input';
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTab } from '@/components/ui/tabs';
@@ -127,32 +127,20 @@ const AUTH_TYPE_ITEMS = [
   { value: 'oauth', label: 'OAuth 2.0（用户端授权）' }
 ];
 
-function McpServerDialog({ current, error, onClose, onSave, saving }: {
-  current?: McpMcpServer; error?: string; onClose: () => void; onSave: (value: ServerForm) => void; saving: boolean;
+function McpAuthSection({
+  value,
+  onChange
+}: {
+  value: ServerForm;
+  onChange: <K extends keyof ServerForm>(key: K, next: ServerForm[K]) => void;
 }) {
-  const [value, setValue] = useState(() => serverForm(current));
-  const set = <K extends keyof ServerForm>(key: K, next: ServerForm[K]) => setValue((prev) => ({ ...prev, [key]: next }));
+  const dynamicRegId = useId();
   return (
-    <ProductDialog className="max-w-[700px]" title={current ? '编辑 MCP 服务' : '添加 MCP 服务'} onClose={onClose}>
-      <form className="grid gap-5 p-5" onSubmit={(event: FormEvent) => { event.preventDefault(); onSave(value); }}>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field>
-            <FieldLabel>服务标识</FieldLabel>
-            <Input autoFocus required maxLength={32} pattern={'[a-z][a-z0-9_\\-]*'} title="使用小写字母、数字、下划线和连字符" value={value.serverName} onChange={(e) => set('serverName', e.target.value)} placeholder="如：team-tools" />
-          </Field>
-          <Field>
-            <FieldLabel>显示名称</FieldLabel>
-            <Input required value={value.displayName} onChange={(e) => set('displayName', e.target.value)} placeholder="请输入服务名称" />
-          </Field>
-        </div>
-        <Field>
-          <FieldLabel>Streamable HTTP 地址</FieldLabel>
-          <Input required type="url" value={value.url} onChange={(e) => set('url', e.target.value)} placeholder="https://mcp.example.com/mcp" />
-          <FieldDescription>管理端只保存连接元数据，API Key/OAuth 凭据由用户端配置。</FieldDescription>
-        </Field>
+    <Card className="overflow-hidden shadow-none">
+      <div className="p-4">
         <Field>
           <FieldLabel>认证方式</FieldLabel>
-          <Select items={AUTH_TYPE_ITEMS} value={value.authType} onValueChange={(next) => { if (next) set('authType', next as ServerForm['authType']); }}>
+          <Select items={AUTH_TYPE_ITEMS} value={value.authType} onValueChange={(next) => { if (next) onChange('authType', next as ServerForm['authType']); }}>
             <SelectTrigger aria-label="认证方式">
               <SelectValue />
             </SelectTrigger>
@@ -162,102 +150,204 @@ function McpServerDialog({ current, error, onClose, onSave, saving }: {
               ))}
             </SelectPopup>
           </Select>
+          <FieldDescription>选择用户端连接此 MCP 服务时的鉴权协议，密钥或令牌仅保存在端侧。</FieldDescription>
         </Field>
-        {value.authType === 'api-key' ? (
-          <Fieldset className="max-w-none rounded-lg border p-4">
-            <FieldsetLegend>API Key 元数据</FieldsetLegend>
-            <Field>
-              <FieldLabel>Header 名称</FieldLabel>
-              <Input required value={value.headerName} onChange={(e) => set('headerName', e.target.value)} />
-            </Field>
-            <p className="m-0 text-xs text-muted-foreground">用户在端侧填写完整认证值，按原样发送；例如 Bearer xxx 或原始 Key。</p>
-          </Fieldset>
-        ) : null}
-        {value.authType === 'oauth' ? (
-          <Fieldset className="max-w-none rounded-lg border p-4">
-            <FieldsetLegend>OAuth 元数据</FieldsetLegend>
+      </div>
+
+      {value.authType === 'api-key' ? (
+        <div className="grid gap-3 border-t bg-muted/20 p-4">
+          <Field>
+            <FieldLabel>Header 名称</FieldLabel>
+            <Input required value={value.headerName} onChange={(e) => onChange('headerName', e.target.value)} />
+            <FieldDescription>用户在端侧填写完整认证值，按原样发送；例如 Bearer xxx 或原始 Key。</FieldDescription>
+          </Field>
+        </div>
+      ) : null}
+
+      {value.authType === 'oauth' ? (
+        <div className="grid gap-4 border-t bg-muted/20 p-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Field>
               <FieldLabel>Issuer</FieldLabel>
-              <Input required type="url" value={value.issuer} onChange={(e) => set('issuer', e.target.value)} placeholder="https://auth.example.com" />
+              <Input required type="url" value={value.issuer} onChange={(e) => onChange('issuer', e.target.value)} placeholder="https://auth.example.com" />
             </Field>
             <Field>
               <FieldLabel>Resource</FieldLabel>
-              <Input type="url" value={value.resource} onChange={(e) => set('resource', e.target.value)} placeholder="留空使用 MCP 服务地址" />
+              <Input type="url" value={value.resource} onChange={(e) => onChange('resource', e.target.value)} placeholder="留空使用 MCP 服务地址" />
             </Field>
-            <label className="flex items-center gap-2 text-sm font-medium">
-              <Checkbox
-                checked={value.dynamicRegistration}
-                onCheckedChange={(checked) => {
-                  const flag = Boolean(checked);
-                  set('dynamicRegistration', flag);
-                  if (flag) set('clientId', '');
-                }}
-              />
-              <span>允许动态注册 public client</span>
-            </label>
-            <Field>
-              <FieldLabel>Public client ID</FieldLabel>
-              <Input required={!value.dynamicRegistration} disabled={value.dynamicRegistration} value={value.clientId} onChange={(e) => set('clientId', e.target.value)} />
-            </Field>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field>
-                <FieldLabel>Authorization endpoint</FieldLabel>
-                <Input type="url" value={value.authorizationEndpoint} onChange={(e) => set('authorizationEndpoint', e.target.value)} />
-              </Field>
-              <Field>
-                <FieldLabel>Token endpoint</FieldLabel>
-                <Input type="url" value={value.tokenEndpoint} onChange={(e) => set('tokenEndpoint', e.target.value)} />
-              </Field>
+          </div>
+
+          <div className="flex items-start justify-between gap-3 rounded-lg border bg-background px-3.5 py-2.5 transition-colors hover:bg-accent/40">
+            <div className="space-y-0.5">
+              <label htmlFor={dynamicRegId} className="block cursor-pointer text-sm font-medium text-foreground">
+                允许动态注册 public client
+              </label>
+              <p className="m-0 text-xs text-muted-foreground">
+                启用后支持授权时自动注册客户端，下方 Client ID 将自动禁用。
+              </p>
             </div>
+            <Checkbox
+              id={dynamicRegId}
+              className="mt-0.5 shrink-0"
+              checked={value.dynamicRegistration}
+              onCheckedChange={(checked) => {
+                const flag = Boolean(checked);
+                onChange('dynamicRegistration', flag);
+                if (flag) onChange('clientId', '');
+              }}
+            />
+          </div>
+
+          <Field>
+            <FieldLabel>Public client ID</FieldLabel>
+            <Input
+              required={!value.dynamicRegistration}
+              disabled={value.dynamicRegistration}
+              placeholder={value.dynamicRegistration ? '已开启动态注册，无需填写' : '输入客户端 Client ID'}
+              value={value.clientId}
+              onChange={(e) => onChange('clientId', e.target.value)}
+            />
+          </Field>
+
+          <div className="grid gap-4 sm:grid-cols-2">
             <Field>
-              <FieldLabel>Scopes（空格分隔）</FieldLabel>
-              <Input value={value.scopes} onChange={(e) => set('scopes', e.target.value)} />
+              <FieldLabel>Authorization endpoint</FieldLabel>
+              <Input type="url" value={value.authorizationEndpoint} onChange={(e) => onChange('authorizationEndpoint', e.target.value)} />
             </Field>
-          </Fieldset>
-        ) : null}
-        <Fieldset className="max-w-none rounded-lg border p-4">
-          <FieldsetLegend>固定请求头</FieldsetLegend>
+            <Field>
+              <FieldLabel>Token endpoint</FieldLabel>
+              <Input type="url" value={value.tokenEndpoint} onChange={(e) => onChange('tokenEndpoint', e.target.value)} />
+            </Field>
+          </div>
+
+          <Field>
+            <FieldLabel>Scopes（空格分隔）</FieldLabel>
+            <Input value={value.scopes} onChange={(e) => onChange('scopes', e.target.value)} placeholder="例如：mcp:read mcp:write" />
+          </Field>
+        </div>
+      ) : null}
+    </Card>
+  );
+}
+
+function McpHeadersSection({
+  headers,
+  onChange
+}: {
+  headers: ServerForm['headers'];
+  onChange: (headers: ServerForm['headers']) => void;
+}) {
+  return (
+    <Card className="overflow-hidden shadow-none">
+      <div className="flex items-start justify-between gap-3 px-4 py-3">
+        <div className="min-w-0 space-y-0.5">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-foreground">固定请求头</span>
+            <Badge variant="secondary" size="sm" className="font-mono tabular-nums">{headers.length}/16</Badge>
+          </div>
           <p className="m-0 text-xs text-muted-foreground">填写版本号等公共参数；API Key 和用户令牌在端侧配置。</p>
-          {value.headers.map((header, index) => (
-            <div key={index} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_28px] items-center gap-2">
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="xs"
+          className="shrink-0"
+          disabled={headers.length >= 16}
+          onClick={() => onChange([...headers, { name: '', value: '' }])}
+        >
+          <Plus aria-hidden />
+          添加请求头
+        </Button>
+      </div>
+
+      {headers.length === 0 ? (
+        <div className="border-t bg-muted/20 px-4 py-4 text-center text-xs text-muted-foreground">
+          暂未添加固定请求头
+        </div>
+      ) : (
+        <div className="divide-y border-t bg-muted/15">
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_28px] gap-2.5 bg-muted/35 px-4 py-2 text-xs font-medium text-muted-foreground">
+            <span>Header 名称</span>
+            <span>Header 值</span>
+            <span aria-hidden />
+          </div>
+          {headers.map((header, index) => (
+            <div key={index} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_28px] items-center gap-2.5 px-4 py-2.5">
               <Input
                 required
+                size="sm"
                 aria-label={`固定 Header 名称 ${index + 1}`}
                 placeholder="请求头名称"
                 value={header.name}
-                onChange={(e) => set('headers', value.headers.map((item, i) => i === index ? { ...item, name: e.target.value } : item))}
+                onChange={(e) => onChange(headers.map((item, i) => i === index ? { ...item, name: e.target.value } : item))}
               />
               <Input
+                size="sm"
                 aria-label={`固定 Header 值 ${index + 1}`}
                 maxLength={1024}
                 placeholder="请求头值"
                 value={header.value}
-                onChange={(e) => set('headers', value.headers.map((item, i) => i === index ? { ...item, value: e.target.value } : item))}
+                onChange={(e) => onChange(headers.map((item, i) => i === index ? { ...item, value: e.target.value } : item))}
               />
               <Button
                 type="button"
                 variant="ghost"
                 size="icon-xs"
-                className="text-destructive-foreground"
+                className="text-destructive-foreground hover:bg-destructive/10"
                 aria-label={`移除固定请求头 ${index + 1}`}
                 title="移除请求头"
-                onClick={() => set('headers', value.headers.filter((_, i) => i !== index))}
+                onClick={() => onChange(headers.filter((_, i) => i !== index))}
               >
                 <Trash2 aria-hidden />
               </Button>
             </div>
           ))}
-          <Button type="button" variant="outline" size="xs" className="justify-self-start" disabled={value.headers.length >= 16} onClick={() => set('headers', [...value.headers, { name: '', value: '' }])}>
-            <Plus aria-hidden />
-            添加请求头
-          </Button>
-        </Fieldset>
-        {error ? (
-          <Alert variant="error">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        ) : null}
-        <DialogFooter sticky>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function McpServerDialog({ current, error, onClose, onSave, saving }: {
+  current?: McpMcpServer; error?: string; onClose: () => void; onSave: (value: ServerForm) => void; saving: boolean;
+}) {
+  const [value, setValue] = useState(() => serverForm(current));
+  const set = <K extends keyof ServerForm>(key: K, next: ServerForm[K]) => setValue((prev) => ({ ...prev, [key]: next }));
+  return (
+    <ProductDialog
+      className="flex max-h-[88vh] max-w-[680px] flex-col overflow-hidden"
+      title={current ? '编辑 MCP 服务' : '添加 MCP 服务'}
+      description="配置连接端点、端侧鉴权方式与公共请求头"
+      onClose={onClose}
+    >
+      <form className="flex min-h-0 flex-1 flex-col" onSubmit={(event: FormEvent) => { event.preventDefault(); onSave(value); }}>
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field>
+              <FieldLabel>服务标识</FieldLabel>
+              <Input autoFocus required maxLength={32} pattern={'[a-z][a-z0-9_\\-]*'} title="使用小写字母、数字、下划线和连字符" value={value.serverName} onChange={(e) => set('serverName', e.target.value)} placeholder="如：team-tools" />
+            </Field>
+            <Field>
+              <FieldLabel>显示名称</FieldLabel>
+              <Input required value={value.displayName} onChange={(e) => set('displayName', e.target.value)} placeholder="请输入服务名称" />
+            </Field>
+          </div>
+          <Field>
+            <FieldLabel>Streamable HTTP 地址</FieldLabel>
+            <Input required type="url" value={value.url} onChange={(e) => set('url', e.target.value)} placeholder="https://mcp.example.com/mcp" />
+            <FieldDescription>管理端只保存连接元数据，API Key/OAuth 凭据由用户端配置。</FieldDescription>
+          </Field>
+
+          <McpAuthSection value={value} onChange={set} />
+          <McpHeadersSection headers={value.headers} onChange={(headers) => set('headers', headers)} />
+
+          {error ? (
+            <Alert variant="error">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+        </div>
+        <DialogFooter className="shrink-0 border-t bg-muted/40 px-6">
           <Button type="button" variant="outline" size="sm" onClick={onClose}>取消</Button>
           <Button type="submit" size="sm" disabled={saving}>{saving ? '保存中' : '保存服务'}</Button>
         </DialogFooter>

@@ -96,7 +96,7 @@ function SubjectPicker({ label, hint, subjectType, subjectIds, onTypeChange, onI
     }
     const member = members.find((candidate) => candidate.id === id);
     return member
-      ? { id, name: member.displayName, avatar: <Avatar className="size-4 text-[9px]"><AvatarFallback className="bg-primary/10 font-semibold text-primary">{member.displayName.slice(0, 1)}</AvatarFallback></Avatar> }
+      ? { id, name: member.displayName, avatar: <Avatar className="size-4 text-[10px]"><AvatarFallback className="bg-primary/10 font-semibold text-primary">{member.displayName.slice(0, 1)}</AvatarFallback></Avatar> }
       : { id, name: id, avatar: null };
   });
   return (
@@ -142,16 +142,25 @@ function SubjectPicker({ label, hint, subjectType, subjectIds, onTypeChange, onI
       ) : (
         <Card className="space-y-2.5 bg-muted/40 p-3.5 shadow-none">
           {subjectIds.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
               {(subjectExpanded ? selectedCards : selectedCards.slice(0, 3)).map((card) => (
-                <Badge key={card.id} variant="outline" className="gap-1.5 rounded-full bg-background py-0.5 pl-1 pr-1.5 text-xs font-normal">
+                <Badge key={card.id} variant="outline" className="h-7! gap-1.5 rounded-full bg-background px-1.5 text-xs font-normal sm:h-6!">
                   {card.avatar}
-                  <span className="max-w-40 truncate">{card.name}</span>
+                  <span className="max-w-44 truncate">{card.name}</span>
                   <button type="button" aria-label={`移除 ${card.name}`} className="grid size-4 place-items-center rounded-full text-muted-foreground transition hover:bg-destructive/15 hover:text-destructive-foreground" onClick={() => toggle(card.id)}><X aria-hidden className="size-3" /></button>
                 </Badge>
               ))}
-              {!subjectExpanded && selectedCards.length > 3 ? <Button type="button" variant="outline" size="xs" className="h-5 rounded-full px-2.5" onClick={() => setSubjectExpanded(true)}>+{selectedCards.length - 3}</Button> : null}
-              {subjectExpanded && selectedCards.length > 3 ? <Button type="button" variant="outline" size="xs" className="h-5 rounded-full px-2.5" onClick={() => setSubjectExpanded(false)}>收起</Button> : null}
+              {selectedCards.length > 3 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  className="rounded-full px-2.5 font-mono tabular-nums before:rounded-full"
+                  onClick={() => setSubjectExpanded((expanded) => !expanded)}
+                >
+                  {subjectExpanded ? '收起' : `+${selectedCards.length - 3}`}
+                </Button>
+              ) : null}
             </div>
           ) : null}
           <div className="flex items-center justify-between gap-3">
@@ -578,8 +587,8 @@ export function QuotaEditorDialog({ accessGroups, connections, current, error, m
           ) : null}
 
           {type === 'RATE' ? (
-            <Fieldset className="max-w-none gap-3 rounded-xl border p-4">
-              <FieldsetLegend className="px-1 text-[12.5px] font-semibold">请求约束</FieldsetLegend>
+            <Fieldset className="grid max-w-none gap-3 rounded-xl border p-4">
+              <FieldsetLegend className="px-1.5 text-xs font-semibold">请求约束</FieldsetLegend>
               <div className="grid gap-4 sm:grid-cols-2">
                 {([
                   ['rpm', '每分钟请求（RPM）'],

@@ -127,6 +127,24 @@ export function groupModelSetMembers(
   return Array.from(providers.values());
 }
 
+/** 紧凑展示模型上下文容量与多模态图标，保持明显矮于外层模型胶囊。 */
+function ModelContextTag({ model }: { model: ManagedModel }) {
+  return (
+    <span className="inline-flex h-4.5 shrink-0 items-center gap-1 rounded bg-muted/80 px-1.5 text-[10px] leading-none font-normal text-muted-foreground tabular-nums">
+      <span className="font-mono">{formatTokenCapacity(model.contextWindow) || '—'}</span>
+      {model.input?.includes('image') ? (
+        <>
+          <span>·</span>
+          <span className="inline-flex items-center gap-0.5" title="支持图片输入">
+            <ImageIcon aria-hidden className="size-2.5" />
+            图
+          </span>
+        </>
+      ) : null}
+    </span>
+  );
+}
+
 function ModelSetCard({
   set,
   models,
@@ -223,12 +241,9 @@ function ModelSetCard({
                       </div>
                       <div className="flex flex-wrap items-center gap-1.5 pl-3">
                         {visibleModels.map((model) => (
-                          <Badge key={model.id} variant="outline" className="h-auto gap-1.5 py-1 pl-2.5 pr-1.5 text-xs font-medium">
+                          <Badge key={model.id} variant="outline" className="h-auto! min-h-7 gap-1.5 rounded-md py-1 pl-2.5 pr-1.5 text-xs font-medium">
                             <span className="truncate" title={modelLabel(model)}>{modelLabel(model)}</span>
-                            <span className="inline-flex shrink-0 items-center gap-1 rounded border bg-muted/50 px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground">
-                              <span className="font-mono">{formatTokenCapacity(model.contextWindow) || '—'}</span>
-                              {model.input?.includes('image') ? <><span>·</span><span className="inline-flex items-center gap-0.5" title="支持图片输入"><ImageIcon aria-hidden className="size-2.5" />图</span></> : null}
-                            </span>
+                            <ModelContextTag model={model} />
                             {canWrite ? (
                               <button type="button" className="ml-0.5 text-muted-foreground transition hover:text-destructive-foreground" title="移出模型" aria-label={'从 ' + set.name + ' 移出 ' + modelLabel(model)} disabled={busy} onClick={() => setRemovingModel(model)}>
                                 <X aria-hidden className="size-3" />
@@ -391,15 +406,12 @@ function ModelSetEditor({
                                 const selected = modelIds.includes(model.id);
                                 const disabled = model.status === 'DISABLED' && !selected;
                                 return (
-                                  <button type="button" key={model.id} disabled={disabled} aria-pressed={selected} onClick={() => toggleModel(model)} className={'inline-flex max-w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs transition ' + (selected ? 'border-ring bg-accent font-semibold text-foreground' : disabled ? 'cursor-not-allowed bg-muted/40 text-muted-foreground opacity-60' : 'bg-card text-muted-foreground hover:bg-muted/40')}>
+                                  <button type="button" key={model.id} disabled={disabled} aria-pressed={selected} onClick={() => toggleModel(model)} className={'inline-flex min-h-8 max-w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs transition ' + (selected ? 'border-ring bg-accent font-semibold text-foreground' : disabled ? 'cursor-not-allowed bg-muted/40 text-muted-foreground opacity-60' : 'bg-card text-muted-foreground hover:bg-muted/40')}>
                                     <span className={'grid size-3.5 shrink-0 place-items-center rounded border transition ' + (selected ? 'border-primary bg-primary text-primary-foreground' : 'border-input bg-background')}>
                                       {selected ? <Check aria-hidden className="size-2.5 stroke-[3]" /> : null}
                                     </span>
                                     <span className="truncate" title={modelLabel(model)}>{modelLabel(model)}</span>
-                                    <span className="inline-flex shrink-0 items-center gap-1 rounded border bg-muted/50 px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground">
-                                      <span className="font-mono">{formatTokenCapacity(model.contextWindow) || '—'}</span>
-                                      {model.input?.includes('image') ? <><span>·</span><span className="inline-flex items-center gap-0.5" title="支持图片输入"><ImageIcon aria-hidden className="size-2.5" />图</span></> : null}
-                                    </span>
+                                    <ModelContextTag model={model} />
                                   </button>
                                 );
                               })}

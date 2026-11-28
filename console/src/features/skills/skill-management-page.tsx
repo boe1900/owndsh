@@ -169,7 +169,7 @@ function ImportDialog({ credentials, error, saving, preview, prefill, onClose, o
           <FieldLabel>仓库地址</FieldLabel>
           <Input required type="url" placeholder="https://gitlab.corp.com/ai-team/enterprise-skills" value={value.repositoryUrl} onChange={event => set('repositoryUrl', event.target.value)} />
         </Field>
-        <div className="grid grid-cols-[130px_1fr] gap-2">
+        <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-2">
           <Select items={[{ value: 'tag', label: 'Git Tag / Ref' }]} value="tag" onValueChange={() => undefined}>
             <SelectTrigger aria-label="ref 类型">
               <SelectValue />
@@ -194,7 +194,7 @@ function ImportDialog({ credentials, error, saving, preview, prefill, onClose, o
                 </Button>
               </div>
               {addingCredential ? (
-                <div className="grid gap-2 border-t pt-3">
+                <div className="grid gap-3 border-t pt-3">
                   <Field>
                     <FieldLabel>备注名称</FieldLabel>
                     <Input required placeholder="内网 GitLab 只读凭据" value={newCredential.name} onChange={event => setNewCredential(current => ({ ...current, name: event.target.value }))} />
@@ -224,7 +224,7 @@ function ImportDialog({ credentials, error, saving, preview, prefill, onClose, o
                       ))}
                     </SelectPopup>
                   </Select>
-                  <p className="m-0 text-[11px] text-muted-foreground">凭据只在服务端加密保存，仓库地址由本次导入决定。</p>
+                  <p className="m-0 text-xs text-muted-foreground">凭据只在服务端加密保存，仓库地址由本次导入决定。</p>
                 </>
               )}
             </CardPanel>
@@ -240,7 +240,7 @@ function ImportDialog({ credentials, error, saving, preview, prefill, onClose, o
           </Alert>
         ) : null}
         <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
-          <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <ShieldCheck className="size-3.5 text-success" />
             会校验真实 Commit、唯一 SKILL.md 和 SHA-256
           </span>
